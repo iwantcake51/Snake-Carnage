@@ -27,7 +27,8 @@ function updateFlash(c, dt) {
   f.a += angDiff(f.a, tgt) * Math.min(1, dt * rate);
   const running = st === 'panic' || st === 'flee';
   f.da = f.a + (running ? Math.sin(c.phase * 1.7) * .07 + (Math.random() - .5) * .04 : Math.sin(c.phase * 1.1) * .02);
-  f.x = c.x + Math.cos(c.a) * 5 - Math.sin(c.a) * 4; f.y = c.y + Math.sin(c.a) * 5 + Math.cos(c.a) * 4;
+  const [, , hx, hy] = armPos(c), ca = Math.cos(c.a), sa = Math.sin(c.a), lx = hx + 1; // light sits in the right hand
+  f.x = c.x + ca * lx - sa * hy; f.y = c.y + sa * lx + ca * hy;
   let fl = 1; if (f.fT > 0) { f.fT -= dt; fl = Math.random() < .5 ? rand(.25, .7) : 1; } else if (f.flick && Math.random() < dt * .08) f.fT = rand(.12, .35);
   f.k = f.on ? f.pow * fl : 0;
 }
@@ -70,6 +71,7 @@ function drawFlashBodies(x) {
     x.save(); x.translate(f.x, f.y); x.rotate(f.da);
     x.fillStyle = '#26262b'; x.fillRect(-4, -1.6, 7, 3.2); x.fillStyle = '#4a4a52'; x.fillRect(2.5, -2.1, 2, 4.2);
     x.fillStyle = f.k > .01 ? `rgb(${f.c})` : '#777'; x.fillRect(4.3, -1.7, 1, 3.4);
+    if (f.holder && f.holder.look) { x.fillStyle = f.holder.look.skin; circ(x, -.5, 0, 2.1); } // fingers wrapped round the grip
     x.restore();
   };
   for (const c of creatures) if (c.alive && c.fl) one(c.fl);

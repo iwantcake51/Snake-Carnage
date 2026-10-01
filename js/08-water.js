@@ -10,12 +10,17 @@ function wPath(x, S, inset = 0) {
   else rrect(x, S.cx - S.hw + inset, S.cy - S.hh + inset, (S.hw - inset) * 2, (S.hh - inset) * 2, Math.max(1, 7 - inset));
 }
 function inWater(o, px, py) { const S = wShape(o); return S.round ? dist2(px, py, S.cx, S.cy) < S.hw * S.hw : Math.abs(px - S.cx) < S.hw && Math.abs(py - S.cy) < S.hh; }
-function waterBlood(o, px, py, q) { // q ~ drop size; clouds are visual, tint is the long-term stain
-  const b = o.wb || (o.wb = { tint: 0, shown: 0, clouds: [] });
+function waterBlood(o, px, py, q, vx = 0, vy = 0) { // q ~ drop size; clouds are what you see spread, tint is the long-term stain
+  const b = o.wb || (o.wb = { tint: 0, shown: 0, clouds: [], rings: [] });
   b.tint += q;
-  const near = b.clouds.find(c => dist2(c.x, c.y, px, py) < (c.r * .6) ** 2);
-  if (near) near.a = Math.min(.7, near.a + q * 3);
-  else { if (b.clouds.length > 50) b.clouds.shift(); b.clouds.push({ x: px, y: py, r: 3, a: Math.min(.75, .3 + q * 3), g: rand(8, 16) }); }
+  const near = b.clouds.find(c => dist2(c.x, c.y, px, py) < Math.max(16, c.r * .7) ** 2); // nearby drops feed one cloud
+  if (near) { near.a = Math.min(.32, near.a + q * .8); return; }
+  if (b.clouds.length > 30) b.clouds.shift();
+  const sp = Math.hypot(vx, vy), ux = sp ? vx / sp : 0, uy = sp ? vy / sp : 0, push = Math.min(14, sp * .04);
+  const puffs = Array.from({ length: randi(3, 5) }, () => { const a = rand(0, TAU), k = rand(4, 12); // a few wisps that drift apart
+    return { dx: rand(-2, 2), dy: rand(-2, 2), vx: Math.cos(a) * k + ux * push * rand(.5, 1), vy: Math.sin(a) * k + uy * push * rand(.5, 1), s: rand(.55, 1.1) }; });
+  b.clouds.push({ x: px, y: py, r: 5, a: Math.min(.3, .12 + q * 1.2), g: rand(12, 20), puffs, seed: rand(0, 100) });
+  if (b.rings.length < 12 && Math.random() < .5) b.rings.push({ x: px, y: py, t: 0 }); // a little plip where it went in
 }
 function updateWaters(dt) {
   if (!obstacles) return;
@@ -23,11 +28,15 @@ function updateWaters(dt) {
     const b = o.kind === 'water' && o.wb; if (!b) continue;
     b.tint *= Math.exp(-dt / 900);                       // the filter very slowly cleans it
     b.shown += (b.tint - b.shown) * Math.min(1, dt * .5); // diffusion lag: the color creeps in
+    const S = wShape(o);
     for (let i = b.clouds.length - 1; i >= 0; i--) {
-      const c = b.clouds[i]; c.r += dt * c.g / (1 + c.r / 22); c.a -= dt * c.a * .09;
-      c.x += Math.sin(T * .4 + i) * dt * 2; c.y += Math.cos(T * .3 + i * 1.7) * dt * 2;
+      const c = b.clouds[i]; c.r += dt * c.g / (1 + c.r / 18); c.a -= dt * c.a * .07;
+      const dx = c.x - S.cx, dy = c.y - S.cy, d = Math.hypot(dx, dy) || 1, sw = S.round ? 5 : 2; // the current slowly swirls it around
+      c.x += (-dy / d * sw + Math.sin(T * .5 + c.seed) * 1.5) * dt; c.y += (dx / d * sw + Math.cos(T * .4 + c.seed) * 1.5) * dt;
+      for (const p of c.puffs) { p.dx += p.vx * dt; p.dy += p.vy * dt; const f = Math.exp(-dt * .6); p.vx *= f; p.vy *= f; }
       if (c.a < .02) b.clouds.splice(i, 1);
     }
+    for (let i = b.rings.length - 1; i >= 0; i--) if ((b.rings[i].t += dt) > .7) b.rings.splice(i, 1);
   }
 }
 function bloodTint(o, S) { // 0..1 strength and color, diluted by the size of the water
@@ -62,11 +71,15 @@ function drawWater(x, o, t) {
   if (tint) { // diffused blood: faint pink first, deep red once there's a lot
     x.fillStyle = `rgba(${tint.rgb},${tint.a.toFixed(3)})`; x.fillRect(cx - hw, cy - hh, hw * 2, hh * 2);
   }
-  if (o.wb) for (const c of o.wb.clouds) { // fresh blood still spreading
-    const cg = x.createRadialGradient(c.x, c.y, 0, c.x, c.y, c.r);
-    cg.addColorStop(0, `rgba(150,8,16,${c.a.toFixed(3)})`); cg.addColorStop(.6, `rgba(170,15,25,${(c.a * .5).toFixed(3)})`); cg.addColorStop(1, 'rgba(180,20,30,0)');
-    x.fillStyle = cg; x.fillRect(c.x - c.r, c.y - c.r, c.r * 2, c.r * 2);
+  if (o.wb) for (const c of o.wb.clouds) { // fresh blood still spreading: soft wisps with a darker heart, thinning out as they grow
+    for (const p of c.puffs) {
+      const px = c.x + p.dx, py = c.y + p.dy, r = c.r * p.s, a = c.a * (.55 + .45 * p.s);
+      const cg = x.createRadialGradient(px, py, 0, px, py, r);
+      cg.addColorStop(0, `rgba(130,6,16,${(a * .7).toFixed(3)})`); cg.addColorStop(.5, `rgba(165,18,28,${(a * .4).toFixed(3)})`); cg.addColorStop(1, 'rgba(190,30,40,0)');
+      x.fillStyle = cg; x.fillRect(px - r, py - r, r * 2, r * 2);
+    }
   }
+  if (o.wb) for (const g of o.wb.rings) { x.strokeStyle = `rgba(255,220,220,${(.5 * (1 - g.t / .7)).toFixed(3)})`; x.lineWidth = 1; x.beginPath(); x.arc(g.x, g.y, 1.5 + g.t * 14, 0, TAU); x.stroke(); }
   // caustics: two crossing sets of wobbling lines drifting slowly
   x.lineWidth = 1.4; x.lineCap = 'round';
   const step = Math.max(4, M / 11), gap = Math.max(9, Math.min(M / 5, 30));

@@ -93,7 +93,10 @@ function updateBlood(dt) {
     const drag = 1 - .6 * dt; p.vx *= drag; p.vy *= drag;
     if (solid(p.x, p.y) && p.z < 60) { // lamps are thin poles: blood flies past their tops and lands around them
       const o = obstacleAt(p.x, p.y);
-      if (o && o.kind === 'water' && inWater(o, p.x, p.y)) { waterBlood(o, p.x, p.y, p.r * p.r * .02); killPart(i); continue; }
+      if (o && o.kind === 'water') { // water is low: drops arc over the rim and come down in it
+        if (inWater(o, p.x, p.y)) { if (p.z <= 2) { waterBlood(o, p.x, p.y, p.r * p.r * .02, p.vx, p.vy); killPart(i); } continue; }
+        if (p.z > 3) continue;
+      }
       if (!o || o.kind !== 'lamp') { wallSplat(p.x, p.y, p.vx, p.vy, p.r * 1.4, p.c); Sfx.splat(p.x, true); killPart(i); continue; }
     }
     if (p.z < 30 && !p.hc) { // airborne drops stain anyone they fly into
