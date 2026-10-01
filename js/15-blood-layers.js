@@ -61,7 +61,7 @@ const grassAt = (x, y) => { const i = x / GM | 0, j = y / GM | 0; return i >= 0 
 const grassColAt = (x, y) => grassCol[(y / GM | 0) * GMW + (x / GM | 0)] || [110, 170, 70];
 
 function spawnBlood(x, y, dirA, amount, spread, backFrac) {
-  const n = Math.round(150 * amount * (parts.length > 500 ? .5 : 1));
+  const n = Math.round(95 * amount * (parts.length > 500 ? .5 : 1));
   for (let i = 0; i < n && parts.length < CONFIG.maxParticles; i++) {
     let a, sp; const r = Math.random();
     if (r < backFrac) { a = dirA + Math.PI + gauss() * .9; sp = rand(60, 220); }       // back-spray onto the snake

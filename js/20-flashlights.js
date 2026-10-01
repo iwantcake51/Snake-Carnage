@@ -74,6 +74,6 @@ function drawFlashBodies(x) {
     if (f.holder && f.holder.look) { x.fillStyle = f.holder.look.skin; circ(x, -.5, 0, 2.1); } // fingers wrapped round the grip
     x.restore();
   };
-  for (const c of creatures) if (c.alive && c.fl) one(c.fl);
+  for (const c of creatures) if (c.alive && c.fl && c.fl.on) one(c.fl); // in daylight it's put away
   for (const d of dropped) one(d);
 }

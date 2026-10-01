@@ -4,7 +4,7 @@
 function armPos(c) {
   const L = c.look, s = Math.sin(c.phase) * c.moveAmt, sw = L.w + .4;
   if (c.state === 'panic') { const f = Math.sin(T * 25 + c.side) * 2; return [5.5 + f, -sw + 1.5, 5.5 - f, sw - 1.5]; }
-  if (c.fl) return [-s * 4, -sw, 6 + s * .8, sw - 2]; // right hand held out in front with the flashlight
+  if (c.fl && c.fl.on) return [-s * 4, -sw, 6 + s * .8, sw - 2]; // right hand held out in front with the flashlight
   return [-s * 4, -sw, s * 4, sw];
 }
 function shapePath(x, c) {

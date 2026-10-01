@@ -30,6 +30,8 @@ const LINES = {
     'GO GO GO!', 'oh shit, oh shit', 'WAIT FOR ME!'],
   escaped: ['I think I lost it', 'oh thank god', "keep going, don't stop", 'holy shit, that was close', 'is it gone?', "I'm never coming back here",
     'breathe... just breathe', 'I can\'t feel my legs'],
+  relief: ['oh thank god', "it didn't see me", 'phew...', 'that was way too close', "I'm still alive?", 'it just... went past',
+    'holy shit, it missed me', 'okay. okay. breathe.', "don't move, it's leaving", 'I think I peed a little', 'not today, snake', 'I owe someone a prayer'],
   panic: ['RUN!', 'HELP!', 'keep running', 'call the police', 'oh god, oh god', "this isn't happening", 'SOMEBODY HELP!', 'where do we go?!', 'FUCK!',
     "don't stop", 'SHIT!', 'we have to hide', 'GET INSIDE!']
 };
@@ -175,6 +177,8 @@ function perceive(c) {
   if (state !== 'play' || !s.started) return;
   const dist = Math.hypot(c.x - s.x, c.y - s.y), sight = c.def.sight * (MOD.skittish ? 1.5 : MOD.oblivious ? .6 : 1);
   const seen = dist < 40 || (dist < sight && lightAt(s.x, s.y) > VISIBLE && los(c.x, c.y, s.x, s.y));
+  if (dist < 75 && (seen || dist < 40)) c.closeCall = true; // the snake came right past them...
+  else if (c.closeCall && dist > 140) { c.closeCall = false; if (hum && Math.random() < .6) say(c, 'relief'); } // ...and kept going
   if (c.state === 'flee' || c.state === 'panic' || c.state === 'uneasy') {
     if (seen) { c.fx = s.x; c.fy = s.y; if (dist < 90) c.wasChased = true; } // run from where it actually is
     for (let i = 0; i < s.segs.length; i += 2) { // and around its body
