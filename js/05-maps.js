@@ -57,6 +57,25 @@ const LAMP = (x, y) => C(x, y, 5, '#3a3a3a', 'lamp');
 const TREE = (x, y, r) => C(x, y, r, '#3d7a2a');
 const FIRE = (x, y) => ({ x, y, r: 150, c: '255,150,60', flick: true, kind: 'fire' });
 
+
+/* ---- space maps: same snake rules, stranger places ---- */
+function starfield(x, rx, ry, rw, rh, n, seed) { // little window onto space
+  let sd = seed; const r = () => (sd = sd * 16807 % 2147483647) / 2147483647;
+  x.fillStyle = '#05060d'; x.fillRect(rx, ry, rw, rh);
+  for (let i = 0; i < n; i++) { x.fillStyle = r() < .15 ? '#9fd0ff' : '#ffffff'; x.globalAlpha = .4 + r() * .6; x.fillRect(rx + r() * rw, ry + r() * rh, r() < .1 ? 2 : 1, r() < .1 ? 2 : 1); }
+  x.globalAlpha = 1; x.strokeStyle = '#8a93a0'; x.lineWidth = 3; x.strokeRect(rx + 1.5, ry + 1.5, rw - 3, rh - 3);
+}
+function craters(x, n, base, seed) {
+  let sd = seed; const r = () => (sd = sd * 16807 % 2147483647) / 2147483647;
+  for (let i = 0; i < n; i++) {
+    const cx = 30 + r() * (W - 60), cy = 30 + r() * (H - 60), cr = 6 + r() * r() * 34;
+    x.fillStyle = shade(base, -.12); circ(x, cx, cy, cr); x.fillStyle = shade(base, -.05); circ(x, cx + cr * .15, cy + cr * .15, cr * .8);
+    x.strokeStyle = shade(base, .12); x.lineWidth = Math.max(1, cr * .12); x.beginPath(); x.arc(cx, cy, cr, Math.PI * .9, Math.PI * 1.8); x.stroke();
+  }
+}
+function speckle(x, n, cols, seed) { let sd = seed; const r = () => (sd = sd * 16807 % 2147483647) / 2147483647; for (let i = 0; i < n; i++) { x.fillStyle = cols[i % cols.length]; x.fillRect(r() * W, r() * H, 1.5, 1.5); } }
+const ROCK = (x, y, r, col = '#6e7178') => C(x, y, r, col, 'rock');
+
 /* Map design rules: lanes >= 60px wide, obstacles either touch the border/each other or leave a real gap,
    loops everywhere so chases never end in a dead end, and a mix of lit spots and dark cover for night hunting. */
 const MAPS = [
@@ -235,5 +254,81 @@ const MAPS = [
       obs: [R(192, 128, 64, 64, '#b0443d', 'block'), R(704, 128, 64, 64, '#b0443d', 'block'), R(192, 448, 64, 64, '#b0443d', 'block'), R(704, 448, 64, 64, '#b0443d', 'block')],
       floor(x) { checker(x, '#ece8e0', '#3a3a42', 64); }
     })
+  },
+  {
+    name: 'Moon', icon: '🌕', border: '#4a4d54', start: { x: 480, y: 150, a: 0 }, times: { evening: 2, night: 4 },
+    pop: [['astronaut', 12], ['alien', 2]],
+    lights: [{ x: 480, y: 215, r: 160, kind: 'fluor' }, { x: 480, y: 425, r: 160, kind: 'fluor' }, { x: 250, y: 310, r: 70, kind: 'emerg' }, { x: 710, y: 310, r: 70, kind: 'emerg' },
+             { x: 140, y: 110, r: 90, kind: 'fluor' }, { x: 820, y: 530, r: 90, kind: 'fluor' }],
+    build: () => ({
+      obs: [ // a moon base across the middle (hub + two modules on tube corridors), boulders and rovers out on the regolith
+        R(400, 260, 160, 110, '#d9dee4', 'building'), R(320, 296, 80, 36, '#c4cad2', 'wall'), R(560, 296, 80, 36, '#c4cad2', 'wall'),
+        R(230, 262, 90, 104, '#e4e8ec', 'building'), R(640, 262, 90, 104, '#e4e8ec', 'building'),
+        R(110, 120, 52, 30, '#c9ccd1', 'car'), R(800, 500, 52, 30, '#c9ccd1', 'car'),
+        ROCK(180, 500, 24), ROCK(800, 150, 28), ROCK(480, 95, 18), ROCK(480, 545, 20), ROCK(880, 330, 18), ROCK(75, 330, 16)
+      ],
+      floor(x) { checker(x, '#8d9096', '#888b91', 40); craters(x, 26, '#8a8d93', 7); speckle(x, 500, ['#a2a5ab', '#74777d'], 3);
+        x.strokeStyle = 'rgba(70,72,78,.35)'; x.lineWidth = 4; x.setLineDash([3, 4]); x.beginPath(); x.moveTo(136, 150); x.bezierCurveTo(260, 220, 300, 420, 826, 515); x.stroke(); x.setLineDash([]); } // rover tracks
+    })
+  },
+  {
+    name: 'Mars', icon: '🔴', border: '#5e2412', start: { x: 480, y: 120, a: 0 }, times: { dawn: 2, afternoon: 1.5, sunset: 2.5, evening: 1.5 },
+    pop: [['astronaut', 10], ['alien', 5]],
+    lights: [{ x: 490, y: 315, r: 150, kind: 'fluor' }, { x: 250, y: 200, r: 110, kind: 'fluor' }, { x: 705, y: 430, r: 110, kind: 'fluor' }, { x: 420, y: 255, r: 55, kind: 'emerg' }],
+    build: () => ({
+      obs: [ // a research base: two domes and a habitat, red rocks scattered around for cover
+        C(250, 200, 50, '#ece6dd', 'silo'), C(705, 430, 54, '#ece6dd', 'silo'), R(420, 270, 140, 90, '#d6d0c8', 'building'),
+        R(150, 470, 50, 30, '#e0dcd6', 'car'), ROCK(760, 150, 30, '#7a3418'), ROCK(820, 210, 18, '#7a3418'), ROCK(130, 330, 22, '#7a3418'),
+        ROCK(420, 520, 26, '#7a3418'), ROCK(560, 120, 20, '#7a3418'), ROCK(880, 560, 22, '#7a3418'), ROCK(330, 400, 14, '#7a3418')
+      ],
+      floor(x) { checker(x, '#b4532b', '#ad4f28', 40); craters(x, 12, '#b0512a', 11);
+        x.globalAlpha = .18; x.fillStyle = '#e9a06a'; for (let i = 0; i < 14; i++) { x.beginPath(); x.ellipse(rand(0, W), rand(0, H), rand(60, 160), rand(8, 20), -.3, 0, TAU); x.fill(); } x.globalAlpha = 1; // dust drifts
+        speckle(x, 400, ['#c86a3a', '#8e3a1a'], 5); }
+    })
+  },
+  {
+    name: 'Alien Facility', icon: '👽', border: '#1b2428', start: { x: 120, y: 320, a: 0 }, indoor: true,
+    pop: [['human', 10], ['alien', 6]],
+    lights: [{ x: 160, y: 110, r: 120, kind: 'alien' }, { x: 820, y: 110, r: 120, kind: 'alien' }, { x: 480, y: 320, r: 150, kind: 'alien' },
+             { x: 250, y: 320, r: 150, kind: 'fluor' }, { x: 720, y: 320, r: 150, kind: 'fluor' }, { x: 170, y: 540, r: 130, kind: 'fluor' }, { x: 800, y: 540, r: 130, kind: 'fluor' },
+             { x: 470, y: 540, r: 70, kind: 'emerg' }, { x: 640, y: 110, r: 70, kind: 'emerg' }],
+    build: () => {
+      const wc = '#3a4a50';
+      return {
+        obs: [ // a corridor through the middle, labs above and below with wide doors, specimen tanks glowing in the dark
+          R(16, 200, 300, 14, wc), R(420, 200, 240, 14, wc), R(760, 200, 184, 14, wc),
+          R(16, 430, 220, 14, wc), R(340, 430, 280, 14, wc), R(720, 430, 224, 14, wc),
+          R(470, 16, 14, 184, wc), R(300, 444, 14, 180, wc), R(640, 444, 14, 180, wc),
+          Object.assign(C(160, 110, 32, '#3dff9a', 'water'), { tank: true }), Object.assign(C(820, 110, 32, '#3dff9a', 'water'), { tank: true }), Object.assign(C(480, 320, 38, '#46e0ff', 'water'), { tank: true }),
+          R(560, 70, 110, 34, '#9aa7ad', 'desk'), R(80, 530, 110, 34, '#9aa7ad', 'desk'), R(760, 530, 120, 34, '#9aa7ad', 'desk'), R(400, 540, 120, 30, '#9aa7ad', 'desk')
+        ],
+        floor(x) { checker(x, '#1f2a2e', '#1c2629', 40); x.strokeStyle = 'rgba(80,255,170,.35)'; x.lineWidth = 2; x.beginPath(); x.moveTo(16, 322); x.lineTo(W - 16, 322); x.stroke();
+          x.fillStyle = 'rgba(80,255,170,.08)'; x.fillRect(16, 214, W - 32, 216); }
+      };
+    }
+  },
+  {
+    name: 'Space Station', icon: '🛰️', border: '#20242c', start: { x: 480, y: 120, a: 0 }, indoor: true,
+    pop: [['human', 14], ['alien', 2]],
+    lights: [{ x: 200, y: 110, r: 140, kind: 'fluor' }, { x: 480, y: 110, r: 150, kind: 'fluor' }, { x: 760, y: 110, r: 140, kind: 'fluor' },
+             { x: 200, y: 530, r: 140, kind: 'fluor' }, { x: 480, y: 530, r: 150, kind: 'fluor' }, { x: 760, y: 530, r: 140, kind: 'fluor' },
+             { x: 110, y: 320, r: 110, kind: 'fluor', flick: true }, { x: 850, y: 320, r: 110, kind: 'fluor' }, { x: 480, y: 320, r: 60, kind: 'emerg' }],
+    build: () => {
+      const wc = '#2e3440';
+      return {
+        obs: [ // a central module ringed by a corridor, four side bays with wide hatches, consoles along the walls
+          R(340, 230, 280, 180, '#59616e', 'building'),
+          R(16, 190, 150, 14, wc), R(16, 436, 150, 14, wc), R(794, 190, 150, 14, wc), R(794, 436, 150, 14, wc),
+          R(250, 16, 14, 110, wc), R(696, 16, 14, 110, wc), R(250, 514, 14, 110, wc), R(696, 514, 14, 110, wc),
+          R(60, 60, 100, 28, '#3a4250', 'desk'), R(800, 60, 100, 28, '#3a4250', 'desk'), R(60, 552, 100, 28, '#3a4250', 'desk'), R(800, 552, 100, 28, '#3a4250', 'desk'),
+          C(480, 150, 16, '#7a8494', 'table'), C(480, 490, 16, '#7a8494', 'table')
+        ],
+        floor(x) { checker(x, '#6b7380', '#646b77', 40);
+          x.fillStyle = '#4f5662'; for (let j = 20; j < H; j += 40) for (let i = 20; i < W; i += 40) circ(x, i, j, 1.2); // rivets
+          starfield(x, 300, 18, 140, 26, 60, 3); starfield(x, 520, 18, 140, 26, 60, 9); starfield(x, 300, 596, 140, 26, 60, 4); starfield(x, 520, 596, 140, 26, 60, 12);
+          starfield(x, 18, 250, 26, 140, 60, 6); starfield(x, 916, 250, 26, 140, 60, 8);
+          x.fillStyle = '#e0702a'; for (let i = 270; i < 700; i += 24) { x.fillRect(i, 216, 12, 4); x.fillRect(i, 420, 12, 4); } } // hazard tape round the module
+      };
+    }
   }
 ];

@@ -45,6 +45,9 @@ function drawHuman(x, c) { // top-down person, +x = facing direction
     case 'hoodie': x.fillStyle = mixColor(L.top, '#000000', .18); x.fillRect(-L.d, -.5, L.d * 2, 1); break;
     case 'overalls': x.fillStyle = L.top2; ell(x, .6, 0, L.d * .8, L.w * .48); x.fillRect(-L.d, -L.w * .42, L.d * 1.6, 1.4); x.fillRect(-L.d, L.w * .42 - 1.4, L.d * 1.6, 1.4); break;
     case 'plaid': x.globalAlpha = .45; x.fillStyle = L.top2; for (let k = -10; k <= 10; k += 3.5) { x.fillRect(k, -L.w, 1, L.w * 2); x.fillRect(-L.d, k, L.d * 2, 1); } x.globalAlpha = 1; break;
+    case 'suit': x.fillStyle = L.top2; x.fillRect(-L.d * .2, -L.w, 1.2, L.w * 2); x.fillStyle = L.patch; x.fillRect(L.d * .25, -L.w * .55, 2.2, 2.2); break;
+    case 'labcoat': x.fillStyle = L.top2; x.fillRect(L.d * .1, -.5, L.d, 1); x.fillStyle = '#7fa6c9'; x.fillRect(L.d * .2, L.w * .35, 1.6, 2.4); break; // pocket + pen
+    case 'jumpsuit': x.fillStyle = L.top2; x.fillRect(-L.d, -.6, L.d * 2, 1.2); x.fillStyle = L.patch; circ(x, L.d * .3, -L.w * .5, 1.3); break;
     case 'vest': x.fillStyle = '#d9d9d9'; x.fillRect(-L.d, -L.w * .55, L.d * 2, 1.3); x.fillRect(-L.d, L.w * .55 - 1.3, L.d * 2, 1.3); break;
   }
   if (L.tie) { x.fillStyle = L.tie; x.fillRect(L.d * .45, -.9, L.d * .55, 1.8); }
@@ -68,10 +71,26 @@ function drawHuman(x, c) { // top-down person, +x = facing direction
   }
   if (L.hat === 'cap') { x.fillStyle = L.hatCol; circ(x, -.2, 0, 4.9); x.fillStyle = mixColor(L.hatCol, '#000000', .25); ell(x, 4.6, 0, 2.4, 3.6); circ(x, -.2, 0, .8); }
   else if (L.hat === 'beanie') { x.fillStyle = L.hatCol; circ(x, -.3, 0, 5); x.strokeStyle = mixColor(L.hatCol, '#000000', .25); x.lineWidth = 1.2; x.beginPath(); x.arc(-.3, 0, 4.3, 0, TAU); x.stroke(); x.fillStyle = '#f2f2f2'; circ(x, -.3, 0, 1.5); }
+  else if (L.hat === 'helmet') { // fishbowl helmet with a tinted visor facing forward
+    x.fillStyle = 'rgba(235,240,246,.95)'; circ(x, .2, 0, 6.6); x.strokeStyle = 'rgba(0,0,0,.3)'; x.lineWidth = .8; x.beginPath(); x.arc(.2, 0, 6.6, 0, TAU); x.stroke();
+    x.fillStyle = L.hatCol; x.beginPath(); x.ellipse(2.4, 0, 3.6, 4.8, 0, -Math.PI / 2, Math.PI / 2); x.fill();
+    x.fillStyle = 'rgba(255,255,255,.55)'; ell(x, 3.4, -2.2, 1, 1.6);
+  }
   else if (L.hat === 'straw') { x.fillStyle = '#e3c36a'; circ(x, -.2, 0, 7.4); x.fillStyle = '#d4ad4f'; circ(x, -.2, 0, 4.3); x.strokeStyle = '#8b3a2b'; x.lineWidth = 1; x.beginPath(); x.arc(-.2, 0, 4.5, 0, TAU); x.stroke(); }
   x.strokeStyle = O; x.lineWidth = .8; x.beginPath(); x.arc(.6, 0, 4.8, 0, TAU); x.stroke();
 }
+function drawAlien(x, c, d) { // little grey-green visitor: big head, huge black eyes, wobbling antennae
+  const lp = Math.sin(c.phase) * c.moveAmt, w = Math.sin(T * 6 + c.pt * 40) * .6;
+  x.fillStyle = shade(d.col, -.2); ell(x, -d.bl * .5 - lp * 2, -d.bw * .9, 2.6, 1.3); ell(x, -d.bl * .5 + lp * 2, d.bw * .9, 2.6, 1.3);
+  x.fillStyle = d.col; ell(x, -1.5, 0, d.bl * .7, d.bw * .85);
+  x.strokeStyle = shade(d.col, -.3); x.lineWidth = .9; x.beginPath(); x.moveTo(2, -2); x.lineTo(-1, -6 - w); x.moveTo(2, 2); x.lineTo(-1, 6 + w); x.stroke();
+  x.fillStyle = '#d6ff6a'; circ(x, -1, -6 - w, 1.1); circ(x, -1, 6 + w, 1.1);
+  x.fillStyle = shade(d.col, .12); ell(x, 3.2, 0, d.hr * .9, d.hr);
+  x.fillStyle = '#0c0f0c'; x.beginPath(); x.ellipse(5.4, -2.2, 1.9, 1.1, -.5, 0, TAU); x.fill(); x.beginPath(); x.ellipse(5.4, 2.2, 1.9, 1.1, .5, 0, TAU); x.fill();
+  x.fillStyle = 'rgba(255,255,255,.7)'; circ(x, 5.8, -2.5, .4); circ(x, 5.8, 1.9, .4);
+}
 function drawAnimal(x, c) {
+  if (c.def.alien) return drawAlien(x, c, c.def);
   const d = c.def, hc = d.hcol || d.col, lp = Math.sin(c.phase) * c.moveAmt, hx = d.bl * .85;
   if (d.tail === 'puff') { x.fillStyle = '#fff'; circ(x, -d.bl, 0, 2); }
   else if (d.tail) {
@@ -128,6 +147,12 @@ function segColor(i, n, cfg) {
     case 'Neon': return mixColor(cfg.color, '#ffffff', (Math.sin(T * 6 - i * .5) + 1) * .22);
     case 'Lava': return mixColor('#ff3b00', '#ffc400', (Math.sin(T * 3 + i * .6) + 1) / 2);
     case 'Galaxy': return mixColor('#1a1033', cfg.color, (Math.sin(i * .7 + T) + 1) * .18);
+    case 'Rat Fur': return i >= n - 3 ? '#d99a9a' : i % 2 ? '#7a7a82' : '#8a8a92';                       // grey fur, pink tail tip
+    case 'Gold Plated': return mixColor('#a87a12', '#ffe680', (Math.sin(i * .5 - T * 2.5) + 1) * .5 * .8); // a highlight sweeping down the body
+    case 'Blood Soaked': return mixColor(cfg.color, '#5a0606', .45 + .25 * ((i * 7919 % 13) / 13));
+    case 'Hazard': return Math.floor(i / 2) % 2 ? '#1d1d1f' : '#f2c230';
+    case 'Lunar': return mixColor('#b9c0c8', '#8a9099', (i * 37 % 10) / 22);
+    case 'Martian': return mixColor('#c1440e', '#e2763a', (Math.sin(i * .8) + 1) * .4);
     default: return i % 2 ? mixColor(cfg.color, '#000000', .06) : cfg.color;
   }
 }
@@ -140,6 +165,14 @@ function patternOverlay(x, g, r, i, cfg) {
     case 'Diamond':
       if (i % 2 === 0) { x.save(); x.translate(g.x, g.y); x.rotate(g.a + Math.PI / 4); x.fillStyle = cfg.color2; x.fillRect(-r * .35, -r * .35, r * .7, r * .7); x.restore(); }
       break;
+    case 'Rat Fur':
+      x.strokeStyle = 'rgba(40,40,46,.35)'; x.lineWidth = .7;
+      for (let k = -1; k <= 1; k++) { const a = g.a + Math.PI + k * .5; x.beginPath(); x.moveTo(g.x + Math.cos(a) * r * .2, g.y + Math.sin(a) * r * .2); x.lineTo(g.x + Math.cos(a) * r * .8, g.y + Math.sin(a) * r * .8); x.stroke(); }
+      break;
+    case 'Gold Plated': x.fillStyle = 'rgba(255,250,220,.35)'; ell(x, g.x - r * .3, g.y - r * .35, r * .45, r * .22); break; // metal sheen
+    case 'Blood Soaked': if (i % 3 === 0) { x.fillStyle = '#4a0505'; circ(x, g.x + Math.cos(i * 2.3) * r * .4, g.y + Math.sin(i * 2.3) * r * .4, r * .35); } break;
+    case 'Lunar': if (i % 2 === 0) { x.fillStyle = 'rgba(70,76,86,.45)'; circ(x, g.x + Math.cos(i * 1.7) * r * .35, g.y + Math.sin(i * 1.7) * r * .35, r * .28); } break;
+    case 'Martian': x.fillStyle = 'rgba(255,200,150,.5)'; for (let k = 0; k < 2; k++) circ(x, g.x + Math.cos(i * 3 + k * 2) * r * .5, g.y + Math.sin(i * 3 + k * 2) * r * .5, .7); break;
     case 'Galaxy':
       x.fillStyle = '#fff';
       for (let k = 0; k < 2; k++) {

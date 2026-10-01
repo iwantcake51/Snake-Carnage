@@ -1,52 +1,3 @@
-function showCustomize() {
-  const cfg = SETTINGS.snake;
-  const sw = cat => COLOR_ITEMS.map(([v]) => `<button class="sw ${cfg[cat] === v ? 'on' : ''} ${owns(cat, v) ? '' : 'lock'}" data-k="${cat}" data-v="${v}" style="background:${v}" title="${owns(cat, v) ? 'Owned' : priceOf(cat, v) + ' chips'}" aria-label="${v}"></button>`).join('') +
-    `<input type="color" data-k="${cat}" value="${cfg[cat]}" title="Any color (free)">`;
-  const ch = cat => SHOP[cat].map(([v, p]) => `<button class="chip ${cfg[cat] === v ? 'sel' : ''} ${owns(cat, v) ? '' : 'lock'}" data-k="${cat}" data-v="${v}">${v}${owns(cat, v) ? '' : `<em><i class="pc"></i>${p}</em>`}</button>`).join('');
-  const again = !!overlay.querySelector('.panel.shop');
-  overlay.className = 'menuMode'; overlay.innerHTML = `<div class="panel shop ${again ? 'noanim' : ''}">
-    <div class="shophead"><h1>Shop &amp; customize</h1><span class="coinpill"><i class="pc"></i> ${PROG.coins}</span></div>
-    <canvas id="prev"></canvas>
-    <p class="shopmsg">${shopMsg || 'Eat people and animals to win chips. Click a locked item to buy it.'}</p>
-    ${['color', 'color2'].map(c => `<div class="crow"><span>${CAT_LABEL[c]}</span><div class="opts">${sw(c)}</div></div>`).join('')}
-    ${['pattern', 'hat', 'eyes', 'trail'].map(c => `<div class="crow"><span>${CAT_LABEL[c]}</span><div class="opts">${ch(c)}</div></div>`).join('')}
-    <button class="btn" id="backBtn" data-sfx="close">Done</button></div>`;
-  shopMsg = '';
-  const choose = (cat, v) => {
-    if (!owns(cat, v)) {
-      const p = priceOf(cat, v);
-      if (PROG.coins < p) { shopMsg = `You need ${p - PROG.coins} more chips for that.`; Sfx.deny(); return showCustomize(); }
-      PROG.coins -= p; PROG.owned.push(ownKey(cat, v)); saveProg(); updateHud(); Sfx.buy();
-      shopMsg = `Bought ${cat.startsWith('color') ? 'a new color' : v} for ${p} chips.`;
-    }
-    cfg[cat] = v; saveSettings(); showCustomize();
-  };
-  overlay.querySelectorAll('button[data-k]').forEach(b => b.onclick = () => choose(b.dataset.k, b.dataset.v));
-  overlay.querySelectorAll('input[type=color]').forEach(el => {
-    el.oninput = () => { cfg[el.dataset.k] = el.value; saveSettings(); };
-    el.onchange = () => choose(el.dataset.k, el.value);
-  });
-  document.getElementById('backBtn').onclick = () => transitionTo(showMenu);
-  startPreview();
-}
-function startPreview() { // live wiggling preview of the customized snake
-  const pc = document.getElementById('prev'), w = 320, h = 90, px = pc.getContext('2d');
-  pc.width = w * DPR; pc.height = h * DPR; pc.style.width = w + 'px'; pc.style.height = h + 'px'; pc.style.maxWidth = '100%';
-  const draw = () => {
-    if (!pc.isConnected) return;
-    px.setTransform(DPR, 0, 0, DPR, 0, 0); px.clearRect(0, 0, w, h);
-    px.fillStyle = '#2b3a20'; rrect(px, 0, 0, w, h, 10); px.fill();
-    px.setTransform(DPR * 2, 0, 0, DPR * 2, 0, 0);
-    const segs = [];
-    for (let i = 0; i < 16; i++) segs.push({ x: 128 - i * 8, y: 22 + Math.sin(i * .55 - UT * 3) * 7, a: 0 });
-    for (let i = 0; i < segs.length; i++) { const p = segs[i - 1] || { x: segs[0].x + 8, y: segs[0].y }; segs[i].a = Math.atan2(p.y - segs[i].y, p.x - segs[i].x); }
-    const keep = T; T = UT; // animate cosmetics even while the world is paused
-    drawSnake(px, { x: segs[0].x, y: segs[0].y, angle: segs[0].a, segs, stains: segs.map(() => []) });
-    T = keep;
-    requestAnimationFrame(draw);
-  };
-  draw();
-}
 function showDead() {
   stage.classList.remove('bars');
   const m = MAPS[mapIdx].name, pb = score >= (PROG.best[m] || 0) && score > 0;
@@ -78,13 +29,23 @@ function showPause() {
   document.getElementById('pSetBtn').onclick = () => { settingsFrom = 'pause'; transitionTo(() => showSettings()); };
   document.getElementById('pMenuBtn').onclick = returnToMenu;
 }
+function showResume() {
+  const el = document.getElementById('resume');
+  el.innerHTML = `<div class="rp"><span class="keys"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><span class="or">or</span><span class="keys"><kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd></span><b>to continue</b></div>`;
+  el.className = 'show';
+}
+function hideResume() { const el = document.getElementById('resume'); if (el.classList.contains('show')) { el.className = 'gone'; setTimeout(() => { if (el.className === 'gone') { el.className = ''; el.innerHTML = ''; } }, 250); } }
 function resumeGame() {
   if (state !== 'paused') return;
-  state = pausedFrom || 'play'; stage.classList.remove('bars'); hideOverlay();
+  state = pausedFrom === 'play' || pausedFrom === 'held' ? 'held' : pausedFrom || 'play'; // the menu closes, but nothing moves until you steer
+  if (state === 'held') { held.clear(); showResume(); }
+  stage.classList.remove('bars'); hideOverlay();
   if (document.activeElement) document.activeElement.blur();
 }
 function returnToMenu() { // ends the run on purpose; only now is the game reset
-  document.getElementById('chhud').innerHTML = ''; document.getElementById('modhud').innerHTML = ''; runMods = [];
+  if (state === 'paused' && run.time > 1) statRunEnd();
+  hideResume(); clearNotes();
+  document.getElementById('chhud').innerHTML = ''; document.getElementById('modhud').innerHTML = ''; runMods = []; modBar();
   endCombo(true); evt = null; showEvent(); document.getElementById('rewards').innerHTML = '';
   nightVision = false; cam = null; camF.x = camF.y = camF.k.x = camF.k.y = camF.kv.x = camF.kv.y = 0;
   MOD = {}; loadMap(mapIdx);
@@ -96,19 +57,28 @@ function hideOverlay() {
   setTimeout(() => { if (overlay.classList.contains('hide')) overlay.style.display = 'none'; }, 400);
 }
 let runMods = [];
+function modBar() { // every active modifier, compact, at the top of the screen; hover for what it does
+  const el = document.getElementById('modbar'), ids = runMods || [];
+  if (!ids.length) { el.innerHTML = ''; layoutHud(); return; }
+  const mm = modMult(ids);
+  el.innerHTML = ids.map((id, i) => { const m = MODS.find(q => q.id === id); return `<span class="mb" style="--i:${i}" data-tip="${m.name}: ${m.desc}${m.mult ? ` (rewards ${m.mult > 0 ? '+' : ''}${Math.round(m.mult * 100)}%)` : ''}">${MOD_ICON[id] || '•'}<em>${m.name}</em></span>`; }).join('') +
+    (Math.abs(mm - 1) > .005 ? `<span class="mb mult ${mm < 1 ? 'down' : ''}" data-tip="All XP, chips and score this run are multiplied by this.">x${mm.toFixed(2)}</span>` : '');
+  requestAnimationFrame(layoutHud);
+}
 function startGame(opts = {}) {
   if (!opts.mystery) Sfx.start();
   runMods = opts.mods || SETTINGS.mods || []; // the random map also rolls its own modifiers
   MOD = Object.fromEntries(runMods.map(id => [id, true])); rewardMult = modMult(runMods);
   document.body.classList.toggle('minimal', !!MOD.minimal);
   if (SETTINGS.timeMode === 'Cycle') tod = pickStartTime(MAPS[mapIdx]); // every run starts at a different time of day, weighted per map
-  nightVision = false; endCombo(true); document.getElementById('rewards').innerHTML = '';
+  nightVision = false; endCombo(true); document.getElementById('rewards').innerHTML = ''; hideResume(); clearNotes();
   camF.x = camF.y = camF.k.x = camF.k.y = camF.kv.x = camF.kv.y = 0;
   newRun();
   loadMap(mapIdx); run.startPop = creatures.length;
   const animals = [...new Set(creatures.filter(c => !c.def.human).map(c => c.type))];
   runMod = { lastType: null, lastCat: null, varStreak: 0, same: 0, chain: 0, humanRun: 0, ask: null, askIn: 3, avoid: animals.length ? pick(animals) : null };
-  modHud(); challengeHud(true);
+  modHud(); challengeHud(true); modBar();
+  if (runMods.length) setTimeout(() => notify({ kind: 'mod', title: `${runMods.length} modifier${runMods.length > 1 ? 's' : ''} active`, sub: runMods.map(id => (MOD_ICON[id] || '') + ' ' + MODS.find(m => m.id === id).name).join('  '), right: Math.abs(rewardMult - 1) > .005 ? 'x' + rewardMult.toFixed(2) : '', dur: 3.5 }), SETTINGS.reduceMotion ? 300 : 2400);
   if (!thumbs) thumbs = makeThumbs();
   updateTime(0);
   state = 'intro';
@@ -140,9 +110,22 @@ function endIntro(abort) { // fade the intro out, pull the bars away and start t
   introTimers = [setTimeout(() => { intro.className = ''; intro.innerHTML = ''; }, 700)];
 }
 intro.onclick = () => endIntro();
-document.getElementById('menuBtn').onclick = () => { if (['play', 'ready', 'intro'].includes(state)) pauseGame(); document.activeElement.blur(); };
+document.getElementById('menuBtn').onclick = () => { if (['play', 'ready', 'intro', 'held'].includes(state)) pauseGame(); document.activeElement.blur(); };
+let boardScale = 1;
 function fit() {
-  const s = Math.min((innerWidth - 24) / W, (innerHeight - 70) / H, 1.5);
+  const s = boardScale = Math.min((innerWidth - 24) / W, (innerHeight - 70) / H, 2.2); // render the game larger when there's room
   cv.style.width = W * s + 'px'; cv.style.height = H * s + 'px'; bar.style.width = W * s + 'px';
+  applyUiScale();
+}
+const UI_SCALES = { Small: .85, Medium: 1, Large: 1.15, 'Extra Large': 1.3 };
+function applyUiScale() { // zoom every HUD/menu layer; overlay is shrunk by the same factor first so percentages still fit
+  const u = UI_SCALES[SETTINGS.uiScale] || clamp(boardScale * .92, .8, 1.45);
+  document.documentElement.style.setProperty('--ui', u.toFixed(3));
+  layoutHud();
+}
+function layoutHud() { // safe zones: notifications always sit below the modifier strip, whatever its height
+  const mb = document.getElementById('modbar'), nt = document.getElementById('notes'); if (!mb || !nt) return;
+  const u = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ui')) || 1;
+  nt.style.top = ((mb.innerHTML ? mb.offsetHeight * u + 16 : 12) / u) + 'px';
 }
 addEventListener('resize', () => { fit(); overlay.querySelectorAll('.seg,.sseg').forEach(sg => placeThumb(sg, true)); });

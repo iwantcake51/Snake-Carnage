@@ -104,7 +104,7 @@ const Sfx = {
   animal(x, type) {
     const A = { chicken: [1100, 800, .12, 'square', 1500, 30, .08], duck: [520, 420, .16, 'sawtooth', 1000, 0, .1], sheep: [400, 360, .5, 'sawtooth', 900, 7, .1],
       pig: [190, 140, .22, 'sawtooth', 600, 12, .12], dog: [330, 220, .12, 'sawtooth', 800, 0, .14], cat: [650, 820, .4, 'sawtooth', 1300, 5, .08],
-      rabbit: [1600, 1200, .08, 'square', 2200, 0, .05], rat: [2400, 1800, .07, 'square', 3000, 0, .04], frog: [140, 110, .18, 'square', 400, 25, .1], deer: [900, 500, .25, 'sawtooth', 1400, 8, .07] };
+      rabbit: [1600, 1200, .08, 'square', 2200, 0, .05], rat: [2400, 1800, .07, 'square', 3000, 0, .04], frog: [140, 110, .18, 'square', 400, 25, .1], alien: [900, 1500, .3, 'sine', 2400, 18, .06], deer: [900, 500, .25, 'sawtooth', 1400, 8, .07] };
     const a = A[type]; if (!a || !this.ok() || !this.gate('animal', .12)) return;
     const t = this.ctx.currentTime, o = this.out(x, .7);
     this.voice(o, t, ...a);
@@ -125,9 +125,10 @@ const Sfx = {
     const t = this.ctx.currentTime, o = this.out(undefined, .7), f = 520 * Math.pow(2, Math.min(n, 24) / 12);
     this.tone(o, t, f, f * 1.01, .09, 'triangle', .07); this.tone(o, t + .05, f * 1.5, f * 1.5, .08, 'sine', .04);
   },
-  golden() { // bright bell chord with a sparkly tail: special, not loud
+  golden(small) { // bright bell chord with a sparkly tail: special, not loud (golden animals get a softer, shorter one)
     if (!this.ok()) return;
-    const t = this.ctx.currentTime, o = this.out(undefined, .8);
+    const t = this.ctx.currentTime, o = this.out(undefined, small ? .45 : .8);
+    if (small) { [[1976, 0], [2637, .07]].forEach(([f, d]) => this.tone(o, t + d, f, f, .6, 'sine', .05)); return; }
     [[1568, 0], [1976, .06], [2349, .12], [3136, .2]].forEach(([f, d]) => { this.tone(o, t + d, f, f, 1.1, 'sine', .07); this.tone(o, t + d, f * 2.01, f * 2, .5, 'sine', .02); });
     for (let k = 0; k < 6; k++) this.tone(o, t + .3 + k * .05, 3000 + k * 300, 3200 + k * 300, .08, 'triangle', .018);
     this.burst(o, t, .6, 7000, .8, .05);

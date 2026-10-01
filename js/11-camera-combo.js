@@ -10,13 +10,16 @@ function updateCamFollow(dt) {
 /* COMBO STREAK */
 let combo = null;
 const comboDur = () => 6.5 * (MOD.comboFocus ? .75 : 1) * (MOD.comboCushion ? 1.5 : 1);
+const COMBO_CAP = 1.8; // the timer can bank up to 1.8x its normal length
+const comboGain = c => comboDur() * (c.golden ? .9 : c.def.human ? .55 : c.def.score >= 2 ? .45 : .32); // bigger, juicier targets buy more time
 const typeLabel = c => (c.golden ? 'Golden ' : '') + (c.def.human ? 'human' : c.type).replace(/^./, m => m.toUpperCase());
 function addCombo(c) {
   const el = document.getElementById('combo');
   if (!combo) { combo = { n: 0, counts: {}, t: 0 }; el.innerHTML = '<div class="cbn"><b id="cbN">1</b><i>x</i></div><ul id="cbList"></ul><div class="cbar"><span id="cbBar"></span></div>'; }
   if (!combo.start) { combo.start = T; combo.allHuman = true; }
   combo.allHuman = combo.allHuman && c.def.human;
-  combo.n++; const name = typeLabel(c); combo.counts[name] = (combo.counts[name] || 0) + 1; combo.t = comboDur();
+  combo.n++; const name = typeLabel(c); combo.counts[name] = (combo.counts[name] || 0) + 1;
+  combo.t = combo.n === 1 ? comboDur() : Math.min(comboDur() * COMBO_CAP, Math.max(0, combo.t) + comboGain(c));
   el.className = 'show';
   const nEl = document.getElementById('cbN'); nEl.textContent = combo.n; nEl.classList.remove('punch'); void nEl.offsetWidth; nEl.classList.add('punch');
   const list = document.getElementById('cbList'); let li = [...list.children].find(l => l.dataset.k === name);
@@ -35,7 +38,8 @@ function updateCombo(dt) {
   if (!combo) return;
   combo.t -= dt;
   const k = Math.max(0, combo.t / comboDur()), el = document.getElementById('combo'), bar = document.getElementById('cbBar');
-  if (bar) bar.style.width = (k * 100).toFixed(1) + '%';
+  if (bar) bar.style.width = (Math.min(1, k / COMBO_CAP) * 100).toFixed(1) + '%';
+  el.classList.toggle('banked', k > 1); // more time banked than a fresh combo gets
   el.classList.toggle('warn', k < .35); el.classList.toggle('crit', k < .15);
   if (combo.t <= 0) endCombo();
 }

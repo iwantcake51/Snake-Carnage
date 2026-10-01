@@ -6,12 +6,14 @@ function openness(x, y) {
 function pickFleeGoal(c) { // an open spot away from the threat, away from bodies, ideally in the direction already running
   const ta = Math.atan2(c.fy - c.y, c.fx - c.x), trapped = openness(c.x, c.y) <= 5 && crowdAt(c.x, c.y) >= 5; // boxed into a crowded corner
   let best = null, bs = -1e9;
-  for (let k = 0; k < 20; k++) {
+  const fails = c.failed ? c.failed.filter(f => T - f.t < 8) : null; // routes that didn't work out recently
+  for (let k = 0; k < 14; k++) {
     const a = Math.random() < .7 ? ta + Math.PI + rand(-1.6, 1.6) : rand(0, TAU), d = rand(110, 300), x = c.x + Math.cos(a) * d, y = c.y + Math.sin(a) * d;
     if (!free(x, y, c.def.r + 6)) continue;
     let sc = Math.hypot(x - c.fx, y - c.fy) * 1.2 + openness(x, y) * 22 + Math.cos(angDiff(c.a, a)) * 40;
     if (Math.cos(a - ta) > .2) sc -= 400;
-    if (!los(c.x, c.y, x, y)) sc -= 140;
+    if (!los(c.x, c.y, x, y)) sc -= c.state === 'panic' ? 260 : 140; // panicking people want a route they can actually see
+    if (fails) for (const f of fails) if (dist2(x, y, f.x, f.y) < 70 * 70) sc -= 320;
     for (const dd of deaths) { const q = Math.hypot(x - dd.x, y - dd.y); if (q < 160) sc -= (160 - q) * 1.5; }
     if (snake) { const q = Math.hypot(x - snake.x, y - snake.y); if (q < 120) sc -= (120 - q) * 3; }
     sc += spotScore(c, x, y) + (trapped ? openness(x, y) * 30 : 0); // open escape routes beat the map edge
@@ -22,7 +24,7 @@ function pickFleeGoal(c) { // an open spot away from the threat, away from bodie
   c.goal = best; c.goalT = rand(1.5, 2.5); c.stuck = 0; c.goalD = Infinity; c.goalP = 0;
 }
 function steerDir(c, want) {
-  const probe = c.def.r + 8 + (c.state === 'wander' ? 0 : 10);
+  const probe = c.def.r + 8 + (c.state === 'wander' ? 0 : 16); // look further ahead when running, so turns start early
   for (const off of [0, .35, .7, 1.1, 1.6, 2.2, 2.8]) {
     for (const sgn of off ? [c.side, -c.side] : [1]) {
       const a = want + off * sgn;
@@ -36,7 +38,7 @@ function updateCreature(c, dt) {
   const d = c.def;
   if (c.golden && (c.goldT -= dt) <= 0) { // golden humans don't hang around forever
     c.alive = false; respawnQ.push({ type: c.type, zone: c.zone, t: rand(2, 5) });
-    if (state === 'play') toast('The golden human got away');
+    if (state === 'play') toast(`The golden ${c.def.human ? 'human' : c.type} got away`);
     return;
   }
   c.pt -= dt; if (c.pt <= 0) { c.pt = (MOD.skittish ? .08 : .15) + Math.random() * .1; perceive(c); }
@@ -52,12 +54,13 @@ function updateCreature(c, dt) {
   }
   if (c.warn && (c.warn.t -= dt) <= 0) { const w = c.warn; c.warn = null; panic(c, w.x, w.y, rand(3, 5), 'warned'); }
   let want = c.a, spd = 0;
+  if (c.alert > 0) c.alert = Math.max(0, c.alert - dt * .012); // fades over a minute or so, never instantly
   if (c.state === 'idle') {
     if (c.timer <= 0) { c.state = 'wander'; c.timer = rand(2, 5); c.wa = pickWander(c); }
   } else if (c.state === 'wander') {
-    spd = d.walk;
+    spd = d.walk * (c.alert > .3 ? 1.7 : 1); // cautious people walk briskly
     if (c.timer <= 0) {
-      if (Math.random() < .35) { c.state = 'idle'; c.timer = rand(1, 3); }
+      if (Math.random() < (c.alert > .3 ? .08 : .35)) { c.state = 'idle'; c.timer = rand(1, 3) * (c.alert > .3 ? .5 : 1); }
       else { c.timer = rand(1.5, 4); c.wa = pickWander(c); }
     }
     const z = c.zone;
@@ -67,16 +70,21 @@ function updateCreature(c, dt) {
     spd = c.state === 'uneasy' ? d.walk * 2.2 : d.run * (c.state === 'panic' ? 1 : .9);
     const gd = c.goal ? Math.hypot(c.goal.x - c.x, c.goal.y - c.y) : 0;
     if (c.goal) { c.goalP += dt; if (gd < c.goalD - 4) { c.goalD = gd; c.goalP = 0; } } // progress watchdog stops orbiting
+    if (c.goal && (c.stuck > .4 || c.goalP > .9)) { // that route failed: remember it, and turn around if this is a dead end
+      (c.failed = c.failed || []).push({ x: c.goal.x, y: c.goal.y, t: T }); if (c.failed.length > 4) c.failed.shift();
+      if (openness(c.x, c.y) <= 3) { c.a += Math.PI; c.steerA = undefined; noteSpot(c); }
+    }
     if (!c.goal || c.goalT <= 0 || c.stuck > .4 || gd < 30 || c.goalP > .9 || dist2(c.fx, c.fy, c.goal.fx, c.goal.fy) > 4900) pickFleeGoal(c);
     c.goalT -= dt;
     const gx = c.goal.x - c.x, gy = c.goal.y - c.y, gl = Math.hypot(gx, gy) || 1;
     want = Math.atan2(gy / gl + c.avy * 1.1, gx / gl + c.avx * 1.1);
     if (c.timer <= 0) {
       if (d.human && c.state === 'panic' && c.wasChased && Math.random() < .7) say(c, 'escaped');
-      c.wasChased = false; c.state = 'wander'; c.timer = rand(1, 3); c.wa = c.a; c.goal = null;
+      c.wasChased = false; c.state = 'wander'; c.timer = rand(1, 3); c.wa = c.a; c.goal = null; // calmer, but still on edge (see c.alert)
     }
   }
-  spd *= SETTINGS.creatureSpeed * (d.human && MOD.fastHumans ? 1.3 : 1) * 1;
+  if (c.adren > 0) c.adren -= dt;
+  spd *= SETTINGS.creatureSpeed * (d.human && MOD.fastHumans ? 1.3 : 1) * (c.spdK || 1) * (c.adren > 0 ? 1.45 : 1); // some people are just faster; fear gives a short burst
   // smooth the desired heading so it can't flip back and forth (no spinning in place)
   c.wantA = c.wantA === undefined ? want : c.wantA + angDiff(c.wantA, want) * Math.min(1, dt * 7);
   let moved = 0, mv = spd;

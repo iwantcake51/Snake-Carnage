@@ -6,6 +6,7 @@ const CC = 80, CGW = Math.ceil(W / CC), CGH = Math.ceil(H / CC), crowdGrid = new
 let groups = [];
 function updateCrowd() { // creatures per 80px cell, rebuilt every frame (cheap)
   crowdGrid.fill(0);
+  if (snake && snake.segs.length) goreLvl = clamp(snakeGore() / (snake.segs.length * 9), 0, 1); // ~9 stains per segment = drenched
   for (const c of creatures) if (c.alive) { const i = clamp(c.x / CC | 0, 0, CGW - 1), j = clamp(c.y / CC | 0, 0, CGH - 1); if (crowdGrid[j * CGW + i] < 255) crowdGrid[j * CGW + i]++; }
 }
 function crowdAt(x, y) { // how many are in this cell and its neighbors

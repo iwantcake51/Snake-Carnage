@@ -54,6 +54,9 @@ function drawWater(x, o, t) {
     x.strokeStyle = '#8f887b'; x.lineWidth = 1.5; x.beginPath(); x.arc(cx, cy, R - .75, 0, TAU); x.stroke();
     x.strokeStyle = '#d6d0c3'; x.lineWidth = 1; x.beginPath(); x.arc(cx, cy, R - rim * .5, 0, TAU); x.stroke();
     x.strokeStyle = '#9d9689'; for (let k = 0; k < 12; k++) { const a = k * TAU / 12; x.beginPath(); x.moveTo(cx + Math.cos(a) * (hw + 1), cy + Math.sin(a) * (hw + 1)); x.lineTo(cx + Math.cos(a) * (R - 1), cy + Math.sin(a) * (R - 1)); x.stroke(); }
+  } else if (o.tank) { // specimen tank: steel ring, bolts
+    x.fillStyle = '#5b6b72'; circ(x, cx, cy, o.r); x.strokeStyle = '#8fa1a8'; x.lineWidth = 1.5; x.beginPath(); x.arc(cx, cy, o.r - 1, 0, TAU); x.stroke();
+    x.fillStyle = '#2c363a'; for (let k = 0; k < 8; k++) { const a = k * TAU / 8; circ(x, cx + Math.cos(a) * (o.r - rim * .5), cy + Math.sin(a) * (o.r - rim * .5), 1.2); }
   } else if (S.round) { x.fillStyle = '#5d7f3a'; circ(x, cx, cy, o.r); x.fillStyle = '#c9b68a'; circ(x, cx, cy, o.r - rim * .45); }
   else {
     x.fillStyle = '#efeadf'; x.fillRect(o.x, o.y, o.w, o.h);

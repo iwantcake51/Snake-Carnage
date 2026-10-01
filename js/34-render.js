@@ -96,7 +96,7 @@ function render() {
 }
 const clockEl = document.getElementById('clock');
 let nightVision = false, toastMsg = '', toastT = 0;
-function toast(m) { toastMsg = m; toastT = 1.4; }
+function toast(m) { notify({ kind: 'info', title: m, dur: 1.8, key: 'toast:' + m }); }
 const NOISE = Array.from({ length: 4 }, () => { // a few pre-made static frames
   const c = document.createElement('canvas'); c.width = 240; c.height = 160;
   const x = c.getContext('2d'), im = x.createImageData(240, 160);
@@ -155,5 +155,3 @@ overlay.addEventListener('pointermove', e => { // mouse parallax on the menu
   overlay.style.setProperty('--mx', mx.toFixed(3)); overlay.style.setProperty('--my', my.toFixed(3));
   if (state === 'menu') cv.style.translate = `${(-mx * 2.5).toFixed(1)}px ${(-my * 1.6).toFixed(1)}px`; // deepest layer, moves least
 });
-document.body.classList.toggle('calm', !!SETTINGS.reduceMotion);
-fit(); loadMap(0); showMenu(); requestAnimationFrame(frame);

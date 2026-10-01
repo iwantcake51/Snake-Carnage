@@ -12,6 +12,8 @@ const TYPES = {
   duck:    { r: 6, walk: 14, run: 70, score: 1, grow: 1, blood: 0.22, sight: 90, bl: 7, bw: 4.8, hr: 3.3, col: '#eeeee4', hcol: '#2f7a3a', beak: true },
   pig:     { r: 9, walk: 15, run: 70, score: 2, grow: 2, blood: 0.8, sight: 80, bl: 10, bw: 7.5, hr: 5, col: '#f2a6b0', snout: true, ears: 'short' },
   sheep:   { r: 9, walk: 12, run: 75, score: 2, grow: 2, blood: 0.75, sight: 90, bl: 10, bw: 7.5, hr: 4, col: '#f2f0ea', hcol: '#333', fluff: true },
+  astronaut: { human: true, r: 9.5, walk: 20, run: 80, score: 3, grow: 3, blood: 1, sight: 140 },       // bulky suit: a bit slower
+  alien:   { r: 7, walk: 26, run: 118, score: 3, grow: 2, blood: 0.55, sight: 120, bl: 6, bw: 5, hr: 5.5, col: '#79cf55', alien: true, bloodCol: ['#4f9e22', '#62b52e'] },
   rat:     { r: 4, walk: 20, run: 95, score: 1, grow: 1, blood: 0.1, sight: 90, bl: 5.5, bw: 3, hr: 2.8, col: '#7d7d7d', tail: 'long', tcol: '#d99a9a' },
 };
 const SKINS = ['#ffdfc4', '#f1c27d', '#e0ac69', '#c68642', '#a86b3c', '#8d5524', '#5c3a1e'];
@@ -21,13 +23,27 @@ const TOPS = ['#e05d5d', '#4c7bd9', '#f2c14e', '#56b870', '#8f6ad8', '#f4f1ea', 
 const PANTS = ['#2f4a7a', '#3c5f99', '#24272e', '#6b6f78', '#a08a62', '#4e5a3a', '#7a3b3b'];
 const SHOES = ['#f2f2f2', '#1d1d1f', '#5a3a22', '#c43c3c', '#2d5fa8'];
 const BUILDS = [{ w: 8.2, d: 4.6 }, { w: 9.2, d: 5.1 }, { w: 9.2, d: 5.1 }, { w: 10.4, d: 5.9 }];
-function humanLook() { // a coordinated outfit; each map dresses its people a little differently
+function humanLook(type) { // a coordinated outfit; each map dresses its people a little differently
   const m = MAPS[mapIdx].name, b = pick(BUILDS);
   const L = { skin: pick(SKINS), hair: Math.random() < .08 ? pick(HAIR_DYED) : pick(HAIR_NATURAL), top: pick(TOPS), top2: pick(TOPS), pants: pick(PANTS),
     shoes: pick(SHOES), w: b.w, d: b.d, sleeves: Math.random() < .55 ? 'short' : 'long', hat: null, acc: null,
     hairStyle: pick(['short', 'short', 'long', 'bun', 'ponytail', 'curly', 'bald', 'buzz']), outfit: pick(['tee', 'tee', 'stripe', 'jacket', 'hoodie']),
     hatCol: pick(['#c0392b', '#2c3e50', '#27ae60', '#f39c12', '#8e44ad', '#ecf0f1']) };
   if (L.top2 === L.top) L.top2 = mixColor(L.top, '#000000', .3);
+  if (type === 'astronaut') { // white suit, life-support pack, fishbowl helmet
+    Object.assign(L, { outfit: 'suit', top: pick(['#eef1f4', '#e9edf1', '#f2efe8']), top2: '#b8c0cb', pants: '#dfe3e8', shoes: '#8f98a3', sleeves: 'long', hat: 'helmet', acc: 'backpack',
+      hatCol: pick(['#2a3c5a', '#3a2f22', '#1f4a4f']), patch: pick(['#d63c3c', '#2f5fa8', '#f2c230']) });
+    return L;
+  }
+  if (m === 'Alien Facility') {
+    Object.assign(L, Math.random() < .75 ? { outfit: 'labcoat', top: '#f4f6f8', top2: '#dfe6ea', sleeves: 'long', acc: null } : { outfit: 'vest', top: '#2b3440', top2: '#1d232b', pants: '#1d232b', sleeves: 'long', hat: 'cap', hatCol: '#1d232b' });
+    if (Math.random() < .5) L.hat = L.hat || null;
+    return L;
+  }
+  if (m === 'Space Station') { // crew jumpsuits: one color top to bottom, a mission patch
+    const js = pick(['#2f5fa8', '#e0702a', '#3a3f4a', '#5a8f3a']); Object.assign(L, { outfit: 'jumpsuit', top: js, top2: mixColor(js, '#000000', .25), pants: js, sleeves: 'long', acc: null, hat: null, patch: pick(['#f2f2f2', '#f2c230', '#d63c3c']) });
+    return L;
+  }
   if (m === 'Office') {
     Object.assign(L, { outfit: pick(['shirtTie', 'shirtTie', 'blazer']), top: pick(['#f4f1ea', '#dfe8f5', '#cfe0d8', '#f0e1e1']), top2: pick(['#2b2f3a', '#3a3f4f', '#4a3a2f']),
       pants: pick(['#24272e', '#3a3f4f', '#5a5f68']), tie: pick(['#a11d1d', '#2a4f9a', '#3a6f3a', '#6a3a8a']), sleeves: 'long' });

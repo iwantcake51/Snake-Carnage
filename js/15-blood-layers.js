@@ -60,7 +60,7 @@ function buildGrassMask() {
 const grassAt = (x, y) => { const i = x / GM | 0, j = y / GM | 0; return i >= 0 && j >= 0 && i < GMW && j < GMH ? grassMask[j * GMW + i] : 0; };
 const grassColAt = (x, y) => grassCol[(y / GM | 0) * GMW + (x / GM | 0)] || [110, 170, 70];
 
-function spawnBlood(x, y, dirA, amount, spread, backFrac) {
+function spawnBlood(x, y, dirA, amount, spread, backFrac, gold) { // gold: a golden target, mostly gold blood with some red mixed in
   const n = Math.round(95 * amount * (parts.length > 500 ? .5 : 1));
   for (let i = 0; i < n && parts.length < CONFIG.maxParticles; i++) {
     let a, sp; const r = Math.random();
@@ -68,7 +68,7 @@ function spawnBlood(x, y, dirA, amount, spread, backFrac) {
     else if (r < backFrac + .2) { a = rand(0, TAU); sp = rand(20, 140); }             // radial burst
     else { a = dirA + gauss() * spread; sp = rand(120, 480) * (.6 + amount * .4); }   // main forward jet
     parts.push({ x: x + rand(-3, 3), y: y + rand(-3, 3), z: rand(4, 12), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
-                 vz: rand(20, 200), r: Math.random() < .15 ? rand(3, 5) : rand(1.2, 3), c: pick(CONFIG.bloodColors), ox: x, oy: y });
+                 vz: rand(20, 200), r: Math.random() < .15 ? rand(3, 5) : rand(1.2, 3), c: gold === true ? (Math.random() < .75 ? pick(GOLD_BLOOD) : pick(CONFIG.bloodColors)) : gold ? pick(gold) : pick(CONFIG.bloodColors), ox: x, oy: y }); // gold: golden target; an array: that creature's own blood colors
   }
 }
 
@@ -138,7 +138,7 @@ function updateBlood(dt) {
   for (let i = pools.length - 1; i >= 0; i--) { // pools grow under the kill site
     const pl = pools[i];
     pl.r += (pl.max - pl.r) * dt * 2.2;
-    fctx.fillStyle = BLOOD;
+    fctx.fillStyle = pl.c || BLOOD;
     for (const l of pl.lobes) ell(fctx, pl.x + l.dx * pl.r, pl.y + l.dy * pl.r, pl.r * l.s, pl.r * l.s * .85);
     for (let j = -2; j <= 2; j++) for (let k = -2; k <= 2; k++) {
       const gx = pl.x + k * WS, gy = pl.y + j * WS;

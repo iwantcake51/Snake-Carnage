@@ -119,6 +119,7 @@ function say(c, ctxRaw) {
 }
 function scream(c, ctx = 'panic') {
   say(c, ctx);
+  if (MOD.mute) return; // silent crowd: nobody shouts a warning (seeing others panic still spreads it)
   const R = 170 * (MOD.doublePanic ? 1.6 : 1);
   for (const o of creatures) { // people who hear it panic a moment later and pass it on
     if (o === c || !o.alive || !o.def.human || o.state === 'panic' || o.warn) continue;
@@ -129,6 +130,8 @@ function scream(c, ctx = 'panic') {
 function panic(c, x, y, t, ctx = 'panic') {
   if (!c.alive) return;
   const was = c.state === 'panic';
+  if (c.alert > .3) t *= 1.6; // been through this before: stays scared longer
+  c.alert = Math.max(c.alert || 0, c.def.human ? 1 : .6);
   c.timer = was ? Math.max(c.timer, t) : t;
   c.state = 'panic'; c.fx = x; c.fy = y;
   if (c.def.human && !was) { scream(c, ctx); groupAlarm(c, x, y); }
@@ -143,6 +146,10 @@ function witness(x, y, victim) { // a kill happened at x,y
   for (const c of creatures) {
     if (!c.alive) continue;
     const d = Math.hypot(c.x - x, c.y - y);
+    if (MOD.blind && c.def.human) { // they can't see it, but they hear it: run from roughly that direction
+      if (d < 230) panic(c, x + rand(-110, 110), y + rand(-110, 110), rand(3, 6), d < 90 ? 'witnessHuman' : 'crowd');
+      continue;
+    }
     const sees = lit ? (c.def.human ? d < 320 * R && (d < 120 * R || los(c.x, c.y, x, y)) : d < 200 * R) : d < (c.def.human ? 45 : 60) * R;
     if (!sees) { if (c.fl && c.fl.on && d < 300) c.fl.look = { x, y, t: rand(1.2, 2.2) }; continue; } // heard it: point the light there
     if (!c.def.human) { panic(c, x, y, rand(2, 4)); continue; }
@@ -154,19 +161,20 @@ function witness(x, y, victim) { // a kill happened at x,y
 }
 
 let deaths = []; // where things died this run; people avoid these places
+let goreLvl = 0; // how blood-covered the snake looks, updated once a frame
 const snakeGore = () => snake ? snake.stains.reduce((a, l) => a + l.length, 0) : 0;
 function perceive(c) {
   const s = snake, hum = c.def.human;
   c.avx = c.avy = 0;
-  for (const o of creatures) { // personal space
+  let panicN = 0, panicO = null; // one pass over everyone: personal space, a softer wider bubble, and who nearby is panicking
+  for (const o of creatures) {
     if (o === c || !o.alive) continue;
-    const dx = c.x - o.x, dy = c.y - o.y, dd = Math.hypot(dx, dy), min = c.def.r + o.def.r + 8;
-    if (dd < min && dd > 0) { c.avx += dx / dd * (min - dd) / min * 1.2; c.avy += dy / dd * (min - dd) / min * 1.2; }
-  }
-  for (const o of creatures) { // a softer, wider bubble so groups spread out instead of clumping
-    if (o === c || !o.alive) continue;
-    const dx = c.x - o.x, dy = c.y - o.y, dd = Math.hypot(dx, dy), min = c.def.r + o.def.r + 30;
-    if (dd < min && dd > 0) { c.avx += dx / dd * (min - dd) / min * .3; c.avy += dy / dd * (min - dd) / min * .3; }
+    const dx = c.x - o.x, dy = c.y - o.y; if (dx > 120 || dx < -120 || dy > 120 || dy < -120) continue;
+    const d2 = dx * dx + dy * dy, rr = c.def.r + o.def.r;
+    if (hum && o.def.human && o.state === 'panic' && d2 < 120 * 120) { panicN++; panicO = o; }
+    if (d2 >= (rr + 30) * (rr + 30) || d2 === 0) continue;
+    const dd = Math.sqrt(d2), soft = (rr + 30 - dd) / (rr + 30) * .3, hard = dd < rr + 8 ? (rr + 8 - dd) / (rr + 8) * 1.2 : 0;
+    c.avx += dx / dd * (soft + hard); c.avy += dy / dd * (soft + hard);
   }
   groupTick(c, .2); groupSteer(c);
   if (c.state !== 'idle' && Math.random() < .25) noteSpot(c);
@@ -176,7 +184,13 @@ function perceive(c) {
   }
   if (state !== 'play' || !s.started) return;
   const dist = Math.hypot(c.x - s.x, c.y - s.y), sight = c.def.sight * (MOD.skittish ? 1.5 : MOD.oblivious ? .6 : 1);
-  const seen = dist < 40 || (dist < sight && lightAt(s.x, s.y) > VISIBLE && los(c.x, c.y, s.x, s.y));
+  const blind = MOD.blind && hum;
+  const seen = !blind && (dist < 40 || (dist < sight * (c.alert > .3 ? 1.25 : 1) && lightAt(s.x, s.y) > VISIBLE && los(c.x, c.y, s.x, s.y)));
+  if (blind && dist < 95 && c.state !== 'panic') { // heard something slither close by: bolt, roughly away from the sound
+    if (dist < 50 || Math.random() < .35) panic(c, s.x + rand(-70, 70), s.y + rand(-70, 70), rand(2, 4), 'crowd');
+    else if (c.state === 'wander' || c.state === 'idle') { c.state = 'uneasy'; c.fx = s.x + rand(-90, 90); c.fy = s.y + rand(-90, 90); c.timer = rand(1, 2); }
+  }
+  if (hum && c.state === 'panic' && dist < 70 && !(c.adrenCD > T) && Math.random() < .12) { c.adren = rand(1, 1.8); c.adrenCD = T + rand(7, 12); } // a burst of fear
   if (dist < 75 && (seen || dist < 40)) c.closeCall = true; // the snake came right past them...
   else if (c.closeCall && dist > 140) { c.closeCall = false; if (hum && Math.random() < .6) say(c, 'relief'); } // ...and kept going
   if (c.state === 'flee' || c.state === 'panic' || c.state === 'uneasy') {
@@ -187,16 +201,20 @@ function perceive(c) {
     }
   }
   if (seen && c.fl && c.fl.on && !c.flSpotted) { c.flSpotted = true; c.flSnap = rand(.35, .6); } // beam snaps onto it
-  if (hum && seen && !c.sawSnake && c.state !== 'panic') { c.sawSnake = true; if (Math.random() < .55) say(c, snakeGore() > 25 ? 'bloodySnake' : 'firstSight'); }
+  const gore = hum ? goreLvl : 0; // 0 clean .. 1 drenched
+  if (hum && seen && !c.sawSnake && c.state !== 'panic') { c.sawSnake = true; if (Math.random() < .55 + gore * .4) say(c, gore > .2 ? 'bloodySnake' : 'firstSight'); }
   if (seen && c.state !== 'panic') {
-    if (SETTINGS.noticeSnake) { c.state = 'flee'; c.fx = s.x; c.fy = s.y; c.timer = 2.5; }
-    else if (dist < 75 && (c.state === 'wander' || c.state === 'idle')) { c.state = 'uneasy'; c.fx = s.x; c.fy = s.y; c.timer = rand(1.5, 2.5); } // back away from it
+    if (c.alert > .3 || SETTINGS.noticeSnake) { // they've seen what it does: no second look needed
+      if (c.alert > .3) panic(c, s.x, s.y, rand(4, 7), 'chased'); else { c.state = 'flee'; c.fx = s.x; c.fy = s.y; c.timer = 2.5; }
+    } else if (gore > .45 && dist < 60 + 200 * gore && Math.random() < gore * .18) panic(c, s.x, s.y, rand(3, 5), 'bloodySnake'); // a blood-soaked snake is terrifying
+    else if (dist < 75 + 170 * gore && (c.state === 'wander' || c.state === 'idle')) { // the bloodier it is, the earlier they get uneasy
+      c.state = 'uneasy'; c.fx = s.x; c.fy = s.y; c.timer = rand(1.5, 2.5) + gore * 2;
+      if (gore > .2 && T - (c.goreSaid || -99) > 8 && Math.random() < .3) { c.goreSaid = T; say(c, 'bloodySnake'); }
+    }
   }
   if (!hum || c.state === 'panic') return;
-  let near = null, n = 0; // a panicking crowd is contagious
-  for (const o of creatures) if (o !== c && o.alive && o.def.human && o.state === 'panic' && dist2(c.x, c.y, o.x, o.y) < 120 * 120) { n++; near = o; }
-  if (n >= 2) { panic(c, near.fx, near.fy, rand(2.5, 4), 'crowd'); return; }
-  if (c.state === 'wander' || c.state === 'idle') { // blood and places where people died make them uneasy
+  if (panicN >= 2) { panic(c, panicO.fx, panicO.fy, rand(2.5, 4), 'crowd'); return; } // a panicking crowd is contagious (seen, not heard)
+  if (!blind && (c.state === 'wander' || c.state === 'idle')) { // blood and places where people died make them uneasy
     for (const d of deaths) {
       if (dist2(c.x, c.y, d.x, d.y) > 110 * 110 || (c.seen && c.seen.includes(d)) || !los(c.x, c.y, d.x, d.y)) continue;
       (c.seen = c.seen || []).push(d);

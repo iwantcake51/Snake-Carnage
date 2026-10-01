@@ -5,7 +5,7 @@ let UT = 0, rotT = 0; // UI clock keeps running while the world is paused
 function update(dt) {
   UT += dt;
   if ((rotT -= dt) <= 0) { rotT = .5; checkRotation(); updateRotClocks(); }
-  if (state === 'menu' || state === 'paused') return; // time stops: no AI, movement, blood or sounds
+  if (state === 'menu' || state === 'paused' || state === 'held') return; // time stops: no AI, movement, blood or sounds
   if (state === 'dead') { // the world is frozen; only the camera settles and the death screen arrives
     shake *= Math.exp(-dt * 8); if (shake < .2) shake = 0;
     killV *= Math.exp(-dt * 1.4); killFlash *= Math.exp(-dt * 7);
@@ -55,7 +55,7 @@ function updateTrail(dt) {
   const s = snake, type = SETTINGS.snake.trail;
   if (type !== 'None' && state === 'play' && s.started && s.alive && (s.trailT = (s.trailT || 0) - dt) <= 0) {
     s.trailT = .045;
-    const g = s.segs[s.segs.length - 1], up = type === 'Embers' || type === 'Bubbles' || type === 'Hearts' ? -16 : 0;
+    const g = s.segs[s.segs.length - 1], up = type === 'Embers' || type === 'Bubbles' || type === 'Hearts' ? -16 : type === 'Blood Drip' ? 14 : 0;
     trail.push({ x: g.x + rand(-4, 4), y: g.y + rand(-4, 4), vx: rand(-12, 12), vy: rand(-12, 12) + up, t: 0, life: rand(.7, 1.3), rot: rand(0, TAU),
                  c: pick(['#ff4f8b', '#ffd23f', '#3fd4ff', '#7dff6a', '#b07bff']), type });
   }
@@ -76,6 +76,11 @@ function drawTrail(x) {
       case 'Petals': x.save(); x.translate(p.x, p.y); x.rotate(p.rot); x.fillStyle = '#ffb3d1'; ell(x, 0, 0, 3, 1.6); x.restore(); break;
       case 'Smoke': x.globalAlpha = k * .45; x.fillStyle = '#8a8a8a'; circ(x, p.x, p.y, 3 + (1 - k) * 6); break;
       case 'Confetti': x.save(); x.translate(p.x, p.y); x.rotate(p.rot); x.fillStyle = p.c; x.fillRect(-2, -1, 4, 2); x.restore(); break;
+      case 'Cheese Crumbs': x.save(); x.translate(p.x, p.y); x.rotate(p.rot); x.fillStyle = '#f2c94c'; x.fillRect(-1.6, -1.2, 3.2, 2.4); x.fillStyle = '#d9a92a'; x.fillRect(-.4, -.4, .9, .9); x.restore(); break;
+      case 'Gold Dust': x.fillStyle = k > .5 ? '#fff1b0' : '#d4af37'; star(x, p.x, p.y, 1.8 * k + .8, p.rot); break;
+      case 'Blood Drip': x.fillStyle = '#7a0909'; ell(x, p.x, p.y, 1.3, 1.3 + (1 - k) * 1.6); break;
+      case 'Alarm': x.fillStyle = Math.floor(p.t * 8) % 2 ? '#ff2b2b' : '#ffffff'; circ(x, p.x, p.y, 1.8 * k + .6); break;
+      case 'Stardust': x.fillStyle = p.c === '#3fd4ff' ? '#9fe6ff' : '#ffffff'; star(x, p.x, p.y, 1.4 * k + .6, p.rot); break;
     }
   }
   x.globalAlpha = 1;
@@ -108,6 +113,10 @@ function drawVisionMask(x) { // opaque haze everywhere you can't see
   if ('filter' in vctx) vctx.filter = 'none';
   vctx.globalCompositeOperation = 'source-over';
   x.drawImage(visC, 0, 0, W, H);
+  if (MOD.fow) { // walls you aren't looking at stay nearly black, but a faint trace nearby keeps you from driving blind into them
+    x.save(); x.beginPath(); x.arc(snake.x, snake.y, 150, 0, TAU); x.clip();
+    x.globalAlpha = .16; x.drawImage(outlineC, 0, 0, W, H); x.restore();
+  }
   fillOutside(x, col); // the camera can lean past the map edge: keep that hidden too
 }
 function fillOutside(x, style) { // paints everything around the 0..W x 0..H world
@@ -144,12 +153,9 @@ function drawGoldenFX(x) { // soft pulsing glow + orbiting glints so golden huma
   }
 }
 let goldTimer = null;
-function goldenBanner() {
-  const el = document.getElementById('gold');
-  el.innerHTML = `<div class="gb"><b>GOLDEN HUMAN SPAWNED</b><small>Find them before they get away.</small></div>`;
-  el.className = 'show'; Sfx.golden();
-  clearTimeout(goldTimer);
-  goldTimer = setTimeout(() => { el.className = 'show out'; setTimeout(() => { if (el.classList.contains('out')) el.className = ''; }, 650); }, 5200);
+function goldenBanner(animal) { // golden human: big gold note; golden animal: smaller and shorter
+  if (animal) { notify({ kind: 'goldA', title: `Golden ${animal}!`, sub: 'Worth a fortune. Quick.', dur: 4, bar: true, key: 'gold' }); Sfx.golden(true); return; }
+  notify({ kind: 'goldH', title: 'GOLDEN HUMAN', sub: 'Find them before they get away.', dur: 5.5, bar: true, key: 'gold' }); Sfx.golden();
 }
 function drawTargetOutlines(x) { // clean silhouette rim around everything edible: black by day, white at night
   const night = light.dark > .3, col = night ? 'rgba(255,255,255,.78)' : 'rgba(0,0,0,.6)';

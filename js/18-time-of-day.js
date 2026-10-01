@@ -6,8 +6,8 @@ const HEIGHTS = { block: 22, border: 14, wall: 18, building: 28, barn: 32, silo:
 const FIXED_TIMES = { Day: 12, Dusk: 18.2, Night: 23 };
 const VISIBLE = .35;
 /* Light colors by source, and how high each source hangs (decides shadow length). */
-const LCOL = { street: '255,156,58', fluor: '226,238,255', pool: '80,215,255', emerg: '255,40,36', fire: '255,150,60', window: '255,196,110', fixed: '255,214,150' };
-const LIGHT_H = { street: 55, fluor: 70, fixed: 50, fire: 6, pool: 0, emerg: 45, window: 0 };
+const LCOL = { street: '255,156,58', fluor: '226,238,255', pool: '80,215,255', emerg: '255,40,36', fire: '255,150,60', window: '255,196,110', fixed: '255,214,150', alien: '110,255,160' };
+const LIGHT_H = { street: 55, fluor: 70, fixed: 50, fire: 6, pool: 0, emerg: 45, window: 0, alien: 50 };
 let tod = 16, light = null, shadowKey = '', lights = [], windows = [], beams = [], dropped = [], debris = [], scast = [];
 let lightFrame = 0; const lightCache = { x: NaN, y: NaN, f: -1, v: 0 };
 

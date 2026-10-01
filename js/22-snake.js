@@ -152,14 +152,14 @@ function eat(c) {
   const headOn = -(sx * Math.cos(c.a) + sy * Math.sin(c.a)) * mv;           // +1 = target ran into the snake
   const side = Math.abs(sx * Math.sin(c.a) - sy * Math.cos(c.a));            // hit from the side => wider spray
   const amount = c.def.blood * (1 + .5 * headOn) * rand(.9, 1.15) * (MOD.bloody ? 1.8 : 1);
-  spawnBlood(c.x, c.y, s.angle, amount, .3 + .55 * side, .1 + .2 * Math.max(0, headOn));
+  spawnBlood(c.x, c.y, s.angle, amount, .3 + .55 * side, .1 + .2 * Math.max(0, headOn), c.golden || c.def.bloodCol);
   spawnGiblets(c, s.angle); addBloodAmount(amount);
   bleedIntoWater(c.x, c.y, amount);
-  pools.push({ x: c.x, y: c.y, r: 2, max: (4 + amount * 15) * rand(.85, 1.15),
+  pools.push({ x: c.x, y: c.y, r: 2, c: c.golden ? GOLD_BLOOD[0] : c.def.bloodCol ? c.def.bloodCol[0] : BLOOD, max: (4 + amount * 15) * rand(.85, 1.15),
                lobes: Array.from({ length: randi(5, 8) }, () => ({ dx: rand(-.55, .55), dy: rand(-.55, .55), s: rand(.45, 1) })) });
   for (let k = 0; k < 14 * amount; k++) {
     const i = randi(0, Math.min(3, s.segs.length - 1)), g = s.segs[i];
-    stainSnake(i, g.x + rand(-10, 10), g.y + rand(-10, 10), rand(1.5, 4), BLOOD);
+    stainSnake(i, g.x + rand(-10, 10), g.y + rand(-10, 10), rand(1.5, 4), c.golden && Math.random() < .7 ? pick(GOLD_BLOOD) : BLOOD);
   }
   for (let k = 0; k < c.def.grow; k++) s.stains.push([]);
   s.len += c.def.grow;
@@ -170,9 +170,9 @@ function eat(c) {
   const pts = Math.max(1, Math.round(c.def.score * gold * frenzy * rewardMult * cm * mb.m * (1 + (run.bonus || 0))));
   score += pts; run.score = score;
   c.def.human ? (kills.h++, run.humans++) : (kills.a++, run.animals++);
-  run.byType[c.type] = (run.byType[c.type] || 0) + 1; run.killed++; if (c.golden) run.goldens++;
+  run.byType[c.type] = (run.byType[c.type] || 0) + 1; run.killed++; if (c.golden) { run.goldens++; c.def.human ? PROG.goldH = (PROG.goldH || 0) + 1 : PROG.goldA = (PROG.goldA || 0) + 1; } // lifetime golden tally
   const kxp = Math.round((c.def.human ? 12 : c.def.score * 4) * gold * rewardMult * mb.m);
-  crEat(c, pts, kxp);
+  crEat(c, pts, kxp); statEat(c);
   gainXP(kxp, Math.max(1, Math.round(c.def.score * .6 * gold * rewardMult * mb.m)));
   modHud();
   shake = Math.min(CONFIG.shakeMax, shake + 2 + 12 * amount);
@@ -191,6 +191,6 @@ function die() {
   Sfx.crash(snake.x);
   const m = MAPS[mapIdx].name;
   PROG.best[m] = Math.max(PROG.best[m] || 0, score); PROG.runs++; PROG.kills += kills.h + kills.a;
-  checkChallenges(); saveProg();
+  checkChallenges(); statRunEnd();
   updateHud();
 }

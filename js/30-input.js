@@ -20,6 +20,7 @@ addEventListener('keydown', e => {
   if (k) {
     if (state === 'ready' || state === 'play') e.preventDefault();
     held.add(k);
+    if (state === 'held') { state = 'play'; hideResume(); }
     if (state === 'ready' || state === 'play') applyDir();
     if (state === 'ready') { snake.started = true; state = 'play'; }
   } else if (e.code === 'Space' || e.code === 'Enter') {
@@ -29,16 +30,17 @@ addEventListener('keydown', e => {
     if (state === 'paused' && overlay.querySelector('.pause')) return resumeGame();
     if ((state === 'menu' && overlay.querySelector('.menu')) || (state === 'dead' && deadT <= 0)) startGame();
   } else if (e.code === 'Escape') {
-    if (['play', 'ready', 'intro'].includes(state)) pauseGame();
+    if (['play', 'ready', 'intro', 'held'].includes(state)) pauseGame();
     else if (state === 'paused') overlay.querySelector('.pause') ? resumeGame() : transitionTo(showPause);
     else if (state === 'dead' && deadT <= 0) returnToMenu();
     else if (state === 'menu' && !overlay.querySelector('.menu') && !overlay.querySelector('.casebox')) transitionTo(showMenu);
   }
   else if (e.code === 'KeyF') { // night vision only while actually playing
-    if (!['play', 'ready'].includes(state)) return;
-    if (MOD.noNVG) { toast('Night vision is off for this run'); return; }
+    if (!['play', 'ready', 'held'].includes(state)) return;
+    if (MOD.noNVG) { notify({ kind: 'bad', title: 'No night vision this run', dur: 1.6, key: 'nvg' }); return; }
     nightVision = !nightVision; if (nightVision) { run.usedNV = true; cr.usedNV = true; }
-    Sfx.click(nightVision); toast(nightVision ? 'Night vision on' : 'Night vision off');
+    Sfx.click(nightVision); notify({ kind: 'nvg', title: 'NVG', right: nightVision ? 'ON' : 'OFF', dur: 1.3, key: 'nvg' });
+    const nn = document.querySelector('#notes .n-nvg'); if (nn) nn.classList.toggle('off', !nightVision);
   }
 });
 addEventListener('keyup', e => {
