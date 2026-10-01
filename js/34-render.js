@@ -104,16 +104,26 @@ const NOISE = Array.from({ length: 4 }, () => { // a few pre-made static frames
   x.putImageData(im, 0, 0); return c;
 });
 const SCANLINES = (() => { const c = document.createElement('canvas'); c.width = 4; c.height = 4; const x = c.getContext('2d'); x.fillStyle = 'rgba(0,0,0,.07)'; x.fillRect(0, 0, 4, 1); x.fillRect(0, 2, 4, 1); return c; })();
+const nvMC = document.createElement('canvas'), nvmx = (() => { nvMC.width = W; nvMC.height = H; return nvMC.getContext('2d'); })();
 function drawNVHighlights(x) { // drawn after the green tint, so the rings stay pure white and sit above blood
   x.save();
-  x.globalAlpha = .3; x.drawImage(nvOutC, 0, 0, W, H); x.globalAlpha = 1;
+  let out = nvOutC;
+  if (MOD.fog || MOD.fow) { // only outline what you can actually see: cut the hidden area out using the vision mask
+    nvmx.globalCompositeOperation = 'copy'; nvmx.drawImage(nvOutC, 0, 0, nvMC.width, nvMC.height);
+    nvmx.globalCompositeOperation = 'destination-out'; nvmx.drawImage(visC, 0, 0, nvMC.width, nvMC.height); nvmx.globalCompositeOperation = 'source-over';
+    out = nvMC;
+  }
+  x.globalAlpha = .3; x.drawImage(out, 0, 0, W, H); x.globalAlpha = 1;
   for (const c of creatures) {
-    if (!c.alive || playerSees(c.x, c.y) < .3) continue;
+    const vis = playerSees(c.x, c.y);
+    if (!c.alive || vis < .05) continue;
+    x.globalAlpha = vis;
     const hum = c.def.human, pulse = c.state === 'panic' ? .5 + .5 * Math.sin(T * 12) : 0, r = c.def.r + 4 + pulse * 2;
     x.strokeStyle = `rgba(255,255,255,${hum ? .85 : .6})`; x.lineWidth = hum ? 1.4 : 1;
     if (!hum) x.setLineDash([3, 3]);
     x.beginPath(); x.arc(c.x, c.y, r, 0, TAU); x.stroke(); x.setLineDash([]);
   }
+  x.globalAlpha = 1;
   if (snake) { x.strokeStyle = 'rgba(255,255,255,.9)'; x.lineWidth = 1.6; x.beginPath(); x.arc(snake.x, snake.y, CONFIG.snakeR + 4, 0, TAU); x.stroke(); }
   x.restore();
 }
