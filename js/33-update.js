@@ -126,6 +126,7 @@ function drawSnakeNightRim(x) { // white rim at night, readable over dark ground
   for (let i = 0; i < n; i++) { const g = pts[i], r = segR(i, n) + .4; snx.moveTo(g.x + r, g.y); snx.arc(g.x, g.y, r, 0, TAU); }
   snx.strokeStyle = `rgba(255,255,255,${strong ? .95 : .8})`; snx.lineWidth = strong ? 3.6 : 2.4; snx.stroke();
   snx.globalCompositeOperation = 'destination-out'; snx.fill(); snx.globalCompositeOperation = 'source-over';
+  if (MOD.fog || MOD.fow) { snx.globalCompositeOperation = 'destination-out'; snx.drawImage(visC, 0, 0, W, H); snx.globalCompositeOperation = 'source-over'; } // only the part of the body you can see
   const bx = Math.max(0, x0), by = Math.max(0, y0), bw = Math.min(W, x1) - bx, bh = Math.min(H, y1) - by;
   if (bw > 0 && bh > 0) x.drawImage(snOC, bx * DPR, by * DPR, bw * DPR, bh * DPR, bx, by, bw, bh);
 }
