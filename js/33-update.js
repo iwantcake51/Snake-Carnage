@@ -108,6 +108,11 @@ function drawVisionMask(x) { // opaque haze everywhere you can't see
   if ('filter' in vctx) vctx.filter = 'none';
   vctx.globalCompositeOperation = 'source-over';
   x.drawImage(visC, 0, 0, W, H);
+  fillOutside(x, col); // the camera can lean past the map edge: keep that hidden too
+}
+function fillOutside(x, style) { // paints everything around the 0..W x 0..H world
+  const m = 400; x.fillStyle = style;
+  x.fillRect(-m, -m, W + 2 * m, m); x.fillRect(-m, H, W + 2 * m, m); x.fillRect(-m, 0, m, H); x.fillRect(W, 0, m, H);
 }
 const [snOC, snx] = makeLayer();
 function drawSnakeNightRim(x) { // white rim at night, readable over dark ground and blood, with or without night vision

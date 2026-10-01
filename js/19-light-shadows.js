@@ -167,6 +167,7 @@ function drawLighting(x) {
       x.globalCompositeOperation = 'saturation'; x.drawImage(desC, 0, 0, W, H); x.globalCompositeOperation = 'source-over';
     }
     x.drawImage(lightC, 0, 0, W, H);
+    fillOutside(x, `rgba(${L.dc},${dark})`); // darkness past the map edge too
   } else for (const f of beams) { const s = composeBeam(f, false); tintFrom(s2, S1, s, f.c); useAdd(); beamAdd(f, s, .07, false); } // daylight: barely visible
   if (L.lampsOn > .01 && !nv && windows.length) { useAdd(); adx.globalAlpha = .85 * L.lampsOn; adx.fillStyle = `rgb(${LCOL.window})`; for (const w of windows) adx.fillRect(w.x, w.y, w.w, w.h); }
   if (used) { adx.globalAlpha = 1; adx.globalCompositeOperation = 'source-over'; x.globalCompositeOperation = 'lighter'; x.drawImage(addC, 0, 0, W, H); x.globalCompositeOperation = 'source-over'; }
