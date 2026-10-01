@@ -1,0 +1,201 @@
+/* =========================================================
+   SOUND (synthesized with Web Audio, no files)
+   ========================================================= */
+const Sfx = {
+  ctx: null, noise: null, lastShout: 0,
+  init() {
+    if (!this.ctx) {
+      try {
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const n = this.ctx.sampleRate, b = this.ctx.createBuffer(1, n, n), d = b.getChannelData(0);
+        for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+        this.noise = b;
+      } catch (e) { return; }
+    }
+    if (this.ctx.state === 'suspended') this.ctx.resume();
+  },
+  ok() { return this.ctx && this.ctx.state === 'running' && SETTINGS.volume > 0; },
+  out(x, vol = 1) {
+    const c = this.ctx, g = c.createGain(); g.gain.value = SETTINGS.volume * vol;
+    if (c.createStereoPanner) { const p = c.createStereoPanner(); p.pan.value = x === undefined ? 0 : clamp(x / W * 2 - 1, -1, 1) * .7; g.connect(p); p.connect(c.destination); }
+    else g.connect(c.destination);
+    return g;
+  },
+  burst(dest, t, dur, freq, q, gain, type = 'bandpass') {
+    const c = this.ctx, src = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
+    src.buffer = this.noise; f.type = type; f.frequency.value = freq; f.Q.value = q;
+    g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(.001, t + dur);
+    src.connect(f); f.connect(g); g.connect(dest); src.start(t, Math.random() * .5); src.stop(t + dur + .02);
+    return f;
+  },
+  voice(dest, t, f0, f1, dur, type, formant, vib, gain) {
+    const c = this.ctx, o = c.createOscillator(), f = c.createBiquadFilter(), g = c.createGain(), l = c.createOscillator(), lg = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    l.frequency.value = vib; lg.gain.value = f0 * .05; l.connect(lg); lg.connect(o.frequency);
+    f.type = 'bandpass'; f.frequency.value = formant; f.Q.value = 1.4;
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(gain, t + .03); g.gain.exponentialRampToValueAtTime(.001, t + dur);
+    o.connect(f); f.connect(g); g.connect(dest); o.start(t); l.start(t); o.stop(t + dur + .05); l.stop(t + dur + .05);
+  },
+  eat(x, human, amount) {
+    if (!this.ok()) return;
+    const c = this.ctx, t = c.currentTime, o = this.out(x);
+    const th = c.createOscillator(), tg = c.createGain(); // body thump
+    th.frequency.setValueAtTime(130, t); th.frequency.exponentialRampToValueAtTime(38, t + .2);
+    tg.gain.setValueAtTime(.8, t); tg.gain.exponentialRampToValueAtTime(.001, t + .25);
+    th.connect(tg); tg.connect(o); th.start(t); th.stop(t + .3);
+    for (let k = 0; k < (human ? 7 : 3); k++) this.burst(o, t + rand(0, .22), rand(.02, .05), rand(900, 3400), 3, rand(.4, .9)); // bone crunches
+    const sq = this.burst(o, t + .03, .5, 1200, 1.2, .3 + .4 * amount, 'lowpass'); // wet squelch
+    sq.frequency.setValueAtTime(1300, t + .03); sq.frequency.exponentialRampToValueAtTime(140, t + .5);
+    if (human) this.voice(o, t, rand(480, 680), rand(160, 220), .5, 'sawtooth', 1100, 9, .22); // cut-off scream
+    else this.voice(o, t, rand(1000, 1500), rand(400, 600), .22, 'square', 1800, 22, .1);
+  },
+  shout(x) {
+    if (!this.ok() || this.ctx.currentTime - this.lastShout < .2) return;
+    const t = this.ctx.currentTime; this.lastShout = t;
+    this.voice(this.out(x, .35), t, rand(280, 420), rand(380, 520), rand(.25, .4), 'sawtooth', rand(750, 1000), 7, .2);
+  },
+  tone(o, t, f0, f1, dur, type, g) {
+    const c = this.ctx, os = c.createOscillator(), gg = c.createGain();
+    os.type = type; os.frequency.setValueAtTime(f0, t); os.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    gg.gain.setValueAtTime(g, t); gg.gain.exponentialRampToValueAtTime(.001, t + dur);
+    os.connect(gg); gg.connect(o); os.start(t); os.stop(t + dur + .02);
+  },
+  gate(key, gap) { const t = this.ctx.currentTime; if (t - (this['_' + key] || 0) < gap) return false; this['_' + key] = t; return true; },
+  ui(kind) {
+    if (!this.ok() || !SETTINGS.uiSounds) return;
+    if (kind !== 'hover' && kind !== 'tick' && kind !== 'click') { // the richer menu set
+      const t = this.ctx.currentTime, o = this.out(undefined, .9);
+      switch (kind) {
+        case 'open': { this.tone(o, t, 320, 760, .16, 'triangle', .09); const f = this.burst(o, t, .18, 600, .8, .05); f.frequency.setValueAtTime(500, t); f.frequency.exponentialRampToValueAtTime(3000, t + .16); break; }
+        case 'close': this.tone(o, t, 760, 320, .15, 'triangle', .08); break;
+        case 'tab': this.tone(o, t, 980, 1250, .05, 'sine', .07); break;
+        case 'select': this.tone(o, t, 660, 662, .07, 'triangle', .09); this.tone(o, t + .07, 990, 992, .11, 'triangle', .09); break;
+        case 'on': this.tone(o, t, 620, 940, .07, 'square', .035); break;
+        case 'off': this.tone(o, t, 940, 620, .07, 'square', .03); break;
+        case 'confirm': this.tone(o, t, 784, 786, .09, 'triangle', .1); this.tone(o, t + .08, 1175, 1177, .16, 'triangle', .09); break;
+        case 'stop': this.tone(o, t, 200, 90, .14, 'sine', .35); this.burst(o, t, .06, 1800, 1, .12); break;
+      }
+      return;
+    }
+    const t = this.ctx.currentTime, o = this.out();
+    if (kind === 'hover') { if (this.gate('hover', .04)) this.tone(o, t, 1700, 1950, .035, 'sine', .03); }
+    else if (kind === 'tick') { if (this.gate('tick', .03)) this.tone(o, t, 2600, 2400, .02, 'sine', .025); }
+    else { this.tone(o, t, 520, 900, .07, 'triangle', .1); this.burst(o, t, .03, 4000, 1, .04); }
+  },
+  start() {
+    if (!this.ok()) return;
+    const t = this.ctx.currentTime, o = this.out();
+    this.tone(o, t, 160, 640, .35, 'triangle', .14);
+    const f = this.burst(o, t, .45, 400, .8, .2, 'lowpass'); f.frequency.setValueAtTime(300, t); f.frequency.exponentialRampToValueAtTime(3000, t + .4);
+  },
+  crash(x) {
+    if (!this.ok()) return;
+    const t = this.ctx.currentTime, o = this.out(x);
+    this.tone(o, t, 95, 28, .5, 'sine', 1);
+    this.burst(o, t, .35, 700, .8, .6, 'lowpass'); this.burst(o, t, .08, 2500, 1.5, .3);
+    this.tone(o, t + .1, 330, 70, 1, 'sawtooth', .05);
+  },
+  turn() { if (this.ok() && this.gate('turn', .07)) this.burst(this.out(snake && snake.x), this.ctx.currentTime, .045, 3200, 2, .05); },
+  splat(x, wall) {
+    if (!this.ok() || !this.gate(wall ? 'wsplat' : 'splat', wall ? .05 : .035)) return;
+    this.burst(this.out(x, .8), this.ctx.currentTime, wall ? .11 : .06, wall ? 900 : 1500, 1, wall ? .3 : .09, 'lowpass');
+  },
+  drip(x) { if (this.ok() && this.gate('drip', .18)) this.tone(this.out(x, .5), this.ctx.currentTime, 1300, 500, .06, 'sine', .05); },
+  animal(x, type) {
+    const A = { chicken: [1100, 800, .12, 'square', 1500, 30, .08], duck: [520, 420, .16, 'sawtooth', 1000, 0, .1], sheep: [400, 360, .5, 'sawtooth', 900, 7, .1],
+      pig: [190, 140, .22, 'sawtooth', 600, 12, .12], dog: [330, 220, .12, 'sawtooth', 800, 0, .14], cat: [650, 820, .4, 'sawtooth', 1300, 5, .08],
+      rabbit: [1600, 1200, .08, 'square', 2200, 0, .05], rat: [2400, 1800, .07, 'square', 3000, 0, .04], frog: [140, 110, .18, 'square', 400, 25, .1], deer: [900, 500, .25, 'sawtooth', 1400, 8, .07] };
+    const a = A[type]; if (!a || !this.ok() || !this.gate('animal', .12)) return;
+    const t = this.ctx.currentTime, o = this.out(x, .7);
+    this.voice(o, t, ...a);
+    if (type === 'dog' || type === 'chicken') this.voice(o, t + a[2] + .06, ...a);
+  },
+  buy() { if (!this.ok()) return; const t = this.ctx.currentTime, o = this.out(); this.tone(o, t, 988, 990, .09, 'square', .06); this.tone(o, t + .09, 1319, 1320, .25, 'square', .06); },
+  deny() { if (!this.ok()) return; const t = this.ctx.currentTime, o = this.out(); this.tone(o, t, 160, 120, .18, 'square', .08); this.tone(o, t + .1, 140, 100, .18, 'square', .06); },
+  levelUpOld() { if (!this.ok()) return; const t = this.ctx.currentTime, o = this.out(); [523, 659, 784, 1047].forEach((f, k) => this.tone(o, t + k * .09, f, f, .3, 'triangle', .1)); },
+  levelUp() { // impact, quick rising arpeggio, sparkle tail
+    if (!this.ok()) return;
+    const t = this.ctx.currentTime, o = this.out(undefined, .85);
+    this.tone(o, t, 150, 50, .3, 'sine', .55); this.burst(o, t, .25, 5200, .7, .1);
+    [523, 659, 784, 1047].forEach((f, k) => { this.tone(o, t + .03 + k * .065, f, f * 1.003, .3, 'triangle', .12); this.tone(o, t + .03 + k * .065, f * 2, f * 2, .1, 'square', .02); });
+    this.tone(o, t + .32, 2093, 2093, .5, 'sine', .05); this.tone(o, t + .4, 2637, 2637, .45, 'sine', .035);
+  },
+  combo(n) { // rising blip that climbs with the streak
+    if (!this.ok()) return;
+    const t = this.ctx.currentTime, o = this.out(undefined, .7), f = 520 * Math.pow(2, Math.min(n, 24) / 12);
+    this.tone(o, t, f, f * 1.01, .09, 'triangle', .07); this.tone(o, t + .05, f * 1.5, f * 1.5, .08, 'sine', .04);
+  },
+  golden() { // bright bell chord with a sparkly tail: special, not loud
+    if (!this.ok()) return;
+    const t = this.ctx.currentTime, o = this.out(undefined, .8);
+    [[1568, 0], [1976, .06], [2349, .12], [3136, .2]].forEach(([f, d]) => { this.tone(o, t + d, f, f, 1.1, 'sine', .07); this.tone(o, t + d, f * 2.01, f * 2, .5, 'sine', .02); });
+    for (let k = 0; k < 6; k++) this.tone(o, t + .3 + k * .05, 3000 + k * 300, 3200 + k * 300, .08, 'triangle', .018);
+    this.burst(o, t, .6, 7000, .8, .05);
+  },
+  knock() { // the mystery card gets hit and falls away
+    if (!this.ok()) return;
+    const t = this.ctx.currentTime, o = this.out();
+    this.tone(o, t, 260, 120, .12, 'triangle', .2); this.burst(o, t, .05, 2200, 1.2, .2);
+    const f = this.burst(o, t + .15, .9, 2000, .7, .16); f.frequency.setValueAtTime(2400, t + .15); f.frequency.exponentialRampToValueAtTime(200, t + 1);
+  },
+  roll() { if (this.ok()) this.tone(this.out(undefined, .8), this.ctx.currentTime, 1500, 1100, .03, 'square', .035); },
+  whoosh() {
+    if (!this.ok()) return;
+    const t = this.ctx.currentTime, f = this.burst(this.out(), t, .7, 300, .7, .22);
+    f.frequency.setValueAtTime(220, t); f.frequency.exponentialRampToValueAtTime(2400, t + .6);
+  },
+  pop() { if (!this.ok()) return; const t = this.ctx.currentTime, o = this.out(); this.tone(o, t, 600, 1400, .12, 'triangle', .12); this.burst(o, t, .05, 3000, 1, .08); },
+  reveal() { if (!this.ok()) return; const t = this.ctx.currentTime, o = this.out(); [659, 880, 1319].forEach((f, k) => this.tone(o, t + k * .07, f, f, .4, 'triangle', .08)); },
+  chime() {
+    if (!this.ok()) return;
+    const t = this.ctx.currentTime, o = this.out();
+    this.tone(o, t, 880, 870, .5, 'sine', .07); this.tone(o, t + .08, 1320, 1310, .6, 'sine', .05);
+  },
+  slither(moving, wet) { // continuous scale-on-ground hiss; turns wet and louder in blood
+    if (!this.ctx) return;
+    if (!this.sl) {
+      const c = this.ctx, src = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
+      src.buffer = this.noise; src.loop = true; f.type = 'bandpass'; f.Q.value = .9; g.gain.value = 0;
+      src.connect(f); f.connect(g); g.connect(c.destination); src.start(); this.sl = { f, g, v: -1, fq: -1 };
+    }
+    const v = moving ? +((.02 + wet * .07) * SETTINGS.volume).toFixed(3) : 0, fq = wet > .1 ? 600 : 2400, t = this.ctx.currentTime;
+    if (v !== this.sl.v) { this.sl.g.gain.setTargetAtTime(v, t, .08); this.sl.v = v; }
+    if (fq !== this.sl.fq) { this.sl.f.frequency.setTargetAtTime(fq, t, .1); this.sl.fq = fq; }
+  },
+  flClick(x, on) { // tiny flashlight switch
+    if (!this.ok() || !this.gate('flc', .04)) return;
+    const t = this.ctx.currentTime, o = this.out(x, .35);
+    this.burst(o, t, .018, on ? 5200 : 4200, 3, .05); this.tone(o, t, on ? 2600 : 2200, on ? 2400 : 1900, .02, 'square', .008);
+  },
+  lampBreak(x, lit) { // soft thunk, a little glass tinkle, a couple of electric ticks
+    if (!this.ok() || !this.gate('lamp', .15)) return;
+    const t = this.ctx.currentTime, o = this.out(x, .5);
+    this.tone(o, t, 170, 80, .12, 'sine', .12); this.burst(o, t, .09, 1100, .9, .1, 'lowpass');
+    for (let k = 0; k < 5; k++) this.tone(o, t + .02 + k * .035 + Math.random() * .02, 3200 + Math.random() * 2600, 2800 + Math.random() * 1500, .07, 'sine', .018);
+    this.burst(o, t + .01, .16, 6000, 1.2, .05);
+    if (lit) for (let k = 0; k < 3; k++) this.burst(o, t + .04 + k * .06, .025, 7000, 2, .035, 'highpass');
+  },
+  click(on) {
+    if (!this.ok()) return;
+    const c = this.ctx, t = c.currentTime, o = this.out(), os = c.createOscillator(), g = c.createGain();
+    os.frequency.setValueAtTime(on ? 1500 : 2200, t); os.frequency.exponentialRampToValueAtTime(on ? 4200 : 700, t + .25);
+    g.gain.setValueAtTime(.06, t); g.gain.exponentialRampToValueAtTime(.001, t + .28);
+    os.connect(g); g.connect(o); os.start(t); os.stop(t + .3);
+    this.burst(o, t, .12, 3000, .7, .15);
+  }
+};
+addEventListener('pointerdown', () => Sfx.init());
+let hoverBtn = null;
+const HOVER_SFX = '.play,.card,.ghost,.tab,.btn,.seg button,.sseg button';
+document.addEventListener('pointerover', e => { // soft tick on the important buttons only
+  const b = e.target.closest ? e.target.closest(HOVER_SFX) : null;
+  if (b !== hoverBtn) { hoverBtn = b; if (b) Sfx.ui('hover'); }
+});
+document.addEventListener('click', e => { // each button can name its own sound with data-sfx
+  const b = e.target.closest && e.target.closest('button'); if (!b) return;
+  const k = b.dataset.sfx || 'click'; if (k !== 'none') Sfx.ui(k);
+}, true);
+document.addEventListener('input', e => {
+  if (e.target.type === 'range') Sfx.ui('tick');
+  else if (e.target.type === 'color') Sfx.ui('click');
+}, true);
