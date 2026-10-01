@@ -14,8 +14,9 @@ function update(dt) {
   }
   T += dt;
   if (state === 'play') { updateSnake(dt); run.time += dt; crTick(dt); }
+  updateCrowd();
   for (const c of creatures) if (c.alive) updateCreature(c, dt);
-  updateBlood(dt);
+  updateBlood(dt); updateGiblets(dt);
   if ((fadeT -= dt) <= 0) { fadeT = 2; fadeBlood(); }
   updateTrail(dt);
   updateGround(dt);
@@ -112,11 +113,16 @@ const [snOC, snx] = makeLayer();
 function drawSnakeNightRim(x) { // white rim at night, readable over dark ground and blood, with or without night vision
   if (!snake || !snake._pts || light.dark <= .3 || (SETTINGS.snakeOutline || 'Subtle') === 'Off') return;
   const strong = SETTINGS.snakeOutline === 'Strong', pts = snake._pts, n = pts.length;
-  snx.clearRect(-60, -60, W + 120, H + 120); snx.beginPath();
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  for (const g of pts) { if (g.x < x0) x0 = g.x; if (g.x > x1) x1 = g.x; if (g.y < y0) y0 = g.y; if (g.y > y1) y1 = g.y; }
+  const pad = CONFIG.snakeR + 6, prev = snake._rimBox; x0 -= pad; y0 -= pad; x1 += pad; y1 += pad;
+  if (prev) snx.clearRect(prev[0], prev[1], prev[2] - prev[0], prev[3] - prev[1]); else snx.clearRect(-60, -60, W + 120, H + 120);
+  snake._rimBox = [x0, y0, x1, y1]; snx.beginPath();
   for (let i = 0; i < n; i++) { const g = pts[i], r = segR(i, n) + .4; snx.moveTo(g.x + r, g.y); snx.arc(g.x, g.y, r, 0, TAU); }
   snx.strokeStyle = `rgba(255,255,255,${strong ? .95 : .8})`; snx.lineWidth = strong ? 3.6 : 2.4; snx.stroke();
   snx.globalCompositeOperation = 'destination-out'; snx.fill(); snx.globalCompositeOperation = 'source-over';
-  x.drawImage(snOC, 0, 0, W, H);
+  const bx = Math.max(0, x0), by = Math.max(0, y0), bw = Math.min(W, x1) - bx, bh = Math.min(H, y1) - by;
+  if (bw > 0 && bh > 0) x.drawImage(snOC, bx * DPR, by * DPR, bw * DPR, bh * DPR, bx, by, bw, bh);
 }
 function drawGoldenFX(x) { // soft pulsing glow + orbiting glints so golden humans stand out
   for (const c of creatures) {

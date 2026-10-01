@@ -67,6 +67,7 @@ function showMenu() {
       <div class="seg" role="group" aria-label="Snake speed"><i class="sthumb"></i>${Object.keys(CONFIG.snakeSpeeds).map(sp => `<button data-sfx="tab" data-speed="${sp}" class="${sp === selSpeed ? 'on' : ''}">${sp}</button>`).join('')}</div>
       <div class="mrow"><button class="ghost" id="snakeBtn" data-sfx="open">Shop &amp; customize</button><button class="ghost" id="setBtn" data-sfx="open">Settings</button></div>
       <div class="mrow"><button class="ghost" id="modBtn" data-sfx="open">Modifiers</button><button class="ghost" id="chBtn" data-sfx="open">Challenges</button></div>
+      <div class="ver">v${GAME_VERSION}</div>
     </div>
     <div class="mright"><h2>Choose a map</h2><div class="cards">${MAPS.map((m, i) => `<button class="card ${i === mapIdx ? 'on' : ''}" data-sfx="select" data-map="${i}" style="--i:${i}"><img src="${thumbs[i]}" alt=""><span class="cn">${m.icon} ${m.name}</span><span class="cb">Best ${PROG.best[m.name] || 0}, ${chDoneCount(m.name)}/4 challenges</span></button>`).join('')}<button class="card rnd" data-sfx="none" data-map="rand" style="--i:${MAPS.length}">🎲<span class="cn">Random</span></button></div></div>
   </div>`;

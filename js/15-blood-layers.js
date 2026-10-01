@@ -1,7 +1,7 @@
 /* BLOOD BUCKETS: blood is drawn into time-slice layers. A layer stays fully opaque for a long hold time,
    then fades smoothly via globalAlpha (no 8-bit leftovers). Old layers are recycled. */
 const FADE = { Never: null, Slow: { hold: 240, fade: 240 }, Normal: { hold: 120, fade: 150 }, Fast: { hold: 45, fade: 60 } };
-const BLOOD_BUCKETS = 8;
+const BLOOD_BUCKETS = 4; // each layer is two full-screen canvases drawn every frame, so keep this small
 let bucketList = [], bucketPool = [];
 function makeBucket() {
   const f = document.createElement('canvas'), w = document.createElement('canvas');
@@ -26,7 +26,7 @@ function newBucket() {
 }
 function resetBuckets() { bucketPool.push(...bucketList); bucketList = []; newBucket(); }
 function updateBuckets() {
-  const p = FADE[SETTINGS.bloodFade], span = p ? (p.hold + p.fade) / (BLOOD_BUCKETS - 2) : 60;
+  const p = FADE[SETTINGS.bloodFade], span = p ? (p.hold + p.fade) / (BLOOD_BUCKETS - 2) : Infinity; // blood that never fades needs one layer
   if (T - bucketList[bucketList.length - 1].born > span) newBucket();
   while (bucketList.length > 1 && bucketAlpha(bucketList[0]) <= 0) bucketPool.push(bucketList.shift());
 }

@@ -40,7 +40,7 @@ function render() {
     const py = p.y - p.z * .25; x.lineWidth = p.r * 2 * (1 + p.z / 80);
     x.beginPath(); x.moveTo(p.x - p.vx * .016, py - p.vy * .016); x.lineTo(p.x + .01, py); x.stroke();
   }
-  drawDebris(x);
+  drawDebris(x); drawGiblets(x);
   drawLighting(x);
   drawSparks(x);
   drawVisionMask(x);
@@ -131,10 +131,11 @@ function drawNightVision(x) {
   x.restore();
 }
 let last = performance.now();
-let frameMs = 16, lowFx = false; // adaptive quality: if frames run slow, lighting gets cheaper (with hysteresis)
+let frameMs = 16, lowFx = false, fastT = 0; // adaptive quality: if frames run slow, lighting gets cheaper (with hysteresis)
 function frame(now) {
   const raw = now - last; if (raw < 200) frameMs += (raw - frameMs) * .03;
-  if (!lowFx && frameMs > 24) lowFx = true; else if (lowFx && frameMs < 17) lowFx = false;
+  if (!lowFx && frameMs > 24) { lowFx = true; fastT = 0; }
+  else if (lowFx && frameMs < 15) { if ((fastT += raw) > 8000) lowFx = false; } else fastT = 0; // only back to full quality after 8s of clearly fast frames
   const dt = Math.min(.033, raw / 1000); last = now;
   update(dt); render(); requestAnimationFrame(frame);
 }

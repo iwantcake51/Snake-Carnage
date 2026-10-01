@@ -443,3 +443,4 @@ body.minimal #chhud{display:none}
 @keyframes gbIn{0%{opacity:0;transform:translateY(-30px) rotateX(75deg) scale(.6)}55%{opacity:1;transform:translateY(5px) rotateX(-10deg) scale(1.06)}100%{transform:none}}
 @keyframes gbPulse{0%,100%{box-shadow:0 0 0 4px rgba(255,190,40,.18),0 0 26px rgba(255,190,40,.35),0 14px 40px rgba(0,0,0,.55)}50%{box-shadow:0 0 0 6px rgba(255,190,40,.28),0 0 46px rgba(255,190,40,.6),0 14px 40px rgba(0,0,0,.55)}}
 @keyframes gbOut{to{opacity:0;transform:translateY(-22px) scale(.92);filter:blur(4px)}}
+.menu .ver{margin-top:8px;font-size:11px;opacity:.45;letter-spacing:.04em;pointer-events:none}

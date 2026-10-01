@@ -60,7 +60,8 @@ function shadeInto(dst, L, list, ox, oy, size, str, skip, soft) { // removes lig
   qx.setTransform(1, 0, 0, 1, 0, 0);
 }
 function bakeLightMasks() { // static shadows per light, baked once (and again when a lamp breaks)
-  scast = obstacles.filter(o => o.kind !== 'lamp' && (HEIGHTS[o.kind] ?? 10) > 0).map(o => ({ ...o, z: HEIGHTS[o.kind] ?? 10 }));
+  scast = obstacles.filter(o => o.kind !== 'lamp' && (HEIGHTS[o.kind] ?? 10) > 0).map(o => ({ ...o, z: HEIGHTS[o.kind] ?? 10,
+    cx: o.t === 'r' ? o.x + o.w / 2 : o.x, cy: o.t === 'r' ? o.y + o.h / 2 : o.y, br: o.t === 'r' ? Math.hypot(o.w, o.h) / 2 : o.r })); // bounding circle, for culling
   for (const l of lights) {
     if (l.kind === 'window') continue;
     const s = Math.ceil(l.r * 2);
@@ -78,6 +79,15 @@ function gatherDyn() { // things that move and cast shadows: people, animals, th
   if (snake) { const n = snake.segs.length; for (let i = 0; i < n; i++) { const g = snake.segs[i]; dyn.push({ t: 'c', x: g.x, y: g.y, r: segR(i, n) * 1.08, z: 6 }); } }
 }
 function nearDyn(x, y, r, skip) { NEAR.length = 0; for (const d of dyn) if (d.src !== skip || !skip) if (dist2(d.x, d.y, x, y) < (r + d.r) ** 2) NEAR.push(d); return NEAR; }
+const CONE = [];
+function inCone(f, list) { // only what can actually be inside the beam casts a shadow from it
+  for (const o of list) {
+    const cx = o.cx ?? o.x, cy = o.cy ?? o.y, br = o.br ?? o.r, dx = cx - f.x, dy = cy - f.y, d = Math.hypot(dx, dy);
+    if (d - br > f.range) continue;
+    if (d > br && Math.abs(angDiff(f.da, Math.atan2(dy, dx))) > f.half + Math.asin(Math.min(1, br / d)) + .15) continue;
+    CONE.push(o);
+  }
+}
 function composeBeam(f, withShadows) {
   const R = f.range, s = Math.ceil(R * 2), hh = R * Math.tan(f.half);
   s1.setTransform(LS, 0, 0, LS, 0, 0); s1.clearRect(0, 0, s, s);
@@ -85,8 +95,8 @@ function composeBeam(f, withShadows) {
   s1.globalAlpha = .5; s1.drawImage(MASK_SPR, R - 22, R - 22, 44, 44); s1.globalAlpha = 1; // spill around the hand
   if (withShadows) {
     const L = { x: f.x, y: f.y, r: R, h: 11 };
-    nearDyn(f.x, f.y, R, f.holder); // walls + bodies in one pass, softened so the beam stays one smooth shape
-    shadeInto(s1, L, NEAR.length ? scast.concat(NEAR) : scast, f.x - R, f.y - R, s, .88, null, true);
+    CONE.length = 0; inCone(f, scast); inCone(f, nearDyn(f.x, f.y, R, f.holder)); // walls + bodies in one pass, softened so the beam stays one smooth shape
+    if (CONE.length) shadeInto(s1, L, CONE, f.x - R, f.y - R, s, .88, null, true);
   }
   return s;
 }
@@ -101,7 +111,7 @@ function beamAdd(f, s, a, rich) {
   if (rich) {
   s2.clearRect(0, 0, s, s); let any = false; // blood glistens when the beam hits it
   const x0 = Math.max(0, ox), y0 = Math.max(0, oy), x1 = Math.min(W, ox + s), y1 = Math.min(H, oy + s), sw = x1 - x0, sh = y1 - y0; // only read the part under the beam
-  if (sw > 1 && sh > 1) for (const b of bucketList) { const ba = bucketAlpha(b); if (ba < .02) continue; any = true; s2.globalAlpha = ba; const k = b.f.width / W;
+  if (sw > 1 && sh > 1) for (const b of bucketList.slice(-2)) { const ba = bucketAlpha(b); if (ba < .02) continue; any = true; s2.globalAlpha = ba; const k = b.f.width / W;
     s2.drawImage(b.f, x0 * k, y0 * k, sw * k, sh * k, x0 - ox, y0 - oy, sw, sh); s2.drawImage(b.w, x0 * k, y0 * k, sw * k, sh * k, x0 - ox, y0 - oy, sw, sh); }
   s2.globalAlpha = 1;
   if (any) { s2.globalCompositeOperation = 'destination-in'; s2.drawImage(S1, 0, 0, bs, bs, 0, 0, s, s); s2.globalCompositeOperation = 'source-over'; adx.globalAlpha = .6 * f.k; adx.drawImage(S2, 0, 0, bs, bs, ox, oy, s, s); }
@@ -133,14 +143,14 @@ function drawLighting(x) {
       if (!lowFx && l.h > 0 && nearDyn(l.x, l.y, l.r).length) { // someone is under this light: add their shadows this frame
         s1.clearRect(0, 0, s, s); s1.drawImage(l.mask, 0, 0, s, s); shadeInto(s1, l, NEAR, l.x - l.r, l.y - l.r, s, .75); src = S1;
       }
-      lgx.globalAlpha = k; lgx.drawImage(src, 0, 0, bs, bs, l.x - l.r, l.y - l.r, s, s);
+      lgx.globalAlpha = k; if (l.enc) encClip(lgx, l); lgx.drawImage(src, 0, 0, bs, bs, l.x - l.r, l.y - l.r, s, s); if (l.enc) lgx.restore();
       if (l.kind === 'street' && !nv) { useAdd(); const spr = glowSprites[l.c] || (glowSprites[l.c] = lightSprite(l.c, .3)); adx.globalAlpha = k * .9; adx.drawImage(spr, l.x - 13, l.y - 13, 26, 26); } // the bulb
     }
     const desat = !nv && dark > .05;
     if (desat) { dsx.globalCompositeOperation = 'copy'; dsx.globalAlpha = 1; dsx.drawImage(lightC, 0, 0, desC.width, desC.height); } // snapshot (half res: it's a soft mask) before colored veils go in
     if (!nv) { // colored veil inside each light pool: sodium orange, fluorescent white, pool cyan, emergency red
       lgx.globalCompositeOperation = 'source-over';
-      for (const l of lights) { if (l.kind === 'window') continue; const k = lightK(l); if (k < .01) continue; const s = l.size, bs = Math.ceil(s * LS); lgx.globalAlpha = k * (VEIL[l.kind] ?? .12); lgx.drawImage(l.tint, 0, 0, bs, bs, l.x - l.r, l.y - l.r, s, s); }
+      for (const l of lights) { if (l.kind === 'window') continue; const k = lightK(l); if (k < .01) continue; const s = l.size, bs = Math.ceil(s * LS); lgx.globalAlpha = k * (VEIL[l.kind] ?? .12); if (l.enc) encClip(lgx, l); lgx.drawImage(l.tint, 0, 0, bs, bs, l.x - l.r, l.y - l.r, s, s); if (l.enc) lgx.restore(); }
     }
     beams.forEach((f, i) => {
       const s = composeBeam(f, true), bs = Math.ceil(s * LS);
@@ -161,3 +171,36 @@ function drawLighting(x) {
   if (L.lampsOn > .01 && !nv && windows.length) { useAdd(); adx.globalAlpha = .85 * L.lampsOn; adx.fillStyle = `rgb(${LCOL.window})`; for (const w of windows) adx.fillRect(w.x, w.y, w.w, w.h); }
   if (used) { adx.globalAlpha = 1; adx.globalCompositeOperation = 'source-over'; x.globalCompositeOperation = 'lighter'; x.drawImage(addC, 0, 0, W, H); x.globalCompositeOperation = 'source-over'; }
 }
+
+/* ---- snake coiled all the way around a light: the light stays inside the coil ---- */
+const ENC_N = 48;
+function enclosure(l) { // every ray out of the light hits the snake => returns the distance to the coil per direction
+  const s = snake; if (!s || !s.segs.length || l.kind === 'window') return null;
+  const sg = s.segs, n = sg.length, d = l.encD || (l.encD = new Float32Array(ENC_N)); d.fill(Infinity);
+  let near = 0;
+  for (let i = 0; i < n; i++) {
+    const g = sg[i], r = segR(i, n), dx = g.x - l.x, dy = g.y - l.y, dd = Math.hypot(dx, dy);
+    if (dd > l.r + r || dd < r) continue; near++;
+    const a = Math.atan2(dy, dx), h = Math.asin(Math.min(1, r / dd)), b0 = Math.floor((a - h) / TAU * ENC_N), b1 = Math.floor((a + h) / TAU * ENC_N);
+    for (let b = b0; b <= b1; b++) { const k = ((b % ENC_N) + ENC_N) % ENC_N, v = dd + r * .4; if (v < d[k]) d[k] = v; } // inner half of the body stays lit
+  }
+  if (near < 6) return null;
+  for (let k = 0; k < ENC_N; k++) if (d[k] === Infinity) return null;
+  return d;
+}
+function updateEnclosures() {
+  let bx0 = 1e9, by0 = 1e9, bx1 = -1e9, by1 = -1e9;
+  if (snake) for (const g of snake.segs) { bx0 = Math.min(bx0, g.x); by0 = Math.min(by0, g.y); bx1 = Math.max(bx1, g.x); by1 = Math.max(by1, g.y); }
+  for (const l of lights) { // cheap reject: the light has to sit inside the snake's bounding box
+    l.enc = snake && l.x > bx0 && l.x < bx1 && l.y > by0 && l.y < by1 ? enclosure(l) : null;
+  }
+}
+function encClip(x, l) {
+  const d = l.enc; x.save(); x.beginPath();
+  for (let k = 0; k < ENC_N; k++) { const a = (k + .5) / ENC_N * TAU, px = l.x + Math.cos(a) * d[k], py = l.y + Math.sin(a) * d[k]; k ? x.lineTo(px, py) : x.moveTo(px, py); }
+  x.closePath(); x.clip();
+}
+const encBlocks = (l, x, y) => { // is this point outside the coil around light l?
+  const a = Math.atan2(y - l.y, x - l.x), k = ((Math.floor(a / TAU * ENC_N) % ENC_N) + ENC_N) % ENC_N;
+  return dist2(x, y, l.x, l.y) > l.enc[k] * l.enc[k];
+};

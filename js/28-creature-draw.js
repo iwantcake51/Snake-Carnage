@@ -78,7 +78,8 @@ function drawAnimal(x, c) {
     x.beginPath(); x.moveTo(-d.bl * .8, 0);
     x.quadraticCurveTo(-d.bl * 1.4, lp * 4 + 2, -d.bl * (d.tail === 'long' ? 2 : 1.6), lp * 6); x.stroke();
   }
-  if (d.legs) { x.fillStyle = shade(d.col, -.15); ell(x, -d.bl * .5 - lp * 2, -d.bw, 3, 1.5); ell(x, -d.bl * .5 + lp * 2, d.bw, 3, 1.5); }
+  if (d.legs) { const st = d.hop ? Math.min(1, (c.hz || 0) / 3) : 0; x.fillStyle = shade(d.col, -.15); // legs kick back mid-hop
+    ell(x, -d.bl * .5 - lp * 2 - st * 3, -d.bw + st, 3 + st * 2, 1.5); ell(x, -d.bl * .5 + lp * 2 - st * 3, d.bw - st, 3 + st * 2, 1.5); }
   x.fillStyle = d.col; ell(x, 0, 0, d.bl, d.bw);
   if (d.fluff) for (let k = 0; k < 6; k++) circ(x, Math.cos(k) * d.bl * .7, Math.sin(k * 2) * d.bw * .7, 3.2);
   if (d.ears === 'long') { x.fillStyle = shade(d.col, -.12); ell(x, hx - 4, -2, 4, 1.4); ell(x, hx - 4, 2, 4, 1.4); }
@@ -90,7 +91,8 @@ function drawAnimal(x, c) {
   if (d.snout) { x.fillStyle = shade(d.col, -.15); circ(x, hx + d.hr, 0, 2.2); }
 }
 function drawCreature(x, c) {
-  x.save(); x.translate(c.x, c.y); x.rotate(c.a);
+  if (c.hz > .3) { x.fillStyle = 'rgba(0,0,0,.18)'; ell(x, c.x, c.y, c.def.r * .9, c.def.r * .7); } // ground shadow under a hopping frog
+  x.save(); x.translate(c.x, c.y - (c.hz || 0) * .6); x.rotate(c.a); if (c.hz) x.scale(1 + c.hz * .035, 1 + c.hz * .035);
   c.def.human ? drawHuman(x, c) : drawAnimal(x, c);
   if (c.stains.length) {
     shapePath(x, c); x.clip();

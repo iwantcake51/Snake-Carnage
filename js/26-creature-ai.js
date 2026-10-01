@@ -4,7 +4,7 @@ function openness(x, y) {
   return n;
 }
 function pickFleeGoal(c) { // an open spot away from the threat, away from bodies, ideally in the direction already running
-  const ta = Math.atan2(c.fy - c.y, c.fx - c.x);
+  const ta = Math.atan2(c.fy - c.y, c.fx - c.x), trapped = openness(c.x, c.y) <= 5 && crowdAt(c.x, c.y) >= 5; // boxed into a crowded corner
   let best = null, bs = -1e9;
   for (let k = 0; k < 20; k++) {
     const a = Math.random() < .7 ? ta + Math.PI + rand(-1.6, 1.6) : rand(0, TAU), d = rand(110, 300), x = c.x + Math.cos(a) * d, y = c.y + Math.sin(a) * d;
@@ -14,10 +14,11 @@ function pickFleeGoal(c) { // an open spot away from the threat, away from bodie
     if (!los(c.x, c.y, x, y)) sc -= 140;
     for (const dd of deaths) { const q = Math.hypot(x - dd.x, y - dd.y); if (q < 160) sc -= (160 - q) * 1.5; }
     if (snake) { const q = Math.hypot(x - snake.x, y - snake.y); if (q < 120) sc -= (120 - q) * 3; }
+    sc += spotScore(c, x, y) + (trapped ? openness(x, y) * 30 : 0); // open escape routes beat the map edge
     if (sc > bs) { bs = sc; best = { x, y }; }
   }
   if (!best) best = { x: c.x - Math.cos(ta) * 100, y: c.y - Math.sin(ta) * 100 };
-  best.fx = c.fx; best.fy = c.fy;
+  best = groupGoal(c, best); best.fx = c.fx; best.fy = c.fy;
   c.goal = best; c.goalT = rand(1.5, 2.5); c.stuck = 0; c.goalD = Infinity; c.goalP = 0;
 }
 function steerDir(c, want) {
@@ -52,12 +53,12 @@ function updateCreature(c, dt) {
   if (c.warn && (c.warn.t -= dt) <= 0) { const w = c.warn; c.warn = null; panic(c, w.x, w.y, rand(3, 5), 'warned'); }
   let want = c.a, spd = 0;
   if (c.state === 'idle') {
-    if (c.timer <= 0) { c.state = 'wander'; c.timer = rand(2, 5); c.wa = c.a + rand(-1.5, 1.5); }
+    if (c.timer <= 0) { c.state = 'wander'; c.timer = rand(2, 5); c.wa = pickWander(c); }
   } else if (c.state === 'wander') {
     spd = d.walk;
     if (c.timer <= 0) {
       if (Math.random() < .35) { c.state = 'idle'; c.timer = rand(1, 3); }
-      else { c.timer = rand(1.5, 4); c.wa = c.a + rand(-1.6, 1.6); }
+      else { c.timer = rand(1.5, 4); c.wa = pickWander(c); }
     }
     const z = c.zone;
     if (z && (c.x < z.x || c.x > z.x + z.w || c.y < z.y || c.y > z.y + z.h)) c.wa = Math.atan2(z.y + z.h / 2 - c.y, z.x + z.w / 2 - c.x);
@@ -78,18 +79,20 @@ function updateCreature(c, dt) {
   spd *= SETTINGS.creatureSpeed * (d.human && MOD.fastHumans ? 1.3 : 1) * 1;
   // smooth the desired heading so it can't flip back and forth (no spinning in place)
   c.wantA = c.wantA === undefined ? want : c.wantA + angDiff(c.wantA, want) * Math.min(1, dt * 7);
-  let moved = 0;
+  let moved = 0, mv = spd;
+  if (d.hop) mv = hopSpeed(c, dt, spd); // frogs: hop, pause, hop
   if (spd > 0) {
     if ((c.steerT = (c.steerT || 0) - dt) <= 0 || c.steerA === undefined) { c.steerA = steerDir(c, c.wantA); c.steerT = .12; } // commit for a moment
     const a = c.steerA;
     if (c.state === 'wander' && Math.abs(angDiff(want, a)) > .01) c.wa = a;
-    const tr = (c.state === 'wander' ? 4 : 8) * dt;
+    const tr = (d.hop ? (c.hopT > 0 ? 0 : 14) : c.state === 'wander' ? 4 : 8) * dt; // frogs aim while sitting, not mid-air
     c.a += clamp(angDiff(c.a, a), -tr, tr);
-    const nx = c.x + Math.cos(c.a) * spd * dt, ny = c.y + Math.sin(c.a) * spd * dt;
-    if (free(nx, ny, d.r * .8)) { moved = spd * dt; c.x = nx; c.y = ny; }
-    else { c.steerT = 0; if (T - (c.sideT || -9) > .8) { c.side = -c.side; c.sideT = T; } } // re-steer, but don't flip sides every frame
-    c.stuck = moved < spd * dt * .3 ? (c.stuck || 0) + dt : 0;
-    if (c.state === 'wander' && c.stuck > .5) { c.wa = c.a + Math.PI + rand(-.8, .8); c.stuck = 0; }
+    const nx = c.x + Math.cos(c.a) * mv * dt, ny = c.y + Math.sin(c.a) * mv * dt;
+    if (mv <= 0) { /* sitting between hops */ }
+    else if (free(nx, ny, d.r * .8)) { moved = mv * dt; c.x = nx; c.y = ny; }
+    else { c.steerT = 0; if (d.hop) c.hopT = 0; if (T - (c.sideT || -9) > .8) { c.side = -c.side; c.sideT = T; } } // re-steer, but don't flip sides every frame
+    if (mv > 0) c.stuck = moved < mv * dt * .3 ? (c.stuck || 0) + dt : 0;
+    if (c.state === 'wander' && c.stuck > .5) { noteSpot(c); c.wa = c.a + Math.PI + rand(-.8, .8); c.stuck = 0; }
   }
   c.spd = dt > 0 ? moved / dt : 0;
   c.moveAmt += ((moved > 0 ? 1 : 0) - c.moveAmt) * Math.min(1, dt * 8);
@@ -98,6 +101,20 @@ function updateCreature(c, dt) {
   updateFlash(c, dt);
 }
 
+function hopSpeed(c, dt, spd) { // returns this frame's speed: fast while airborne, zero while sitting
+  const scared = c.state === 'panic' || c.state === 'flee';
+  if (c.hopT > 0) { // in the air
+    c.hopT -= dt; const p = 1 - Math.max(0, c.hopT) / c.hopDur; c.hz = Math.sin(p * Math.PI) * c.hopH;
+    if (c.hopT <= 0) { c.hz = 0; c.hopW = scared ? rand(.06, .2) : rand(.35, .9) * (Math.random() < .2 ? 2 : 1); } // land, then sit a moment
+    return c.hopV;
+  }
+  c.hz = 0;
+  if (spd <= 0) return 0;
+  if ((c.hopW = (c.hopW ?? rand(0, .5)) - dt) > 0) return 0;
+  const dist = scared ? rand(26, 42) : rand(12, 22) * (spd / c.def.walk > 1.5 ? 1.4 : 1);
+  c.hopDur = scared ? rand(.18, .24) : rand(.22, .3); c.hopT = c.hopDur; c.hopH = scared ? rand(5, 8) : rand(3, 5); c.hopV = dist / c.hopDur;
+  return c.hopV;
+}
 function footprints(c, moved) {
   if (moved <= 0) return;
   const hum = c.def.human;

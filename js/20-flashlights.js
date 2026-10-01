@@ -59,9 +59,11 @@ function updateBeams(dt) {
   const list = [];
   for (const c of creatures) if (c.alive && c.fl && c.fl.k > .01) list.push(c.fl);
   for (const d of dropped) if (d.k > .01) list.push(d);
-  const cap = lowFx ? 3 : 6;
-  if (snake && list.length > cap) list.sort((a, b) => dist2(a.x, a.y, snake.x, snake.y) - dist2(b.x, b.y, snake.x, snake.y)); // nearest first, capped for speed
-  beams = list.slice(0, cap);
+  const cap = lowFx ? 4 : 6, sx = snake ? snake.x : W / 2, sy = snake ? snake.y : H / 2;
+  const key = f => dist2(f.x, f.y, sx, sy) * (f.sel ? .6 : 1); // already-shown beams get a head start, so the set doesn't churn
+  if (list.length > cap) list.sort((a, b) => key(a) - key(b)); // nearest first, capped for speed
+  beams = [];
+  list.forEach((f, i) => { f.sel = i < cap; f.vis = clamp((f.vis ?? (f.sel ? 1 : 0)) + (f.sel ? dt * 4 : -dt * 4), 0, 1); if (f.vis > .01) { f.k *= f.vis; beams.push(f); } });
 }
 function drawFlashBodies(x) {
   const one = f => {

@@ -29,6 +29,7 @@ const MODS = [ // g = group shown in the panel; not = can't be combined with
   { g: 'Scoring', id: 'comboFocus', name: 'Combo focus', desc: 'Shorter combo timer, much bigger combo multiplier.', mult: .1, not: ['comboCushion'] },
   { g: 'Scoring', id: 'comboCushion', name: 'Combo cushion', desc: 'A forgiving combo timer, but a smaller combo multiplier.', mult: -.1, not: ['comboFocus'] },
   { g: 'Style', id: 'bloody', name: 'Bloodier', desc: 'A lot more blood per kill.', mult: 0 },
+  { g: 'Style', id: 'mute', name: 'Mute', desc: 'Nobody says a word. No speech bubbles at all.', mult: 0 },
   { g: 'Style', id: 'minimal', name: 'Minimal UI', desc: 'Hides reward pop-ups, the combo breakdown and the challenge list.', mult: 0 },
 ];
 SETTINGS.mods = (SETTINGS.mods || []).filter(id => MODS.some(m => m.id === id)); // drop modifiers that no longer exist

@@ -49,17 +49,53 @@ function pickLine(c, ctx, name) {
   let l = pick(pool); c.recent.push(l); if (c.recent.length > 5) c.recent.shift();
   return name ? l.replace('{a}', name).replace('{A}', name.toUpperCase()) : l;
 }
+function panicLevel(c) { // 0 calm .. 1 falling apart
+  const h = c.voice ? c.voice.heat : .5, seen = Math.min(.25, (c.deathsSeen || 0) * .08);
+  if (c.state === 'panic') return clamp(.55 + .35 * h + seen + (c.wasChased ? .1 : 0), 0, 1);
+  if (c.state === 'flee' || c.state === 'uneasy') return clamp(.25 + .25 * h + seen, 0, 1);
+  return seen * .5;
+}
+function stutterWord(w, twice) { // "did" -> "d-did", "WHAT" -> "W-WHAT", "where" -> "wh-where"; punctuation-only words are left alone
+  const i = w.search(/[a-z]/i); if (i < 0) return w;
+  const head = w.slice(i, i + 1 + (/^(th|wh|sh|ch)[a-z]/.test(w.slice(i)) ? 1 : 0));
+  return w.slice(0, i) + head + '-' + (twice ? head + '-' : '') + w.slice(i);
+}
+function rattle(t, lvl, yell) { // speech gets less composed as panic rises; never every word, and often not at all
+  if (lvl < .25 || t.length < 3) return t;
+  const words = t.split(' ');
+  if (lvl < .6) { // nervous: a hesitation or one light stutter
+    const r = Math.random();
+    if (r < .4) words[0] = stutterWord(words[0], false);
+    else if (r < .55) return pick(yell ? ['UH— ', 'WAIT— '] : ['uh, ', 'um... ', 'I— ']) + (yell ? t : t[0].toLowerCase() + t.slice(1));
+    return words.join(' ');
+  }
+  const r = Math.random(); // falling apart: pick one kind of breakdown
+  if (r < .3) { // repeat the start of one or two words
+    words[0] = stutterWord(words[0], Math.random() < .35);
+    if (words.length > 3 && Math.random() < .35) { const k = randi(1, words.length - 1); words[k] = stutterWord(words[k], false); }
+    return words.join(' ');
+  }
+  if (r < .55) { // interrupts itself and starts over
+    const false0 = pick(['I', 'I-I', 'we', 'it', 'wh', 'oh', 'n-no', 'w-wait']);
+    return (yell ? false0.toUpperCase() : false0[0].toUpperCase() + false0.slice(1)) + '—' + t;
+  }
+  if (r < .75 && words.length > 3) { // cuts the sentence short
+    const cut = words.slice(0, randi(2, Math.min(3, words.length - 1))).join(' ').replace(/[,.!?]+$/, '');
+    return stutterWord(cut, false) + (yell ? '—!' : '—');
+  }
+  return t; // sometimes they still get it out clean
+}
 function finishLine(t, c, ctx) { // intensity varies by person: some shout spoken lines, calm people say yelled ones
   let yell = isYell(t);
   if (!yell && HOT_CTX.has(ctx) && c.voice.heat > .75 && Math.random() < .35) { t = t.toUpperCase(); yell = true; }
   else if (yell && c.voice.heat < .35 && Math.random() < .5) { t = t.toLowerCase(); yell = false; }
   if (yell && c.voice.heat > .55 && Math.random() < .35) t = stretch(t);
   if (!yell) t = t[0].toUpperCase() + t.slice(1);
-  if (!/[!?.…]$/.test(t)) t += yell ? '!' : /^(what|where|why|is|did|how|was|which|who)\b/i.test(t) ? '?' : pick(['.', '...', '!']);
-  return { text: t, yell };
+  if (!/[!?.…—]$/.test(t)) t += yell ? '!' : /^(what|where|why|is|did|how|was|which|who)\b/i.test(t) ? '?' : pick(['.', '...', '!']);
+  return { text: rattle(t, panicLevel(c), yell), yell };
 }
 function say(c, ctxRaw) {
-  if (!c.def.human || !c.alive) return;
+  if (!c.def.human || !c.alive || MOD.mute) return;
   const [ctx, name] = ctxRaw.split(':');
   c.voice = c.voice || { heat: rand(.2, 1), swears: Math.random() < .7 }; c.recent = c.recent || [];
   const b = c.bubbles || (c.bubbles = []);
@@ -93,7 +129,7 @@ function panic(c, x, y, t, ctx = 'panic') {
   const was = c.state === 'panic';
   c.timer = was ? Math.max(c.timer, t) : t;
   c.state = 'panic'; c.fx = x; c.fy = y;
-  if (c.def.human && !was) scream(c, ctx);
+  if (c.def.human && !was) { scream(c, ctx); groupAlarm(c, x, y); }
   else if (!c.def.human && !was) Sfx.animal(c.x, c.type);
 }
 function flee(c, x, y, t) {
@@ -125,6 +161,13 @@ function perceive(c) {
     const dx = c.x - o.x, dy = c.y - o.y, dd = Math.hypot(dx, dy), min = c.def.r + o.def.r + 8;
     if (dd < min && dd > 0) { c.avx += dx / dd * (min - dd) / min * 1.2; c.avy += dy / dd * (min - dd) / min * 1.2; }
   }
+  for (const o of creatures) { // a softer, wider bubble so groups spread out instead of clumping
+    if (o === c || !o.alive) continue;
+    const dx = c.x - o.x, dy = c.y - o.y, dd = Math.hypot(dx, dy), min = c.def.r + o.def.r + 30;
+    if (dd < min && dd > 0) { c.avx += dx / dd * (min - dd) / min * .3; c.avy += dy / dd * (min - dd) / min * .3; }
+  }
+  groupTick(c, .2); groupSteer(c);
+  if (c.state !== 'idle' && Math.random() < .25) noteSpot(c);
   for (let k = 0; k < 8; k++) { // keep off walls and out of corners
     const a = k * TAU / 8, dx = Math.cos(a), dy = Math.sin(a);
     if (solid(c.x + dx * 26, c.y + dy * 26)) { c.avx -= dx * .5; c.avy -= dy * .5; }
