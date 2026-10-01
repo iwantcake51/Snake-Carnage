@@ -153,7 +153,7 @@ function eat(c) {
   const side = Math.abs(sx * Math.sin(c.a) - sy * Math.cos(c.a));            // hit from the side => wider spray
   const amount = c.def.blood * (1 + .5 * headOn) * rand(.9, 1.15) * (MOD.bloody ? 1.8 : 1);
   spawnBlood(c.x, c.y, s.angle, amount, .3 + .55 * side, .1 + .2 * Math.max(0, headOn));
-  spawnGiblets(c, s.angle);
+  spawnGiblets(c, s.angle); addBloodAmount(amount);
   bleedIntoWater(c.x, c.y, amount);
   pools.push({ x: c.x, y: c.y, r: 2, max: (4 + amount * 15) * rand(.85, 1.15),
                lobes: Array.from({ length: randi(5, 8) }, () => ({ dx: rand(-.55, .55), dy: rand(-.55, .55), s: rand(.45, 1) })) });
