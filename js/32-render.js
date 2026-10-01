@@ -1,3 +1,13 @@
+function snakeShadowPath(x, ox, oy) { // circles joined by quads (all clockwise, so nonzero fill = one solid shape, no notches)
+  const sg = snake.segs, n = sg.length;
+  for (let i = 0; i < n; i++) {
+    const g = sg[i], r = segR(i, n), sx = g.x + ox, sy = g.y + oy; x.moveTo(sx + r, sy); x.arc(sx, sy, r, 0, TAU);
+    if (i === n - 1) continue;
+    const h = sg[i + 1], r2 = segR(i + 1, n), dx = h.x - g.x, dy = h.y - g.y, d = Math.hypot(dx, dy); if (d < .01) continue;
+    const nx = -dy / d, ny = dx / d; // with y down, this order winds clockwise like arc()
+    x.moveTo(sx + nx * r, sy + ny * r); x.lineTo(sx - nx * r, sy - ny * r); x.lineTo(h.x + ox - nx * r2, h.y + oy - ny * r2); x.lineTo(h.x + ox + nx * r2, h.y + oy + ny * r2); x.closePath();
+  }
+}
 function render() {
   const x = sctx, L = light, sh = shake && SETTINGS.shake ? shake : 0;
   V.sx = sh ? rand(-sh, sh) : 0; V.sy = sh ? rand(-sh, sh) : 0; V.z = 0;
@@ -15,7 +25,7 @@ function render() {
   x.globalAlpha = L.salpha; x.drawImage(shadowC, 0, 0, W, H); x.globalAlpha = 1;
   x.fillStyle = `rgba(0,0,0,${L.salpha})`; x.beginPath(); // creature + snake shadows as one shape
   for (const c of creatures) if (c.alive) { const r = c.def.r * .85, sx = c.x + L.sdx * 5, sy = c.y + L.sdy * 5; x.moveTo(sx + r, sy); x.arc(sx, sy, r, 0, TAU); }
-  for (let i = 0; i < snake.segs.length; i++) { const g = snake.segs[i], r = segR(i, snake.segs.length), sx = g.x + L.sdx * 6, sy = g.y + L.sdy * 6; x.moveTo(sx + r, sy); x.arc(sx, sy, r, 0, TAU); }
+  snakeShadowPath(x, L.sdx * 6, L.sdy * 6);
   x.fill();
   for (const c of creatures) if (c.alive) drawCreature(x, c);
   drawFlashBodies(x);
