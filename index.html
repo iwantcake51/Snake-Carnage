@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Snake: Carnage</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="wrap">
+  <div id="bar">
+    <span>🩸 <span id="score">0</span></span>
+    <span>🏆 <span id="best">0</span></span>
+    <span id="mapName"></span>
+    <span id="clock"></span>
+    <span class="lvl">Lv <b id="lvl">1</b></span><span class="xp" id="xpbar"><span class="xpfill" id="xpfill"></span></span><span class="money"><i class="pc"></i><span id="coins">0</span></span>
+    <button id="menuBtn" title="Menu" data-sfx="open">☰</button>
+  </div>
+  <div id="stage"><canvas id="c"></canvas><div id="overlay"></div><div id="intro"></div><div id="rewards"></div><div id="combo"></div><div id="evt"></div><div id="chhud"></div><div id="gold"></div><div id="modhud"></div><div id="lvlup"></div><div class="cine top"></div><div class="cine bot"></div></div>
+</div>
+<script src="js/01-config.js"></script>
+<script src="js/02-progression.js"></script>
+<script src="js/03-utils.js"></script>
+<script src="js/04-canvas.js"></script>
+<script src="js/05-maps.js"></script>
+<script src="js/06-creature-types.js"></script>
+<script src="js/07-world.js"></script>
+<script src="js/08-water.js"></script>
+<script src="js/09-obstacles.js"></script>
+<script src="js/10-blood-splats.js"></script>
+<script src="js/11-camera-combo.js"></script>
+<script src="js/12-run-events.js"></script>
+<script src="js/13-challenges.js"></script>
+<script src="js/14-modifiers.js"></script>
+<script src="js/15-blood-layers.js"></script>
+<script src="js/16-kill-fx.js"></script>
+<script src="js/17-sound.js"></script>
+<script src="js/18-time-of-day.js"></script>
+<script src="js/19-light-shadows.js"></script>
+<script src="js/20-flashlights.js"></script>
+<script src="js/21-streetlights.js"></script>
+<script src="js/22-snake.js"></script>
+<script src="js/23-creatures.js"></script>
+<script src="js/24-dialogue.js"></script>
+<script src="js/25-creature-ai.js"></script>
+<script src="js/26-creature-draw.js"></script>
+<script src="js/27-snake-draw.js"></script>
+<script src="js/28-input.js"></script>
+<script src="js/29-ui-menus.js"></script>
+<script src="js/30-ui-customize.js"></script>
+<script src="js/31-update.js"></script>
+<script src="js/32-render.js"></script>
+</body>
+</html>

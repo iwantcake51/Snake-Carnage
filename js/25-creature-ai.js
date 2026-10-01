@@ -1,0 +1,117 @@
+function openness(x, y) {
+  let n = 0;
+  for (let k = 0; k < 8; k++) { const a = k * TAU / 8; if (!solid(x + Math.cos(a) * 40, y + Math.sin(a) * 40)) n++; }
+  return n;
+}
+function pickFleeGoal(c) { // an open spot away from the threat, away from bodies, ideally in the direction already running
+  const ta = Math.atan2(c.fy - c.y, c.fx - c.x);
+  let best = null, bs = -1e9;
+  for (let k = 0; k < 20; k++) {
+    const a = Math.random() < .7 ? ta + Math.PI + rand(-1.6, 1.6) : rand(0, TAU), d = rand(110, 300), x = c.x + Math.cos(a) * d, y = c.y + Math.sin(a) * d;
+    if (!free(x, y, c.def.r + 6)) continue;
+    let sc = Math.hypot(x - c.fx, y - c.fy) * 1.2 + openness(x, y) * 22 + Math.cos(angDiff(c.a, a)) * 40;
+    if (Math.cos(a - ta) > .2) sc -= 400;
+    if (!los(c.x, c.y, x, y)) sc -= 140;
+    for (const dd of deaths) { const q = Math.hypot(x - dd.x, y - dd.y); if (q < 160) sc -= (160 - q) * 1.5; }
+    if (snake) { const q = Math.hypot(x - snake.x, y - snake.y); if (q < 120) sc -= (120 - q) * 3; }
+    if (sc > bs) { bs = sc; best = { x, y }; }
+  }
+  if (!best) best = { x: c.x - Math.cos(ta) * 100, y: c.y - Math.sin(ta) * 100 };
+  best.fx = c.fx; best.fy = c.fy;
+  c.goal = best; c.goalT = rand(1.5, 2.5); c.stuck = 0; c.goalD = Infinity; c.goalP = 0;
+}
+function steerDir(c, want) {
+  const probe = c.def.r + 8 + (c.state === 'wander' ? 0 : 10);
+  for (const off of [0, .35, .7, 1.1, 1.6, 2.2, 2.8]) {
+    for (const sgn of off ? [c.side, -c.side] : [1]) {
+      const a = want + off * sgn;
+      if (free(c.x + Math.cos(a) * probe, c.y + Math.sin(a) * probe, c.def.r * .8)) return a;
+    }
+  }
+  return want + Math.PI;
+}
+
+function updateCreature(c, dt) {
+  const d = c.def;
+  if (c.golden && (c.goldT -= dt) <= 0) { // golden humans don't hang around forever
+    c.alive = false; respawnQ.push({ type: c.type, zone: c.zone, t: rand(2, 5) });
+    if (state === 'play') toast('The golden human got away');
+    return;
+  }
+  c.pt -= dt; if (c.pt <= 0) { c.pt = (MOD.skittish ? .08 : .15) + Math.random() * .1; perceive(c); }
+  c.timer -= dt;
+  if (c.bubbles) for (let i = c.bubbles.length - 1; i >= 0; i--) {
+    const b = c.bubbles[i];
+    if (b.delay > 0) { if ((b.delay -= dt) <= 0 && b.yell) Sfx.shout(c.x); }
+    else if ((b.t += dt) > b.life) c.bubbles.splice(i, 1);
+  }
+  if (c.state === 'panic' && c.def.human && c.timer > 1 && (c.sayCD -= dt) <= 0) { // keep reacting while still in danger
+    const near = snake && dist2(c.x, c.y, snake.x, snake.y) < 90 * 90;
+    if (near) say(c, 'chased'); else if (Math.random() < .45) say(c, 'panic'); else c.sayCD = rand(2, 4);
+  }
+  if (c.warn && (c.warn.t -= dt) <= 0) { const w = c.warn; c.warn = null; panic(c, w.x, w.y, rand(3, 5), 'warned'); }
+  let want = c.a, spd = 0;
+  if (c.state === 'idle') {
+    if (c.timer <= 0) { c.state = 'wander'; c.timer = rand(2, 5); c.wa = c.a + rand(-1.5, 1.5); }
+  } else if (c.state === 'wander') {
+    spd = d.walk;
+    if (c.timer <= 0) {
+      if (Math.random() < .35) { c.state = 'idle'; c.timer = rand(1, 3); }
+      else { c.timer = rand(1.5, 4); c.wa = c.a + rand(-1.6, 1.6); }
+    }
+    const z = c.zone;
+    if (z && (c.x < z.x || c.x > z.x + z.w || c.y < z.y || c.y > z.y + z.h)) c.wa = Math.atan2(z.y + z.h / 2 - c.y, z.x + z.w / 2 - c.x);
+    want = Math.atan2(Math.sin(c.wa) + c.avy * .8, Math.cos(c.wa) + c.avx * .8);
+  } else {
+    spd = c.state === 'uneasy' ? d.walk * 2.2 : d.run * (c.state === 'panic' ? 1 : .9);
+    const gd = c.goal ? Math.hypot(c.goal.x - c.x, c.goal.y - c.y) : 0;
+    if (c.goal) { c.goalP += dt; if (gd < c.goalD - 4) { c.goalD = gd; c.goalP = 0; } } // progress watchdog stops orbiting
+    if (!c.goal || c.goalT <= 0 || c.stuck > .4 || gd < 30 || c.goalP > .9 || dist2(c.fx, c.fy, c.goal.fx, c.goal.fy) > 4900) pickFleeGoal(c);
+    c.goalT -= dt;
+    const gx = c.goal.x - c.x, gy = c.goal.y - c.y, gl = Math.hypot(gx, gy) || 1;
+    want = Math.atan2(gy / gl + c.avy * 1.1, gx / gl + c.avx * 1.1);
+    if (c.timer <= 0) {
+      if (d.human && c.state === 'panic' && c.wasChased && Math.random() < .7) say(c, 'escaped');
+      c.wasChased = false; c.state = 'wander'; c.timer = rand(1, 3); c.wa = c.a; c.goal = null;
+    }
+  }
+  spd *= SETTINGS.creatureSpeed * (d.human && MOD.fastHumans ? 1.3 : 1) * 1;
+  // smooth the desired heading so it can't flip back and forth (no spinning in place)
+  c.wantA = c.wantA === undefined ? want : c.wantA + angDiff(c.wantA, want) * Math.min(1, dt * 7);
+  let moved = 0;
+  if (spd > 0) {
+    if ((c.steerT = (c.steerT || 0) - dt) <= 0 || c.steerA === undefined) { c.steerA = steerDir(c, c.wantA); c.steerT = .12; } // commit for a moment
+    const a = c.steerA;
+    if (c.state === 'wander' && Math.abs(angDiff(want, a)) > .01) c.wa = a;
+    const tr = (c.state === 'wander' ? 4 : 8) * dt;
+    c.a += clamp(angDiff(c.a, a), -tr, tr);
+    const nx = c.x + Math.cos(c.a) * spd * dt, ny = c.y + Math.sin(c.a) * spd * dt;
+    if (free(nx, ny, d.r * .8)) { moved = spd * dt; c.x = nx; c.y = ny; }
+    else { c.steerT = 0; if (T - (c.sideT || -9) > .8) { c.side = -c.side; c.sideT = T; } } // re-steer, but don't flip sides every frame
+    c.stuck = moved < spd * dt * .3 ? (c.stuck || 0) + dt : 0;
+    if (c.state === 'wander' && c.stuck > .5) { c.wa = c.a + Math.PI + rand(-.8, .8); c.stuck = 0; }
+  }
+  c.spd = dt > 0 ? moved / dt : 0;
+  c.moveAmt += ((moved > 0 ? 1 : 0) - c.moveAmt) * Math.min(1, dt * 8);
+  c.phase += moved * (d.human ? .35 : .6);
+  footprints(c, moved);
+  updateFlash(c, dt);
+}
+
+function footprints(c, moved) {
+  if (moved <= 0) return;
+  const hum = c.def.human;
+  if (wetAt(c.x, c.y) > .8) c.feet = Math.max(c.feet, hum ? 9 : 6);
+  c.step += moved;
+  if (c.step < (hum ? 11 : 6)) return;
+  c.step = 0; c.fs = -c.fs;
+  if (c.feet <= .3) return;
+  const off = c.fs * (hum ? 3.5 : 2);
+  fctx.save();
+  fctx.translate(c.x - Math.sin(c.a) * off, c.y + Math.cos(c.a) * off); fctx.rotate(c.a);
+  fctx.globalAlpha = Math.min(.85, c.feet * .11); fctx.fillStyle = BLOOD;
+  if (hum) ell(fctx, 0, 0, 3.4, 1.8);
+  else { circ(fctx, 0, 0, 1.3); circ(fctx, 1.8, -1.2, .7); circ(fctx, 1.8, 1.2, .7); }
+  fctx.restore();
+  c.feet -= hum ? .55 : .8;
+}
