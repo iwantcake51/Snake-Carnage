@@ -3,7 +3,7 @@
    CONFIG
    ========================================================= */
 // Bump by exactly 1 (1.3 -> 1.4 -> ... -> 1.10) with every change you push. See CLAUDE.md.
-const GAME_VERSION = '1.6';
+const GAME_VERSION = '1.7';
 const W = 960, H = 640, B = 16, TAU = Math.PI * 2;
 const CONFIG = {
   snakeSpeeds: { Slow: 110, Normal: 140, Fast: 185 },

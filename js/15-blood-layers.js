@@ -1,6 +1,6 @@
 /* BLOOD BUCKETS: blood is drawn into time-slice layers. A layer stays fully opaque for a long hold time,
    then fades smoothly via globalAlpha (no 8-bit leftovers). Old layers are recycled. */
-const FADE = { Never: null, Slow: { hold: 240, fade: 240 }, Normal: { hold: 120, fade: 150 }, Fast: { hold: 45, fade: 60 } };
+const FADE = { Never: null, Slow: { hold: 90, fade: 60 }, Normal: { hold: 40, fade: 35 }, Fast: { hold: 15, fade: 20 } }; // seconds
 const BLOOD_BUCKETS = 4; // each layer is two full-screen canvases drawn every frame, so keep this small
 let bucketList = [], bucketPool = [];
 function makeBucket() {
@@ -9,7 +9,7 @@ function makeBucket() {
   const fx = f.getContext('2d'), wx = w.getContext('2d'); fx.setTransform(k, 0, 0, k, 0, 0); wx.setTransform(k, 0, 0, k, 0, 0);
   return { f, fx, w, wx, born: 0 };
 }
-const BLOOD_LIMIT = 24, BLOOD_FF = 8; // ~24 big kills on screen at once; past that, the oldest blood fades out over 8s
+const BLOOD_LIMIT = 14, BLOOD_FF = 6; // ~14 big kills on screen at once; past that, the oldest blood fades out over 6s
 function bucketAlpha(b) {
   const ff = b.ff !== undefined ? clamp(1 - (T - b.ff) / BLOOD_FF, 0, 1) : 1; // forced fade (blood limit)
   const p = FADE[SETTINGS.bloodFade]; if (!p) return ff;
