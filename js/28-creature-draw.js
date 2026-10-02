@@ -263,11 +263,23 @@ function drawAnimal(x, c) {
   const f = ANIMALS[c.type]; if (f) return f(x, c, c.def);
   body(x, c.def.bl || 6, c.def.bw || 4, c.def.col || '#888');
 }
+/* High lighting: fake ambient occlusion under everyone, and a volume pass so bodies read as round, lit from the top left */
+const hiFx = () => SETTINGS.lightQ === 'High' && !lowFx;
+const AO_SPR = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 6, 32, 32, 32); gr.addColorStop(0, 'rgba(0,0,0,.55)'); gr.addColorStop(.55, 'rgba(0,0,0,.22)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return c; })();
+const VOL_SPR = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), gr = g.createRadialGradient(24, 22, 2, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,.2)'); gr.addColorStop(.45, 'rgba(255,255,255,0)'); gr.addColorStop(.8, 'rgba(0,0,0,.12)'); gr.addColorStop(1, 'rgba(0,0,0,.34)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return c; })();
+function drawAO(x) { // soft contact darkness where bodies meet the ground
+  if (!hiFx()) return;
+  x.globalAlpha = .5;
+  for (const c of creatures) if (c.alive && !c.def.fly) { const R = c.def.r * 1.9; x.drawImage(AO_SPR, c.x - R, c.y - R, R * 2, R * 2); }
+  if (snake && snake.alive) { const P = snake._pts || snake.segs; for (let i = 0; i < P.length; i += 3) { const R = CONFIG.snakeR * 1.8; x.drawImage(AO_SPR, P[i].x - R, P[i].y - R, R * 2, R * 2); } }
+  x.globalAlpha = 1;
+}
 function drawCreature(x, c, portrait) {
   if (c.hz > .3) { const k = clamp(1 - c.hz / 14, .45, 1); x.fillStyle = `rgba(0,0,0,${(.24 * k).toFixed(3)})`; ell(x, c.x, c.y, c.def.r * .95 * k, c.def.r * .75 * k); } // the shadow shrinks as it leaves the ground
   x.save(); x.translate(c.x, c.y - (c.hz || 0) * .7); x.rotate(c.a); if (c.hz) x.scale(1 + c.hz * .045, 1 + c.hz * .045); // ...and the body gets bigger, closer to you
   if (c.dance) { const b = Math.abs(Math.sin(T * CLUB_BPM / 60 * Math.PI + (c.seed ?? .5) * 30)); x.scale(1 + b * .05, 1 + b * .05); x.rotate(Math.sin(T * 2 + (c.seed ?? .5) * 9) * .12); }
   c.def.human ? drawHuman(x, c) : drawAnimal(x, c);
+  if (!portrait && hiFx() && !c.def.fly) { x.save(); shapePath(x, c); x.clip(); x.rotate(-c.a); const R = c.def.r * 1.5; x.drawImage(VOL_SPR, -R, -R, R * 2, R * 2); x.restore(); } // rounded: light on top, darker toward the edges
   if (c.stains.length) {
     shapePath(x, c); x.clip();
     const n = c.stains.length;

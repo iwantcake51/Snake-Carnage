@@ -66,7 +66,7 @@ function bakeContactShadows(x, list) { // a soft dark rim where every object mee
   ccx.setTransform(1, 0, 0, 1, 0, 0); ccx.clearRect(0, 0, W / 2, H / 2); ccx.setTransform(.5, 0, 0, .5, 0, 0); ccx.filter = 'blur(1.5px)'; ccx.fillStyle = '#000';
   for (const o of list) { const h = HEIGHTS[o.kind] ?? 10; if (!h || o.kind === 'border') continue; const g = Math.min(4, 1 + h * .1); if (o.t === 'r') ccx.fillRect(o.x - g, o.y - g, o.w + g * 2, o.h + g * 2); else circ(ccx, o.x, o.y, o.r + g); }
   ccx.filter = 'none';
-  x.save(); x.globalAlpha = .35; x.imageSmoothingEnabled = true; x.drawImage(contactC, 0, 0, W, H); x.restore();
+  x.save(); x.globalAlpha = SETTINGS.lightQ === 'High' ? .5 : .35; x.imageSmoothingEnabled = true; x.drawImage(contactC, 0, 0, W, H); if (SETTINGS.lightQ === 'High') { x.globalAlpha = .18; x.filter = 'blur(6px)'; x.drawImage(contactC, 0, 0, W, H); x.filter = 'none'; } x.restore(); // High: a wider second ring of occlusion around walls and props
 }
 
 /* ---- light sources ---- */
