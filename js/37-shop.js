@@ -3,19 +3,19 @@
    achievement items shown as locked silhouettes, and a themed custom color picker (the luxury tier).
    ========================================================= */
 const SHOP_TABS = [
-  { id: 'color', label: 'Primary colors', icon: '🎨' }, { id: 'color2', label: 'Secondary colors', icon: '🖌️' }, { id: 'custom', label: 'Custom color', icon: '🌈' },
-  { id: 'pattern', label: 'Skins', icon: '🐍' }, { id: 'hat', label: 'Hats', icon: '🎩' }, { id: 'eyes', label: 'Eyes', icon: '👀' }, { id: 'trail', label: 'Trails', icon: '✨' },
-  { id: 'theme', label: 'UI themes', icon: '🖥️' }, { id: 'card', label: 'Card styles', icon: '🃏' }, { id: 'effect', label: 'Effects', icon: '🎆' }, { id: 'title', label: 'Titles', icon: '🏷️' }];
+  { id: 'color', label: 'Primary colors', icon: 'palette' }, { id: 'color2', label: 'Secondary colors', icon: 'brush' }, { id: 'custom', label: 'Custom color', icon: 'rainbow' },
+  { id: 'pattern', label: 'Skins', icon: 'skin' }, { id: 'hat', label: 'Hats', icon: 'hat' }, { id: 'eyes', label: 'Eyes', icon: 'eyes' }, { id: 'trail', label: 'Trails', icon: 'trail' },
+  { id: 'theme', label: 'UI themes', icon: 'theme' }, { id: 'card', label: 'Card styles', icon: 'card' }, { id: 'effect', label: 'Effects', icon: 'effect' }, { id: 'title', label: 'Titles', icon: 'title' }];
 let shopTab = 'color', shopMsg = '', shopPrev = null;
 const TIERCOL = { easy: '#5fd07a', medium: '#ffcf33', hard: '#ff8a3d', rare: '#c77dff' };
 function shopCard(cat, [v, p, achId], i) {
-  const cfg = SETTINGS.snake, own = owns(cat, v), on = cfg[cat] === v, ach = achId ? ACH.find(a => a.id === achId) : null, locked = ach && !own;
+  const cfg = SETTINGS.snake, own = owns(cat, v), on = cfg[cat] === v, ach = achId ? ACH.find(a => a.id === achId) : null, locked = ach && !own, hidden = locked && ach.secret; // secrets stay secret
   const sw = `<span class="pvw">${itemPreview(cat, v)}</span>`;
   const tip = cat === 'title' ? titleTip(v) : '';
   const status = on ? '<span class="st eq">Equipped</span>' : own ? '<span class="st own">Owned · click to equip</span>' : locked ? '' : `<span class="st buy"><i class="pc"></i> ${p} · click to buy</span>`;
   return `<button class="sc c-${cat} ${on ? 'on' : ''} ${own ? 'own' : ''} ${locked ? 'locked' : ''} ${!own && !locked && PROG.coins < p ? 'poor' : ''}" data-cat="${cat}" data-v="${attr(v)}" style="--i:${i}" ${tip ? `data-tiph="${attr(tip)}"` : ''}>
-    ${sw}<b>${cat.startsWith('color') ? colorName(v) : v}</b>
-    ${locked ? `<span class="lk">🔒</span><span class="req" style="--tc:${TIERCOL[ach.tier]}"><em>${ach.name}</em>${ach.what}<span class="pb"><span style="width:${(achProgress(ach) * 100).toFixed(0)}%"></span></span></span>`
+    ${hidden ? '<span class="pvw"><span class="pvTitle none">???</span></span>' : sw}<b>${hidden ? '???' : cat.startsWith('color') ? colorName(v) : v}</b>
+    ${locked ? `<span class="lk">🔒</span><span class="req" style="--tc:${TIERCOL[ach.tier]}"><em>${hidden ? 'Secret challenge' : ach.name}</em>${hidden ? ach.clue : ach.what}<span class="pb"><span style="width:${(achProgress(ach) * 100).toFixed(0)}%"></span></span></span>`
       : `<span class="price">${own ? (on ? '✔' : '') : `<i class="pc"></i>${p}`}</span>`}
     <span class="hov">${status}</span></button>`;
 }
@@ -70,7 +70,7 @@ function showCustomize() {
   const again = !!overlay.querySelector('.panel.shop2');
   overlay.className = 'menuMode';
   overlay.innerHTML = `<div class="panel shop2 ${again ? 'noanim' : ''}">
-    <nav class="snav"><h1>Shop</h1>${SHOP_TABS.map(t => `<button class="tab ${t.id === shopTab ? 'on' : ''}" data-sfx="tab" data-tab="${t.id}"><i>${t.icon}</i>${t.label}</button>`).join('')}<button class="btn" id="backBtn" data-sfx="close">Done</button></nav>
+    <nav class="snav"><h1>Shop</h1>${SHOP_TABS.map(t => `<button class="tab ${t.id === shopTab ? 'on' : ''}" data-sfx="tab" data-tab="${t.id}"><i>${ico(t.icon)}</i>${t.label}</button>`).join('')}<button class="btn" id="backBtn" data-sfx="close">Done</button></nav>
     <div class="sright"><div class="shophead"><canvas id="prev"></canvas><div class="shinfo"><span class="coinpill"><i class="pc"></i> ${PROG.coins}</span><p class="shopmsg">${shopMsg || 'Hover an item to see its price. Locked items come from Challenges.'}</p></div></div>
     <div class="sgrid tabIn">${shopBody(shopTab)}</div></div></div>`;
   shopMsg = '';

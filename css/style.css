@@ -978,3 +978,4 @@ body.compact .pmwrap{grid-template-columns:150px 1fr}
   #rotate small{font-weight:500;font-size:14px;color:#9b8f88}
 }
 @keyframes tilt{0%,30%{rotate:0deg}55%,85%{rotate:-90deg}100%{rotate:0deg}}
+.tab i{display:grid;place-items:center}.tab .ic{width:18px;height:18px;opacity:.85}.tab.on .ic{opacity:1;color:#ff6a5a}

@@ -16,10 +16,10 @@ Each box gets ticked as soon as that piece is done and checked in a headless run
 - [x] Speed selector removed (speed is now an upgrade)
 - [x] Smaller level-up banner
 - [x] XP bar shows current / needed XP
-- [ ] Blood/score readout aligned on the bar
+- [x] Blood/score readout aligned on the bar (drawn icons instead of emoji, baseline-aligned)
 - [x] Outlines get pixelated with the rest of the picture
 - [x] "Strong outlines" reworked into "Map outlines" (Off / Subtle / Strong)
-- [ ] Full mobile support: touch steering, pause/NV buttons, responsive layout
+- [x] Full mobile support: touch steering, pause/NV buttons, responsive layout
 
 ## 2. Modifiers
 - [x] Shuffle rolls a lot more modifiers
@@ -94,5 +94,5 @@ Each box gets ticked as soon as that piece is done and checked in a headless run
 - [x] Time modes: Dynamic, Daytime, Dawn, Dusk, Night
 
 ## 14. Overall polish
-- [ ] Remove generic / placeholder-looking UI bits, tighten spacing and styling
+- [x] Remove generic / placeholder-looking UI bits, tighten spacing and styling (drawn tab icons, Excel-palette buildings replaced, real item previews)
 - [x] Version bumped to 1.12

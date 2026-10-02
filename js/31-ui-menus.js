@@ -250,12 +250,12 @@ function randomRoll() { // case-opening roll; the pick stays secret until the ga
 }
 const fmtSetting = (k, v) => k === 'customHour' ? String(v).padStart(2, '0') + ':00' : k === 'dayMinutes' ? v + ' min' : k === 'pixel' ? (v <= 1 ? 'Off' : v + 'x') : Math.round(v * 100) + '%';
 const SETTING_TABS = {
-  Gameplay: { icon: '🎮', lead: 'How the world behaves around you.', rows: [
+  Gameplay: { icon: 'gameplay', lead: 'How the world behaves around you.', rows: [
     ['slider', 'creatureSpeed', 'Creature speed', 'How fast people and animals move.', .3, 1.2, .05],
     ['toggle', 'noticeSnake', 'People spot the snake', 'People run when they see you, not only after a kill.'],
     ['seg', 'timeMode', 'Time of day', 'Dynamic starts every run at a random hour and lets the day move on. The others stay fixed.', ['Cycle', 'Day', 'Dawn', 'Dusk', 'Night'], null, null, null, TIME_MODES],
     ['seg', 'bloodFade', 'Blood fades', 'How long blood stays on the ground and walls.', ['Never', 'Slow', 'Normal', 'Fast']]] },
-  Graphics: { icon: '🖥️', lead: 'Look and feel of the picture.', rows: [
+  Graphics: { icon: 'graphics', lead: 'Look and feel of the picture.', rows: [
     ['slider', 'darkness', 'Darkness', 'Overall dimness of the scene.', 0, .7, .05],
     ['slider', 'pixel', 'Pixelation', 'Chunky pixel look. Off shows full detail.', 1, 8, 1],
     ['seg', 'lightQ', 'Lighting', 'High: full dynamic lighting. Medium: fewer moving shadows. Low: baked shadows only, cheapest.', ['Low', 'Medium', 'High']],
@@ -264,14 +264,14 @@ const SETTING_TABS = {
     ['toggle', 'vignette', 'Kill vignette', 'A red pulse at the screen edges when you eat.'],
     ['toggle', 'desaturate', 'Color drain', 'Briefly drains color after a kill.'],
     ['toggle', 'shake', 'Screen shake', 'Shake the camera on kills and crashes.']] },
-  Audio: { icon: '🔊', lead: 'Everything you hear.', rows: [
+  Audio: { icon: 'audio', lead: 'Everything you hear.', rows: [
     ['slider', 'volume', 'Master volume', 'All game sounds.', 0, 1, .05],
     ['toggle', 'uiSounds', 'Menu sounds', 'Hover and click sounds in menus.']] },
-  Controls: { icon: '⌨️', lead: 'Keys you can use while playing. On a phone or tablet, drag anywhere on the board to steer.', keys: [
+  Controls: { icon: 'controls', lead: 'Keys you can use while playing. On a phone or tablet, drag anywhere on the board to steer.', keys: [
     ['W A S D', 'Move. Hold two keys to go diagonal. Let go to keep going straight.'], ['Arrows', 'Also move'],
     ['F', 'Night vision'], ['Shift', 'Lunge (upgrade)'], ['Q', 'Camouflage (upgrade)'], ['E', 'Scent (upgrade)'], ['R', 'Hiss (upgrade)'],
     ['Mouse', 'Steer with the cursor (Free movement modifier + Mouse steering)'], ['Space', 'Start, skip the intro, play again'], ['Esc', 'Pause, back']] },
-  Accessibility: { icon: '♿', lead: 'Make the game easier to see and use.', rows: [
+  Accessibility: { icon: 'access', lead: 'Make the game easier to see and use.', rows: [
     ['toggle', 'reduceMotion', 'Reduce motion', 'Turns off menu animations, floating buttons and the intro zoom.'],
     ['seg', 'uiScale', 'UI scale', 'Size of menus, HUD, notifications and buttons. Auto follows the size of the game.', ['Small', 'Medium', 'Large', 'Extra Large', 'Auto']],
     ['seg', 'bubbleSize', 'Speech bubble size', 'Text size of what people shout.', ['Small', 'Normal', 'Large']],
@@ -319,7 +319,7 @@ function wireSettings(body) {
 function showSettings(tab = settingsTab) {
   settingsTab = tab;
   overlay.className = 'menuMode';
-  overlay.innerHTML = `<div class="panel set"><nav class="snav"><h1>Settings</h1>${Object.keys(SETTING_TABS).map(t => `<button class="tab ${t === tab ? 'on' : ''}" data-sfx="tab" data-tab="${t}"><i>${SETTING_TABS[t].icon}</i>${t}</button>`).join('')}<button class="btn" id="backBtn" data-sfx="confirm">Done</button></nav><div class="sbody tabIn">${settingsBody(tab)}</div></div>`;
+  overlay.innerHTML = `<div class="panel set"><nav class="snav"><h1>Settings</h1>${Object.keys(SETTING_TABS).map(t => `<button class="tab ${t === tab ? 'on' : ''}" data-sfx="tab" data-tab="${t}"><i>${ico(SETTING_TABS[t].icon)}</i>${t}</button>`).join('')}<button class="btn" id="backBtn" data-sfx="confirm">Done</button></nav><div class="sbody tabIn">${settingsBody(tab)}</div></div>`;
   const body = overlay.querySelector('.sbody');
   wireSettings(body);
   overlay.querySelectorAll('.tab').forEach(b => b.onclick = () => {
