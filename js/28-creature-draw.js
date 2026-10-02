@@ -4,7 +4,7 @@
 function armPos(c) {
   const L = c.look, s = Math.sin(c.phase) * c.moveAmt, sw = L.w + .4;
   if (c.state === 'panic') { const f = Math.sin(T * 25 + c.side) * 2; return [5.5 + f, -sw + 1.5, 5.5 - f, sw - 1.5]; }
-  if (c.dance) { const b = Math.sin(T * CLUB_BPM / 60 * Math.PI * 2 + c.pt * 30); return [3 + b * 2.5, -sw - 1.5, 3 - b * 2.5, sw + 1.5]; } // hands up
+  if (c.dance) { const b = Math.sin(T * CLUB_BPM / 60 * Math.PI * 2 + (c.seed ?? .5) * 30); return [3 + b * 2.5, -sw - 1.5, 3 - b * 2.5, sw + 1.5]; } // hands up
   if (c.fl && c.fl.on && !c.fl.helmet) return [-s * 4, -sw, 6 + s * .8, sw - 2]; // right hand held out in front with the flashlight
   return [-s * 4, -sw, s * 4, sw];
 }
@@ -61,7 +61,7 @@ function drawHuman(x, c) { // top-down person, +x = facing direction
   if (L.acc === 'bag') { x.strokeStyle = '#3a2a1e'; x.lineWidth = 1.1; x.beginPath(); x.moveTo(-L.d * .8, -L.w * .7); x.lineTo(L.d * .8, L.w * .7); x.stroke(); x.fillStyle = '#6b4a2e'; ell(x, -1, L.w + 2.2, 2.8, 2); }
   x.strokeStyle = O; x.lineWidth = .9; x.beginPath(); x.ellipse(0, 0, L.d, L.w, 0, 0, TAU); x.stroke();
   if (L.outfit === 'hoodie') { x.fillStyle = L.top; ell(x, -2.6, 0, 3.6, 5.4); x.strokeStyle = O; x.stroke(); }
-  if (L.acc === 'glow') { x.strokeStyle = ['#7dff6a', '#ff3fa4', '#3fd4ff'][(c.pt * 100 | 0) % 3]; x.lineWidth = 1.6; x.beginPath(); x.moveTo(a1 - 1, b1 - 3); x.lineTo(a1 + 2, b1 + 2); x.stroke(); }
+  if (L.acc === 'glow') { x.strokeStyle = ['#7dff6a', '#ff3fa4', '#3fd4ff'][((c.seed ?? .5) * 100 | 0) % 3]; x.lineWidth = 1.6; x.beginPath(); x.moveTo(a1 - 1, b1 - 3); x.lineTo(a1 + 2, b1 + 2); x.stroke(); }
   if (L.outfit === 'alien') { // big smooth head, wide black eyes, a slit of a mouth
     x.fillStyle = 'rgba(0,0,0,.18)'; ell(x, -.1, 0, 6.2, 5.8);
     x.fillStyle = L.skin; ell(x, .6, 0, 6, 5.6); x.fillStyle = shade(L.skin, .14); ell(x, -.6, -1.2, 3.4, 2.6);
@@ -97,7 +97,7 @@ function drawHuman(x, c) { // top-down person, +x = facing direction
   if (c.mouthBlood && L.hat !== 'helmet') { x.fillStyle = c.mouthCol || BLOOD; ell(x, 4.6, 0, 1.1, 1.8); } // blood round the mouth
 }
 function drawAlien(x, c, d) { // little grey-green visitor: big head, huge black eyes, wobbling antennae
-  const lp = Math.sin(c.phase) * c.moveAmt, w = Math.sin(T * 6 + c.pt * 40) * .6;
+  const lp = Math.sin(c.phase) * c.moveAmt, w = Math.sin(T * 6 + (c.seed ?? .5) * 40) * .6;
   x.fillStyle = shade(d.col, -.2); ell(x, -d.bl * .5 - lp * 2, -d.bw * .9, 2.6, 1.3); ell(x, -d.bl * .5 + lp * 2, d.bw * .9, 2.6, 1.3);
   x.fillStyle = d.col; ell(x, -1.5, 0, d.bl * .7, d.bw * .85);
   x.strokeStyle = shade(d.col, -.3); x.lineWidth = .9; x.beginPath(); x.moveTo(2, -2); x.lineTo(-1, -6 - w); x.moveTo(2, 2); x.lineTo(-1, 6 + w); x.stroke();
@@ -107,7 +107,7 @@ function drawAlien(x, c, d) { // little grey-green visitor: big head, huge black
   x.fillStyle = 'rgba(255,255,255,.7)'; circ(x, 5.8, -2.5, .4); circ(x, 5.8, 1.9, .4);
 }
 function drawFirefly(x, c, d) { // a little beetle: dark wing cases, a flicker of wings, the lantern at the tail
-  const fl = Math.sin(T * 60 + c.pt * 99);
+  const fl = Math.sin(T * 60 + (c.seed ?? .5) * 99);
   x.fillStyle = 'rgba(220,230,240,.35)'; ell(x, -.2, -1.6 - fl * .5, 2.2, 1.1); ell(x, -.2, 1.6 + fl * .5, 2.2, 1.1);
   x.fillStyle = '#2e2a1c'; ell(x, .4, 0, 2.2, 1.4); x.fillStyle = '#c8d86a'; ell(x, -1.8, 0, 1.2, 1); x.fillStyle = '#5a3a1a'; circ(x, 2.4, 0, .8);
 }
@@ -129,20 +129,38 @@ const ANIMALS = {
     x.fillStyle = shade(d.col, -.2); circ(x, 3 + st * .8, -2, 1.2); circ(x, 3 + st * .8, 2, 1.2);
     body(x, 6.4, 4.6, d.col, -1); x.fillStyle = '#fff'; circ(x, -7.4, 0, 2.1); // cottontail
     x.fillStyle = shade(d.col, .05); ell(x, 4.6, 0, 3.4, 3); // head
-    const flop = Math.sin(T * 3 + c.pt * 20) * .15 + air * .3;
+    const flop = Math.sin(T * 3 + (c.seed ?? .5) * 20) * .15 + air * .3;
     for (const sg of [-1, 1]) { x.save(); x.translate(3.4, sg * 1.3); x.rotate(Math.PI + sg * (.28 + flop)); x.fillStyle = shade(d.col, -.08); ell(x, 3.2, 0, 3.4, 1.1); x.fillStyle = 'rgba(227,181,168,.8)'; ell(x, 3.4, 0, 2.3, .45); x.restore(); }
     EYE(x, 5.6, -1.9, .7); EYE(x, 5.6, 1.9, .7); x.fillStyle = '#d98a8a'; circ(x, 7.8, 0, .6);
   },
-  deer(x, c, d) {
-    feet(x, c, d, 7, -8, 3.4, '#3a2a1c', 1.3);
-    body(x, 11, 6, d.col, -1);
-    x.fillStyle = '#f2ead8'; ell(x, -11, 0, 2.4, 2.2); x.fillStyle = shade(d.col, -.25); circ(x, -12, 0, 1); // white rump, tail
-    x.fillStyle = 'rgba(255,255,255,.45)'; for (const [sx, sy] of [[-4, -2], [-1, 2], [2, -1.5], [-6, 1.5], [4, 1.8]]) circ(x, sx, sy, .8); // spots on the back
-    x.fillStyle = shade(d.col, -.05); ell(x, 9.5, 0, 3, 2.6); ell(x, 13, 0, 2.6, 1.8); // neck, head
-    x.fillStyle = '#2a1c12'; circ(x, 15.4, 0, .9);
-    for (const sg of [-1, 1]) { x.fillStyle = shade(d.col, -.15); ell(x, 11.2, sg * 2.8, 1.8, .9); }
-    if (c.pt > .1) { x.strokeStyle = '#6e5236'; x.lineWidth = 1.1; x.lineCap = 'round'; for (const sg of [-1, 1]) { x.beginPath(); x.moveTo(12, sg * 1); x.lineTo(9.5, sg * 5); x.lineTo(8, sg * 6.4); x.moveTo(9.6, sg * 4.6); x.lineTo(11.4, sg * 6); x.stroke(); } } // antlers on the stags
-    EYE(x, 13.4, -1.5, .6); EYE(x, 13.4, 1.5, .6);
+  deer(x, c, d) { // slender legs, a long neck, ears that only twitch now and then; bucks carry antlers, does don't
+    const k = (c.sizeK || 1) * (c.male ? 1.04 : .94), tk = (c.toneK || 0) + (c.male ? -.04 : .04), col = tk < 0 ? mixColor(d.col, '#000000', -tk) : mixColor(d.col, '#ffffff', tk), run = c.state === 'panic' || c.state === 'flee';
+    x.save(); x.scale(k, k);
+    const st = Math.sin(c.phase) * c.moveAmt * (run ? 4.2 : 2.6); // longer strides at a run
+    x.strokeStyle = shade(col, -.35); x.lineWidth = 1.4; x.lineCap = 'round'; x.beginPath(); // legs, out from under the body
+    for (const [lx, sg, ph] of [[6, -1, st], [6, 1, -st], [-7, -1, -st], [-7, 1, st]]) { x.moveTo(lx, sg * 3.6); x.lineTo(lx + ph, sg * 4.6); }
+    x.stroke(); x.fillStyle = '#2a1e14'; for (const [lx, sg, ph] of [[6, -1, st], [6, 1, -st], [-7, -1, -st], [-7, 1, st]]) circ(x, lx + ph, sg * 4.7, .8); // hooves
+    x.fillStyle = shade(col, -.2); x.beginPath(); x.ellipse(-1, 0, 10.5, 5.4, 0, 0, TAU); x.fill(); // body: deeper at the haunch, narrower at the chest
+    x.fillStyle = col; x.beginPath(); x.moveTo(8.6, 0); x.bezierCurveTo(7, -4.2, -6, -5.6, -9.6, -3); x.bezierCurveTo(-11.4, -1, -11.4, 1, -9.6, 3); x.bezierCurveTo(-6, 5.6, 7, 4.2, 8.6, 0); x.fill();
+    x.fillStyle = shade(col, -.16); x.beginPath(); x.ellipse(-1.5, 0, 8, 1.3, 0, 0, TAU); x.fill(); // darker line down the spine
+    x.fillStyle = 'rgba(255,255,255,.12)'; ell(x, -2, -2.4, 6, 1.4);
+    const flag = run ? 1.5 : 1; x.fillStyle = '#f4ede0'; ell(x, -10.4, 0, 2.2 * flag, 2.4); x.fillStyle = shade(col, -.1); ell(x, -11.6 - (run ? 1.2 : 0), 0, 1.3, .9 * flag); // white rump; the tail goes up when it bolts
+    const nod = run ? 1.5 : Math.sin(T * .7 + (c.seed ?? .5) * 9) * .6;
+    x.fillStyle = shade(col, -.06); x.beginPath(); x.moveTo(6, -2.4); x.quadraticCurveTo(10 + nod, -1.6, 11 + nod, 0); x.quadraticCurveTo(10 + nod, 1.6, 6, 2.4); x.fill(); // neck
+    const hx = 12.6 + nod;
+    x.fillStyle = col; x.beginPath(); x.moveTo(hx - 2.2, -2); x.quadraticCurveTo(hx + 1.2, -1.8, hx + 3.4, -.6); x.quadraticCurveTo(hx + 4, 0, hx + 3.4, .6); x.quadraticCurveTo(hx + 1.2, 1.8, hx - 2.2, 2); x.closePath(); x.fill(); // long head
+    x.fillStyle = '#2a1c12'; circ(x, hx + 3.5, 0, .7); // nose
+    const tw = Math.max(0, Math.sin(T * 1.3 + (c.seed ?? .5) * 31)) > .97 ? .45 : 0; // an ear flick every few seconds, not with every step
+    for (const sg of [-1, 1]) { x.save(); x.translate(hx - 1.4, sg * 1.6); x.rotate(sg * (2.2 - (run ? .5 : 0)) + (sg < 0 ? tw : 0)); x.fillStyle = shade(col, -.12); ell(x, 2.1, 0, 2.3, 1); x.fillStyle = 'rgba(240,215,200,.55)'; ell(x, 2.2, 0, 1.4, .45); x.restore(); }
+    if (c.male) { // antlers: two main beams sweeping forward with a few tines, size varies from buck to buck
+      const A = c.antK || 1; x.strokeStyle = '#7a6448'; x.lineWidth = 1; x.lineCap = 'round';
+      for (const sg of [-1, 1]) { x.beginPath(); x.moveTo(hx - .6, sg * 1.2); x.quadraticCurveTo(hx - 3 * A, sg * 5.6 * A, hx + 2.6 * A, sg * 6.6 * A); // main beam
+        for (const t of [.3, .55, .8]) { const bx = hx - .6 + (hx + 2.6 * A - hx + .6) * t - 2 * A * Math.sin(t * Math.PI), by = sg * (1.2 + 5.4 * A * t); x.moveTo(bx, by); x.lineTo(bx + 1.6 * A, by + sg * (t < .5 ? -1.2 : .4) * A); }
+        x.stroke(); }
+      x.fillStyle = '#d9cbb0'; for (const sg of [-1, 1]) circ(x, hx + 2.6 * (c.antK || 1), sg * 6.6 * (c.antK || 1), .5);
+    }
+    EYE(x, hx + .8, -1.25, .55); EYE(x, hx + .8, 1.25, .55);
+    x.restore();
   },
   frog(x, c, d) {
     const air = Math.min(1, (c.hz || 0) / 3), st = air * 3;
@@ -154,7 +172,7 @@ const ANIMALS = {
   },
   dog(x, c, d) {
     feet(x, c, d, 6, -6, 3, shade(d.col, -.3), 1.4);
-    const wag = Math.sin(T * (c.state === 'wander' ? 12 : 22) + c.pt * 30) * (c.state === 'panic' ? .3 : .6);
+    const wag = Math.sin(T * (c.state === 'wander' ? 12 : 22) + (c.seed ?? .5) * 30) * (c.state === 'panic' ? .3 : .6);
     x.strokeStyle = shade(d.col, -.12); x.lineWidth = 2; x.lineCap = 'round'; x.beginPath(); x.moveTo(-8, 0); x.quadraticCurveTo(-11, wag * 4, -13, wag * 6); x.stroke();
     body(x, 9.5, 5.4, d.col, -.5);
     x.fillStyle = shade(d.col, -.22); ell(x, -2, 0, 4, 3.4); // darker saddle
@@ -165,7 +183,7 @@ const ANIMALS = {
   },
   cat(x, c, d) {
     feet(x, c, d, 4.6, -4.6, 2.6, shade(d.col, -.15), 1.2);
-    const sw = Math.sin(T * 3 + c.pt * 20) * .5;
+    const sw = Math.sin(T * 3 + (c.seed ?? .5) * 20) * .5;
     x.strokeStyle = d.col; x.lineWidth = 2.2; x.lineCap = 'round'; x.beginPath(); x.moveTo(-6, 0); x.bezierCurveTo(-10, sw * 4, -12, -sw * 5, -14, sw * 2); x.stroke();
     x.strokeStyle = shade(d.col, -.25); x.lineWidth = 2.2; x.beginPath(); x.moveTo(-13.2, sw * 2.6); x.lineTo(-14, sw * 2); x.stroke(); // dark tail tip
     body(x, 7.4, 4.2, d.col, -.5);
@@ -180,7 +198,7 @@ const ANIMALS = {
     x.fillStyle = shade(d.col, -.12); for (const sg of [-1, 1]) ell(x, -1, sg * 3.2, 3.6, 1.6); // folded wings
     body(x, 5.2, 4.2, d.col, -.4);
     x.fillStyle = shade(d.col, -.08); for (let k = 0; k < 3; k++) ell(x, -5 - k, (k - 1) * 1.2, 2, .9); // tail feathers
-    const peck = c.state === 'idle' ? Math.max(0, Math.sin(T * 6 + c.pt * 40)) * 1.2 : 0;
+    const peck = c.state === 'idle' ? Math.max(0, Math.sin(T * 6 + (c.seed ?? .5) * 40)) * 1.2 : 0;
     x.fillStyle = d.col; circ(x, 4.4 + peck, 0, 2.8);
     x.fillStyle = '#d62828'; circ(x, 3.8 + peck, 0, 1.2); circ(x, 5 + peck, 0, 1); ell(x, 6.4 + peck, .9, .8, .6); // comb + wattle
     x.fillStyle = '#f2a20c'; x.beginPath(); x.moveTo(6.6 + peck, -.9); x.lineTo(8.6 + peck, 0); x.lineTo(6.6 + peck, .9); x.fill();
@@ -209,7 +227,7 @@ const ANIMALS = {
   sheep(x, c, d) {
     feet(x, c, d, 5.5, -5.5, 4.2, '#222', 1.2);
     x.fillStyle = shade(d.col, -.14); circ(x, 0, 0, 8);
-    const r = seeded(Math.round(c.pt * 1e4)); // a fluffy fleece of overlapping curls
+    const r = seeded(Math.round((c.seed ?? .5) * 1e4)); // a fluffy fleece of overlapping curls
     for (let k = 0; k < 11; k++) { const a = k * TAU / 11, rr = 5.6 + r() * 1.2; x.fillStyle = shade(d.col, -.05 + r() * .08); circ(x, Math.cos(a) * rr * .95, Math.sin(a) * rr * .8, 3.2); }
     x.fillStyle = d.col; circ(x, -.4, -.4, 5.4); x.fillStyle = 'rgba(255,255,255,.45)'; circ(x, -2, -2, 2.4);
     const hc = d.hcol || '#333'; x.fillStyle = hc; ell(x, 8.6, 0, 3.6, 3); for (const sg of [-1, 1]) ell(x, 7.4, sg * 3.4, 2.2, 1);
@@ -239,7 +257,7 @@ function drawAnimal(x, c) {
 function drawCreature(x, c, portrait) {
   if (c.hz > .3) { const k = clamp(1 - c.hz / 14, .45, 1); x.fillStyle = `rgba(0,0,0,${(.24 * k).toFixed(3)})`; ell(x, c.x, c.y, c.def.r * .95 * k, c.def.r * .75 * k); } // the shadow shrinks as it leaves the ground
   x.save(); x.translate(c.x, c.y - (c.hz || 0) * .7); x.rotate(c.a); if (c.hz) x.scale(1 + c.hz * .045, 1 + c.hz * .045); // ...and the body gets bigger, closer to you
-  if (c.dance) { const b = Math.abs(Math.sin(T * CLUB_BPM / 60 * Math.PI + c.pt * 30)); x.scale(1 + b * .05, 1 + b * .05); x.rotate(Math.sin(T * 2 + c.pt * 9) * .12); }
+  if (c.dance) { const b = Math.abs(Math.sin(T * CLUB_BPM / 60 * Math.PI + (c.seed ?? .5) * 30)); x.scale(1 + b * .05, 1 + b * .05); x.rotate(Math.sin(T * 2 + (c.seed ?? .5) * 9) * .12); }
   c.def.human ? drawHuman(x, c) : drawAnimal(x, c);
   if (c.stains.length) {
     shapePath(x, c); x.clip();
