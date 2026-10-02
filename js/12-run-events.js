@@ -3,7 +3,8 @@ let run = { score: 0, humans: 0, animals: 0, byType: {}, maxCombo: 0, maxComboTy
 let evt = null, evtT = 60, chT = .5;
 function newRun() {
   cr = newCR();
-  run = { score: 0, humans: 0, animals: 0, byType: {}, maxCombo: 0, maxComboTypes: 0, maxDarkCombo: 0, maxPanic: 0, time: 0, usedNV: false, goldens: 0, startPop: 1, killed: 0 };
+  run = { score: 0, humans: 0, animals: 0, byType: {}, maxCombo: 0, maxComboTypes: 0, maxDarkCombo: 0, maxPanic: 0, time: 0, usedNV: false, goldens: 0, startPop: 1, killed: 0,
+    startLevel: PROG.level, startXP: PROG.xp, xpGained: 0, coinsGained: 0, unlocks: [], chList: [], lamps: 0, spits: 0 };
   evt = null; evtT = rand(45, 75); showEvent();
 }
 function updateEvents(dt) { // occasional feeding frenzy: double score for a few seconds

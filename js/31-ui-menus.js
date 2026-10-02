@@ -12,14 +12,14 @@ function updateHud() {
     document.getElementById('lvl').textContent = PROG.level;
     document.getElementById('xpfill').style.width = (PROG.xp / xpNeed(PROG.level) * 100).toFixed(1) + '%';
   }
-  document.getElementById('xpbar').title = `${PROG.xp} / ${xpNeed(PROG.level)} XP`;
+  document.getElementById('xptxt').textContent = `${PROG.xp} / ${xpNeed(PROG.level)} XP`;
 }
 let thumbs = null;
 const stage = document.getElementById('stage'), intro = document.getElementById('intro');
 function makeThumbs() { // rendered preview of every map (used by the cards, the roll and the intro)
   return MAPS.map(m => {
     const [c, x] = makeLayer(), b = m.build();
-    b.floor(x); [...borderWalls(m.border), ...b.obs].forEach(o => drawObstacle(x, o));
+    b.floor(x); const [oc, ox] = makeLayer(); drawObstacleLayer(ox, b, [...borderWalls(m.border), ...b.obs], m.lights || b.lights || []); x.drawImage(oc, 0, 0, W, H);
     const t = document.createElement('canvas'); t.width = 480; t.height = 320;
     t.getContext('2d').drawImage(c, 0, 0, 480, 320);
     return t.toDataURL ? t.toDataURL() : '';
@@ -55,18 +55,19 @@ function showMenu() {
   state = 'menu'; endIntro(true);
   if (!thumbs) thumbs = makeThumbs();
   MOD = {}; rewardMult = 1; document.body.classList.remove('minimal');
-  stage.classList.add('bars'); cv.style.scale = '1.05';
+  stage.classList.remove('bars', 'paused'); cv.style.scale = '1.05';
   overlay.className = 'menuMode';
   overlay.innerHTML = `<div class="menu">${menuFx()}
     <div class="mleft">
       <div class="logo"><span class="l1">Snake<i class="drip" style="--x:14%;--h:16px;--d:0s"></i><i class="drip" style="--x:46%;--h:24px;--d:1.4s"></i><i class="drip" style="--x:81%;--h:11px;--d:2.6s"></i></span><span class="l2">${SPLAT}Carnage</span></div>
       <p class="tag">Slither in, eat the locals, and stay out of the light.</p>
-      <div class="mlevel"><span>Level ${PROG.level}${SETTINGS.snake.title !== 'None' ? `<em class="mtitle">${SETTINGS.snake.title}</em>` : ''}</span><span class="xp" title="${PROG.xp} / ${xpNeed(PROG.level)} XP"><span class="xpfill" style="width:${(PROG.xp / xpNeed(PROG.level) * 100).toFixed(1)}%"></span></span><span class="coin"><i class="pc"></i> ${PROG.coins}</span></div>
+      <div class="mlevel"><span>Level ${PROG.level}${SETTINGS.snake.title !== 'None' ? `<em class="mtitle" data-tiph="${attr(titleTip(SETTINGS.snake.title))}">${SETTINGS.snake.title}</em>` : ''}</span><span class="xp" title="${PROG.xp} / ${xpNeed(PROG.level)} XP"><span class="xpfill" style="width:${(PROG.xp / xpNeed(PROG.level) * 100).toFixed(1)}%"></span></span><span class="coin"><i class="pc"></i> ${PROG.coins}</span></div>
       <button class="play" id="playBtn" data-sfx="none"><span>Play ${MAPS[mapIdx].name}</span><small>Space</small></button>
       <div class="modline" id="modline">${modLine()}</div>
-      <div class="seg" role="group" aria-label="Snake speed"><i class="sthumb"></i>${Object.keys(CONFIG.snakeSpeeds).map(sp => `<button data-sfx="tab" data-speed="${sp}" class="${sp === selSpeed ? 'on' : ''}">${sp}</button>`).join('')}</div>
-      <div class="mrow"><button class="ghost" id="snakeBtn" data-sfx="open">Shop &amp; customize</button><button class="ghost" id="setBtn" data-sfx="open">Settings</button></div>
+      <div class="seg tseg" role="group" aria-label="Time of day"><i class="sthumb"></i>${Object.keys(TIME_MODES).map(k => `<button data-sfx="tab" data-time="${k}" class="${k === SETTINGS.timeMode ? 'on' : ''}" data-tip="${TIME_TIPS[k]}">${TIME_MODES[k]}</button>`).join('')}</div>
+      <div class="mrow"><button class="ghost" id="upBtn" data-sfx="open">Upgrades${upgradeReady() ? '<i class="dot"></i>' : ''}</button><button class="ghost" id="snakeBtn" data-sfx="open">Shop</button></div>
       <div class="mrow"><button class="ghost" id="modBtn" data-sfx="open">Modifiers</button><button class="ghost" id="chBtn" data-sfx="open">Challenges</button></div>
+      <div class="mrow"><button class="ghost" id="setBtn" data-sfx="open">Settings</button></div>
       <div class="ver">v${GAME_VERSION}</div>
     </div>
     <div class="mright"><h2>Choose a map</h2><div class="mapch" id="mapch">${mapChallengesHtml()}</div><div class="cards">${MAPS.map((m, i) => `<button class="card ${i === mapIdx ? 'on' : ''}" data-sfx="select" data-map="${i}" style="--i:${i}"><img src="${thumbs[i]}" alt=""><span class="cn">${m.icon} ${m.name}</span><span class="cb">Best ${PROG.best[m.name] || 0}, ${chDoneCount(m.name)}/4 challenges</span></button>`).join('')}<button class="card rnd" data-sfx="none" data-map="rand" style="--i:${MAPS.length}">🎲<span class="cn">Random</span></button></div></div>
@@ -82,71 +83,119 @@ function showMenu() {
   });
   const seg = overlay.querySelector('.seg');
   seg.querySelectorAll('button').forEach(b => b.onclick = () => {
-    selSpeed = b.dataset.speed; seg.querySelectorAll('button').forEach(o => o.classList.toggle('on', o === b)); placeThumb(seg);
+    SETTINGS.timeMode = b.dataset.time; saveSettings(); seg.querySelectorAll('button').forEach(o => o.classList.toggle('on', o === b)); placeThumb(seg);
   });
   placeThumb(seg, true); requestAnimationFrame(() => placeThumb(seg, true));
   document.getElementById('playBtn').onclick = startGame;
   document.getElementById('setBtn').onclick = () => { settingsFrom = 'menu'; transitionTo(() => showSettings()); };
   document.getElementById('snakeBtn').onclick = () => transitionTo(showCustomize);
-  document.getElementById('modBtn').onclick = () => transitionTo(showModifiers);
+  document.getElementById('modBtn').onclick = () => transitionTo(() => showModifiers());
+  overlay.querySelectorAll('#modline .mchip[data-mod]').forEach(ch => { ch.style.cursor = 'pointer'; ch.onclick = () => transitionTo(() => showModifiers(ch.dataset.mod)); }); // jump straight to that modifier
+  document.getElementById('upBtn').onclick = () => transitionTo(showUpgrades);
   document.getElementById('chBtn').onclick = () => transitionTo(showChallenges);
 }
 function modLine(list) { // active modifiers, visible before the run starts
   const ids = list || SETTINGS.mods || [];
   if (!ids.length) return '<span class="mchip dim">No modifiers</span>';
   const mm = modMult(ids);
-  return ids.map(id => { const m = MODS.find(q => q.id === id) || {}; return `<span class="mchip" data-tip="${m.desc}">${MOD_ICON[id] || ''} ${m.name}</span>`; }).join('') +
+  return ids.map(id => { const m = MODS.find(q => q.id === id) || {}; return `<span class="mchip" data-mod="${id}" data-tip="${m.desc} (click to edit)">${MOD_ICON[id] || ''} ${m.name}</span>`; }).join('') +
     (Math.abs(mm - 1) > .005 ? `<span class="mchip mult ${mm < 1 ? 'down' : ''}">Rewards x${mm.toFixed(2)}</span>` : ''); // no meaningless x1.00 chip
 }
+const TIME_TIPS = { Cycle: 'Every run starts at a random hour and the day keeps moving.', Day: 'Bright midday the whole run. Nowhere for you to hide.', Dawn: 'Frozen at first light: long shadows, lamps still on.', Dusk: 'Frozen at sunset: half-lit streets and long shadows.', Night: 'Pitch dark the whole run. Lamps, windows and flashlights only.' };
 const multLabel = ids => { const m = modMult(ids); return Math.abs(m - 1) < .005 ? 'Normal rewards' : 'Rewards x' + m.toFixed(2); };
-function showModifiers() {
+function showModifiers(focus) {
   const ids = new Set(SETTINGS.mods || []);
   overlay.className = 'menuMode';
-  overlay.innerHTML = `<div class="panel mods"><div class="chhead"><h1>Modifiers</h1><span class="coinpill" id="mm">${multLabel([...ids])}</span></div>
-    <p class="lead">Change how the next run plays. Harder modifiers pay more XP, chips and score.</p>
-    <div class="modlist">${MODS.map((m, i) => `${i === 0 || MODS[i - 1].g !== m.g ? `<h3 class="mg">${m.g}</h3>` : ''}<div class="srow2" style="--i:${i}"><div><b><i class="mic">${MOD_ICON[m.id] || ''}</i>${m.name} <em class="mpct ${m.mult > 0 ? 'up' : m.mult < 0 ? 'down' : ''}">${m.mult ? (m.mult > 0 ? '+' : '') + Math.round(m.mult * 100) + '%' : ''}</em></b><small>${m.desc}</small></div>
-      <button class="tgl ${ids.has(m.id) ? 'on' : ''}" data-sfx="none" role="switch" aria-checked="${ids.has(m.id)}" aria-label="${m.name}" data-m="${m.id}"></button></div>`).join('')}</div>
-    <div class="mbtns"><button class="btn alt" id="shufBtn" data-sfx="select">Shuffle</button><button class="btn alt" id="clrBtn" data-sfx="off">Clear</button><button class="btn" id="backBtn" data-sfx="confirm">Done</button></div></div>`;
+  let lastG = '';
+  overlay.innerHTML = `<div class="panel mods"><div class="chhead"><h1>Modifiers</h1><span class="mcount" id="mcount"></span><span class="coinpill" id="mm">${multLabel([...ids])}</span></div>
+    <p class="lead">Change how the next run plays. Hover any modifier for exactly what it does. Harder ones pay more XP, chips and score.</p>
+    <div class="modgrid">${MODS.map((m, i) => { const head = m.g !== lastG ? `<h3 class="mg">${(lastG = m.g)}</h3>` : '';
+      return `${head}<button class="mtile ${ids.has(m.id) ? 'on' : ''}" data-sfx="none" data-m="${m.id}" role="switch" aria-checked="${ids.has(m.id)}" style="--i:${i}" data-tiph="${attr(modTip(m))}">
+        <i class="mic">${MOD_ICON[m.id] || ''}</i><span class="mtx"><b>${m.name}</b><small>${m.desc}</small></span><em class="mpct ${m.mult > 0 ? 'up' : m.mult < 0 ? 'down' : ''}">${m.mult ? (m.mult > 0 ? '+' : '') + Math.round(m.mult * 100) + '%' : ''}</em><span class="mck"></span></button>`; }).join('')}</div>
+    <div class="mbtns"><label class="mfollow ${ids.has('freeMove') ? '' : 'dim'}" data-tip="Free movement only: the snake heads toward your mouse cursor while it's over the game."><button class="tgl ${SETTINGS.mouseFollow ? 'on' : ''}" id="mfTgl" data-sfx="none" role="switch" aria-checked="${!!SETTINGS.mouseFollow}"></button>Mouse steering</label>
+      <span class="sp"></span><button class="btn alt" id="shufBtn" data-sfx="select">Shuffle</button><button class="btn alt" id="clrBtn" data-sfx="off">Clear</button><button class="btn" id="backBtn" data-sfx="confirm">Done</button></div></div>`;
+  const blocker = id => { const m = MODS.find(q => q.id === id); return [...ids].find(o => o !== id && ((m.not || []).includes(o) || ((MODS.find(q => q.id === o) || {}).not || []).includes(id))); };
   const sync = () => {
     SETTINGS.mods = [...ids]; saveSettings();
-    overlay.querySelectorAll('.tgl[data-m]').forEach(t => { t.classList.toggle('on', ids.has(t.dataset.m)); t.setAttribute('aria-checked', ids.has(t.dataset.m)); });
+    overlay.querySelectorAll('.mtile').forEach(t => {
+      const id = t.dataset.m, on = ids.has(id), by = on ? null : blocker(id), m = MODS.find(q => q.id === id);
+      t.classList.toggle('on', on); t.setAttribute('aria-checked', on); t.classList.toggle('blocked', !!by); // conflicts are greyed out with the reason
+      t.querySelector('small').textContent = by ? `Can't use with ${MODS.find(q => q.id === by).name}` : m.desc;
+    });
     document.getElementById('mm').textContent = multLabel([...ids]);
+    document.getElementById('mcount').textContent = ids.size ? ids.size + ' active' : '';
+    overlay.querySelector('.mfollow').classList.toggle('dim', !ids.has('freeMove'));
   };
-  overlay.querySelectorAll('.tgl[data-m]').forEach(t => t.onclick = () => {
+  overlay.querySelectorAll('.mtile').forEach(t => t.onclick = () => {
     const m = MODS.find(q => q.id === t.dataset.m);
+    if (!ids.has(m.id) && blocker(m.id)) { Sfx.deny(); t.classList.remove('nope'); void t.offsetWidth; t.classList.add('nope'); return; }
     if (ids.has(m.id)) { ids.delete(m.id); Sfx.ui('off'); } else { ids.add(m.id); (m.not || []).forEach(n => ids.delete(n)); MODS.forEach(q => (q.not || []).includes(m.id) && ids.delete(q.id)); Sfx.ui('on'); }
+    t.classList.remove('pop'); void t.offsetWidth; t.classList.add('pop');
     sync();
   });
+  document.getElementById('mfTgl').onclick = e => { const b = e.currentTarget; SETTINGS.mouseFollow = !SETTINGS.mouseFollow; b.classList.toggle('on', SETTINGS.mouseFollow); b.setAttribute('aria-checked', SETTINGS.mouseFollow); Sfx.ui(SETTINGS.mouseFollow ? 'on' : 'off'); saveSettings(); };
   document.getElementById('shufBtn').onclick = () => {
-    ids.clear(); randomMods(randi(4, 8)).forEach(id => ids.add(id)); // a properly different run
+    const keep = [...ids].filter(id => { const g = (MODS.find(m => m.id === id) || {}).g; return g === 'Style' || g === 'Controls'; }); // your own style/control picks stay
+    ids.clear(); keep.forEach(id => ids.add(id)); randomMods(randi(9, 14)).forEach(id => ids.add(id)); // a properly different run
+    overlay.querySelectorAll('.mtile').forEach((t, i) => { t.classList.remove('shuf'); void t.offsetWidth; t.style.setProperty('--d', (i * 12) + 'ms'); t.classList.add('shuf'); });
     sync();
   };
   document.getElementById('clrBtn').onclick = () => { ids.clear(); sync(); };
   document.getElementById('backBtn').onclick = () => transitionTo(showMenu);
+  sync();
+  if (focus) requestAnimationFrame(() => { const t = overlay.querySelector(`.mtile[data-m="${focus}"]`); if (!t) return; t.scrollIntoView({ block: 'center', behavior: SETTINGS.reduceMotion ? 'auto' : 'smooth' }); t.classList.add('focus'); setTimeout(() => t.classList.remove('focus'), 1600); });
 }
-function showChallenges(keepAnim) { // long-term achievements; each one unlocks a cosmetic that matches it
-  const order = { easy: 0, medium: 1, hard: 2, rare: 3 }, list = [...ACH].sort((p, q) => (!!PROG.ach[p.id] - !!PROG.ach[q.id]) || order[p.tier] - order[q.tier]);
-  const doneN = ACH.filter(a => PROG.ach[a.id]).length;
+let chTab = 'profile', chMap = null;
+const TIER_ORDER = { easy: 0, medium: 1, hard: 2, rare: 3 };
+function showChallenges(keepAnim) { // profile-wide goals (cosmetics, chips, secrets) and permanent per-map goals, easiest first
+  chMap = chMap || MAPS[mapIdx].name;
+  const doneN = ACH.filter(a => PROG.ach[a.id]).length, pmTot = MAPS.reduce((a, m) => a + permChallenges(m.name).length, 0), pmN = MAPS.reduce((a, m) => a + pmDoneCount(m.name), 0);
   overlay.className = 'menuMode';
-  overlay.innerHTML = `<div class="panel chal2 ${keepAnim ? 'noanim' : ''}"><div class="chhead"><h1>Challenges</h1><span class="chstats">${doneN}/${ACH.length} earned</span></div>
-    <p class="lead">Long-term goals across every map. Each one unlocks a unique cosmetic that matches it. Map challenges (shown on the map screen) pay XP and chips.</p>
-    <div class="achg">${list.map((a, i) => { const got = !!PROG.ach[a.id], p = achProgress(a), rw = achRewards(a.id).filter(([c]) => c !== 'color2');
-      return `<div class="ach ${got ? 'done' : ''} t-${a.tier}" style="--i:${i}"><div class="ap">${rw.slice(0, 1).map(([cat, v]) => achPreview(cat, v, got || (a.tier !== 'rare' && p >= .5))).join('')}</div>
-        <div class="ab"><em class="tier ${a.tier}">${TIERS[a.tier].label}</em><b>${got ? '✔ ' : ''}${a.name}</b><small>${a.what}</small>
-        <span class="pbar"><span style="width:${(p * 100).toFixed(0)}%"></span></span><span class="af"><span>${Math.min(a.stat(), a.n)}/${a.n}</span><span>${rw.map(([cat, v]) => `${CAT_LABEL[cat]}${cat.startsWith('color') ? '' : ': ' + v}`).join(' · ')}</span></span></div></div>`; }).join('')}</div>
-    <div class="chfoot"><span class="rot">Unlocked cosmetics show up in the Shop, free to equip.</span><button class="btn" id="backBtn" data-sfx="close">Done</button></div></div>`;
-  overlay.querySelectorAll('canvas.mini').forEach(cv2 => miniSnake(cv2, { ...SETTINGS.snake, pattern: cv2.dataset.v }));
+  overlay.innerHTML = `<div class="panel chal2 ${keepAnim ? 'noanim' : ''}"><div class="chhead"><h1>Challenges</h1>
+      <div class="ctabs"><button class="${chTab === 'profile' ? 'on' : ''}" data-ct="profile" data-sfx="tab">Profile <em>${doneN}/${ACH.length}</em></button><button class="${chTab === 'maps' ? 'on' : ''}" data-ct="maps" data-sfx="tab">Maps <em>${pmN}/${pmTot}</em></button></div></div>
+    <div class="chbody">${chTab === 'profile' ? profileChallenges() : mapPermChallenges()}</div>
+    <div class="chfoot"><span class="rot">${chTab === 'profile' ? 'Sorted easiest to hardest. Unlocked cosmetics show up in the Shop, free to equip. Secret ones only give you a clue.' : 'Permanent goals that never reset. Each pays XP and chips once.'}</span><button class="btn" id="backBtn" data-sfx="close">Done</button></div></div>`;
+  drawPreviews(overlay);
+  overlay.querySelectorAll('[data-ct]').forEach(b => b.onclick = () => { chTab = b.dataset.ct; showChallenges(true); });
+  overlay.querySelectorAll('[data-cm]').forEach(b => b.onclick = () => { chMap = b.dataset.cm; showChallenges(true); });
   document.getElementById('backBtn').onclick = () => transitionTo(showMenu);
 }
-function achPreview(cat, v, clear) { // rewards show as a preview; early on (and rare ones) stay silhouetted
-  const inner = cat.startsWith('color') ? `<i class="swb" style="background:${v}"></i>` : cat === 'pattern' ? `<canvas class="mini" data-v="${v}" width="88" height="40"></canvas>` : `<i class="ico">${shopIcon(cat, v)}</i>`;
-  return `<div class="prv ${clear ? '' : 'sil'}">${inner}</div>`;
+function profileChallenges() {
+  const list = ACH.map((a, i) => ({ a, i })).sort((p, q) => TIER_ORDER[p.a.tier] - TIER_ORDER[q.a.tier] || (!!p.a.secret - !!q.a.secret) || p.i - q.i).map(o => o.a);
+  return `<div class="achg">${list.map((a, i) => {
+    const got = !!PROG.ach[a.id], hide = a.secret && !got, p = hide ? 0 : achProgress(a), rw = achRewards(a.id).filter(([c]) => c !== 'color2');
+    const reward = [...rw.map(([cat, v]) => `${CAT_LABEL[cat]}${cat.startsWith('color') ? ': ' + colorName(v) : ': ' + v}`), a.chips ? `${a.chips} chips` : ''].filter(Boolean).join(' · ');
+    const tip = got ? `<span class="thead">${a.name}</span>${a.what}<span class="tdim">Earned ${fmtDate(PROG.ach[a.id])}</span>` : hide ? `<span class="thead">Secret challenge</span>Clue: ${a.clue}` : `<span class="thead">${a.name}</span>${a.what}<span class="tdim">Reward: ${reward}</span>`;
+    return `<div class="ach ${got ? 'done' : ''} ${hide ? 'secret' : ''} t-${a.tier}" style="--i:${i}" data-tiph="${attr(tip)}"><div class="ap">${hide ? '<div class="prv sil q">?</div>' : rw.length ? achPreview(rw[0][0], rw[0][1], got || (a.tier !== 'rare' && p >= .5)) : `<div class="prv chipr"><i class="pc"></i><b>${a.chips}</b></div>`}</div>
+      <div class="ab"><em class="tier ${hide ? 'secret' : a.tier}">${hide ? 'Secret' : TIERS[a.tier].label}</em><b>${got ? '✔ ' : ''}${hide ? '???' : a.name}</b><small>${hide ? '<i class="clue">' + a.clue + '</i>' : a.what}</small>
+      ${hide ? '' : `<span class="pbar"><span style="width:${(p * 100).toFixed(0)}%"></span></span><span class="af"><span>${Math.min(a.stat(), a.n)}/${a.n}</span><span>${reward}</span></span>`}</div></div>`; }).join('')}</div>`;
+}
+function mapPermChallenges() {
+  const list = permChallenges(chMap), best = (PROG.pmBest || {})[chMap] || {};
+  return `<div class="pmwrap"><div class="pmmaps">${MAPS.map(m => `<button class="${m.name === chMap ? 'on' : ''}" data-cm="${attr(m.name)}" data-sfx="tab"><span>${m.icon} ${m.name}</span><em>${pmDoneCount(m.name)}/${permChallenges(m.name).length}</em></button>`).join('')}</div>
+    <div class="pmlist">${list.map((c, i) => { const when = (PROG.pmc[chMap] || {})[c.id], v = when ? c.n : Math.min(best[c.id] || 0, c.n), rw = TIERS[c.tier];
+      return `<div class="pmc ${when ? 'done' : ''}" style="--i:${i}" ${when ? `data-tip="Completed ${fmtDate(when)}"` : ''}><em class="tier ${c.tier}">${rw.label}</em><b>${when ? '✔ ' : ''}${c.name}</b><small>${c.t}</small>
+        <span class="pbar"><span style="width:${(v / c.n * 100).toFixed(0)}%"></span></span><span class="af"><span>${v}${c.unit || ''}/${c.n}${c.unit || ''} best</span><span>+${Math.round(rw.xp * 1.5)} XP · +${Math.round(rw.chips * 1.5)} chips</span></span></div>`; }).join('')}</div></div>`;
+}
+function achPreview(cat, v, clear) { // rewards show as a real preview; early on (and rare ones) stay silhouetted
+  return `<div class="prv ${clear ? '' : 'sil'}">${itemPreview(cat, v)}</div>`;
+}
+function chFit(ch) { // does this challenge suit how the next run is set up? A gentle hint, never a requirement
+  const mods = new Set(SETTINGS.mods || []), tm = SETTINGS.timeMode;
+  if (ch.mod && mods.has(ch.mod)) return ['good', 'Your modifiers are set up for this one'];
+  if (mods.has('noAnimals') && ['animals', 'animalStreak', 'comboTypes', 'allAnimals', 'sequence', 'type', 'goldenAny'].includes(ch.k)) return ['bad', 'No Animals is on: this one can\'t be done'];
+  if (mods.has('overcrowded') && ['humans', 'humanStreak', 'humanCombo', 'panic', 'panicKills', 'watched'].includes(ch.k)) return ['good', 'Overcrowded: plenty of people for this'];
+  if ((tm === 'Night' || tm === 'Dusk') && ['nvKills', 'darkCombo', 'noNVScore', 'unaware'].includes(ch.k)) return ['good', 'Suits a night run'];
+  if (tm === 'Day' && ['darkCombo', 'nvKills'].includes(ch.k)) return ['meh', 'Hard in daylight'];
+  if ((mods.has('fog') || mods.has('fow')) && ['unaware'].includes(ch.k)) return ['good', 'Fog makes sneaking easier'];
+  return null;
 }
 function mapChallengesHtml() { // the selected map's current challenges: name, progress, reward, difficulty, rotation timer
   const m = MAPS[mapIdx].name, done = PROG.chDone[m] || {}, best = PROG.chBest[m] || {};
   return `<div class="mch"><b>${MAPS[mapIdx].icon} ${m} challenges</b><span>New set in <b data-rot>${fmtClock(rotLeft())}</b></span></div><div class="mcg">` +
-    activeChallenges(m).map((ch, i) => { const v = done[ch.id] ? ch.n : (best[ch.id] || 0);
-      return `<div class="mc ${done[ch.id] ? 'done' : ''}" style="--i:${i}" data-tip="${ch.t}. Reward: ${rewardText(ch).replace(/<[^>]+>/g, '')} chips"><em class="tier ${ch.tier}">${TIERS[ch.tier].label}</em><b>${done[ch.id] ? '✔ ' : ''}${ch.name}</b><small>${ch.t}</small>
+    [...activeChallenges(m)].sort((p, q) => TIER_ORDER[p.tier] - TIER_ORDER[q.tier]).map((ch, i) => { const v = done[ch.id] ? ch.n : (best[ch.id] || 0);
+      const fit = !done[ch.id] && chFit(ch);
+      return `<div class="mc ${done[ch.id] ? 'done' : ''} ${fit ? 'fit-' + fit[0] : ''}" style="--i:${i}" data-tip="${ch.t}. Reward: ${rewardText(ch).replace(/<[^>]+>/g, '')} chips${fit ? '. ' + fit[1] : ''}"><em class="tier ${ch.tier}">${TIERS[ch.tier].label}</em><b>${done[ch.id] ? '✔ ' : ''}${ch.name}</b><small>${ch.t}</small>
         <span class="pbar"><span style="width:${(v / ch.n * 100).toFixed(0)}%"></span></span><span class="mcf"><span>${v}${chUnit(ch)}/${ch.n}${chUnit(ch)}</span><span class="rw3">+${TIERS[ch.tier].chips} <i class="pc"></i></span></span></div>`; }).join('') + '</div>';
 }
 function selectMap(i) { // updates the menu in place, so nothing else resets
@@ -218,41 +267,53 @@ function randomRoll() { // case-opening roll; the pick stays secret until the ga
     }, 1100);
   };
 }
-const fmtSetting = (k, v) => k === 'customHour' ? String(v).padStart(2, '0') + ':00' : k === 'dayMinutes' ? v + ' min' : k === 'pixel' ? (v <= 1 ? 'Off' : v + 'x') : Math.round(v * 100) + '%';
+const fmtSetting = (k, v) => k === 'shakeK' ? (v <= 0 ? 'Off' : Math.round(v * 100) + '%') : k === 'customHour' ? String(v).padStart(2, '0') + ':00' : k === 'dayMinutes' ? v + ' min' : k === 'pixel' ? (v <= 1 ? 'Off' : v + 'x') : Math.round(v * 100) + '%';
 const SETTING_TABS = {
-  Gameplay: { icon: '🎮', lead: 'How the world behaves around you.', rows: [
+  Gameplay: { icon: 'gameplay', lead: 'How the world behaves around you.', rows: [
     ['slider', 'creatureSpeed', 'Creature speed', 'How fast people and animals move.', .3, 1.2, .05],
-    ['toggle', 'noticeSnake', 'People spot the snake', 'People run when they see you, not only after a kill.'],
-    ['seg', 'bloodFade', 'Blood fades', 'How long blood stays on the ground and walls.', ['Never', 'Slow', 'Normal', 'Fast']]] },
-  Graphics: { icon: '🖥️', lead: 'Look and feel of the picture.', rows: [
+    ['seg', 'timeMode', 'Time of day', 'Dynamic starts every run at a random hour and lets the day move on. The others stay fixed.', ['Cycle', 'Day', 'Dawn', 'Dusk', 'Night'], null, null, null, TIME_MODES],
+    ['seg', 'bloodFade', 'Blood fades', 'How long blood stays on the ground and walls.', ['Never', 'Slow', 'Normal', 'Fast']],
+    ['seg', 'season', 'Season', 'Outdoor maps only. Random picks one each run.', ['Random', 'Spring', 'Summer', 'Autumn', 'Winter']]] },
+  Graphics: { icon: 'graphics', lead: 'Look and feel of the picture.', rows: [
     ['slider', 'darkness', 'Darkness', 'Overall dimness of the scene.', 0, .7, .05],
     ['slider', 'pixel', 'Pixelation', 'Chunky pixel look. Off shows full detail.', 1, 8, 1],
+    ['seg', 'lightQ', 'Lighting', 'High: full dynamic lighting. Medium: fewer moving shadows. Low: baked shadows only, cheapest.', ['Low', 'Medium', 'High']],
+    ['toggle', 'dynShadows', 'Moving shadows', 'People, animals and the snake cast shadows from lamps and flashlights.'],
+    ['seg', 'fxLevel', 'Particles', 'How many particles are simulated: blood mist, smoke, sparks, snow powder, scent wisps, insects. Low simulates far fewer.', ['Low', 'Normal', 'High']],
+    ['toggle', 'bloodBlur', 'Blood motion blur', 'Fast drops stretch and smear along their path. Off: plain round drops.'],
+    ['seg', 'bloodQ', 'Blood quality', 'How fast-flying blood is drawn. Extreme: smoothest motion blur. Low: plain drops, cheapest.', ['Low', 'Normal', 'High', 'Extreme']],
     ['toggle', 'vignette', 'Kill vignette', 'A red pulse at the screen edges when you eat.'],
     ['toggle', 'desaturate', 'Color drain', 'Briefly drains color after a kill.'],
     ['toggle', 'shake', 'Screen shake', 'Shake the camera on kills and crashes.']] },
-  Audio: { icon: '🔊', lead: 'Everything you hear.', rows: [
+  Audio: { icon: 'audio', lead: 'Everything you hear.', rows: [
     ['slider', 'volume', 'Master volume', 'All game sounds.', 0, 1, .05],
     ['toggle', 'uiSounds', 'Menu sounds', 'Hover and click sounds in menus.']] },
-  Controls: { icon: '⌨️', lead: 'Keys you can use while playing.', keys: [
+  Controls: { icon: 'controls', lead: 'Keys you can use while playing. On a phone or tablet, drag anywhere on the board to steer.', keys: [
     ['W A S D', 'Move. Hold two keys to go diagonal. Let go to keep going straight.'], ['Arrows', 'Also move'],
-    ['F', 'Night vision'], ['Space', 'Start, skip the intro, play again'], ['Esc', 'Back to the menu']] },
-  Accessibility: { icon: '♿', lead: 'Make the game easier to see and use.', rows: [
+    ['F', 'Night vision'], ['Shift', 'Lunge (upgrade)'], ['Q', 'Camouflage (upgrade)'], ['E', 'Scent (upgrade)'], ['R', 'Hiss (upgrade)'],
+    ['Mouse', 'Steer with the cursor (Free movement modifier + Mouse steering)'], ['Space', 'Start, skip the intro, play again'], ['Esc', 'Pause, back']] },
+  Accessibility: { icon: 'access', lead: 'Make the game easier to see and use.', rows: [
     ['toggle', 'reduceMotion', 'Reduce motion', 'Turns off menu animations, floating buttons and the intro zoom.'],
     ['seg', 'uiScale', 'UI scale', 'Size of menus, HUD, notifications and buttons. Auto follows the size of the game.', ['Small', 'Medium', 'Large', 'Extra Large', 'Auto']],
+    ['toggle', 'vomit', 'Show vomit', 'People who see too much throw up, and it stays on the floor. Turn off to skip it.'],
     ['seg', 'bubbleSize', 'Speech bubble size', 'Text size of what people shout.', ['Small', 'Normal', 'Large']],
     ['seg', 'snakeOutline', 'Snake outline', 'A thin rim that keeps the snake easy to spot on any ground.', ['Off', 'Subtle', 'Strong']],
-    ['toggle', 'strongOutlines', 'Strong outlines', 'Thicker outlines around everything you can crash into.']] },
+    ['seg', 'mapOutlines', 'Map outlines', 'Dark edges around walls and everything else you can crash into.', ['Off', 'Subtle', 'Strong']],
+    ['slider', 'shakeK', 'Shake strength', 'How hard the screen shakes, from none to full.', 0, 1, .1],
+    ['toggle', 'reduceFlash', 'Reduce flashes', 'No bloom, double vision or color drain flashes after kills and hits.'],
+    ['seg', 'bloodAmt', 'Amount of blood', 'Fewer drops, smaller pools and fewer chunks. Purely visual.', ['Minimal', 'Reduced', 'Full']],
+    ['toggle', 'simpleFx', 'Simplified effects', 'Plain versions of skill and impact effects: no warping, wakes or ghosting.']] },
 };
 let settingsTab = 'Gameplay';
 function settingsBody(tab) {
   const t = SETTING_TABS[tab];
   let html = `<h2>${tab}</h2><p class="lead">${t.lead}</p>`;
   if (t.keys) return html + `<div class="keylist">${t.keys.map(([k, d], i) => `<kbd style="--i:${i * 2}">${k}</kbd><span style="--i:${i * 2 + 1}">${d}</span>`).join('')}</div>`;
-  return html + t.rows.map(([type, k, label, desc, a, b, c, when], i) => {
+  return html + t.rows.map(([type, k, label, desc, a, b, c, when, names], i) => {
     let ctl = '';
     if (type === 'toggle') ctl = `<button class="tgl ${SETTINGS[k] ? 'on' : ''}" data-sfx="none" role="switch" aria-checked="${!!SETTINGS[k]}" aria-label="${label}" data-k="${k}"></button>`;
     if (type === 'slider') ctl = `<div class="rng"><input type="range" data-k="${k}" min="${a}" max="${b}" step="${c}" value="${SETTINGS[k]}" aria-label="${label}" style="--v:${((SETTINGS[k] - a) / (b - a) * 100).toFixed(1)}%"><output>${fmtSetting(k, SETTINGS[k])}</output></div>`;
-    if (type === 'seg') ctl = `<div class="sseg" data-k="${k}"><i class="sthumb"></i>${a.map(o => `<button class="${o === SETTINGS[k] ? 'on' : ''}" data-sfx="tab" data-v="${o}">${o}</button>`).join('')}</div>`;
+    if (type === 'seg') ctl = `<div class="sseg" data-k="${k}"><i class="sthumb"></i>${a.map(o => `<button class="${o === SETTINGS[k] ? 'on' : ''}" data-sfx="tab" data-v="${o}">${names ? names[o] : o}</button>`).join('')}</div>`;
     const dim = when && !when() ? 'dim' : '';
     return `<div class="srow2 ${dim}" style="--i:${i}" data-row="${k}"><div><b>${label}</b><small>${desc}</small></div>${ctl}</div>`;
   }).join('');
@@ -261,7 +322,8 @@ function applySetting(k) { // side effects of a setting change
   saveSettings();
   if (k === 'reduceMotion') document.body.classList.toggle('calm', !!SETTINGS.reduceMotion);
   if (k === 'uiScale') { applyUiScale(); requestAnimationFrame(() => overlay.querySelectorAll('.seg,.sseg').forEach(sg => placeThumb(sg, true))); }
-  if (k === 'strongOutlines') bakeOutline();
+  if (k === 'mapOutlines') { drawObstacleLayer(); bakeOutline(); }
+  if (k === 'lightQ') resizeLights();
   if (k === 'timeMode') { const t = SETTING_TABS.Gameplay.rows; overlay.querySelectorAll('[data-row]').forEach(r => { const row = t.find(x => x[1] === r.dataset.row); if (row && row[7]) r.classList.toggle('dim', !row[7]()); }); }
 }
 function wireSettings(body) {
@@ -283,7 +345,7 @@ function wireSettings(body) {
 function showSettings(tab = settingsTab) {
   settingsTab = tab;
   overlay.className = 'menuMode';
-  overlay.innerHTML = `<div class="panel set"><nav class="snav"><h1>Settings</h1>${Object.keys(SETTING_TABS).map(t => `<button class="tab ${t === tab ? 'on' : ''}" data-sfx="tab" data-tab="${t}"><i>${SETTING_TABS[t].icon}</i>${t}</button>`).join('')}<button class="btn" id="backBtn" data-sfx="confirm">Done</button></nav><div class="sbody tabIn">${settingsBody(tab)}</div></div>`;
+  overlay.innerHTML = `<div class="panel set"><nav class="snav"><h1>Settings</h1>${Object.keys(SETTING_TABS).map(t => `<button class="tab ${t === tab ? 'on' : ''}" data-sfx="tab" data-tab="${t}"><i>${ico(SETTING_TABS[t].icon)}</i>${t}</button>`).join('')}<button class="btn" id="backBtn" data-sfx="confirm">Done</button></nav><div class="sbody tabIn">${settingsBody(tab)}</div></div>`;
   const body = overlay.querySelector('.sbody');
   wireSettings(body);
   overlay.querySelectorAll('.tab').forEach(b => b.onclick = () => {

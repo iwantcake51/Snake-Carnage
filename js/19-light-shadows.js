@@ -59,11 +59,13 @@ function shadeInto(dst, L, list, ox, oy, size, str, skip, soft) { // removes lig
   }
   qx.setTransform(1, 0, 0, 1, 0, 0);
 }
-function bakeLightMasks() { // static shadows per light, baked once (and again when a lamp breaks)
+function bakeLightMasks(near) { // static shadows per light, baked once; after a lamp breaks or furniture is smashed only the lights that reach it
+  lightVer++;
   scast = obstacles.filter(o => o.kind !== 'lamp' && (HEIGHTS[o.kind] ?? 10) > 0).map(o => ({ ...o, z: HEIGHTS[o.kind] ?? 10,
     cx: o.t === 'r' ? o.x + o.w / 2 : o.x, cy: o.t === 'r' ? o.y + o.h / 2 : o.y, br: o.t === 'r' ? Math.hypot(o.w, o.h) / 2 : o.r })); // bounding circle, for culling
   for (const l of lights) {
     if (l.kind === 'window') continue;
+    if (near && l.mask && dist2(l.x, l.y, near.x, near.y) > (l.r + near.r) ** 2) continue;
     const s = Math.ceil(l.r * 2);
     if (!l.mask) { [l.mask, l.mx] = mkL(s); [l.tint, l.tx] = mkL(s); l.size = s; }
     l.mx.clearRect(0, 0, s, s); l.mx.drawImage(MASK_SPR, 0, 0, s, s);
@@ -121,9 +123,23 @@ function beamAdd(f, s, a, rich) {
   if (hit) { const spr = glowSprites[f.c] || (glowSprites[f.c] = lightSprite(f.c, .3)), rr = 14 + hit * .25; adx.globalAlpha = .55 * (1 - hit / 90) * f.k; adx.drawImage(spr, f.x + ca * hit - rr, f.y + sa * hit - rr, rr * 2, rr * 2); }
 }
 const desC = document.createElement('canvas'); desC.width = lightC.width / 2; desC.height = lightC.height / 2; const dsx = desC.getContext('2d'); // where it's dark, colors fade (night vision of the eye)
-const VEIL = { street: .2, pool: .26, emerg: .3, fluor: .07, fire: .16, fixed: .12, alien: .3 };
+const VEIL = { street: .2, pool: .26, emerg: .3, fluor: .07, fire: .16, fixed: .12, alien: .1, red: .42, reactor: .3, bar: .25, booth: .35, dj: .4, disco: .55, flood: .05 };
+/* LIGHTING QUALITY: how many lights get live shadows from moving things, how many flashlight beams, and which extra passes run.
+   Lights that aren't changing are merged into one cached "holes" layer (and one cached color layer), so a map full of
+   lamps and windows costs two drawImage calls per frame instead of one per light. */
+const LQ_CFG = { High: { dyn: 4, beams: 6, beamSh: 6, shine: 3, desat: true, veil: true }, Medium: { dyn: 2, beams: 4, beamSh: 2, shine: 1, desat: true, veil: true }, Low: { dyn: 0, beams: 3, beamSh: 0, shine: 0, desat: false, veil: false } };
+function lq() { let q = SETTINGS.lightQ || 'High'; if (lowFx) q = q === 'High' ? 'Medium' : 'Low'; const c = LQ_CFG[q] || LQ_CFG.High; return SETTINGS.dynShadows === false ? { ...c, dyn: 0, beamSh: 0 } : c; }
+const mkLight = () => { const c = document.createElement('canvas'); c.width = lightC.width; c.height = lightC.height; const x = c.getContext('2d'); x.setTransform(LDPR, 0, 0, LDPR, 0, 0); return [c, x]; };
+const [statC, stx] = mkLight(), [veilC, vtx] = mkLight();
+function resizeLights() { // lighting quality changed: rebuild the light buffers at the new resolution
+  LDPR = lightRes();
+  for (const [c, x] of [[lightC, lgx], [statC, stx], [veilC, vtx]]) { c.width = W * LDPR; c.height = H * LDPR; x.setTransform(LDPR, 0, 0, LDPR, 0, 0); }
+  desC.width = lightC.width / 2; desC.height = lightC.height / 2; statKey = '';
+}
+let statKey = '', lightVer = 0;
+const isStaticLight = l => !l.enc && !l.dynNow && !(l.ign > 0) && !(l.fT > 0) && l.kind !== 'emerg' && l.kind !== 'disco';
 function drawLighting(x) {
-  const L = light, nv = nightVision;
+  const L = light, nv = nightVision, Q = lq();
   if (!nv && L.tA > .005) { // dawn / dusk grade: sky-side to horizon-side colors
     const g = x.createLinearGradient(0, 0, W * .35, H);
     g.addColorStop(0, `rgba(${L.tTop},${L.tA.toFixed(3)})`); g.addColorStop(1, `rgba(${L.tBot},${L.tA.toFixed(3)})`);
@@ -133,32 +149,58 @@ function drawLighting(x) {
   let used = false; const useAdd = () => { if (!used) { used = true; adx.globalAlpha = 1; adx.globalCompositeOperation = 'source-over'; adx.clearRect(0, 0, W, H); adx.globalCompositeOperation = 'lighter'; } };
   if (dark >= .02) {
     gatherDyn();
+    // 1. which lights get live shadows this frame: the nearest few that actually have someone under them
+    for (const l of lights) l.dynNow = false;
+    if (Q.dyn > 0) {
+      const sx = snake ? snake.x : W / 2, sy = snake ? snake.y : H / 2, cand = [];
+      for (const l of lights) if (l.h > 0 && l.kind !== 'window' && lightK(l) > .01 && dist2(l.x, l.y, sx, sy) < (l.r + 380) ** 2 && nearDyn(l.x, l.y, l.r).length) cand.push(l);
+      cand.sort((p, q) => dist2(p.x, p.y, sx, sy) - dist2(q.x, q.y, sx, sy));
+      for (let i = 0; i < Math.min(Q.dyn, cand.length); i++) cand[i].dynNow = true;
+    }
+    // 2. the cached layer of every light that isn't changing right now
+    let key = lightVer + '|' + nv;
+    for (const l of lights) if (isStaticLight(l)) key += ',' + Math.round(lightK(l) * 40);
+    if (key !== statKey) {
+      statKey = key;
+      stx.setTransform(1, 0, 0, 1, 0, 0); stx.clearRect(0, 0, statC.width, statC.height); stx.setTransform(LDPR, 0, 0, LDPR, 0, 0);
+      vtx.setTransform(1, 0, 0, 1, 0, 0); vtx.clearRect(0, 0, veilC.width, veilC.height); vtx.setTransform(LDPR, 0, 0, LDPR, 0, 0);
+      for (const l of lights) {
+        if (!isStaticLight(l)) continue; const k = lightK(l); if (k < .01) continue;
+        stx.globalAlpha = k; // source-over of alpha masks = their union, exactly what punching them out one by one gives
+        if (l.kind === 'window') { stx.drawImage(MASK_SPR, l.x - l.r, l.y - l.r, l.r * 2, l.r * 2); continue; }
+        const s = l.size, bs = Math.ceil(s * LS); stx.drawImage(l.mask, 0, 0, bs, bs, l.x - l.r, l.y - l.r, s, s);
+        vtx.globalAlpha = k * (VEIL[l.kind] ?? .12); vtx.drawImage(l.tint, 0, 0, bs, bs, l.x - l.r, l.y - l.r, s, s);
+      }
+      stx.globalAlpha = 1; vtx.globalAlpha = 1;
+    }
     lgx.globalCompositeOperation = 'source-over'; lgx.globalAlpha = 1; lgx.clearRect(0, 0, W, H);
     lgx.fillStyle = `rgba(${L.dc},${dark})`; lgx.fillRect(0, 0, W, H);
     lgx.globalCompositeOperation = 'destination-out'; // punch light holes in the darkness
+    lgx.drawImage(statC, 0, 0, W, H);
     for (const l of lights) {
       const k = lightK(l); if (k < .01) continue;
+      if (l.kind === 'street' && !nv) { useAdd(); const spr = glowSprites[l.c] || (glowSprites[l.c] = lightSprite(l.c, .3)); adx.globalAlpha = k * .9; adx.drawImage(spr, l.x - 13, l.y - 13, 26, 26); } // the bulb
+      if (isStaticLight(l)) continue;
       if (l.kind === 'window') { lgx.globalAlpha = k; lgx.drawImage(MASK_SPR, l.x - l.r, l.y - l.r, l.r * 2, l.r * 2); continue; }
       const s = l.size, bs = Math.ceil(s * LS); let src = l.mask;
-      if (!lowFx && l.h > 0 && nearDyn(l.x, l.y, l.r).length) { // someone is under this light: add their shadows this frame
-        s1.clearRect(0, 0, s, s); s1.drawImage(l.mask, 0, 0, s, s); shadeInto(s1, l, NEAR, l.x - l.r, l.y - l.r, s, .75); src = S1;
+      if (l.dynNow) { // someone is under this light: add their shadows this frame
+        s1.clearRect(0, 0, s, s); s1.drawImage(l.mask, 0, 0, s, s); shadeInto(s1, l, nearDyn(l.x, l.y, l.r), l.x - l.r, l.y - l.r, s, .75); src = S1;
       }
       lgx.globalAlpha = k; if (l.enc) encClip(lgx, l); lgx.drawImage(src, 0, 0, bs, bs, l.x - l.r, l.y - l.r, s, s); if (l.enc) lgx.restore();
-      if (l.kind === 'street' && !nv) { useAdd(); const spr = glowSprites[l.c] || (glowSprites[l.c] = lightSprite(l.c, .3)); adx.globalAlpha = k * .9; adx.drawImage(spr, l.x - 13, l.y - 13, 26, 26); } // the bulb
     }
-    const desat = !nv && dark > .05;
+    const desat = Q.desat && !nv && dark > .05;
     if (desat) { dsx.globalCompositeOperation = 'copy'; dsx.globalAlpha = 1; dsx.drawImage(lightC, 0, 0, desC.width, desC.height); } // snapshot (half res: it's a soft mask) before colored veils go in
-    if (!nv) { // colored veil inside each light pool: sodium orange, fluorescent white, pool cyan, emergency red
-      lgx.globalCompositeOperation = 'source-over';
-      for (const l of lights) { if (l.kind === 'window') continue; const k = lightK(l); if (k < .01) continue; const s = l.size, bs = Math.ceil(s * LS); lgx.globalAlpha = k * (VEIL[l.kind] ?? .12); if (l.enc) encClip(lgx, l); lgx.drawImage(l.tint, 0, 0, bs, bs, l.x - l.r, l.y - l.r, s, s); if (l.enc) lgx.restore(); }
+    if (!nv && Q.veil) { // colored veil inside each light pool: sodium orange, fluorescent white, pool cyan, emergency red
+      lgx.globalCompositeOperation = 'source-over'; lgx.globalAlpha = 1; lgx.drawImage(veilC, 0, 0, W, H);
+      for (const l of lights) { if (l.kind === 'window' || isStaticLight(l)) continue; const k = lightK(l); if (k < .01) continue; const s = l.size, bs = Math.ceil(s * LS); lgx.globalAlpha = k * (VEIL[l.kind] ?? .12); if (l.enc) encClip(lgx, l); lgx.drawImage(l.tint, 0, 0, bs, bs, l.x - l.r, l.y - l.r, s, s); if (l.enc) lgx.restore(); }
     }
     beams.forEach((f, i) => {
-      const s = composeBeam(f, true), bs = Math.ceil(s * LS);
+      const s = composeBeam(f, i < Q.beamSh), bs = Math.ceil(s * LS);
       lgx.globalCompositeOperation = 'destination-out'; lgx.globalAlpha = f.k * .95; lgx.drawImage(S1, 0, 0, bs, bs, f.x - f.range, f.y - f.range, s, s);
       if (desat) { dsx.setTransform(LDPR / 2, 0, 0, LDPR / 2, 0, 0); dsx.globalCompositeOperation = 'destination-out'; dsx.globalAlpha = f.k * .95; dsx.drawImage(S1, 0, 0, bs, bs, f.x - f.range, f.y - f.range, s, s); dsx.setTransform(1, 0, 0, 1, 0, 0); }
       tintFrom(s2, S1, s, f.c);
       if (!nv) { lgx.globalCompositeOperation = 'source-over'; lgx.globalAlpha = f.k * .1; lgx.drawImage(S2, 0, 0, bs, bs, f.x - f.range, f.y - f.range, s, s); }
-      useAdd(); beamAdd(f, s, (nv ? .15 : .12) * clamp(dark / .4, .3, 1), !nv && i < (lowFx ? 1 : 4)); // blood shine on the nearest few
+      useAdd(); beamAdd(f, s, (nv ? .15 : .12) * clamp(dark / .4, .3, 1), !nv && i < Q.shine); // blood shine on the nearest few
     });
     lgx.globalAlpha = 1; lgx.globalCompositeOperation = 'source-over';
     if (desat) { // unlit areas lose their color; lamp pools and beams keep it

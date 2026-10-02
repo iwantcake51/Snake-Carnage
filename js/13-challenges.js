@@ -15,18 +15,18 @@ const TIERS = {
   rare: { label: 'Extreme', xp: 480, chips: 120, bonus: .15 }, // tough but doable
 };
 const NIGHT_MAPS = ['Town', 'Park', 'Maze', 'Farm', 'Checkerboard'];
-const CH_NAMES = { // every challenge gets a slightly unhinged name
-  humans: { easy: 'Snack Time', medium: 'Dinner Rush', hard: 'Public Menace' }, animals: { easy: 'Petting Zoo Is Closed' },
-  combo: { easy: 'Warming Up', medium: 'On a Roll', hard: 'Absolutely Starving' }, score: { easy: 'Number Go Up', hard: 'High Score Hunger' },
-  survive: { easy: 'Still Here', hard: 'Stubborn' }, dist: { easy: 'Scenic Route' }, panic: { easy: 'Wrong Place, Wrong Time', hard: 'Bad Neighborhood' },
-  xp: { easy: 'Learning Experience', medium: 'Higher Education' }, comboTypes: { medium: 'Balanced Diet', hard: 'Full Menu' }, panicKills: { medium: 'Cardio Is Overrated', hard: 'Fast Food' },
-  unaware: { medium: "Don't Mind Me", hard: 'No Witnesses' }, sharp: { medium: 'Drift King' }, burst: { medium: 'Speed Eater', hard: 'Inhaler', rare: 'Vacuum Cleaner' },
-  watched: { medium: 'Dinner and a Show' }, humanStreak: { medium: 'Oops, All Humans' }, animalStreak: { medium: 'Vegetarian (Sort Of)' },
-  noNVScore: { medium: 'Eyes Are Overrated', hard: 'Natural Night Owl' }, gore: { medium: 'Messy Eater', rare: "Cleanup Is Someone Else's Problem" },
-  comboTime: { medium: 'Marathon Meal', hard: 'All You Can Eat' }, humanCombo: { hard: 'People Person' }, golden: { rare: 'Gold Digger' },
-  goldenAny: { rare: 'Golden Opportunity' }, fastGolden: { rare: 'Shiny Hunting' }, modHumans: { rare: 'Hard Mode Snacking' }, allAnimals: { hard: 'Old MacDonald Had a Snake' },
-  sequence: { medium: 'Farm to Table' }, nvKills: { medium: 'Night Shift' }, darkCombo: { hard: 'Lights Out' }, edgeFree: { medium: 'Center Stage' },
-  aliens: { medium: 'Martian Cuisine', hard: 'Close Encounters' }, astronauts: { medium: 'Lunar Lunch', hard: 'Houston, We Have a Problem' },
+const CH_NAMES = { // short and plain; the odd dark joke, not a pun every time
+  humans: { easy: 'Snack', medium: 'Dinner Rush', hard: 'Public Menace' }, animals: { easy: 'Wildlife' },
+  combo: { easy: 'Warming Up', medium: 'On a Roll', hard: "Can't Stop" }, score: { easy: 'Points', hard: 'High Score' },
+  survive: { easy: 'Still Here', medium: 'Hanging On', hard: 'Stubborn' }, dist: { easy: 'Scenic Route' }, panic: { easy: 'Scare Them', medium: 'Stampede', hard: 'Mass Panic' },
+  xp: { easy: 'Grind', medium: 'Overtime' }, comboTypes: { medium: 'Balanced Diet', hard: 'Full Menu' }, panicKills: { medium: 'Not Fast Enough', hard: 'Fast Food' },
+  unaware: { easy: "Don't Mind Me", medium: 'Sneaky', hard: "Didn't See It Coming" }, sharp: { medium: 'Hairpin' }, burst: { medium: 'Quick Bites', hard: 'Gulp', rare: 'Vacuum' },
+  watched: { medium: 'Audience' }, humanStreak: { medium: 'People Only', hard: 'Strictly People' }, animalStreak: { medium: 'Animals Only' },
+  noNVScore: { easy: 'No Goggles', medium: 'No Goggles', hard: 'Night Owl' }, gore: { medium: 'Messy Eater', hard: 'Soaked', rare: 'Drenched' },
+  comboTime: { medium: 'Long Meal', hard: 'All You Can Eat' }, humanCombo: { hard: 'People Person' }, golden: { rare: 'Gold Digger' },
+  goldenAny: { rare: 'Shiny' }, fastGolden: { rare: 'Quick Gold' }, modHumans: { rare: 'Handicap' }, allAnimals: { hard: 'Barnyard' },
+  sequence: { medium: 'Farm to Table' }, nvKills: { medium: 'Night Shift' }, darkCombo: { hard: 'In the Dark' }, edgeFree: { medium: 'Middle Ground' },
+  aliens: { medium: 'Abduction', hard: 'Close Encounters' }, astronauts: { medium: 'Ground Control', hard: 'Houston' },
 };
 const chName = (k, tier, type) => k === 'type' ? `${type[0].toUpperCase() + type.slice(1)} Problem` : (CH_NAMES[k] || {})[tier] || Object.values(CH_NAMES[k] || { x: 'Mystery Meat' })[0];
 function chPool(map) {
@@ -35,62 +35,67 @@ function chPool(map) {
   const fh = clamp(hPop / 12, .6, 1.5), fa = clamp(aPop / 10, .5, 1.5); // fewer people on the map = smaller human targets
   const HUM = new Set(['humans', 'panic', 'panicKills', 'humanStreak', 'watched', 'humanCombo']), ANI = new Set(['animals', 'animalStreak']);
   const add = (tier, k, ns, t, extra = {}) => P.push({ tier, k, ns: ns.map(n => Math.max(1, Math.round(n * (HUM.has(k) ? fh : ANI.has(k) ? fa : 1)))), t, ...extra });
-  add('easy', 'humans', [5, 6, 8], 'Eat {n} humans');
+  add('easy', 'humans', [5, 6, 8], 'Eat {n} people');
   if (hasA) add('easy', 'animals', [3, 4, 5], 'Eat {n} animals');
   add('easy', 'combo', [4, 5], 'Reach a {n}x combo');
   add('easy', 'score', [40, 50, 60], 'Reach {n} score');
   add('easy', 'survive', [60, 90], 'Stay alive for {n} seconds');
-  add('easy', 'dist', [300, 450], 'Travel {n} m');
-  add('easy', 'panic', [5, 6], 'Have {n} people panicking at once');
+  add('easy', 'dist', [400, 600], 'Travel {n} m');
+  add('easy', 'panic', [3, 4], 'Get {n} people panicking at once');
+  add('medium', 'panic', [6, 7], 'Get {n} people panicking at once');
   add('easy', 'xp', [60, 90], 'Earn {n} XP from kills');
-  add('medium', 'humans', [10, 12, 14], 'Eat {n} humans');
+  add('medium', 'humans', [10, 12, 14], 'Eat {n} people');
   add('medium', 'combo', [7, 8, 9], 'Reach a {n}x combo');
-  if (hasA) add('medium', 'comboTypes', [3], 'Hit {n} different target types in one combo');
-  add('medium', 'panicKills', [4, 5, 6], 'Eat {n} humans while they are fleeing');
-  add('medium', 'unaware', [3, 4, 5], 'Eat {n} targets before they notice you');
+  if (hasA) add('medium', 'comboTypes', [3], 'Eat {n} different kinds of thing in one combo');
+  add('medium', 'panicKills', [4, 5, 6], 'Eat {n} people while they run');
+  add('easy', 'unaware', [3, 4], 'Eat {n} targets before they notice you');
+  add('medium', 'unaware', [6, 7], 'Eat {n} targets before they notice you');
   add('medium', 'sharp', [2, 3], 'Eat {n} targets right after a sharp turn');
   add('medium', 'burst', [3], 'Eat {n} targets within 3 seconds');
   add('medium', 'watched', [3, 4], 'Eat {n} targets while 3+ people are watching');
-  add('medium', 'humanStreak', [8, 10], 'Eat {n} humans in a row without an animal');
-  if (hasA) add('medium', 'animalStreak', [5, 6], 'Eat {n} animals in a row without a human');
-  add('medium', 'noNVScore', [80, 100], 'Reach {n} score without using night vision');
-  add('medium', 'gore', [35, 45], 'Get {n}% of your snake bloody');
-  add('medium', 'comboTime', [20, 25], 'Keep one combo going for {n} seconds');
+  add('medium', 'humanStreak', [5, 6], 'Eat {n} people in a row, no animals');
+  add('hard', 'humanStreak', [10, 12], 'Eat {n} people in a row, no animals');
+  if (hasA) add('medium', 'animalStreak', [5, 6], 'Eat {n} animals in a row, no people');
+  add('easy', 'noNVScore', [50, 70], 'Reach {n} score without using night vision');
+  add('medium', 'gore', [35, 45], 'Get {n}% of your body bloody');
+  add('medium', 'comboTime', [20, 25], 'Keep a combo going for {n} seconds');
   add('medium', 'xp', [150, 200], 'Earn {n} XP from kills');
-  add('hard', 'humans', [18, 22], 'Eat {n} humans');
+  add('hard', 'humans', [18, 22], 'Eat {n} people');
   add('hard', 'combo', [12, 14], 'Reach a {n}x combo');
-  add('hard', 'humanCombo', [8, 10], 'Reach a {n}x combo eating only humans');
+  add('hard', 'humanCombo', [8, 10], 'Reach a {n}x combo on people only');
   add('hard', 'burst', [4, 5], 'Eat {n} targets within 3 seconds');
-  add('hard', 'panicKills', [10], 'Eat {n} humans while they are fleeing');
-  add('hard', 'survive', [240], 'Stay alive for {n} seconds');
+  add('hard', 'panicKills', [10], 'Eat {n} people while they run');
+  add('medium', 'survive', [180], 'Stay alive for {n} seconds');
+  add('hard', 'survive', [300], 'Stay alive for {n} seconds');
   add('hard', 'score', [150, 200], 'Reach {n} score');
   add('hard', 'unaware', [8], 'Eat {n} targets before they notice you');
-  add('hard', 'panic', [12, 15], 'Have {n} people panicking at once');
-  add('hard', 'comboTime', [40], 'Keep one combo going for {n} seconds');
-  add('rare', 'golden', [1], 'Eat a golden human');
-  add('rare', 'gore', [75], 'Get {n}% of your snake bloody');
+  add('hard', 'panic', [12, 15], 'Get {n} people panicking at once');
+  add('hard', 'comboTime', [40], 'Keep a combo going for {n} seconds');
+  add('rare', 'golden', [1], 'Eat a golden person');
+  add('hard', 'gore', [70], 'Get {n}% of your body bloody');
+  add('rare', 'gore', [90], 'Get {n}% of your body bloody');
   add('rare', 'burst', [6], 'Eat {n} targets within 3 seconds');
-  add('rare', 'modHumans', [12], 'Eat {n} humans with {mod} on', { mods: ['fastHumans', 'fog', 'fow', 'skittish', 'night'] });
+  add('rare', 'modHumans', [12], 'Eat {n} people with {mod} on', { mods: ['fastHumans', 'fog', 'fow', 'skittish', 'noticeSnake'] });
   if (map === 'Town' || map === 'Office') {
-    add('medium', 'humanStreak', [15], 'Eat {n} humans in a row without an animal');
-    add('hard', 'panic', [20], 'Have {n} people panicking at once');
-    add('hard', 'humanCombo', [10], 'Reach a {n}x human-only combo');
-    add('rare', 'fastGolden', [1], 'Eat a golden human within 30 seconds of it appearing');
+    add('medium', 'humanStreak', [15], 'Eat {n} people in a row, no animals');
+    add('hard', 'panic', [20], 'Get {n} people panicking at once');
+    add('hard', 'humanCombo', [10], 'Reach a {n}x combo on people only');
+    add('rare', 'fastGolden', [1], 'Eat a golden person within 30 seconds of it showing up');
   }
   if (map === 'Farm') {
     add('hard', 'allAnimals', [animals.length], 'Eat every animal type on the farm');
     add('medium', 'sequence', [3], 'Eat a chicken, then a pig, then a sheep', { seq: ['chicken', 'pig', 'sheep'] });
-    add('medium', 'animalStreak', [10], 'Eat {n} animals in a row without a human');
-    add('hard', 'comboTypes', [4], 'Hit {n} different target types in one combo');
+    add('medium', 'animalStreak', [10], 'Eat {n} animals in a row, no people');
+    add('hard', 'comboTypes', [4], 'Eat {n} different kinds of thing in one combo');
   }
   if (NIGHT_MAPS.includes(map)) {
-    add('medium', 'nvKills', [6, 10], 'Eat {n} targets with night vision on');
+    add('medium', 'nvKills', [6, 10], 'Eat {n} with night vision on');
     add('hard', 'darkCombo', [6, 8], 'Reach a {n}x combo in the dark');
     add('hard', 'noNVScore', [150], 'Reach {n} score without using night vision');
   }
   if (map === 'Checkerboard') {
-    add('medium', 'edgeFree', [8, 10], 'Eat {n} targets in a row without going near the edge');
-    add('hard', 'comboTime', [30], 'Keep one combo going for {n} seconds');
+    add('medium', 'edgeFree', [8, 10], 'Eat {n} in a row without going near the edge');
+    add('hard', 'comboTime', [30], 'Keep a combo going for {n} seconds');
     add('hard', 'combo', [15], 'Reach a {n}x combo');
   }
   if (map === 'Meadow') add('medium', 'type', [3], 'Eat {n} frogs', { type: 'frog' });
@@ -112,7 +117,8 @@ function buildSet(map, rot, salt = 0) {
       t: q.t.replace('{n}', n).replace('{mod}', mod ? MODS.find(x => x.id === mod).name : '').replace(/\ba (?=(8|11|18)\D)/, 'an ') });
   };
   take('easy'); take('medium'); take('hard'); take(r() < .3 ? 'rare' : 'medium');
-  return out;
+  const ord = { easy: 0, medium: 1, hard: 2, rare: 3 };
+  return out.sort((a, b) => ord[a.tier] - ord[b.tier]); // always easiest first
 }
 const chCache = {};
 function activeChallenges(map) { // this rotation's set, never identical to the previous one
@@ -201,7 +207,7 @@ function checkRotation() { // reroll every 15 minutes, without restarting anythi
   if (document.getElementById('chhud').innerHTML) { challengeHud(true, true); notify({ kind: 'reset', title: 'Challenges reset', sub: 'A fresh set is up for this map', dur: 3.2 }); Sfx.ui('select'); }
   const mc = document.getElementById('mapch');
   if (mc) { mc.classList.add('rotOut'); setTimeout(() => { if (!mc.isConnected) return; mc.innerHTML = mapChallengesHtml(); mc.classList.remove('rotOut', 'swap'); void mc.offsetWidth; mc.classList.add('swap'); }, 420); }
-  if (overlay.querySelector('.pause')) showPause();
+  if (state === 'paused' && overlay.style.display !== 'none' && overlay.querySelector('.pause')) { const pc = overlay.querySelector('.pch'); if (pc) pc.innerHTML = challengeRows(); } // refresh in place, never open it
   overlay.querySelectorAll('.card[data-map] .cb').forEach(el => { const m = MAPS[+el.closest('.card').dataset.map].name; el.textContent = `Best ${PROG.best[m] || 0}, ${chDoneCount(m)}/4 challenges`; });
 }
 function checkChallenges() {
@@ -215,8 +221,10 @@ function checkChallenges() {
     const r = chReward(ch);
     if (r.bonus) run.bonus = (run.bonus || 0) + r.bonus;
     PROG.chTotal = (PROG.chTotal || 0) + 1; PROG.chMaps = [...new Set([...(PROG.chMaps || []), m])]; // lifetime, for achievements
+    (run.chList = run.chList || []).push({ name: ch.name, tier: ch.tier, t: ch.t, got: `${Math.min(v, ch.n * 9)}${chUnit(ch)} of ${ch.n}${chUnit(ch)}`, at: run.time, xp: Math.round(r.xp * rewardMult), chips: Math.round(r.chips * rewardMult), bonus: r.bonus || 0 });
     challengePopup(ch, r); gainXP(Math.round(r.xp * rewardMult), Math.round(r.chips * rewardMult));
   }
+  checkPermChallenges();
   saveProg();
   challengeHud();
   modHud();

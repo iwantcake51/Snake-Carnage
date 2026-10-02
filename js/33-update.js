@@ -1,25 +1,29 @@
 /* =========================================================
    LOOP
    ========================================================= */
-let UT = 0, rotT = 0; // UI clock keeps running while the world is paused
+let UT = 0, rotT = 0, abilT = 0; // UI clock keeps running while the world is paused
 function update(dt) {
   UT += dt;
   if ((rotT -= dt) <= 0) { rotT = .5; checkRotation(); updateRotClocks(); }
-  if (state === 'menu' || state === 'paused' || state === 'held') return; // time stops: no AI, movement, blood or sounds
+  Sfx.musicUpdate(!!MAPS[mapIdx].music && ['play', 'ready', 'intro', 'held'].includes(state));
+  if (state === 'menu' || state === 'paused' || state === 'held' || state === 'loading') return; // time stops: no AI, movement, blood or sounds
   if (state === 'dead') { // the world is frozen; only the camera settles and the death screen arrives
     shake *= Math.exp(-dt * 8); if (shake < .2) shake = 0;
     killV *= Math.exp(-dt * 1.4); killFlash *= Math.exp(-dt * 7);
     if (deadT > 0) { deadT -= dt; if (deadT <= 0) showDead(); }
     return;
   }
+  if (hitStop > 0) { hitStop -= dt; return; } // hit-stop: the world holds its breath for a few frames
   T += dt;
-  if (state === 'play') { updateSnake(dt); run.time += dt; crTick(dt); }
-  updateCrowd();
+  if (state === 'play') { updateSnake(dt); run.time += dt; crTick(dt); progressTick(dt); }
+  updateCrowd(); updateConvos(dt);
   for (const c of creatures) if (c.alive) updateCreature(c, dt);
-  updateBlood(dt); updateGiblets(dt); updateSplashes(dt);
+  updateBlood(dt); updateGiblets(dt); updateSplashes(dt); updateMist(dt); updateSmoke(dt); updateFlies(dt); updateVomit(dt);
   if ((fadeT -= dt) <= 0) { fadeT = 2; fadeBlood(); }
   updateTrail(dt);
-  updateGround(dt);
+  if (snake) { const dk = snake.ramT > 0 ? Math.pow(snake.ramT / (snake.ramMax || 1), .6) * (snake.stunFx || 1) : 0; Sfx.daze(dk, snake.wallStun > 0); }
+  updateScent(dt);
+  updateGround(dt); updateSnow(dt); updateWeather(dt);
   for (let i = respawnQ.length - 1; i >= 0; i--) { if ((respawnQ[i].t -= dt) <= 0) { spawn(respawnQ[i].type, respawnQ[i].zone); respawnQ.splice(i, 1); } }
   shake *= Math.exp(-dt * 8); if (shake < .2) shake = 0;
   killV *= Math.exp(-dt * 1.4);
@@ -28,6 +32,7 @@ function update(dt) {
   updateTime(dt);
   if (cam && !cam.hold) { cam.t += dt; if (state === 'intro' && cam.t > cam.dur * .8) state = 'ready'; if (cam.t >= cam.dur) cam = null; }
   updateCamFollow(dt); updateCombo(dt); updateEvents(dt);
+  if ((abilT -= dt) <= 0) { abilT = .1; abilityHud(); hudNear(); }
   if (state === 'play' && (chT -= dt) <= 0) {
     chT = .5;
     const pan = creatures.filter(c => c.alive && c.def.human && c.state === 'panic').length;
@@ -139,23 +144,35 @@ function drawSnakeNightRim(x) { // white rim at night, readable over dark ground
   const bx = Math.max(0, x0), by = Math.max(0, y0), bw = Math.min(W, x1) - bx, bh = Math.min(H, y1) - by;
   if (bw > 0 && bh > 0) x.drawImage(snOC, bx * DPR, by * DPR, bw * DPR, bh * DPR, bx, by, bw, bh);
 }
-function drawGoldenFX(x) { // soft pulsing glow + orbiting glints so golden humans stand out
+function drawGoldenFX(x) { // soft glow, orbiting glints and a ring that counts down the golden time
   for (const c of creatures) {
     if (!c.alive || !c.golden) continue;
     const a = playerSees(c.x, c.y); if (a <= .02) continue;
-    const p = .5 + .5 * Math.sin(T * 5), r = 15 + p * 4;
+    const p = .5 + .5 * Math.sin(T * 5), r = 15 + p * 4, k = clamp(c.goldT / (c.goldMax || 30), 0, 1), low = k < .25;
     const g = x.createRadialGradient(c.x, c.y, 4, c.x, c.y, r + 8);
-    g.addColorStop(0, `rgba(255,214,90,${.38 * a})`); g.addColorStop(1, 'rgba(255,214,90,0)');
+    g.addColorStop(0, `rgba(255,214,90,${.34 * a})`); g.addColorStop(1, 'rgba(255,214,90,0)');
     x.fillStyle = g; circ(x, c.x, c.y, r + 8);
     x.fillStyle = `rgba(255,248,210,${.95 * a})`;
-    for (let k = 0; k < 3; k++) { const an = T * 2.2 + k * TAU / 3; star(x, c.x + Math.cos(an) * 14, c.y + Math.sin(an) * 14, 1.8 + p * 1.2, T * 3 + k); }
-    if (c.goldT < 8) { x.strokeStyle = `rgba(255,207,51,${.7 * a})`; x.lineWidth = 1.5; x.beginPath(); x.arc(c.x, c.y, 19, -Math.PI / 2, -Math.PI / 2 + TAU * c.goldT / 8); x.stroke(); } // running out
+    for (let n = 0; n < 3; n++) { const an = T * 2.2 + n * TAU / 3; star(x, c.x + Math.cos(an) * 14, c.y + Math.sin(an) * 14, 1.8 + p * 1.2, T * 3 + n); }
+    const R = c.def.r + 11; // timer ring: a dim track plus the time that's left
+    x.lineCap = 'round'; x.lineWidth = 2.2; x.strokeStyle = `rgba(60,40,0,${.45 * a})`; x.beginPath(); x.arc(c.x, c.y, R, 0, TAU); x.stroke();
+    x.strokeStyle = low && Math.sin(T * 14) > 0 ? `rgba(255,120,60,${a})` : `rgba(255,214,70,${a})`; x.lineWidth = 2;
+    x.beginPath(); x.arc(c.x, c.y, R, -Math.PI / 2, -Math.PI / 2 + TAU * k); x.stroke(); x.lineCap = 'butt';
+  }
+  for (let i = ringPops.length - 1; i >= 0; i--) { // ran out: the ring swells, pops and fades outward
+    const q = ringPops[i]; q.t += 1 / 60; const e = q.t / .5; if (e >= 1) { ringPops.splice(i, 1); continue; }
+    const px = q.c && q.c.alive ? q.c.x : q.x, py = q.c && q.c.alive ? q.c.y : q.y, R = 20 + 26 * (1 - Math.pow(1 - e, 3)), vis = playerSees(px, py);
+    if (vis < .05) continue; x.globalAlpha = vis * (render.olk ?? 1); // only where you can actually see it
+    x.strokeStyle = `rgba(255,214,70,${(1 - e) * .9})`; x.lineWidth = 3 * (1 - e) + .5; x.beginPath(); x.arc(px, py, R, 0, TAU); x.stroke();
+    x.fillStyle = `rgba(255,240,190,${(1 - e) * .8})`; for (let n = 0; n < 8; n++) { const an = n * TAU / 8; circ(x, px + Math.cos(an) * (R + 4), py + Math.sin(an) * (R + 4), 1.6 * (1 - e) + .3); }
+    x.globalAlpha = 1;
   }
 }
 let goldTimer = null;
-function goldenBanner(animal) { // golden human: big gold note; golden animal: smaller and shorter
-  if (animal) { notify({ kind: 'goldA', title: `Golden ${animal}!`, sub: 'Worth a fortune. Quick.', dur: 4, bar: true, key: 'gold' }); Sfx.golden(true); return; }
-  notify({ kind: 'goldH', title: 'GOLDEN HUMAN', sub: 'Find them before they get away.', dur: 5.5, bar: true, key: 'gold' }); Sfx.golden();
+function goldenBanner(animal, c) { // each golden target gets its own note; several stack instead of replacing each other
+  if (animal) { notify({ kind: 'goldA', title: `Golden ${animal}!`, sub: 'Worth a fortune. Quick.', dur: 4, bar: true }); Sfx.golden(true); return; }
+  const who = c && c.def.alien ? 'ALIEN' : c && c.type === 'astronaut' ? 'ASTRONAUT' : 'HUMAN';
+  notify({ kind: 'goldH', title: 'GOLDEN ' + who, sub: 'Find them before the gold wears off.', dur: 5.5, bar: true }); Sfx.golden();
 }
 function drawTargetOutlines(x) { // clean silhouette rim around everything edible: black by day, white at night
   const night = light.dark > .3, col = night ? 'rgba(255,255,255,.78)' : 'rgba(0,0,0,.6)';
@@ -164,11 +181,13 @@ function drawTargetOutlines(x) { // clean silhouette rim around everything edibl
     let a = 1;
     a = playerSees(c.x, c.y); if (a <= .02) continue;
     // stroke the outline, then cut the body out of it: leaves only the outer rim, no lines across the head or arms
-    OLX.setTransform(1, 0, 0, 1, 0, 0); OLX.clearRect(0, 0, 80, 80); OLX.setTransform(2, 0, 0, 2, 40, 40); OLX.rotate(c.a);
+    if (c.def.fly) continue;
+    const hz = c.hz || 0, sc = 2 * (1 + hz * .045);
+    OLX.setTransform(1, 0, 0, 1, 0, 0); OLX.clearRect(0, 0, 80, 80); OLX.setTransform(sc, 0, 0, sc, 40, 40); OLX.rotate(c.a);
     shapePath(OLX, c);
     OLX.strokeStyle = c.golden ? '#ffcf33' : col; OLX.lineWidth = c.golden ? 3.2 : 2; OLX.stroke();
     OLX.globalCompositeOperation = 'destination-out'; OLX.fill(); OLX.globalCompositeOperation = 'source-over';
-    x.globalAlpha = a; x.drawImage(OLC, c.x - 20, c.y - 20, 40, 40); x.globalAlpha = 1;
+    x.globalAlpha = a * (render.olk ?? 1); x.drawImage(OLC, c.x - 20, c.y - 20 - hz * .7, 40, 40); x.globalAlpha = 1; // the rim rides up with a hop
   }
 }
 function drawBubbles(x) {
@@ -177,24 +196,25 @@ function drawBubbles(x) {
   for (const c of creatures) { // stacked bubbles: newest next to the head, older ones pushed up
     if (!c.alive || !c.bubbles || !c.bubbles.length) continue;
     let seeA = playerSees(c.x, c.y); // hidden in fog, and fading out with distance so far-off chatter doesn't clutter the screen
-    if (snake) { const d = Math.hypot(c.x - snake.x, c.y - snake.y), k = clamp(1 - (d - 130) / 220, 0, 1); seeA *= k * k * (3 - 2 * k); }
+    if (snake && !pregame()) { const d = Math.hypot(c.x - snake.x, c.y - snake.y), k = clamp(1 - (d - 130) / 220, 0, 1); seeA *= k * k * (3 - 2 * k); } // before the run starts, you can hear the whole map
     if (seeA <= .02) continue;
     const vis = c.bubbles.filter(b => b.delay <= 0).slice(-3);
     let cy = c.y - 14 - bh / 2;
     for (let k = vis.length - 1; k >= 0; k--) {
       const b = vis[k];
-      x.font = `${b.yell ? 800 : 600} ${fs}px "Segoe UI", sans-serif`;
-      const w = x.measureText(b.text).width + 9, pop = Math.min(1, b.t / .14), sc = .6 + .4 * (1 - Math.pow(1 - pop, 3));
+      const txt = b.act ? `*${b.text}*` : b.cps ? b.text.slice(0, Math.max(1, shownLen(b))) : b.text;
+      x.font = b.act ? `italic 600 ${fs * .92}px "Segoe UI", sans-serif` : `${b.yell ? 800 : 600} ${fs}px "Segoe UI", sans-serif`;
+      const w = x.measureText(txt).width + 9, pop = Math.min(1, b.t / .14), sc = .6 + .4 * (1 - Math.pow(1 - pop, 3));
       const bx = clamp(c.x + (vis.length - 1 - k) * 5, w / 2 + 2, W - w / 2 - 2), by = Math.max(bh, cy);
       let near = false; // fade bubbles the snake is under, so they never hide the action
       if (snake) for (let i = 0; i < Math.min(snake.segs.length, 24) && !near; i += 2) {
         const g = snake.segs[i]; near = Math.abs(g.x - bx) < w / 2 + 22 && Math.abs(g.y - by) < bh / 2 + 22;
       }
       b.fa = (b.fa ?? 1) + ((near ? .18 : 1) - (b.fa ?? 1)) * .25;
-      x.save(); x.globalAlpha = Math.min(1, (b.life - b.t) * 3) * b.fa * seeA; x.translate(bx, by); x.scale(sc, sc);
-      x.fillStyle = b.yell ? '#fff' : 'rgba(244,244,244,.95)'; rrect(x, -w / 2, -bh / 2, w, bh, 5); x.fill();
-      if (k === vis.length - 1) { x.beginPath(); x.moveTo(c.x - bx - 4, bh / 2 - 1); x.lineTo(c.x - bx + 1, bh / 2 + 5); x.lineTo(c.x - bx + 4, bh / 2 - 1); x.fill(); }
-      x.fillStyle = b.yell ? '#a10000' : '#3a3236'; x.fillText(b.text, 0, .5);
+      x.save(); x.globalAlpha = Math.min(1, (b.life - b.t) * 3) * b.fa * seeA; x.translate(bx + (b.yell ? Math.sin(T * 47 + k * 3 + c.x) * .7 : 0), by + (b.yell ? Math.cos(T * 53 + c.y) * .6 : 0)); x.scale(sc, sc); // shouting shakes
+      x.fillStyle = b.act ? 'rgba(30,24,28,.82)' : b.yell ? '#fff' : 'rgba(244,244,244,.95)'; rrect(x, -w / 2, -bh / 2, w, bh, 5); x.fill();
+      if (k === vis.length - 1 && !b.act) { x.beginPath(); x.moveTo(c.x - bx - 4, bh / 2 - 1); x.lineTo(c.x - bx + 1, bh / 2 + 5); x.lineTo(c.x - bx + 4, bh / 2 - 1); x.fill(); }
+      x.fillStyle = b.act ? '#e8dcd2' : b.yell ? '#a10000' : '#3a3236'; x.fillText(txt, 0, .5);
       x.restore();
       cy -= bh + 2;
     }
@@ -206,4 +226,21 @@ function applyView(x) { // shake, spawn zoom and look-ahead, shared by the scene
   x.translate(V.sx, V.sy);
   if (V.z) { x.translate(W / 2, H / 2); x.scale(V.z, V.z); x.translate(-V.fx, -V.fy); }
   x.translate(-V.ox, -V.oy);
+}
+const NEAR_IDS = ['chhud', 'modhud', 'combo', 'rewards', 'modbar', 'abil', 'notes', 'lvlup'];
+let nearRects = null, nearRectT = 0;
+function hudNear() { // corner UI turns half see-through while the snake is close to it
+  if (!snake) return;
+  const cr = cv.getBoundingClientRect(); if (!cr.width) return;
+  if (!nearRects || UT - nearRectT > .25) { // measure the HUD boxes in board units (twice a second is plenty)
+    nearRectT = UT; nearRects = NEAR_IDS.map(id => { const el = document.getElementById(id), r = el.getBoundingClientRect();
+      return { el, x0: (r.left - cr.left) / cr.width * W, y0: (r.top - cr.top) / cr.height * H, x1: (r.right - cr.left) / cr.width * W, y1: (r.bottom - cr.top) / cr.height * H, empty: !r.width }; });
+  }
+  document.getElementById('chhud').classList.toggle('dim', state === 'play' && run.time > 4); // the checklist steps back once you're playing
+  const pts = snake.segs.slice(0, 12), pad = 46, ah = Math.cos(snake.angle), av = Math.sin(snake.angle);
+  pts.push({ x: snake.x + ah * 90, y: snake.y + av * 90 }); // where the head is about to be: fade before it gets there
+  for (const b of nearRects) {
+    const near = !b.empty && state !== 'menu' && pts.some(g => g.x - V.ox > b.x0 - pad && g.x - V.ox < b.x1 + pad && g.y - V.oy > b.y0 - pad && g.y - V.oy < b.y1 + pad);
+    if (b.el.classList.contains('near') !== near) b.el.classList.toggle('near', near);
+  }
 }

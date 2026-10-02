@@ -1,60 +1,72 @@
-function snakeShadowPath(x, ox, oy) { // circles joined by quads (all clockwise, so nonzero fill = one solid shape, no notches)
+function snakeShadowPath(x, ox, oy) { // squared-off segments, turned with the body, like the hitbox they come from
   const sg = snake.segs, n = sg.length;
   for (let i = 0; i < n; i++) {
-    const g = sg[i], r = segR(i, n), sx = g.x + ox, sy = g.y + oy; x.moveTo(sx + r, sy); x.arc(sx, sy, r, 0, TAU);
-    if (i === n - 1) continue;
-    const h = sg[i + 1], r2 = segR(i + 1, n), dx = h.x - g.x, dy = h.y - g.y, d = Math.hypot(dx, dy); if (d < .01) continue;
-    const nx = -dy / d, ny = dx / d; // with y down, this order winds clockwise like arc()
-    x.moveTo(sx + nx * r, sy + ny * r); x.lineTo(sx - nx * r, sy - ny * r); x.lineTo(h.x + ox - nx * r2, h.y + oy - ny * r2); x.lineTo(h.x + ox + nx * r2, h.y + oy + ny * r2); x.closePath();
+    const g = sg[i], r = segR(i, n) * .95, c = Math.cos(g.a), s = Math.sin(g.a), sx = g.x + ox, sy = g.y + oy;
+    x.moveTo(sx + (c * r - s * r), sy + (s * r + c * r)); x.lineTo(sx + (-c * r - s * r), sy + (-s * r + c * r)); x.lineTo(sx + (-c * r + s * r), sy + (-s * r - c * r)); x.lineTo(sx + (c * r + s * r), sy + (s * r - c * r)); x.closePath();
   }
 }
 function render() {
-  const x = sctx, L = light, sh = shake && SETTINGS.shake ? shake : 0;
+  const x = sctx, L = light, sh = shake && SETTINGS.shake ? shake * (SETTINGS.shakeK ?? 1) : 0;
   V.sx = sh ? rand(-sh, sh) : 0; V.sy = sh ? rand(-sh, sh) : 0; V.z = 0;
   if (cam) { // spawn camera: starts tight on the snake, eases out to the full map
     const q = cam.hold ? 0 : Math.min(1, cam.t / cam.dur), p = q < .5 ? 4 * q * q * q : 1 - Math.pow(-2 * q + 2, 3) / 2, fp = Math.pow(p, 2.5);
     V.z = Math.pow(cam.z0, 1 - p); V.fx = snake.x + (W / 2 - snake.x) * fp; V.fy = snake.y + (H / 2 - snake.y) * fp;
   }
   V.ox = camF.x + camF.k.x; V.oy = camF.y + camF.k.y;
+  lookAround();
+  const cw = snake && snake.wallStun > 0 ? Math.pow(snake.wallStun / (snake.wallMax || 3.4), .6) * (snake.stunFx || 1) : 0;
+  if (cw > 0) { V.ox += (Math.sin(T * 1.25) * 7 + Math.sin(T * 2.9) * 2) * cw; V.oy += (Math.sin(T * .95 + 1.2) * 5 + Math.sin(T * 2.3) * 1.5) * cw; } // the room sways after a wall
+  const st0 = snake && snake.ramT > 0 ? Math.min(1, Math.pow(snake.ramT / (snake.ramMax || 1), .6) * (snake.stunFx || 1)) : 0;
+  render.olk = (render.olk ?? 1) + ((st0 > 0 ? 0 : 1) - (render.olk ?? 1)) * (st0 > 0 ? .25 : .03); // outlines drop out fast, stay gone while dizzy, then creep back
+  render.dazed = st0 > 0;
   x.setTransform(DPR, 0, 0, DPR, 0, 0);
   x.fillStyle = MAPS[mapIdx].border; x.fillRect(0, 0, W, H);
   applyView(x);
   x.drawImage(baseC, 0, 0, W, H);
   x.drawImage(groundC, 0, 0, W, H);
-  for (const b of bucketList) { x.globalAlpha = bucketAlpha(b); x.drawImage(b.f, 0, 0, W, H); }
+  if (MAPS[mapIdx].club) drawDanceFloor(x);
+  drawGrass(x);
+  for (const b of bucketList) { if (!b.fd) continue; x.globalAlpha = bucketAlpha(b); x.drawImage(b.f, 0, 0, W, H); }
+  x.globalAlpha = 1; drawGloss(x); drawSnow(x);
   x.globalAlpha = L.salpha; x.drawImage(shadowC, 0, 0, W, H); x.globalAlpha = 1;
   x.fillStyle = `rgba(0,0,0,${L.salpha})`; x.beginPath(); // creature + snake shadows as one shape
   for (const c of creatures) if (c.alive) { const r = c.def.r * .85, sx = c.x + L.sdx * 5, sy = c.y + L.sdy * 5; x.moveTo(sx + r, sy); x.arc(sx, sy, r, 0, TAU); }
   snakeShadowPath(x, L.sdx * 6, L.sdy * 6);
   x.fill();
+  drawAO(x); drawLeashes(x);
   for (const c of creatures) if (c.alive) drawCreature(x, c);
-  drawFlashBodies(x);
-  drawTrail(x); drawGround(x); drawSnake(x);
-  x.drawImage(obsC, 0, 0, W, H);
+  drawFlashBodies(x); drawHitGhosts(x);
+  drawGiblets(x); // chunks on the ground sit under the snake
+  drawTrail(x); drawGround(x); drawSnake(x); drawRamCharge(x); drawStreaks(x); drawSnowFx(x);
+  if ((render.olk ?? 1) > .995 || SETTINGS.mapOutlines === 'Off') x.drawImage(obsC, 0, 0, W, H); else { x.drawImage(plainC, 0, 0, W, H); if (render.olk > .01) { x.globalAlpha = render.olk; x.drawImage(outlineC, 0, 0, W, H); x.globalAlpha = 1; } } drawTrees(x); // outlines only cost extra while they're fading
   drawWaters(x);
-  for (const b of bucketList) { x.globalAlpha = bucketAlpha(b); x.drawImage(b.w, 0, 0, W, H); }
+  for (const b of bucketList) { if (!b.wd) continue; x.globalAlpha = bucketAlpha(b); x.drawImage(b.w, 0, 0, W, H); }
   x.globalAlpha = 1;
-  x.drawImage(outlineC, 0, 0, W, H);
-  x.lineCap = 'round'; x.strokeStyle = BLOOD;
-  for (const p of parts) { // airborne drops drawn as motion streaks
-    const py = p.y - p.z * .25; x.lineWidth = p.r * 2 * (1 + p.z / 80);
-    x.beginPath(); x.moveTo(p.x - p.vx * .016, py - p.vy * .016); x.lineTo(p.x + .01, py); x.stroke();
-  }
-  drawDebris(x); drawGiblets(x);
+  drawDrops(x);
+  drawDebris(x); drawMist(x); drawSmoke(x); drawVomit(x);
   drawLighting(x);
+  drawLampBugs(x); drawFireflyGlow(x);
   drawSparks(x);
   drawVisionMask(x);
+  const px = Math.max(1, SETTINGS.pixel | 0);
+  if (px > 1 || render.dazed) { drawGoldenFX(x); x.globalAlpha = render.olk ?? 1; drawTargetOutlines(x); drawSnakeNightRim(x); x.globalAlpha = 1; } // pixelated look: outlines go through the same pixelation
   x.setTransform(DPR, 0, 0, DPR, 0, 0);
 
   // pixelation
   ctx.setTransform(1, 0, 0, 1, 0, 0);
-  const px = Math.max(1, SETTINGS.pixel | 0);
   if (px > 1) {
     const lw = Math.ceil(W / px), lh = Math.ceil(H / px);
     if (lowC.width !== lw || lowC.height !== lh) { lowC.width = lw; lowC.height = lh; }
     lctx.drawImage(sceneC, 0, 0, lw, lh);
     ctx.imageSmoothingEnabled = false; ctx.drawImage(lowC, 0, 0, cv.width, cv.height); ctx.imageSmoothingEnabled = true;
   } else ctx.drawImage(sceneC, 0, 0);
+  const ws = snake && snake.wallStun > 0 ? Math.min(1.5, Math.pow(snake.wallStun / (snake.wallMax || 3.4), .6) * (snake.stunFx || 1)) : 0;
+  if (ws > .02 && px <= 1 && !SETTINGS.simpleFx) { // seeing stars after a wall: the picture wobbles in slow waves, fading with the daze
+    const bh = Math.ceil(cv.height / 48), amp = 7 * ws * DPR;
+    for (let y = 0; y < cv.height; y += bh) { const o = Math.sin(y / cv.height * 9 + T * 3.1) * amp + Math.sin(T * 1.7 + y * .01) * amp * .4; ctx.drawImage(sceneC, 0, y, cv.width, bh, o, y, cv.width, bh); }
+    if (!SETTINGS.reduceFlash && !SETTINGS.simpleFx) chromaSplit(Math.min(1, ws));
+  }
+  if (snake && snake.ramT > 0 && px <= 1 && !SETTINGS.reduceFlash) { const bk = Math.pow(snake.ramT / (snake.ramMax || 1), .6) * (snake.stunFx || 1); concussBloom(bk * (snake.wallStun > 0 ? .42 : .22)); } // any daze blooms; walls much more
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   if (nightVision) { // green phosphor look done in-canvas, so the overlays after it keep their real colors
     ctx.globalCompositeOperation = 'saturation'; ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
@@ -62,10 +74,9 @@ function render() {
     ctx.globalCompositeOperation = 'source-over'; ctx.fillStyle = 'rgba(0,12,4,.16)'; ctx.fillRect(0, 0, W, H);
   }
   ctx.save(); applyView(ctx); // crisp overlays above blood and lighting
-  drawGoldenFX(ctx);
-  drawTargetOutlines(ctx);
-  drawSnakeNightRim(ctx);
+  if (px <= 1 && !render.dazed) { drawGoldenFX(ctx); ctx.globalAlpha = render.olk ?? 1; drawTargetOutlines(ctx); drawSnakeNightRim(ctx); ctx.globalAlpha = 1; }
   if (nightVision) drawNVHighlights(ctx);
+  drawScent(ctx); drawHissWave(ctx);
   if (!cam) drawBubbles(ctx);
   ctx.restore();
   if (nightVision) drawNightVision(ctx);
@@ -82,12 +93,13 @@ function render() {
     g.addColorStop(1, `rgba(${Math.round(70 * kv)},0,0,${Math.min(.4, base + .15 * kv)})`);
     ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
   }
-  if (state === 'ready' && !cam) {
-    ctx.fillStyle = 'rgba(0,0,0,.65)'; ctx.fillRect(W / 2 - 190, H - 70, 380, 40);
-    ctx.fillStyle = '#ddd'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText('Press an arrow key or WASD to start', W / 2, H - 44);
-  }
-  const sat = SETTINGS.desaturate && !nightVision ? clamp(1 - killFlash * .5, .45, 1) : 1;
+  const pg = (state === 'ready' || state === 'intro' || state === 'loading') && !(snake && snake.started);
+  if (pg !== !!render.pg) { render.pg = pg; stage.classList.toggle('pregame', pg); if (!pg) { stage.classList.add('hudin'); clearTimeout(render.hudT); render.hudT = setTimeout(() => stage.classList.remove('hudin'), 900); } }
+  const wantStart = state === 'ready' && !cam;
+  if (wantStart !== !!render.startShown) { render.startShown = wantStart; wantStart ? showResume('to begin') : hideResume(); }
+  const stun = snake && snake.ramT > 0 ? Math.min(1, Math.pow(snake.ramT / (snake.ramMax || 1), .6) * (snake.stunFx || 1)) : 0; // lingers, then eases out // dazed after smashing through something
+  if (Math.abs(stun - (render.stun || 0)) > .02 || (stun === 0) !== (render.stun === 0)) { render.stun = stun; stage.style.setProperty('--stun', stun.toFixed(2)); stage.classList.toggle('stunned', stun > 0); stage.classList.toggle('wallstun', !!(snake && snake.wallStun > 0)); }
+  const sat = (SETTINGS.desaturate && !nightVision ? clamp(1 - killFlash * .5, .45, 1) : 1) * (1 - .75 * stun);
   const f = nightVision ? `contrast(1.15) brightness(${(.95 - SETTINGS.darkness * .2).toFixed(2)})` : `saturate(${sat.toFixed(2)}) brightness(${(1 - SETTINGS.darkness).toFixed(2)}) contrast(1.08)`;
   if (f !== lastFilter) { cv.style.filter = f; lastFilter = f; }
   const clock = (MAPS[mapIdx].indoor ? '🏢 ' : light.day > .5 ? '☀️ ' : light.day > .05 ? '🌇 ' : '🌙 ') +
@@ -147,7 +159,9 @@ function frame(now) {
   if (!lowFx && frameMs > 24) { lowFx = true; fastT = 0; }
   else if (lowFx && frameMs < 15) { if ((fastT += raw) > 8000) lowFx = false; } else fastT = 0; // only back to full quality after 8s of clearly fast frames
   const dt = Math.min(.033, raw / 1000); last = now;
-  update(dt); render(); requestAnimationFrame(frame);
+  requestAnimationFrame(frame); // scheduled first: nothing below can ever stop the loop
+  try { update(dt); } catch (e) { loopError(e, 'update'); }
+  try { render(); } catch (e) { loopError(e, 'render'); }
 }
 
 overlay.addEventListener('pointermove', e => { // mouse parallax on the menu
@@ -155,3 +169,82 @@ overlay.addEventListener('pointermove', e => { // mouse parallax on the menu
   overlay.style.setProperty('--mx', mx.toFixed(3)); overlay.style.setProperty('--my', my.toFixed(3));
   if (state === 'menu') cv.style.translate = `${(-mx * 2.5).toFixed(1)}px ${(-my * 1.6).toFixed(1)}px`; // deepest layer, moves least
 });
+/* ---- club: the dance floor lights up in time with the beat ---- */
+const CLUB_BPM = 124;
+function drawDanceFloor(x) {
+  const beat = T * CLUB_BPM / 60, bar = Math.floor(beat / 4), cols = ['#ff2d95', '#2de2ff', '#b6ff2d', '#ffb02d', '#8a5cff', '#ff4b2d'];
+  const pulse = 1 - (beat % 1); // bright on the beat, fading between
+  for (let j = 0; j < 6; j++) for (let i = 0; i < 9; i++) {
+    const h = (i * 7 + j * 13 + bar * 5) % 11, on = (h + Math.floor(beat)) % 3 === 0;
+    x.fillStyle = cols[(i + j + bar) % cols.length]; x.globalAlpha = on ? .32 + .38 * pulse : .08;
+    x.fillRect(302 + i * 40, 222 + j * 43.3, 36, 39);
+  }
+  x.globalAlpha = 1;
+}
+
+let loopErrs = 0;
+function loopError(e, where) { // a bug in one frame must never freeze the run or leave a stale picture on screen
+  if (loopErrs++ < 5) console.error(`[${where}]`, e);
+  if (state === 'play' && snake && !isFinite(snake.x + snake.y)) { snake.x = W / 2; snake.y = H / 2; }
+}
+
+/* airborne blood: the faster a drop flies, the longer and softer it smears along its path; slow drops are round again.
+   Always the drop's own color. Blood quality picks how much of this is drawn. */
+const DROP_Q = { Low: 0, Normal: 1, High: 2, Extreme: 3 };
+function drawDrops(x) {
+  const q = SETTINGS.bloodBlur === false ? 0 : DROP_Q[SETTINGS.bloodQ] ?? 2; x.lineCap = 'round';
+  for (const p of parts) {
+    const c = p.c || BLOOD, py = p.y - p.z * .25, R = p.r * (1 + p.z / 80), sp = Math.hypot(p.vx, p.vy);
+    if (!q || sp < 60) { x.fillStyle = c; circ(x, p.x, py, R); continue; }
+    const k = q === 1 ? .012 : q === 2 ? .02 : .026, len = Math.min(sp * k, 26), ux = p.vx / sp, uy = p.vy / sp;
+    const thin = R * 2 / Math.sqrt(1 + len / (R * 3)); // stretched drops get thinner, so they keep their size
+    x.strokeStyle = c;
+    if (q >= 2) { // a soft, wider ghost of the smear behind it
+      x.globalAlpha = q === 3 ? .16 : .22; x.lineWidth = thin * 1.9; x.beginPath(); x.moveTo(p.x - ux * len * 1.35, py - uy * len * 1.35); x.lineTo(p.x, py); x.stroke();
+      if (q === 3) { x.globalAlpha = .3; x.lineWidth = thin * 1.4; x.beginPath(); x.moveTo(p.x - ux * len * 1.1, py - uy * len * 1.1); x.lineTo(p.x, py); x.stroke(); }
+      x.globalAlpha = 1;
+    }
+    x.lineWidth = thin; x.beginPath(); x.moveTo(p.x - ux * len * .8, py - uy * len * .8); x.lineTo(p.x + ux * .01, py + uy * .01); x.stroke();
+    if (q === 3) { x.fillStyle = c; circ(x, p.x, py, thin * .55); } // a rounded leading edge
+  }
+}
+
+/* after a wall: grey ghost copies of the picture pulse left and right (double, then triple vision) */
+const caR = document.createElement('canvas');
+function chromaSplit(k) {
+  const w = cv.width, h = cv.height; if (caR.width !== w || caR.height !== h) { caR.width = w; caR.height = h; }
+  const g = caR.getContext('2d'); g.filter = 'grayscale(1) contrast(1.1)'; g.globalCompositeOperation = 'copy'; g.drawImage(cv, 0, 0); g.filter = 'none';
+  const p = Math.sin(T * 5.5), d = (3 + 9 * k) * DPR * p; // swinging side to side
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+  for (const [m, al] of [[1, .22], [-1, .22], [2.1, .1]]) { ctx.globalAlpha = al * k; ctx.drawImage(caR, d * m, 0); }
+  ctx.restore();
+}
+const bloomC = document.createElement('canvas'); bloomC.width = W / 4; bloomC.height = H / 4; const blx = bloomC.getContext('2d');
+function concussBloom(k) { // bright parts spill light while dazed
+  blx.globalCompositeOperation = 'copy'; blx.filter = "blur(3px) brightness(1.15) contrast(1.4)"; blx.drawImage(cv, 0, 0, W / 4, H / 4); blx.filter = 'none';
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalCompositeOperation = 'screen'; ctx.globalAlpha = Math.min(.85, k); ctx.imageSmoothingEnabled = true; ctx.drawImage(bloomC, 0, 0, cv.width, cv.height); ctx.restore();
+}
+
+/* before the round: the mouse pans the view a little, and resting on a spot for a second eases in toward it */
+const look = { z: 1, fx: W / 2, fy: H / 2, mx: W / 2, my: H / 2, still: 0, lt: 0, on: false };
+addEventListener('pointermove', e => {
+  if (e.pointerType === 'touch') return;
+  const r = cv.getBoundingClientRect(); if (!r.width) return;
+  const x = (e.clientX - r.left) / r.width * W, y = (e.clientY - r.top) / r.height * H;
+  if (Math.hypot(x - look.mx, y - look.my) > 14) look.still = 0;
+  look.mx = clamp(x, 0, W); look.my = clamp(y, 0, H);
+});
+function lookAround() {
+  const pre = state === 'ready' && !cam && snake && !snake.started, dt = Math.min(.05, Math.max(0, UT - look.lt)); look.lt = UT;
+  look.still += dt;
+  const tz = pre ? (look.still > 1 ? 1.16 : 1.04) : 1; // resting the cursor zooms in a touch
+  const k = 1 - Math.exp(-dt * (pre ? 3 : 5));
+  look.z += (tz - look.z) * k;
+  const half = (W / 2) / look.z, halfH = (H / 2) / look.z;
+  const px = pre ? W / 2 + (look.mx - W / 2) * .55 : W / 2, py = pre ? H / 2 + (look.my - H / 2) * .55 : H / 2; // drift toward the cursor, never off the map
+  let gx = clamp(px, half, W - half), gy = clamp(py, halfH, H - halfH);
+  if (pre) { gx = clamp(gx, snake.x - half + 50, snake.x + half - 50); gy = clamp(gy, snake.y - halfH + 50, snake.y + halfH - 50); gx = clamp(gx, half, W - half); gy = clamp(gy, halfH, H - halfH); } // your snake never leaves the frame
+  look.fx += (gx - look.fx) * k; look.fy += (gy - look.fy) * k;
+  if (V.z || look.z < 1.002) return; // the spawn zoom has the camera, or we're back to normal
+  V.z = look.z; V.fx = look.fx; V.fy = look.fy;
+}

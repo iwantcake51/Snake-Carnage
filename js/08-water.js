@@ -10,8 +10,9 @@ function wPath(x, S, inset = 0) {
   else rrect(x, S.cx - S.hw + inset, S.cy - S.hh + inset, (S.hw - inset) * 2, (S.hh - inset) * 2, Math.max(1, 7 - inset));
 }
 function inWater(o, px, py) { const S = wShape(o); return S.round ? dist2(px, py, S.cx, S.cy) < S.hw * S.hw : Math.abs(px - S.cx) < S.hw && Math.abs(py - S.cy) < S.hh; }
-function waterBlood(o, px, py, q, vx = 0, vy = 0) { // q ~ drop size; clouds are what you see spread, tint is the long-term stain
+function waterBlood(o, px, py, q, vx = 0, vy = 0, col = BLOOD) { // q ~ drop size; clouds are what you see spread, tint is the long-term stain
   const b = o.wb || (o.wb = { tint: 0, shown: 0, clouds: [], rings: [] });
+  const c = rgbOf2(col), w = q / (b.tint + q + .001); b.mix = b.mix ? b.mix.map((v, n) => v + (c[n] - v) * w) : c; // the water takes on the mix of what bled into it
   b.tint += q;
   const near = b.clouds.find(c => dist2(c.x, c.y, px, py) < Math.max(16, c.r * .7) ** 2); // nearby drops feed one cloud
   if (near) { near.a = Math.min(.32, near.a + q * .8); return; }
@@ -19,7 +20,7 @@ function waterBlood(o, px, py, q, vx = 0, vy = 0) { // q ~ drop size; clouds are
   const sp = Math.hypot(vx, vy), ux = sp ? vx / sp : 0, uy = sp ? vy / sp : 0, push = Math.min(14, sp * .04);
   const puffs = Array.from({ length: randi(3, 5) }, () => { const a = rand(0, TAU), k = rand(4, 12); // a few wisps that drift apart
     return { dx: rand(-2, 2), dy: rand(-2, 2), vx: Math.cos(a) * k + ux * push * rand(.5, 1), vy: Math.sin(a) * k + uy * push * rand(.5, 1), s: rand(.55, 1.1) }; });
-  b.clouds.push({ x: px, y: py, r: 5, a: Math.min(.3, .12 + q * 1.2), g: rand(12, 20), puffs, seed: rand(0, 100) });
+  b.clouds.push({ c, x: px, y: py, r: 5, a: Math.min(.3, .12 + q * 1.2), g: rand(12, 20), puffs, seed: rand(0, 100) });
   if (b.rings.length < 12 && Math.random() < .5) b.rings.push({ x: px, y: py, t: 0 }); // a little plip where it went in
 }
 function updateWaters(dt) {
@@ -43,7 +44,8 @@ function bloodTint(o, S) { // 0..1 strength and color, diluted by the size of th
   const b = o.wb; if (!b || b.shown < .01) return null;
   const area = S.round ? Math.PI * S.hw * S.hw : 4 * S.hw * S.hh, k = b.shown / Math.max(.3, area / 9000);
   const s = 1 - Math.exp(-k / 1.6), m = clamp(k / 2.2, 0, 1);
-  return { a: .88 * s, rgb: [Math.round(232 - 92 * m), Math.round(118 - 110 * m), Math.round(140 - 120 * m)] };
+  const red = [Math.round(232 - 92 * m), Math.round(118 - 110 * m), Math.round(140 - 120 * m)], mx = b.mix || [140, 10, 10], dev = Math.abs(mx[0] - 140) + Math.abs(mx[1] - 10) + Math.abs(mx[2] - 10);
+  return { a: .88 * s, rgb: dev < 40 ? red : mx.map(v => Math.round(v + (255 - v) * .25 * (1 - m))) }; // gold or green blood tints the water its own colour
 }
 function drawWater(x, o, t) {
   const S = wShape(o), { cx, cy, hw, hh, rim } = S, base = o.color, M = Math.max(hw, hh) * 1.25, tint = bloodTint(o, S);
@@ -78,7 +80,7 @@ function drawWater(x, o, t) {
     for (const p of c.puffs) {
       const px = c.x + p.dx, py = c.y + p.dy, r = c.r * p.s, a = c.a * (.55 + .45 * p.s);
       const cg = x.createRadialGradient(px, py, 0, px, py, r);
-      cg.addColorStop(0, `rgba(130,6,16,${(a * .7).toFixed(3)})`); cg.addColorStop(.5, `rgba(165,18,28,${(a * .4).toFixed(3)})`); cg.addColorStop(1, 'rgba(190,30,40,0)');
+      const cc = c.c || [130, 6, 16]; cg.addColorStop(0, `rgba(${cc},${(a * .7).toFixed(3)})`); cg.addColorStop(.5, `rgba(${cc.map(v => Math.min(255, v + 30))},${(a * .4).toFixed(3)})`); cg.addColorStop(1, `rgba(${cc},0)`);
       x.fillStyle = cg; x.fillRect(px - r, py - r, r * 2, r * 2);
     }
   }
@@ -150,6 +152,28 @@ function drawFountainTier(x, o, S, t, tint) { // raised center bowl, falling wat
 }
 function drawWaters(x) {
   if (!obstacles) return;
-  const t = performance.now() / 1000;
-  for (const o of obstacles) if (o.kind === 'water') drawWater(x, o, t);
+  const t = performance.now() / 1000, ice = iceOn();
+  for (const o of obstacles) if (o.kind === 'water') { if (ice) drawIce(x, o); else drawWater(x, o, t); }
+}
+/* winter (and late autumn snow): ponds, pools and fountains freeze over */
+const iceOn = () => !!season && (season.id === 'winter' || season.late);
+function drawIce(x, o) {
+  const S = wShape(o), key = season.id + (season.late ? 'L' : '');
+  if (!o.iceC || o.iceK !== key) { // baked once per season: the water under it, then ice with cracks, frost and snow at the edges
+    const pad = 4, w = Math.ceil((o.t === 'c' ? o.r * 2 : o.w) + pad * 2), h = Math.ceil((o.t === 'c' ? o.r * 2 : o.h) + pad * 2), ox = (o.t === 'c' ? o.x - o.r : o.x) - pad, oy = (o.t === 'c' ? o.y - o.r : o.y) - pad;
+    const c = document.createElement('canvas'), k = Math.min(DPR, 2); c.width = w * k; c.height = h * k; const g = c.getContext('2d'); g.scale(k, k); g.translate(-ox, -oy);
+    drawWater(g, o, 0);
+    const thin = season.id !== 'winter', r = seeded(Math.round(o.x * 3 + o.y * 7));
+    g.save(); wPath(g, S); g.clip();
+    g.fillStyle = thin ? 'rgba(200,220,235,.55)' : 'rgba(214,230,242,.86)'; g.fillRect(ox, oy, w, h); // the ice sheet
+    for (let k2 = 0; k2 < 26; k2++) { const px = S.cx + (r() - .5) * S.hw * 2, py = S.cy + (r() - .5) * S.hh * 2; g.fillStyle = `rgba(255,255,255,${(.15 + r() * .25).toFixed(2)})`; ell(g, px, py, 4 + r() * 14, 2 + r() * 8); } // frosty patches
+    g.strokeStyle = 'rgba(120,150,175,.55)'; g.lineWidth = .8; // cracks branching out from a few points
+    for (let k2 = 0; k2 < 5; k2++) { let px = S.cx + (r() - .5) * S.hw, py = S.cy + (r() - .5) * S.hh, a = r() * TAU; g.beginPath(); g.moveTo(px, py);
+      for (let j = 0; j < 7; j++) { a += (r() - .5) * 1.1; px += Math.cos(a) * (6 + r() * 10); py += Math.sin(a) * (6 + r() * 10); g.lineTo(px, py); if (r() < .3) { g.moveTo(px, py); g.lineTo(px + Math.cos(a + 1.2) * 7, py + Math.sin(a + 1.2) * 7); g.moveTo(px, py); } } g.stroke(); }
+    g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = .6; g.beginPath(); for (let k2 = 0; k2 < 6; k2++) { const px = S.cx + (r() - .5) * S.hw * 1.6, py = S.cy + (r() - .5) * S.hh * 1.6; g.moveTo(px, py); g.lineTo(px + 10 + r() * 14, py - 3 - r() * 6); } g.stroke(); // glints
+    if (!thin) { g.strokeStyle = 'rgba(245,248,253,.9)'; g.lineWidth = 5; wPath(g, S, 1); g.stroke(); } // snow drifted against the edge
+    g.restore();
+    o.iceC = c; o.iceK = key; o.iceX = ox; o.iceY = oy; o.iceW = w; o.iceH = h;
+  }
+  x.drawImage(o.iceC, o.iceX, o.iceY, o.iceW, o.iceH);
 }

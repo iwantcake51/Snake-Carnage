@@ -24,6 +24,7 @@ let floaters = [];
 let lvlAnim = false, lastLevelBonus = 0;
 function gainXP(xp, coins) {
   PROG.xp += xp; PROG.coins += coins; PROG.earned = (PROG.earned || 0) + coins; rewardPopup(xp, coins);
+  if (typeof run === 'object' && (state === 'play' || state === 'dead' || state === 'held')) { run.xpGained = (run.xpGained || 0) + xp; run.coinsGained = (run.coinsGained || 0) + coins; }
   const from = PROG.level;
   let bonus = 0;
   while (PROG.xp >= xpNeed(PROG.level)) { PROG.xp -= xpNeed(PROG.level); PROG.level++; const b = 10 + PROG.level * 2; PROG.coins += b; bonus += b; }

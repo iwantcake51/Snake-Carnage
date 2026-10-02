@@ -10,15 +10,30 @@ const Sfx = {
         const n = this.ctx.sampleRate, b = this.ctx.createBuffer(1, n, n), d = b.getChannelData(0);
         for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
         this.noise = b;
+        // master bus: everything goes through one lowpass, so a map can muffle the whole soundscape (space: thin air, through a helmet)
+        this.bus = this.ctx.createGain(); this.lp = this.ctx.createBiquadFilter(); this.lp.type = 'lowpass'; this.lp.frequency.value = 20000; this.lp.Q.value = .5;
+        this.bus.connect(this.lp); this.lp.connect(this.ctx.destination);
+        this.setMuffle(this.muffled);
       } catch (e) { return; }
     }
     if (this.ctx.state === 'suspended') this.ctx.resume();
   },
+  setMuffle(on) {
+    this.muffled = !!on; this.dzF = 0; if (!this.lp) return;
+    const t = this.ctx.currentTime; this.lp.frequency.setTargetAtTime(on ? 520 : 20000, t, .15); this.bus.gain.setTargetAtTime(on ? .9 : 1, t, .15);
+  },
+  daze(k, wall) { // concussed: the world goes muffled, much more after a wall, and clears smoothly as it wears off
+    if (!this.lp) return;
+    const base = this.muffled ? 520 : 20000, f = k > 0 ? base * Math.pow((wall ? 260 : 1300) / base, Math.min(1, k)) : base;
+    if (Math.abs(f - (this.dzF || base)) / base < .01) return; this.dzF = f;
+    const t = this.ctx.currentTime; this.lp.frequency.setTargetAtTime(Math.min(base, f), t, .12); this.bus.gain.setTargetAtTime((this.muffled ? .9 : 1) * (1 - (wall ? .35 : .15) * Math.min(1, k)), t, .12);
+  },
   ok() { return this.ctx && this.ctx.state === 'running' && SETTINGS.volume > 0; },
   out(x, vol = 1) {
     const c = this.ctx, g = c.createGain(); g.gain.value = SETTINGS.volume * vol;
-    if (c.createStereoPanner) { const p = c.createStereoPanner(); p.pan.value = x === undefined ? 0 : clamp(x / W * 2 - 1, -1, 1) * .7; g.connect(p); p.connect(c.destination); }
-    else g.connect(c.destination);
+    const dst = !this.bus || (x === undefined && (state === 'menu' || state === 'paused')) ? c.destination : this.bus; // menu sounds stay crisp; the world gets muffled
+    if (c.createStereoPanner) { const p = c.createStereoPanner(); p.pan.value = x === undefined ? 0 : clamp(x / W * 2 - 1, -1, 1) * .7; g.connect(p); p.connect(dst); }
+    else g.connect(dst);
     return g;
   },
   burst(dest, t, dur, freq, q, gain, type = 'bandpass') {
@@ -36,18 +51,23 @@ const Sfx = {
     g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(gain, t + .03); g.gain.exponentialRampToValueAtTime(.001, t + dur);
     o.connect(f); f.connect(g); g.connect(dest); o.start(t); l.start(t); o.stop(t + dur + .05); l.stop(t + dur + .05);
   },
-  eat(x, human, amount) {
+  eat(x, human, amount, kind) { // snap of the jaws, bones giving way, a wet squelch, then the swallow
     if (!this.ok()) return;
-    const c = this.ctx, t = c.currentTime, o = this.out(x);
-    const th = c.createOscillator(), tg = c.createGain(); // body thump
-    th.frequency.setValueAtTime(130, t); th.frequency.exponentialRampToValueAtTime(38, t + .2);
-    tg.gain.setValueAtTime(.8, t); tg.gain.exponentialRampToValueAtTime(.001, t + .25);
-    th.connect(tg); tg.connect(o); th.start(t); th.stop(t + .3);
-    for (let k = 0; k < (human ? 7 : 3); k++) this.burst(o, t + rand(0, .22), rand(.02, .05), rand(900, 3400), 3, rand(.4, .9)); // bone crunches
-    const sq = this.burst(o, t + .03, .5, 1200, 1.2, .3 + .4 * amount, 'lowpass'); // wet squelch
-    sq.frequency.setValueAtTime(1300, t + .03); sq.frequency.exponentialRampToValueAtTime(140, t + .5);
-    if (human) this.voice(o, t, rand(480, 680), rand(160, 220), .5, 'sawtooth', 1100, 9, .22); // cut-off scream
-    else this.voice(o, t, rand(1000, 1500), rand(400, 600), .22, 'square', 1800, 22, .1);
+    const c = this.ctx, t = c.currentTime, o = this.out(x, 1.05), big = clamp(amount, .25, 1.4), pv = rand(.9, 1.12);
+    this.burst(o, t, .03, 2800 * pv, 1, .75); this.tone(o, t, 240 * pv, 70, .08, 'square', .1); // the bite
+    const th = c.createOscillator(), tg = c.createGain(); // body thump, deeper for bigger meals
+    th.frequency.setValueAtTime(150 - 40 * big, t); th.frequency.exponentialRampToValueAtTime(34, t + .22);
+    tg.gain.setValueAtTime(.55 + .45 * big, t); tg.gain.exponentialRampToValueAtTime(.001, t + .28);
+    th.connect(tg); tg.connect(o); th.start(t); th.stop(t + .32);
+    const cr = (human ? 6 : 3) + Math.round(big * 3); let ct = t + .02;
+    for (let k = 0; k < cr; k++) { ct += rand(.018, .05); this.burst(o, ct, rand(.012, .035), rand(1300, 4200), 4, rand(.35, .85)); } // bones
+    const sq = this.burst(o, t + .04, .55, 1500, 1.4, .3 + .45 * big, 'lowpass'); // wet squelch
+    sq.frequency.setValueAtTime(1700, t + .04); sq.frequency.exponentialRampToValueAtTime(130, t + .55);
+    const sl = this.burst(o, t + .16, .22, 700, 3, .18 * big, 'bandpass'); sl.frequency.setValueAtTime(500, t + .16); sl.frequency.exponentialRampToValueAtTime(1500, t + .36); // slurp
+    this.tone(o, t + .34, 210 * pv, 80, .16, 'sine', .3 * big); this.tone(o, t + .37, 120, 60, .12, 'sine', .2 * big); // gulp
+    if (kind === 'alien') this.voice(o, t, rand(1100, 1400), rand(2000, 2600), .32, 'sine', 2600, 28, .1); // a warbling squeal
+    else if (human) this.voice(o, t, rand(480, 680), rand(160, 220), .45, 'sawtooth', 1100, 9, .2); // cut-off scream
+    else this.voice(o, t, rand(1000, 1500), rand(400, 600), .2, 'square', 1800, 22, .09);
   },
   shout(x) {
     if (!this.ok() || this.ctx.currentTime - this.lastShout < .2) return;
@@ -120,6 +140,80 @@ const Sfx = {
     [523, 659, 784, 1047].forEach((f, k) => { this.tone(o, t + .03 + k * .065, f, f * 1.003, .3, 'triangle', .12); this.tone(o, t + .03 + k * .065, f * 2, f * 2, .1, 'square', .02); });
     this.tone(o, t + .32, 2093, 2093, .5, 'sine', .05); this.tone(o, t + .4, 2637, 2637, .45, 'sine', .035);
   },
+  goldFade(x) { if (!this.ok()) return; const t = this.ctx.currentTime, o = this.out(x, .5); [2349, 1976, 1568].forEach((f, k) => this.tone(o, t + k * .07, f, f * .98, .25, 'sine', .04)); },
+  musicUpdate(on) { // club music, scheduled a little ahead. It plays out of the speakers: each one is its own source in the room
+    if (!this.ctx || this.ctx.state !== 'running') return;
+    const c = this.ctx, now = c.currentTime;
+    if (!on || SETTINGS.volume <= 0) { if (this.mus) { this.mus.g.gain.setTargetAtTime(0, now, .25); const m = this.mus; setTimeout(() => m.g.disconnect(), 1500); this.mus = null; } return; }
+    if (!this.mus) {
+      const g = c.createGain(), duck = c.createGain(), dly = c.createDelay(1), fb = c.createGain(), dlp = c.createBiquadFilter();
+      g.gain.value = 0; g.gain.setTargetAtTime(.6, now, .6); duck.connect(g);
+      dly.delayTime.value = 60 / CLUB_BPM * .75; fb.gain.value = .32; dlp.type = 'lowpass'; dlp.frequency.value = 2600; dly.connect(dlp); dlp.connect(fb); fb.connect(dly); dlp.connect(g); // dotted-eighth echo for the lead
+      this.mus = { g, duck, dly, next: now + .05, step: 0, bar: 0, chans: [] }; this.musRoute();
+    }
+    const m = this.mus, spb = 60 / CLUB_BPM / 4, v = SETTINGS.volume;
+    while (m.next < now + .25) { this.musicStep(m.step, m.next, m, v); m.next += spb; m.step = (m.step + 1) % 16; if (!m.step) m.bar = (m.bar + 1) % 16; }
+    this.musPos();
+  },
+  musRoute() { // one chain per speaker (gain, distortion for when it dies, pan, distance muffling), plus a muffled room bleed
+    const m = this.mus, c = this.ctx, sp = MAPS[mapIdx].club && typeof clubSpeakers !== 'undefined' ? clubSpeakers : [];
+    m.chans = sp.map(s => { const g = c.createGain(), sh = c.createWaveShaper(), p = c.createStereoPanner ? c.createStereoPanner() : null, lp = c.createBiquadFilter();
+      g.gain.value = 0; lp.type = 'lowpass'; lp.frequency.value = 3000; m.g.connect(g); g.connect(sh); if (p) { sh.connect(p); p.connect(lp); } else sh.connect(lp); lp.connect(this.bus); return { s, g, sh, p, lp }; });
+    const rg = c.createGain(), rlp = c.createBiquadFilter(); rlp.type = 'lowpass'; rlp.frequency.value = sp.length ? 650 : 2400; rg.gain.value = sp.length ? .2 : 1; m.g.connect(rg); rg.connect(rlp); rlp.connect(this.bus); m.room = rg;
+  },
+  musPos() { // louder and brighter near a speaker, panned toward it; dead speakers stay silent
+    const m = this.mus; if (!m || !m.chans.length) return;
+    const t = this.ctx.currentTime, lx = snake ? snake.x : W / 2, ly = snake ? snake.y : H / 2; let alive = 0;
+    for (const ch of m.chans) {
+      if (!ch.s.alive) continue; alive++;
+      const d = Math.hypot(ch.s.x - lx, ch.s.y - ly), att = 1 / (1 + (d / 250) ** 2);
+      ch.g.gain.setTargetAtTime(.12 + .95 * att, t, .08); ch.lp.frequency.setTargetAtTime(1300 + 7000 * att, t, .1);
+      if (ch.p) ch.p.pan.setTargetAtTime(clamp((ch.s.x - lx) / 300, -1, 1) * .85, t, .08);
+    }
+    m.room.gain.setTargetAtTime(.22 * alive / m.chans.length, t, .3); // all speakers gone: the room goes quiet
+  },
+  speakerDie(s) { // the speaker distorts, stutters and cuts out; a scratch and a pop where it stood
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime, m = this.mus, ch = m && m.chans.find(q => q.s === s);
+    if (ch) {
+      const n = 256, cv = new Float32Array(n); for (let k = 0; k < n; k++) { const x = k / (n - 1) * 2 - 1; cv[k] = Math.tanh(x * 9) * .8; } ch.sh.curve = cv;
+      const g = ch.g.gain; g.cancelScheduledValues(t); g.setValueAtTime(1.1, t);
+      for (let k = 1; k <= 6; k++) g.setValueAtTime(k % 2 ? .05 : .8 - k * .1, t + k * .055); // cutting in and out
+      g.setTargetAtTime(0, t + .38, .1); ch.lp.frequency.cancelScheduledValues(t); ch.lp.frequency.setTargetAtTime(280, t + .08, .12);
+    }
+    if (!this.ok()) return;
+    const o = this.out(s.x, .75), f = this.burst(o, t, .42, 1800, 3, .32); // vinyl scratch: a swept noise band, back and forth
+    f.frequency.setValueAtTime(2200, t); f.frequency.exponentialRampToValueAtTime(500, t + .12); f.frequency.exponentialRampToValueAtTime(1900, t + .22); f.frequency.exponentialRampToValueAtTime(260, t + .42);
+    this.tone(o, t + .05, 180, 38, .5, 'sawtooth', .07); // the amp dying
+    this.burst(o, t + .02, .08, 400, .7, .4, 'lowpass'); // the cone blowing
+  },
+  musicStep(s, t, m, v) { // a deeper house loop: 16 bars, A minor (Am F C G), with a breakdown and a build
+    const c = this.ctx, bar = m.bar, o = m.g, D = m.duck, nf = n => 440 * Math.pow(2, (n - 69) / 12);
+    const CH = [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]][bar % 4], root = CH[0] - 24;
+    const brk = bar === 12 || bar === 13, lead = (bar >= 8 && bar < 12) || bar >= 14;
+    const kick = tt => { const os = c.createOscillator(), g = c.createGain(); os.frequency.setValueAtTime(150, tt); os.frequency.exponentialRampToValueAtTime(44, tt + .14); g.gain.setValueAtTime(.95 * v, tt); g.gain.exponentialRampToValueAtTime(.001, tt + .26); os.connect(g); g.connect(o); os.start(tt); os.stop(tt + .28);
+      this.burst(o, tt, .012, 3500, 1, .25 * v); D.gain.setValueAtTime(.35, tt); D.gain.setTargetAtTime(1, tt + .02, .09); }; // the pad and bass breathe around every kick
+    if (s % 4 === 0 && !brk) kick(t);
+    if (s === 4 || s === 12) { this.burst(o, t, .16, 1500, .9, .34 * v); this.burst(o, t + .01, .35, 2400, .6, .06 * v); } // clap with a little room
+    if (!brk) { if (s % 2 === 1) this.burst(o, t, .028, 9000, 1.4, (s % 4 === 3 ? .13 : .07) * v, 'highpass'); if (s % 4 === 2) this.burst(o, t, .16, 7600, 1, .1 * v, 'highpass'); } // closed hats, open hat on the off-beat
+    if (!brk && (s % 4 === 2 || s === 7 || s === 15)) { // rolling off-beat bass
+      const os = c.createOscillator(), sub = c.createOscillator(), lp = c.createBiquadFilter(), g = c.createGain(); os.type = 'sawtooth'; os.frequency.value = nf(root + 12); sub.frequency.value = nf(root);
+      lp.type = 'lowpass'; lp.frequency.setValueAtTime(950, t); lp.frequency.exponentialRampToValueAtTime(160, t + .18); g.gain.setValueAtTime(.2 * v, t); g.gain.exponentialRampToValueAtTime(.001, t + .22);
+      os.connect(lp); sub.connect(lp); lp.connect(g); g.connect(D); os.start(t); sub.start(t); os.stop(t + .24); sub.stop(t + .24);
+    }
+    if (s === 0) { // a warm pad for the whole bar
+      const bl = 60 / CLUB_BPM * 4, lp = c.createBiquadFilter(), g = c.createGain(); lp.type = 'lowpass'; lp.frequency.value = brk ? 2200 : 1100; g.gain.setValueAtTime(.001, t); g.gain.linearRampToValueAtTime((brk ? .09 : .055) * v, t + .25); g.gain.setTargetAtTime(.001, t + bl - .2, .15); lp.connect(g); g.connect(D);
+      for (const n of CH) for (const dt of [-6, 6]) { const os = c.createOscillator(); os.type = 'sawtooth'; os.frequency.value = nf(n); os.detune.value = dt; os.connect(lp); os.start(t); os.stop(t + bl + .3); }
+    }
+    if (lead && s % 2 === 0 && [0, 1, 1, 0, 1, 0, 1, 1][(s / 2) | 0]) { // a plucked arpeggio, into the echo
+      const n = CH[(s / 2) % 3] + 12 + (s === 14 ? 12 : 0), os = c.createOscillator(), lp = c.createBiquadFilter(), g = c.createGain(); os.type = 'square'; os.frequency.value = nf(n);
+      lp.type = 'lowpass'; lp.frequency.setValueAtTime(3200, t); lp.frequency.exponentialRampToValueAtTime(500, t + .15); g.gain.setValueAtTime(.045 * v, t); g.gain.exponentialRampToValueAtTime(.001, t + .18);
+      os.connect(lp); lp.connect(g); g.connect(o); g.connect(m.dly); os.start(t); os.stop(t + .2);
+    }
+    if (bar === 13 && s === 0) { const f = this.burst(o, t, 60 / CLUB_BPM * 4, 400, 2, .14 * v, 'highpass'); f.frequency.setValueAtTime(400, t); f.frequency.exponentialRampToValueAtTime(9000, t + 60 / CLUB_BPM * 4); } // the build back into the drop
+    if (bar === 13 && s >= 8 && s % 2 === 0) kick(t); // snare-roll feel on the kick before the drop
+  },
+  comboBreak() { if (!this.ok()) return; const t = this.ctx.currentTime, o = this.out(undefined, .6); this.burst(o, t, .12, 3200, 1.2, .25); this.tone(o, t, 520, 140, .25, 'triangle', .08); for (let k = 0; k < 3; k++) this.tone(o, t + .05 + k * .06, 2600 - k * 500, 1800 - k * 400, .05, 'sine', .03); },
   combo(n) { // rising blip that climbs with the streak
     if (!this.ok()) return;
     const t = this.ctx.currentTime, o = this.out(undefined, .7), f = 520 * Math.pow(2, Math.min(n, 24) / 12);
@@ -157,7 +251,7 @@ const Sfx = {
     if (!this.sl) {
       const c = this.ctx, src = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
       src.buffer = this.noise; src.loop = true; f.type = 'bandpass'; f.Q.value = .9; g.gain.value = 0;
-      src.connect(f); f.connect(g); g.connect(c.destination); src.start(); this.sl = { f, g, v: -1, fq: -1 };
+      src.connect(f); f.connect(g); g.connect(this.bus || c.destination); src.start(); this.sl = { f, g, v: -1, fq: -1 };
     }
     const v = moving ? +((.02 + wet * .07) * SETTINGS.volume).toFixed(3) : 0, fq = wet > .1 ? 600 : 2400, t = this.ctx.currentTime;
     if (v !== this.sl.v) { this.sl.g.gain.setTargetAtTime(v, t, .08); this.sl.v = v; }
@@ -175,6 +269,15 @@ const Sfx = {
     for (let k = 0; k < 5; k++) this.tone(o, t + .02 + k * .035 + Math.random() * .02, 3200 + Math.random() * 2600, 2800 + Math.random() * 1500, .07, 'sine', .018);
     this.burst(o, t + .01, .16, 6000, 1.2, .05);
     if (lit) for (let k = 0; k < 3; k++) this.burst(o, t + .04 + k * .06, .025, 7000, 2, .035, 'highpass');
+  },
+  dash() { if (!this.ok()) return; const t = this.ctx.currentTime, o = this.out(snake && snake.x, .7); const f = this.burst(o, t, .35, 500, .8, .35); f.frequency.setValueAtTime(300, t); f.frequency.exponentialRampToValueAtTime(2600, t + .3); this.tone(o, t, 90, 160, .2, 'sine', .25); },
+  sniff() { if (!this.ok()) return; const t = this.ctx.currentTime, o = this.out(undefined, .6); for (let k = 0; k < 3; k++) this.burst(o, t + k * .12, .09, 2600, 1.5, .18, 'bandpass'); },
+  camo() { if (!this.ok()) return; const t = this.ctx.currentTime, o = this.out(undefined, .6); const f = this.burst(o, t, .6, 2400, .7, .12); f.frequency.setValueAtTime(3000, t); f.frequency.exponentialRampToValueAtTime(300, t + .55); },
+  hiss() { if (!this.ok()) return; const t = this.ctx.currentTime, o = this.out(snake && snake.x, 1); this.burst(o, t, .9, 5200, .6, .45, 'highpass'); this.burst(o, t, .7, 3200, 1.4, .25); this.tone(o, t, 70, 45, .6, 'sawtooth', .08); },
+  smash(x, size) { // wood and plastic giving way
+    if (!this.ok()) return; const t = this.ctx.currentTime, o = this.out(x, .9), k = clamp(size / 40, .5, 1.4);
+    this.tone(o, t, 140 / k, 45, .25, 'sine', .5); this.burst(o, t, .3, 900, .7, .5 * k, 'lowpass');
+    for (let i = 0; i < 6; i++) this.burst(o, t + rand(0, .18), rand(.02, .06), rand(1200, 4200), 3, rand(.15, .35));
   },
   click(on) {
     if (!this.ok()) return;

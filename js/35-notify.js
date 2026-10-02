@@ -32,6 +32,33 @@ function notify(o) {
 function dropNote(n, fast) {
   const i = notes.indexOf(n); if (i < 0) return; notes.splice(i, 1);
   clearTimeout(n.timer); n.el.classList.add(fast ? 'gone' : 'out');
+  const el = n.el; el.style.height = el.offsetHeight + 'px'; // collapse its slot so the stack closes up smoothly instead of jumping or overlapping
+  requestAnimationFrame(() => { el.style.transition = `height ${fast ? .16 : .3}s ease ${fast ? 0 : .12}s, margin ${fast ? .16 : .3}s ease ${fast ? 0 : .12}s, padding ${fast ? .16 : .3}s ease ${fast ? 0 : .12}s`; el.style.height = '0px'; el.style.marginBottom = '-6px'; el.style.paddingTop = el.style.paddingBottom = '0px'; });
   setTimeout(() => n.el.remove(), fast ? 160 : 380);
 }
 function clearNotes() { while (notes.length) dropNote(notes[0], true); }
+/* TOOLTIPS: one floating card on <body>, so hover text is never clipped by the game window or a scrolling panel.
+   data-tip = plain text; data-tiph = trusted HTML built by the game itself. */
+const tipEl = (() => { const t = document.createElement('div'); t.id = 'tip'; document.body.appendChild(t); return t; })();
+let tipFor = null;
+function placeTip(el) {
+  const r = el.getBoundingClientRect(), tw = tipEl.offsetWidth, th = tipEl.offsetHeight, m = 8;
+  let x = r.left + r.width / 2 - tw / 2, y = r.bottom + m;
+  if (y + th > innerHeight - m) y = r.top - th - m; // no room below: show it above
+  tipEl.style.left = clamp(x, m, innerWidth - tw - m) + 'px'; tipEl.style.top = clamp(y, m, innerHeight - th - m) + 'px';
+}
+function showTip(el) {
+  tipFor = el;
+  if (el.dataset.tiph !== undefined) tipEl.innerHTML = el.dataset.tiph; else tipEl.textContent = el.dataset.tip;
+  tipEl.classList.add('on'); placeTip(el);
+}
+function hideTip() { tipFor = null; tipEl.classList.remove('on'); }
+document.addEventListener('pointerover', e => {
+  if (e.pointerType === 'touch') return;
+  const el = e.target.closest && e.target.closest('[data-tip],[data-tiph]');
+  if (el === tipFor) return;
+  if (el) showTip(el); else hideTip();
+});
+document.addEventListener('pointerdown', e => { if (e.pointerType === 'touch') { const el = e.target.closest && e.target.closest('[data-tip],[data-tiph]'); if (el && el !== tipFor && (!el.closest('button') || el.dataset.tiph !== undefined)) { showTip(el); setTimeout(() => tipFor === el && hideTip(), 2600); } else hideTip(); } });
+addEventListener('scroll', () => tipFor && placeTip(tipFor), true);
+new MutationObserver(() => { if (tipFor && !tipFor.isConnected) hideTip(); }).observe(document.body, { childList: true, subtree: true });

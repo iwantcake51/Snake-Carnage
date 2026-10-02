@@ -3,7 +3,7 @@
    ========================================================= */
 function splat(x, px, py, vx, vy, r, c, onWall) { // flat single-color splats with organic, directional shapes
   const sp = Math.hypot(vx, vy), a = Math.atan2(vy, vx), st = 1 + Math.min(sp / 170, onWall ? 1.1 : 2.4);
-  x.save(); x.translate(px, py); x.rotate(a); x.fillStyle = BLOOD; x.globalAlpha = 1;
+  x.save(); x.translate(px, py); x.rotate(a); x.fillStyle = c || BLOOD; x.globalAlpha = 1;
   if (sp < 110 || r > 3.2) { // slow or heavy drop: lumpy round blob, big ones get a crown of spikes
     circ(x, 0, 0, r);
     for (let k = randi(3, 6); k > 0; k--) { const la = rand(0, TAU), ld = r * rand(.35, .75); circ(x, Math.cos(la) * ld, Math.sin(la) * ld, r * rand(.45, .75)); }

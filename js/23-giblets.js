@@ -5,17 +5,21 @@
 const GIB_MAX = 60;
 let gibs = [], splashes = [];
 const GIB_FLESH = ['#b3202a', '#c2414b', '#d9707a', '#e8a0a6', '#9c1a22']; // lighter than the blood so chunks read on top of it
+const GIB_GOLD = ['#f2c230', '#d4a017', '#ffe27a', '#b8860b', '#fff1b0'];
+const GIB_ALIEN = ['#5fbf2a', '#7fd94a', '#a6ec7a', '#3f8f1a', '#c9f59f'];
+const ALIEN_BLOOD = ['#3f9a1c', '#4fae24', '#58b82c'];
+const bloodOf = c => c.golden ? GOLD_BLOOD : c.def.bloodCol || CONFIG.bloodColors; // every target bleeds its own color
 function spawnGiblets(c, dirA) {
-  const d = c.def; if (!d.human && d.r < 9) return; // humans and the bigger animals only
-  const n = d.human ? randi(4, 7) : randi(3, 5) + (d.r >= 10 ? 1 : 0);
+  const d = c.def; if (!d.human && d.r < 9 && !c.golden) return; // humans, aliens, the bigger animals and anything golden
+  const n = Math.round((d.human ? randi(4, 7) : randi(3, 5) + (d.r >= 10 ? 1 : 0)) * ({ Minimal: .3, Reduced: .6 }[SETTINGS.bloodAmt] || 1)), flesh = c.golden ? GIB_GOLD : d.alien ? GIB_ALIEN : GIB_FLESH, bl = bloodOf(c);
   for (let k = 0; k < n; k++) {
     if (gibs.length >= GIB_MAX) { const j = gibs.findIndex(g => g.rest > 0); gibs.splice(Math.max(0, j), 1); } // drop a settled one first, else the oldest
     const a = Math.random() < .7 ? dirA + gauss() * .9 : rand(0, TAU), sp = rand(60, 210);
-    let col = pick(GIB_FLESH);
-    if (d.human && Math.random() < .25) col = Math.random() < .5 ? c.look.skin : c.look.top; // a scrap of skin or shirt
+    let col = pick(flesh);
+    if (d.human && !d.alien && Math.random() < .25) col = Math.random() < .5 ? c.look.skin : c.look.top; // a scrap of skin or shirt
     else if (!d.human && Math.random() < .35) col = d.col;                                     // a tuft of fur
     gibs.push({ x: c.x + rand(-3, 3), y: c.y + rand(-3, 3), z: rand(5, 11), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(60, 170),
-      rot: rand(0, TAU), vr: rand(-14, 14), s: rand(2.2, 3.6) * (d.human ? 1 : .9), shape: randi(0, 2), col, landed: false, rest: 0, life: rand(5, 15), age: 0, a: 1 });
+      rot: rand(0, TAU), vr: rand(-14, 14), s: rand(2.2, 3.6) * (d.human ? 1 : .9), shape: randi(0, 2), col, bl, gold: !!c.golden, landed: false, rest: 0, life: rand(5, 15), age: 0, a: 1 });
   }
 }
 function gibBlocked(x, y, z) { // walls stop chunks; water is low, so they fly (or skid) right into it
@@ -32,7 +36,7 @@ function updateGiblets(dt) {
       const nx = g.x + g.vx * dt, ny = g.y + g.vy * dt;
       if (inWater(g.fl, nx, ny)) { g.x = nx; g.y = ny; } else { g.vx *= -.5; g.vy *= -.5; } // bump off the edge
       g.rot += g.vr * dt; g.vr *= Math.exp(-dt); g.bob = Math.sin(T * 2.2 + g.s * 7) * .4;
-      if (Math.random() < dt * .6) waterBlood(g.fl, g.x, g.y, .01);
+      if (Math.random() < dt * .6) waterBlood(g.fl, g.x, g.y, .01, 0, 0, (g.bl || CONFIG.bloodColors)[0]);
       continue;
     }
     if (g.rest > 0) continue; // settled on the ground
@@ -47,21 +51,21 @@ function updateGiblets(dt) {
         g.z = 0;
         const o = obstacleAt(g.x, g.y);
         if (o && o.kind === 'water' && inWater(o, g.x, g.y)) { // splash, then float
-          g.fl = o; g.z = 0; g.vz = 0; g.vx *= .25; g.vy *= .25; waterBlood(o, g.x, g.y, .05);
+          g.fl = o; g.z = 0; g.vz = 0; g.vx *= .25; g.vy *= .25; waterBlood(o, g.x, g.y, .05, 0, 0, (g.bl || CONFIG.bloodColors)[0]);
           const b = o.wb; if (b.rings.length < 12) b.rings.push({ x: g.x, y: g.y, t: 0 });
           for (let k = 0; k < 6; k++) { const a = rand(0, TAU), sp = rand(20, 60); splashes.push({ x: g.x, y: g.y, z: 1, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(40, 90) }); }
           Sfx.splat(g.x, false); continue;
         }
         if (!g.landed) { // first touch: sometimes a proper little splat
           g.landed = true;
-          if (Math.random() < .55) { splat(fctx, g.x, g.y, g.vx, g.vy, g.s * rand(1.1, 1.6), pick(CONFIG.bloodColors), false); addWet(g.x, g.y, .15); }
+          if (Math.random() < .55) { splat(fctx, g.x, g.y, g.vx, g.vy, g.s * rand(1.1, 1.6), pick(g.bl || CONFIG.bloodColors), false); addWet(g.x, g.y, .15, (g.bl || CONFIG.bloodColors)[0]); }
         }
         if (g.vz < -45) { g.vz *= -.36; g.vx *= .72; g.vy *= .72; g.vr *= .7; } else g.vz = 0; // bounce, or stay down and slide
       }
     } else { // sliding on the ground: friction, and a thin smear along the way
       const f = Math.exp(-dt * 5.5); g.vx *= f; g.vy *= f; g.vr *= f;
       const sp = Math.hypot(g.vx, g.vy);
-      if (sp > 10) { fctx.strokeStyle = BLOOD; fctx.globalAlpha = .55; fctx.lineCap = 'round'; fctx.lineWidth = g.s * .7; fctx.beginPath(); fctx.moveTo(px, py); fctx.lineTo(g.x, g.y); fctx.stroke(); fctx.globalAlpha = 1; }
+      if (sp > 10) { markF(); fctx.strokeStyle = g.bl ? g.bl[0] : BLOOD; fctx.globalAlpha = .55; fctx.lineCap = 'round'; fctx.lineWidth = g.s * .7; fctx.beginPath(); fctx.moveTo(px, py); fctx.lineTo(g.x, g.y); fctx.stroke(); fctx.globalAlpha = 1; }
       if (sp < 5) g.rest = 1e-3;
     }
   }
@@ -81,7 +85,8 @@ function drawGiblets(x) {
     if (g.shape === 0) x.ellipse(0, 0, s, s * .65, 0, 0, TAU);
     else if (g.shape === 1) { x.moveTo(-s, -s * .5); x.lineTo(s * .9, -s * .7); x.lineTo(s * .6, s * .7); x.lineTo(-s * .8, s * .5); x.closePath(); }
     else { x.arc(-s * .35, 0, s * .6, 0, TAU); x.moveTo(s * .9, s * .1); x.arc(s * .4, s * .1, s * .5, 0, TAU); }
-    x.fill(); x.strokeStyle = 'rgba(70,0,6,.75)'; x.lineWidth = .7; x.stroke(); // thin dark edge
+    x.fill(); x.strokeStyle = g.gold ? 'rgba(110,80,10,.8)' : g.bl === ALIEN_BLOOD ? 'rgba(20,60,8,.8)' : 'rgba(70,0,6,.75)'; x.lineWidth = .7; x.stroke(); // thin dark edge
+    if (g.gold) { x.fillStyle = 'rgba(255,250,220,.55)'; circ(x, s * .2, -s * .25, s * .22); } // a metallic glint
     x.fillStyle = 'rgba(255,255,255,.18)'; circ(x, -s * .25, -s * .2, s * .28); // tiny wet highlight
     x.restore();
   }

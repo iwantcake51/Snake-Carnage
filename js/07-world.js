@@ -19,9 +19,14 @@ function los(ax, ay, bx, by) {
   for (let k = 1; k < n; k++) { const t = k / n; if (solid(ax + (bx - ax) * t, ay + (by - ay) * t)) return false; }
   return true;
 }
-function addWet(x, y, v) {
+/* blood colour per wet cell: a weighted mix, so gold stays gold, alien stays green and crossing them blends */
+const RGB = {}; const rgbOf = h => RGB[h] || (RGB[h] = h.startsWith('#') ? [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)] : [140, 10, 10]);
+let wetC = new Float32Array(1);
+function tintWet(k, v, col) { const c = rgbOf(col || BLOOD), w = Math.min(1, v / (wet[k] + .001)); for (let n = 0; n < 3; n++) wetC[k * 3 + n] += (c[n] - wetC[k * 3 + n]) * w; }
+function wetColAt(x, y) { const i = x / WS | 0, j = y / WS | 0; if (i < 0 || j < 0 || i >= WW || j >= WH) return BLOOD; const k = (j * WW + i) * 3; return `rgb(${wetC[k] | 0},${wetC[k + 1] | 0},${wetC[k + 2] | 0})`; }
+function addWet(x, y, v, col) {
   const i = x / WS | 0, j = y / WS | 0;
-  if (i >= 0 && j >= 0 && i < WW && j < WH) { wet[j * WW + i] += v; fresh[j * WW + i] += v; }
+  if (i >= 0 && j >= 0 && i < WW && j < WH) { const k = j * WW + i; wet[k] += v; fresh[k] += v; tintWet(k, v, col); } markF();
 }
 function freshAt(x, y) {
   const i = x / WS | 0, j = y / WS | 0;
@@ -51,34 +56,65 @@ function bakeOutline() {
   mkx.clearRect(0, 0, W, H); mkx.fillStyle = '#000';
   for (const o of obstacles) { if (o.t === 'r') mkx.fillRect(o.x, o.y, o.w, o.h); else circ(mkx, o.x, o.y, o.r); }
   olx.clearRect(0, 0, W, H);
-  const ow = SETTINGS.strongOutlines ? 2.7 : 1.6;
+  const mo = SETTINGS.mapOutlines; if (mo === 'Off') { olx.clearRect(0, 0, W, H); nvx.clearRect(0, 0, W, H); return; }
+  const strong = mo === 'Strong', ow = strong ? 2.7 : 1.6;
   for (let k = 0; k < 8; k++) { const a = k * TAU / 8; olx.drawImage(maskC, Math.cos(a) * ow, Math.sin(a) * ow, W, H); } // dilate
   olx.globalCompositeOperation = 'destination-out'; olx.drawImage(maskC, 0, 0, W, H);           // keep only the rim
-  olx.globalCompositeOperation = 'source-in'; olx.fillStyle = SETTINGS.strongOutlines ? 'rgba(5,3,3,.95)' : 'rgba(12,8,8,.75)'; olx.fillRect(0, 0, W, H);
+  olx.globalCompositeOperation = 'source-in'; olx.fillStyle = strong ? 'rgba(5,3,3,.95)' : 'rgba(12,8,8,.75)'; olx.fillRect(0, 0, W, H);
   olx.globalCompositeOperation = 'source-over';
+  plainX.clearRect(0, 0, W, H); plainX.drawImage(obsC, 0, 0, W, H); // a copy without outlines, only used while they fade during a daze
+  octx.drawImage(outlineC, 0, 0, W, H); // baked in: one less full-screen draw every frame
   nvx.clearRect(0, 0, W, H); nvx.drawImage(outlineC, 0, 0, W, H); // bright copy used by night vision
   nvx.globalCompositeOperation = 'source-in'; nvx.fillStyle = '#ffffff'; nvx.fillRect(0, 0, W, H); nvx.globalCompositeOperation = 'source-over';
 }
-function loadMap(idx) {
-  mapIdx = idx;
+let curBuild = null;
+const [plainC, plainX] = makeLayer();
+function drawObstacleLayer(x = octx, b = curBuild, list = obstacles, ls = MAPS[mapIdx].lights || (b && b.lights) || []) { // walls and objects, then the details on top of them
+  x.clearRect(0, 0, W, H); list.forEach(o => drawObstacle(x, o));
+  if (b && b.decor) b.decor(x);
+  if (x === octx) snowCaps(x, list);
+  for (const l of ls) fixture(x, l);
+  if (x === octx) outlineBreakables(x);
+}
+function nudgeLamps(list, paths) { // a lamp post standing in the middle of a path gets moved to its edge
+  if (!paths.length) return;
+  const P = paths.map(p => trailPoints(p));
+  for (const o of list) {
+    if (o.kind !== 'lamp' || o.mast || o.lantern) continue;
+    let best = null, bd = 1e9; for (const pts of P) for (const q of pts) { const d = Math.hypot(o.x - q[0], o.y - q[1]); if (d < bd) { bd = d; best = q; } }
+    const need = 16; if (!best || bd >= need) continue;
+    let nx = o.x - best[0], ny = o.y - best[1]; const l = Math.hypot(nx, ny);
+    if (l < .5) { const i = P.flat().indexOf(best); nx = 0; ny = 1; } else { nx /= l; ny /= l; }
+    o.x = best[0] + nx * need; o.y = best[1] + ny * need;
+    for (const l2 of (MAPS[mapIdx].lights || [])) if (l2.o === o) { l2.x = o.x; l2.y = o.y; }
+  }
+}
+function loadMap(idx, sz) {
+  mapIdx = idx; season = sz || null; // a season only for runs on outdoor maps; menus show the plain map
   const m = MAPS[idx], b = m.build();
-  obstacles = [...borderWalls(m.border), ...b.obs];
-  bctx.clearRect(0, 0, W, H); b.floor(bctx); resetBuckets(); gctx.clearRect(0, 0, W, H); groundParts = []; trail = []; floaters = [];
-  buildGrassMask();
-  octx.clearRect(0, 0, W, H); obstacles.forEach(o => drawObstacle(octx, o));
-  bakeOutline();
+  Sfx.setMuffle(!!m.space && !m.indoor); // thin air on the surface; inside a pressurized station sound is normal
+  obstacles = splitBreakables(addBreakWalls([...borderWalls(m.border), ...b.obs], m.name));
+  nudgeLamps(obstacles, b.paths || []);
   buildSolid();
-  buildLights(b.lights || m.lights || []);
-  wet = new Float32Array(WW * WH); fresh = new Float32Array(WW * WH);
-  creatures = []; parts = []; pools = []; respawnQ = []; gibs = []; splashes = []; groups = [];
+  bctx.clearRect(0, 0, W, H); b.floor(bctx); bakeContactShadows(bctx, b.obs); resetBuckets(); gctx.clearRect(0, 0, W, H); groundParts = []; trail = []; floaters = [];
+  buildGrassMask(); gradeGround(); seasonDetails(bctx);
+  curBuild = b; drawObstacleLayer(); buildTrees();
+  bakeOutline();
+  buildSnow();
+  buildLights(b.lights || m.lights || []); setupSpeakers();
+  wet = new Float32Array(WW * WH); fresh = new Float32Array(WW * WH); wetC = new Float32Array(WW * WH * 3);
+  creatures = []; parts = []; pools = []; respawnQ = []; gibs = []; splashes = []; groups = []; mist = []; smoke = []; wisps = []; gloss = []; ringPops = []; hitGhosts = []; hitStop = 0; puke = []; convos = []; lastDead = null;
   score = 0; kills = { h: 0, a: 0 }; shake = 0;
   killV = killFlash = desatHold = 0;
   light = computeLight(); shadowKey = ''; bakeShadows();
   snake = newSnake(b.start || m.start);
+  curRoads = b.roads || []; curCross = b.crossings || [];
   for (const [type, n, zone] of m.pop) { // run modifiers can change the crowd
     const k = type === 'human' ? (MOD.overcrowded ? 2.1 : 1) : (MOD.noAnimals ? 0 : 1);
     for (let i = 0; i < Math.round(n * k); i++) spawn(type, zone);
   }
+  makeFlies(m.fireflies || 0);
+  curPaths = b.paths || []; curRoads = b.roads || []; curCross = b.crossings || []; spawnWalkers(m.walkers || 0); makeGrass(m.grass || 0); makeWeather();
   deaths = []; if (typeof run === 'object') run.startPop = creatures.length;
   updateHud();
 }

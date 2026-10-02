@@ -25,15 +25,39 @@ function noteSpot(c) { // remember corners and dead ends this one got stuck in, 
   b.push({ x: c.x, y: c.y }); if (b.length > 4) b.shift();
 }
 function spotScore(c, x, y) { // shared by wandering and fleeing: open, uncrowded, off the edges, not somewhere it got stuck before
-  let sc = -edgePenalty(x, y) - Math.max(0, crowdAt(x, y) - 3) * 28;
+  let sc = -edgePenalty(x, y) - Math.max(0, crowdAt(x, y) - 1) * 22; // spread out: people don't all pile into one room
+  if (c.home && c.state === 'wander') sc -= Math.hypot(x - c.home.x, y - c.home.y) * .18; // ...and each drifts around their own part of the map
   if (c.badSpots) for (const p of c.badSpots) { const q = Math.hypot(x - p.x, y - p.y); if (q < 120) sc -= (120 - q) * 1.2; }
   return sc;
 }
-function pickWander(c) { // a heading toward somewhere reasonable, with plenty of randomness left in
+let curRoads = [], curCross = [];
+const inRect = (x, y, r) => x >= r[0] && y >= r[1] && x <= r[0] + r[2] && y <= r[1] + r[3];
+const onRoad = (x, y) => curRoads.some(r => inRect(x, y, r)), onCrossing = (x, y) => curCross.some(r => inRect(x, y, r));
+function openDir(c) { // the most open direction from here that isn't straight back into what blocked it
+  let best = c.a + Math.PI, bs = -1e9;
+  for (let k = 0; k < 12; k++) {
+    const a = k * TAU / 12 + rand(-.15, .15); let free_ = 0;
+    for (const d of [12, 24, 40, 60]) { if (solid(c.x + Math.cos(a) * d, c.y + Math.sin(a) * d)) break; free_++; }
+    const sc = free_ * 10 - Math.cos(angDiff(c.a, a)) * 8 + rand(0, 6);
+    if (sc > bs) { bs = sc; best = a; }
+  }
+  return best;
+}
+function pickHome(c) { // somewhere of their own to hang around, reachable and not in the road; changes every so often
+  const z = c.zone || { x: B, y: B, w: W - 2 * B, h: H - 2 * B };
+  for (let k = 0; k < 40; k++) { const x = rand(z.x + 10, z.x + z.w - 10), y = rand(z.y + 10, z.y + z.h - 10); if (!free(x, y, 10) || (c.def.human && onRoad(x, y))) continue; c.home = { x, y }; c.homeT = T + rand(25, 60); return; }
+}
+function pickWander(c) {
+  if (!c.home || T > c.homeT) pickHome(c); // a heading toward somewhere reasonable, with plenty of randomness left in
   let best = c.a + rand(-1.6, 1.6), bs = -1e9;
   for (let k = 0; k < 6; k++) {
     const a = k < 4 ? c.a + rand(-1.8, 1.8) : rand(0, TAU), d = rand(80, 160), x = c.x + Math.cos(a) * d, y = c.y + Math.sin(a) * d;
-    if (x < B || y < B || x > W - B || y > H - B || solid(x, y)) continue;
+    if (x < B || y < B || x > W - B || y > H - B || solid(x, y) || !los(c.x, c.y, x, y)) continue; // only places it can actually walk straight to
+    if (c.failed && c.failed.some(f => T - f.t < 20 && dist2(f.x, f.y, x, y) < 50 * 50)) continue; // not the spot it just failed to reach
+    if (c.def.human && curRoads.length) { // people keep to the sidewalks, and only cross where there's a crosswalk
+      let jay = false; for (let t = .15; t <= 1; t += .17) { const qx = c.x + (x - c.x) * t, qy = c.y + (y - c.y) * t; if (onRoad(qx, qy) && !onCrossing(qx, qy)) { jay = true; break; } }
+      if (jay && c.state !== 'flee' && Math.random() < .93) continue; // the odd jaywalker
+    }
     const sc = spotScore(c, x, y) + openness(x, y) * 8 + Math.cos(angDiff(c.a, a)) * 25 + rand(0, 40);
     if (sc > bs) { bs = sc; best = a; }
   }

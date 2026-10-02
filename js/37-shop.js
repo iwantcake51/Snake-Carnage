@@ -3,36 +3,74 @@
    achievement items shown as locked silhouettes, and a themed custom color picker (the luxury tier).
    ========================================================= */
 const SHOP_TABS = [
-  { id: 'color', label: 'Primary colors', icon: '🎨' }, { id: 'color2', label: 'Secondary colors', icon: '🖌️' }, { id: 'custom', label: 'Custom color', icon: '🌈' },
-  { id: 'pattern', label: 'Skins', icon: '🐍' }, { id: 'hat', label: 'Hats', icon: '🎩' }, { id: 'eyes', label: 'Eyes', icon: '👀' }, { id: 'trail', label: 'Trails', icon: '✨' },
-  { id: 'theme', label: 'UI themes', icon: '🖥️' }, { id: 'card', label: 'Card styles', icon: '🃏' }, { id: 'effect', label: 'Effects', icon: '🎆' }, { id: 'title', label: 'Titles', icon: '🏷️' }];
+  { id: 'color', label: 'Primary colors', icon: 'palette' }, { id: 'color2', label: 'Secondary colors', icon: 'brush' }, { id: 'custom', label: 'Custom color', icon: 'rainbow' },
+  { id: 'pattern', label: 'Skins', icon: 'skin' }, { id: 'hat', label: 'Hats', icon: 'hat' }, { id: 'eyes', label: 'Eyes', icon: 'eyes' }, { id: 'trail', label: 'Trails', icon: 'trail' },
+  { id: 'theme', label: 'UI themes', icon: 'theme' }, { id: 'card', label: 'Card styles', icon: 'card' }, { id: 'effect', label: 'Effects', icon: 'effect' }, { id: 'title', label: 'Titles', icon: 'title' }];
 let shopTab = 'color', shopMsg = '', shopPrev = null;
 const TIERCOL = { easy: '#5fd07a', medium: '#ffcf33', hard: '#ff8a3d', rare: '#c77dff' };
 function shopCard(cat, [v, p, achId], i) {
-  const cfg = SETTINGS.snake, own = owns(cat, v), on = cfg[cat] === v, ach = achId ? ACH.find(a => a.id === achId) : null, locked = ach && !own;
-  const sw = cat.startsWith('color') ? `<i class="swb" style="background:${v}"></i>` : `<i class="ico">${shopIcon(cat, v)}</i>`;
+  const cfg = SETTINGS.snake, own = owns(cat, v), on = cfg[cat] === v, ach = achId ? ACH.find(a => a.id === achId) : null, locked = ach && !own, hidden = locked && ach.secret; // secrets stay secret
+  const sw = `<span class="pvw">${itemPreview(cat, v)}</span>`;
+  const tip = cat === 'title' ? titleTip(v) : '';
   const status = on ? '<span class="st eq">Equipped</span>' : own ? '<span class="st own">Owned · click to equip</span>' : locked ? '' : `<span class="st buy"><i class="pc"></i> ${p} · click to buy</span>`;
-  return `<button class="sc ${on ? 'on' : ''} ${own ? 'own' : ''} ${locked ? 'locked' : ''} ${!own && !locked && PROG.coins < p ? 'poor' : ''}" data-cat="${cat}" data-v="${v}" style="--i:${i}">
-    ${sw}<b>${cat.startsWith('color') ? (ach ? ach.name.split(' ')[0] + ' ' + (cat === 'color' ? 'shade' : 'trim') : 'Preset') : v}</b>
-    ${locked ? `<span class="lk">🔒</span><span class="req" style="--tc:${TIERCOL[ach.tier]}"><em>${ach.name}</em>${ach.what}<span class="pb"><span style="width:${(achProgress(ach) * 100).toFixed(0)}%"></span></span></span>`
+  return `<button class="sc c-${cat} ${on ? 'on' : ''} ${own ? 'own' : ''} ${locked ? 'locked' : ''} ${!own && !locked && PROG.coins < p ? 'poor' : ''}" data-cat="${cat}" data-v="${attr(v)}" style="--i:${i}" ${tip ? `data-tiph="${attr(tip)}"` : ''}>
+    ${hidden ? '<span class="pvw"><span class="pvTitle none">???</span></span>' : sw}<b>${hidden ? '???' : cat.startsWith('color') ? colorName(v) : v}</b>
+    ${locked ? `<span class="lk">🔒</span><span class="req" style="--tc:${TIERCOL[ach.tier]}"><em>${hidden ? 'Secret challenge' : ach.name}</em>${hidden ? ach.clue : ach.what}<span class="pb"><span style="width:${(achProgress(ach) * 100).toFixed(0)}%"></span></span></span>`
       : `<span class="price">${own ? (on ? '✔' : '') : `<i class="pc"></i>${p}`}</span>`}
     <span class="hov">${status}</span></button>`;
 }
-function shopIcon(cat, v) {
-  if (cat === 'theme') return { Default: '⚫', Midnight: '🌌', Toxic: '☢️', Panic: '🚨', Gold: '🪙', Blood: '🩸' }[v] || '🖥️';
-  if (cat === 'card') return { Default: '🂠', Neon: '💠', 'Gold Frame': '🖼️', Bloody: '🩸', Hazard: '⚠️', 'Chip Stack': '🎰' }[v] || '🃏';
-  if (cat === 'effect') return { None: '∅', Embers: '🔥', Snow: '❄️', 'Gold Dust': '✨', 'Blood Rain': '🩸', 'Alarm Lights': '🚨', Stars: '⭐' }[v] || '🎆';
-  if (cat === 'title') return '🏷️';
-  if (cat === 'trail') return { None: '∅', Smoke: '💨', Bubbles: '🫧', Sparkles: '✨', Hearts: '💗', Petals: '🌸', Confetti: '🎊', Embers: '🔥', 'Cheese Crumbs': '🧀', 'Gold Dust': '🪙', 'Blood Drip': '🩸', Alarm: '🚨', Stardust: '🌠' }[v] || '✨';
-  if (cat === 'hat') return v === 'None' ? '∅' : '🎩';
-  if (cat === 'eyes') return '👁️';
-  return '<canvas class="mini" width="88" height="40"></canvas>'; // skins get a tiny live swatch
+const slug = v => String(v).toLowerCase().replace(/[^a-z0-9]+/g, '-');
+function itemPreview(cat, v) { // what the item actually looks like, not an emoji stand-in
+  if (cat.startsWith('color')) return `<i class="swb" style="background:${v}"></i>`;
+  if (cat === 'pattern' || cat === 'hat' || cat === 'eyes' || cat === 'trail') return `<canvas class="pv" data-cat="${cat}" data-v="${attr(v)}" width="176" height="84"></canvas>`;
+  if (cat === 'theme') return `<span class="pvTheme th-${slug(v)}"><i class="tb"></i><i class="tp"></i><i class="tc"></i><i class="tc"></i></span>`;
+  if (cat === 'card') return `<span class="pvCard cs-${slug(v)}"><i class="ci"></i><i class="cl"></i></span>`;
+  if (cat === 'effect') return v === 'None' ? '<span class="pvFx none"></span>' : `<span class="pvFx mfx ${slug(v)}">${Array.from({ length: 9 }, (_, k) => `<i style="--x:${(k * 11 + 5) % 100}%;--d:${(-k * 1.3).toFixed(1)}s;--s:${(4 + k % 3).toFixed(1)}s;--z:${(.6 + (k % 3) * .25).toFixed(2)}"></i>`).join('')}</span>`;
+  if (cat === 'title') return v === 'None' ? '<span class="pvTitle none">No title</span>' : `<span class="pvTitle">${v}</span>`;
+  return '';
 }
+const shopIcon = itemPreview; // older callers
+function drawPreviews(root) { root.querySelectorAll('canvas.pv').forEach(c => drawItemPreview(c, c.dataset.cat, c.dataset.v)); }
+function previewSnake(n, x0, y0, sp, wave) { // a short body heading right, head at x0
+  const segs = [];
+  for (let i = 0; i < n; i++) segs.push({ x: x0 - i * sp, y: y0 + Math.sin(i * .7 + 1) * wave, a: 0 });
+  for (let i = 0; i < n; i++) { const p = segs[i - 1] || { x: segs[0].x + sp, y: segs[0].y }; segs[i].a = Math.atan2(p.y - segs[i].y, p.x - segs[i].x); }
+  segs[0].a = 0;
+  return { x: segs[0].x, y: segs[0].y, angle: 0, segs, stains: segs.map(() => []) };
+}
+function drawItemPreview(cv2, cat, v) {
+  const x = cv2.getContext('2d'), w = cv2.width, h = cv2.height, base = { ...SETTINGS.snake, hat: 'None', trail: 'None' };
+  x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, w, h);
+  const keepT = T; T = 1.3; // a fixed moment, so animated cosmetics still read clearly
+  if (cat === 'pattern') { x.scale(2, 2); drawSnake(x, previewSnake(10, 74, 21, 7, 4), { ...base, pattern: v }); }
+  else if (cat === 'hat' || cat === 'eyes') { // a close-up of the head, the way you see it in game
+    x.translate(w * .6, h * .5); x.scale(3.3, 3.3); x.translate(-12, 0);
+    drawSnake(x, previewSnake(5, 12, 0, 8, 0), { ...base, [cat]: v });
+  } else if (cat === 'trail') {
+    x.scale(2, 2);
+    const s = previewSnake(7, 80, 21, 7, 3), keep = trail, tail = s.segs[s.segs.length - 1];
+    if (v !== 'None') {
+      const up = v === 'Embers' || v === 'Bubbles' || v === 'Hearts' ? -1 : v === 'Blood Drip' ? 1 : 0;
+      trail = Array.from({ length: 14 }, (_, k) => ({ x: tail.x - 3 - k * 2.6 + Math.sin(k * 2.1) * 2, y: tail.y + Math.cos(k * 1.7) * 4 + up * k * .5, t: k * .06, life: 1.1, rot: k, type: v, c: ['#ff4f8b', '#ffd23f', '#3fd4ff', '#7dff6a', '#b07bff'][k % 5] }));
+      drawTrail(x); trail = keep;
+    }
+    drawSnake(x, s, base);
+  }
+  T = keepT;
+}
+function titleTip(v) { // how a title was earned, and when
+  if (v === 'None') return '<span class="thead">No title</span>Nothing shown under your level.';
+  const a = achOf('title', v); if (!a) return `<span class="thead">${v}</span>`;
+  const when = PROG.ach[a.id];
+  return `<span class="thead">${v}</span>${when ? 'Earned' : 'Earn it'} by: <b>${a.secret && !when ? 'a secret challenge' : a.what}</b> (${a.secret && !when ? '???' : a.name})` +
+    (when ? `<span class="tdim">Unlocked ${fmtDate(when)}</span>` : `<span class="tdim">${a.secret ? 'Clue: ' + a.clue : 'Progress: ' + Math.min(a.stat(), a.n) + '/' + a.n}</span>`);
+}
+const fmtDate = ts => { const d = new Date(ts); return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) + ' at ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }); };
 function showCustomize() {
   const again = !!overlay.querySelector('.panel.shop2');
   overlay.className = 'menuMode';
   overlay.innerHTML = `<div class="panel shop2 ${again ? 'noanim' : ''}">
-    <nav class="snav"><h1>Shop</h1>${SHOP_TABS.map(t => `<button class="tab ${t.id === shopTab ? 'on' : ''}" data-sfx="tab" data-tab="${t.id}"><i>${t.icon}</i>${t.label}</button>`).join('')}<button class="btn" id="backBtn" data-sfx="close">Done</button></nav>
+    <nav class="snav"><h1>Shop</h1>${SHOP_TABS.map(t => `<button class="tab ${t.id === shopTab ? 'on' : ''}" data-sfx="tab" data-tab="${t.id}"><i>${ico(t.icon)}</i>${t.label}</button>`).join('')}<button class="btn" id="backBtn" data-sfx="close">Done</button></nav>
     <div class="sright"><div class="shophead"><canvas id="prev"></canvas><div class="shinfo"><span class="coinpill"><i class="pc"></i> ${PROG.coins}</span><p class="shopmsg">${shopMsg || 'Hover an item to see its price. Locked items come from Challenges.'}</p></div></div>
     <div class="sgrid tabIn">${shopBody(shopTab)}</div></div></div>`;
   shopMsg = '';
@@ -52,7 +90,7 @@ function wireShop() {
     b.onmouseenter = () => { shopPrev = { cat: b.dataset.cat, v: b.dataset.v }; }; // live preview on hover, even before buying
     b.onmouseleave = () => { shopPrev = null; };
   });
-  overlay.querySelectorAll('canvas.mini').forEach(cv2 => { const sc = cv2.closest('.sc'); miniSnake(cv2, { ...SETTINGS.snake, pattern: sc.dataset.v }); });
+  drawPreviews(overlay);
   if (shopTab === 'custom') wirePicker();
 }
 function chooseItem(cat, v) {
