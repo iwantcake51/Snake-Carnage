@@ -3,7 +3,9 @@
    ========================================================= */
 function armPos(c) {
   const L = c.look, s = Math.sin(c.phase) * c.moveAmt, sw = L.w + .4;
-  if (c.state === 'panic') { const f = Math.sin(T * 25 + c.side) * 2; return [5.5 + f, -sw + 1.5, 5.5 - f, sw - 1.5]; }
+  const run = c.state === 'panic' || c.state === 'flee' || (c.state === 'uneasy' && c.moveAmt > .5);
+  if (c.state === 'panic' && c.flail) { const f = Math.sin(T * 25 + c.side) * 2; return [5.5 + f, -sw + 1.5, 5.5 - f, sw - 1.5]; } // the jumpy ones flap their arms
+  if (run) { const p = s * (c.armK || 1) * 5.6; return [1.4 - p, -sw + .8, 1.4 + p, sw - .8]; } // running: elbows in, arms pumping against the legs
   if (c.dance) { const b = Math.sin(T * CLUB_BPM / 60 * Math.PI * 2 + (c.seed ?? .5) * 30); return [3 + b * 2.5, -sw - 1.5, 3 - b * 2.5, sw + 1.5]; } // hands up
   if (c.fl && c.fl.on && !c.fl.helmet) return [-s * 4, -sw, 6 + s * .8, sw - 2]; // right hand held out in front with the flashlight
   return [-s * 4, -sw, s * 4, sw];
@@ -24,12 +26,19 @@ function shapePath(x, c) {
 }
 const ANIMAL_SHAPE = { rabbit: [6.6, 4.8, -1, 5, 3.3], deer: [11.2, 6.2, -1, 12, 3.2], frog: [5.2, 4.6, -.6, 3.2, 2.4], dog: [9.6, 5.6, -.5, 9.6, 4.6], cat: [7.6, 4.4, -.5, 6.4, 3.8],
   chicken: [5.4, 4.4, -.6, 4.8, 3], duck: [6.2, 4.6, -.6, 6, 3], pig: [10.2, 7.6, -.5, 9.6, 5], sheep: [8.2, 7.6, 0, 8.8, 3.8], rat: [5.6, 3.3, -.4, 4.8, 2.3], firefly: [2.4, 1.8, 0, 2, 1] };
-function drawHuman(x, c) { // top-down person, +x = facing direction
+function drawHuman(x, c) { // a little bob with each step and a sway side to side, so walking doesn't look like sliding
+  if (c.strideK === undefined) { c.strideK = rand(.85, 1.15); c.armK = rand(.75, 1.2); c.flail = hasTrait(c, 'jumpy') || hasTrait(c, 'nervous') || Math.random() < .15; }
+  const m = c.moveAmt, run = c.state === 'panic' || c.state === 'flee', bob = 1 + Math.abs(Math.sin(c.phase)) * .045 * m * (run ? 1.4 : 1);
+  x.save(); x.translate(0, Math.sin(c.phase) * .55 * m * (run ? 1.3 : 1)); x.scale(bob, bob); drawHumanBody(x, c); x.restore();
+}
+function drawHumanBody(x, c) { // top-down person, +x = facing direction
   const L = c.look, s = Math.sin(c.phase) * c.moveAmt, [a1, b1, a2, b2] = armPos(c), O = 'rgba(0,0,0,.3)', fy = L.w * .38;
   // legs and shoes stride out from under the body
   x.strokeStyle = L.pants; x.lineWidth = 3.6; x.lineCap = 'round';
-  x.beginPath(); x.moveTo(0, -fy); x.lineTo(s * 5.5, -fy); x.moveTo(0, fy); x.lineTo(-s * 5.5, fy); x.stroke();
-  x.fillStyle = L.shoes; ell(x, s * 5.5 + 1.1, -fy, 2.5, 1.7); ell(x, -s * 5.5 + 1.1, fy, 2.5, 1.7);
+  const run = c.state === 'panic' || c.state === 'flee', stride = (run ? 7.8 : 5.2) * (c.strideK || 1);
+  x.beginPath(); x.moveTo(0, -fy); x.lineTo(s * stride, -fy); x.moveTo(0, fy); x.lineTo(-s * stride, fy); x.stroke();
+  x.fillStyle = L.shoes; ell(x, s * stride + 1.1, -fy, 2.5, 1.7); ell(x, -s * stride + 1.1, fy, 2.5, 1.7);
+  if (run) x.translate(1.3 * c.moveAmt, 0); // leaning into the run: everything above the legs pitches forward
   if (L.acc === 'backpack') { x.fillStyle = L.top2; rrect(x, -L.d - 3.4, -L.w * .55, 4.6, L.w * 1.1, 1.8); x.fill(); x.fillStyle = O; x.fillRect(-L.d - 2.4, -L.w * .45, 1, L.w * .9); }
   // arms: sleeve at the shoulder, hand at the end
   const sleeve = L.outfit === 'jacket' || L.outfit === 'blazer' ? L.top2 : L.outfit === 'vest' ? L.top : L.top;
