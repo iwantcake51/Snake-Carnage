@@ -312,7 +312,7 @@ const BREAK_WALLS = {
   Office: [[560, 326, 60, 14], [706, 362, 14, 52], [690, 236, 52, 14]],
   'Alien Facility': [[316, 110, 14, 60], [520, 384, 60, 14], [470, 480, 14, 60]],
   'Space Station': [[250, 46, 14, 54], [840, 436, 60, 14], [80, 190, 56, 14]],
-  Bunker: [[330, 120, 14, 60], [330, 370, 60, 14], [700, 470, 14, 60]],
+  Bunker: [[330, 130, 14, 60], [640, 130, 14, 60], [390, 510, 14, 60], [700, 470, 14, 60]], // one in every wall between neighbouring rooms: break through and the rooms loop into each other
 };
 function addBreakWalls(list, mapName) { // cut each marked section out of the wall it sits in, as its own breakable piece
   let secs = BREAK_WALLS[mapName] || [];

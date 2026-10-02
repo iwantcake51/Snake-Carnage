@@ -599,11 +599,18 @@ const MAPS = [
           R(330, 16, 14, 254, wc), R(640, 16, 14, 254, wc),
           R(16, 370, 140, 14, wc), R(246, 370, 230, 14, wc), R(566, 370, 160, 14, wc), R(816, 370, 128, 14, wc),
           R(390, 384, 14, 240, wc), R(700, 384, 14, 240, wc),
+          // BARRACKS: bunks in two rows, a footlocker at the end of each
           R(36, 36, 90, 24, '#4e5a42', 'bed'), R(36, 96, 90, 24, '#4e5a42', 'bed'), R(36, 156, 90, 24, '#4e5a42', 'bed'), R(210, 36, 90, 24, '#4e5a42', 'bed'), R(210, 96, 90, 24, '#4e5a42', 'bed'),
-          R(400, 80, 170, 34, '#5a4a3a', 'table'), R(400, 170, 170, 34, '#5a4a3a', 'table'),
-          R(680, 30, 60, 60, '#6a5a3a', 'crate'), R(760, 30, 60, 60, '#6a5a3a', 'crate'), R(860, 120, 60, 60, '#6a5a3a', 'crate'), R(690, 170, 40, 70, '#4a4a40', 'shelf'),
-          R(60, 440, 120, 70, '#3c4044', 'generator'), R(220, 500, 80, 90, '#3c4044', 'generator'),
-          R(430, 590, 230, 24, '#2c3034', 'console'), C(560, 470, 18, '#4a4a40', 'table'),
+          R(127, 40, 14, 16, '#5a4a32', 'crate'), R(127, 100, 14, 16, '#5a4a32', 'crate'), R(127, 160, 14, 16, '#5a4a32', 'crate'), R(301, 40, 14, 16, '#5a4a32', 'crate'), R(301, 100, 14, 16, '#5a4a32', 'crate'),
+          // MESS HALL: two long tables with benches on their outer sides
+          R(400, 80, 170, 34, '#5a4a3a', 'table'), R(400, 170, 170, 34, '#5a4a3a', 'table'), R(400, 68, 170, 9, '#4a3c30', 'bench'), R(400, 207, 170, 9, '#4a3c30', 'bench'),
+          // STORES: stacked supply crates and a shelving unit
+          R(680, 30, 60, 60, '#6a5a3a', 'crate'), R(742, 30, 60, 60, '#6a5a3a', 'crate'), R(860, 120, 60, 60, '#6a5a3a', 'crate'), R(690, 170, 40, 70, '#4a4a40', 'shelf'),
+          // GENERATORS: two sets humming away, fuel drums in the corner
+          R(60, 440, 120, 70, '#3c4044', 'generator'), R(220, 500, 80, 90, '#3c4044', 'generator'), C(36, 600, 10, '#6a5a2a', 'bin'), C(58, 604, 10, '#7a3a22', 'bin'), C(36, 578, 9, '#6a5a2a', 'bin'),
+          // COMMS: the radio desk along the back wall, a side console, the map table in the middle
+          R(430, 590, 230, 24, '#2c3034', 'console'), R(404, 398, 16, 76, '#2c3034', 'console'), C(560, 470, 18, '#4a4a40', 'table'),
+          // MED BAY: two cots and the supply cabinet
           R(740, 410, 80, 30, '#c9c9c4', 'bed', { med: true }), R(740, 480, 80, 30, '#c9c9c4', 'bed', { med: true }), R(860, 560, 64, 50, '#c9c9c4', 'shelf')
         ],
         floor(x) {
@@ -612,6 +619,11 @@ const MAPS = [
           x.fillStyle = '#2f2a28'; x.fillRect(16, 284, W - 32, 86); x.fillStyle = '#c9a227'; for (let i = 20; i < W - 20; i += 40) x.fillRect(i, 325, 20, 3); // corridor + painted line
           hazard(x, 16, 284, W - 32, 5); hazard(x, 16, 365, W - 32, 5);
           x.fillStyle = 'rgba(40,10,8,.35)'; x.beginPath(); x.ellipse(160, 520, 90, 60, 0, 0, TAU); x.fill(); // oil stain by the generators
+          x.fillStyle = '#2c2a2e'; x.fillRect(724, 400, 210, 210); x.strokeStyle = 'rgba(180,200,200,.07)'; for (let i = 724; i < 934; i += 15) { x.beginPath(); x.moveTo(i, 400); x.lineTo(i, 610); x.stroke(); } // med bay: tiled, easy to hose down
+          x.strokeStyle = 'rgba(15,12,10,.6)'; x.lineWidth = 3; x.beginPath(); x.moveTo(180, 470); x.bezierCurveTo(260, 470, 300, 440, 380, 455); x.moveTo(300, 545); x.bezierCurveTo(340, 560, 360, 520, 390, 540); x.stroke(); x.lineWidth = 1; // cables from the generators toward comms
+          x.save(); x.font = 'bold 22px "Barlow Condensed", Impact, sans-serif'; x.textAlign = 'center'; x.fillStyle = 'rgba(214,200,170,.13)'; // stencilled room names on the floor
+          for (const [t, px, py] of [['BARRACKS', 175, 235], ['MESS', 492, 150], ['STORES', 800, 230], ['GENERATORS', 200, 410], ['COMMS', 552, 540], ['MED BAY', 830, 470]]) x.fillText(t, px, py);
+          x.restore();
         }
       };
     }
