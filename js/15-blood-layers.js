@@ -50,12 +50,14 @@ function fadeBlood() { // every 2s: rotate layers and let old ground wetness dry
 /* grass detection, for grass poking through blood and for the dirt trail */
 const GM = 8, GMW = W / GM, GMH = H / GM;
 let grassMask = new Uint8Array(GMW * GMH), grassCol = [], floorCol = []; // floorCol: the ground's color everywhere (camouflage blends toward it)
+const floorSmall = document.createElement('canvas'); floorSmall.width = W / 2; floorSmall.height = H / 2;
+const fsx = floorSmall.getContext('2d', { willReadFrequently: true });
+function smallFloor() { fsx.clearRect(0, 0, W / 2, H / 2); fsx.drawImage(baseC, 0, 0, W / 2, H / 2); try { return fsx.getImageData(0, 0, W / 2, H / 2).data; } catch (e) { return null; } }
 function buildGrassMask() {
   grassMask = new Uint8Array(GMW * GMH); grassCol = new Array(GMW * GMH); floorCol = new Array(GMW * GMH);
-  let data; try { data = bctx.getImageData(0, 0, baseC.width, baseC.height).data; } catch (e) { return; }
-  const sc = baseC.width / W;
+  const data = smallFloor(); if (!data) return; // a half-size copy: reading back the full-res floor used to stall map loads
   for (let j = 0; j < GMH; j++) for (let i = 0; i < GMW; i++) {
-    const o = (Math.floor((j * GM + 4) * sc) * baseC.width + Math.floor((i * GM + 4) * sc)) * 4, r = data[o], g = data[o + 1], b = data[o + 2];
+    const o = ((j * GM + 4) / 2 * (W / 2) + (i * GM + 4) / 2) * 4, r = data[o], g = data[o + 1], b = data[o + 2];
     floorCol[j * GMW + i] = [r, g, b];
     if (g > r + 18 && g > b + 25) { grassMask[j * GMW + i] = 1; grassCol[j * GMW + i] = [r, g, b]; }
   }

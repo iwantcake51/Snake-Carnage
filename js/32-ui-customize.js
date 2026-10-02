@@ -70,32 +70,56 @@ function startGame(opts = {}) {
   tod = SETTINGS.timeMode === 'Cycle' ? pickStartTime(MAPS[mapIdx]) : FIXED_TIMES[SETTINGS.timeMode] ?? 12; // dynamic runs start at a different hour, weighted per map
   nightVision = false; endCombo(true); document.getElementById('rewards').innerHTML = ''; hideResume(); clearNotes();
   camF.x = camF.y = camF.k.x = camF.k.y = camF.kv.x = camF.kv.y = 0;
+  const sz = pickSeason(MAPS[mapIdx]), myst = !!opts.mystery, gen = startGame.gen = (startGame.gen || 0) + 1;
+  state = 'loading'; cam = null;
+  hideOverlay(); cv.style.translate = '0px 0px'; cv.style.scale = '1';
+  if (document.activeElement) document.activeElement.blur();
+  setTimeout(() => overlay.querySelectorAll('.casebox').forEach(b => b.remove()), 600);
+  introTimers.forEach(clearTimeout); introTimers = [];
+  stage.classList.add('bars');
+  if (myst) { intro.innerHTML = ''; intro.className = 'run ghost'; }
+  else { intro.innerHTML = introHtml(sz); intro.className = 'run'; } // up on screen straight away; the map loads behind it
+  requestAnimationFrame(() => requestAnimationFrame(() => { if (startGame.gen === gen) finishStart(opts, sz); }));
+}
+function finishStart(opts, sz) {
+  const t0 = performance.now();
   newRun();
-  loadMap(mapIdx, pickSeason(MAPS[mapIdx])); run.startPop = creatures.length;
+  loadMap(mapIdx, sz); run.startPop = creatures.length;
   const animals = [...new Set(creatures.filter(c => !c.def.human).map(c => c.type))];
   runMod = { lastType: null, lastCat: null, varStreak: 0, same: 0, chain: 0, humanRun: 0, ask: null, askIn: 3, avoid: animals.length ? pick(animals) : null };
   modHud(); challengeHud(true); modBar(); resetAbilities();
   if (runMods.length && opts.mystery) modIntro(runMods);
-  else if (runMods.length) setTimeout(() => notify({ kind: 'mod', title: `${runMods.length} modifier${runMods.length > 1 ? 's' : ''} active`, sub: runMods.map(id => (MOD_ICON[id] || '') + ' ' + MODS.find(m => m.id === id).name).join('  '), right: Math.abs(rewardMult - 1) > .005 ? 'x' + rewardMult.toFixed(2) : '', dur: 3.5 }), SETTINGS.reduceMotion ? 300 : 2400);
-  if (!thumbs) thumbs = makeThumbs();
   updateTime(0);
   state = 'intro';
   cam = { t: 0, dur: SETTINGS.reduceMotion ? .01 : 1.5, z0: 5, hold: true };
-  hideOverlay(); cv.style.translate = '0px 0px'; cv.style.scale = '1';
-  if (document.activeElement) document.activeElement.blur();
-  setTimeout(() => overlay.querySelectorAll('.casebox').forEach(b => b.remove()), 600);
-  introTimers.forEach(clearTimeout);
   if (opts.mystery) { // random map: no picture or name, the world itself is the reveal
-    intro.innerHTML = `<div class="iname mys">${timeBadge()}</div>`; intro.className = 'run ghost'; stage.classList.add('bars');
+    intro.innerHTML = `<div class="iname mys">${timeBadge()}${seasonBadge()}</div>`;
     introTimers = [setTimeout(endIntro, SETTINGS.reduceMotion ? 200 : 650)];
     return;
   }
-  const night = !MAPS[mapIdx].indoor && light.day < .05;
-  intro.innerHTML = `<div class="iimg" style="background-image:url(${thumbs[mapIdx]})"></div><div class="ishade"></div>
-    <div class="iname">${MAPS[mapIdx].name}${timeBadge()}<small>${night ? 'Stay out of the light.' : MAPS[mapIdx].indoor ? 'Indoors: the lights are whatever the building gives you.' : light.day > .5 ? 'Broad daylight. Everyone can see you coming.' : 'The light is going. Use it.'}</small><em>${IS_TOUCH ? 'Tap to skip' : 'Space to skip'}</em></div>`;
-  intro.className = 'run'; stage.classList.add('bars');
-  introTimers.forEach(clearTimeout);
-  introTimers = [setTimeout(endIntro, SETTINGS.reduceMotion ? 500 : 2300)];
+  const night = !MAPS[mapIdx].indoor && light.day < .05, fl = intro.querySelector('.iflav'), shot = intro.querySelector('canvas.iimg');
+  if (fl) fl.textContent = night ? 'Stay out of the light.' : MAPS[mapIdx].indoor ? 'Indoors. The lights are whatever the building gives you.' : light.day > .5 ? 'Broad daylight. Everyone can see you coming.' : 'The light is going. Use it.';
+  const tb = intro.querySelector('.ichips .tslot'); if (tb) tb.outerHTML = timeBadge();
+  if (shot) { introShot(shot); shot.classList.add('in'); }
+  const wait = Math.max(0, 1250 - (performance.now() - t0)); // the card always gets its moment, however fast the load was
+  introTimers = [setTimeout(endIntro, SETTINGS.reduceMotion ? 500 : 1000 + wait)];
+}
+function seasonBadge() { return season ? `<span class="tbadge szn ${season.id}"><i class="sic">${season.icon}</i><b>${season.name}</b></span>` : ''; }
+function introHtml(sz) { // the loading card: map name, when, what season, which modifiers
+  const m = MAPS[mapIdx], tags = [m.space ? 'Space' : m.indoor ? 'Indoors' : 'Outdoors'];
+  const szB = sz ? `<span class="tbadge szn ${sz.id}"><i class="sic">${sz.icon}</i><b>${sz.name}</b></span>` : '';
+  const mods = runMods.map(id => { const q = MODS.find(x => x.id === id); return q ? `<span class="imod">${MOD_ICON[id] || ''} ${q.name}</span>` : ''; }).join('');
+  return `<canvas class="iimg" width="${W}" height="${H}"></canvas><div class="ishade"></div>
+    <div class="iwrap"><span class="ieye" style="--d:.05s">${tags.join(' · ')}</span>
+      <h2 class="iname2" style="--d:.12s">${m.name}</h2>
+      <div class="ichips" style="--d:.3s"><span class="tslot"></span>${szB}</div>
+      ${mods ? `<div class="imods" style="--d:.42s"><em>Modifiers${Math.abs(rewardMult - 1) > .005 ? ` · rewards x${rewardMult.toFixed(2)}` : ''}</em>${mods}</div>` : ''}
+      <p class="iflav" style="--d:.55s"></p></div>
+    <span class="iskip">${IS_TOUCH ? 'Tap to skip' : 'Space to skip'}</span>`;
+}
+function introShot(c) { // the real map, this season, as the backdrop
+  const x = c.getContext('2d'); x.clearRect(0, 0, W, H);
+  x.drawImage(baseC, 0, 0, W, H); drawSnow(x); x.drawImage(obsC, 0, 0, W, H); drawTrees(x);
 }
 function modIntro(ids) { // random run: show what was rolled at the bottom for a moment, then send each one up and away
   const el = document.getElementById('modintro'); clearTimeout(el._t);

@@ -37,7 +37,7 @@ function perlin(x, y) { // about -1..1
 function fbm(x, y, oct = 4) { let s = 0, a = .5, f = 1, n = 0; for (let k = 0; k < oct; k++) { s += perlin(x * f, y * f) * a; n += a; a *= .5; f *= 2.03; } return s / n; }
 const sstep = (a, b, v) => { const t = clamp((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 
-/* ---- ground grade: a color lookup table per season, two variants blended by slow noise so it's patchy ---- */
+/* ---- ground grade: one color through a season's look (for single colors; the floor itself is tinted on the GPU below) ---- */
 function rgb2hsv(r, g, b) { const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; let h = 0; if (d) h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h *= 60; if (h < 0) h += 360; return [h, mx ? d / mx : 0, mx / 255]; }
 function hsv2rgb(h, s, v) { const c = v * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = v - c; let r, g, b; [r, g, b] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x] : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x]; return [(r + m) * 255, (g + m) * 255, (b + m) * 255]; }
 const lerpH = (a, b, t) => a + (b - a) * t;
@@ -57,35 +57,30 @@ function gradePx(r, g, b, id, variant) { // one color through one season's look
   return hsv2rgb(h, s, v);
 }
 let greenField = null; // how grassy each 2px cell was before the grade (snow uses it to leave paths thinner)
-const LUTS = {}; // built once per season, reused for every map after that
-function lutFor(id, variant) {
-  const k = id + variant; if (LUTS[k]) return LUTS[k];
-  const L = new Uint8ClampedArray(32 * 32 * 32 * 3);
-  for (let r = 0; r < 32; r++) for (let g = 0; g < 32; g++) for (let b = 0; b < 32; b++) { const o = gradePx(r * 8.23, g * 8.23, b * 8.23, id, variant), i = ((r << 10) | (g << 5) | b) * 3; L[i] = o[0]; L[i + 1] = o[1]; L[i + 2] = o[2]; }
-  return LUTS[k] = L;
-}
 const gradeHex = (hex, k = 1) => { const c = rgbOf(hex), o = gradePx(c[0], c[1], c[2], seasonId(), 0); return '#' + o.map((v, n) => Math.round(clamp(c[n] + (v - c[n]) * k, 0, 255)).toString(16).padStart(2, '0')).join(''); };
-function gradeGround() { // recolors the baked floor once per load
+const tintC = document.createElement('canvas'); tintC.width = W / 2; tintC.height = H / 2; const tnx = tintC.getContext('2d');
+const SEASON_TINT = { // per season: [blend mode, color A, color B, strength on grass, strength elsewhere]
+  spring: [['hue', [150, 205, 70], [120, 200, 70], .55, 0], ['screen', [40, 44, 20], [20, 30, 10], .9, 0]],
+  summer: [['hue', [80, 160, 50], [95, 165, 45], .35, 0], ['saturation', [40, 150, 20], [40, 150, 20], .3, 0]],
+  autumn: [['hue', [215, 160, 50], [205, 110, 40], .9, 0], ['saturation', [140, 120, 100], [140, 110, 90], .25, .1], ['multiply', [235, 225, 210], [210, 195, 180], .9, .3]],
+  winter: [['saturation', [128, 128, 128], [128, 128, 128], .8, .35], ['screen', [90, 95, 105], [60, 62, 66], .85, .25], ['multiply', [228, 234, 245], [228, 234, 245], 1, .6]],
+};
+function gradeGround() { // recolors the baked floor once per load: masks built from a half-size copy, the recolor itself runs on the GPU
   greenField = null; if (!season) return;
-  const id = season.id, A = lutFor(id, 0), Bv = lutFor(id, 1);
-  const cw = baseC.width, ch = baseC.height; let img; try { img = bctx.getImageData(0, 0, cw, ch); } catch (e) { return; }
-  const d = img.data;
-  greenField = new Float32Array(SNW * SNH); const gs = cw / W;
-  for (let j = 0; j < SNH; j++) for (let i = 0; i < SNW; i++) { const o = (Math.floor((j * SN + 1) * gs) * cw + Math.floor((i * SN + 1) * gs)) * 4; greenField[j * SNW + i] = clamp((d[o + 1] - Math.max(d[o], d[o + 2]) - 6) / 30, 0, 1); }
-  for (let pass = 0; pass < 2; pass++) for (const [di, dj] of [[1, 0], [0, 1]]) { const src = greenField.slice(); for (let j = 3; j < SNH - 3; j++) for (let i = 3; i < SNW - 3; i++) { let a = 0; for (let t = -3; t <= 3; t++) a += src[(j + dj * t) * SNW + i + di * t]; greenField[j * SNW + i] = a / 7; } } // soft edges, no stair steps
-  const NG = 24, nw = Math.ceil(W / NG) + 2, nh = Math.ceil(H / NG) + 2, mix = new Float32Array(nw * nh), sd = season.seed;
-  for (let j = 0; j < nh; j++) for (let i = 0; i < nw; i++) mix[j * nw + i] = sstep(-.25, .3, fbm(i * NG / 170 + sd, j * NG / 170 + sd * .7, 3));
-  const sc = W / cw;
-  for (let y = 0; y < ch; y++) {
-    const fy = y * sc / NG, j0 = fy | 0, ty = fy - j0;
-    for (let x = 0; x < cw; x++) {
-      const fx = x * sc / NG, i0 = fx | 0, tx = fx - i0, q = j0 * nw + i0;
-      const m = (mix[q] * (1 - tx) + mix[q + 1] * tx) * (1 - ty) + (mix[q + nw] * (1 - tx) + mix[q + nw + 1] * tx) * ty;
-      const o = y * cw * 4 + x * 4, li = ((d[o] >> 3) << 10 | (d[o + 1] >> 3) << 5 | d[o + 2] >> 3) * 3;
-      d[o] = A[li] + (Bv[li] - A[li]) * m; d[o + 1] = A[li + 1] + (Bv[li + 1] - A[li + 1]) * m; d[o + 2] = A[li + 2] + (Bv[li + 2] - A[li + 2]) * m;
-    }
+  const id = season.id, d = smallFloor(); if (!d) return;
+  const sw = W / 2, sh = H / 2, gf = greenField = new Float32Array(sw * sh), sd = season.seed;
+  for (let k = 0; k < sw * sh; k++) gf[k] = clamp((d[k * 4 + 1] - Math.max(d[k * 4], d[k * 4 + 2]) - 6) / 30, 0, 1);
+  for (let pass = 0; pass < 2; pass++) for (const [di, dj] of [[1, 0], [0, 1]]) { const src = gf.slice(); for (let j = 3; j < sh - 3; j++) for (let i = 3; i < sw - 3; i++) { let a = 0; for (let t = -3; t <= 3; t++) a += src[(j + dj * t) * sw + i + di * t]; gf[j * sw + i] = a / 7; } } // soft edges, no stair steps
+  const NG = 12, nw = Math.ceil(sw / NG) + 2, mix = new Float32Array(nw * (Math.ceil(sh / NG) + 2));
+  for (let j = 0; j < mix.length / nw; j++) for (let i = 0; i < nw; i++) mix[j * nw + i] = sstep(-.25, .3, fbm(i * NG * 2 / 170 + sd, j * NG * 2 / 170 + sd * .7, 3));
+  const img = tnx.createImageData(sw, sh), P = img.data, M = new Float32Array(sw * sh);
+  for (let j = 0; j < sh; j++) { const fy = j / NG, j0 = fy | 0, ty = fy - j0; for (let i = 0; i < sw; i++) { const fx = i / NG, i0 = fx | 0, tx = fx - i0, q = j0 * nw + i0; M[j * sw + i] = (mix[q] * (1 - tx) + mix[q + 1] * tx) * (1 - ty) + (mix[q + nw] * (1 - tx) + mix[q + nw + 1] * tx) * ty; } }
+  for (const [mode, A, B, kg, ko] of SEASON_TINT[id]) {
+    const dr = B[0] - A[0], dg = B[1] - A[1], db = B[2] - A[2];
+    for (let k = 0, o = 0; k < sw * sh; k++, o += 4) { const m = M[k]; P[o] = A[0] + dr * m; P[o + 1] = A[1] + dg * m; P[o + 2] = A[2] + db * m; P[o + 3] = 255 * (ko + (kg - ko) * gf[k]); }
+    tnx.putImageData(img, 0, 0);
+    bctx.save(); bctx.globalCompositeOperation = mode; bctx.imageSmoothingEnabled = true; bctx.drawImage(tintC, 0, 0, W, H); bctx.restore();
   }
-  bctx.putImageData(img, 0, 0);
   for (let k = 0; k < floorCol.length; k++) if (floorCol[k]) { const c = floorCol[k], o = gradePx(c[0], c[1], c[2], id, 0); floorCol[k] = o.map(v => v | 0); }
   for (let k = 0; k < grassCol.length; k++) if (grassCol[k]) { const c = grassCol[k], o = gradePx(c[0], c[1], c[2], id, 0); grassCol[k] = o.map(v => v | 0); } // kicked-up grass matches
 }
@@ -120,7 +115,7 @@ function seasonDetails(x) { // flowers, leaf litter, dead tufts: only on grass, 
 const STAMPS = {}; // leaf clusters, built once per palette and brightness and reused everywhere
 function leafStamp(cols, lvl, v) {
   const key = cols.join() + lvl + ':' + v; if (STAMPS[key]) return STAMPS[key];
-  const S = 26, c = document.createElement('canvas'); c.width = c.height = Math.ceil(S * DPR); const x = c.getContext('2d'); x.scale(DPR, DPR);
+  const S = 26, c = document.createElement('canvas'); c.width = c.height = Math.ceil(S * SPR); const x = c.getContext('2d'); x.scale(SPR, SPR);
   const r = seeded(500 + v * 7 + Math.round(lvl * 100));
   for (let k = 0; k < 26; k++) {
     const a = r() * TAU, d = Math.sqrt(r()) * 8.5, px = S / 2 + Math.cos(a) * d, py = S / 2 + Math.sin(a) * d, len = 2.6 + r() * 2, w = 1.1 + r() * .9;
@@ -133,14 +128,15 @@ function leafStamp(cols, lvl, v) {
 }
 function needleStamp(cols, lvl, v) { // one pine branch tip seen from above: a fan of needles pointing outward
   const key = 'pine' + cols.join() + lvl + ':' + v; if (STAMPS[key]) return STAMPS[key];
-  const S = 22, c = document.createElement('canvas'); c.width = c.height = Math.ceil(S * DPR); const x = c.getContext('2d'); x.scale(DPR, DPR);
+  const S = 22, c = document.createElement('canvas'); c.width = c.height = Math.ceil(S * SPR); const x = c.getContext('2d'); x.scale(SPR, SPR);
   const r = seeded(500 + v * 13 + Math.round(lvl * 100)); x.lineCap = 'round';
   x.strokeStyle = shade(cols[0], lvl - .15); x.lineWidth = 1.4; x.beginPath(); x.moveTo(1, S / 2); x.lineTo(S * .9, S / 2); x.stroke(); // the twig
   for (let k = 0; k < 34; k++) { const t = .1 + r() * .85, px = S * t, py = S / 2, a = (r() < .5 ? -1 : 1) * (.5 + r() * .7), L = 3 + r() * 3.5 * (1 - t * .4);
     x.strokeStyle = shade(cols[Math.floor(r() * cols.length)], lvl + (r() - .5) * .16); x.lineWidth = .8; x.beginPath(); x.moveTo(px, py); x.lineTo(px + Math.cos(a) * L, py + Math.sin(a) * L); x.stroke(); }
   return STAMPS[key] = c;
 }
-function makeSprite(S) { const c = document.createElement('canvas'); c.width = c.height = Math.ceil(S * DPR); const x = c.getContext('2d'); x.scale(DPR, DPR); return [c, x]; }
+const SPR = Math.min(DPR, 1.6); // leaf textures are soft: they don't need the full screen resolution
+function makeSprite(S) { const c = document.createElement('canvas'); c.width = c.height = Math.ceil(S * SPR); const x = c.getContext('2d'); x.scale(SPR, SPR); return [c, x]; }
 function treeInfo(o) { // shape decided by position, so the same tree looks the same every run (only its season changes)
   if (o.tinfo) return o.tinfo;
   const r = seeded(Math.round(o.x * 31 + o.y * 17) + 5);
@@ -181,8 +177,8 @@ function buildCanopy(o) { // two sprite layers: an under layer and a lighter top
         px = nx; py = ny; }
     }
   }
-  const cols = sz.leaves, stamp = (xx, lvl, px, py, s) => { const st = leafStamp(cols, lvl, Math.floor(r() * 5)), w = 26 * s; xx.save(); xx.translate(px, py); xx.rotate(r() * TAU); xx.drawImage(st, -w / 2, -w / 2, w, w); xx.restore(); };
-  const N = Math.round(R * R / (o.kind === 'bush' ? 11 : 13));
+  const cols = sz.leaves, stamp = (xx, lvl, px, py, s) => { const st = leafStamp(cols, lvl, Math.floor(r() * 5)), w = 26 * s * 1.15; xx.save(); xx.translate(px, py); xx.rotate(r() * TAU); xx.drawImage(st, -w / 2, -w / 2, w, w); xx.restore(); };
+  const N = Math.round(R * R / (o.kind === 'bush' ? 14 : 19));
   const spot = (inner, bias) => { const a = r() * TAU, d = Math.pow(r(), inner) * rad(a) * .93; return [C0 + Math.cos(a) * d - bias, C0 + Math.sin(a) * d - bias]; };
   for (let k = 0; k < N; k++) { if (r() > full) continue; const [px, py] = spot(.55, -R * .04); stamp(lx, -.2, px, py, .7 + r() * .45); } // shaded underside
   for (let k = 0; k < N * .8; k++) { if (r() > full) continue; const [px, py] = spot(.75, R * .05); stamp(lx, -.04, px, py, .6 + r() * .4); }
@@ -191,10 +187,10 @@ function buildCanopy(o) { // two sprite layers: an under layer and a lighter top
   if (id === 'spring' && ti.blossom < sz.blossom) { const bc = ti.blossom < .15 ? ['#ffd6e6', '#ffffff'] : ['#ffffff', '#fff6d8']; for (let k = 0; k < N * 3; k++) { const [px, py] = spot(.8, R * .08); hx.fillStyle = bc[k & 1]; circ(hx, px, py, .9 + r() * .7); } }
   return { lo, hi, S, amp: o.kind === 'bush' ? .35 : 1 };
 }
-let treeSprites = [];
+let treeSprites = []; const CANOPY = new Map(); // sprites per tree and season, kept so a retry or a map you've played loads instantly
 function buildTrees() { // called on map load; obstacles keep their collision circles, only the look changes
   treeSprites = [];
-  for (const o of obstacles) if (o.kind === 'tree' || o.kind === 'bush') { treeInfo(o); treeSprites.push({ o, ...buildCanopy(o) }); }
+  for (const o of obstacles) if (o.kind === 'tree' || o.kind === 'bush') { treeInfo(o); const key = `${o.kind}${o.x},${o.y},${o.r}:${seasonId()}${season && season.late ? 'L' : ''}`; if (!CANOPY.has(key)) { if (CANOPY.size > 260) CANOPY.clear(); CANOPY.set(key, buildCanopy(o)); } treeSprites.push({ o, ...CANOPY.get(key) }); }
 }
 function drawTrunk(x, o) { // baked: trunk and the main limbs, which show through thin canopies and in winter
   const ti = treeInfo(o), r = seeded(ti.seed + 3), sz = SZN(), bark = sz.bark, R = o.r;

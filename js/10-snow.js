@@ -25,12 +25,16 @@ function buildSnow() {
   for (let h = 0; h < q.length; h++) { const k = q[h], i = k % GW, j = k / GW | 0, d = dist[k] + SG; if (d > 40) continue;
     for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const ii = i + di, jj = j + dj; if (ii < 0 || jj < 0 || ii >= GW || jj >= GH) continue; const kk = jj * GW + ii; if (dist[kk] > d) { dist[kk] = d; q.push(kk); } } }
   const pines = obstacles.filter(o => o.kind === 'tree' && o.tinfo && o.tinfo.pine);
+  const NC = 3, nw = Math.ceil(SNW / NC) + 2, nh = Math.ceil(SNH / NC) + 2, NZ = new Float32Array(nw * nh), LZ = new Float32Array(nw * nh); // noise on a coarser grid, smoothly upsampled
+  for (let j = 0; j < nh; j++) for (let i = 0; i < nw; i++) { const x = i * NC * SN, y = j * NC * SN; NZ[j * nw + i] = fbm(x / 190 + sd, y / 190 - sd, 4) + perlin(x / 47 + sd * 2, y / 47) * .22; LZ[j * nw + i] = .5 + .45 * sstep(-.3, .6, fbm(x / 70 - sd, y / 70 + sd, 2)) + perlin(x / 22 + sd, y / 22 - sd) * .14; }
+  const up = (A, i, j) => { const fx = i / NC, fy = j / NC, i0 = fx | 0, j0 = fy | 0, tx = fx - i0, ty = fy - j0, q = j0 * nw + i0; return (A[q] * (1 - tx) + A[q + 1] * tx) * (1 - ty) + (A[q + nw] * (1 - tx) + A[q + nw + 1] * tx) * ty; };
+  const nAt = (i, j) => up(NZ, i, j);
   for (let j = 0; j < SNH; j++) for (let i = 0; i < SNW; i++) {
     const x = i * SN + 1, y = j * SN + 1, k = j * SNW + i, gk = (y / SG | 0) * GW + (x / SG | 0), dd = dist[gk];
     if (dd === 0) continue;
-    const n = fbm(x / 190 + sd, y / 190 - sd, 4) + perlin(x / 47 + sd * 2, y / 47) * .22;
+    const n = nAt(i, j);
     let cov = late ? sstep(.16, .36, n) : sstep(-.38, -.04, n);
-    let d = cov * (.5 + .45 * sstep(-.3, .6, fbm(x / 70 - sd, y / 70 + sd, 2)) + perlin(x / 22 + sd, y / 22 - sd) * .14); // lumpy, not flat
+    let d = cov * up(LZ, i, j); // lumpy, not flat
     const gr = greenField ? greenField[k] : grassAt(x, y); d *= (late ? .25 : .3) + (late ? .75 : .7) * gr; // paths and pavement get trodden and cleared
     if (!late && dd < 40) d += .4 * Math.exp(-(dd - SG) / 10) * sstep(-.7, -.1, n); // drifts pile up against walls and props
     for (const t of pines) { const r = Math.hypot(x - t.x, y - t.y); if (r < t.r * 1.15) d *= .3 + .7 * (r / (t.r * 1.15)) ** 2; } // sheltered under evergreens

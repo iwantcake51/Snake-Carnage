@@ -20,6 +20,14 @@ function creatureIcon(type, golden) { // a portrait of a target, drawn with the 
 }
 const typeName = (t, n) => { const N = { human: ['person', 'people'], astronaut: ['astronaut', 'astronauts'], alien: ['alien', 'aliens'], sheep: ['sheep', 'sheep'], deer: ['deer', 'deer'], firefly: ['firefly', 'fireflies'], clubber: ['clubber', 'clubbers'] }[t];
   return N ? N[n === 1 ? 0 : 1] : t + (n === 1 ? '' : 's'); };
+const escAttr = s => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+function chTip(c) { // everything about a finished challenge: what it asked, what you did, what it paid
+  const rw = [c.xp ? `+${c.xp} XP` : '', c.chips ? `+${c.chips} <i class="pc"></i>` : '', c.bonus ? `+${Math.round(c.bonus * 100)}% score this run` : ''].filter(Boolean).join(' · ');
+  return `<b class="tth">${c.name}</b><span class="ttt"><em class="tier ${c.tier}">${TIERS[c.tier].label}</em>${c.perm ? ` Permanent${c.map ? ' · ' + c.map : ''}` : ''}</span>`
+    + `<span class="ttr"><i>Needed</i>${c.t || '—'}</span>`
+    + (c.got ? `<span class="ttr"><i>You got</i>${c.got}${c.at != null ? ` · done at ${fmtTime(c.at)}` : ''}</span>` : '')
+    + (rw ? `<span class="ttr"><i>Reward</i>${rw}</span>` : '');
+}
 function showDead() {
   stage.classList.remove('bars', 'paused');
   sumShownAt = performance.now();
@@ -50,7 +58,7 @@ function showDead() {
     <div class="scols">
       <div class="seat"><h3>Eaten</h3>${types.length ? `<div class="egrid">${types.map(([t, n], i) => `<div class="et" style="--d:${(1 + i * .09).toFixed(2)}s"><img src="${creatureIcon(t)}" alt=""><span><b>${typeName(t, n)}</b></span><em>×<span data-to="${n}" data-delay="${1000 + i * 90}">0</span></em></div>`).join('')}</div>` : '<p class="none">Nothing. Not a single bite.</p>'}</div>
       <div class="sside">
-        <h3>Challenges</h3>${chs.length ? `<ul class="slist">${chs.map((c, i) => `<li style="--d:${(1.3 + i * .1).toFixed(2)}s"><em class="${tierCls(c.tier)}">${TIERS[c.tier].label}</em>${c.perm ? '<i class="perm">Permanent</i>' : ''}<b>${c.name}</b></li>`).join('')}</ul>` : '<p class="none">None this run.</p>'}
+        <h3>Challenges</h3>${chs.length ? `<ul class="slist">${chs.map((c, i) => `<li class="chi" data-tiph="${escAttr(chTip(c))}" style="--d:${(1.3 + i * .1).toFixed(2)}s"><em class="${tierCls(c.tier)}">${TIERS[c.tier].label}</em>${c.perm ? '<i class="perm">Permanent</i>' : ''}<b>${c.name}</b></li>`).join('')}</ul>` : '<p class="none">None this run.</p>'}
         <h3>Unlocked</h3>${unl.length ? `<ul class="slist">${unl.map((u, i) => unlockRow(u).replace('<li class="un">', `<li class="un" style="--d:${(1.5 + i * .12).toFixed(2)}s">`)).join('')}</ul>` : '<p class="none">Nothing new. Next time.</p>'}
       </div>
     </div>

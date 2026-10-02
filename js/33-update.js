@@ -6,7 +6,7 @@ function update(dt) {
   UT += dt;
   if ((rotT -= dt) <= 0) { rotT = .5; checkRotation(); updateRotClocks(); }
   Sfx.musicUpdate(!!MAPS[mapIdx].music && ['play', 'ready', 'intro', 'held'].includes(state));
-  if (state === 'menu' || state === 'paused' || state === 'held') return; // time stops: no AI, movement, blood or sounds
+  if (state === 'menu' || state === 'paused' || state === 'held' || state === 'loading') return; // time stops: no AI, movement, blood or sounds
   if (state === 'dead') { // the world is frozen; only the camera settles and the death screen arrives
     shake *= Math.exp(-dt * 8); if (shake < .2) shake = 0;
     killV *= Math.exp(-dt * 1.4); killFlash *= Math.exp(-dt * 7);

@@ -60,11 +60,13 @@ function bakeShadows() { // sun shadows: sharp at the base, softer the further t
   if ('filter' in shx) { shx.filter = `blur(${soft.toFixed(1)}px)`; shx.globalAlpha = .9; shx.drawImage(tmpSC, 0, 0, W, H); shx.filter = 'none'; shx.globalAlpha = .55; shx.drawImage(tmpSC, 0, 0, W, H); shx.globalAlpha = 1; }
   else shx.drawImage(tmpSC, 0, 0, W, H);
 }
-function bakeContactShadows(x, list) { // a soft dark rim where every object meets the floor, day or night
-  if (!('filter' in x)) return;
-  x.save(); x.filter = 'blur(3px)'; x.globalAlpha = .35; x.fillStyle = '#000';
-  for (const o of list) { const h = HEIGHTS[o.kind] ?? 10; if (!h || o.kind === 'border') continue; const g = Math.min(4, 1 + h * .1); if (o.t === 'r') x.fillRect(o.x - g, o.y - g, o.w + g * 2, o.h + g * 2); else circ(x, o.x, o.y, o.r + g); }
-  x.restore();
+const contactC = document.createElement('canvas'); contactC.width = W / 2; contactC.height = H / 2; const ccx = contactC.getContext('2d');
+function bakeContactShadows(x, list) { // a soft dark rim where every object meets the floor, day or night (blurred at half size: it's soft anyway, and full-res blur stalled map loads)
+  if (!('filter' in ccx)) return;
+  ccx.setTransform(1, 0, 0, 1, 0, 0); ccx.clearRect(0, 0, W / 2, H / 2); ccx.setTransform(.5, 0, 0, .5, 0, 0); ccx.filter = 'blur(1.5px)'; ccx.fillStyle = '#000';
+  for (const o of list) { const h = HEIGHTS[o.kind] ?? 10; if (!h || o.kind === 'border') continue; const g = Math.min(4, 1 + h * .1); if (o.t === 'r') ccx.fillRect(o.x - g, o.y - g, o.w + g * 2, o.h + g * 2); else circ(ccx, o.x, o.y, o.r + g); }
+  ccx.filter = 'none';
+  x.save(); x.globalAlpha = .35; x.imageSmoothingEnabled = true; x.drawImage(contactC, 0, 0, W, H); x.restore();
 }
 
 /* ---- light sources ---- */
