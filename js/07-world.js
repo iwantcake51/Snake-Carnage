@@ -70,19 +70,21 @@ let curBuild = null;
 function drawObstacleLayer(x = octx, b = curBuild, list = obstacles, ls = MAPS[mapIdx].lights || (b && b.lights) || []) { // walls and objects, then the details on top of them
   x.clearRect(0, 0, W, H); list.forEach(o => drawObstacle(x, o));
   if (b && b.decor) b.decor(x);
+  if (x === octx) snowCaps(x, list);
   for (const l of ls) fixture(x, l);
   if (x === octx) outlineBreakables(x);
 }
-function loadMap(idx) {
-  mapIdx = idx;
+function loadMap(idx, sz) {
+  mapIdx = idx; season = sz || null; // a season only for runs on outdoor maps; menus show the plain map
   const m = MAPS[idx], b = m.build();
   Sfx.setMuffle(!!m.space);
   obstacles = splitBreakables([...borderWalls(m.border), ...b.obs]);
-  bctx.clearRect(0, 0, W, H); b.floor(bctx); bakeContactShadows(bctx, b.obs); resetBuckets(); gctx.clearRect(0, 0, W, H); groundParts = []; trail = []; floaters = [];
-  buildGrassMask();
-  curBuild = b; drawObstacleLayer();
-  bakeOutline();
   buildSolid();
+  bctx.clearRect(0, 0, W, H); b.floor(bctx); bakeContactShadows(bctx, b.obs); resetBuckets(); gctx.clearRect(0, 0, W, H); groundParts = []; trail = []; floaters = [];
+  buildGrassMask(); gradeGround(); seasonDetails(bctx);
+  curBuild = b; drawObstacleLayer(); buildTrees();
+  bakeOutline();
+  buildSnow();
   buildLights(b.lights || m.lights || []);
   wet = new Float32Array(WW * WH); fresh = new Float32Array(WW * WH); wetC = new Float32Array(WW * WH * 3);
   creatures = []; parts = []; pools = []; respawnQ = []; gibs = []; splashes = []; groups = []; mist = []; ringPops = []; hitGhosts = []; hitStop = 0; puke = []; convos = []; lastDead = null;
@@ -95,7 +97,7 @@ function loadMap(idx) {
     for (let i = 0; i < Math.round(n * k); i++) spawn(type, zone);
   }
   makeFlies(m.fireflies || 0);
-  curPaths = b.paths || []; spawnWalkers(m.walkers || 0); makeGrass(m.grass || 0);
+  curPaths = b.paths || []; spawnWalkers(m.walkers || 0); makeGrass(m.grass || 0); makeWeather();
   deaths = []; if (typeof run === 'object') run.startPop = creatures.length;
   updateHud();
 }

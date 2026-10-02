@@ -137,13 +137,14 @@ function updateBlood(dt) {
       }
       if (hit) { killPart(i); continue; }
     }
-    if (p.z <= 0) { splat(fctx, p.x, p.y, p.vx, p.vy, p.r, p.c, false); addWet(p.x, p.y, p.r * .15, p.c); if (p.r > 2) Sfx.splat(p.x, false); killPart(i); }
+    if (p.z <= 0) { if (!snowStain(p.x, p.y, p.r * p.r * .35, p.c)) splat(fctx, p.x, p.y, p.vx, p.vy, p.r, p.c, false); addWet(p.x, p.y, p.r * .15, p.c); if (p.r > 2) Sfx.splat(p.x, false); killPart(i); }
   }
   for (let i = pools.length - 1; i >= 0; i--) { // pools grow under the kill site
     const pl = pools[i];
     pl.r += (pl.max - pl.r) * dt * 2.2; markF();
-    fctx.fillStyle = pl.c || BLOOD;
-    for (const l of pl.lobes) ell(fctx, pl.x + l.dx * pl.r, pl.y + l.dy * pl.r, pl.r * l.s, pl.r * l.s * .85);
+    if (snowAt(pl.x, pl.y) > .12) stainDisk(pl.x, pl.y, pl.r * 1.1, dt * pl.r * .5, rgbOf2(pl.c || BLOOD)); // a pool in snow soaks in
+    else { fctx.fillStyle = pl.c || BLOOD;
+    for (const l of pl.lobes) ell(fctx, pl.x + l.dx * pl.r, pl.y + l.dy * pl.r, pl.r * l.s, pl.r * l.s * .85); }
     for (let j = -2; j <= 2; j++) for (let k = -2; k <= 2; k++) {
       const gx = pl.x + k * WS, gy = pl.y + j * WS;
       if (dist2(gx, gy, pl.x, pl.y) < pl.r * pl.r) { const ii = (gx / WS | 0), jj = (gy / WS | 0); if (ii >= 0 && jj >= 0 && ii < WW && jj < WH) { const kk = jj * WW + ii; if (wet[kk] < 3) tintWet(kk, 3 - wet[kk] + .5, pl.c); wet[kk] = Math.max(wet[kk], 3); } fresh[jj * WW + ii] = Math.max(fresh[jj * WW + ii], 3); }

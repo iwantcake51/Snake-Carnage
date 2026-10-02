@@ -80,7 +80,7 @@ function updateSnake(dt) {
 let groundParts = [], regrowT = .4;
 function groundFX(s, dt) { // ruts in the grass and crumbs of dirt flicked out behind the snake
   if (s.gx === undefined) { s.gx = s.x; s.gy = s.y; }
-  if (grassAt(s.x, s.y)) {
+  if (grassAt(s.x, s.y) && snowAt(s.x, s.y) < .1) {
     const nx = -Math.sin(s.angle), ny = Math.cos(s.angle);
     gctx.lineCap = 'round';
     gctx.strokeStyle = 'rgba(112,86,46,.14)'; gctx.lineWidth = 10;
@@ -120,7 +120,8 @@ function smearBlood(s, dt) {
   if (s.lastX === undefined) { s.lastX = s.x; s.lastY = s.y; s.smear = 0; }
   const fh = freshAt(s.x, s.y);
   if (fh > .6) { s.smear = Math.min(1, s.smear + fh * .25); const c = rgbOf2(wetColAt(s.x, s.y)); s.smC = s.smC ? s.smC.map((v, n) => v + (c[n] - v) * .35) : c; } // the belly picks up whatever it slides through
-  if (s.smear > .02) { // belly drag marks on the ground
+  if (s.smear > .02 && snowAt(s.x, s.y) > .12) { stainDisk(s.x, s.y, CONFIG.snakeR * .7, s.smear * .25, s.smC || rgbOf2(BLOOD)); s.smear *= Math.exp(-s.speed * dt / 80); } // in snow the belly's blood soaks into the groove
+  else if (s.smear > .02) { // belly drag marks on the ground
     const lx = s.lastX, ly = s.lastY, line = (ax, ay, bx, by) => { fctx.beginPath(); fctx.moveTo(ax, ay); fctx.lineTo(bx, by); fctx.stroke(); };
     const nx = -Math.sin(s.angle), ny = Math.cos(s.angle);
     s.smW = clamp((s.smW || 1.4) + rand(-.12, .12), 1, 1.8); s.smO = clamp((s.smO || 0) + rand(-.5, .5), -2.5, 2.5); // width and drift wander

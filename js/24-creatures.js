@@ -75,7 +75,7 @@ function drawLeashes(x) {
 let grass = [];
 function makeGrass(n) {
   const r = seeded(41); grass = [];
-  for (let k = 0; k < n * 3 && grass.length < n; k++) { const x = 30 + r() * (W - 60), y = 30 + r() * (H - 60); if (!grassAt(x, y) || solid(x, y)) continue; grass.push({ x, y, h: 4 + r() * 4, ph: r() * TAU, c: r() < .5 ? '#6f9e33' : '#7fb03c' }); }
+  for (let k = 0; k < n * 3 && grass.length < n; k++) { const x = 30 + r() * (W - 60), y = 30 + r() * (H - 60); if (!grassAt(x, y) || solid(x, y) || snowAt(x, y) > .15 || (seasonId() === 'winter' && r() < .7)) continue; grass.push({ x, y, h: (4 + r() * 4) * (seasonId() === 'winter' ? .7 : 1), ph: r() * TAU, c: season ? pick(SZN().blades) : r() < .5 ? '#6f9e33' : '#7fb03c' }); }
 }
 function drawGrass(x) {
   if (!grass.length) return;

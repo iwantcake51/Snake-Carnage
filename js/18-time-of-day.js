@@ -53,7 +53,7 @@ function bakeShadows() { // sun shadows: sharp at the base, softer the further t
     for (let k = 1; k <= n; k++) {
       const t = k / n;
       if (o.t === 'r') tsx.fillRect(o.x + ox * t, o.y + oy * t, o.w, o.h);
-      else circ(tsx, o.x + ox * t, o.y + oy * t, o.kind === 'lamp' && k < n ? 2 : o.r);
+      else circ(tsx, o.x + ox * t, o.y + oy * t, o.kind === 'lamp' && k < n ? 2 : (o.kind === 'tree' || o.kind === 'bush') && o.tinfo && !o.tinfo.pine ? o.r * (.4 + .6 * seasonFull(o, o.tinfo)) : o.r); // bare trees cast thinner shadows
     }
   }
   const soft = clamp(Math.hypot(L.sdx, L.sdy) * 2.2, 1, 5); // long evening shadows are blurrier than noon ones

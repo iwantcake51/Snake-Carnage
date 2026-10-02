@@ -21,6 +21,7 @@ function render() {
   if (MAPS[mapIdx].club) drawDanceFloor(x);
   drawGrass(x);
   for (const b of bucketList) { if (!b.fd) continue; x.globalAlpha = bucketAlpha(b); x.drawImage(b.f, 0, 0, W, H); }
+  x.globalAlpha = 1; drawSnow(x);
   x.globalAlpha = L.salpha; x.drawImage(shadowC, 0, 0, W, H); x.globalAlpha = 1;
   x.fillStyle = `rgba(0,0,0,${L.salpha})`; x.beginPath(); // creature + snake shadows as one shape
   for (const c of creatures) if (c.alive) { const r = c.def.r * .85, sx = c.x + L.sdx * 5, sy = c.y + L.sdy * 5; x.moveTo(sx + r, sy); x.arc(sx, sy, r, 0, TAU); }
@@ -30,8 +31,8 @@ function render() {
   for (const c of creatures) if (c.alive) drawCreature(x, c);
   drawFlashBodies(x); drawHitGhosts(x);
   drawGiblets(x); // chunks on the ground sit under the snake
-  drawTrail(x); drawGround(x); drawSnake(x);
-  x.drawImage(obsC, 0, 0, W, H);
+  drawTrail(x); drawGround(x); drawSnake(x); drawSnowFx(x);
+  x.drawImage(obsC, 0, 0, W, H); drawTrees(x);
   drawWaters(x);
   for (const b of bucketList) { if (!b.wd) continue; x.globalAlpha = bucketAlpha(b); x.drawImage(b.w, 0, 0, W, H); }
   x.globalAlpha = 1;

@@ -43,6 +43,7 @@ function drawObstacleBase(x, o) {
   if (o.t === 'c') {
     switch (k) {
       case 'tree': case 'bush': {
+        if (x === octx) return drawTrunk(x, o); // in game the leaves are separate swaying sprites (09-seasons)
         const r = seeded(Math.round(o.x * 13 + o.y * 7)), lobes = k === 'tree' ? 7 : 5;
         x.fillStyle = shade(c, -.18); circ(x, o.x, o.y, o.r);
         for (let i = 0; i < lobes; i++) { const a = i * TAU / lobes + r(), d = o.r * .45; x.fillStyle = shade(c, -.05 + r() * .1); circ(x, o.x + Math.cos(a) * d, o.y + Math.sin(a) * d, o.r * .6); }
@@ -100,9 +101,10 @@ function drawObstacleBase(x, o) {
       return edge(x, o, .35);
     }
     case 'hedge': {
-      x.fillStyle = shade(c, -.2); x.fillRect(X, Y, w, h);
+      const hc = season && x === octx ? gradeHex(c, season.id === 'autumn' ? .3 : .8) : c; // seasons tint the leaves
+      x.fillStyle = shade(hc, -.2); x.fillRect(X, Y, w, h);
       const r = seeded(Math.round(X * 3 + Y * 5)), n = Math.ceil((hz ? w : h) / 7);
-      for (let i = 0; i < n; i++) { const t = (i + .5) / n, px = hz ? X + t * w : X + w / 2, py = hz ? Y + h / 2 : Y + t * h; x.fillStyle = shade(c, -.04 + r() * .12); circ(x, px + (r() - .5) * 2, py + (r() - .5) * 2, (hz ? h : w) * .55); }
+      for (let i = 0; i < n; i++) { const t = (i + .5) / n, px = hz ? X + t * w : X + w / 2, py = hz ? Y + h / 2 : Y + t * h; x.fillStyle = shade(hc, -.04 + r() * .12); circ(x, px + (r() - .5) * 2, py + (r() - .5) * 2, (hz ? h : w) * .55); }
       x.fillStyle = 'rgba(255,255,255,.08)'; for (let i = 0; i < n; i += 2) { const t = (i + .5) / n; circ(x, hz ? X + t * w - 2 : X + w / 2 - 2, hz ? Y + h / 2 - 2 : Y + t * h - 2, 2); }
       return;
     }

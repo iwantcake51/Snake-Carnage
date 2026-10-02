@@ -21,7 +21,7 @@ function update(dt) {
   updateBlood(dt); updateGiblets(dt); updateSplashes(dt); updateMist(dt); updateFlies(dt); updateVomit(dt);
   if ((fadeT -= dt) <= 0) { fadeT = 2; fadeBlood(); }
   updateTrail(dt);
-  updateGround(dt);
+  updateGround(dt); updateSnow(dt); updateWeather(dt);
   for (let i = respawnQ.length - 1; i >= 0; i--) { if ((respawnQ[i].t -= dt) <= 0) { spawn(respawnQ[i].type, respawnQ[i].zone); respawnQ.splice(i, 1); } }
   shake *= Math.exp(-dt * 8); if (shake < .2) shake = 0;
   killV *= Math.exp(-dt * 1.4);

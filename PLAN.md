@@ -166,3 +166,39 @@ Each box gets ticked as soon as that piece is done and checked in a headless run
 
 ## Balance
 - [x] Challenge tiers re-checked against what they actually require
+
+---
+
+# Round 3
+
+## Seasons (outdoor maps)
+- [ ] One season per run (Spring / Summer / Autumn / Late Autumn / Winter), outdoor maps only
+- [ ] Ground and grass graded per season, same layout
+- [ ] Trees rebuilt: trunks, branches, layered leaf clusters, seasonal leaves, varied shape
+- [ ] Smooth, out-of-sync wind sway on leaves
+- [ ] Spring flowers / autumn leaf litter / winter sparse vegetation
+
+## Snow
+- [ ] Perlin-noise coverage that fits around paths, props and walls, with fake AO and depth shading
+- [ ] Snake carves a smooth groove along its whole body, pushes snow aside, smears it, throws puffs and clumps
+- [ ] Blood soaks into snow in its own color (red / gold / green / mixed) and moves with displaced snow
+
+## Abilities / FX
+- [ ] Lunge: stretch, wake distortion, speed streaks, fading with momentum, stronger at higher levels
+- [ ] Camouflage: refractive forcefield look, noise-masked dissolve in and out
+- [ ] Fast blood drops stretch with speed (quality-scaled)
+
+## UI
+- [ ] End screen: challenge hover shows name, requirement, what was met, rewards; never clipped
+- [ ] Map intro: name, time, season, modifiers, smoother and cleaner
+- [ ] Map switching/loading without stutter (cached assets)
+
+## Content
+- [ ] "That's Karma" lifetime achievement with a fitting reward
+- [ ] Challenge names and descriptions rewritten to sound human
+- [ ] Much bigger map-specific dialogue pools; dialogue pass for naturalness
+
+## Club / Ram
+- [ ] Club speakers are positional music sources; broken speakers go silent with a scratch, broken sprite
+- [ ] Better club music
+- [ ] Ram tier 3: authored breakable wall sections with a heavy stun shader and reactions

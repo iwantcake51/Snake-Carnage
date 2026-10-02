@@ -71,7 +71,7 @@ function startGame(opts = {}) {
   nightVision = false; endCombo(true); document.getElementById('rewards').innerHTML = ''; hideResume(); clearNotes();
   camF.x = camF.y = camF.k.x = camF.k.y = camF.kv.x = camF.kv.y = 0;
   newRun();
-  loadMap(mapIdx); run.startPop = creatures.length;
+  loadMap(mapIdx, pickSeason(MAPS[mapIdx])); run.startPop = creatures.length;
   const animals = [...new Set(creatures.filter(c => !c.def.human).map(c => c.type))];
   runMod = { lastType: null, lastCat: null, varStreak: 0, same: 0, chain: 0, humanRun: 0, ask: null, askIn: 3, avoid: animals.length ? pick(animals) : null };
   modHud(); challengeHud(true); modBar(); resetAbilities();
