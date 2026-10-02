@@ -56,3 +56,43 @@ function updateVomit(dt) {
   }
 }
 function drawVomit(x) { for (const p of puke) { x.fillStyle = p.c; circ(x, p.x, p.y - p.z * .3, p.r); } }
+
+/* ---- wall smoke: puffs made from baked Perlin noise, so they read as billowing smoke, not circles.
+   They roll outward, swell, turn slowly and thin out over 3-4 seconds ---- */
+let smoke = [];
+const SMOKE_SPR = [];
+function smokeSprite(v) {
+  if (SMOKE_SPR[v]) return SMOKE_SPR[v];
+  const S = 64, c = document.createElement('canvas'); c.width = c.height = S; const x = c.getContext('2d'), img = x.createImageData(S, S), d = img.data, o0 = v * 17.3;
+  for (let j = 0; j < S; j++) for (let i = 0; i < S; i++) {
+    const dx = (i - S / 2) / (S / 2), dy = (j - S / 2) / (S / 2), r = Math.hypot(dx, dy);
+    const n = fbm(i / 14 + o0, j / 14 - o0, 4) * .5 + .5, edge = sstep(1, .25, r + (n - .5) * .55); // wispy, broken edge
+    const a = edge * clamp(n * 1.5 - .15, 0, 1), lit = 1 - .3 * clamp(dy * .5 + dx * .3 + .3, 0, 1); // lighter on the upper left
+    const k = (j * S + i) * 4, g = 105 + 95 * lit * n; d[k] = g; d[k + 1] = g * .96; d[k + 2] = g * .9; d[k + 3] = Math.min(1, a * 1.25) * 255; // dusty grey-brown
+  }
+  x.putImageData(img, 0, 0); return SMOKE_SPR[v] = c;
+}
+function wallSmoke(cx, cy, ang, w, h) {
+  const n = Math.round(36 * FX_K());
+  for (let k = 0; k < n; k++) {
+    const a = ang + gauss() * 1.1 + (Math.random() < .3 ? Math.PI : 0), sp = rand(25, 150);
+    smoke.push({ x: cx + rand(-w / 2, w / 2), y: cy + rand(-h / 2, h / 2), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: rand(16, 30), g: rand(16, 34), rot: rand(0, TAU), vr: rand(-.5, .5),
+      t: -rand(0, .25), life: rand(3, 4.2), v: k % 4, a: rand(.75, 1) });
+  }
+}
+function updateSmoke(dt) {
+  for (let i = smoke.length - 1; i >= 0; i--) {
+    const p = smoke[i]; p.t += dt; if (p.t > p.life) { smoke[i] = smoke[smoke.length - 1]; smoke.pop(); continue; }
+    if (p.t < 0) continue;
+    const f = Math.exp(-dt * 1.6), curl = perlin(p.x * .02, p.y * .02 + T * .3) * 22; // drag, plus a slow curl so it drifts and folds
+    p.vx = p.vx * f + curl * dt * 3; p.vy = p.vy * f - curl * dt * 2; p.x += p.vx * dt; p.y += p.vy * dt; p.r += p.g * dt * (1 - p.t / p.life * .6); p.rot += p.vr * dt;
+  }
+}
+function drawSmoke(x) {
+  for (const p of smoke) {
+    if (p.t < 0) continue;
+    const k = p.t / p.life, al = p.a * Math.min(1, p.t * 6) * (1 - k) * (1 - k * .4); // thick at once, then clears
+    x.globalAlpha = al; x.save(); x.translate(p.x, p.y); x.rotate(p.rot); x.drawImage(smokeSprite(p.v), -p.r * 1.3, -p.r * 1.3, p.r * 2.6, p.r * 2.6); x.restore();
+  }
+  x.globalAlpha = 1;
+}

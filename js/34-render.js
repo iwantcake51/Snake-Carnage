@@ -37,7 +37,7 @@ function render() {
   for (const b of bucketList) { if (!b.wd) continue; x.globalAlpha = bucketAlpha(b); x.drawImage(b.w, 0, 0, W, H); }
   x.globalAlpha = 1;
   drawDrops(x);
-  drawDebris(x); drawMist(x); drawVomit(x);
+  drawDebris(x); drawMist(x); drawSmoke(x); drawVomit(x);
   drawLighting(x);
   drawLampBugs(x); drawFireflyGlow(x);
   drawSparks(x);

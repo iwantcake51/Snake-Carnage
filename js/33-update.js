@@ -18,7 +18,7 @@ function update(dt) {
   if (state === 'play') { updateSnake(dt); run.time += dt; crTick(dt); progressTick(dt); }
   updateCrowd(); updateConvos(dt);
   for (const c of creatures) if (c.alive) updateCreature(c, dt);
-  updateBlood(dt); updateGiblets(dt); updateSplashes(dt); updateMist(dt); updateFlies(dt); updateVomit(dt);
+  updateBlood(dt); updateGiblets(dt); updateSplashes(dt); updateMist(dt); updateSmoke(dt); updateFlies(dt); updateVomit(dt);
   if ((fadeT -= dt) <= 0) { fadeT = 2; fadeBlood(); }
   updateTrail(dt);
   updateGround(dt); updateSnow(dt); updateWeather(dt);
