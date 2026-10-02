@@ -621,9 +621,6 @@ const MAPS = [
           x.fillStyle = 'rgba(40,10,8,.35)'; x.beginPath(); x.ellipse(160, 520, 90, 60, 0, 0, TAU); x.fill(); // oil stain by the generators
           x.fillStyle = '#2c2a2e'; x.fillRect(724, 400, 210, 210); x.strokeStyle = 'rgba(180,200,200,.07)'; for (let i = 724; i < 934; i += 15) { x.beginPath(); x.moveTo(i, 400); x.lineTo(i, 610); x.stroke(); } // med bay: tiled, easy to hose down
           x.strokeStyle = 'rgba(15,12,10,.6)'; x.lineWidth = 3; x.beginPath(); x.moveTo(180, 470); x.bezierCurveTo(260, 470, 300, 440, 380, 455); x.moveTo(300, 545); x.bezierCurveTo(340, 560, 360, 520, 390, 540); x.stroke(); x.lineWidth = 1; // cables from the generators toward comms
-          x.save(); x.font = 'bold 22px "Barlow Condensed", Impact, sans-serif'; x.textAlign = 'center'; x.fillStyle = 'rgba(214,200,170,.13)'; // stencilled room names on the floor
-          for (const [t, px, py] of [['BARRACKS', 175, 235], ['MESS', 492, 150], ['STORES', 800, 230], ['GENERATORS', 200, 410], ['COMMS', 552, 540], ['MED BAY', 830, 470]]) x.fillText(t, px, py);
-          x.restore();
         }
       };
     }
