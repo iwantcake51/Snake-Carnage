@@ -85,11 +85,8 @@ function render() {
     g.addColorStop(1, `rgba(${Math.round(70 * kv)},0,0,${Math.min(.4, base + .15 * kv)})`);
     ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
   }
-  if (state === 'ready' && !cam) {
-    ctx.fillStyle = 'rgba(0,0,0,.65)'; ctx.fillRect(W / 2 - 190, H - 70, 380, 40);
-    ctx.fillStyle = '#ddd'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText(IS_TOUCH ? 'Drag anywhere to start' : MOD.freeMove && SETTINGS.mouseFollow ? 'Click, or press an arrow key / WASD to start' : 'Press an arrow key or WASD to start', W / 2, H - 44);
-  }
+  const wantStart = state === 'ready' && !cam;
+  if (wantStart !== !!render.startShown) { render.startShown = wantStart; wantStart ? showResume('to begin') : hideResume(); }
   const stun = snake && snake.ramT > 0 ? snake.ramT / (snake.ramMax || 1) : 0; // dazed after smashing through something
   if (Math.abs(stun - (render.stun || 0)) > .02 || (stun === 0) !== (render.stun === 0)) { render.stun = stun; stage.style.setProperty('--stun', stun.toFixed(2)); stage.classList.toggle('stunned', stun > 0); }
   const sat = (SETTINGS.desaturate && !nightVision ? clamp(1 - killFlash * .5, .45, 1) : 1) * (1 - .75 * stun);

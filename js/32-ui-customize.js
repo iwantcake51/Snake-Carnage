@@ -21,10 +21,10 @@ function showPause() {
   document.getElementById('pMenuBtn').onclick = returnToMenu;
 }
 const fmtTime = t => { t = Math.floor(t); return t < 60 ? t + 's' : Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); };
-function showResume() {
+function showResume(what = 'to continue') { // the same prompt starts a run and continues after a pause
   const el = document.getElementById('resume');
-  el.innerHTML = IS_TOUCH ? `<div class="rp"><b>Steer to continue</b></div>`
-    : `<div class="rp"><span class="keys"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><span class="or">or</span><span class="keys"><kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd></span><b>to continue</b></div>`;
+  el.innerHTML = IS_TOUCH ? `<div class="rp"><b>Drag anywhere ${what}</b></div>`
+    : `<div class="rp"><span class="keys"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><span class="or">or</span><span class="keys"><kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd></span>${MOD.freeMove && SETTINGS.mouseFollow ? '<span class="or">or click</span>' : ''}<b>${what}</b></div>`;
   el.className = 'show';
 }
 function hideResume() { const el = document.getElementById('resume'); if (el.classList.contains('show')) { el.className = 'gone'; setTimeout(() => { if (el.className === 'gone') { el.className = ''; el.innerHTML = ''; } }, 320); } }

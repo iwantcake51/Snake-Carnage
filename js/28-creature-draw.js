@@ -245,10 +245,13 @@ function drawCreature(x, c, portrait) {
   }
   x.restore();
   if (!portrait && c.def.human && c.state !== 'wander' && c.state !== 'idle' && !(c.bubbles && c.bubbles.some(b => b.delay <= 0))) {
-    x.font = 'bold 13px sans-serif'; x.textAlign = 'center';
-    x.fillStyle = c.state === 'panic' ? '#d00' : c.state === 'flee' ? '#e67e00' : '#555';
-    x.fillText(c.state === 'uneasy' ? '?' : '!', c.x, c.y - 13);
-  }
+    const mk = c.state === 'uneasy' ? '?' : '!';
+    if (c.markK !== mk) { c.markK = mk; c.markT = T; }
+    const p = clamp((T - c.markT) / .28, 0, 1), sc = p < .5 ? .3 + 2.6 * p : 1.6 - .6 * Math.min(1, (p - .5) * 2), my = c.y - 13 - (c.hz || 0) * .7; // springs in, settles small
+    x.save(); x.translate(c.x, my); x.scale(sc, sc); x.font = '900 10px "Segoe UI",sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.lineWidth = 2.6; x.strokeStyle = 'rgba(0,0,0,.65)'; x.strokeText(mk, 0, 0);
+    x.fillStyle = c.state === 'panic' ? '#ff3b30' : c.state === 'flee' ? '#ff9f1a' : '#f2f2f2'; x.fillText(mk, 0, 0); x.restore(); x.textBaseline = 'alphabetic';
+  } else c.markK = null;
 }
 
 function mixColor(a, b, t) {

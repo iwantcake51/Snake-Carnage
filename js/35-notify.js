@@ -32,6 +32,8 @@ function notify(o) {
 function dropNote(n, fast) {
   const i = notes.indexOf(n); if (i < 0) return; notes.splice(i, 1);
   clearTimeout(n.timer); n.el.classList.add(fast ? 'gone' : 'out');
+  const el = n.el; el.style.height = el.offsetHeight + 'px'; // collapse its slot so the stack closes up smoothly instead of jumping or overlapping
+  requestAnimationFrame(() => { el.style.transition = `height ${fast ? .16 : .3}s ease ${fast ? 0 : .12}s, margin ${fast ? .16 : .3}s ease ${fast ? 0 : .12}s, padding ${fast ? .16 : .3}s ease ${fast ? 0 : .12}s`; el.style.height = '0px'; el.style.marginBottom = '-6px'; el.style.paddingTop = el.style.paddingBottom = '0px'; });
   setTimeout(() => n.el.remove(), fast ? 160 : 380);
 }
 function clearNotes() { while (notes.length) dropNote(notes[0], true); }

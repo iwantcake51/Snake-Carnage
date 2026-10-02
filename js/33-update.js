@@ -221,16 +221,18 @@ function applyView(x) { // shake, spawn zoom and look-ahead, shared by the scene
   if (V.z) { x.translate(W / 2, H / 2); x.scale(V.z, V.z); x.translate(-V.fx, -V.fy); }
   x.translate(-V.ox, -V.oy);
 }
-const NEAR_IDS = ['chhud', 'modhud', 'combo', 'rewards', 'modbar', 'abil'];
+const NEAR_IDS = ['chhud', 'modhud', 'combo', 'rewards', 'modbar', 'abil', 'notes', 'lvlup'];
 let nearRects = null, nearRectT = 0;
 function hudNear() { // corner UI turns half see-through while the snake is close to it
   if (!snake) return;
   const cr = cv.getBoundingClientRect(); if (!cr.width) return;
-  if (!nearRects || UT - nearRectT > .5) { // measure the HUD boxes in board units (twice a second is plenty)
+  if (!nearRects || UT - nearRectT > .25) { // measure the HUD boxes in board units (twice a second is plenty)
     nearRectT = UT; nearRects = NEAR_IDS.map(id => { const el = document.getElementById(id), r = el.getBoundingClientRect();
       return { el, x0: (r.left - cr.left) / cr.width * W, y0: (r.top - cr.top) / cr.height * H, x1: (r.right - cr.left) / cr.width * W, y1: (r.bottom - cr.top) / cr.height * H, empty: !r.width }; });
   }
-  const pts = snake.segs.slice(0, 12), pad = 46;
+  document.getElementById('chhud').classList.toggle('dim', state === 'play' && run.time > 4); // the checklist steps back once you're playing
+  const pts = snake.segs.slice(0, 12), pad = 46, ah = Math.cos(snake.angle), av = Math.sin(snake.angle);
+  pts.push({ x: snake.x + ah * 90, y: snake.y + av * 90 }); // where the head is about to be: fade before it gets there
   for (const b of nearRects) {
     const near = !b.empty && state !== 'menu' && pts.some(g => g.x - V.ox > b.x0 - pad && g.x - V.ox < b.x1 + pad && g.y - V.oy > b.y0 - pad && g.y - V.oy < b.y1 + pad);
     if (b.el.classList.contains('near') !== near) b.el.classList.toggle('near', near);
