@@ -28,7 +28,7 @@ const ANIMAL_SHAPE = { rabbit: [6.6, 4.8, -1, 5, 3.3], deer: [11.2, 6.2, -1, 12,
   chicken: [5.4, 4.4, -.6, 4.8, 3], duck: [6.2, 4.6, -.6, 6, 3], pig: [10.2, 7.6, -.5, 9.6, 5], sheep: [8.2, 7.6, 0, 8.8, 3.8], rat: [5.6, 3.3, -.4, 4.8, 2.3], firefly: [2.4, 1.8, 0, 2, 1] };
 function drawHuman(x, c) { // a little bob with each step and a sway side to side, so walking doesn't look like sliding
   if (c.strideK === undefined) { c.strideK = rand(.85, 1.15); c.armK = rand(.75, 1.2); c.flail = hasTrait(c, 'jumpy') || hasTrait(c, 'nervous') || Math.random() < .15; }
-  const m = c.moveAmt, run = c.state === 'panic' || c.state === 'flee', bob = 1 + Math.abs(Math.sin(c.phase)) * .045 * m * (run ? 1.4 : 1);
+  const m = c.moveAmt, run = c.state === 'panic' || c.state === 'flee', bob = 1 + (1 - Math.cos(c.phase * 2)) * .5 * .045 * m * (run ? 1.4 : 1);
   x.save(); x.translate(0, Math.sin(c.phase) * .55 * m * (run ? 1.3 : 1)); x.scale(bob, bob); drawHumanBody(x, c); x.restore();
 }
 function drawHumanBody(x, c) { // top-down person, +x = facing direction
@@ -36,8 +36,11 @@ function drawHumanBody(x, c) { // top-down person, +x = facing direction
   // legs and shoes stride out from under the body
   x.strokeStyle = L.pants; x.lineWidth = 3.6; x.lineCap = 'round';
   const run = c.state === 'panic' || c.state === 'flee', stride = (run ? 7.8 : 5.2) * (c.strideK || 1);
-  x.beginPath(); x.moveTo(0, -fy); x.lineTo(s * stride, -fy); x.moveTo(0, fy); x.lineTo(-s * stride, fy); x.stroke();
-  x.fillStyle = L.shoes; ell(x, s * stride + 1.1, -fy, 2.5, 1.7); ell(x, -s * stride + 1.1, fy, 2.5, 1.7);
+  const cp = Math.cos(c.phase) * c.moveAmt, l1 = Math.max(0, cp), l2 = Math.max(0, -cp); // the foot swinging forward lifts a little (bigger from above), the planted one stays flat
+  const f1 = s * stride, f2 = -s * stride, y1 = -fy - l1 * .5, y2 = fy + l2 * .5;
+  x.beginPath(); x.moveTo(-.6, -fy * .8); x.quadraticCurveTo(f1 * .5, -fy - l1 * .4, f1, y1); x.moveTo(-.6, fy * .8); x.quadraticCurveTo(f2 * .5, fy + l2 * .4, f2, y2); x.stroke();
+  x.fillStyle = L.shoes; ell(x, f1 + 1.1, y1, 2.5 * (1 + l1 * .14), 1.7 * (1 + l1 * .1)); ell(x, f2 + 1.1, y2, 2.5 * (1 + l2 * .14), 1.7 * (1 + l2 * .1));
+  x.rotate(-s * .07); // shoulders twist against the hips
   if (run) x.translate(1.3 * c.moveAmt, 0); // leaning into the run: everything above the legs pitches forward
   if (L.acc === 'backpack') { x.fillStyle = L.top2; rrect(x, -L.d - 3.4, -L.w * .55, 4.6, L.w * 1.1, 1.8); x.fill(); x.fillStyle = O; x.fillRect(-L.d - 2.4, -L.w * .45, 1, L.w * .9); }
   // arms: sleeve at the shoulder, hand at the end

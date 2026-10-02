@@ -1124,3 +1124,7 @@ body.calm .panel,body.calm .mleft,body.calm .mright{translate:none}
 /* notifications live in the bottom-right corner, newest at the bottom, stacking upward */
 #notes{left:auto!important;right:14px;top:auto!important;bottom:14px;translate:none!important;align-items:flex-end!important;flex-direction:column-reverse!important;width:min(360px,46%)!important}
 #abil .ab.off{opacity:.45;filter:grayscale(1)}
+
+/* the start / continue prompt sits in the middle of the frame */
+#resume{bottom:auto!important;top:50%!important;translate:-50% -50%!important}
+#stage.started #modbar{opacity:0!important;pointer-events:none;transition:opacity .35s}

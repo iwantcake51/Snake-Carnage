@@ -67,7 +67,7 @@ function drawLampBugs(x) { // drawn after the lighting so they catch the lamp's 
 }
 /* ---- fireflies: pure ambience. A steady glow you can see at night; they light nothing and can't be eaten ---- */
 let flies = [];
-function makeFlies(n) { const r = seeded(77); flies = Array.from({ length: n }, () => ({ x: 40 + r() * (W - 80), y: 40 + r() * (H - 80), a: r() * TAU, sp: 6 + r() * 8, ph: r() * TAU, h: 4 + r() * 6 })); }
+function makeFlies(n) { const r = seeded(77); flies = Array.from({ length: Math.round(n * .45) }, () => ({ x: 40 + r() * (W - 80), y: 40 + r() * (H - 80), a: r() * TAU, sp: 6 + r() * 8, ph: r() * TAU, h: 4 + r() * 6 })); }
 function updateFlies(dt) {
   for (const f of flies) {
     f.a += Math.sin(T * .7 + f.ph) * dt * 1.2; f.x += Math.cos(f.a) * f.sp * dt; f.y += Math.sin(f.a) * f.sp * dt;
@@ -77,9 +77,9 @@ function updateFlies(dt) {
 }
 function drawFireflyGlow(x) {
   if (!flies.length || !light) return;
-  const a = clamp((light.dark - .15) / .35, 0, 1); if (a < .02) return; // only once it gets dark, and always the same brightness
+  const a = clamp((light.dark - .15) / .35, 0, 1); if (a < .02) return; // only once it gets dark
   const spr = glowSprites['ff'] || (glowSprites['ff'] = lightSprite('200,255,110', .25));
   x.globalCompositeOperation = 'lighter';
-  for (const f of flies) { const fy = f.y - f.h + Math.sin(T * 2 + f.ph) * 1.5, v = a * playerSees(f.x, fy); if (v < .03) continue; x.globalAlpha = v * .75; x.drawImage(spr, f.x - 8, fy - 8, 16, 16); x.globalAlpha = v; x.fillStyle = '#efffb0'; circ(x, f.x, fy, 1.2); }
+  for (const f of flies) { const fy = f.y - f.h + Math.sin(T * 2 + f.ph) * 1.5, v = a * playerSees(f.x, fy) * sstep(-.2, .6, Math.sin(T * .45 + f.ph * 3) + Math.sin(T * .17 + f.ph) * .5); if (v < .03) continue; /* each one glows for a while, fades out, comes back later */ x.globalAlpha = v * .75; x.drawImage(spr, f.x - 8, fy - 8, 16, 16); x.globalAlpha = v; x.fillStyle = '#efffb0'; circ(x, f.x, fy, 1.2); }
   x.globalCompositeOperation = 'source-over'; x.globalAlpha = 1;
 }

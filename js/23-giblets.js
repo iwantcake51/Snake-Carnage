@@ -46,7 +46,7 @@ function updateGiblets(dt) {
     const ny = g.y + g.vy * dt; if (gibBlocked(g.x, ny, g.z)) { g.vy *= -.45; g.vr *= -.6; } else g.y = ny;
     g.rot += g.vr * dt;
     if (g.z > 0 || g.vz > 0) {
-      g.vz -= 520 * dt; g.z += g.vz * dt;
+      g.vz -= 520 * GRAV() * dt; g.z += g.vz * dt;
       if (g.z <= 0) {
         g.z = 0;
         const o = obstacleAt(g.x, g.y);
@@ -71,7 +71,7 @@ function updateGiblets(dt) {
   }
 }
 function updateSplashes(dt) {
-  for (let i = splashes.length - 1; i >= 0; i--) { const p = splashes[i]; p.vz -= 400 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; if (p.z <= 0) splashes.splice(i, 1); }
+  for (let i = splashes.length - 1; i >= 0; i--) { const p = splashes[i]; p.vz -= 400 * GRAV() * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; if (p.z <= 0) splashes.splice(i, 1); }
 }
 function drawGiblets(x) {
   x.fillStyle = 'rgba(225,245,255,.85)'; for (const p of splashes) circ(x, p.x, p.y - p.z * .3, 1.1);

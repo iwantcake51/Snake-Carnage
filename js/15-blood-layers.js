@@ -112,8 +112,8 @@ function updateBlood(dt) {
   if (parts.length) rebuildSegGrid();
   for (let i = parts.length - 1; i >= 0; i--) {
     const p = parts[i];
-    p.vz -= 600 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
-    const drag = 1 - .6 * dt; p.vx *= drag; p.vy *= drag;
+    p.vz -= 430 * GRAV() * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; // falls a little slower, so it carries further
+    const drag = 1 - .38 * dt; p.vx *= drag; p.vy *= drag;
     if (solid(p.x, p.y) && p.z < 60) { // lamps are thin poles: blood flies past their tops and lands around them
       const o = obstacleAt(p.x, p.y);
       if (o && o.kind === 'water' && iceOn()) { if (p.z <= 2) { splat(wctx, p.x, p.y, p.vx, p.vy, p.r, p.c, false); markW(); killPart(i); } continue; } // frozen: blood splashes across the ice

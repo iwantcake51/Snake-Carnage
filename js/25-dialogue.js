@@ -192,7 +192,15 @@ function pickTopic(a, b) {
   return tp;
 }
 const pickFresh = (c, arr) => { const f = arr.filter(freshLine); return fromPool(c, f.length ? f : arr); };
+const FACT_RE = { pizza: { open: /open|Probably|Eleven|ten\?|noon/i, closed: /closed|Doubt|No idea|phone/i } }; // shared world facts: everyone agrees on them
+function factOf(id) { if (id === 'pizza') { const h = tod % 24; return h >= 11 && h < 22 ? 'open' : 'closed'; } return null; }
+const lc = t => t[0].toLowerCase() + t.slice(1);
 function answerFor(c, tp, type) { // an answer to what was actually asked, in this person's voice
+  const key = tp.id + ':' + type; c.said = c.said || {}; c.overheard = c.overheard || {};
+  if (c.said[key]) return pick(['Like I said, ', 'I told you, ', 'Still ']) + lc(c.said[key]); // they remember what they said
+  if (c.overheard[key] && Math.random() < .7) return pick(['Someone said ', 'I heard ', 'Apparently ']) + lc(c.overheard[key]); // they caught it from another conversation
+  const f = factOf(tp.id), re = f && FACT_RE[tp.id] && FACT_RE[tp.id][f];
+  if (re) { const ok = ((tp.a || {})[type] || []).filter(a => re.test(a)); if (ok.length) { const a = pickFresh(c, ok); c.said[key] = a; return a; } }
   for (const [tr, k] of [['rude', .3], ['quiet', .4], ['distracted', .22], ['funny', .15]]) if (hasTrait(c, tr) && PERSONA_ANS[tr][type] && Math.random() < k) return pick(PERSONA_ANS[tr][type]);
   return pickFresh(c, (tp.a || {})[type] || (tp.a || {}).say || ['Huh.']);
 }
@@ -205,7 +213,10 @@ function topicLines(tp, A, B, out, first) { // one topic: opener, answer, then m
     if (Math.random() < .2 && type === 'say') { out.push([ai, pick(NEVERMIND)]); return; }
     out.push([ai, MAPS[mapIdx].club ? open.toUpperCase() : open, tp.id]); // says it again
   }
-  out.push([bi, answerFor(B, tp, type)]);
+  const ans = answerFor(B, tp, type); out.push([bi, ans]);
+  if (!/^(Like I said|I told you|Still |Someone said|I heard|Apparently)/.test(ans)) { B.said = B.said || {}; B.said[tp.id + ':' + type] = ans;
+    for (const o of creatures) if (o !== A && o !== B && o.alive && o.topics && dist2(o.x, o.y, B.x, B.y) < 130 * 130) { o.overheard = o.overheard || {}; o.overheard[tp.id + ':' + type] = ans; } } // people nearby hear it too
+  if (factOf(tp.id) === 'closed' && Math.random() < .7) { out.push([ai, pick(['Ugh. Of course it is.', 'Seriously? Again?', 'Great. Guess I\'m starving.', 'Who closes a pizza place this early?'])]); return; } // reacts to it being shut
   const ns = (tp.n || []).slice().sort(() => Math.random() - .5);
   let k = 0;
   while (ns.length && Math.random() < (k ? .4 : .62) * Math.min(1.4, (A.talkK + B.talkK) / 2)) { // keep going, sometimes
@@ -274,10 +285,10 @@ function updateConvos(dt) {
   }
   recoverThoughts(dt);
   if ((mutterT -= dt) <= 0) { mutterT = rand(3.5, 7); mutter(); }
-  if ((convoT -= dt) > 0) return; convoT = rand(3, 6);
+  if ((convoT -= dt) > 0) return; convoT = rand(5, 10);
   if (convos.length >= (pregame() ? 3 : 2)) return;
   for (const c of creatures.slice().sort(() => Math.random() - .5)) { // two people standing close, both calm (or both just survived), start talking
-    if (!c.alive || !c.def.human || c.def.alien || c.convo || !c.topics || busyUntil(c) > 0 || Math.random() > .22 * (c.talkK || 1)) continue;
+    if (!c.alive || !c.def.human || c.def.alien || c.convo || !c.topics || busyUntil(c) > 0 || Math.random() > .1 * (c.talkK || 1) * (c.state === 'wander' && c.alert > .3 ? 3 : 1)) continue; // rarer, unless something just happened worth talking about
     const surv = c.state === 'wander' && c.alert > .3 && (!snake || dist2(c.x, c.y, snake.x, snake.y) > 220 * 220);
     if (!surv && (c.state !== 'wander' && c.state !== 'idle' || c.alert > .3)) continue;
     const o = creatures.find(o => o !== c && o.alive && o.def.human && !o.def.alien && o.topics && !o.convo && busyUntil(o) <= 0 && (o.state === 'wander' || o.state === 'idle') && dist2(o.x, o.y, c.x, c.y) < 70 * 70 && los(c.x, c.y, o.x, o.y));
@@ -480,7 +491,7 @@ function perceive(c) {
   if (state !== 'play' || !s.started) return;
   const dist = Math.hypot(c.x - s.x, c.y - s.y), sight = c.def.sight * (MOD.skittish ? 1.5 : MOD.oblivious ? .6 : 1) * (s.camoT > 0 ? .25 - (upg('camo') > 2 ? .15 * (s.still || 0) : 0) : 1) * (hasTrait(c, 'distracted') ? .7 : hasTrait(c, 'curious') ? 1.15 : 1); // camouflage: only up close
   const blind = MOD.blind && hum;
-  const seen = !blind && (dist < (s.camoT > 0 ? 22 : 40) || (dist < sight * (c.alert > .3 ? 1.25 : 1) && lightAt(s.x, s.y) > VISIBLE && los(c.x, c.y, s.x, s.y)));
+  const seen = !blind && (dist < (s.camoT > 0 ? (upg('camo') > 2 ? 9 : 22) : 40) || (dist < sight * (c.alert > .3 ? 1.25 : 1) && lightAt(s.x, s.y) > VISIBLE && los(c.x, c.y, s.x, s.y)));
   if (blind && dist < 95 && c.state !== 'panic') { // heard something slither close by: bolt, roughly away from the sound
     if (dist < 50 || Math.random() < .35) panic(c, s.x + rand(-70, 70), s.y + rand(-70, 70), rand(2, 4), 'crowd');
     else if (c.state === 'wander' || c.state === 'idle') { c.state = 'uneasy'; c.fx = s.x + rand(-90, 90); c.fy = s.y + rand(-90, 90); c.timer = rand(1, 2); }

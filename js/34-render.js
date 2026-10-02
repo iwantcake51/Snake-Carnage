@@ -76,7 +76,7 @@ function render() {
   ctx.save(); applyView(ctx); // crisp overlays above blood and lighting
   if (px <= 1 && !render.dazed) { drawGoldenFX(ctx); ctx.globalAlpha = render.olk ?? 1; drawTargetOutlines(ctx); drawSnakeNightRim(ctx); ctx.globalAlpha = 1; }
   if (nightVision) drawNVHighlights(ctx);
-  drawScent(ctx); drawHissWave(ctx);
+  drawWinStars(ctx); drawScent(ctx); drawHissWave(ctx); drawCrashFlash(ctx);
   if (!cam) drawBubbles(ctx);
   ctx.restore();
   if (nightVision) drawNightVision(ctx);
@@ -94,6 +94,7 @@ function render() {
     ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
   }
   const pg = (state === 'ready' || state === 'intro' || state === 'loading') && !(snake && snake.started);
+  stage.classList.toggle('started', !!(snake && snake.started && state !== 'menu')); // the modifier bar steps aside once you're moving
   if (pg !== !!render.pg) { render.pg = pg; stage.classList.toggle('pregame', pg); if (!pg) { stage.classList.add('hudin'); clearTimeout(render.hudT); render.hudT = setTimeout(() => stage.classList.remove('hudin'), 900); } }
   const wantStart = state === 'ready' && !cam;
   if (wantStart !== !!render.startShown) { render.startShown = wantStart; wantStart ? showResume('to begin') : hideResume(); }
@@ -247,4 +248,18 @@ function lookAround() {
   look.fx += (gx - look.fx) * k; look.fy += (gy - look.fy) * k;
   if (V.z || look.z < 1.002) return; // the spawn zoom has the camera, or we're back to normal
   V.z = look.z; V.fx = look.fx; V.fy = look.fy;
+}
+
+function drawCrashFlash(x) { // whatever you hit pops out with a red and white flashing outline
+  if (!crashHit || state !== 'dead') return;
+  const t = T - crashHit.t; if (t > 1.6) return;
+  const pop = 1 + .22 * Math.exp(-t * 7) * Math.sin(t * 22) + .06, col = Math.floor(t / .11) % 2 ? '#ffffff' : '#ff2a2a', a = t > 1.2 ? (1.6 - t) / .4 : 1;
+  x.save(); x.globalAlpha = a; x.lineJoin = 'round';
+  const o = crashHit.o, g = crashHit.seg != null && snake ? snake.segs[crashHit.seg] : null;
+  const cx = o ? (o.t === 'r' ? o.x + o.w / 2 : o.x) : g ? g.x : 0, cy = o ? (o.t === 'r' ? o.y + o.h / 2 : o.y) : g ? g.y : 0;
+  x.translate(cx, cy); x.scale(pop, pop);
+  const path = () => { x.beginPath(); if (o && o.t === 'r') x.rect(-o.w / 2, -o.h / 2, o.w, o.h); else x.arc(0, 0, o ? o.r : CONFIG.snakeR + 1, 0, TAU); };
+  path(); x.strokeStyle = 'rgba(0,0,0,.6)'; x.lineWidth = 6 / pop; x.stroke();
+  path(); x.strokeStyle = col; x.lineWidth = 3 / pop; x.stroke();
+  x.restore();
 }

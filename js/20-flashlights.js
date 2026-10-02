@@ -53,7 +53,7 @@ function updateBeams(dt) {
     d.k = d.on ? d.pow * fl : 0;
   }
   for (let i = debris.length - 1; i >= 0; i--) {
-    const p = debris[i]; p.t += dt; p.vz -= 420 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; p.vx *= 1 - 1.5 * dt; p.vy *= 1 - 1.5 * dt;
+    const p = debris[i]; p.t += dt; p.vz -= 420 * GRAV() * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; p.vx *= 1 - 1.5 * dt; p.vy *= 1 - 1.5 * dt;
     if (p.spark) { if (p.t > p.life || p.z < 0) debris.splice(i, 1); continue; }
     if (p.z <= 0) {
       if (!p.b && p.vz < -40) { p.z = 0; p.vz *= -.35; p.b = 1; }
