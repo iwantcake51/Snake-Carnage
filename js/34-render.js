@@ -31,17 +31,12 @@ function render() {
   for (const c of creatures) if (c.alive) drawCreature(x, c);
   drawFlashBodies(x); drawHitGhosts(x);
   drawGiblets(x); // chunks on the ground sit under the snake
-  drawTrail(x); drawGround(x); drawSnake(x); drawSnowFx(x);
+  drawTrail(x); drawGround(x); drawSnake(x); drawStreaks(x); drawSnowFx(x);
   x.drawImage(obsC, 0, 0, W, H); drawTrees(x);
   drawWaters(x);
   for (const b of bucketList) { if (!b.wd) continue; x.globalAlpha = bucketAlpha(b); x.drawImage(b.w, 0, 0, W, H); }
   x.globalAlpha = 1;
-  x.lineCap = 'round'; let lastC = '';
-  for (const p of parts) { // airborne drops drawn as motion streaks, each in its own blood colour
-    if (p.c !== lastC) { lastC = p.c; x.strokeStyle = p.c || BLOOD; }
-    const py = p.y - p.z * .25; x.lineWidth = p.r * 2 * (1 + p.z / 80);
-    x.beginPath(); x.moveTo(p.x - p.vx * .016, py - p.vy * .016); x.lineTo(p.x + .01, py); x.stroke();
-  }
+  drawDrops(x);
   drawDebris(x); drawMist(x); drawVomit(x);
   drawLighting(x);
   drawLampBugs(x); drawFireflyGlow(x);
@@ -176,4 +171,25 @@ let loopErrs = 0;
 function loopError(e, where) { // a bug in one frame must never freeze the run or leave a stale picture on screen
   if (loopErrs++ < 5) console.error(`[${where}]`, e);
   if (state === 'play' && snake && !isFinite(snake.x + snake.y)) { snake.x = W / 2; snake.y = H / 2; }
+}
+
+/* airborne blood: the faster a drop flies, the longer and softer it smears along its path; slow drops are round again.
+   Always the drop's own color. Blood quality picks how much of this is drawn. */
+const DROP_Q = { Low: 0, Normal: 1, High: 2, Extreme: 3 };
+function drawDrops(x) {
+  const q = DROP_Q[SETTINGS.bloodQ] ?? 2; x.lineCap = 'round';
+  for (const p of parts) {
+    const c = p.c || BLOOD, py = p.y - p.z * .25, R = p.r * (1 + p.z / 80), sp = Math.hypot(p.vx, p.vy);
+    if (!q || sp < 60) { x.fillStyle = c; circ(x, p.x, py, R); continue; }
+    const k = q === 1 ? .012 : q === 2 ? .02 : .026, len = Math.min(sp * k, 26), ux = p.vx / sp, uy = p.vy / sp;
+    const thin = R * 2 / Math.sqrt(1 + len / (R * 3)); // stretched drops get thinner, so they keep their size
+    x.strokeStyle = c;
+    if (q >= 2) { // a soft, wider ghost of the smear behind it
+      x.globalAlpha = q === 3 ? .16 : .22; x.lineWidth = thin * 1.9; x.beginPath(); x.moveTo(p.x - ux * len * 1.35, py - uy * len * 1.35); x.lineTo(p.x, py); x.stroke();
+      if (q === 3) { x.globalAlpha = .3; x.lineWidth = thin * 1.4; x.beginPath(); x.moveTo(p.x - ux * len * 1.1, py - uy * len * 1.1); x.lineTo(p.x, py); x.stroke(); }
+      x.globalAlpha = 1;
+    }
+    x.lineWidth = thin; x.beginPath(); x.moveTo(p.x - ux * len * .8, py - uy * len * .8); x.lineTo(p.x + ux * .01, py + uy * .01); x.stroke();
+    if (q === 3) { x.fillStyle = c; circ(x, p.x, py, thin * .55); } // a rounded leading edge
+  }
 }

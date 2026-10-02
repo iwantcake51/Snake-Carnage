@@ -49,17 +49,23 @@ function fadeBlood() { // every 2s: rotate layers and let old ground wetness dry
 }
 /* grass detection, for grass poking through blood and for the dirt trail */
 const GM = 8, GMW = W / GM, GMH = H / GM;
-let grassMask = new Uint8Array(GMW * GMH), grassCol = [];
+let grassMask = new Uint8Array(GMW * GMH), grassCol = [], floorCol = []; // floorCol: the ground's color everywhere (camouflage blends toward it)
 function buildGrassMask() {
-  grassMask = new Uint8Array(GMW * GMH); grassCol = new Array(GMW * GMH);
+  grassMask = new Uint8Array(GMW * GMH); grassCol = new Array(GMW * GMH); floorCol = new Array(GMW * GMH);
   let data; try { data = bctx.getImageData(0, 0, baseC.width, baseC.height).data; } catch (e) { return; }
   const sc = baseC.width / W;
   for (let j = 0; j < GMH; j++) for (let i = 0; i < GMW; i++) {
     const o = (Math.floor((j * GM + 4) * sc) * baseC.width + Math.floor((i * GM + 4) * sc)) * 4, r = data[o], g = data[o + 1], b = data[o + 2];
+    floorCol[j * GMW + i] = [r, g, b];
     if (g > r + 18 && g > b + 25) { grassMask[j * GMW + i] = 1; grassCol[j * GMW + i] = [r, g, b]; }
   }
 }
 const grassAt = (x, y) => { const i = x / GM | 0, j = y / GM | 0; return i >= 0 && j >= 0 && i < GMW && j < GMH ? grassMask[j * GMW + i] : 0; };
+const groundColAt = (x, y) => { // hex, so it mixes with body colors; snow counts as ground
+  if (snowAt(x, y) > .25) return '#e6ecf5';
+  const c = floorCol[clamp(y / GM | 0, 0, GMH - 1) * GMW + clamp(x / GM | 0, 0, GMW - 1)] || [110, 150, 80];
+  return '#' + c.map(v => clamp(v | 0, 0, 255).toString(16).padStart(2, '0')).join('');
+};
 const grassColAt = (x, y) => grassCol[(y / GM | 0) * GMW + (x / GM | 0)] || [110, 170, 70];
 
 function spawnBlood(x, y, dirA, amount, spread, backFrac, gold) { // gold: a golden target, mostly gold blood with some red mixed in

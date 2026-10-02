@@ -261,13 +261,15 @@ const SETTING_TABS = {
   Gameplay: { icon: 'gameplay', lead: 'How the world behaves around you.', rows: [
     ['slider', 'creatureSpeed', 'Creature speed', 'How fast people and animals move.', .3, 1.2, .05],
     ['seg', 'timeMode', 'Time of day', 'Dynamic starts every run at a random hour and lets the day move on. The others stay fixed.', ['Cycle', 'Day', 'Dawn', 'Dusk', 'Night'], null, null, null, TIME_MODES],
-    ['seg', 'bloodFade', 'Blood fades', 'How long blood stays on the ground and walls.', ['Never', 'Slow', 'Normal', 'Fast']]] },
+    ['seg', 'bloodFade', 'Blood fades', 'How long blood stays on the ground and walls.', ['Never', 'Slow', 'Normal', 'Fast']],
+    ['seg', 'season', 'Season', 'Outdoor maps only. Random picks one each run.', ['Random', 'Spring', 'Summer', 'Autumn', 'Winter']]] },
   Graphics: { icon: 'graphics', lead: 'Look and feel of the picture.', rows: [
     ['slider', 'darkness', 'Darkness', 'Overall dimness of the scene.', 0, .7, .05],
     ['slider', 'pixel', 'Pixelation', 'Chunky pixel look. Off shows full detail.', 1, 8, 1],
     ['seg', 'lightQ', 'Lighting', 'High: full dynamic lighting. Medium: fewer moving shadows. Low: baked shadows only, cheapest.', ['Low', 'Medium', 'High']],
     ['toggle', 'dynShadows', 'Moving shadows', 'People, animals and the snake cast shadows from lamps and flashlights.'],
     ['seg', 'fxLevel', 'Effects', 'Amount of blood mist, sparks, insects and other particles.', ['Low', 'Normal', 'High']],
+    ['seg', 'bloodQ', 'Blood quality', 'How fast-flying blood is drawn. Extreme: smoothest motion blur. Low: plain drops, cheapest.', ['Low', 'Normal', 'High', 'Extreme']],
     ['toggle', 'vignette', 'Kill vignette', 'A red pulse at the screen edges when you eat.'],
     ['toggle', 'desaturate', 'Color drain', 'Briefly drains color after a kill.'],
     ['toggle', 'shake', 'Screen shake', 'Shake the camera on kills and crashes.']] },

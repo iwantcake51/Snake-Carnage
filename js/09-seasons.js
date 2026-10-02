@@ -86,6 +86,7 @@ function gradeGround() { // recolors the baked floor once per load
     }
   }
   bctx.putImageData(img, 0, 0);
+  for (let k = 0; k < floorCol.length; k++) if (floorCol[k]) { const c = floorCol[k], o = gradePx(c[0], c[1], c[2], id, 0); floorCol[k] = o.map(v => v | 0); }
   for (let k = 0; k < grassCol.length; k++) if (grassCol[k]) { const c = grassCol[k], o = gradePx(c[0], c[1], c[2], id, 0); grassCol[k] = o.map(v => v | 0); } // kicked-up grass matches
 }
 function seasonDetails(x) { // flowers, leaf litter, dead tufts: only on grass, never on paths
