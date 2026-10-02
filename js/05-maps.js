@@ -38,16 +38,37 @@ function dirtPath(x, pts, w, seed) { // a worn trail: soft edge, packed middle, 
   for (let i = 0; i < 260; i++) { x.fillStyle = r() < .5 ? '#9c8156' : '#cdb487'; x.fillRect(r() * W, r() * H, 1.6, 1.4); }
   x.restore();
 }
-function dirtTrail(x, pts, w, seed) { // a worn dirt trail through the given points (walkers follow the same points)
-  const r = seeded(seed), line = () => { x.beginPath(); x.moveTo(...pts[0]); for (let i = 1; i < pts.length - 1; i++) { const mx = (pts[i][0] + pts[i + 1][0]) / 2, my = (pts[i][1] + pts[i + 1][1]) / 2; x.quadraticCurveTo(pts[i][0], pts[i][1], mx, my); } x.lineTo(...pts[pts.length - 1]); };
-  x.lineCap = 'round'; x.lineJoin = 'round';
-  x.strokeStyle = 'rgba(120,96,52,.35)'; x.lineWidth = w + 8; line(); x.stroke();
-  x.strokeStyle = '#b79a68'; x.lineWidth = w; line(); x.stroke();
-  x.strokeStyle = 'rgba(150,124,82,.8)'; x.lineWidth = w * .45; x.setLineDash([14, 9]); line(); x.stroke(); x.setLineDash([]);
-  x.save(); line(); x.lineWidth = w; x.strokeStyle = '#000'; x.globalCompositeOperation = 'source-atop';
-  for (let i = 0; i < 200; i++) { x.fillStyle = r() < .5 ? '#9c8156' : '#cdb487'; x.fillRect(r() * W, r() * H, 1.6, 1.4); }
-  x.restore();
+function trailPoints(pts) { // the same smooth curve the walkers follow, sampled every few pixels
+  const out = [], seg = (ax, ay, cx, cy, bx, by) => { const L = Math.hypot(cx - ax, cy - ay) + Math.hypot(bx - cx, by - cy), n = Math.max(2, Math.ceil(L / 3)); for (let k = 1; k <= n; k++) { const t = k / n, u = 1 - t; out.push([u * u * ax + 2 * u * t * cx + t * t * bx, u * u * ay + 2 * u * t * cy + t * t * by]); } };
+  let px = pts[0][0], py = pts[0][1]; out.push([px, py]);
+  for (let i = 1; i < pts.length - 1; i++) { const mx = (pts[i][0] + pts[i + 1][0]) / 2, my = (pts[i][1] + pts[i + 1][1]) / 2; seg(px, py, pts[i][0], pts[i][1], mx, my); px = mx; py = my; }
+  const L = pts[pts.length - 1]; seg(px, py, (px + L[0]) / 2, (py + L[1]) / 2, L[0], L[1]);
+  return out;
 }
+function dirtTrails(x, list) { // worn dirt paths: uneven width and edges, packed middle, blotches, stones, grass poking through. Merged, so crossings blend
+  const mk = () => { const c = document.createElement('canvas'); c.width = W * DPR; c.height = H * DPR; const g = c.getContext('2d'); g.scale(DPR, DPR); return [c, g]; };
+  const [hc, hx] = mk(), [dc, dx] = mk(), lines = [];
+  for (const [pts, w, seed] of list) {
+    const P = trailPoints(pts), r = seeded(seed); lines.push({ P, w, r });
+    for (let k = 0; k < P.length; k++) { const [px, py] = P[k], v = .82 + .32 * (perlin(px * .03 + seed, py * .03) * .5 + .5), e = perlin(px * .12, py * .12 + seed) * 2.4; // width wanders, edges are ragged
+      hx.fillStyle = '#000'; circ(hx, px, py, w / 2 * v + 6 + e); dx.fillStyle = '#b79a68'; circ(dx, px + e * .3, py - e * .3, w / 2 * v + e * .5); }
+  }
+  dx.save(); dx.globalCompositeOperation = 'source-atop'; // everything below only lands on the dirt
+  for (let k = 0; k < 90; k++) { const r = seeded(500 + k)(), px = (k * 97.3 % W), py = (k * 61.7 % H); dx.fillStyle = r < .5 ? 'rgba(120,92,54,.18)' : 'rgba(214,190,140,.2)'; ell(dx, px, py, 20 + r * 40, 10 + r * 24); } // darker and lighter ground
+  for (const { P, w, r } of lines) {
+    dx.strokeStyle = 'rgba(206,186,140,.55)'; dx.lineWidth = w * .35; dx.lineCap = 'round'; dx.beginPath(); P.forEach(([px, py], k) => k ? dx.lineTo(px, py) : dx.moveTo(px, py)); dx.stroke(); // packed, lighter middle
+    for (let k = 0; k < P.length; k += 2) { const [px, py] = P[k];
+      if (r() < .5) { dx.fillStyle = r() < .5 ? '#9c8156' : '#cdb487'; dx.fillRect(px + (r() - .5) * w, py + (r() - .5) * w, 1.6, 1.4); }
+      if (r() < .05) { const sx = px + (r() - .5) * w * .8, sy = py + (r() - .5) * w * .8, sr = .8 + r() * 1.6; dx.fillStyle = '#8e8a82'; circ(dx, sx, sy, sr); dx.fillStyle = 'rgba(255,255,255,.35)'; circ(dx, sx - sr * .3, sy - sr * .3, sr * .45); } // stones
+      if (r() < .06) { const side = r() < .5 ? -1 : 1, nx = px + side * w * (.32 + r() * .2), ny = py + (r() - .5) * 4; dx.fillStyle = 'rgba(110,150,60,.75)'; for (let t = 0; t < 4; t++) circ(dx, nx + (r() - .5) * 4, ny + (r() - .5) * 4, .9 + r()); } // grass creeping in
+      if (r() < .03) { dx.fillStyle = 'rgba(95,70,40,.3)'; ell(dx, px + (r() - .5) * w * .5, py + (r() - .5) * w * .5, 3 + r() * 5, 2 + r() * 3); } // worn hollows
+    }
+  }
+  dx.restore();
+  hx.globalCompositeOperation = 'source-in'; hx.fillStyle = 'rgba(118,96,50,1)'; hx.fillRect(0, 0, W, H); // worn, thinning grass along the edges
+  x.save(); x.globalAlpha = .28; x.drawImage(hc, 0, 0, W, H); x.globalAlpha = 1; x.drawImage(dc, 0, 0, W, H); x.restore();
+}
+const dirtTrail = (x, pts, w, seed) => dirtTrails(x, [[pts, w, seed]]);
 function flowers(x, n, cols, seed, clusters = 9) { // wildflowers grow in patches, not evenly
   const r = seeded(seed);
   for (let c = 0; c < clusters; c++) {
@@ -148,7 +169,7 @@ const MAPS = [
           checker(x, ...GRASS, 32);
           x.fillStyle = 'rgba(70,110,30,.12)'; for (let j = 120; j < H; j += 40) x.fillRect(16, j, W - 32, 18); // mowing stripes
           x.fillStyle = '#9cc148'; x.fillRect(16, 16, W - 32, 80); // the uncut verge beyond the fence
-          dirtTrail(x, track, 20, 4); dirtTrail(x, spur, 16, 9);
+          dirtTrails(x, [[track, 20, 4], [spur, 16, 9]]);
           flowers(x, 120, ['#ffffff', '#ffe066', '#c9b6ff'], 21, 6);
           x.fillStyle = 'rgba(40,60,20,.25)'; x.beginPath(); x.arc(760, 500, 52, 0, TAU); x.fill(); // the oak's dry patch
         }
@@ -173,7 +194,7 @@ const MAPS = [
         floor(x) {
           checker(x, ...GRASS, 32);
           x.fillStyle = 'rgba(70,110,40,.16)'; x.beginPath(); x.ellipse(690, 230, 140, 120, 0, 0, TAU); x.fill(); // the lake sits in a dip
-          dirtTrail(x, main, 18, 12); dirtTrail(x, south, 16, 13); dirtTrail(x, camp, 14, 14);
+          dirtTrails(x, [[main, 18, 12], [south, 16, 13], [camp, 14, 14]]);
           x.fillStyle = '#c8b27a'; x.beginPath(); x.ellipse(510, 212, 56, 46, 0, 0, TAU); x.fill(); // trampled campsite ground on the lake shore
           flowers(x, 140, ['#ffffff', '#ffe066', '#ff9ecb', '#c9b6ff'], 5, 9);
           firePit(x, 520, 222);
