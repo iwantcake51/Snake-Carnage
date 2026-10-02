@@ -50,7 +50,9 @@ function stretch(t) { // FUCKKK, NOOOO
 }
 function pickLine(c, ctx, name) {
   let pool = LINES[ctx] || LINES.panic;
-  const env = envPool(ctx); if (env.length && (Math.random() < .45 || (c.type === 'astronaut' && ENV_LINES.space[ctx]))) pool = env; // where you are colors what you shout; astronauts always talk like astronauts when they can
+  const tp = traitPool(c, ctx); if (tp) pool = tp;
+  else { const env = envPool(ctx); if (env.length && (Math.random() < .45 || (c.type === 'astronaut' && ENV_LINES.space[ctx]))) pool = env; // where you are colors what you shout; astronauts always talk like astronauts when they can
+  }
   if (!c.voice.swears) { const clean = pool.filter(l => !/fuck|shit|hell|damn/i.test(l)); if (clean.length) pool = clean; }
   const unused = pool.filter(l => !c.recent.includes(l)); if (unused.length) pool = unused;
   let l = pick(pool); c.recent.push(l); if (c.recent.length > 5) c.recent.shift();
@@ -104,6 +106,97 @@ function finishLine(t, c, ctx) { // intensity varies by person: some shout spoke
   if (!/[!?.…—]$/.test(t)) t += yell ? '!' : /^(what|where|why|is|did|how|was|which|who)\b/i.test(t) ? '?' : pick(['.', '...', '!']);
   if (c.deafT > T) t = slur(t);
   return { text: rattle(t, panicLevel(c), yell), yell };
+}
+/* ---- personality: one or two traits per person shape how fast they panic, how much they talk and what they say ---- */
+const TRAITS = {
+  funny:     { heat: .45, talk: 1.3, panicK: 1,   label: 'tries to be funny' },
+  jumpy:     { heat: .95, talk: 1.1, panicK: 1.6, label: 'easily panicked' },
+  calm:      { heat: .2,  talk: .9,  panicK: .6,  label: 'calm' },
+  nervous:   { heat: .8,  talk: 1,   panicK: 1.3, label: 'nervous' },
+  brave:     { heat: .35, talk: 1,   panicK: .5,  label: 'brave' },
+  pessimist: { heat: .55, talk: 1,   panicK: 1.1, label: 'pessimistic' },
+  talkative: { heat: .6,  talk: 1.8, panicK: 1,   label: 'talkative' },
+  quiet:     { heat: .4,  talk: .4,  panicK: 1,   label: 'quiet' },
+};
+function giveTraits(c) {
+  if (!c.def.human || c.def.alien) return;
+  const keys = Object.keys(TRAITS), a = pick(keys); let b = Math.random() < .45 ? pick(keys) : null;
+  if (b === a || (a === 'quiet' && b === 'talkative') || (a === 'talkative' && b === 'quiet') || (a === 'calm' && b === 'jumpy') || (a === 'jumpy' && b === 'calm') || (a === 'brave' && b === 'nervous') || (a === 'nervous' && b === 'brave')) b = null;
+  c.traits = b ? [a, b] : [a];
+  const T0 = c.traits.map(t => TRAITS[t]);
+  c.voice = { heat: clamp(T0.reduce((s, t) => s + t.heat, 0) / T0.length + rand(-.12, .12), .1, 1), swears: Math.random() < (c.traits.includes('calm') ? .4 : .75) };
+  c.talkK = T0.reduce((s, t) => s * t.talk, 1); c.panicK = T0.reduce((s, t) => s * t.panicK, 1);
+}
+const hasTrait = (c, t) => c.traits && c.traits.includes(t);
+const TRAIT_LINES = {
+  funny: { panic: ['this is fine. this is totally fine', 'worst. day. ever.', "I'm not paid enough for this", 'note to self: hate snakes'], relief: ['it skipped me. rude, but okay', 'too fast to eat, baby!', "guess I'm not its type"],
+    firstSight: ['who ordered the giant snake?', 'nice snake. good snake. stay', "that's a big noodle"], witnessHuman: ['well... he did skip leg day', 'okay that is NOT funny'], escaped: ['five stars, would not run again'] },
+  pessimist: { panic: ["we're all gonna die", "there's no point running", 'of course this happens to me'], relief: ["it'll be back. they always come back"], firstSight: ["of course there's a snake. of course."], escaped: ["it's just playing with us"] },
+  brave: { firstSight: ["I'm not scared of a snake", "stay back, I've got this", 'everyone stay behind me'], panic: ['stay together!', 'keep moving, I\'ll watch our backs!'], witnessHuman: ['GET AWAY FROM THEM!', 'HEY! OVER HERE!'] },
+  calm: { panic: ["walk, don't run", 'everyone move away slowly', 'deep breaths, keep going'], firstSight: ['okay. slowly back away', "nobody panic"] },
+  nervous: { panic: ['I KNEW something was wrong today', 'oh no oh no oh no', "I can't do this, I can't do this"], firstSight: ['i-is that... is that real?'] },
+  jumpy: { panic: ['AAAAAH!', 'IT TOUCHED ME! I THINK IT TOUCHED ME!'], firstSight: ['AAH! WHAT IS THAT?!'] },
+  quiet: { panic: ['...', 'no.', 'move.'], firstSight: ['...', 'huh.'] },
+  talkative: { panic: ['okay so there is a GIANT snake and I am running and nobody is helping and—', "I'm calling my mom, I'm calling everyone"], firstSight: ['oh my god, guys, guys, look at that, are you seeing this?'] },
+};
+function traitPool(c, ctx) { if (!c.traits) return null; for (const t of c.traits) if (TRAIT_LINES[t] && TRAIT_LINES[t][ctx] && Math.random() < .45) return TRAIT_LINES[t][ctx]; return null; }
+
+/* ---- conversations: two people trade lines back and forth, before trouble (small talk) and after it (survivors) ---- */
+const NAMES = ['Dave', 'Karen', 'Mike', 'Jess', 'Tom', 'Priya', 'Luis', 'Sam', 'Grace', 'Omar', 'Nina', 'Ben'];
+const SMALLTALK = {
+  pool: [['the water looks perfect', "I'm getting in after this", 'cannonball contest?', 'you are SO on'], ['did you bring sunscreen?', 'it\'s in my bag somewhere', "I'm already burning", 'then get in the water'],
+    ['this is the life', 'just lying here all day', 'wake me up when the snacks come', 'deal'], ['is it cold?', 'only for the first minute', 'liar', 'okay, five minutes']],
+  space: [['oxygen levels nominal', 'copy that', 'how long till resupply?', 'six days, if the launch window holds'], ['did you check the scrubbers?', 'twice', "something smells off", "that's just Mike's lunch"],
+    ['look at that view', "never gets old", 'you can see home from here', 'feels further every day']],
+  office: [['meeting at three', 'which one?', 'the one about meetings', 'of course it is'], ['is the printer broken again?', 'it was never fixed', 'I have to print this', 'good luck'], ['coffee?', 'please', "machine's out", 'then I quit']],
+  farm: [['the hens are restless today', 'storm coming maybe', 'or a fox', "I'll check the coop"], ['fence needs fixing', 'which part?', 'all of it', 'after lunch']],
+  club: [['THIS SONG!', 'I KNOW!', 'ONE MORE DRINK?', 'ONE MORE DRINK!'], ['have you seen Jess?', 'she was at the bar', 'which bar?', 'there is one bar']],
+  bunker: [['shift change in ten', 'finally', "radio's been quiet", 'quiet is good'], ['when do we get topside again?', 'not this month', 'figures', 'cards later?']],
+  town: [['nice evening', 'finally cooled off', 'pizza place still open?', 'till eleven'], ['did you hear that noise earlier?', 'probably the trash truck', 'at night?', '...probably']],
+  park: [['such a nice day for a walk', 'the dog thinks so too', 'look at him go', "he'd chase anything"], ['ducks look hungry', 'you brought bread?', 'you\'re not supposed to feed them bread', 'oops']],
+  open: [['nice out here', 'so quiet', 'no one around for miles', 'perfect']],
+  space2: [['suit pressure fine?', 'green across the board', 'race you to the rover', 'in these boots? no']],
+};
+const SURVIVOR = [
+  ['did you see that?!', 'see it? it nearly ate ME', 'how are we still alive?', 'luck. pure luck.'],
+  ['where is {name}?', "...don't ask", 'oh god', 'keep moving'],
+  ['was that a snake?', 'a snake the size of a bus', 'who do we even call for that?', 'someone braver than us'],
+  ['we were so lucky', 'lucky? it ate half the {place}', '...yeah. lucky.'],
+  ['are you hurt?', "I don't think so. you?", 'just shaking', 'me too'],
+  ["it went right past me", 'why didn\'t it eat you?', "I don't know and I don't want to find out", 'fair'],
+  ['what do we do now?', 'stay out of the open', 'and the light', 'and away from IT'],
+];
+const PLACE = () => ({ Office: 'office', Pool: 'pool', Farm: 'farm', Club: 'club', Bunker: 'bunker', Town: 'town', Park: 'park', Moon: 'crew', Mars: 'crew', 'Space Station': 'crew' })[MAPS[mapIdx].name] || 'people here';
+function talkKey() { const m = MAPS[mapIdx]; return m.club ? 'club' : m.name === 'Bunker' ? 'bunker' : m.name === 'Pool' ? 'pool' : m.name === 'Office' ? 'office' : m.name === 'Farm' ? 'farm' : m.name === 'Town' ? 'town' : m.name === 'Park' ? 'park' : (m.name === 'Moon' || m.name === 'Mars') ? 'space2' : m.space ? 'space' : m.open ? 'open' : null; }
+let convos = [], convoT = 3;
+function updateConvos(dt) {
+  if (MOD.mute) return;
+  for (let i = convos.length - 1; i >= 0; i--) {
+    const v = convos[i], who = v.i % 2 ? v.b : v.a, other = v.i % 2 ? v.a : v.b;
+    const broke = !v.a.alive || !v.b.alive || dist2(v.a.x, v.a.y, v.b.x, v.b.y) > 170 * 170 || (!v.survivor && (v.a.state === 'panic' || v.b.state === 'panic'));
+    if (broke) { if (v.a.alive && v.b.alive && v.i > 0 && !v.survivor && (v.a.state === 'panic' || v.b.state === 'panic')) { const p = v.a.state === 'panic' ? v.b : v.a; if (p.state !== 'panic') p.reply = { t: .5, ctx: 'answer:whatFrom' }; } v.a.convo = v.b.convo = null; convos.splice(i, 1); continue; }
+    if ((v.t -= dt) > 0) continue;
+    if (v.i >= v.lines.length) { v.a.convo = v.b.convo = null; convos.splice(i, 1); continue; }
+    let line = v.lines[v.i].replace('{name}', pick(NAMES)).replace('{place}', PLACE());
+    const tp = traitPool(who, v.survivor ? 'relief' : 'idle'); if (tp && v.i === v.lines.length - 1 && Math.random() < .5) line = pick(tp); // personality gets the last word
+    who.bubbles = who.bubbles || []; who.bubbles.push({ ...finishLine(line, who, v.survivor ? 'relief' : 'idle'), t: 0, life: 2.4, delay: 0 });
+    if (who.bubbles.length > 3) who.bubbles.splice(0, who.bubbles.length - 3);
+    who.a = Math.atan2(other.y - who.y, other.x - who.x); // they look at each other
+    v.i++; v.t = rand(2, 2.6) / Math.max(.6, who.talkK || 1);
+  }
+  if ((convoT -= dt) > 0) return; convoT = rand(1.5, 3);
+  if (convos.length >= 3) return;
+  for (const c of creatures) { // two people near each other, both calm (or both just survived), start talking
+    if (!c.alive || !c.def.human || c.def.alien || c.convo || (c.bubbles && c.bubbles.length) || Math.random() > .35 * (c.talkK || 1)) continue;
+    const surv = c.state === 'wander' && c.alert > .3 && (!snake || dist2(c.x, c.y, snake.x, snake.y) > 220 * 220);
+    if (!surv && (c.state !== 'wander' && c.state !== 'idle' || c.alert > .3)) continue;
+    const o = creatures.find(o => o !== c && o.alive && o.def.human && !o.def.alien && !o.convo && (o.state === 'wander' || o.state === 'idle') && dist2(o.x, o.y, c.x, c.y) < 110 * 110 && los(c.x, c.y, o.x, o.y));
+    if (!o) continue;
+    const key = talkKey(), pool = surv ? SURVIVOR : SMALLTALK[key] || (key === 'space2' ? SMALLTALK.space : null); if (!pool) continue;
+    const fresh = pool.filter(l => !convos.some(q => q.lines === l)), v = { a: c, b: o, lines: pick(fresh.length ? fresh : pool), i: 0, t: rand(.2, .8), survivor: surv }; c.convo = o.convo = v; convos.push(v);
+    if (Math.random() < .5) { c.state = o.state = 'idle'; c.timer = o.timer = 6; } // stop to talk
+    break;
+  }
 }
 /* ---- conversation memory: people remember what they just said and follow it up when something answers it ---- */
 const FOLLOW = { // a line someone says -> the thread it opens
@@ -173,6 +266,7 @@ function say(c, ctxRaw) {
   if (!c.def.human || !c.alive || MOD.mute) return;
   const [ctx, name] = ctxRaw.split(':');
   c.voice = c.voice || { heat: rand(.2, 1), swears: Math.random() < .7 }; c.recent = c.recent || [];
+  if (hasTrait(c, 'quiet') && !HOT_CTX.has(ctx) && ctx !== 'answer' && ctx !== 'follow' && Math.random() < .55) return; // the quiet ones mostly keep it to themselves
   const b = c.bubbles || (c.bubbles = []);
   if (b.some(q => q.delay > 0)) return; // still mid-sentence
   const urgent = ctx === 'chased' || ctx === 'bloodOnMe' || ctx === 'spit' || ctx === 'follow' || ctx === 'answer';
@@ -242,7 +336,7 @@ function scream(c, ctx = 'panic') {
   for (const o of creatures) { // people who hear it panic a moment later and pass it on
     if (o === c || !o.alive || !o.def.human || o.state === 'panic' || o.warn) continue;
     const d2 = dist2(c.x, c.y, o.x, o.y);
-    if (d2 < R * R && (d2 < 90 * 90 || los(c.x, c.y, o.x, o.y))) o.warn = { x: c.fx, y: c.fy, t: rand(.25, .7) };
+    if (d2 < R * R && (d2 < 90 * 90 || los(c.x, c.y, o.x, o.y))) o.warn = { x: c.fx, y: c.fy, t: rand(.25, .7) / (o.panicK || 1) };
   }
 }
 function panic(c, x, y, t, ctx = 'panic') {
@@ -330,12 +424,13 @@ function perceive(c) {
       if (c.alert > .3) panic(c, s.x, s.y, rand(4, 7), 'chased'); else { c.state = 'flee'; c.fx = s.x; c.fy = s.y; c.timer = 2.5; }
     } else if (gore > .45 && dist < 60 + 200 * gore && Math.random() < gore * .18) panic(c, s.x, s.y, rand(3, 5), 'bloodySnake'); // a blood-soaked snake is terrifying
     else if (dist < 75 + 170 * gore && (c.state === 'wander' || c.state === 'idle')) { // the bloodier it is, the earlier they get uneasy
-      c.state = 'uneasy'; c.fx = s.x; c.fy = s.y; c.timer = rand(1.5, 2.5) + gore * 2;
+      c.state = 'uneasy'; c.fx = s.x; c.fy = s.y; c.timer = (rand(1.5, 2.5) + gore * 2) / (c.panicK || 1);
+      if (hasTrait(c, 'jumpy') && dist < 110 && Math.random() < .5) { panic(c, s.x, s.y, rand(3, 5), 'firstSight'); return; }
       if (gore > .2 && T - (c.goreSaid || -99) > 8 && Math.random() < .3) { c.goreSaid = T; say(c, 'bloodySnake'); }
     }
   }
   if (!hum || c.state === 'panic') return;
-  if (panicN >= 2) { panic(c, panicO.fx, panicO.fy, rand(2.5, 4), 'crowd'); return; } // a panicking crowd is contagious (seen, not heard)
+  if (panicN >= (hasTrait(c, 'calm') || hasTrait(c, 'brave') ? 3 : hasTrait(c, 'jumpy') ? 1 : 2)) { panic(c, panicO.fx, panicO.fy, rand(2.5, 4) * (c.panicK || 1), 'crowd'); return; } // a panicking crowd is contagious (seen, not heard)
   if (!blind && (c.state === 'wander' || c.state === 'idle')) { // blood and places where people died make them uneasy
     for (const d of deaths) {
       if (dist2(c.x, c.y, d.x, d.y) > 110 * 110 || (c.seen && c.seen.includes(d)) || !los(c.x, c.y, d.x, d.y)) continue;

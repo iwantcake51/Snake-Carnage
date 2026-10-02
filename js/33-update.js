@@ -16,7 +16,7 @@ function update(dt) {
   if (hitStop > 0) { hitStop -= dt; return; } // hit-stop: the world holds its breath for a few frames
   T += dt;
   if (state === 'play') { updateSnake(dt); run.time += dt; crTick(dt); progressTick(dt); }
-  updateCrowd();
+  updateCrowd(); updateConvos(dt);
   for (const c of creatures) if (c.alive) updateCreature(c, dt);
   updateBlood(dt); updateGiblets(dt); updateSplashes(dt); updateMist(dt); updateFlies(dt); updateVomit(dt);
   if ((fadeT -= dt) <= 0) { fadeT = 2; fadeBlood(); }

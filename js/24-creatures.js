@@ -28,7 +28,7 @@ function spawn(type, zone) {
     const x = rand(z.x + def.r, z.x + z.w - def.r), y = rand(z.y + def.r, z.y + z.h - def.r);
     if (!free(x, y, def.r + 3)) continue;
     if (snake && k < 250 && dist2(x, y, snake.x, snake.y) < 200 * 200) continue;
-    const c = giveFlash(makeCreature(type, x, y, zone)); c.born = T;
+    const c = giveFlash(makeCreature(type, x, y, zone)); c.born = T; giveTraits(c);
     if (def.human && state === 'play' && Math.random() < (MOD.rareAppetite ? .12 : .03)) { // rare golden target: worth a lot more
       goldify(c);
       if (state === 'play' || state === 'ready') goldenBanner(null, c);
