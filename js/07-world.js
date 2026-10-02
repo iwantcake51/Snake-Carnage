@@ -95,6 +95,7 @@ function loadMap(idx) {
     for (let i = 0; i < Math.round(n * k); i++) spawn(type, zone);
   }
   makeFlies(m.fireflies || 0);
+  curPaths = b.paths || []; spawnWalkers(m.walkers || 0); makeGrass(m.grass || 0);
   deaths = []; if (typeof run === 'object') run.startPop = creatures.length;
   updateHud();
 }

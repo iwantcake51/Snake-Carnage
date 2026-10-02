@@ -59,6 +59,7 @@ function progressTick(dt) { // while playing, a few times a second
   PROG.longestRun = Math.max(PROG.longestRun || 0, run.time);
 }
 function progressEat(c) {
+  const pair = c.dog || c.owner; if (pair) { if (!pair.alive && T - (pair.eatenT || -9) < 3) { PROG.dogWalker = 1; checkAch(); } c.eatenT = T; }
   run.lastKillT = T; run.fastT = 0;
   (run.eatT = run.eatT || []).push(T); run.eatT = run.eatT.filter(t => T - t < 60); run.burst60 = Math.max(run.burst60 || 0, run.eatT.length);
   if (light.dark > .45) run.darkKills = (run.darkKills || 0) + 1;

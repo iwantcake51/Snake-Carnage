@@ -38,6 +38,16 @@ function dirtPath(x, pts, w, seed) { // a worn trail: soft edge, packed middle, 
   for (let i = 0; i < 260; i++) { x.fillStyle = r() < .5 ? '#9c8156' : '#cdb487'; x.fillRect(r() * W, r() * H, 1.6, 1.4); }
   x.restore();
 }
+function dirtTrail(x, pts, w, seed) { // a worn dirt trail through the given points (walkers follow the same points)
+  const r = seeded(seed), line = () => { x.beginPath(); x.moveTo(...pts[0]); for (let i = 1; i < pts.length - 1; i++) { const mx = (pts[i][0] + pts[i + 1][0]) / 2, my = (pts[i][1] + pts[i + 1][1]) / 2; x.quadraticCurveTo(pts[i][0], pts[i][1], mx, my); } x.lineTo(...pts[pts.length - 1]); };
+  x.lineCap = 'round'; x.lineJoin = 'round';
+  x.strokeStyle = 'rgba(120,96,52,.35)'; x.lineWidth = w + 8; line(); x.stroke();
+  x.strokeStyle = '#b79a68'; x.lineWidth = w; line(); x.stroke();
+  x.strokeStyle = 'rgba(150,124,82,.8)'; x.lineWidth = w * .45; x.setLineDash([14, 9]); line(); x.stroke(); x.setLineDash([]);
+  x.save(); line(); x.lineWidth = w; x.strokeStyle = '#000'; x.globalCompositeOperation = 'source-atop';
+  for (let i = 0; i < 200; i++) { x.fillStyle = r() < .5 ? '#9c8156' : '#cdb487'; x.fillRect(r() * W, r() * H, 1.6, 1.4); }
+  x.restore();
+}
 function flowers(x, n, cols, seed, clusters = 9) { // wildflowers grow in patches, not evenly
   const r = seeded(seed);
   for (let c = 0; c < clusters; c++) {
@@ -126,48 +136,60 @@ function buildMaze() {
    loops everywhere so chases never end in a dead end, and a mix of lit spots and dark cover for night hunting. */
 const MAPS = [
   {
-    name: 'Open Field', icon: '🟩', border: '#578a34', start: { x: 480, y: 320, a: 0 }, times: { sunset: 2, evening: 2, night: 2.5 }, open: true,
-    pop: [['human', 10], ['rabbit', 6], ['deer', 4], ['frog', 3]], fireflies: 22,
-    build: () => ({ // nothing to hide behind: two worn trails, three lone trees and a lot of grass
-      obs: [TREE(168, 486, 22), TREE(812, 136, 26), TREE(660, 540, 15, '#46802f')],
-      lights: [],
-      floor(x) {
-        checker(x, ...GRASS, 32);
-        dirtPath(x, [[-20, 410], [180, 380], [300, 290], [470, 330], [640, 370], [760, 230], [980, 250]], 22, 4);
-        dirtPath(x, [[420, -20], [470, 120], [380, 220], [470, 330], [560, 440], [520, 560], [600, 660]], 18, 9);
-        flowers(x, 150, ['#ffffff', '#ffe066', '#ff9ecb', '#c9b6ff'], 21);
-      }
-    })
+    name: 'Open Field', icon: '🟩', border: '#5a8a36', start: { x: 300, y: 330, a: 0 }, times: { sunset: 2, evening: 2, night: 2.5 }, open: true,
+    pop: [['human', 6], ['rabbit', 6], ['deer', 5], ['frog', 3]], fireflies: 22, walkers: 4, grass: 160,
+    build: () => { // a mown hayfield: one farm track crossing it, a fence and gate along the top, a single old oak. Nowhere to hide.
+      const track = [[-10, 400], [160, 380], [330, 330], [500, 330], [660, 330], [800, 290], [970, 250]], spur = [[500, 330], [500, 220], [520, 120], [540, 16]];
+      return {
+        obs: [R(16, 96, 470, 8, '#8b6b45', 'fence'), R(570, 96, 374, 8, '#8b6b45', 'fence'), // the field fence, with the gate the track runs through
+              TREE(760, 500, 34, '#3f7a2c'), C(200, 190, 13, '#e3c565', 'hay'), C(226, 206, 12, '#e3c565', 'hay')],
+        paths: [track, spur],
+        floor(x) {
+          checker(x, ...GRASS, 32);
+          x.fillStyle = 'rgba(70,110,30,.12)'; for (let j = 120; j < H; j += 40) x.fillRect(16, j, W - 32, 18); // mowing stripes
+          x.fillStyle = '#9cc148'; x.fillRect(16, 16, W - 32, 80); // the uncut verge beyond the fence
+          dirtTrail(x, track, 20, 4); dirtTrail(x, spur, 16, 9);
+          flowers(x, 120, ['#ffffff', '#ffe066', '#c9b6ff'], 21, 6);
+          x.fillStyle = 'rgba(40,60,20,.25)'; x.beginPath(); x.arc(760, 500, 52, 0, TAU); x.fill(); // the oak's dry patch
+        }
+      };
+    }
   },
   {
-    name: 'Meadow', icon: '🌾', border: '#578a34', start: { x: 480, y: 120, a: 0 }, times: { dawn: 2, morning: 2.5, sunset: 1.5 }, open: true,
-    pop: [['human', 7], ['rabbit', 5], ['deer', 3], ['frog', 5, { x: 380, y: 250, w: 260, h: 200 }]], fireflies: 14,
-    build: () => ({ // a pond in a dip, a tree line along the north-west, scattered oaks, and a camp by the water
-      obs: [
-        TREE(130, 150, 30), TREE(178, 118, 22), TREE(232, 96, 26), TREE(96, 214, 20), TREE(300, 74, 18),
-        TREE(780, 120, 28), TREE(826, 160, 20),
-        TREE(820, 470, 30), TREE(770, 515, 20), TREE(870, 540, 17),
-        TREE(250, 520, 22), TREE(600, 140, 14, '#46802f'),
-        C(500, 350, 62, '#4aa3df', 'water'),
-        R(318, 470, 46, 12, '#7a5a38', 'bench'), R(660, 236, 12, 46, '#7a5a38', 'bench'),
-      ],
-      lights: [FIRE(365, 520)],
-      floor(x) {
-        checker(x, ...GRASS, 32);
-        x.fillStyle = 'rgba(70,110,40,.18)'; x.beginPath(); x.ellipse(500, 350, 120, 100, 0, 0, TAU); x.fill(); // the dip around the pond
-        dirtPath(x, [[-20, 300], [120, 300], [220, 420], [365, 520], [470, 600], [620, 560], [980, 600]], 16, 12);
-        flowers(x, 120, ['#ffffff', '#ffe066', '#ff9ecb'], 5, 7);
-        firePit(x, 365, 520);
-        x.fillStyle = '#8b6a44'; x.save(); x.translate(330, 545); x.rotate(.4); x.fillRect(-14, -4, 28, 8); x.restore(); x.save(); x.translate(392, 548); x.rotate(-.5); x.fillRect(-14, -4, 28, 8); x.restore(); // log seats
-      },
-      decor(x) { x.strokeStyle = '#4c7a2a'; x.lineWidth = 1.4; const r = seeded(3); for (let k = 0; k < 26; k++) { const a = r() * TAU, d = 62 + r() * 6, px = 500 + Math.cos(a) * d, py = 350 + Math.sin(a) * d; x.beginPath(); x.moveTo(px, py); x.lineTo(px + (r() - .5) * 3, py - 6 - r() * 4); x.stroke(); if (r() < .4) { x.fillStyle = '#6b4a2b'; ell(x, px, py - 8, 1.2, 2.4); } } // reeds
-        x.fillStyle = '#5c9e3c'; for (const [px, py] of [[470, 330], [530, 372], [488, 388]]) { circ(x, px, py, 6); x.fillStyle = '#f0a6c8'; circ(x, px + 1, py - 1, 1.6); x.fillStyle = '#5c9e3c'; } } // lily pads
-    })
+    name: 'Meadow', icon: '🌾', border: '#4f7f30', start: { x: 200, y: 520, a: 0 }, times: { dawn: 2, morning: 2.5, sunset: 1.5 }, open: true,
+    pop: [['human', 6], ['rabbit', 5], ['deer', 3], ['frog', 5, { x: 560, y: 160, w: 260, h: 200 }]], fireflies: 16, walkers: 4, grass: 260,
+    build: () => { // a lake up in the north-east with a campsite on its shore; one trail network linking the lake, the camp and both edges
+      const main = [[-10, 470], [150, 470], [300, 430], [430, 370], [520, 330], [560, 300]], south = [[300, 430], [330, 540], [420, 660]], camp = [[430, 370], [470, 300], [500, 255]];
+      return {
+        obs: [ // a wood along the north and west edges (touching the border, so no gaps to get caught in), a few lone trees in the open
+          TREE(60, 70, 40), TREE(130, 40, 30), TREE(200, 60, 24), TREE(40, 150, 30), TREE(36, 230, 22),
+          TREE(880, 600, 34), TREE(930, 520, 26), TREE(820, 610, 22),
+          TREE(640, 520, 18, '#46802f'),
+          C(690, 230, 78, '#4aa3df', 'water'),
+          R(470, 150, 44, 30, '#c9763a', 'tent'), R(440, 214, 12, 30, '#7a5a38', 'bench'),
+        ],
+        paths: [main, south, camp],
+        lights: [FIRE(520, 222)],
+        floor(x) {
+          checker(x, ...GRASS, 32);
+          x.fillStyle = 'rgba(70,110,40,.16)'; x.beginPath(); x.ellipse(690, 230, 140, 120, 0, 0, TAU); x.fill(); // the lake sits in a dip
+          dirtTrail(x, main, 18, 12); dirtTrail(x, south, 16, 13); dirtTrail(x, camp, 14, 14);
+          x.fillStyle = '#c8b27a'; x.beginPath(); x.ellipse(510, 212, 56, 46, 0, 0, TAU); x.fill(); // trampled campsite ground on the lake shore
+          flowers(x, 140, ['#ffffff', '#ffe066', '#ff9ecb', '#c9b6ff'], 5, 9);
+          firePit(x, 520, 222);
+          x.fillStyle = '#8b6a44'; x.save(); x.translate(500, 248); x.rotate(.5); x.fillRect(-13, -4, 26, 8); x.restore(); x.save(); x.translate(552, 250); x.rotate(-.4); x.fillRect(-13, -4, 26, 8); x.restore(); // log seats
+        },
+        decor(x) { x.strokeStyle = '#4c7a2a'; x.lineWidth = 1.4; const r = seeded(3); for (let k = 0; k < 34; k++) { const a = r() * TAU, d = 78 + r() * 6, px = 690 + Math.cos(a) * d, py = 230 + Math.sin(a) * d; x.beginPath(); x.moveTo(px, py); x.lineTo(px + (r() - .5) * 3, py - 6 - r() * 4); x.stroke(); if (r() < .4) { x.fillStyle = '#6b4a2b'; ell(x, px, py - 8, 1.2, 2.4); } } // reeds
+          x.fillStyle = '#5c9e3c'; for (const [px, py] of [[650, 200], [720, 260], [700, 190]]) { circ(x, px, py, 6); x.fillStyle = '#f0a6c8'; circ(x, px + 1, py - 1, 1.6); x.fillStyle = '#5c9e3c'; } // lily pads
+          x.fillStyle = '#7a5a38'; x.fillRect(612, 270, 34, 8); x.fillStyle = '#5a3f26'; for (let i = 614; i < 646; i += 6) x.fillRect(i, 270, 2, 8); } // a little jetty
+      };
+    }
   },
   {
     name: 'Town', icon: '🏘️', border: '#55555c', start: { x: 480, y: 200, a: 0 }, times: { sunset: 1.5, evening: 2.5, night: 2.5 },
-    pop: [['human', 18], ['dog', 1], ['cat', 1]],
+    pop: [['human', 15], ['cat', 1]], walkers: 6,
     build: () => ({
+      paths: [[[318, 218], [642, 218], [642, 422], [318, 422], [318, 218]], [[0, 150], [960, 150]], [[0, 490], [960, 490]]], // sidewalks: round the square and along both avenues
       obs: [ // ten buildings around a paved square, a ring of streets between them
         R(16, 16, 214, 114, '#a5553a', 'building', { roof: 'gable' }), R(350, 16, 100, 114, '#5d6670', 'building', { roof: 'hip' }), R(510, 16, 100, 114, '#8a4a3a', 'building', { roof: 'gable' }),
         R(730, 16, 214, 114, '#4a4a52', 'building', { roof: 'flat' }),
@@ -202,8 +224,9 @@ const MAPS = [
   {
     name: 'Farm', icon: '🐄', border: '#7a5a34', start: { x: 420, y: 250, a: 0 }, times: { dawn: 2.5, morning: 2.5, evening: 1.5 },
     pop: [['human', 5], ['chicken', 7, { x: 300, y: 90, w: 380, h: 120 }], ['sheep', 6, { x: 580, y: 350, w: 350, h: 260 }],
-          ['pig', 4, { x: 60, y: 200, w: 240, h: 80 }], ['dog', 2]],
-    build: () => ({ // red barn and silo, the farmhouse, a coop, the sheep paddock, pig pen and the crop field
+          ['pig', 4, { x: 60, y: 200, w: 240, h: 80 }], ['dog', 1]], walkers: 2,
+    build: () => ({
+      paths: [[[230, 210], [500, 210], [700, 210], [707, 260], [707, 320]]], // the yard road from the barn to the paddock gate // red barn and silo, the farmhouse, a coop, the sheep paddock, pig pen and the crop field
       obs: [
         R(16, 16, 210, 150, '#a83a2c', 'barn'), C(262, 52, 36, '#b8b8c0', 'silo'),
         R(760, 16, 184, 120, '#c9b18a', 'building', { roof: 'gable', rc: '#5a3d2a' }), R(420, 20, 76, 52, '#b56a3a', 'building', { roof: 'gable', rc: '#7a3a22' }),
@@ -226,30 +249,32 @@ const MAPS = [
     })
   },
   {
-    name: 'Park', icon: '🌳', border: '#4f7a33', start: { x: 160, y: 320, a: 0 }, times: { afternoon: 2, sunset: 2.5, evening: 1.5 }, open: true,
-    pop: [['human', 12], ['dog', 3], ['duck', 4, { x: 470, y: 180, w: 260, h: 240 }], ['rabbit', 3]],
-    build: () => ({ // an off-center duck pond, a gazebo, a playground and paths that actually go somewhere
-      obs: [
-        C(600, 300, 86, '#4aa3df', 'water'),
-        C(250, 160, 28, '#e9e2d0', 'gazebo'),
-        TREE(90, 90, 34), TREE(150, 60, 22), TREE(870, 90, 36), TREE(820, 130, 20), TREE(880, 560, 32), TREE(820, 590, 22),
-        TREE(380, 470, 20), TREE(420, 520, 16), TREE(130, 520, 26), TREE(760, 470, 16), TREE(430, 130, 16),
-        R(300, 300, 40, 12, '#7a5a38', 'bench'), R(560, 430, 40, 12, '#7a5a38', 'bench'), R(690, 120, 12, 40, '#7a5a38', 'bench'),
-        R(168, 420, 40, 12, '#c0392b', 'slide'),
-        LAMP(220, 320), LAMP(470, 205), LAMP(470, 420), LAMP(740, 410), LAMP(300, 560), LAMP(800, 215)
-      ],
-      floor(x) {
-        checker(x, ...GRASS, 32);
-        x.lineCap = 'round'; x.strokeStyle = '#d9c08a';
-        x.lineWidth = 26; x.beginPath(); x.arc(600, 300, 126, 0, TAU); x.stroke();
-        x.lineWidth = 30; x.beginPath(); x.moveTo(-10, 320); x.bezierCurveTo(140, 330, 300, 280, 474, 300);
-        x.moveTo(250, 160); x.quadraticCurveTo(330, 240, 474, 300); x.moveTo(600, 426); x.quadraticCurveTo(560, 560, 520, 660); x.moveTo(726, 300); x.quadraticCurveTo(860, 300, 970, 360); x.stroke();
-        x.fillStyle = '#e8d49a'; x.beginPath(); x.ellipse(170, 450, 70, 50, 0, 0, TAU); x.fill(); // playground sand
-        x.strokeStyle = '#c9a85e'; x.lineWidth = 3; x.beginPath(); x.ellipse(170, 450, 70, 50, 0, 0, TAU); x.stroke();
-        flowers(x, 60, ['#ff9ecb', '#ffffff'], 8, 4);
-      },
-      decor(x) { x.fillStyle = '#3f6fae'; x.fillRect(110, 470, 26, 4); x.fillRect(110, 482, 26, 4); x.fillStyle = '#555'; circ(x, 112, 466, 2); circ(x, 134, 466, 2); } // swings
-    })
+    name: 'Park', icon: '🌳', border: '#4f7a33', start: { x: 120, y: 330, a: 0 }, times: { afternoon: 2, sunset: 2.5, evening: 1.5 }, open: true,
+    pop: [['human', 9], ['dog', 1], ['duck', 4, { x: 500, y: 200, w: 220, h: 200 }], ['rabbit', 3]], walkers: 5, grass: 90,
+    build: () => { // a city park: a loop path round the duck pond, paths in from three gates, a playground, a bandstand. Trees stay at the edges.
+      const loop = []; for (let k = 0; k <= 24; k++) { const a = k / 24 * TAU; loop.push([600 + Math.cos(a) * 140, 300 + Math.sin(a) * 120]); }
+      const west = [[-10, 330], [180, 330], [330, 310], [460, 300]], south = [[600, 420], [570, 540], [540, 660]], east = [[740, 300], [860, 300], [970, 330]], band = [[330, 310], [270, 220], [250, 170]];
+      return {
+        obs: [
+          C(600, 300, 84, '#4aa3df', 'water'),
+          C(250, 150, 30, '#e9e2d0', 'gazebo'),
+          TREE(70, 80, 40), TREE(150, 50, 26), TREE(40, 170, 26), TREE(880, 70, 40), TREE(930, 160, 24), TREE(900, 580, 36), TREE(820, 610, 24), TREE(60, 590, 34), TREE(140, 610, 22),
+          R(368, 280, 40, 12, '#7a5a38', 'bench'), R(560, 452, 40, 12, '#7a5a38', 'bench'), R(722, 180, 12, 40, '#7a5a38', 'bench'),
+          R(150, 468, 44, 12, '#c0392b', 'slide'),
+          LAMP(200, 350), LAMP(470, 330), LAMP(740, 420), LAMP(600, 160), LAMP(590, 560)
+        ],
+        paths: [loop, west, south, east, band],
+        floor(x) {
+          checker(x, ...GRASS, 32);
+          x.lineCap = 'round'; x.lineJoin = 'round'; x.strokeStyle = '#c9ad78'; x.lineWidth = 30;
+          const poly = pts => { x.beginPath(); pts.forEach((p, i) => i ? x.lineTo(...p) : x.moveTo(...p)); x.stroke(); };
+          [loop, west, south, east, band].forEach(poly); x.strokeStyle = '#dcc493'; x.lineWidth = 24; [loop, west, south, east, band].forEach(poly);
+          x.fillStyle = '#e8d49a'; x.beginPath(); x.ellipse(170, 470, 72, 52, 0, 0, TAU); x.fill(); x.strokeStyle = '#c9a85e'; x.lineWidth = 3; x.beginPath(); x.ellipse(170, 470, 72, 52, 0, 0, TAU); x.stroke(); // playground sand
+          flowers(x, 70, ['#ff9ecb', '#ffffff', '#ffd23f'], 8, 5);
+        },
+        decor(x) { x.fillStyle = '#3f6fae'; x.fillRect(110, 488, 26, 4); x.fillRect(110, 500, 26, 4); x.fillStyle = '#555'; circ(x, 112, 484, 2); circ(x, 134, 484, 2); } // swings
+      };
+    }
   },
   {
     name: 'Pool', icon: '🏊', border: '#5a7f8f', start: { x: 480, y: 100, a: 0 }, times: { midday: 2, afternoon: 2.5, sunset: 2, evening: 2, night: 1.5 },
@@ -344,7 +369,7 @@ const MAPS = [
         craters(x, 24, '#8a8d93', 7);
         x.fillStyle = '#9da0a6'; x.beginPath(); x.arc(800, 140, 60, 0, TAU); x.fill(); x.strokeStyle = '#e0c040'; x.lineWidth = 3; x.beginPath(); x.arc(800, 140, 54, 0, TAU); x.stroke(); // landing pad
         x.strokeStyle = 'rgba(70,72,78,.4)'; x.lineWidth = 3; x.setLineDash([3, 4]);
-        for (const o of [-6, 6]) { x.beginPath(); x.moveTo(215, 500 + o); x.bezierCurveTo(330, 470 + o, 380, 420 + o, 470, 400 + o); x.bezierCurveTo(600, 380 + o, 700, 220 + o, 790, 190 + o); x.stroke(); } // rover tracks
+        for (const o of [-6, 6]) { x.beginPath(); x.moveTo(215, 500 + o); x.bezierCurveTo(400, 470 + o, 640, 470 + o, 770, 400 + o); x.bezierCurveTo(860, 350 + o, 860, 230 + o, 810, 175 + o); x.stroke(); } // rover tracks loop round the south of the base to the pad
         x.setLineDash([]);
         x.fillStyle = 'rgba(60,62,68,.35)'; const r = seeded(4); for (let k = 0; k < 60; k++) { const px = 300 + r() * 360, py = 220 + r() * 230; ell(x, px, py, 2.2, 1.3); } // boot prints around the base
       }

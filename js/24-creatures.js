@@ -39,3 +39,51 @@ function spawn(type, zone) {
     creatures.push(c); return;
   }
 }
+/* ---- strollers: some people start the run already walking a path, back and forth, a few with a dog on a lead ---- */
+let curPaths = [];
+function spawnWalkers(n) {
+  if (!curPaths.length) return;
+  for (let k = 0; k < n; k++) {
+    const pts = pick(curPaths); let i = randi(0, pts.length - 1);
+    for (let t = 0; t < 12 && (!free(pts[i][0], pts[i][1], 12) || pts[i][0] < B + 10 || pts[i][0] > W - B - 10 || pts[i][1] < B + 10 || pts[i][1] > H - B - 10 || (snake && dist2(pts[i][0], pts[i][1], snake.x, snake.y) < 150 * 150)); t++) i = randi(0, pts.length - 1);
+    const [x, y] = pts[i]; if (!free(x, y, 12)) continue;
+    const type = MAPS[mapIdx].pop.find(q => TYPES[q[0]].human && !TYPES[q[0]].alien) ? 'human' : null; if (!type) return;
+    const c = giveFlash(makeCreature(type, x, y, null)); c.born = T; giveTraits(c);
+    c.path = { pts, i, dir: Math.random() < .5 ? 1 : -1 }; c.state = 'wander'; c.timer = 99;
+    creatures.push(c);
+    if (Math.random() < .45 && MAPS[mapIdx].open !== undefined || Math.random() < .3) { // a dog on a lead
+      const d = makeCreature('dog', x + rand(-14, 14), y + rand(-14, 14), null); if (!free(d.x, d.y, 10)) continue;
+      d.owner = c; c.dog = d; d.born = T; creatures.push(d);
+    }
+  }
+}
+function walkPath(c) { // returns a heading toward the next point along the path, turning back at the ends
+  const p = c.path, t = p.pts[p.i], d = Math.hypot(t[0] - c.x, t[1] - c.y);
+  if (d < 16) { p.i += p.dir; if (p.i < 0 || p.i >= p.pts.length) { p.dir = -p.dir; p.i += p.dir * 2; } p.i = clamp(p.i, 0, p.pts.length - 1); }
+  const n = p.pts[p.i]; return Math.atan2(n[1] - c.y, n[0] - c.x);
+}
+function heelDog(d) { // the dog trots near its owner, pulling ahead now and then
+  const o = d.owner, dx = o.x + Math.cos(o.a) * 10 - d.x, dy = o.y + Math.sin(o.a) * 10 - d.y, dist = Math.hypot(dx, dy);
+  return { a: Math.atan2(dy, dx) + Math.sin(T * 1.3 + d.pt * 30) * .5, k: dist > 26 ? 1.6 : dist < 12 ? 0 : .9 };
+}
+function drawLeashes(x) {
+  x.strokeStyle = 'rgba(40,30,25,.8)'; x.lineWidth = .9; x.beginPath();
+  for (const d of creatures) { if (!d.owner || !d.alive || !d.owner.alive || d.owner.state === 'panic' || d.state === 'panic') continue; const o = d.owner, ca = Math.cos(o.a), sa = Math.sin(o.a); x.moveTo(o.x + ca * 3 - sa * 7, o.y + sa * 3 + ca * 7); x.quadraticCurveTo((o.x + d.x) / 2, (o.y + d.y) / 2 + 4, d.x + Math.cos(d.a) * 5, d.y + Math.sin(d.a) * 5); }
+  x.stroke();
+}
+/* ---- long grass that sways in the wind (open maps) ---- */
+let grass = [];
+function makeGrass(n) {
+  const r = seeded(41); grass = [];
+  for (let k = 0; k < n * 3 && grass.length < n; k++) { const x = 30 + r() * (W - 60), y = 30 + r() * (H - 60); if (!grassAt(x, y) || solid(x, y)) continue; grass.push({ x, y, h: 4 + r() * 4, ph: r() * TAU, c: r() < .5 ? '#6f9e33' : '#7fb03c' }); }
+}
+function drawGrass(x) {
+  if (!grass.length) return;
+  x.lineCap = 'round'; x.lineWidth = 1.1;
+  for (const g of grass) {
+    const w = Math.sin(T * 1.7 + g.x * .018 + g.y * .01) * 1.6 + Math.sin(T * 3.1 + g.ph) * .4; // a gust rolls across the field
+    x.strokeStyle = g.c; x.beginPath();
+    for (const o of [-1.6, 0, 1.6]) { x.moveTo(g.x + o, g.y); x.quadraticCurveTo(g.x + o + w * .4, g.y - g.h * .6, g.x + o * 1.4 + w, g.y - g.h - (o ? -1 : 0)); }
+    x.stroke();
+  }
+}

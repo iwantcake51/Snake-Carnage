@@ -155,6 +155,12 @@ function drawObstacleBase(x, o) {
       else { for (let a = 0; a < 8; a++) circ(x, cx + Math.cos(a * TAU / 8) * 16, cy + Math.sin(a * TAU / 8) * 16, 4); circ(x, cx, cy, 11); x.fillStyle = ln; circ(x, cx, cy, 4); }
       return;
     }
+    case 'tent': { // ridge tent: two fly panels, guy lines, the door flap
+      x.strokeStyle = 'rgba(60,40,20,.5)'; x.lineWidth = .8; x.beginPath(); for (const [dx, dy] of [[-8, -6], [w + 8, -6], [-8, h + 6], [w + 8, h + 6]]) { x.moveTo(X + clamp(dx, 0, w), Y + clamp(dy, 0, h)); x.lineTo(X + dx, Y + dy); } x.stroke();
+      x.fillStyle = shade(c, .12); x.fillRect(X, Y, w, h / 2); x.fillStyle = shade(c, -.12); x.fillRect(X, Y + h / 2, w, h / 2);
+      x.strokeStyle = shade(c, -.35); x.lineWidth = 1.5; x.beginPath(); x.moveTo(X, Y + h / 2); x.lineTo(X + w, Y + h / 2); x.stroke();
+      x.fillStyle = '#3a2a1a'; x.beginPath(); x.moveTo(X + w, Y + h / 2 - 6); x.lineTo(X + w - 8, Y + h / 2); x.lineTo(X + w, Y + h / 2 + 6); x.fill(); return edge(x, o);
+    }
     case 'generator': x.fillStyle = c; x.fillRect(X, Y, w, h); x.fillStyle = shade(c, .15); x.fillRect(X + 4, Y + 4, w - 8, 10); x.fillStyle = '#1e2124'; for (let p = Y + 20; p < Y + h - 6; p += 7) x.fillRect(X + 8, p, w - 16, 3); x.fillStyle = '#e8b326'; x.fillRect(X + w - 14, Y + 4, 8, 8); return edge(x, o, .5);
     case 'dj': x.fillStyle = c; x.fillRect(X, Y, w, h); x.fillStyle = '#0c0a0e'; for (const fx of [.2, .8]) { circ(x, X + w * fx, Y + h / 2, 14); x.fillStyle = '#2a2830'; circ(x, X + w * fx, Y + h / 2, 11); x.fillStyle = '#c9a227'; circ(x, X + w * fx, Y + h / 2, 2); x.fillStyle = '#0c0a0e'; }
       x.fillStyle = '#2b2733'; x.fillRect(X + w * .38, Y + 8, w * .24, h - 16); x.fillStyle = '#ff3fa4'; for (let p = 0; p < 4; p++) x.fillRect(X + w * .41 + p * 7, Y + 12, 4, 3); x.fillStyle = '#3fd4ff'; x.fillRect(X + w * .41, Y + h - 16, 26, 2); return edge(x, o, .5);

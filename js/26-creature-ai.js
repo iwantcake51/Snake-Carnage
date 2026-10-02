@@ -56,6 +56,7 @@ function updateCreature(c, dt) {
   if (c.warn && (c.warn.t -= dt) <= 0) { const w = c.warn; c.warn = null; panic(c, w.x, w.y, rand(3, 5), 'warned'); }
   let want = c.a, spd = 0;
   if (c.alert > 0) c.alert = Math.max(0, c.alert - dt * .012); // fades over a minute or so, never instantly
+  if (c.path && c.state === 'idle' && !c.convo && c.alert < .3 && c.timer > 2) c.timer = rand(.5, 1.5); // strollers only pause briefly
   if (c.state === 'idle') {
     if (c.timer <= 0) { c.state = 'wander'; c.timer = rand(2, 5); c.wa = pickWander(c); }
   } else if (c.state === 'wander') {
@@ -64,6 +65,8 @@ function updateCreature(c, dt) {
       if (Math.random() < (c.alert > .3 ? .08 : .35)) { c.state = 'idle'; c.timer = rand(1, 3) * (c.alert > .3 ? .5 : 1); }
       else { c.timer = rand(1.5, 4); c.wa = pickWander(c); }
     }
+    if (c.path && c.alert < .3) { c.wa = walkPath(c); c.timer = Math.max(c.timer, 1); } // strolling the path
+    if (c.owner && c.owner.alive && c.owner.state !== 'panic' && c.alert < .3) { const h = heelDog(c); c.wa = h.a; spd *= h.k; c.timer = Math.max(c.timer, 1); if (c.state === 'idle') c.state = 'wander'; }
     const z = c.zone;
     if (z && (c.x < z.x || c.x > z.x + z.w || c.y < z.y || c.y > z.y + z.h)) c.wa = Math.atan2(z.y + z.h / 2 - c.y, z.x + z.w / 2 - c.x);
     want = Math.atan2(Math.sin(c.wa) + c.avy * .8, Math.cos(c.wa) + c.avx * .8);
