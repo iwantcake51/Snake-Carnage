@@ -1,22 +1,40 @@
-/* MAP CHALLENGES: every map draws 4 challenges (easy, medium, hard, and a medium or rare) from a large pool.
-   The set rerolls every 5 minutes for everyone (based on the clock), progress resets with it,
-   while long-term stats (best scores, levels, unlocks) are kept separately. */
-const ROT_MS = 5 * 60 * 1000;
+/* MAP CHALLENGES: every map draws 4 challenges (easy, medium, hard, and a medium or extreme) from a large pool.
+   The set rerolls every 15 minutes for everyone (based on the clock), progress resets with it,
+   while long-term stats (best scores, levels, unlocks) are kept separately. Targets scale with how many
+   people/animals the map actually has. Rewards are XP and chips; cosmetics come from lifetime achievements. */
+const ROT_MS = 15 * 60 * 1000;
 const rotIndex = () => Math.floor(Date.now() / ROT_MS);
 const rotLeft = () => ROT_MS - (Date.now() % ROT_MS);
 const fmtClock = ms => { const t = Math.ceil(ms / 1000); return String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0'); };
 function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 const hashStr = str => { let h = 2166136261; for (const ch of str) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return h >>> 0; };
 const TIERS = {
-  easy: { label: 'Easy', xp: 60, chips: 12 },
-  medium: { label: 'Medium', xp: 120, chips: 25, bonus: .05 },
-  hard: { label: 'Hard', xp: 220, chips: 45, bonus: .1 },
-  rare: { label: 'Rare', xp: 350, chips: 80, bonus: .1, item: true },
+  easy: { label: 'Easy', xp: 70, chips: 15 },                  // happens naturally
+  medium: { label: 'Medium', xp: 150, chips: 35, bonus: .05 }, // needs some focus
+  hard: { label: 'Hard', xp: 280, chips: 65, bonus: .1 },      // deliberate effort
+  rare: { label: 'Extreme', xp: 480, chips: 120, bonus: .15 }, // tough but doable
 };
 const NIGHT_MAPS = ['Town', 'Park', 'Maze', 'Farm', 'Checkerboard'];
+const CH_NAMES = { // every challenge gets a slightly unhinged name
+  humans: { easy: 'Snack Time', medium: 'Dinner Rush', hard: 'Public Menace' }, animals: { easy: 'Petting Zoo Is Closed' },
+  combo: { easy: 'Warming Up', medium: 'On a Roll', hard: 'Absolutely Starving' }, score: { easy: 'Number Go Up', hard: 'High Score Hunger' },
+  survive: { easy: 'Still Here', hard: 'Stubborn' }, dist: { easy: 'Scenic Route' }, panic: { easy: 'Wrong Place, Wrong Time', hard: 'Bad Neighborhood' },
+  xp: { easy: 'Learning Experience', medium: 'Higher Education' }, comboTypes: { medium: 'Balanced Diet', hard: 'Full Menu' }, panicKills: { medium: 'Cardio Is Overrated', hard: 'Fast Food' },
+  unaware: { medium: "Don't Mind Me", hard: 'No Witnesses' }, sharp: { medium: 'Drift King' }, burst: { medium: 'Speed Eater', hard: 'Inhaler', rare: 'Vacuum Cleaner' },
+  watched: { medium: 'Dinner and a Show' }, humanStreak: { medium: 'Oops, All Humans' }, animalStreak: { medium: 'Vegetarian (Sort Of)' },
+  noNVScore: { medium: 'Eyes Are Overrated', hard: 'Natural Night Owl' }, gore: { medium: 'Messy Eater', rare: "Cleanup Is Someone Else's Problem" },
+  comboTime: { medium: 'Marathon Meal', hard: 'All You Can Eat' }, humanCombo: { hard: 'People Person' }, golden: { rare: 'Gold Digger' },
+  goldenAny: { rare: 'Golden Opportunity' }, fastGolden: { rare: 'Shiny Hunting' }, modHumans: { rare: 'Hard Mode Snacking' }, allAnimals: { hard: 'Old MacDonald Had a Snake' },
+  sequence: { medium: 'Farm to Table' }, nvKills: { medium: 'Night Shift' }, darkCombo: { hard: 'Lights Out' }, edgeFree: { medium: 'Center Stage' },
+  aliens: { medium: 'Martian Cuisine', hard: 'Close Encounters' }, astronauts: { medium: 'Lunar Lunch', hard: 'Houston, We Have a Problem' },
+};
+const chName = (k, tier, type) => k === 'type' ? `${type[0].toUpperCase() + type.slice(1)} Problem` : (CH_NAMES[k] || {})[tier] || Object.values(CH_NAMES[k] || { x: 'Mystery Meat' })[0];
 function chPool(map) {
   const m = MAPS.find(q => q.name === map), animals = [...new Set(m.pop.filter(q => q[0] !== 'human').map(q => q[0]))], hasA = animals.length > 0, P = [];
-  const add = (tier, k, ns, t, extra = {}) => P.push({ tier, k, ns, t, ...extra });
+  const hPop = m.pop.filter(q => TYPES[q[0]].human).reduce((a, q) => a + q[1], 0), aPop = m.pop.filter(q => !TYPES[q[0]].human).reduce((a, q) => a + q[1], 0);
+  const fh = clamp(hPop / 12, .6, 1.5), fa = clamp(aPop / 10, .5, 1.5); // fewer people on the map = smaller human targets
+  const HUM = new Set(['humans', 'panic', 'panicKills', 'humanStreak', 'watched', 'humanCombo']), ANI = new Set(['animals', 'animalStreak']);
+  const add = (tier, k, ns, t, extra = {}) => P.push({ tier, k, ns: ns.map(n => Math.max(1, Math.round(n * (HUM.has(k) ? fh : ANI.has(k) ? fa : 1)))), t, ...extra });
   add('easy', 'humans', [5, 6, 8], 'Eat {n} humans');
   if (hasA) add('easy', 'animals', [3, 4, 5], 'Eat {n} animals');
   add('easy', 'combo', [4, 5], 'Reach a {n}x combo');
@@ -76,6 +94,10 @@ function chPool(map) {
     add('hard', 'combo', [15], 'Reach a {n}x combo');
   }
   if (map === 'Meadow') add('medium', 'type', [3], 'Eat {n} frogs', { type: 'frog' });
+  if (animals.includes('rat')) add('medium', 'type', [3], 'Eat {n} rats', { type: 'rat' });
+  if (hasA) add('rare', 'goldenAny', [1], 'Eat a golden animal');
+  if (m.pop.some(q => q[0] === 'alien')) { add('medium', 'aliens', [3, 4], 'Eat {n} aliens'); add('hard', 'aliens', [8], 'Eat {n} aliens'); add('rare', 'golden', [1], 'Eat a golden alien or golden crew member'); }
+  if (m.pop.some(q => q[0] === 'astronaut')) { add('medium', 'astronauts', [5, 6], 'Eat {n} astronauts'); add('hard', 'astronauts', [12], 'Eat {n} astronauts'); }
   if (map === 'Park') add('medium', 'type', [4], 'Eat {n} ducks', { type: 'duck' });
   if (map === 'Open Field') add('medium', 'type', [3], 'Eat {n} deer', { type: 'deer' });
   return P;
@@ -86,7 +108,7 @@ function buildSet(map, rot, salt = 0) {
     const opts = pool.filter(q => q.tier === tier && !used.has(q.k)); if (!opts.length) return;
     const q = opts[Math.floor(r() * opts.length)]; used.add(q.k);
     const n = q.ns[Math.floor(r() * q.ns.length)], mod = q.mods ? q.mods[Math.floor(r() * q.mods.length)] : null;
-    out.push({ id: `${q.k}-${n}${q.type ? '-' + q.type : ''}${mod ? '-' + mod : ''}`, k: q.k, n, tier, type: q.type, seq: q.seq, mod,
+    out.push({ id: `${q.k}-${n}${q.type ? '-' + q.type : ''}${mod ? '-' + mod : ''}`, k: q.k, n, tier, type: q.type, seq: q.seq, mod, name: chName(q.k, q.tier, q.type),
       t: q.t.replace('{n}', n).replace('{mod}', mod ? MODS.find(x => x.id === mod).name : '').replace(/\ba (?=(8|11|18)\D)/, 'an ') });
   };
   take('easy'); take('medium'); take('hard'); take(r() < .3 ? 'rare' : 'medium');
@@ -110,7 +132,7 @@ function crEat(c, pts, xp) {
   const hum = c.def.human;
   cr.score += pts; cr.xp += xp;
   hum ? cr.humans++ : cr.animals++; cr.byType[c.type] = (cr.byType[c.type] || 0) + 1;
-  if (c.golden) { cr.goldens++; if (T - (c.born || -99) < 30) cr.fastGolden++; }
+  if (c.golden) { cr.goldens++; if (!hum) cr.goldA = (cr.goldA || 0) + 1; if (T - (c.born || -99) < 30) cr.fastGolden++; }
   if (hum && (c.state === 'panic' || c.state === 'flee')) cr.panicKills++;
   if (c.state === 'wander' || c.state === 'idle') cr.unaware++;
   if (nightVision) cr.nvKills++;
@@ -159,22 +181,26 @@ function chValue(ch) {
     case 'darkCombo': return cr.maxDark;
     case 'edgeFree': return cr.maxEdge;
     case 'type': return cr.byType[ch.type] || 0;
+    case 'goldenAny': return cr.goldA || 0;
+    case 'aliens': return cr.byType.alien || 0;
+    case 'astronauts': return cr.byType.astronaut || 0;
   }
   return 0;
 }
 const chUnit = ch => ({ survive: 's', comboTime: 's', dist: ' m', gore: '%' })[ch.k] || '';
 const chReward = ch => TIERS[ch.tier];
 const rewardText = (ch, short) => { const r = chReward(ch);
-  return short ? `+${r.chips} ${'<i class="pc"></i>'}` : `+${r.xp} XP, +${r.chips} ${'<i class="pc"></i>'}${r.bonus ? `, +${Math.round(r.bonus * 100)}% score this run` : ''}${r.item ? ', a random cosmetic' : ''}`; };
-function checkRotation() { // reroll every 5 minutes, without restarting anything
+  return short ? `+${r.chips} ${'<i class="pc"></i>'}` : `+${r.xp} XP, +${r.chips} ${'<i class="pc"></i>'}${r.bonus ? `, +${Math.round(r.bonus * 100)}% score this run` : ''}`; };
+function checkRotation() { // reroll every 15 minutes, without restarting anything
   const r = rotIndex();
   if (PROG.chRot === r) return;
   const first = PROG.chRot === undefined;
   PROG.chRot = r; PROG.chDone = {}; PROG.chBest = {}; saveProg();
   cr = newCR(); if (combo) combo.start = T;
   if (first) return;
-  if (document.getElementById('chhud').innerHTML) { challengeHud(true, true); toast('New challenges are up'); Sfx.ui('select'); }
-  if (overlay.querySelector('.chal')) showChallenges(true);
+  if (document.getElementById('chhud').innerHTML) { challengeHud(true, true); notify({ kind: 'reset', title: 'Challenges reset', sub: 'A fresh set is up for this map', dur: 3.2 }); Sfx.ui('select'); }
+  const mc = document.getElementById('mapch');
+  if (mc) { mc.classList.add('rotOut'); setTimeout(() => { if (!mc.isConnected) return; mc.innerHTML = mapChallengesHtml(); mc.classList.remove('rotOut', 'swap'); void mc.offsetWidth; mc.classList.add('swap'); }, 420); }
   if (overlay.querySelector('.pause')) showPause();
   overlay.querySelectorAll('.card[data-map] .cb').forEach(el => { const m = MAPS[+el.closest('.card').dataset.map].name; el.textContent = `Best ${PROG.best[m] || 0}, ${chDoneCount(m)}/4 challenges`; });
 }
@@ -186,14 +212,10 @@ function checkChallenges() {
     const v = chValue(ch); best[ch.id] = Math.max(best[ch.id] || 0, Math.min(v, ch.n));
     if (done[ch.id] || v < ch.n) continue;
     done[ch.id] = true;
-    const r = chReward(ch); let item = null;
+    const r = chReward(ch);
     if (r.bonus) run.bonus = (run.bonus || 0) + r.bonus;
-    if (r.item) { // rare: unlock a cosmetic you don't own yet (chips if you own everything)
-      const all = [...Object.entries(SHOP).flatMap(([cat, l]) => l.filter(i => i[1] > 0).map(i => cat + ':' + i[0])), ...COLOR_ITEMS.filter(i => i[1] > 0).map(i => 'color:' + i[0])];
-      const left = all.filter(k => !PROG.owned.includes(k));
-      if (left.length) { item = pick(left); PROG.owned.push(item); }
-    }
-    challengePopup(ch, r, item); gainXP(r.xp, r.chips + (r.item && !item ? 60 : 0));
+    PROG.chTotal = (PROG.chTotal || 0) + 1; PROG.chMaps = [...new Set([...(PROG.chMaps || []), m])]; // lifetime, for achievements
+    challengePopup(ch, r); gainXP(Math.round(r.xp * rewardMult), Math.round(r.chips * rewardMult));
   }
   saveProg();
   challengeHud();
@@ -203,7 +225,7 @@ function challengeRows() { // compact list used by the pause menu
   const m = MAPS[mapIdx].name, done = PROG.chDone[m] || {}, best = PROG.chBest[m] || {};
   return activeChallenges(m).map(ch => {
     const v = done[ch.id] ? ch.n : Math.max(best[ch.id] || 0, Math.min(chValue(ch), ch.n));
-    return `<div class="pcr ${done[ch.id] ? 'done' : ''}"><span class="ck">${done[ch.id] ? '✔' : ''}</span><span class="t"><em class="tier ${ch.tier}">${TIERS[ch.tier].label}</em>${ch.t}</span><span class="v">${v}${chUnit(ch)}/${ch.n}${chUnit(ch)}<small>${rewardText(ch, true)}</small></span><i style="width:${(v / ch.n * 100).toFixed(0)}%"></i></div>`;
+    return `<div class="pcr ${done[ch.id] ? 'done' : ''}"><span class="ck">${done[ch.id] ? '✔' : ''}</span><span class="t"><em class="tier ${ch.tier}">${TIERS[ch.tier].label}</em><b class="cn2">${ch.name}</b> ${ch.t}</span><span class="v">${v}${chUnit(ch)}/${ch.n}${chUnit(ch)}<small>${rewardText(ch, true)}</small></span><i style="width:${(v / ch.n * 100).toFixed(0)}%"></i></div>`;
   }).join('') + `<p class="rot">New challenges in <b data-rot>${fmtClock(rotLeft())}</b></p>`;
 }
 function challengeHud(rebuild, refreshed) { // live checklist in the bottom-left corner while playing
@@ -211,7 +233,7 @@ function challengeHud(rebuild, refreshed) { // live checklist in the bottom-left
   if (rebuild || el.dataset.key !== m + rotIndex()) {
     el.dataset.key = m + rotIndex();
     el.innerHTML = `<div class="hch">Challenges<span>New in <b data-rot>${fmtClock(rotLeft())}</b></span></div>` +
-      list.map((ch, i) => `<div class="hc" data-id="${ch.id}" style="--i:${i}"><span class="ck ${ch.tier}"></span><span class="t">${ch.t}</span><span class="v"></span><span class="rw2">${rewardText(ch, true)}</span><i></i></div>`).join('');
+      list.map((ch, i) => `<div class="hc" data-id="${ch.id}" style="--i:${i}"><span class="ck ${ch.tier}"></span><span class="t" title="${ch.name}: ${ch.t}"><b class="cn2">${ch.name}</b> · ${ch.t}</span><span class="v"></span><span class="rw2">${rewardText(ch, true)}</span><i></i></div>`).join('');
     el.classList.remove('refresh'); if (refreshed) { void el.offsetWidth; el.classList.add('refresh'); }
   }
   for (const ch of list) {
@@ -229,10 +251,10 @@ function updateRotClocks() { // every visible "new challenges in" timer
   const t = fmtClock(rotLeft());
   document.querySelectorAll('[data-rot]').forEach(e => { if (e.textContent !== t) e.textContent = t; });
 }
-function challengePopup(ch, r, item) {
+function challengePopup(ch, r) {
   const box = document.getElementById('rewards'), el = document.createElement('div');
   el.className = 'rw ch';
-  el.innerHTML = `<span>✔ ${ch.t}</span><span class="c">${rewardText(ch)}${item ? ' (' + item.split(':')[1] + ')' : ''}</span>`;
+  el.innerHTML = `<span>✔ ${ch.name}</span><span class="c">${rewardText(ch)}</span>`;
   box.prepend(el); Sfx.ui('confirm');
   setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 400); }, 4500);
 }

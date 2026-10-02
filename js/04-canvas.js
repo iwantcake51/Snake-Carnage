@@ -5,7 +5,7 @@
    ========================================================= */
 const DPR = (() => { // render at the real on-screen size: device pixel ratio x how much the board is scaled up to fit
   const sw = Math.max(innerWidth, screen.width || 0), sh = Math.max(innerHeight, screen.height || 0);
-  const fitS = Math.max(1, Math.min((sw - 24) / 960, (sh - 70) / 640, 1.5));
+  const fitS = Math.max(1, Math.min((sw - 24) / 960, (sh - 70) / 640, 2.2)); // the board can grow big on large screens and stays crisp
   return Math.min(3, Math.max(1, (window.devicePixelRatio || 1) * fitS));
 })();
 function makeLayer(c) {

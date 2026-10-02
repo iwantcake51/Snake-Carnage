@@ -11,6 +11,7 @@ const MODS = [ // g = group shown in the panel; not = can't be combined with
   { g: 'Crowd', id: 'skittish', name: 'Skittish', desc: 'People spot you from farther away, but panicked people pay more.', mult: .15, not: ['oblivious'] },
   { g: 'Crowd', id: 'oblivious', name: 'Oblivious', desc: 'People notice you later, but pay a little less.', mult: -.1, not: ['skittish'] },
   { g: 'Crowd', id: 'doublePanic', name: 'Double panic radius', desc: 'Deaths are noticed from twice as far away.', mult: .25 },
+  { g: 'Crowd', id: 'blind', name: 'Blind crowd', desc: "People can't see. They hear you slither, screams and deaths, and run roughly away from the noise.", mult: -.1 },
   { g: 'Crowd', id: 'rareAppetite', name: 'Rare appetite', desc: 'Golden people show up more and pay much more. Everyone else pays a bit less.', mult: 0 },
   { g: 'Scoring', id: 'humanHunter', name: 'Human hunter', desc: 'Humans pay more and add combo time. Animals cut your combo short.', mult: 0, not: ['animalHunter'] },
   { g: 'Scoring', id: 'animalHunter', name: 'Animal hunter', desc: 'Animals pay more. Humans pay less and drain combo time.', mult: 0, not: ['humanHunter', 'noAnimals'] },
@@ -29,12 +30,18 @@ const MODS = [ // g = group shown in the panel; not = can't be combined with
   { g: 'Scoring', id: 'comboFocus', name: 'Combo focus', desc: 'Shorter combo timer, much bigger combo multiplier.', mult: .1, not: ['comboCushion'] },
   { g: 'Scoring', id: 'comboCushion', name: 'Combo cushion', desc: 'A forgiving combo timer, but a smaller combo multiplier.', mult: -.1, not: ['comboFocus'] },
   { g: 'Style', id: 'bloody', name: 'Bloodier', desc: 'A lot more blood per kill.', mult: 0 },
+  { g: 'Style', id: 'mute', name: 'Mute', desc: 'Nobody says a word. No speech bubbles at all.', mult: 0 },
   { g: 'Style', id: 'minimal', name: 'Minimal UI', desc: 'Hides reward pop-ups, the combo breakdown and the challenge list.', mult: 0 },
 ];
+const MOD_ICON = { night: '🌙', noNVG: '🚫', fog: '🌫️', fow: '🔦', fastSnake: '⚡', overcrowded: '👥', noAnimals: '🙅', fastHumans: '🏃', skittish: '😰', oblivious: '😴',
+  doublePanic: '📢', blind: '🕶️', rareAppetite: '🪙', humanHunter: '🧍', animalHunter: '🐇', variety: '🎲', foodChain: '🔗', bigGame: '🦌', smallGame: '🐀', chase: '🏁',
+  ambush: '🥷', crowdControl: '🎯', bloodlust: '🩸', mixedMeal: '🍽️', sharpTurn: '↩️', freshMeat: '🥩', selective: '🤢', comboFocus: '🔥', comboCushion: '🛋️', bloody: '💦', mute: '🤐', minimal: '▫️' };
 SETTINGS.mods = (SETTINGS.mods || []).filter(id => MODS.some(m => m.id === id)); // drop modifiers that no longer exist
-function randomMods() { // a small random, compatible set
-  const ids = new Set(), want = randi(0, 3);
-  for (const m of MODS.filter(m => m.id !== 'minimal').sort(() => Math.random() - .5)) {
+const MOD_COUNT_W = [18, 25, 22, 13, 9, 6, 4, 2, 1]; // random map: 0-2 is common, 3-4 less so, 5+ increasingly rare
+function rollModCount() { let r = Math.random() * MOD_COUNT_W.reduce((a, b) => a + b, 0); for (let i = 0; i < MOD_COUNT_W.length; i++) if ((r -= MOD_COUNT_W[i]) < 0) return i; return 0; }
+function randomMods(want = randi(0, 3)) { // a random, compatible set (style-only modifiers are left for the player to pick)
+  const ids = new Set();
+  for (const m of MODS.filter(m => m.g !== 'Style' || m.id === 'bloody').sort(() => Math.random() - .5)) {
     if (ids.size >= want) break;
     if (![...ids].some(id => (m.not || []).includes(id) || ((MODS.find(q => q.id === id).not || []).includes(m.id)))) ids.add(m.id);
   }
@@ -43,14 +50,14 @@ function randomMods() { // a small random, compatible set
 /* modifier scoring: returns a score multiplier and a combo-time adjustment for one kill */
 let runMod = {};
 function modBonus(c) {
-  const hum = c.def.human, R = runMod, notes = [];
+  const hum = c.def.human, R = runMod, mnotes = [];
   let m = 1, ct = 0;
   if (MOD.overcrowded && hum) m *= .8;
   if (MOD.oblivious) m *= .85;
   if (MOD.skittish && (c.state === 'panic' || c.state === 'flee')) m *= 1.35;
   if (MOD.noNVG && light.dark > .45) m *= 1.25;
   if (MOD.rareAppetite && !c.golden) m *= .85;
-  if (MOD.humanHunter) { if (hum) { m *= 1.3; ct += 1.5; } else { ct -= 2.5; notes.push('Combo cut'); } }
+  if (MOD.humanHunter) { if (hum) { m *= 1.3; ct += 1.5; } else { ct -= 2.5; mnotes.push('Combo cut'); } }
   if (MOD.animalHunter) { if (!hum) m *= 1.5; else { m *= .8; ct -= 1.2; } }
   if (MOD.variety) {
     if (R.lastType && R.lastType !== c.type) { R.varStreak = Math.min(6, R.varStreak + 1); R.same = 0; } else if (R.lastType) { R.varStreak = 0; R.same++; }
@@ -68,14 +75,14 @@ function modBonus(c) {
   if (MOD.crowdControl && hum) { const n = creatures.filter(o => o !== c && o.alive && o.def.human && dist2(o.x, o.y, c.x, c.y) < 90 * 90).length; m *= 1 + Math.min(n, 5) * .15; }
   if (MOD.bloodlust) { if (hum) { R.humanRun++; if (R.humanRun >= 3) m *= 1.5; } else R.humanRun = 0; }
   if (MOD.mixedMeal) {
-    if (R.ask && (R.ask === 'human') === hum) { m *= 2; notes.push('Bonus delivered'); R.ask = null; R.askIn = 3; }
+    if (R.ask && (R.ask === 'human') === hum) { m *= 2; mnotes.push('Bonus delivered'); R.ask = null; R.askIn = 3; }
     else if (!R.ask && --R.askIn <= 0) R.ask = Math.random() < .5 && !MOD.noAnimals ? 'animal' : 'human';
   }
-  if (MOD.sharpTurn && snake.hardTurnT && T - snake.hardTurnT < .8) { m *= 1.35; notes.push('Sharp turn'); }
-  if (MOD.freshMeat && T - (c.born || -99) < 8) { m *= 1.5; notes.push('Fresh meat'); }
-  if (MOD.selective && c.type === R.avoid) { m *= .5; ct -= 3; notes.push('Not that one'); }
+  if (MOD.sharpTurn && snake.hardTurnT && T - snake.hardTurnT < .8) { m *= 1.35; mnotes.push('Sharp turn'); }
+  if (MOD.freshMeat && T - (c.born || -99) < 8) { m *= 1.5; mnotes.push('Fresh meat'); }
+  if (MOD.selective && c.type === R.avoid) { m *= .5; ct -= 3; mnotes.push('Not that one'); }
   R.lastType = c.type;
-  if (notes.length) toast(notes.join(', '));
+  if (mnotes.length) notify({ kind: 'mod', title: mnotes.join(' · '), dur: 1.6, key: 'modnote' });
   return { m, ct };
 }
 function modHud() { // live state of the active scoring modifiers

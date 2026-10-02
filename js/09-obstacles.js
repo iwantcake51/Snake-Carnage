@@ -9,7 +9,8 @@ function drawObstacle(x, o) {
       x.fillStyle = shade(c, .15); circ(x, o.x - o.r * .25, o.y - o.r * .25, o.r * .6);
       x.fillStyle = shade(c, .3); circ(x, o.x - o.r * .35, o.y - o.r * .35, o.r * .25);
     } else if (o.kind === 'rock') { x.fillStyle = shade(c, .2); circ(x, o.x - o.r * .3, o.y - o.r * .3, o.r * .45); }
-    else if (o.kind === 'water') drawWater(x, o, 0); // static version (thumbnails); animated copy is drawn every frame else if (o.kind === 'lamp') { x.fillStyle = '#fff1bf'; circ(x, o.x, o.y, o.r * .5); }
+    else if (o.kind === 'water') drawWater(x, o, 0); // static version (thumbnails); animated copy is drawn every frame
+    else if (o.kind === 'lamp') { x.fillStyle = '#fff1bf'; circ(x, o.x, o.y, o.r * .5); }
     else if (o.kind === 'hay') { x.strokeStyle = shade(c, -.2); x.lineWidth = 2; x.beginPath(); x.arc(o.x, o.y, o.r * .55, 0, TAU); x.stroke(); }
     else if (o.kind === 'silo') { x.fillStyle = shade(c, -.15); circ(x, o.x, o.y, o.r * .72); x.fillStyle = shade(c, .1); circ(x, o.x, o.y, o.r * .25); }
     else { x.fillStyle = shade(c, .12); circ(x, o.x, o.y, o.r * .6); }

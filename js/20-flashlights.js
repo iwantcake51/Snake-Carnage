@@ -27,7 +27,8 @@ function updateFlash(c, dt) {
   f.a += angDiff(f.a, tgt) * Math.min(1, dt * rate);
   const running = st === 'panic' || st === 'flee';
   f.da = f.a + (running ? Math.sin(c.phase * 1.7) * .07 + (Math.random() - .5) * .04 : Math.sin(c.phase * 1.1) * .02);
-  f.x = c.x + Math.cos(c.a) * 5 - Math.sin(c.a) * 4; f.y = c.y + Math.sin(c.a) * 5 + Math.cos(c.a) * 4;
+  const [, , hx, hy] = armPos(c), ca = Math.cos(c.a), sa = Math.sin(c.a), lx = hx + 1; // light sits in the right hand
+  f.x = c.x + ca * lx - sa * hy; f.y = c.y + sa * lx + ca * hy;
   let fl = 1; if (f.fT > 0) { f.fT -= dt; fl = Math.random() < .5 ? rand(.25, .7) : 1; } else if (f.flick && Math.random() < dt * .08) f.fT = rand(.12, .35);
   f.k = f.on ? f.pow * fl : 0;
 }
@@ -59,17 +60,20 @@ function updateBeams(dt) {
   const list = [];
   for (const c of creatures) if (c.alive && c.fl && c.fl.k > .01) list.push(c.fl);
   for (const d of dropped) if (d.k > .01) list.push(d);
-  const cap = lowFx ? 3 : 6;
-  if (snake && list.length > cap) list.sort((a, b) => dist2(a.x, a.y, snake.x, snake.y) - dist2(b.x, b.y, snake.x, snake.y)); // nearest first, capped for speed
-  beams = list.slice(0, cap);
+  const cap = lowFx ? 4 : 6, sx = snake ? snake.x : W / 2, sy = snake ? snake.y : H / 2;
+  const key = f => dist2(f.x, f.y, sx, sy) * (f.sel ? .6 : 1); // already-shown beams get a head start, so the set doesn't churn
+  if (list.length > cap) list.sort((a, b) => key(a) - key(b)); // nearest first, capped for speed
+  beams = [];
+  list.forEach((f, i) => { f.sel = i < cap; f.vis = clamp((f.vis ?? (f.sel ? 1 : 0)) + (f.sel ? dt * 4 : -dt * 4), 0, 1); if (f.vis > .01) { f.k *= f.vis; beams.push(f); } });
 }
 function drawFlashBodies(x) {
   const one = f => {
     x.save(); x.translate(f.x, f.y); x.rotate(f.da);
     x.fillStyle = '#26262b'; x.fillRect(-4, -1.6, 7, 3.2); x.fillStyle = '#4a4a52'; x.fillRect(2.5, -2.1, 2, 4.2);
     x.fillStyle = f.k > .01 ? `rgb(${f.c})` : '#777'; x.fillRect(4.3, -1.7, 1, 3.4);
+    if (f.holder && f.holder.look) { x.fillStyle = f.holder.look.skin; circ(x, -.5, 0, 2.1); } // fingers wrapped round the grip
     x.restore();
   };
-  for (const c of creatures) if (c.alive && c.fl) one(c.fl);
+  for (const c of creatures) if (c.alive && c.fl && c.fl.on) one(c.fl); // in daylight it's put away
   for (const d of dropped) one(d);
 }

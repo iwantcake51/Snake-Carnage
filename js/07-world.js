@@ -70,7 +70,7 @@ function loadMap(idx) {
   buildSolid();
   buildLights(b.lights || m.lights || []);
   wet = new Float32Array(WW * WH); fresh = new Float32Array(WW * WH);
-  creatures = []; parts = []; pools = []; respawnQ = [];
+  creatures = []; parts = []; pools = []; respawnQ = []; gibs = []; splashes = []; groups = [];
   score = 0; kills = { h: 0, a: 0 }; shake = 0;
   killV = killFlash = desatHold = 0;
   light = computeLight(); shadowKey = ''; bakeShadows();

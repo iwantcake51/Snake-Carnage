@@ -4,24 +4,27 @@ function openness(x, y) {
   return n;
 }
 function pickFleeGoal(c) { // an open spot away from the threat, away from bodies, ideally in the direction already running
-  const ta = Math.atan2(c.fy - c.y, c.fx - c.x);
+  const ta = Math.atan2(c.fy - c.y, c.fx - c.x), trapped = openness(c.x, c.y) <= 5 && crowdAt(c.x, c.y) >= 5; // boxed into a crowded corner
   let best = null, bs = -1e9;
-  for (let k = 0; k < 20; k++) {
+  const fails = c.failed ? c.failed.filter(f => T - f.t < 8) : null; // routes that didn't work out recently
+  for (let k = 0; k < 14; k++) {
     const a = Math.random() < .7 ? ta + Math.PI + rand(-1.6, 1.6) : rand(0, TAU), d = rand(110, 300), x = c.x + Math.cos(a) * d, y = c.y + Math.sin(a) * d;
     if (!free(x, y, c.def.r + 6)) continue;
     let sc = Math.hypot(x - c.fx, y - c.fy) * 1.2 + openness(x, y) * 22 + Math.cos(angDiff(c.a, a)) * 40;
     if (Math.cos(a - ta) > .2) sc -= 400;
-    if (!los(c.x, c.y, x, y)) sc -= 140;
+    if (!los(c.x, c.y, x, y)) sc -= c.state === 'panic' ? 260 : 140; // panicking people want a route they can actually see
+    if (fails) for (const f of fails) if (dist2(x, y, f.x, f.y) < 70 * 70) sc -= 320;
     for (const dd of deaths) { const q = Math.hypot(x - dd.x, y - dd.y); if (q < 160) sc -= (160 - q) * 1.5; }
     if (snake) { const q = Math.hypot(x - snake.x, y - snake.y); if (q < 120) sc -= (120 - q) * 3; }
+    sc += spotScore(c, x, y) + (trapped ? openness(x, y) * 30 : 0); // open escape routes beat the map edge
     if (sc > bs) { bs = sc; best = { x, y }; }
   }
   if (!best) best = { x: c.x - Math.cos(ta) * 100, y: c.y - Math.sin(ta) * 100 };
-  best.fx = c.fx; best.fy = c.fy;
+  best = groupGoal(c, best); best.fx = c.fx; best.fy = c.fy;
   c.goal = best; c.goalT = rand(1.5, 2.5); c.stuck = 0; c.goalD = Infinity; c.goalP = 0;
 }
 function steerDir(c, want) {
-  const probe = c.def.r + 8 + (c.state === 'wander' ? 0 : 10);
+  const probe = c.def.r + 8 + (c.state === 'wander' ? 0 : 16); // look further ahead when running, so turns start early
   for (const off of [0, .35, .7, 1.1, 1.6, 2.2, 2.8]) {
     for (const sgn of off ? [c.side, -c.side] : [1]) {
       const a = want + off * sgn;
@@ -35,7 +38,7 @@ function updateCreature(c, dt) {
   const d = c.def;
   if (c.golden && (c.goldT -= dt) <= 0) { // golden humans don't hang around forever
     c.alive = false; respawnQ.push({ type: c.type, zone: c.zone, t: rand(2, 5) });
-    if (state === 'play') toast('The golden human got away');
+    if (state === 'play') toast(`The golden ${c.def.human ? 'human' : c.type} got away`);
     return;
   }
   c.pt -= dt; if (c.pt <= 0) { c.pt = (MOD.skittish ? .08 : .15) + Math.random() * .1; perceive(c); }
@@ -51,13 +54,14 @@ function updateCreature(c, dt) {
   }
   if (c.warn && (c.warn.t -= dt) <= 0) { const w = c.warn; c.warn = null; panic(c, w.x, w.y, rand(3, 5), 'warned'); }
   let want = c.a, spd = 0;
+  if (c.alert > 0) c.alert = Math.max(0, c.alert - dt * .012); // fades over a minute or so, never instantly
   if (c.state === 'idle') {
-    if (c.timer <= 0) { c.state = 'wander'; c.timer = rand(2, 5); c.wa = c.a + rand(-1.5, 1.5); }
+    if (c.timer <= 0) { c.state = 'wander'; c.timer = rand(2, 5); c.wa = pickWander(c); }
   } else if (c.state === 'wander') {
-    spd = d.walk;
+    spd = d.walk * (c.alert > .3 ? 1.7 : 1); // cautious people walk briskly
     if (c.timer <= 0) {
-      if (Math.random() < .35) { c.state = 'idle'; c.timer = rand(1, 3); }
-      else { c.timer = rand(1.5, 4); c.wa = c.a + rand(-1.6, 1.6); }
+      if (Math.random() < (c.alert > .3 ? .08 : .35)) { c.state = 'idle'; c.timer = rand(1, 3) * (c.alert > .3 ? .5 : 1); }
+      else { c.timer = rand(1.5, 4); c.wa = pickWander(c); }
     }
     const z = c.zone;
     if (z && (c.x < z.x || c.x > z.x + z.w || c.y < z.y || c.y > z.y + z.h)) c.wa = Math.atan2(z.y + z.h / 2 - c.y, z.x + z.w / 2 - c.x);
@@ -66,30 +70,37 @@ function updateCreature(c, dt) {
     spd = c.state === 'uneasy' ? d.walk * 2.2 : d.run * (c.state === 'panic' ? 1 : .9);
     const gd = c.goal ? Math.hypot(c.goal.x - c.x, c.goal.y - c.y) : 0;
     if (c.goal) { c.goalP += dt; if (gd < c.goalD - 4) { c.goalD = gd; c.goalP = 0; } } // progress watchdog stops orbiting
+    if (c.goal && (c.stuck > .4 || c.goalP > .9)) { // that route failed: remember it, and turn around if this is a dead end
+      (c.failed = c.failed || []).push({ x: c.goal.x, y: c.goal.y, t: T }); if (c.failed.length > 4) c.failed.shift();
+      if (openness(c.x, c.y) <= 3) { c.a += Math.PI; c.steerA = undefined; noteSpot(c); }
+    }
     if (!c.goal || c.goalT <= 0 || c.stuck > .4 || gd < 30 || c.goalP > .9 || dist2(c.fx, c.fy, c.goal.fx, c.goal.fy) > 4900) pickFleeGoal(c);
     c.goalT -= dt;
     const gx = c.goal.x - c.x, gy = c.goal.y - c.y, gl = Math.hypot(gx, gy) || 1;
     want = Math.atan2(gy / gl + c.avy * 1.1, gx / gl + c.avx * 1.1);
     if (c.timer <= 0) {
       if (d.human && c.state === 'panic' && c.wasChased && Math.random() < .7) say(c, 'escaped');
-      c.wasChased = false; c.state = 'wander'; c.timer = rand(1, 3); c.wa = c.a; c.goal = null;
+      c.wasChased = false; c.state = 'wander'; c.timer = rand(1, 3); c.wa = c.a; c.goal = null; // calmer, but still on edge (see c.alert)
     }
   }
-  spd *= SETTINGS.creatureSpeed * (d.human && MOD.fastHumans ? 1.3 : 1) * 1;
+  if (c.adren > 0) c.adren -= dt;
+  spd *= SETTINGS.creatureSpeed * (d.human && MOD.fastHumans ? 1.3 : 1) * (c.spdK || 1) * (c.adren > 0 ? 1.45 : 1); // some people are just faster; fear gives a short burst
   // smooth the desired heading so it can't flip back and forth (no spinning in place)
   c.wantA = c.wantA === undefined ? want : c.wantA + angDiff(c.wantA, want) * Math.min(1, dt * 7);
-  let moved = 0;
+  let moved = 0, mv = spd;
+  if (d.hop) mv = hopSpeed(c, dt, spd); // frogs: hop, pause, hop
   if (spd > 0) {
     if ((c.steerT = (c.steerT || 0) - dt) <= 0 || c.steerA === undefined) { c.steerA = steerDir(c, c.wantA); c.steerT = .12; } // commit for a moment
     const a = c.steerA;
     if (c.state === 'wander' && Math.abs(angDiff(want, a)) > .01) c.wa = a;
-    const tr = (c.state === 'wander' ? 4 : 8) * dt;
+    const tr = (d.hop ? (c.hopT > 0 ? 0 : 14) : c.state === 'wander' ? 4 : 8) * dt; // frogs aim while sitting, not mid-air
     c.a += clamp(angDiff(c.a, a), -tr, tr);
-    const nx = c.x + Math.cos(c.a) * spd * dt, ny = c.y + Math.sin(c.a) * spd * dt;
-    if (free(nx, ny, d.r * .8)) { moved = spd * dt; c.x = nx; c.y = ny; }
-    else { c.steerT = 0; if (T - (c.sideT || -9) > .8) { c.side = -c.side; c.sideT = T; } } // re-steer, but don't flip sides every frame
-    c.stuck = moved < spd * dt * .3 ? (c.stuck || 0) + dt : 0;
-    if (c.state === 'wander' && c.stuck > .5) { c.wa = c.a + Math.PI + rand(-.8, .8); c.stuck = 0; }
+    const nx = c.x + Math.cos(c.a) * mv * dt, ny = c.y + Math.sin(c.a) * mv * dt;
+    if (mv <= 0) { /* sitting between hops */ }
+    else if (free(nx, ny, d.r * .8)) { moved = mv * dt; c.x = nx; c.y = ny; }
+    else { c.steerT = 0; if (d.hop) c.hopT = 0; if (T - (c.sideT || -9) > .8) { c.side = -c.side; c.sideT = T; } } // re-steer, but don't flip sides every frame
+    if (mv > 0) c.stuck = moved < mv * dt * .3 ? (c.stuck || 0) + dt : 0;
+    if (c.state === 'wander' && c.stuck > .5) { noteSpot(c); c.wa = c.a + Math.PI + rand(-.8, .8); c.stuck = 0; }
   }
   c.spd = dt > 0 ? moved / dt : 0;
   c.moveAmt += ((moved > 0 ? 1 : 0) - c.moveAmt) * Math.min(1, dt * 8);
@@ -98,6 +109,20 @@ function updateCreature(c, dt) {
   updateFlash(c, dt);
 }
 
+function hopSpeed(c, dt, spd) { // returns this frame's speed: fast while airborne, zero while sitting
+  const scared = c.state === 'panic' || c.state === 'flee';
+  if (c.hopT > 0) { // in the air
+    c.hopT -= dt; const p = 1 - Math.max(0, c.hopT) / c.hopDur; c.hz = Math.sin(p * Math.PI) * c.hopH;
+    if (c.hopT <= 0) { c.hz = 0; c.hopW = scared ? rand(.06, .2) : rand(.35, .9) * (Math.random() < .2 ? 2 : 1); } // land, then sit a moment
+    return c.hopV;
+  }
+  c.hz = 0;
+  if (spd <= 0) return 0;
+  if ((c.hopW = (c.hopW ?? rand(0, .5)) - dt) > 0) return 0;
+  const dist = scared ? rand(26, 42) : rand(12, 22) * (spd / c.def.walk > 1.5 ? 1.4 : 1);
+  c.hopDur = scared ? rand(.18, .24) : rand(.22, .3); c.hopT = c.hopDur; c.hopH = scared ? rand(5, 8) : rand(3, 5); c.hopV = dist / c.hopDur;
+  return c.hopV;
+}
 function footprints(c, moved) {
   if (moved <= 0) return;
   const hum = c.def.human;

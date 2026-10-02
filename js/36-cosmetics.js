@@ -1,0 +1,125 @@
+/* =========================================================
+   COSMETICS + LIFETIME ACHIEVEMENTS
+   Shop items are [name, price, achievementId?]. Items tied to an achievement can't be bought:
+   they show as locked silhouettes until the achievement is earned, then equip for free.
+   Map challenges pay XP/chips; these long-term achievements are where unique cosmetics come from,
+   and every reward matches what it was earned for (rats -> rat skin, golden targets -> gold, panic -> alarm UI...).
+   ========================================================= */
+const COLOR_ITEMS = [ // presets: basics are cheap, rare ones moderate; Primary and Secondary are bought separately
+  ['#4e7cf6', 0], ['#3fa34d', 0], ['#d63c3c', 0], ['#f2f2f2', 0], ['#2b2b30', 0],
+  ['#8e5bd6', 10], ['#f08a24', 10], ['#ef6fb0', 10], ['#d9b13b', 15], ['#21a5a5', 15],
+  ['#39ff14', 50], ['#ff00a8', 50], ['#8be9fd', 50], ['#b6ff00', 55], ['#e8e0cc', 60], ['#7a0000', 70], ['#14143c', 70], ['#ff6b00', 75],
+  ['#7d7d86', 0, 'ratProblem'], ['#d4af37', 0, 'goldDigger'], ['#5a0606', 0, 'cleanup'], ['#c1440e', 0, 'martian'], ['#b9c0c8', 0, 'lunar']];
+const CUSTOM_PRICE = { primary: 2500, full: 6000 }; // the luxury tier: any color you want
+const SHOP = {
+  pattern: [['Solid', 0], ['Stripes', 0], ['Spots', 25], ['Gradient', 35], ['Zebra', 45], ['Checker', 45], ['Diamond', 70], ['Neon', 120], ['Rainbow', 160], ['Lava', 160], ['Galaxy', 220],
+    ['Rat Fur', 0, 'ratProblem'], ['Gold Plated', 0, 'goldDigger'], ['Blood Soaked', 0, 'cleanup'], ['Hazard', 0, 'masochist'], ['Lunar', 0, 'lunar'], ['Martian', 0, 'martian']],
+  hat: [['None', 0], ['Party hat', 20], ['Flower', 20], ['Beanie', 25], ['Bow', 25], ['Top hat', 30], ['Cone', 30], ['Chef', 40], ['Antenna', 40], ['Cowboy', 50],
+    ['Headphones', 50], ['Graduation', 50], ['Santa', 60], ['Sombrero', 60], ['Mohawk', 60], ['Pirate', 70], ['Propeller', 70], ['Viking', 80], ['Horns', 90],
+    ['Wizard', 100], ['Halo', 120], ['Crown', 0, 'midas']],
+  eyes: [['Normal', 0], ['Angry', 10], ['Sleepy', 10], ['Googly', 30], ['Dead', 40], ['Shades', 50], ['Cyclops', 60], ['Hearts', 70], ['Stars', 70], ['Visor', 90], ['Laser', 0, 'starving']],
+  trail: [['None', 0], ['Smoke', 60], ['Bubbles', 70], ['Sparkles', 80], ['Hearts', 90], ['Petals', 90], ['Confetti', 110], ['Embers', 120],
+    ['Cheese Crumbs', 0, 'ratKing'], ['Gold Dust', 0, 'goldenOpp'], ['Blood Drip', 0, 'paintRed'], ['Alarm', 0, 'badHood'], ['Stardust', 0, 'worldEater']],
+  theme: [['Default', 0], ['Midnight', 180], ['Toxic', 220], ['Panic', 0, 'wrongPlace'], ['Gold', 0, 'midas'], ['Blood', 0, 'paintRed']],
+  card: [['Default', 0], ['Neon', 150], ['Gold Frame', 0, 'goldenOpp'], ['Bloody', 0, 'cleanup'], ['Hazard', 0, 'overachiever'], ['Chip Stack', 0, 'highRoller']],
+  effect: [['None', 0], ['Embers', 160], ['Snow', 160], ['Gold Dust', 0, 'midas'], ['Blood Rain', 0, 'paintRed'], ['Alarm Lights', 0, 'wrongPlace'], ['Stars', 0, 'worldEater']],
+  title: [['None', 0], ['Rat King', 0, 'ratKing'], ['People Person', 0, 'peoplePerson'], ['Public Menace', 0, 'publicMenace'], ['Roadkill Enthusiast', 0, 'roadkill'],
+    ['Gold Digger', 0, 'goldDigger'], ["Don't Mind Me", 0, 'dontMind'], ['Absolutely Starving', 0, 'starving'], ['Checklist Enjoyer', 0, 'checklist'],
+    ['Thrill Seeker', 0, 'thrill'], ['Tourist', 0, 'tourist'], ['Veteran', 0, 'veteran'], ['High Roller', 0, 'highRoller'], ['Oops, All Humans', 0, 'allHumans']],
+};
+const CAT_LABEL = { color: 'Primary color', color2: 'Secondary color', pattern: 'Skin', hat: 'Hat', eyes: 'Eyes', trail: 'Trail', theme: 'UI theme', card: 'Card style', effect: 'Menu effect', title: 'Title' };
+SETTINGS.snake = Object.assign({ theme: 'Default', card: 'Default', effect: 'None', title: 'None' }, SETTINGS.snake);
+const itemsOf = cat => cat.startsWith('color') ? COLOR_ITEMS : SHOP[cat];
+const findItem = (cat, v) => itemsOf(cat).find(i => i[0] === v);
+const ownKey = (cat, v) => cat + ':' + v; // Primary and Secondary colors are owned separately
+function priceOf(cat, v) { const it = findItem(cat, v); return it ? it[1] : 0; }
+const achOf = (cat, v) => { const it = findItem(cat, v); return it && it[2] ? ACH.find(a => a.id === it[2]) : null; };
+function owns(cat, v) {
+  if (cat.startsWith('color') && !findItem(cat, v)) return PROG.owned.includes(cat === 'color' ? 'custom:primary' : 'custom:full'); // a custom color
+  const it = findItem(cat, v); if (!it) return false;
+  return (it[1] === 0 && !it[2]) || PROG.owned.includes(ownKey(cat, v));
+}
+PROG.owned = PROG.owned.filter(k => !k.startsWith('outline:')); // outline colors became a visibility setting long ago
+{ // one-time: colors used to be shared between Primary and Secondary, so keep whatever was already bought on both
+  if (!PROG.colorSplit) { PROG.owned.filter(k => k.startsWith('color:')).forEach(k => PROG.owned.push('color2:' + k.slice(6))); PROG.colorSplit = 1; }
+  for (const cat of Object.keys(CAT_LABEL)) if (SETTINGS.snake[cat] !== undefined && !owns(cat, SETTINGS.snake[cat]) && !(cat.startsWith('color') && !findItem(cat, SETTINGS.snake[cat]))) PROG.owned.push(ownKey(cat, SETTINGS.snake[cat])); // keep what you already wear
+  for (const cat of ['color', 'color2']) if (!owns(cat, SETTINGS.snake[cat])) SETTINGS.snake[cat] = cat === 'color' ? '#4e7cf6' : '#f2f2f2';
+  saveProg();
+}
+
+/* ---- lifetime stats ---- */
+for (const k of ['kH', 'kA', 'goldH', 'goldA', 'maxPanic', 'unawareT', 'chTotal', 'modRuns', 'earned', 'bestCombo1', 'bestHCombo', 'maxGore', 'kills', 'panicKillsT']) PROG[k] = PROG[k] || 0;
+PROG.kT = PROG.kT || {}; PROG.mapsPlayed = PROG.mapsPlayed || []; PROG.chMaps = PROG.chMaps || []; PROG.ach = PROG.ach || {}; PROG.maxModsRun = PROG.maxModsRun || 0;
+function statEat(c) { // cheap counters, every kill
+  c.def.human ? PROG.kH++ : PROG.kA++; PROG.kT[c.type] = (PROG.kT[c.type] || 0) + 1;
+  if (c.state === 'wander' || c.state === 'idle') PROG.unawareT++;
+  if (c.def.human && (c.state === 'panic' || c.state === 'flee')) PROG.panicKillsT++;
+  if (combo) { PROG.bestCombo1 = Math.max(PROG.bestCombo1, combo.n); if (combo.allHuman) PROG.bestHCombo = Math.max(PROG.bestHCombo, combo.n); }
+  PROG.maxGore = Math.max(PROG.maxGore, Math.round(goreLvl * 100));
+  checkAch();
+}
+function statRunEnd() { // once per run
+  const m = MAPS[mapIdx].name; if (!PROG.mapsPlayed.includes(m)) PROG.mapsPlayed.push(m);
+  if (runMods.length) PROG.modRuns++;
+  if (score >= 50) PROG.maxModsRun = Math.max(PROG.maxModsRun, runMods.length);
+  PROG.maxPanic = Math.max(PROG.maxPanic, run.maxPanic || 0);
+  checkAch(); saveProg();
+}
+
+/* ---- achievements: [id, name, what, stat, goal, tier] -> rewards come from the items tagged with the id ---- */
+const ACH = [
+  ['ratProblem', 'Rat Problem', 'Eat {n} rats', () => PROG.kT.rat || 0, 25, 'medium'],
+  ['ratKing', 'Rat King', 'Eat {n} rats', () => PROG.kT.rat || 0, 100, 'hard'],
+  ['peoplePerson', 'People Person', 'Eat {n} humans', () => PROG.kH, 100, 'easy'],
+  ['publicMenace', 'Public Menace', 'Eat {n} humans', () => PROG.kH, 750, 'hard'],
+  ['roadkill', 'Roadkill Enthusiast', 'Eat {n} animals', () => PROG.kA, 200, 'medium'],
+  ['goldDigger', 'Gold Digger', 'Eat {n} golden humans', () => PROG.goldH, 5, 'hard'],
+  ['goldenOpp', 'Golden Opportunity', 'Eat {n} golden animals', () => PROG.goldA, 3, 'hard'],
+  ['midas', 'Midas Touch', 'Eat {n} golden targets in total', () => PROG.goldH + PROG.goldA, 20, 'rare'],
+  ['dontMind', "Don't Mind Me", 'Eat {n} targets before they notice you', () => PROG.unawareT, 150, 'medium'],
+  ['starving', 'Absolutely Starving', 'Reach a {n}x combo', () => PROG.bestCombo1, 20, 'rare'],
+  ['allHumans', 'Oops, All Humans', 'Reach a {n}x combo eating only humans', () => PROG.bestHCombo, 12, 'hard'],
+  ['wrongPlace', 'Wrong Place, Wrong Time', 'Have {n} people panicking at once', () => PROG.maxPanic, 20, 'hard'],
+  ['badHood', 'Bad Neighborhood', 'Eat {n} people while they flee', () => PROG.panicKillsT, 300, 'medium'],
+  ['cleanup', "Cleanup Is Someone Else's Problem", 'Eat {n} targets in total', () => PROG.kH + PROG.kA, 1500, 'hard'],
+  ['paintRed', 'Paint the Town Red', 'Get your snake {n}% blood-soaked', () => PROG.maxGore, 90, 'medium'],
+  ['checklist', 'Checklist Enjoyer', 'Complete {n} map challenges', () => PROG.chTotal, 25, 'easy'],
+  ['overachiever', 'Overachiever', 'Complete {n} map challenges', () => PROG.chTotal, 150, 'hard'],
+  ['thrill', 'Thrill Seeker', 'Play {n} runs with modifiers on', () => PROG.modRuns, 20, 'easy'],
+  ['masochist', 'Masochist', 'Score 50+ in a run with {n} or more modifiers', () => PROG.maxModsRun, 5, 'rare'],
+  ['veteran', 'Veteran', 'Reach level {n}', () => PROG.level, 25, 'hard'],
+  ['highRoller', 'High Roller', 'Earn {n} chips in total', () => PROG.earned, 5000, 'medium'],
+  ['tourist', 'Tourist', 'Play {n} different maps', () => PROG.mapsPlayed.length, 8, 'easy'],
+  ['worldEater', 'World Eater', 'Complete a challenge on {n} different maps', () => PROG.chMaps.length, 10, 'rare'],
+  ['lunar', 'Lunar Lunch', 'Eat {n} astronauts', () => PROG.kT.astronaut || 0, 40, 'medium'],
+  ['martian', 'Martian Cuisine', 'Eat {n} aliens', () => PROG.kT.alien || 0, 40, 'medium'],
+].map(([id, name, what, stat, n, tier]) => ({ id, name, what: what.replace('{n}', n), stat, n, tier }));
+const achRewards = id => [['color', COLOR_ITEMS], ['color2', COLOR_ITEMS], ...Object.entries(SHOP)].flatMap(([cat, l]) => l.filter(i => i[2] === id).map(i => [cat, i[0]]));
+function checkAch() {
+  for (const a of ACH) {
+    if (PROG.ach[a.id] || a.stat() < a.n) continue;
+    PROG.ach[a.id] = Date.now();
+    const got = achRewards(a.id); got.forEach(([cat, v]) => { if (!PROG.owned.includes(ownKey(cat, v))) PROG.owned.push(ownKey(cat, v)); });
+    unlockFx(a, got);
+  }
+}
+function unlockFx(a, got) { // the satisfying bit: a gold-edged unlock card plus a little fanfare
+  const list = got.filter(([cat]) => cat !== 'color2').map(([cat, v]) => `${CAT_LABEL[cat]}: ${cat.startsWith('color') ? `<i class="sw0" style="background:${v}"></i>` : v}`).join(' · ');
+  notify({ kind: 'unlock', icon: '🏆', title: `Unlocked: ${a.name}`, sub: list || a.what, dur: 5.5 });
+  Sfx.levelUp && Sfx.levelUp();
+}
+const achProgress = a => Math.min(1, a.stat() / a.n);
+
+/* ---- applying non-snake cosmetics ---- */
+function applyCosmetics() {
+  const c = SETTINGS.snake;
+  document.body.className = document.body.className.replace(/\b(theme|cs|fx)-\S+/g, '').trim();
+  if (c.theme !== 'Default') document.body.classList.add('theme-' + c.theme.toLowerCase());
+  if (c.card !== 'Default') document.body.classList.add('cs-' + c.card.toLowerCase().replace(/\s+/g, '-'));
+}
+function menuFx() { // background particles behind the main menu
+  const e = SETTINGS.snake.effect; if (!e || e === 'None') return '';
+  const n = 26, kind = e.toLowerCase().replace(/\s+/g, '-');
+  return `<div class="mfx ${kind}">${Array.from({ length: n }, (_, i) => `<i style="--x:${(Math.random() * 100).toFixed(1)}%;--d:${(Math.random() * -12).toFixed(2)}s;--s:${(6 + Math.random() * 8).toFixed(1)}s;--z:${(.5 + Math.random()).toFixed(2)}"></i>`).join('')}</div>`;
+}
+applyCosmetics();

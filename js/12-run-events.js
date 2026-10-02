@@ -11,9 +11,6 @@ function updateEvents(dt) { // occasional feeding frenzy: double score for a few
   if (evt) { evt.t -= dt; if (evt.t <= 0) { evt = null; evtT = rand(50, 80); } showEvent(); return; }
   if ((evtT -= dt) <= 0) { evt = { type: 'frenzy', t: 10 }; Sfx.chime(); showEvent(); }
 }
-function showEvent() {
-  const el = document.getElementById('evt');
-  if (!evt) { el.className = ''; return; }
-  if (!el.classList.contains('show')) el.className = 'show';
-  el.textContent = `Feeding frenzy! Double score for ${Math.ceil(evt.t)}s`;
+function showEvent() { // the frenzy note carries its own countdown bar
+  if (evt && !evt.shown) { evt.shown = true; notify({ kind: 'frenzy', title: 'COMBO FRENZY', sub: 'Double score while it lasts', dur: evt.t, bar: true, key: 'frenzy' }); }
 }

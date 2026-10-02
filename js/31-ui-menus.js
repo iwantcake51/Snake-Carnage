@@ -57,18 +57,19 @@ function showMenu() {
   MOD = {}; rewardMult = 1; document.body.classList.remove('minimal');
   stage.classList.add('bars'); cv.style.scale = '1.05';
   overlay.className = 'menuMode';
-  overlay.innerHTML = `<div class="menu">
+  overlay.innerHTML = `<div class="menu">${menuFx()}
     <div class="mleft">
       <div class="logo"><span class="l1">Snake<i class="drip" style="--x:14%;--h:16px;--d:0s"></i><i class="drip" style="--x:46%;--h:24px;--d:1.4s"></i><i class="drip" style="--x:81%;--h:11px;--d:2.6s"></i></span><span class="l2">${SPLAT}Carnage</span></div>
       <p class="tag">Slither in, eat the locals, and stay out of the light.</p>
-      <div class="mlevel"><span>Level ${PROG.level}</span><span class="xp" title="${PROG.xp} / ${xpNeed(PROG.level)} XP"><span class="xpfill" style="width:${(PROG.xp / xpNeed(PROG.level) * 100).toFixed(1)}%"></span></span><span class="coin"><i class="pc"></i> ${PROG.coins}</span></div>
+      <div class="mlevel"><span>Level ${PROG.level}${SETTINGS.snake.title !== 'None' ? `<em class="mtitle">${SETTINGS.snake.title}</em>` : ''}</span><span class="xp" title="${PROG.xp} / ${xpNeed(PROG.level)} XP"><span class="xpfill" style="width:${(PROG.xp / xpNeed(PROG.level) * 100).toFixed(1)}%"></span></span><span class="coin"><i class="pc"></i> ${PROG.coins}</span></div>
       <button class="play" id="playBtn" data-sfx="none"><span>Play ${MAPS[mapIdx].name}</span><small>Space</small></button>
       <div class="modline" id="modline">${modLine()}</div>
       <div class="seg" role="group" aria-label="Snake speed"><i class="sthumb"></i>${Object.keys(CONFIG.snakeSpeeds).map(sp => `<button data-sfx="tab" data-speed="${sp}" class="${sp === selSpeed ? 'on' : ''}">${sp}</button>`).join('')}</div>
       <div class="mrow"><button class="ghost" id="snakeBtn" data-sfx="open">Shop &amp; customize</button><button class="ghost" id="setBtn" data-sfx="open">Settings</button></div>
       <div class="mrow"><button class="ghost" id="modBtn" data-sfx="open">Modifiers</button><button class="ghost" id="chBtn" data-sfx="open">Challenges</button></div>
+      <div class="ver">v${GAME_VERSION}</div>
     </div>
-    <div class="mright"><h2>Choose a map</h2><div class="cards">${MAPS.map((m, i) => `<button class="card ${i === mapIdx ? 'on' : ''}" data-sfx="select" data-map="${i}" style="--i:${i}"><img src="${thumbs[i]}" alt=""><span class="cn">${m.icon} ${m.name}</span><span class="cb">Best ${PROG.best[m.name] || 0}, ${chDoneCount(m.name)}/4 challenges</span></button>`).join('')}<button class="card rnd" data-sfx="none" data-map="rand" style="--i:${MAPS.length}">🎲<span class="cn">Random</span></button></div></div>
+    <div class="mright"><h2>Choose a map</h2><div class="mapch" id="mapch">${mapChallengesHtml()}</div><div class="cards">${MAPS.map((m, i) => `<button class="card ${i === mapIdx ? 'on' : ''}" data-sfx="select" data-map="${i}" style="--i:${i}"><img src="${thumbs[i]}" alt=""><span class="cn">${m.icon} ${m.name}</span><span class="cb">Best ${PROG.best[m.name] || 0}, ${chDoneCount(m.name)}/4 challenges</span></button>`).join('')}<button class="card rnd" data-sfx="none" data-map="rand" style="--i:${MAPS.length}">🎲<span class="cn">Random</span></button></div></div>
   </div>`;
   overlay.style.display = 'flex';
   overlay.querySelectorAll('.card').forEach(card => {
@@ -93,20 +94,23 @@ function showMenu() {
 function modLine(list) { // active modifiers, visible before the run starts
   const ids = list || SETTINGS.mods || [];
   if (!ids.length) return '<span class="mchip dim">No modifiers</span>';
-  return ids.map(id => `<span class="mchip">${(MODS.find(m => m.id === id) || {}).name}</span>`).join('') + `<span class="mchip mult">Rewards x${modMult(ids).toFixed(2)}</span>`;
+  const mm = modMult(ids);
+  return ids.map(id => { const m = MODS.find(q => q.id === id) || {}; return `<span class="mchip" data-tip="${m.desc}">${MOD_ICON[id] || ''} ${m.name}</span>`; }).join('') +
+    (Math.abs(mm - 1) > .005 ? `<span class="mchip mult ${mm < 1 ? 'down' : ''}">Rewards x${mm.toFixed(2)}</span>` : ''); // no meaningless x1.00 chip
 }
+const multLabel = ids => { const m = modMult(ids); return Math.abs(m - 1) < .005 ? 'Normal rewards' : 'Rewards x' + m.toFixed(2); };
 function showModifiers() {
   const ids = new Set(SETTINGS.mods || []);
   overlay.className = 'menuMode';
-  overlay.innerHTML = `<div class="panel mods"><div class="chhead"><h1>Modifiers</h1><span class="coinpill" id="mm">Rewards x${modMult([...ids]).toFixed(2)}</span></div>
+  overlay.innerHTML = `<div class="panel mods"><div class="chhead"><h1>Modifiers</h1><span class="coinpill" id="mm">${multLabel([...ids])}</span></div>
     <p class="lead">Change how the next run plays. Harder modifiers pay more XP, chips and score.</p>
-    <div class="modlist">${MODS.map((m, i) => `${i === 0 || MODS[i - 1].g !== m.g ? `<h3 class="mg">${m.g}</h3>` : ''}<div class="srow2" style="--i:${i}"><div><b>${m.name} <em class="mpct ${m.mult > 0 ? 'up' : m.mult < 0 ? 'down' : ''}">${m.mult ? (m.mult > 0 ? '+' : '') + Math.round(m.mult * 100) + '%' : ''}</em></b><small>${m.desc}</small></div>
+    <div class="modlist">${MODS.map((m, i) => `${i === 0 || MODS[i - 1].g !== m.g ? `<h3 class="mg">${m.g}</h3>` : ''}<div class="srow2" style="--i:${i}"><div><b><i class="mic">${MOD_ICON[m.id] || ''}</i>${m.name} <em class="mpct ${m.mult > 0 ? 'up' : m.mult < 0 ? 'down' : ''}">${m.mult ? (m.mult > 0 ? '+' : '') + Math.round(m.mult * 100) + '%' : ''}</em></b><small>${m.desc}</small></div>
       <button class="tgl ${ids.has(m.id) ? 'on' : ''}" data-sfx="none" role="switch" aria-checked="${ids.has(m.id)}" aria-label="${m.name}" data-m="${m.id}"></button></div>`).join('')}</div>
     <div class="mbtns"><button class="btn alt" id="shufBtn" data-sfx="select">Shuffle</button><button class="btn alt" id="clrBtn" data-sfx="off">Clear</button><button class="btn" id="backBtn" data-sfx="confirm">Done</button></div></div>`;
   const sync = () => {
     SETTINGS.mods = [...ids]; saveSettings();
     overlay.querySelectorAll('.tgl[data-m]').forEach(t => { t.classList.toggle('on', ids.has(t.dataset.m)); t.setAttribute('aria-checked', ids.has(t.dataset.m)); });
-    document.getElementById('mm').textContent = 'Rewards x' + modMult([...ids]).toFixed(2);
+    document.getElementById('mm').textContent = multLabel([...ids]);
   };
   overlay.querySelectorAll('.tgl[data-m]').forEach(t => t.onclick = () => {
     const m = MODS.find(q => q.id === t.dataset.m);
@@ -114,23 +118,36 @@ function showModifiers() {
     sync();
   });
   document.getElementById('shufBtn').onclick = () => {
-    ids.clear(); randomMods().forEach(id => ids.add(id)); if (!ids.size) randomMods().forEach(id => ids.add(id));
+    ids.clear(); randomMods(randi(4, 8)).forEach(id => ids.add(id)); // a properly different run
     sync();
   };
   document.getElementById('clrBtn').onclick = () => { ids.clear(); sync(); };
   document.getElementById('backBtn').onclick = () => transitionTo(showMenu);
 }
-function showChallenges(keepAnim) {
-  const m = MAPS[mapIdx].name, list = activeChallenges(m), done = PROG.chDone[m] || {}, best = PROG.chBest[m] || {};
+function showChallenges(keepAnim) { // long-term achievements; each one unlocks a cosmetic that matches it
+  const order = { easy: 0, medium: 1, hard: 2, rare: 3 }, list = [...ACH].sort((p, q) => (!!PROG.ach[p.id] - !!PROG.ach[q.id]) || order[p.tier] - order[q.tier]);
+  const doneN = ACH.filter(a => PROG.ach[a.id]).length;
   overlay.className = 'menuMode';
-  overlay.innerHTML = `<div class="panel chal ${keepAnim ? 'noanim' : ''}"><div class="chhead"><h1>${MAPS[mapIdx].icon} ${m}</h1><span class="chstats">Best ${PROG.best[m] || 0} score, best combo ${PROG.bestCombo[m] || 0}x</span></div>
-    <p class="lead">This map's current challenges. A fresh set rolls in every 5 minutes, and unfinished progress resets with it.</p>
-    ${list.map((ch, i) => { const v = done[ch.id] ? ch.n : (best[ch.id] || 0);
-      return `<div class="chrow ${done[ch.id] ? 'done' : ''}" style="--i:${i}"><span class="ck">${done[ch.id] ? '✔' : ''}</span>
-        <div><b><em class="tier ${ch.tier}">${TIERS[ch.tier].label}</em>${ch.t}</b><div class="pbar"><span style="width:${(v / ch.n * 100).toFixed(0)}%"></span></div><small>${v}${chUnit(ch)} / ${ch.n}${chUnit(ch)}</small></div>
-        <span class="chrew">${rewardText(ch).split(', ').join('<br>')}</span></div>`; }).join('')}
-    <div class="chfoot"><span class="rot">New challenges in <b data-rot>${fmtClock(rotLeft())}</b></span><button class="btn" id="backBtn" data-sfx="close">Done</button></div></div>`;
+  overlay.innerHTML = `<div class="panel chal2 ${keepAnim ? 'noanim' : ''}"><div class="chhead"><h1>Challenges</h1><span class="chstats">${doneN}/${ACH.length} earned</span></div>
+    <p class="lead">Long-term goals across every map. Each one unlocks a unique cosmetic that matches it. Map challenges (shown on the map screen) pay XP and chips.</p>
+    <div class="achg">${list.map((a, i) => { const got = !!PROG.ach[a.id], p = achProgress(a), rw = achRewards(a.id).filter(([c]) => c !== 'color2');
+      return `<div class="ach ${got ? 'done' : ''} t-${a.tier}" style="--i:${i}"><div class="ap">${rw.slice(0, 1).map(([cat, v]) => achPreview(cat, v, got || (a.tier !== 'rare' && p >= .5))).join('')}</div>
+        <div class="ab"><em class="tier ${a.tier}">${TIERS[a.tier].label}</em><b>${got ? '✔ ' : ''}${a.name}</b><small>${a.what}</small>
+        <span class="pbar"><span style="width:${(p * 100).toFixed(0)}%"></span></span><span class="af"><span>${Math.min(a.stat(), a.n)}/${a.n}</span><span>${rw.map(([cat, v]) => `${CAT_LABEL[cat]}${cat.startsWith('color') ? '' : ': ' + v}`).join(' · ')}</span></span></div></div>`; }).join('')}</div>
+    <div class="chfoot"><span class="rot">Unlocked cosmetics show up in the Shop, free to equip.</span><button class="btn" id="backBtn" data-sfx="close">Done</button></div></div>`;
+  overlay.querySelectorAll('canvas.mini').forEach(cv2 => miniSnake(cv2, { ...SETTINGS.snake, pattern: cv2.dataset.v }));
   document.getElementById('backBtn').onclick = () => transitionTo(showMenu);
+}
+function achPreview(cat, v, clear) { // rewards show as a preview; early on (and rare ones) stay silhouetted
+  const inner = cat.startsWith('color') ? `<i class="swb" style="background:${v}"></i>` : cat === 'pattern' ? `<canvas class="mini" data-v="${v}" width="88" height="40"></canvas>` : `<i class="ico">${shopIcon(cat, v)}</i>`;
+  return `<div class="prv ${clear ? '' : 'sil'}">${inner}</div>`;
+}
+function mapChallengesHtml() { // the selected map's current challenges: name, progress, reward, difficulty, rotation timer
+  const m = MAPS[mapIdx].name, done = PROG.chDone[m] || {}, best = PROG.chBest[m] || {};
+  return `<div class="mch"><b>${MAPS[mapIdx].icon} ${m} challenges</b><span>New set in <b data-rot>${fmtClock(rotLeft())}</b></span></div><div class="mcg">` +
+    activeChallenges(m).map((ch, i) => { const v = done[ch.id] ? ch.n : (best[ch.id] || 0);
+      return `<div class="mc ${done[ch.id] ? 'done' : ''}" style="--i:${i}" data-tip="${ch.t}. Reward: ${rewardText(ch).replace(/<[^>]+>/g, '')} chips"><em class="tier ${ch.tier}">${TIERS[ch.tier].label}</em><b>${done[ch.id] ? '✔ ' : ''}${ch.name}</b><small>${ch.t}</small>
+        <span class="pbar"><span style="width:${(v / ch.n * 100).toFixed(0)}%"></span></span><span class="mcf"><span>${v}${chUnit(ch)}/${ch.n}${chUnit(ch)}</span><span class="rw3">+${TIERS[ch.tier].chips} <i class="pc"></i></span></span></div>`; }).join('') + '</div>';
 }
 function selectMap(i) { // updates the menu in place, so nothing else resets
   loadMap(i);
@@ -139,10 +156,11 @@ function selectMap(i) { // updates the menu in place, so nothing else resets
   if (card) { card.classList.remove('picked'); void card.offsetWidth; card.classList.add('picked'); }
   const pb = document.querySelector('#playBtn span');
   if (pb) { pb.textContent = 'Play ' + MAPS[i].name; pb.classList.remove('bump'); void pb.offsetWidth; pb.classList.add('bump'); }
+  const mc = document.getElementById('mapch'); if (mc) { mc.innerHTML = mapChallengesHtml(); mc.classList.remove('swap'); void mc.offsetWidth; mc.classList.add('swap'); }
 }
 function randomRoll() { // case-opening roll; the pick stays secret until the game itself reveals it
   const chosen = (mapIdx + randi(1, MAPS.length - 1)) % MAPS.length;
-  const rolled = randomMods();
+  const rolled = randomMods(rollModCount());
   if (SETTINGS.reduceMotion) { mapIdx = chosen; return startGame({ mystery: true, mods: rolled }); }
   const N = 44, target = 37, pitch = 132;
   const box = document.createElement('div'); box.className = 'casebox';
@@ -150,33 +168,55 @@ function randomRoll() { // case-opening roll; the pick stays secret until the ga
     `<div class="case ${i === target ? 'win' : ''}"><div class="flip"><div class="face front">?</div></div></div>`).join('')}</div></div><div class="caselabel">Rolling…</div>`;
   overlay.appendChild(box);
   const strip = box.querySelector('.strip'), win = box.querySelector('.casewin'), label = box.querySelector('.caselabel'), wc = box.querySelector('.case.win');
-  const center = win.clientWidth / 2, xFor = i => center - (i * pitch + 60);
-  strip.style.transform = `translateX(${xFor(0)}px)`; void strip.offsetWidth;
-  strip.style.transition = 'transform 4.4s cubic-bezier(.1,.75,.12,1)';
-  strip.style.transform = `translateX(${xFor(target) + rand(-42, 42)}px)`;
+  const center = win.clientWidth / 2, xFor = i => center - (i * pitch + 60), cards = [...strip.children];
+  const x0 = xFor(0), xEnd = xFor(target), off = rand(-42, 42), D1 = 4400, D2 = 520;
+  const outQ = t => 1 - Math.pow(1 - t, 4), inOut = t => .5 - .5 * Math.cos(Math.PI * t); // both end at zero speed, so the hand-off never jerks
   Sfx.whoosh();
-  let last = -1, rolling = true;
-  const tick = () => { // click each time a card passes the marker
-    if (!rolling || !box.isConnected) return;
-    const m = new DOMMatrixReadOnly(getComputedStyle(strip).transform), idx = Math.floor((center - m.m41 + 6) / pitch);
-    if (idx !== last) { last = idx; Sfx.roll(); }
-    requestAnimationFrame(tick);
+  let last = -1, t0 = performance.now(), prevX = x0;
+  const place = x => { // the strip, plus every card turned a little toward the middle like a drum
+    strip.style.transform = `translateX(${x}px)`;
+    const v = Math.min(1, Math.abs(x - prevX) / 40); prevX = x;
+    for (let i = 0; i < cards.length; i++) {
+      const d = (x + i * pitch + 60) - center; if (Math.abs(d) > center + 200) continue;
+      const k = clamp(d / (center + 60), -1, 1);
+      cards[i].style.transform = `rotateY(${(-k * 38).toFixed(2)}deg) translateZ(${(-Math.abs(k) * 70).toFixed(1)}px) scale(${(1 - Math.abs(k) * .08).toFixed(3)})`;
+      cards[i].style.filter = v > .25 ? `blur(${(v * 1.6).toFixed(2)}px)` : '';
+    }
+    const idx = Math.floor((center - x + 6) / pitch); if (idx !== last) { last = idx; Sfx.roll(); } // click each time a card passes the marker
   };
-  tick();
-  strip.addEventListener('transitionend', () => {
-    rolling = false;
-    strip.style.transition = 'transform .45s cubic-bezier(.25,.9,.3,1)'; strip.style.transform = `translateX(${xFor(target)}px)`; // settle dead center
-    setTimeout(() => { Sfx.ui('stop'); win.classList.add('done'); label.innerHTML = rolled.length ? 'Modifiers: ' + rolled.map(id => MODS.find(m => m.id === id).name).join(', ') : 'No modifiers this time'; label.classList.add('big'); }, 450);
-    setTimeout(() => { // lift the card out of the window and let it get knocked off
+  const roll = now => {
+    if (!box.isConnected) return;
+    const e = now - t0;
+    if (e < D1) { place(x0 + (xEnd + off - x0) * outQ(e / D1)); return requestAnimationFrame(roll); }
+    if (e < D1 + D2) { place(xEnd + off * (1 - inOut((e - D1) / D2))); return requestAnimationFrame(roll); } // ease onto dead center
+    place(xEnd); finish();
+  };
+  requestAnimationFrame(roll);
+  const finish = () => {
+    Sfx.ui('stop'); win.classList.add('done'); label.innerHTML = rolled.length ? 'Modifiers: ' + rolled.map(id => (MOD_ICON[id] || '') + ' ' + MODS.find(m => m.id === id).name).join(', ') : 'No modifiers this time'; label.classList.add('big');
+    setTimeout(() => { // lift the card out of the window and knock it off with real momentum
       const r = wc.getBoundingClientRect(), sr = stage.getBoundingClientRect(), fc = wc.cloneNode(true);
-      fc.className = 'case fallcard';
+      fc.className = 'case fallcard'; fc.style.transform = ''; fc.style.filter = '';
       Object.assign(fc.style, { left: (r.left - sr.left) + 'px', top: (r.top - sr.top) + 'px', width: r.width + 'px', height: r.height + 'px' });
       stage.appendChild(fc); wc.style.visibility = 'hidden';
-      fc.addEventListener('animationend', () => fc.remove(), { once: true });
       Sfx.knock();
-      setTimeout(() => { box.classList.add('leaving'); mapIdx = chosen; startGame({ mystery: true, mods: rolled }); }, 820);
-    }, 1300);
-  }, { once: true });
+      let px = 0, py = 0, pz = 0, vx = 0, vy = 0, rz = 0, rx = 0, ry = 0, vrz = 0, vrx = 0, vry = 0, tp = performance.now(), hitAt = tp + 260;
+      const fall = now => {
+        if (!fc.isConnected) return;
+        const dt = Math.min(.033, (now - tp) / 1000); tp = now;
+        if (now < hitAt) { const q = (now - (hitAt - 260)) / 260; py = -18 * Math.sin(q * Math.PI * .5); pz = 40 * q; rz = -4 * Math.sin(q * Math.PI); } // wind-up: it lifts toward you
+        else {
+          if (!vx && !vy) { vx = rand(120, 190) * (Math.random() < .5 ? -1 : 1); vy = -rand(260, 340); vrz = vx * .55; vrx = rand(220, 320); vry = rand(-120, 120); } // the knock
+          vy += 2100 * dt; px += vx * dt; py += vy * dt; pz += 60 * dt; rz += vrz * dt; rx += vrx * dt; ry += vry * dt; vrx *= 1 - .4 * dt;
+        }
+        fc.style.transform = `perspective(700px) translate3d(${px.toFixed(1)}px,${py.toFixed(1)}px,${pz.toFixed(1)}px) rotateX(${rx.toFixed(1)}deg) rotateY(${ry.toFixed(1)}deg) rotateZ(${rz.toFixed(1)}deg)`;
+        fc.style.opacity = Math.max(0, 1 - Math.max(0, py - 300) / 400).toFixed(2);
+        if (py < 900) requestAnimationFrame(fall); else fc.remove();
+      };
+      requestAnimationFrame(fall);
+      setTimeout(() => { box.classList.add('leaving'); mapIdx = chosen; startGame({ mystery: true, mods: rolled }); }, 900);
+    }, 1100);
+  };
 }
 const fmtSetting = (k, v) => k === 'customHour' ? String(v).padStart(2, '0') + ':00' : k === 'dayMinutes' ? v + ' min' : k === 'pixel' ? (v <= 1 ? 'Off' : v + 'x') : Math.round(v * 100) + '%';
 const SETTING_TABS = {
@@ -198,6 +238,7 @@ const SETTING_TABS = {
     ['F', 'Night vision'], ['Space', 'Start, skip the intro, play again'], ['Esc', 'Back to the menu']] },
   Accessibility: { icon: '♿', lead: 'Make the game easier to see and use.', rows: [
     ['toggle', 'reduceMotion', 'Reduce motion', 'Turns off menu animations, floating buttons and the intro zoom.'],
+    ['seg', 'uiScale', 'UI scale', 'Size of menus, HUD, notifications and buttons. Auto follows the size of the game.', ['Small', 'Medium', 'Large', 'Extra Large', 'Auto']],
     ['seg', 'bubbleSize', 'Speech bubble size', 'Text size of what people shout.', ['Small', 'Normal', 'Large']],
     ['seg', 'snakeOutline', 'Snake outline', 'A thin rim that keeps the snake easy to spot on any ground.', ['Off', 'Subtle', 'Strong']],
     ['toggle', 'strongOutlines', 'Strong outlines', 'Thicker outlines around everything you can crash into.']] },
@@ -219,6 +260,7 @@ function settingsBody(tab) {
 function applySetting(k) { // side effects of a setting change
   saveSettings();
   if (k === 'reduceMotion') document.body.classList.toggle('calm', !!SETTINGS.reduceMotion);
+  if (k === 'uiScale') { applyUiScale(); requestAnimationFrame(() => overlay.querySelectorAll('.seg,.sseg').forEach(sg => placeThumb(sg, true))); }
   if (k === 'strongOutlines') bakeOutline();
   if (k === 'timeMode') { const t = SETTING_TABS.Gameplay.rows; overlay.querySelectorAll('[data-row]').forEach(r => { const row = t.find(x => x[1] === r.dataset.row); if (row && row[7]) r.classList.toggle('dim', !row[7]()); }); }
 }
@@ -253,25 +295,3 @@ function showSettings(tab = settingsTab) {
   });
   document.getElementById('backBtn').onclick = () => transitionTo(settingsFrom === 'pause' ? showPause : showMenu);
 }
-const COLOR_ITEMS = [['#4e7cf6', 0], ['#3fa34d', 0], ['#d63c3c', 0], ['#8e5bd6', 0], ['#f08a24', 0], ['#ef6fb0', 0], ['#2b2b30', 0], ['#f2f2f2', 0],
-  ['#d9b13b', 0], ['#21a5a5', 0], ['#39ff14', 40], ['#ff00a8', 40], ['#8be9fd', 40], ['#b6ff00', 40], ['#e8e0cc', 50], ['#7a0000', 60], ['#14143c', 60], ['#ffd700', 80]];
-const SHOP = { // [name, price in coins] -- price 0 means free
-  pattern: [['Solid', 0], ['Stripes', 0], ['Spots', 20], ['Gradient', 30], ['Zebra', 40], ['Checker', 40], ['Diamond', 60], ['Neon', 100], ['Rainbow', 120], ['Lava', 120], ['Galaxy', 150]],
-  hat: [['None', 0], ['Party hat', 20], ['Flower', 20], ['Beanie', 25], ['Bow', 25], ['Top hat', 30], ['Cone', 30], ['Chef', 40], ['Antenna', 40], ['Cowboy', 50],
-        ['Headphones', 50], ['Graduation', 50], ['Santa', 60], ['Sombrero', 60], ['Mohawk', 60], ['Pirate', 70], ['Propeller', 70], ['Viking', 80], ['Horns', 90],
-        ['Wizard', 100], ['Halo', 120], ['Crown', 150]],
-  eyes: [['Normal', 0], ['Angry', 10], ['Sleepy', 10], ['Googly', 30], ['Dead', 40], ['Shades', 50], ['Cyclops', 60], ['Hearts', 70], ['Stars', 70], ['Visor', 90], ['Laser', 120]],
-  trail: [['None', 0], ['Smoke', 60], ['Bubbles', 70], ['Sparkles', 80], ['Hearts', 90], ['Petals', 90], ['Confetti', 110], ['Embers', 120]],
-};
-const OUTLINES = { Black: '#0b0b0b', White: '#ffffff', Red: '#ff2b2b', 'Neon green': '#39ff14', Cyan: '#22e5ff', Pink: '#ff4fbf', Purple: '#a259ff', Gold: '#ffcf33' };
-const CAT_LABEL = { color: 'Color', color2: 'Second color', pattern: 'Pattern', hat: 'Hat', eyes: 'Eyes', trail: 'Trail' };
-{ // the snake outline is now a visibility setting, so give back coins spent on outline colors
-  const refund = { White: 20, Red: 20, 'Neon green': 40, Cyan: 40, Pink: 40, Purple: 40, Gold: 60 };
-  PROG.owned = PROG.owned.filter(k => { if (k.startsWith('outline:')) { PROG.coins += refund[k.slice(8)] || 0; return false; } return true; });
-  saveProg();
-}
-const ownKey = (cat, v) => (cat === 'color2' ? 'color' : cat) + ':' + v;
-function priceOf(cat, v) { const it = (cat.startsWith('color') ? COLOR_ITEMS : SHOP[cat]).find(i => i[0] === v); return it ? it[1] : 0; }
-function owns(cat, v) { return priceOf(cat, v) === 0 || PROG.owned.includes(ownKey(cat, v)); }
-for (const cat of Object.keys(CAT_LABEL)) if (!owns(cat, SETTINGS.snake[cat])) PROG.owned.push(ownKey(cat, SETTINGS.snake[cat])); // keep what you already wear
-let shopMsg = '';

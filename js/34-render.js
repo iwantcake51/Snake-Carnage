@@ -1,3 +1,13 @@
+function snakeShadowPath(x, ox, oy) { // circles joined by quads (all clockwise, so nonzero fill = one solid shape, no notches)
+  const sg = snake.segs, n = sg.length;
+  for (let i = 0; i < n; i++) {
+    const g = sg[i], r = segR(i, n), sx = g.x + ox, sy = g.y + oy; x.moveTo(sx + r, sy); x.arc(sx, sy, r, 0, TAU);
+    if (i === n - 1) continue;
+    const h = sg[i + 1], r2 = segR(i + 1, n), dx = h.x - g.x, dy = h.y - g.y, d = Math.hypot(dx, dy); if (d < .01) continue;
+    const nx = -dy / d, ny = dx / d; // with y down, this order winds clockwise like arc()
+    x.moveTo(sx + nx * r, sy + ny * r); x.lineTo(sx - nx * r, sy - ny * r); x.lineTo(h.x + ox - nx * r2, h.y + oy - ny * r2); x.lineTo(h.x + ox + nx * r2, h.y + oy + ny * r2); x.closePath();
+  }
+}
 function render() {
   const x = sctx, L = light, sh = shake && SETTINGS.shake ? shake : 0;
   V.sx = sh ? rand(-sh, sh) : 0; V.sy = sh ? rand(-sh, sh) : 0; V.z = 0;
@@ -15,7 +25,7 @@ function render() {
   x.globalAlpha = L.salpha; x.drawImage(shadowC, 0, 0, W, H); x.globalAlpha = 1;
   x.fillStyle = `rgba(0,0,0,${L.salpha})`; x.beginPath(); // creature + snake shadows as one shape
   for (const c of creatures) if (c.alive) { const r = c.def.r * .85, sx = c.x + L.sdx * 5, sy = c.y + L.sdy * 5; x.moveTo(sx + r, sy); x.arc(sx, sy, r, 0, TAU); }
-  for (let i = 0; i < snake.segs.length; i++) { const g = snake.segs[i], r = segR(i, snake.segs.length), sx = g.x + L.sdx * 6, sy = g.y + L.sdy * 6; x.moveTo(sx + r, sy); x.arc(sx, sy, r, 0, TAU); }
+  snakeShadowPath(x, L.sdx * 6, L.sdy * 6);
   x.fill();
   for (const c of creatures) if (c.alive) drawCreature(x, c);
   drawFlashBodies(x);
@@ -30,7 +40,7 @@ function render() {
     const py = p.y - p.z * .25; x.lineWidth = p.r * 2 * (1 + p.z / 80);
     x.beginPath(); x.moveTo(p.x - p.vx * .016, py - p.vy * .016); x.lineTo(p.x + .01, py); x.stroke();
   }
-  drawDebris(x);
+  drawDebris(x); drawGiblets(x);
   drawLighting(x);
   drawSparks(x);
   drawVisionMask(x);
@@ -86,7 +96,7 @@ function render() {
 }
 const clockEl = document.getElementById('clock');
 let nightVision = false, toastMsg = '', toastT = 0;
-function toast(m) { toastMsg = m; toastT = 1.4; }
+function toast(m) { notify({ kind: 'info', title: m, dur: 1.8, key: 'toast:' + m }); }
 const NOISE = Array.from({ length: 4 }, () => { // a few pre-made static frames
   const c = document.createElement('canvas'); c.width = 240; c.height = 160;
   const x = c.getContext('2d'), im = x.createImageData(240, 160);
@@ -94,16 +104,26 @@ const NOISE = Array.from({ length: 4 }, () => { // a few pre-made static frames
   x.putImageData(im, 0, 0); return c;
 });
 const SCANLINES = (() => { const c = document.createElement('canvas'); c.width = 4; c.height = 4; const x = c.getContext('2d'); x.fillStyle = 'rgba(0,0,0,.07)'; x.fillRect(0, 0, 4, 1); x.fillRect(0, 2, 4, 1); return c; })();
+const nvMC = document.createElement('canvas'), nvmx = (() => { nvMC.width = W; nvMC.height = H; return nvMC.getContext('2d'); })();
 function drawNVHighlights(x) { // drawn after the green tint, so the rings stay pure white and sit above blood
   x.save();
-  x.globalAlpha = .3; x.drawImage(nvOutC, 0, 0, W, H); x.globalAlpha = 1;
+  let out = nvOutC;
+  if (MOD.fog || MOD.fow) { // only outline what you can actually see: cut the hidden area out using the vision mask
+    nvmx.globalCompositeOperation = 'copy'; nvmx.drawImage(nvOutC, 0, 0, nvMC.width, nvMC.height);
+    nvmx.globalCompositeOperation = 'destination-out'; nvmx.drawImage(visC, 0, 0, nvMC.width, nvMC.height); nvmx.globalCompositeOperation = 'source-over';
+    out = nvMC;
+  }
+  x.globalAlpha = .3; x.drawImage(out, 0, 0, W, H); x.globalAlpha = 1;
   for (const c of creatures) {
-    if (!c.alive || playerSees(c.x, c.y) < .3) continue;
+    const vis = playerSees(c.x, c.y);
+    if (!c.alive || vis < .05) continue;
+    x.globalAlpha = vis;
     const hum = c.def.human, pulse = c.state === 'panic' ? .5 + .5 * Math.sin(T * 12) : 0, r = c.def.r + 4 + pulse * 2;
     x.strokeStyle = `rgba(255,255,255,${hum ? .85 : .6})`; x.lineWidth = hum ? 1.4 : 1;
     if (!hum) x.setLineDash([3, 3]);
     x.beginPath(); x.arc(c.x, c.y, r, 0, TAU); x.stroke(); x.setLineDash([]);
   }
+  x.globalAlpha = 1;
   if (snake) { x.strokeStyle = 'rgba(255,255,255,.9)'; x.lineWidth = 1.6; x.beginPath(); x.arc(snake.x, snake.y, CONFIG.snakeR + 4, 0, TAU); x.stroke(); }
   x.restore();
 }
@@ -121,10 +141,11 @@ function drawNightVision(x) {
   x.restore();
 }
 let last = performance.now();
-let frameMs = 16, lowFx = false; // adaptive quality: if frames run slow, lighting gets cheaper (with hysteresis)
+let frameMs = 16, lowFx = false, fastT = 0; // adaptive quality: if frames run slow, lighting gets cheaper (with hysteresis)
 function frame(now) {
   const raw = now - last; if (raw < 200) frameMs += (raw - frameMs) * .03;
-  if (!lowFx && frameMs > 24) lowFx = true; else if (lowFx && frameMs < 17) lowFx = false;
+  if (!lowFx && frameMs > 24) { lowFx = true; fastT = 0; }
+  else if (lowFx && frameMs < 15) { if ((fastT += raw) > 8000) lowFx = false; } else fastT = 0; // only back to full quality after 8s of clearly fast frames
   const dt = Math.min(.033, raw / 1000); last = now;
   update(dt); render(); requestAnimationFrame(frame);
 }
@@ -134,5 +155,3 @@ overlay.addEventListener('pointermove', e => { // mouse parallax on the menu
   overlay.style.setProperty('--mx', mx.toFixed(3)); overlay.style.setProperty('--my', my.toFixed(3));
   if (state === 'menu') cv.style.translate = `${(-mx * 2.5).toFixed(1)}px ${(-my * 1.6).toFixed(1)}px`; // deepest layer, moves least
 });
-document.body.classList.toggle('calm', !!SETTINGS.reduceMotion);
-fit(); loadMap(0); showMenu(); requestAnimationFrame(frame);

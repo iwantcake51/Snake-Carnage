@@ -16,14 +16,14 @@ const PROG = Object.assign({ xp: 0, level: 1, coins: 0, owned: [], best: {}, bes
     return {};
   })());
 for (const k of ['best', 'bestCombo', 'chDone', 'chBest']) PROG[k] = PROG[k] || {};
-if (PROG.chRot !== Math.floor(Date.now() / (5 * 60 * 1000))) { PROG.chRot = Math.floor(Date.now() / (5 * 60 * 1000)); PROG.chDone = {}; PROG.chBest = {}; } // stale challenge progress
+if (PROG.chRot !== Math.floor(Date.now() / (15 * 60 * 1000))) { PROG.chRot = Math.floor(Date.now() / (15 * 60 * 1000)); PROG.chDone = {}; PROG.chBest = {}; } // stale challenge progress
 function saveProg() { try { localStorage.setItem(PROG_KEY, JSON.stringify(PROG)); } catch (e) {} }
-const xpNeed = l => Math.round(120 + 80 * Math.pow(l - 1, 1.6)); // gentle early, steep later
+const xpNeed = l => Math.round(l < 5 ? 160 + 110 * Math.pow(l - 1, 1.5) : 820 + 150 * Math.pow(l - 5, 1.3)); // early levels mean something; later ones keep climbing without a wall
 let MOD = {}, rewardMult = 1;
 let floaters = [];
 let lvlAnim = false, lastLevelBonus = 0;
 function gainXP(xp, coins) {
-  PROG.xp += xp; PROG.coins += coins; rewardPopup(xp, coins);
+  PROG.xp += xp; PROG.coins += coins; PROG.earned = (PROG.earned || 0) + coins; rewardPopup(xp, coins);
   const from = PROG.level;
   let bonus = 0;
   while (PROG.xp >= xpNeed(PROG.level)) { PROG.xp -= xpNeed(PROG.level); PROG.level++; const b = 10 + PROG.level * 2; PROG.coins += b; bonus += b; }

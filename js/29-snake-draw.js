@@ -1,5 +1,5 @@
-function drawSnake(x, s = snake) {
-  const n = s.segs.length, cfg = SETTINGS.snake;
+function drawSnake(x, s = snake, cfg = SETTINGS.snake) {
+  const n = s.segs.length;
   // gentle side-to-side slither while moving (visual only; collisions use the real path)
   const moving = s === snake && s.started && s.alive && state === 'play';
   s.wv = (s.wv || 0) + ((moving ? 1 : 0) - (s.wv || 0)) * .08;

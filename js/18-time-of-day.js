@@ -6,8 +6,8 @@ const HEIGHTS = { block: 22, border: 14, wall: 18, building: 28, barn: 32, silo:
 const FIXED_TIMES = { Day: 12, Dusk: 18.2, Night: 23 };
 const VISIBLE = .35;
 /* Light colors by source, and how high each source hangs (decides shadow length). */
-const LCOL = { street: '255,156,58', fluor: '226,238,255', pool: '80,215,255', emerg: '255,40,36', fire: '255,150,60', window: '255,196,110', fixed: '255,214,150' };
-const LIGHT_H = { street: 55, fluor: 70, fixed: 50, fire: 6, pool: 0, emerg: 45, window: 0 };
+const LCOL = { street: '255,156,58', fluor: '226,238,255', pool: '80,215,255', emerg: '255,40,36', fire: '255,150,60', window: '255,196,110', fixed: '255,214,150', alien: '110,255,160' };
+const LIGHT_H = { street: 55, fluor: 70, fixed: 50, fire: 6, pool: 0, emerg: 45, window: 0, alien: 50 };
 let tod = 16, light = null, shadowKey = '', lights = [], windows = [], beams = [], dropped = [], debris = [], scast = [];
 let lightFrame = 0; const lightCache = { x: NaN, y: NaN, f: -1, v: 0 };
 
@@ -85,7 +85,8 @@ function updateLights(dt) {
     } else l.cur = tg;
     let fl = 1;
     if (l.ign > 0) { l.ign -= dt; fl = Math.random() < .45 ? rand(.05, .35) : 1; }
-    else if (l.flick && Math.random() < .04) fl = rand(.55, .8);
+    else if (l.fT > 0) { l.fT -= dt; if ((l.fN -= dt) <= 0) { l.fN = rand(.04, .09); l.fv = Math.random() < .5 ? rand(.45, .75) : 1; } fl = l.fv; } // a short, rare stutter
+    else if (l.flick && Math.random() < dt * .05) { l.fT = rand(.15, .45); l.fN = 0; }
     l.fl = fl;
   }
 }
@@ -96,7 +97,7 @@ function updateTime(dt) {
   light = computeLight();
   const key = light.sdx.toFixed(2) + ',' + light.sdy.toFixed(2);
   if (key !== shadowKey) { shadowKey = key; bakeShadows(); }
-  updateLights(dt); updateWaters(dt); updateBeams(dt);
+  updateLights(dt); updateEnclosures(); updateWaters(dt); updateBeams(dt);
 }
 function lightAt(x, y) { // 0 = pitch black, 1 = fully lit (ambient + lamps/windows + flashlight beams)
   if (lightCache.f === lightFrame && lightCache.x === x && lightCache.y === y) return lightCache.v;
@@ -104,7 +105,7 @@ function lightAt(x, y) { // 0 = pitch black, 1 = fully lit (ambient + lamps/wind
   for (const l of lights) {
     if (v >= 1) break;
     const k = lightK(l); if (k < .01) continue;
-    const d2 = dist2(x, y, l.x, l.y); if (d2 < l.r * l.r) v += k * (1 - Math.sqrt(d2) / l.r) * 1.2;
+    const d2 = dist2(x, y, l.x, l.y); if (d2 < l.r * l.r && !(l.enc && encBlocks(l, x, y))) v += k * (1 - Math.sqrt(d2) / l.r) * 1.2;
   }
   for (const f of beams) { // beams only light what's actually in the cone (and not behind walls)
     if (v >= 1) break;
