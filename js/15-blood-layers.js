@@ -150,16 +150,40 @@ function updateBlood(dt) {
   }
   for (let i = pools.length - 1; i >= 0; i--) { // pools grow under the kill site
     const pl = pools[i];
-    pl.r += (pl.max - pl.r) * dt * 2.2; markF();
+    pl.r += (pl.max - pl.r) * dt * (pl.r > pl.max * .85 ? .9 : 2.2); markF(); // spreads fast, then slowly settles
     if (snowAt(pl.x, pl.y) > .12) stainDisk(pl.x, pl.y, pl.r * 1.1, dt * pl.r * .5, rgbOf2(pl.c || BLOOD)); // a pool in snow soaks in
     else { fctx.fillStyle = pl.c || BLOOD;
-    for (const l of pl.lobes) ell(fctx, pl.x + l.dx * pl.r, pl.y + l.dy * pl.r, pl.r * l.s, pl.r * l.s * .85); }
+    for (const l of pl.lobes) ell(fctx, pl.x + l.dx * pl.r, pl.y + l.dy * pl.r, pl.r * l.s, pl.r * l.s * .85);
+    fctx.globalAlpha = .1; fctx.fillStyle = shade(pl.c || BLOOD, -.5); ell(fctx, pl.x + pl.lobes[0].dx * pl.r * .3, pl.y + pl.lobes[0].dy * pl.r * .3, pl.r * .6, pl.r * .5); fctx.globalAlpha = 1; } // thicker, darker toward the middle
     for (let j = -2; j <= 2; j++) for (let k = -2; k <= 2; k++) {
       const gx = pl.x + k * WS, gy = pl.y + j * WS;
       if (dist2(gx, gy, pl.x, pl.y) < pl.r * pl.r) { const ii = (gx / WS | 0), jj = (gy / WS | 0); if (ii >= 0 && jj >= 0 && ii < WW && jj < WH) { const kk = jj * WW + ii; if (wet[kk] < 3) tintWet(kk, 3 - wet[kk] + .5, pl.c); wet[kk] = Math.max(wet[kk], 3); } fresh[jj * WW + ii] = Math.max(fresh[jj * WW + ii], 3); }
     }
-    if (pl.r > pl.max * .97) {
+    if (pl.r > pl.max * .985) {
+      if (snowAt(pl.x, pl.y) < .12) { // settled: a few drops around the edge, and it stays glossy for a while
+        fctx.fillStyle = pl.c || BLOOD;
+        for (let k = 0; k < randi(4, 9); k++) { const a = (pl.ang || 0) + rand(-1.6, 1.6), d = pl.r * rand(1.05, 1.7), dr = rand(.6, 1.8); circ(fctx, pl.x + Math.cos(a) * d, pl.y + Math.sin(a) * d, dr); if (dr > 1.2 && Math.random() < .5) { fctx.lineWidth = dr * .8; fctx.strokeStyle = pl.c || BLOOD; fctx.beginPath(); fctx.moveTo(pl.x + Math.cos(a) * pl.r * .8, pl.y + Math.sin(a) * pl.r * .8); fctx.lineTo(pl.x + Math.cos(a) * d, pl.y + Math.sin(a) * d); fctx.stroke(); } }
+        if (pl.max > 7) { gloss.push({ x: pl.x, y: pl.y, r: pl.r, c: pl.c || BLOOD, t: T, l: pl.lobes }); if (gloss.length > 30) gloss.shift(); }
+      }
       pools.splice(i, 1);
     }
   }
+}
+
+/* wet pools catch the light: a soft highlight that slides a little as you move, strongest while fresh. Its own blood's color, lifted */
+let gloss = [];
+function drawGloss(x) {
+  const q = DROP_Q[SETTINGS.bloodQ] ?? 2; if (!q || !gloss.length) return;
+  const L = light, vx = snake ? snake.x : W / 2, vy = snake ? snake.y : H / 2;
+  for (let i = gloss.length - 1; i >= 0; i--) {
+    const g = gloss[i], age = T - g.t, fresh = clamp(1 - age / 50, 0, 1); if (fresh <= 0) { gloss.splice(i, 1); continue; }
+    const dx = clamp((vx - g.x) * .03, -3, 3) - (L ? L.sdx * 2 : 0), dy = clamp((vy - g.y) * .03, -3, 3) - (L ? L.sdy * 2 : 0), lit = .25 + .75 * (L ? L.day + .3 : 1);
+    const hc = mixColor(g.c.startsWith('#') ? g.c : '#8a0a0a', '#ffffff', .5), a = .32 * fresh * Math.min(1, lit) * Math.min(1, g.r / 14);
+    x.save(); x.translate(g.x + dx - g.r * .18, g.y + dy - g.r * .2); x.rotate(-.5);
+    x.globalAlpha = a; x.fillStyle = hc; ell(x, 0, 0, g.r * .38, g.r * .12);
+    x.globalAlpha = a * .8; ell(x, g.r * .32, g.r * .16, g.r * .07, g.r * .05);
+    if (q >= 2) { x.globalAlpha = a * .45; x.strokeStyle = hc; x.lineWidth = 1; x.beginPath(); x.arc(g.r * .22, g.r * .25, g.r * .62, .3, 1.3); x.stroke(); } // rim light on the far edge
+    x.restore();
+  }
+  x.globalAlpha = 1;
 }

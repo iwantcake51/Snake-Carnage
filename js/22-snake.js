@@ -167,8 +167,10 @@ function eat(c) {
   spawnBlood(c.x, c.y, s.angle, amount, .3 + .55 * side, .1 + .2 * Math.max(0, headOn), c.golden || c.def.bloodCol);
   spawnGiblets(c, s.angle); addBloodAmount(amount);
   bleedIntoWater(c.x, c.y, amount, bloodOf(c)[0]);
-  pools.push({ x: c.x, y: c.y, r: 2, c: c.golden ? GOLD_BLOOD[0] : c.def.bloodCol ? c.def.bloodCol[0] : BLOOD, max: (4 + amount * 15) * rand(.85, 1.15),
-               lobes: Array.from({ length: randi(5, 8) }, () => ({ dx: rand(-.55, .55), dy: rand(-.55, .55), s: rand(.45, 1) })) });
+  let pc = c.golden ? GOLD_BLOOD[0] : c.def.bloodCol ? c.def.bloodCol[0] : BLOOD;
+  if (wetAt(c.x, c.y) > 1.5) { const w = rgbOf2(wetColAt(c.x, c.y)), hx = '#' + w.map(v => (v | 0).toString(16).padStart(2, '0')).join(''); pc = mixColor(pc, hx, .4); } // lands in someone else's blood: the colors run together
+  pools.push({ x: c.x, y: c.y, r: 2, c: pc, max: (4 + amount * 15) * rand(.85, 1.15), ang: s.angle,
+               lobes: Array.from({ length: randi(7, 11) }, () => ({ dx: rand(-.6, .6), dy: rand(-.6, .6), s: rand(.35, 1) })) });
   for (let k = 0; k < 14 * amount; k++) {
     const i = randi(0, Math.min(3, s.segs.length - 1)), g = s.segs[i];
     stainSnake(i, g.x + rand(-10, 10), g.y + rand(-10, 10), rand(1.5, 4), pick(bloodOf(c)));

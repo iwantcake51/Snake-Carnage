@@ -27,7 +27,7 @@ function render() {
   if (MAPS[mapIdx].club) drawDanceFloor(x);
   drawGrass(x);
   for (const b of bucketList) { if (!b.fd) continue; x.globalAlpha = bucketAlpha(b); x.drawImage(b.f, 0, 0, W, H); }
-  x.globalAlpha = 1; drawSnow(x);
+  x.globalAlpha = 1; drawGloss(x); drawSnow(x);
   x.globalAlpha = L.salpha; x.drawImage(shadowC, 0, 0, W, H); x.globalAlpha = 1;
   x.fillStyle = `rgba(0,0,0,${L.salpha})`; x.beginPath(); // creature + snake shadows as one shape
   for (const c of creatures) if (c.alive) { const r = c.def.r * .85, sx = c.x + L.sdx * 5, sy = c.y + L.sdy * 5; x.moveTo(sx + r, sy); x.arc(sx, sy, r, 0, TAU); }
