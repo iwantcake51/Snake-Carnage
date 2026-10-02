@@ -164,10 +164,16 @@ function frame(now) {
   try { render(); } catch (e) { loopError(e, 'render'); }
 }
 
-overlay.addEventListener('pointermove', e => { // mouse parallax on the menu
-  const r = overlay.getBoundingClientRect(), mx = (e.clientX - r.left) / r.width * 2 - 1, my = (e.clientY - r.top) / r.height * 2 - 1;
-  overlay.style.setProperty('--mx', mx.toFixed(3)); overlay.style.setProperty('--my', my.toFixed(3));
-  if (state === 'menu') cv.style.translate = `${(-mx * 2.5).toFixed(1)}px ${(-my * 1.6).toFixed(1)}px`; // deepest layer, moves least
+let plxQ = null; // mouse parallax: main menu only, at most once a frame. Over the blurred pause/death backdrop every nudge re-blurs the whole screen, so it stays still there
+overlay.addEventListener('pointermove', e => {
+  if (state !== 'menu' || SETTINGS.reduceMotion) return;
+  const first = !plxQ; plxQ = [e.clientX, e.clientY]; if (!first) return;
+  requestAnimationFrame(() => {
+    const r = overlay.getBoundingClientRect(), mx = (plxQ[0] - r.left) / r.width * 2 - 1, my = (plxQ[1] - r.top) / r.height * 2 - 1; plxQ = null;
+    if (state !== 'menu') return;
+    overlay.style.setProperty('--mx', mx.toFixed(2)); overlay.style.setProperty('--my', my.toFixed(2));
+    cv.style.translate = `${(-mx * 2.5).toFixed(1)}px ${(-my * 1.6).toFixed(1)}px`; // deepest layer, moves least
+  });
 });
 /* ---- club: the dance floor lights up in time with the beat ---- */
 const CLUB_BPM = 124;

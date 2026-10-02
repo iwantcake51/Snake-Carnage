@@ -1423,3 +1423,6 @@ input[type=range]{accent-color:var(--acc)}
 #overlay *{scrollbar-width:thin;scrollbar-color:var(--edge2) transparent;overscroll-behavior:contain}
 #overlay ::-webkit-scrollbar{width:8px;height:8px}#overlay ::-webkit-scrollbar-thumb{background:var(--edge2);border-radius:0;border:2px solid transparent;background-clip:padding-box}
 #overlay ::-webkit-scrollbar-thumb:hover{background-color:var(--acc)}#overlay ::-webkit-scrollbar-track{background:transparent}
+/* parallax only lives on the main menu; pause and death panels sit still */
+#overlay:not(:has(.menu)) .panel{translate:none!important}
+.panel,.mleft,.mright{will-change:translate}

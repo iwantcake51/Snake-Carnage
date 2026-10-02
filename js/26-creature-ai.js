@@ -3,15 +3,20 @@ function openness(x, y) {
   for (let k = 0; k < 8; k++) { const a = k * TAU / 8; if (!solid(x + Math.cos(a) * 40, y + Math.sin(a) * 40)) n++; }
   return n;
 }
+const edgeD = (x, y) => Math.min(x - B, W - B - x, y - B, H - B - y);
+const cornerish = (x, y, m = 140) => (x - B < m || W - B - x < m) && (y - B < m || H - B - y < m); // near two edges at once
 function pickFleeGoal(c) { // an open spot away from the threat, away from bodies, ideally in the direction already running
   const ta = Math.atan2(c.fy - c.y, c.fx - c.x), trapped = openness(c.x, c.y) <= 5 && crowdAt(c.x, c.y) >= 5; // boxed into a crowded corner
+  const cornered = cornerish(c.x, c.y, 120);
   let best = null, bs = -1e9;
   const fails = c.failed ? c.failed.filter(f => T - f.t < 8) : null; // routes that didn't work out recently
   for (let k = 0; k < 14; k++) {
     const a = Math.random() < .7 ? ta + Math.PI + rand(-1.6, 1.6) : rand(0, TAU), d = rand(110, 300), x = c.x + Math.cos(a) * d, y = c.y + Math.sin(a) * d;
     if (!free(x, y, c.def.r + 6)) continue;
     let sc = Math.hypot(x - c.fx, y - c.fy) * 1.2 + openness(x, y) * 22 + Math.cos(angDiff(c.a, a)) * 40;
-    if (Math.cos(a - ta) > .2) sc -= 400;
+    if (Math.cos(a - ta) > (cornered ? .65 : .2)) sc -= 400; // cornered: running sideways past the threat is allowed
+    const e = edgeD(x, y); if (e < 110) sc -= (110 - e) * 4.5; // the map edge is a trap, not a hiding place
+    if (cornerish(x, y)) sc -= 380;
     if (!los(c.x, c.y, x, y)) sc -= c.state === 'panic' ? 260 : 140; // panicking people want a route they can actually see
     if (fails) for (const f of fails) if (dist2(x, y, f.x, f.y) < 70 * 70) sc -= 320;
     for (const dd of deaths) { const q = Math.hypot(x - dd.x, y - dd.y); if (q < 160) sc -= (160 - q) * 1.5; }
