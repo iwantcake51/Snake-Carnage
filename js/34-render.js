@@ -13,6 +13,7 @@ function render() {
     V.z = Math.pow(cam.z0, 1 - p); V.fx = snake.x + (W / 2 - snake.x) * fp; V.fy = snake.y + (H / 2 - snake.y) * fp;
   }
   V.ox = camF.x + camF.k.x; V.oy = camF.y + camF.k.y;
+  lookAround();
   const cw = snake && snake.wallStun > 0 ? Math.pow(snake.wallStun / (snake.wallMax || 3.4), .6) * (snake.stunFx || 1) : 0;
   if (cw > 0) { V.ox += (Math.sin(T * 1.25) * 7 + Math.sin(T * 2.9) * 2) * cw; V.oy += (Math.sin(T * .95 + 1.2) * 5 + Math.sin(T * 2.3) * 1.5) * cw; } // the room sways after a wall
   const st0 = snake && snake.ramT > 0 ? Math.min(1, Math.pow(snake.ramT / (snake.ramMax || 1), .6) * (snake.stunFx || 1)) : 0;
@@ -92,6 +93,8 @@ function render() {
     g.addColorStop(1, `rgba(${Math.round(70 * kv)},0,0,${Math.min(.4, base + .15 * kv)})`);
     ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
   }
+  const pg = (state === 'ready' || state === 'intro' || state === 'loading') && !(snake && snake.started);
+  if (pg !== !!render.pg) { render.pg = pg; stage.classList.toggle('pregame', pg); if (!pg) { stage.classList.add('hudin'); clearTimeout(render.hudT); render.hudT = setTimeout(() => stage.classList.remove('hudin'), 900); } }
   const wantStart = state === 'ready' && !cam;
   if (wantStart !== !!render.startShown) { render.startShown = wantStart; wantStart ? showResume('to begin') : hideResume(); }
   const stun = snake && snake.ramT > 0 ? Math.min(1, Math.pow(snake.ramT / (snake.ramMax || 1), .6) * (snake.stunFx || 1)) : 0; // lingers, then eases out // dazed after smashing through something
@@ -220,4 +223,28 @@ const bloomC = document.createElement('canvas'); bloomC.width = W / 4; bloomC.he
 function concussBloom(k) { // bright parts spill light while dazed
   blx.globalCompositeOperation = 'copy'; blx.filter = "blur(3px) brightness(1.15) contrast(1.4)"; blx.drawImage(cv, 0, 0, W / 4, H / 4); blx.filter = 'none';
   ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalCompositeOperation = 'screen'; ctx.globalAlpha = Math.min(.85, k); ctx.imageSmoothingEnabled = true; ctx.drawImage(bloomC, 0, 0, cv.width, cv.height); ctx.restore();
+}
+
+/* before the round: the mouse pans the view a little, and resting on a spot for a second eases in toward it */
+const look = { z: 1, fx: W / 2, fy: H / 2, mx: W / 2, my: H / 2, still: 0, lt: 0, on: false };
+addEventListener('pointermove', e => {
+  if (e.pointerType === 'touch') return;
+  const r = cv.getBoundingClientRect(); if (!r.width) return;
+  const x = (e.clientX - r.left) / r.width * W, y = (e.clientY - r.top) / r.height * H;
+  if (Math.hypot(x - look.mx, y - look.my) > 14) look.still = 0;
+  look.mx = clamp(x, 0, W); look.my = clamp(y, 0, H);
+});
+function lookAround() {
+  const pre = state === 'ready' && !cam && snake && !snake.started, dt = Math.min(.05, Math.max(0, UT - look.lt)); look.lt = UT;
+  look.still += dt;
+  const tz = pre ? (look.still > 1 ? 1.16 : 1.04) : 1; // resting the cursor zooms in a touch
+  const k = 1 - Math.exp(-dt * (pre ? 3 : 5));
+  look.z += (tz - look.z) * k;
+  const half = (W / 2) / look.z, halfH = (H / 2) / look.z;
+  const px = pre ? W / 2 + (look.mx - W / 2) * .55 : W / 2, py = pre ? H / 2 + (look.my - H / 2) * .55 : H / 2; // drift toward the cursor, never off the map
+  let gx = clamp(px, half, W - half), gy = clamp(py, halfH, H - halfH);
+  if (pre) { gx = clamp(gx, snake.x - half + 50, snake.x + half - 50); gy = clamp(gy, snake.y - halfH + 50, snake.y + halfH - 50); gx = clamp(gx, half, W - half); gy = clamp(gy, halfH, H - halfH); } // your snake never leaves the frame
+  look.fx += (gx - look.fx) * k; look.fy += (gy - look.fy) * k;
+  if (V.z || look.z < 1.002) return; // the spawn zoom has the camera, or we're back to normal
+  V.z = look.z; V.fx = look.fx; V.fy = look.fy;
 }

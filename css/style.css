@@ -1099,3 +1099,9 @@ body.calm .panel,body.calm .mleft,body.calm .mright{translate:none}
 #bar .xpfill::after,.xp .xpfill::after,.sbar .sfill::after{content:'';display:block;position:absolute;top:0;bottom:0;right:-26px;width:30px;pointer-events:none;border-radius:0 999px 999px 0;
   background:radial-gradient(ellipse 100% 70% at 0% 50%,color-mix(in srgb,var(--acc-hi) 55%,transparent) 0%,color-mix(in srgb,var(--acc-hi) 22%,transparent) 38%,transparent 72%);mix-blend-mode:screen}
 .xp,.sbar{overflow:hidden!important}
+/* before the round: just the map, the people and the start prompt. The HUD comes in once you move */
+#stage.pregame #abil,#stage.pregame #chhud,#stage.pregame #modhud{opacity:0!important;pointer-events:none}
+@keyframes hudIn{from{opacity:0;transform:translateY(14px) scale(.96)}to{opacity:1;transform:none}}
+#stage.hudin #abil{animation:hudIn .28s cubic-bezier(.2,.8,.2,1) both}
+#stage.hudin #chhud{animation:hudIn .32s cubic-bezier(.2,.8,.2,1) .09s both}
+#stage.hudin #modhud{animation:hudIn .32s cubic-bezier(.2,.8,.2,1) .16s both}
