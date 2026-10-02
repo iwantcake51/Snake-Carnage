@@ -159,9 +159,11 @@ function drawGoldenFX(x) { // soft glow, orbiting glints and a ring that counts 
   }
   for (let i = ringPops.length - 1; i >= 0; i--) { // ran out: the ring swells, pops and fades outward
     const q = ringPops[i]; q.t += 1 / 60; const e = q.t / .5; if (e >= 1) { ringPops.splice(i, 1); continue; }
-    const px = q.c && q.c.alive ? q.c.x : q.x, py = q.c && q.c.alive ? q.c.y : q.y, R = 20 + 26 * (1 - Math.pow(1 - e, 3));
+    const px = q.c && q.c.alive ? q.c.x : q.x, py = q.c && q.c.alive ? q.c.y : q.y, R = 20 + 26 * (1 - Math.pow(1 - e, 3)), vis = playerSees(px, py);
+    if (vis < .05) continue; x.globalAlpha = vis; // only where you can actually see it
     x.strokeStyle = `rgba(255,214,70,${(1 - e) * .9})`; x.lineWidth = 3 * (1 - e) + .5; x.beginPath(); x.arc(px, py, R, 0, TAU); x.stroke();
     x.fillStyle = `rgba(255,240,190,${(1 - e) * .8})`; for (let n = 0; n < 8; n++) { const an = n * TAU / 8; circ(x, px + Math.cos(an) * (R + 4), py + Math.sin(an) * (R + 4), 1.6 * (1 - e) + .3); }
+    x.globalAlpha = 1;
   }
 }
 let goldTimer = null;
