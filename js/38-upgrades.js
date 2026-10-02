@@ -11,32 +11,33 @@ const NET = { // multiplayer hook: nothing listens yet, but every ability use an
 };
 const UPGRADES = [
   { id: 'speed', name: 'Speed Demon', icon: 'speed', max: 5, cost: [150, 380, 750, 1300, 2100], lvl: [2, 5, 9, 14, 20],
-    desc: 'Move faster.', tiers: ['+5% speed', '+10% speed', '+15% speed', '+20% speed', '+25% speed'] },
+    desc: 'Faster, and quicker to recover. You trail speed lines from level III.', tiers: ['+5% speed', '+10% speed, snappier turns', '+15% speed, shake off dazes a third faster, speed lines', '+20% speed, even sharper turns', '+25% speed. Smashing through things no longer kills your momentum'] },
   { id: 'ram', name: 'Battering Ram', icon: 'ram', max: 4, cost: [300, 850, 1900, 3200], lvl: [4, 10, 16, 22],
     desc: 'Smash through furniture instead of crashing into it. You stagger for a moment after each hit.', tiers: ['Desks, tables, benches, chairs, couches, fences, hay, bushes, crates', 'Also cars, consoles, rocks, speakers and bars', 'Also the cracked wall sections on some maps: shortcuts, but the hit leaves you seeing stars', 'Thick skull: every concussion is 25% shorter and gentler'] },
   { id: 'gut', name: 'Iron Stomach', icon: 'gut', max: 3, cost: [350, 900, 1700], lvl: [7, 13, 19], desc: 'Combos last longer.', tiers: ['+10% combo time', '+20% combo time', '+30% combo time'] },
-  { id: 'dash', name: 'Lunge', icon: 'dash', max: 2, cost: [250, 900], lvl: [3, 12], ability: true, key: 'Shift',
-    desc: 'A short burst of speed. Great for catching runners.', tiers: ['0.6 s at 1.8x speed, 7 s cooldown', '0.8 s at 1.9x speed, 5 s cooldown'] },
-  { id: 'scent', name: 'Scent', icon: 'scent', max: 2, cost: [400, 1100], lvl: [5, 15], ability: true, key: 'E',
-    desc: 'Read the room: who can see you right now (red), who is nervous (amber), who has no idea (green), plus a line to the nearest easy meal and to every golden target. Works through fog and darkness.',
-    tiers: ['6 s, 22 s cooldown', '9 s, 16 s cooldown, also shows where people are looking'] },
-  { id: 'camo', name: 'Camouflage', icon: 'camo', max: 2, cost: [600, 1400], lvl: [8, 17], ability: true, key: 'Q',
-    desc: 'Your scales take on the ground under you. People only notice you up close.', tiers: ['5 s, 20 s cooldown', '8 s, 16 s cooldown'] },
-  { id: 'hiss', name: 'Hiss', icon: 'hiss', max: 2, cost: [700, 1600], lvl: [11, 18], ability: true, key: 'R',
-    desc: 'A blood-curdling hiss: everything nearby panics and scatters.', tiers: ['190 px radius, 15 s cooldown', 'Wider, and it rattles them: slowed for 4 s, half-deaf and slurring for 10 s'] },
+  { id: 'dash', name: 'Lunge', icon: 'dash', max: 3, cost: [250, 900, 1800], lvl: [3, 12, 18], ability: true, key: 'Shift',
+    desc: 'A short burst of speed. Great for catching runners.', tiers: ['0.6 s at 1.8x speed, 7 s cooldown', '0.8 s at 1.9x speed, 5 s cooldown, a cleaner wake', 'Pounce: eat something mid-lunge and the cooldown almost resets, and you keep going'] },
+  { id: 'scent', name: 'Scent', icon: 'scent', max: 3, cost: [400, 1100, 2000], lvl: [5, 15, 21], ability: true, key: 'E',
+    desc: 'Taste the air. Wisps drift toward the best meal nearby, the closest person or a bigger animal worth more, and get stronger as you close in. They bump off walls, so you still have to find the way.',
+    tiers: ['6 s, 22 s cooldown. One trail', '9 s, 16 s cooldown. Wisps are colored by what is at the end, and you see who can spot you', 'Bloodhound: three trails at once, and golden targets always get one'] },
+  { id: 'camo', name: 'Camouflage', icon: 'camo', max: 3, cost: [600, 1400, 2400], lvl: [8, 17, 23], ability: true, key: 'Q',
+    desc: 'Your scales take on the ground under you. People only notice you up close.', tiers: ['5 s, 20 s cooldown', '8 s, 16 s cooldown, better blending', 'Stillness: hold a straight line and you fade almost completely. Turning breaks it'] },
+  { id: 'hiss', name: 'Hiss', icon: 'hiss', max: 3, cost: [700, 1600, 2600], lvl: [11, 18, 24], ability: true, key: 'R',
+    desc: 'A blood-curdling hiss you can see rippling out: everything nearby panics and scatters.', tiers: ['190 px radius, 15 s cooldown', 'Wider, and it rattles them: slowed for 4 s, half-deaf and slurring for 10 s', 'Shockwave: the blast knocks people off their feet and blows groups apart'] },
 ];
 PROG.upg = PROG.upg || {}; PROG.upgOff = PROG.upgOff || {};
 const upg = id => PROG.upgOff[id] ? 0 : Math.min(PROG.upg[id] || 0, (UPGRADES.find(u => u.id === id) || { max: 9 }).max); // owned and switched on
 const ABIL = { // cd/dur read the owned level each time
-  dash: { get cd() { return upg('dash') > 1 ? 5 : 7; }, get dur() { return upg('dash') > 1 ? .8 : .6; }, go(s) { s.dashT = this.dur; s.dashK = upg('dash') > 1 ? 1.9 : 1.8; Sfx.dash(); camF.kv.x += Math.cos(s.angle) * 160; camF.kv.y += Math.sin(s.angle) * 160; } },
+  dash: { get cd() { return upg('dash') > 1 ? 5 : 7; }, get dur() { return upg('dash') > 1 ? .8 : .6; }, go(s) { s.dashT = this.dur; s.dashK = upg('dash') > 1 ? 1.9 : 1.8; s.lk = Math.max(s.lk || 0, .25); Sfx.dash(); camF.kv.x += Math.cos(s.angle) * 160; camF.kv.y += Math.sin(s.angle) * 160; } },
   scent: { get cd() { return upg('scent') > 1 ? 16 : 22; }, get dur() { return upg('scent') > 1 ? 9 : 6; }, go(s) { s.scentT = this.dur; Sfx.sniff(); } },
   camo: { get cd() { return upg('camo') > 1 ? 16 : 20; }, get dur() { return upg('camo') > 1 ? 8 : 5; }, go(s) { s.camoT = this.dur; Sfx.camo(); } },
   hiss: { cd: 15, dur: .8, go(s) {
-    const lv = upg('hiss'), R = lv > 1 ? 240 : 190;
+    const lv = upg('hiss'), R = lv > 2 ? 270 : lv > 1 ? 240 : 190; s.hissLv = lv;
     Sfx.hiss(); shake = Math.max(shake, lv > 1 ? 8 : 5); s.hissT = this.dur; s.hissR = R;
     for (const c of creatures) if (c.alive && dist2(c.x, c.y, s.x, s.y) < R * R) {
       panic(c, s.x, s.y, rand(3, 5) * (lv > 1 ? 1.5 : 1), 'hissed'); c.alert = 1;
       if (lv > 1) { c.slowT = T + 4; c.deafT = T + 10; c.adren = 0; if (c.def.human && !c.def.alien) c.reply = { t: rand(.8, 1.6), ctx: 'deaf' }; }
+      if (lv > 2) { const d = Math.hypot(c.x - s.x, c.y - s.y) || 1, f = (1 - d / R) * 260 + 60; c.kb = { vx: (c.x - s.x) / d * f, vy: (c.y - s.y) / d * f, t: .35 }; c.slowT = T + 5; if (typeof leaveGroup === 'function') leaveGroup(c); } // knocked flat, the group blown apart
     }
   } },
 };
@@ -114,8 +115,9 @@ function smashObstacle(o, ang) {
   Sfx.smash(cx, wall ? size * 2.5 : size); shake = Math.max(shake, wall ? 16 : 6);
   const lng = (snake.dashV || 1) > 1.25, dur = (wall ? 4 : 1.3) + (lng ? 1 : 0); // lunging in: it hits harder on screen and lasts longer, but you keep more of your speed
   const res = upg('ram') >= 4 ? .75 : 1; // thick skull
+  const keepMo = upg('speed') >= 5 ? .5 : 1; // Speed Demon V: momentum survives the hit
   if (!wall && snake.wallStun > 0) snake.ramT = Math.max(snake.ramT, Math.min(snake.ramMax, dur * res)); // already seeing stars from a wall: furniture doesn't reset it
-  else { snake.ramT = snake.ramMax = dur * res; snake.ramDeep = (wall ? .62 : .38) * (lng ? .6 : 1) * res; snake.wallStun = snake.wallMax = wall ? dur * res : 0; snake.stunFx = (lng ? 1.5 : 1) * res; }
+  else { snake.ramT = snake.ramMax = dur * res; snake.ramDeep = (wall ? .62 : .38) * (lng ? .6 : 1) * res * keepMo; snake.wallStun = snake.wallMax = wall ? dur * res : 0; snake.stunFx = (lng ? 1.5 : 1) * res; }
   if (wall) { snake.dashT = 0; snake.dashV = 1; snake.lk = 0; } // a wall stops a lunge dead // dazed: slower, colours drain, edges blur, all easing back as speed returns
   if (wall) { // a wall: bricks and plaster everywhere, a cloud of dust, and the snake sees stars
     for (let k = 0; k < 40; k++) { const a = ang + rand(-.9, .9), sp = rand(80, 300); debris.push({ x: cx + rand(-o.w / 2, o.w / 2), y: cy + rand(-o.h / 2, o.h / 2), z: rand(6, 20), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(80, 220), t: 0, s: rand(2.4, 5), c: pick([o.color, shade(o.color, -.25), shade(o.color, .2), '#8a7f74']) }); }
@@ -177,7 +179,7 @@ function showUpgrades() {
 function upCard(u, i) {
   const lv = PROG.upg[u.id] || 0, next = lv < u.max ? lv : -1, off = !!PROG.upgOff[u.id];
   const need = next >= 0 ? u.lvl[next] : 0, cost = next >= 0 ? u.cost[next] : 0, lockedLv = next >= 0 && PROG.level < need, poor = next >= 0 && PROG.coins < cost;
-  const pips = Array.from({ length: u.max }, (_, k) => `<i class="${k < lv ? 'on' : ''}"></i>`).join('');
+  const pips = Array.from({ length: u.max }, (_, k) => `<i class="${k < lv ? 'on' : ''}${k === lv - 1 ? ' last' : ''}"></i>`).join('');
   return `<div class="upc ${lv ? 'own' : ''} ${off ? 'off' : ''}" style="--i:${i}"><div class="uph"><span class="upicon">${upIcon(u.icon)}</span><div><b>${u.name}</b>${u.ability ? `<em class="ukey">${u.key}</em>` : ''}<small>${u.desc}</small></div></div>
     <ul class="uptiers">${u.tiers.map((t, k) => `<li class="${k < lv ? 'got' : k === next ? 'next' : ''}">${t}</li>`).join('')}</ul>
     <div class="upf"><span class="pips">${pips}</span>${lv ? `<button class="tgl sm ${off ? '' : 'on'}" data-off="${u.id}" data-sfx="none" role="switch" aria-checked="${!off}" data-tip="${off ? 'Switched off' : 'Switched on'}"></button>` : ''}
@@ -188,37 +190,85 @@ function buyUpgrade(id) {
   const msg = document.getElementById('upmsg');
   if (PROG.level < u.lvl[lv]) { Sfx.deny(); msg.textContent = `Reach level ${u.lvl[lv]} first.`; return; }
   if (PROG.coins < u.cost[lv]) { Sfx.deny(); msg.textContent = `You need ${u.cost[lv] - PROG.coins} more chips.`; return; }
-  PROG.coins -= u.cost[lv]; PROG.upg[id] = lv + 1; PROG.upgOff[id] = false; saveProg(); updateHud(); Sfx.buy();
-  showUpgrades();
-  const m = document.getElementById('upmsg'); if (m) m.textContent = `${u.name} ${u.max > 1 ? ['I', 'II', 'III'][lv] + ' ' : ''}unlocked.`;
+  PROG.coins -= u.cost[lv]; PROG.upg[id] = lv + 1; PROG.upgOff[id] = false; saveProg(); updateHud(); Sfx.buy(); setTimeout(() => Sfx.levelUp && Sfx.levelUp(), 120);
+  overlay.querySelectorAll('.upgrid .upc').forEach((el, i) => { // redraw the cards in place: only the one you bought celebrates
+    const q = UPGRADES[i], t = document.createElement('div'); t.innerHTML = upCard(q, i); const nc = t.firstElementChild;
+    nc.classList.add(q.id === id ? 'leveled' : 'still'); el.replaceWith(nc);
+  });
+  overlay.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => buyUpgrade(b.dataset.buy));
+  overlay.querySelectorAll('[data-off]').forEach(b => b.onclick = () => { const q = b.dataset.off; PROG.upgOff[q] = !PROG.upgOff[q]; Sfx.ui(PROG.upgOff[q] ? 'off' : 'on'); saveProg(); showUpgrades(); });
+  const cp = overlay.querySelector('.coinpill'); if (cp) { cp.innerHTML = `<i class="pc"></i> ${PROG.coins}`; cp.classList.remove('spent'); void cp.offsetWidth; cp.classList.add('spent'); }
+  const m = document.getElementById('upmsg'); if (m) m.textContent = `${u.name} ${u.max > 1 ? ['I', 'II', 'III', 'IV', 'V'][lv] + ' ' : ''}unlocked: ${u.tiers[lv]}`;
 }
 const upgradeReady = () => UPGRADES.some(u => { const lv = PROG.upg[u.id] || 0; return lv < u.max && PROG.level >= u.lvl[lv] && PROG.coins >= u.cost[lv]; }); // something you can buy right now
 
-/* ---- Scent: who can see you, who is nervous, who has no idea; a line to the easiest meal and to every golden target ---- */
-function canSeeSnake(c) {
-  const s = snake, d = Math.hypot(c.x - s.x, c.y - s.y), sight = c.def.sight * (MOD.skittish ? 1.5 : MOD.oblivious ? .6 : 1) * (s.camoT > 0 ? .25 : 1);
-  return d < 40 || (d < sight && lightAt(s.x, s.y) > VISIBLE && los(c.x, c.y, s.x, s.y));
+/* ---- Scent: wisps drift from your head toward the best meals; brighter and thicker the closer you get ---- */
+let wisps = [];
+function scentTargets(s, n) { // closest person, or something bigger if it's worth more for the distance
+  const out = [];
+  for (const c of creatures) { if (!c.alive || c.def.fly || c.def.glow) continue; const d = Math.hypot(c.x - s.x, c.y - s.y), val = (c.def.human ? 3 : c.def.score || 1) * (c.golden ? 3 : 1); out.push({ c, d, sc: val / (d + 80) }); }
+  out.sort((a, b) => b.sc - a.sc); const top = out.slice(0, n);
+  if (n > 1) for (const g of out) if (g.c.golden && !top.includes(g)) top.push(g); // bloodhound: gold always gets a trail
+  return top;
+}
+const wispCol = c => c.golden ? '255,214,70' : c.def.alien ? '140,255,120' : c.def.human ? '255,120,110' : '150,235,255';
+function updateScent(dt) {
+  const s = snake;
+  for (let i = wisps.length - 1; i >= 0; i--) { // they float toward the scent, but walls turn them aside
+    const w = wisps[i]; w.t += dt; if (w.t > w.life || !w.c.alive) { wisps.splice(i, 1); continue; }
+    const want = Math.atan2(w.c.y - w.y, w.c.x - w.x) + perlin(w.x * .02, w.y * .02 + T) * 1.1;
+    w.a += angDiff(w.a, want) * Math.min(1, dt * 3);
+    const nx = w.x + Math.cos(w.a) * w.sp * dt, ny = w.y + Math.sin(w.a) * w.sp * dt;
+    if (solid(nx, ny)) w.a += (Math.random() < .5 ? -1 : 1) * 1.6; else { w.x = nx; w.y = ny; }
+    w.pts.push(w.x, w.y); if (w.pts.length > 16) w.pts.splice(0, 2);
+  }
+  if (!s || !(s.scentT > 0)) return;
+  const lv = upg('scent');
+  for (const g of scentTargets(s, lv > 2 ? 3 : 1)) {
+    const close = clamp(1 - g.d / 650, .15, 1);
+    if (Math.random() > dt * (5 + 14 * close)) continue; // more of them, the closer you are
+    const a = Math.atan2(g.c.y - s.y, g.c.x - s.x) + rand(-.6, .6);
+    wisps.push({ c: g.c, x: s.x + Math.cos(a) * 10, y: s.y + Math.sin(a) * 10, a, sp: rand(55, 90), t: 0, life: rand(.9, 1.5) * (.6 + close * .6), k: close, col: lv > 1 ? wispCol(g.c) : '230,220,200', pts: [] });
+  }
 }
 function drawScent(x) {
-  const s = snake; if (!s || !(s.scentT > 0)) return;
-  const k = Math.min(1, s.scentT * 2.5, (ABIL.scent.dur - s.scentT) * 5), lv = upg('scent');
-  let easy = null, ed = 1e9;
-  x.save(); x.lineWidth = 1.6;
-  for (const c of creatures) {
-    if (!c.alive || c.def.glow) continue;
-    const scared = c.state === 'panic' || c.state === 'flee', sees = !scared && c.def.human && canSeeSnake(c), nerv = c.state === 'uneasy' || (c.alert > .3 && !scared);
-    const col = scared || sees ? '255,70,60' : nerv ? '255,190,60' : '110,255,140';
-    if (!scared && !sees && !nerv) { const d = dist2(c.x, c.y, s.x, s.y); if (d < ed) { ed = d; easy = c; } }
-    const r = c.def.r + 6 + Math.sin(T * 6 + c.pt * 20) * 1.2;
-    x.strokeStyle = `rgba(${col},${.85 * k})`; x.beginPath(); x.arc(c.x, c.y, r, 0, TAU); x.stroke();
-    if (lv > 1 && c.def.human) { x.fillStyle = `rgba(${col},${.12 * k})`; x.beginPath(); x.moveTo(c.x, c.y); x.arc(c.x, c.y, Math.min(90, c.def.sight * .6), c.a - .6, c.a + .6); x.closePath(); x.fill(); } // where they're looking
+  const s = snake; if (!s) return;
+  x.save(); x.lineCap = 'round'; x.lineJoin = 'round';
+  for (const w of wisps) { // soft curling threads
+    const f = Math.min(1, w.t * 4) * (1 - w.t / w.life), P = w.pts; if (P.length < 4) continue;
+    x.strokeStyle = `rgba(${w.col},${(.3 + .5 * w.k) * f})`; x.lineWidth = 1.4 + 2.6 * w.k * f;
+    x.beginPath(); x.moveTo(P[0], P[1]); for (let i = 2; i < P.length; i += 2) x.lineTo(P[i], P[i + 1]); x.stroke();
   }
-  const line = (c, col, dash) => { x.strokeStyle = `rgba(${col},${.7 * k})`; x.setLineDash(dash); x.lineDashOffset = -T * 30; x.beginPath(); x.moveTo(s.x, s.y); x.lineTo(c.x, c.y); x.stroke(); };
-  if (easy) line(easy, '110,255,140', [6, 6]);
-  for (const c of creatures) if (c.alive && c.golden) line(c, '255,214,70', [3, 5]);
-  x.setLineDash([]); x.restore();
+  if (s.scentT > 0 && upg('scent') > 1) { // who can see you right now
+    const k = Math.min(1, s.scentT * 2.5, (ABIL.scent.dur - s.scentT) * 5); x.lineWidth = 1.4;
+    for (const c of creatures) {
+      if (!c.alive || !c.def.human) continue;
+      const scared = c.state === 'panic' || c.state === 'flee', sees = !scared && canSeeSnake(c); if (!sees) continue;
+      x.strokeStyle = `rgba(255,70,60,${.8 * k})`; x.beginPath(); x.arc(c.x, c.y, c.def.r + 6 + Math.sin(T * 6 + (c.seed ?? .5) * 20) * 1.2, 0, TAU); x.stroke();
+      x.fillStyle = `rgba(255,70,60,${.1 * k})`; x.beginPath(); x.moveTo(c.x, c.y); x.arc(c.x, c.y, Math.min(90, c.def.sight * .6), c.a - .6, c.a + .6); x.closePath(); x.fill();
+    }
+  }
+  x.restore();
 }
-
+/* ---- Hiss: a visible soundwave rolling out; Battering Ram: a pressure wedge at the head just before impact ---- */
+function drawHissWave(x) {
+  const s = snake; if (!s || !(s.hissT > 0)) return;
+  const p = 1 - s.hissT / ABIL.hiss.dur, R = s.hissR || 190;
+  for (let k = 0; k < 3; k++) { const q = p - k * .12; if (q <= 0 || q >= 1) continue;
+    const r = R * (1 - Math.pow(1 - q, 2.2)), al = (1 - q) * (s.hissLv > 2 ? .5 : .35);
+    x.strokeStyle = `rgba(230,255,220,${al})`; x.lineWidth = (s.hissLv > 2 ? 5 : 3) * (1 - q) + 1; x.beginPath();
+    for (let a = 0; a <= TAU + .01; a += TAU / 48) { const wob = Math.sin(a * 9 + T * 30) * 2.2 * (1 - q); x.lineTo(s.x + Math.cos(a) * (r + wob), s.y + Math.sin(a) * (r + wob)); } x.stroke(); }
+}
+function drawRamCharge(x) {
+  const s = snake; if (!s || !s.alive || !upg('ram') || state !== 'play') return;
+  const ca = Math.cos(s.angle), sa = Math.sin(s.angle), o = obstacleHitBy(s.x + ca * 22, s.y + sa * 22, CONFIG.snakeR * .8);
+  s.ramGlow = (s.ramGlow || 0) + (((o && canRam(o)) ? 1 : 0) - (s.ramGlow || 0)) * .3;
+  if (s.ramGlow < .03) return;
+  const g = s.ramGlow, hx = s.x + ca * 9, hy = s.y + sa * 9; // a bow wave of force bunching up ahead of the head
+  x.save(); x.translate(hx, hy); x.rotate(s.angle);
+  for (let k = 0; k < 3; k++) { x.strokeStyle = `rgba(255,${200 - k * 40},120,${(.55 - k * .15) * g})`; x.lineWidth = 2.4 - k * .6; x.beginPath(); x.arc(-4 - k * 3, 0, 9 + k * 3.5, -.9, .9); x.stroke(); }
+  x.restore();
+}
 let clubSpeakers = []; // the club's music comes out of these; set up on map load
 function setupSpeakers() { clubSpeakers = MAPS[mapIdx].club ? obstacles.filter(o => o.kind === 'speaker').map(o => ({ o, x: o.x + o.w / 2, y: o.y + o.h / 2, alive: true })) : []; if (Sfx.mus) { Sfx.mus.g.disconnect(); Sfx.mus = null; } }
 function brokenSpeaker(x, o, ang) { // still standing, but gutted: cones blown out, box split, wires hanging

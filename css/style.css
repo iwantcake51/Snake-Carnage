@@ -1105,3 +1105,12 @@ body.calm .panel,body.calm .mleft,body.calm .mright{translate:none}
 #stage.hudin #abil{animation:hudIn .28s cubic-bezier(.2,.8,.2,1) both}
 #stage.hudin #chhud{animation:hudIn .32s cubic-bezier(.2,.8,.2,1) .09s both}
 #stage.hudin #modhud{animation:hudIn .32s cubic-bezier(.2,.8,.2,1) .16s both}
+/* buying an upgrade: only that card celebrates; the rest just update */
+.upc.still{animation:none}
+.upc.leveled{animation:upPop .6s cubic-bezier(.2,.9,.25,1.2) both;border-color:var(--acc-hi)}
+@keyframes upPop{0%{transform:scale(.97);box-shadow:0 0 0 0 color-mix(in srgb,var(--acc-hi) 60%,transparent)}45%{transform:scale(1.025);box-shadow:0 0 0 6px color-mix(in srgb,var(--acc-hi) 25%,transparent),0 0 28px color-mix(in srgb,var(--acc-hi) 35%,transparent)}100%{transform:none;box-shadow:0 0 0 0 transparent}}
+.upc.leveled .pips i.last{animation:pipPop .5s cubic-bezier(.2,.9,.25,1.4) .15s both}
+@keyframes pipPop{0%{transform:scale(0);background:#fff}60%{transform:scale(1.6)}100%{transform:none}}
+.upc.leveled .uptiers li.got:nth-last-child(1),.upc.leveled .uptiers li.next{transition:color .4s}
+.coinpill.spent{animation:coinSpend .5s ease}
+@keyframes coinSpend{0%{transform:scale(1)}30%{transform:scale(.88);color:#ff8a7a}100%{transform:none}}

@@ -10,6 +10,9 @@ function drawSnake(x, s = snake, cfg = SETTINGS.snake) {
   if (s === snake) s._pts = pts;
   const me = s === snake, lv = me ? upg('dash') : 0, lk = me ? lungeK(s) : 0, cam = me ? camoField(s, n) : null;
   if (lk > .01) drawLungeFx(x, s, pts, n, lk, lv);
+  const sd = me ? upg('speed') : 0;
+  if (sd >= 3 && moving && Math.random() < .12 * (sd - 2)) { const i = Math.floor(Math.random() * Math.min(n, 8)), g = pts[i], side = Math.random() < .5 ? -1 : 1, off = segR(i, n) + rand(2, 6); // Speed Demon: a few lines peel off as you go
+    streaks.push({ x: g.x - Math.sin(g.a) * off * side, y: g.y + Math.cos(g.a) * off * side, a: g.a, len: rand(8, 16) * (sd / 4), t: 0, life: rand(.14, .22) }); }
   if (cam) refractBody(x, s, pts, n, cam);
   const camAvg = cam ? cam.avg : 0;
   const ol = SETTINGS.snakeOutline || 'Subtle';
@@ -28,7 +31,7 @@ function drawSnake(x, s = snake, cfg = SETTINGS.snake) {
     const sts = s.stains[i] || [], soak = Math.min(.55, sts.length / 50);
     let base = segColor(i, n, cfg);
     if (soak) base = mixColor(base, soakCol(sts), soak);
-    if (a > .01) { base = mixColor(base, groundColAt(g.x, g.y), (.42 + .14 * cam.lv) * a); x.globalAlpha = 1 - (.56 + .06 * cam.lv) * a; } // takes on the colors around it
+    if (a > .01) { base = mixColor(base, groundColAt(g.x, g.y), (.42 + .14 * cam.lv) * a); x.globalAlpha = 1 - (.56 + .06 * cam.lv + .2 * (cam.still || 0)) * a; } // takes on the colors around it
     x.fillStyle = base;
     circ(x, g.x, g.y, r);
     patternOverlay(x, g, r, i, cfg);
@@ -102,7 +105,8 @@ function camoField(s, n) {
     const th = .5 + .42 * perlin(i * .23 + 3.1, T * .45 + 7.7), v = s.cv * 1.36 - .18;
     a[i] = sstep(th - .14, th + .14, v); sum += a[i];
   }
-  return { a, avg: sum / n, lv };
+  const still = lv > 2 ? (s.still || 0) : 0; if (still) for (let i = 0; i < n; i++) a[i] = Math.min(1, a[i] * (1 + .25 * still)); // Stillness: fades further
+  return { a, avg: sum / n, lv, still };
 }
 function refractBody(x, s, pts, n, cam) { // the background seen through the body, swirled and split slightly
   const m = x.getTransform(), sc = Math.hypot(m.a, m.b), G = 5;

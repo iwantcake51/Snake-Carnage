@@ -42,10 +42,11 @@ function updateSnake(dt) {
   const s = snake; if (!s.started || !s.alive) return;
   if (MOD.freeMove) steerFree(dt);
   // ease toward the target heading: quick to start, settles softly, capped so it never snaps
-  const d = angDiff(s.angle, s.dir), mx = CONFIG.turnRate * dt;
+  const sl = upg('speed'), d = angDiff(s.angle, s.dir), mx = CONFIG.turnRate * dt * (1 + (sl >= 2 ? .12 : 0) + (sl >= 4 ? .14 : 0)); // Speed Demon: snappier turns
   s.angle += Math.abs(d) < .002 ? d : clamp(d * Math.min(1, dt * CONFIG.turnEase) + Math.sign(d) * mx * .18, -mx, mx);
   if (s.wallStun > 0) { const k = s.wallStun / (s.wallMax || 3.4); s.wallStun -= dt; s.angle += (Math.sin(T * 4.7) * 1.5 + Math.sin(T * 2.3 + 1.3)) * k * dt; } // seeing stars: it can't hold a line
-  for (const k of ['dashT', 'camoT', 'scentT', 'hissT', 'ramT']) if (s[k] > 0) s[k] -= dt;
+  for (const k of ['dashT', 'camoT', 'scentT', 'hissT', 'ramT']) if (s[k] > 0) s[k] -= dt * (k === 'ramT' && sl >= 3 ? 1.33 : 1); // Speed Demon III shakes off dazes faster
+  if (s.camoT > 0) { const turning = Math.abs(angDiff(s.angle, s.dir)) > .05 || s.dashT > 0; s.still = clamp((s.still || 0) + (turning ? -dt * 4 : dt * 1.1), 0, 1); } else s.still = 0; // camouflage settles in on a straight line
   const dk = s.dashT > 0 ? s.dashK || 1.8 : 1; s.dashV = dk >= (s.dashV || 1) ? dk : 1 + ((s.dashV || 1) - 1) * Math.exp(-dt * 3.2); // lunge hits at once, then the speed bleeds off over about a second
   const v = s.speed * s.dashV * (s.ramT > 0 ? 1 - (s.ramDeep || .5) * (s.ramT / (s.ramMax || 1)) : 1); // a lunge, or a stagger after smashing through something
   // unit vector * speed => identical speed in all 8 directions
@@ -155,6 +156,7 @@ function bleedIntoWater(x, y, amount, col = BLOOD) {
   }
 }
 function eat(c) {
+  if (snake.dashT > 0 && upg('dash') > 2) { abilCD.dash = Math.min(abilCD.dash || 0, T + 1.2); snake.dashT = Math.max(snake.dashT, .3); } // pounce: straight into the next one
   c.alive = false; dropFlash(c); leaveGroup(c);
   hitGhosts.push({ c, t: 0 }); hitStop = Math.max(hitStop, c.def.human ? .055 : c.def.r >= 9 ? .045 : .03); // a frozen beat on the bite
   const s = snake, sx = Math.cos(s.angle), sy = Math.sin(s.angle);
