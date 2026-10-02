@@ -162,6 +162,15 @@ function buildMaze() {
 
 /* Map design rules: lanes >= 60px wide, doors >= 80px, obstacles either touch the border/each other or leave a real gap,
    loops everywhere so chases never end in a dead end, and a mix of lit spots and dark cover for night hunting. */
+let bunkerLock = false, bunkerCache = null;
+function bunkerLights() { // built once per run (loadMap clears the cache), so every system shares the same light objects
+  if (bunkerCache) return bunkerCache;
+  const P = [[170, 140, 160, 1], [480, 130, 170], [800, 140, 160, 1], [120, 320, 120], [480, 320, 120], [840, 320, 120], [200, 500, 150, 1], [560, 500, 160], [830, 500, 150]];
+  bunkerCache = bunkerLock
+    ? P.map(([x, y, r], k) => ({ x, y, r, kind: k % 3 === 1 ? 'emerg' : 'red', fix: 'cage' })) // lockdown: red cages and rotating alarm beacons
+    : P.map(([x, y, r, f]) => ({ x, y, r: r * 1.05, kind: 'fluor', fix: 'cage', flick: !!f })); // normal shift: cold white work lamps, a couple on their way out
+  return bunkerCache;
+}
 const MAPS = [
   {
     name: 'Open Field', icon: '🟩', border: '#5a8a36', start: { x: 300, y: 330, a: 0 }, times: { sunset: 2, evening: 2, night: 2.5 }, open: true,
@@ -581,10 +590,7 @@ const MAPS = [
   {
     name: 'Bunker', icon: '🚨', border: '#1c1414', start: { x: 480, y: 320, a: 0 }, indoor: true, ambient: .06,
     pop: [['human', 15], ['rat', 3]],
-    lights: [ // caged red work lamps; the generator room keeps one dying white bulb
-      { x: 170, y: 140, r: 160, kind: 'red', fix: 'cage' }, { x: 480, y: 130, r: 170, kind: 'red', fix: 'cage' }, { x: 800, y: 140, r: 160, kind: 'red', fix: 'cage', flick: true },
-      { x: 120, y: 320, r: 120, kind: 'red', fix: 'cage' }, { x: 480, y: 320, r: 120, kind: 'red', fix: 'cage' }, { x: 840, y: 320, r: 120, kind: 'red', fix: 'cage' },
-      { x: 200, y: 500, r: 150, kind: 'fixed', fix: 'cage', flick: true }, { x: 560, y: 500, r: 160, kind: 'red', fix: 'cage' }, { x: 830, y: 500, r: 150, kind: 'red', fix: 'cage' }],
+    get lights() { return bunkerLights(); }, // white work lights normally; some runs the bunker is on lockdown and everything goes red
     build: () => {
       const wc = '#4a3c38';
       return {

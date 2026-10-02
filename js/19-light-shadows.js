@@ -50,6 +50,11 @@ function shadeInto(dst, L, list, ox, oy, size, str, skip, soft) { // removes lig
   qx.beginPath(); let round = false; // all round shadows in one fill: same winding, so they merge into one shape
   for (const o of list) if (o.t !== 'r' && (!skip || o.src !== skip)) round = shadowShape(qx, L, o, ox, oy) || round;
   if (round) { qx.fill(); any = true; }
+  if (any && snake && list.some(o => o.snk)) { // the body never shades itself: a light overhead lights the top of every segment, shadows only fall on the ground around it
+    qx.globalCompositeOperation = 'destination-out'; qx.beginPath(); const n = snake.segs.length;
+    for (let i = 0; i < n; i++) { const g = snake.segs[i], r = segR(i, n) * 1.12, px = g.x - ox, py = g.y - oy; if (px < -r || py < -r || px > size + r || py > size + r) continue; qx.moveTo(px + r, py); qx.arc(px, py, r, 0, TAU); }
+    qx.fill(); qx.globalCompositeOperation = 'source-over';
+  }
   if (any) {
     qx.globalCompositeOperation = 'source-in';
     const g = qx.createRadialGradient(L.x - ox, L.y - oy, 0, L.x - ox, L.y - oy, L.r);
@@ -78,7 +83,7 @@ const dyn = [], NEAR = [];
 function gatherDyn() { // things that move and cast shadows: people, animals, the snake
   dyn.length = 0;
   for (const c of creatures) if (c.alive) dyn.push({ t: 'c', x: c.x, y: c.y, r: c.def.r * .85, z: c.def.human ? 16 : c.def.r * 1.2, src: c });
-  if (snake) { const n = snake.segs.length; for (let i = 0; i < n; i++) { const g = snake.segs[i]; dyn.push({ t: 'c', x: g.x, y: g.y, r: segR(i, n) * 1.08, z: 6 }); } }
+  if (snake) { const n = snake.segs.length; for (let i = 0; i < n; i++) { const g = snake.segs[i]; dyn.push({ t: 'c', x: g.x, y: g.y, r: segR(i, n) * 1.08, z: 6, snk: 1 }); } }
 }
 function nearDyn(x, y, r, skip) { NEAR.length = 0; for (const d of dyn) if (d.src !== skip || !skip) if (dist2(d.x, d.y, x, y) < (r + d.r) ** 2) NEAR.push(d); return NEAR; }
 const CONE = [];

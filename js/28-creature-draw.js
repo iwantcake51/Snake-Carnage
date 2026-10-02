@@ -125,9 +125,11 @@ function drawFirefly(x, c, d) { // a little beetle: dark wing cases, a flicker o
 }
 /* ---- animals: top-down, +x forward. Each one: feet that actually step, a shaded body, a head with real features ---- */
 const EYE = (x, px, py, r = .8) => { x.fillStyle = '#121212'; circ(x, px, py, r); x.fillStyle = 'rgba(255,255,255,.7)'; circ(x, px + r * .3, py - r * .3, r * .35); };
-function feet(x, c, d, fx, bx, wy, col, r = 1.5) { // four paws/hooves stepping in a trot
-  const s = Math.sin(c.phase) * c.moveAmt * 2.2; x.fillStyle = col;
-  circ(x, fx + s, -wy, r); circ(x, fx - s, wy, r); circ(x, bx - s, -wy, r); circ(x, bx + s, wy, r);
+function feet(x, c, d, fx, bx, wy, col, r = 1.5) { // four paws/hooves in a proper trot: diagonal pairs move together; a swinging foot lifts (bigger, lighter), a planted one pushes back flat
+  const m = c.moveAmt, ph = c.phase, st = 2.4 * m, sw = Math.sin(ph), lift = Math.cos(ph);
+  const foot = (bx0, y, dir) => { const s = sw * st * dir, up = Math.max(0, lift * dir) * m; // up > 0: this foot is in the air, travelling forward
+    x.fillStyle = up > .05 ? shade(col, .12 * up) : col; circ(x, bx0 + s, y * (1 + up * .08), r * (1 + up * .22)); };
+  foot(fx, -wy, 1); foot(bx, wy, 1); foot(fx, wy, -1); foot(bx, -wy, -1); // left-front with right-back, then the other pair
 }
 function body(x, len, wid, col, cx = 0) { // shaded oval: darker underside edge, lit back
   x.fillStyle = shade(col, -.18); ell(x, cx, 0, len, wid);
@@ -281,6 +283,8 @@ function drawCreature(x, c, portrait) {
   if (c.hz > .3) { const k = clamp(1 - c.hz / 14, .45, 1); x.fillStyle = `rgba(0,0,0,${(.24 * k).toFixed(3)})`; ell(x, c.x, c.y, c.def.r * .95 * k, c.def.r * .75 * k); } // the shadow shrinks as it leaves the ground
   x.save(); x.translate(c.x, c.y - (c.hz || 0) * .7); x.rotate(c.a); if (c.hz) x.scale(1 + c.hz * .045, 1 + c.hz * .045); // ...and the body gets bigger, closer to you
   if (c.dance) { const b = Math.abs(Math.sin(T * CLUB_BPM / 60 * Math.PI + (c.seed ?? .5) * 30)); x.scale(1 + b * .05, 1 + b * .05); x.rotate(Math.sin(T * 2 + (c.seed ?? .5) * 9) * .12); }
+  if (!c.def.human && c.moveAmt > .02 && !c.hz) { // animals: a little weight shift each step, side to side, the body yawing against the legs
+    const m = c.moveAmt, ph = c.phase * (c.def.gaitK || 1); x.translate(0, Math.sin(ph) * .45 * m); x.rotate(Math.cos(ph) * .045 * m); }
   c.def.human ? drawHuman(x, c) : drawAnimal(x, c);
   if (!portrait && hiFx() && !c.def.fly) { x.save(); shapePath(x, c); x.clip(); x.rotate(-c.a); const R = c.def.r * 1.5; x.drawImage(VOL_SPR, -R, -R, R * 2, R * 2); x.restore(); } // rounded: light on top, darker toward the edges
   if (c.stains.length) {

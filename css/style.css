@@ -1426,3 +1426,4 @@ input[type=range]{accent-color:var(--acc)}
 /* parallax only lives on the main menu; pause and death panels sit still */
 #overlay:not(:has(.menu)) .panel{translate:none!important}
 .panel,.mleft,.mright{will-change:translate}
+#stage.stunned::before{transition:opacity .05s linear}

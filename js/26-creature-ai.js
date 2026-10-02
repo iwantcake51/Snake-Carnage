@@ -123,7 +123,7 @@ function updateCreature(c, dt) {
   if (c.kb && c.kb.t > 0) { c.kb.t -= dt; const nx = c.x + c.kb.vx * dt, ny = c.y + c.kb.vy * dt; if (free(nx, ny, d.r * .8)) { c.x = nx; c.y = ny; } c.kb.vx *= .9; c.kb.vy *= .9; } // thrown back by a Hiss shockwave
   c.spd = dt > 0 ? moved / dt : 0;
   c.moveAmt += ((moved > 0 ? 1 : 0) - c.moveAmt) * Math.min(1, dt * 8);
-  c.phase += moved * (d.human ? .35 : .6);
+  c.phase += moved * (d.human ? .3 : .5) / Math.max(.7, d.r / 7); // steps scale with body size: big animals stride, small ones patter
   footprints(c, moved);
   updateFlash(c, dt);
 }
