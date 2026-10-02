@@ -119,7 +119,7 @@ function drawCreature(x, c, portrait) {
     const n = c.stains.length;
     x.fillStyle = BLOOD;
     if (n > 12) { x.globalAlpha = Math.min(.4, n / 140); x.fillRect(-20, -20, 40, 40); x.globalAlpha = 1; } // soaked look
-    for (const t of c.stains) { x.beginPath(); x.ellipse(t.x, t.y, t.r * (t.e || 1), t.r, t.a || 0, 0, TAU); x.fill(); }
+    for (const t of c.stains) { x.fillStyle = t.c || BLOOD; x.beginPath(); x.ellipse(t.x, t.y, t.r * (t.e || 1), t.r, t.a || 0, 0, TAU); x.fill(); }
   }
   x.restore();
   if (!portrait && c.def.human && c.state !== 'wander' && c.state !== 'idle' && !(c.bubbles && c.bubbles.some(b => b.delay <= 0))) {
@@ -305,9 +305,9 @@ function stainSprite(sts) { // re-rendered only when that segment gets new blood
     const x = sts.spr.getContext('2d');
     x.setTransform(S, 0, 0, S, R0 * S, R0 * S); x.clearRect(-R0, -R0, R0 * 2, R0 * 2);
     x.save(); x.beginPath(); x.arc(0, 0, R0, 0, TAU); x.clip();
-    x.fillStyle = BLOOD;
     for (const st of sts) { // flat streaks smeared backward along the body
       const e = st.e || 1.4, cx = Math.cos(st.a) * st.d - st.r * (e - 1) * .5, cy = Math.sin(st.a) * st.d;
+      x.fillStyle = st.c || BLOOD;
       ell(x, cx, cy, st.r * e, st.r); if (st.r > 2.2) circ(x, cx - st.r * e * .8, cy + st.r * .3, st.r * .45);
     }
     x.restore(); sts.dirty = false;

@@ -29,6 +29,7 @@ function render() {
   x.fill();
   for (const c of creatures) if (c.alive) drawCreature(x, c);
   drawFlashBodies(x);
+  drawGiblets(x); // chunks on the ground sit under the snake
   drawTrail(x); drawGround(x); drawSnake(x);
   x.drawImage(obsC, 0, 0, W, H);
   drawWaters(x);
@@ -40,7 +41,7 @@ function render() {
     const py = p.y - p.z * .25; x.lineWidth = p.r * 2 * (1 + p.z / 80);
     x.beginPath(); x.moveTo(p.x - p.vx * .016, py - p.vy * .016); x.lineTo(p.x + .01, py); x.stroke();
   }
-  drawDebris(x); drawGiblets(x);
+  drawDebris(x); drawMist(x);
   drawLighting(x);
   drawSparks(x);
   drawVisionMask(x);

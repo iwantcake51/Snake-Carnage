@@ -38,8 +38,10 @@ const pmDone = (map, id) => !!(PROG.pmc[map] || {})[id];
 const pmDoneCount = map => Object.keys(PROG.pmc[map] || {}).length;
 function checkPermChallenges() {
   const map = MAPS[mapIdx].name, done = PROG.pmc[map] = PROG.pmc[map] || {};
+  const best = (PROG.pmBest = PROG.pmBest || {})[map] = PROG.pmBest[map] || {};
   for (const c of permChallenges(map)) {
-    if (done[c.id] || c.stat(run) < c.n) continue;
+    const v = c.stat(run); best[c.id] = Math.max(best[c.id] || 0, Math.min(v, c.n));
+    if (done[c.id] || v < c.n) continue;
     done[c.id] = Date.now();
     const rw = TIERS[c.tier], xp = Math.round(rw.xp * 1.5), chips = Math.round(rw.chips * 1.5);
     (run.unlocks = run.unlocks || []).push({ kind: 'perm', name: c.name, map, xp, chips });

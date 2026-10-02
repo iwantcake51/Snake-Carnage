@@ -29,14 +29,14 @@ Each box gets ticked as soon as that piece is done and checked in a headless run
 ## 3. Challenges / progression
 - [x] Permanent, harder per-map challenges
 - [x] Permanent profile-wide challenges (more of them)
-- [ ] Challenges sorted easiest → hardest
-- [ ] Secret challenges (shown as secret, with clues in-game)
+- [x] Challenges sorted easiest → hardest
+- [x] Secret challenges (shown as secret, with clues in-game)
 - [x] End-of-run summary: unlocks, XP/level progress, challenges done, every target type eaten with counts, animated
-- [ ] Title tooltips: how it was earned + date/time unlocked
+- [x] Title tooltips: how it was earned + date/time unlocked
 
 ## 4. Shop / cosmetics
-- [ ] Real previews for hats, eyes, trails, themes, card styles, effects (no emoji on the head)
-- [ ] Preset colors get real names
+- [x] Real previews for hats, eyes, trails, themes, card styles, effects (no emoji on the head)
+- [x] Preset colors get real names
 
 ## 5. Upgrades / abilities
 - [x] Upgrades screen bought with chips (level-gated)
@@ -50,22 +50,22 @@ Each box gets ticked as soon as that piece is done and checked in a headless run
 - [ ] Map-aware lines: open maps, indoor maps, space, alien gibberish
 
 ## 7. Eating / gibs / blood
-- [ ] Gibs drawn under the snake
-- [ ] Golden targets → golden gibs; aliens → green blood + green gibs
-- [ ] Brief blood mist on every kill
-- [ ] Meatier eating sounds
-- [ ] Gib physics kept (bounce, slide, trail, landing splat, wall deflection)
+- [x] Gibs drawn under the snake
+- [x] Golden targets → golden gibs; aliens → green blood + green gibs
+- [x] Brief blood mist on every kill
+- [x] Meatier eating sounds
+- [x] Gib physics kept (bounce, slide, trail, landing splat, wall deflection)
 
 ## 8. Combo UI
-- [ ] Smaller layout: number box on the right, list beside it, timer line underneath
-- [ ] Shakes harder as the combo grows
-- [ ] Breaks apart, pieces fall and fade when lost
-- [ ] Higher combos drain faster, with a cap
+- [x] Smaller layout: number box on the right, list beside it, timer line underneath
+- [x] Shakes harder as the combo grows
+- [x] Breaks apart, pieces fall and fade when lost
+- [x] Higher combos drain faster, with a cap
 
 ## 9. Golden targets
-- [ ] Notifications pop in and stack instead of replacing each other
-- [ ] Circular timer ring around every golden target
-- [ ] Ring expands and pops when time runs out; target turns back to normal
+- [x] Notifications pop in and stack instead of replacing each other
+- [x] Circular timer ring around every golden target
+- [x] Ring expands and pops when time runs out; target turns back to normal
 
 ## 10. Animals
 - [ ] Redrawn animals

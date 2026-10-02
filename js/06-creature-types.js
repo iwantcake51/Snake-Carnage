@@ -13,7 +13,7 @@ const TYPES = {
   pig:     { r: 9, walk: 15, run: 70, score: 2, grow: 2, blood: 0.8, sight: 80, bl: 10, bw: 7.5, hr: 5, col: '#f2a6b0', snout: true, ears: 'short' },
   sheep:   { r: 9, walk: 12, run: 75, score: 2, grow: 2, blood: 0.75, sight: 90, bl: 10, bw: 7.5, hr: 4, col: '#f2f0ea', hcol: '#333', fluff: true },
   astronaut: { human: true, r: 9.5, walk: 20, run: 80, score: 3, grow: 3, blood: 1, sight: 140 },       // bulky suit: a bit slower
-  alien:   { r: 7, walk: 26, run: 118, score: 3, grow: 2, blood: 0.55, sight: 120, bl: 6, bw: 5, hr: 5.5, col: '#79cf55', alien: true, bloodCol: ['#4f9e22', '#62b52e'] },
+  alien:   { r: 7, walk: 26, run: 118, score: 3, grow: 2, blood: 0.55, sight: 120, bl: 6, bw: 5, hr: 5.5, col: '#79cf55', alien: true, bloodCol: ['#3f9a1c', '#4fae24', '#58b82c'] },
   rat:     { r: 4, walk: 20, run: 95, score: 1, grow: 1, blood: 0.1, sight: 90, bl: 5.5, bw: 3, hr: 2.8, col: '#7d7d7d', tail: 'long', tcol: '#d99a9a' },
 };
 const SKINS = ['#ffdfc4', '#f1c27d', '#e0ac69', '#c68642', '#a86b3c', '#8d5524', '#5c3a1e'];

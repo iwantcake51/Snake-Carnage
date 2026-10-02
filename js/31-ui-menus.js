@@ -61,7 +61,7 @@ function showMenu() {
     <div class="mleft">
       <div class="logo"><span class="l1">Snake<i class="drip" style="--x:14%;--h:16px;--d:0s"></i><i class="drip" style="--x:46%;--h:24px;--d:1.4s"></i><i class="drip" style="--x:81%;--h:11px;--d:2.6s"></i></span><span class="l2">${SPLAT}Carnage</span></div>
       <p class="tag">Slither in, eat the locals, and stay out of the light.</p>
-      <div class="mlevel"><span>Level ${PROG.level}${SETTINGS.snake.title !== 'None' ? `<em class="mtitle">${SETTINGS.snake.title}</em>` : ''}</span><span class="xp" title="${PROG.xp} / ${xpNeed(PROG.level)} XP"><span class="xpfill" style="width:${(PROG.xp / xpNeed(PROG.level) * 100).toFixed(1)}%"></span></span><span class="coin"><i class="pc"></i> ${PROG.coins}</span></div>
+      <div class="mlevel"><span>Level ${PROG.level}${SETTINGS.snake.title !== 'None' ? `<em class="mtitle" data-tiph="${attr(titleTip(SETTINGS.snake.title))}">${SETTINGS.snake.title}</em>` : ''}</span><span class="xp" title="${PROG.xp} / ${xpNeed(PROG.level)} XP"><span class="xpfill" style="width:${(PROG.xp / xpNeed(PROG.level) * 100).toFixed(1)}%"></span></span><span class="coin"><i class="pc"></i> ${PROG.coins}</span></div>
       <button class="play" id="playBtn" data-sfx="none"><span>Play ${MAPS[mapIdx].name}</span><small>Space</small></button>
       <div class="modline" id="modline">${modLine()}</div>
       <div class="seg tseg" role="group" aria-label="Time of day"><i class="sthumb"></i>${Object.keys(TIME_MODES).map(k => `<button data-sfx="tab" data-time="${k}" class="${k === SETTINGS.timeMode ? 'on' : ''}" data-tip="${TIME_TIPS[k]}">${TIME_MODES[k]}</button>`).join('')}</div>
@@ -137,28 +137,45 @@ function showModifiers() {
   document.getElementById('backBtn').onclick = () => transitionTo(showMenu);
   sync();
 }
-function showChallenges(keepAnim) { // long-term achievements; each one unlocks a cosmetic that matches it
-  const order = { easy: 0, medium: 1, hard: 2, rare: 3 }, list = [...ACH].sort((p, q) => (!!PROG.ach[p.id] - !!PROG.ach[q.id]) || order[p.tier] - order[q.tier]);
-  const doneN = ACH.filter(a => PROG.ach[a.id]).length;
+let chTab = 'profile', chMap = null;
+const TIER_ORDER = { easy: 0, medium: 1, hard: 2, rare: 3 };
+function showChallenges(keepAnim) { // profile-wide goals (cosmetics, chips, secrets) and permanent per-map goals, easiest first
+  chMap = chMap || MAPS[mapIdx].name;
+  const doneN = ACH.filter(a => PROG.ach[a.id]).length, pmTot = MAPS.reduce((a, m) => a + permChallenges(m.name).length, 0), pmN = MAPS.reduce((a, m) => a + pmDoneCount(m.name), 0);
   overlay.className = 'menuMode';
-  overlay.innerHTML = `<div class="panel chal2 ${keepAnim ? 'noanim' : ''}"><div class="chhead"><h1>Challenges</h1><span class="chstats">${doneN}/${ACH.length} earned</span></div>
-    <p class="lead">Long-term goals across every map. Each one unlocks a unique cosmetic that matches it. Map challenges (shown on the map screen) pay XP and chips.</p>
-    <div class="achg">${list.map((a, i) => { const got = !!PROG.ach[a.id], p = achProgress(a), rw = achRewards(a.id).filter(([c]) => c !== 'color2');
-      return `<div class="ach ${got ? 'done' : ''} t-${a.tier}" style="--i:${i}"><div class="ap">${rw.slice(0, 1).map(([cat, v]) => achPreview(cat, v, got || (a.tier !== 'rare' && p >= .5))).join('')}</div>
-        <div class="ab"><em class="tier ${a.tier}">${TIERS[a.tier].label}</em><b>${got ? '✔ ' : ''}${a.name}</b><small>${a.what}</small>
-        <span class="pbar"><span style="width:${(p * 100).toFixed(0)}%"></span></span><span class="af"><span>${Math.min(a.stat(), a.n)}/${a.n}</span><span>${rw.map(([cat, v]) => `${CAT_LABEL[cat]}${cat.startsWith('color') ? '' : ': ' + v}`).join(' · ')}</span></span></div></div>`; }).join('')}</div>
-    <div class="chfoot"><span class="rot">Unlocked cosmetics show up in the Shop, free to equip.</span><button class="btn" id="backBtn" data-sfx="close">Done</button></div></div>`;
-  overlay.querySelectorAll('canvas.mini').forEach(cv2 => miniSnake(cv2, { ...SETTINGS.snake, pattern: cv2.dataset.v }));
+  overlay.innerHTML = `<div class="panel chal2 ${keepAnim ? 'noanim' : ''}"><div class="chhead"><h1>Challenges</h1>
+      <div class="ctabs"><button class="${chTab === 'profile' ? 'on' : ''}" data-ct="profile" data-sfx="tab">Profile <em>${doneN}/${ACH.length}</em></button><button class="${chTab === 'maps' ? 'on' : ''}" data-ct="maps" data-sfx="tab">Maps <em>${pmN}/${pmTot}</em></button></div></div>
+    <div class="chbody">${chTab === 'profile' ? profileChallenges() : mapPermChallenges()}</div>
+    <div class="chfoot"><span class="rot">${chTab === 'profile' ? 'Sorted easiest to hardest. Unlocked cosmetics show up in the Shop, free to equip. Secret ones only give you a clue.' : 'Permanent goals that never reset. Each pays XP and chips once.'}</span><button class="btn" id="backBtn" data-sfx="close">Done</button></div></div>`;
+  drawPreviews(overlay);
+  overlay.querySelectorAll('[data-ct]').forEach(b => b.onclick = () => { chTab = b.dataset.ct; showChallenges(true); });
+  overlay.querySelectorAll('[data-cm]').forEach(b => b.onclick = () => { chMap = b.dataset.cm; showChallenges(true); });
   document.getElementById('backBtn').onclick = () => transitionTo(showMenu);
 }
-function achPreview(cat, v, clear) { // rewards show as a preview; early on (and rare ones) stay silhouetted
-  const inner = cat.startsWith('color') ? `<i class="swb" style="background:${v}"></i>` : cat === 'pattern' ? `<canvas class="mini" data-v="${v}" width="88" height="40"></canvas>` : `<i class="ico">${shopIcon(cat, v)}</i>`;
-  return `<div class="prv ${clear ? '' : 'sil'}">${inner}</div>`;
+function profileChallenges() {
+  const list = ACH.map((a, i) => ({ a, i })).sort((p, q) => TIER_ORDER[p.a.tier] - TIER_ORDER[q.a.tier] || (!!p.a.secret - !!q.a.secret) || p.i - q.i).map(o => o.a);
+  return `<div class="achg">${list.map((a, i) => {
+    const got = !!PROG.ach[a.id], hide = a.secret && !got, p = hide ? 0 : achProgress(a), rw = achRewards(a.id).filter(([c]) => c !== 'color2');
+    const reward = [...rw.map(([cat, v]) => `${CAT_LABEL[cat]}${cat.startsWith('color') ? ': ' + colorName(v) : ': ' + v}`), a.chips ? `${a.chips} chips` : ''].filter(Boolean).join(' · ');
+    const tip = got ? `<span class="thead">${a.name}</span>${a.what}<span class="tdim">Earned ${fmtDate(PROG.ach[a.id])}</span>` : hide ? `<span class="thead">Secret challenge</span>Clue: ${a.clue}` : `<span class="thead">${a.name}</span>${a.what}<span class="tdim">Reward: ${reward}</span>`;
+    return `<div class="ach ${got ? 'done' : ''} ${hide ? 'secret' : ''} t-${a.tier}" style="--i:${i}" data-tiph="${attr(tip)}"><div class="ap">${hide ? '<div class="prv sil q">?</div>' : rw.length ? achPreview(rw[0][0], rw[0][1], got || (a.tier !== 'rare' && p >= .5)) : `<div class="prv chipr"><i class="pc"></i><b>${a.chips}</b></div>`}</div>
+      <div class="ab"><em class="tier ${hide ? 'secret' : a.tier}">${hide ? 'Secret' : TIERS[a.tier].label}</em><b>${got ? '✔ ' : ''}${hide ? '???' : a.name}</b><small>${hide ? '<i class="clue">' + a.clue + '</i>' : a.what}</small>
+      ${hide ? '' : `<span class="pbar"><span style="width:${(p * 100).toFixed(0)}%"></span></span><span class="af"><span>${Math.min(a.stat(), a.n)}/${a.n}</span><span>${reward}</span></span>`}</div></div>`; }).join('')}</div>`;
+}
+function mapPermChallenges() {
+  const list = permChallenges(chMap), best = (PROG.pmBest || {})[chMap] || {};
+  return `<div class="pmwrap"><div class="pmmaps">${MAPS.map(m => `<button class="${m.name === chMap ? 'on' : ''}" data-cm="${attr(m.name)}" data-sfx="tab"><span>${m.icon} ${m.name}</span><em>${pmDoneCount(m.name)}/${permChallenges(m.name).length}</em></button>`).join('')}</div>
+    <div class="pmlist">${list.map((c, i) => { const when = (PROG.pmc[chMap] || {})[c.id], v = when ? c.n : Math.min(best[c.id] || 0, c.n), rw = TIERS[c.tier];
+      return `<div class="pmc ${when ? 'done' : ''}" style="--i:${i}" ${when ? `data-tip="Completed ${fmtDate(when)}"` : ''}><em class="tier ${c.tier}">${rw.label}</em><b>${when ? '✔ ' : ''}${c.name}</b><small>${c.t}</small>
+        <span class="pbar"><span style="width:${(v / c.n * 100).toFixed(0)}%"></span></span><span class="af"><span>${v}${c.unit || ''}/${c.n}${c.unit || ''} best</span><span>+${Math.round(rw.xp * 1.5)} XP · +${Math.round(rw.chips * 1.5)} chips</span></span></div>`; }).join('')}</div></div>`;
+}
+function achPreview(cat, v, clear) { // rewards show as a real preview; early on (and rare ones) stay silhouetted
+  return `<div class="prv ${clear ? '' : 'sil'}">${itemPreview(cat, v)}</div>`;
 }
 function mapChallengesHtml() { // the selected map's current challenges: name, progress, reward, difficulty, rotation timer
   const m = MAPS[mapIdx].name, done = PROG.chDone[m] || {}, best = PROG.chBest[m] || {};
   return `<div class="mch"><b>${MAPS[mapIdx].icon} ${m} challenges</b><span>New set in <b data-rot>${fmtClock(rotLeft())}</b></span></div><div class="mcg">` +
-    activeChallenges(m).map((ch, i) => { const v = done[ch.id] ? ch.n : (best[ch.id] || 0);
+    [...activeChallenges(m)].sort((p, q) => TIER_ORDER[p.tier] - TIER_ORDER[q.tier]).map((ch, i) => { const v = done[ch.id] ? ch.n : (best[ch.id] || 0);
       return `<div class="mc ${done[ch.id] ? 'done' : ''}" style="--i:${i}" data-tip="${ch.t}. Reward: ${rewardText(ch).replace(/<[^>]+>/g, '')} chips"><em class="tier ${ch.tier}">${TIERS[ch.tier].label}</em><b>${done[ch.id] ? '✔ ' : ''}${ch.name}</b><small>${ch.t}</small>
         <span class="pbar"><span style="width:${(v / ch.n * 100).toFixed(0)}%"></span></span><span class="mcf"><span>${v}${chUnit(ch)}/${ch.n}${chUnit(ch)}</span><span class="rw3">+${TIERS[ch.tier].chips} <i class="pc"></i></span></span></div>`; }).join('') + '</div>';
 }

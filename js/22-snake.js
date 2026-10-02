@@ -71,7 +71,7 @@ function updateSnake(dt) {
       s.dripT = .05;
       if (Math.random() < .15) Sfx.drip(s.x);
       const g = s.segs[1] || s.segs[0];
-      splat(fctx, g.x + rand(-5, 5), g.y + rand(-5, 5), 0, 0, rand(1, 2.4), pick(CONFIG.bloodColors), false);
+      splat(fctx, g.x + rand(-5, 5), g.y + rand(-5, 5), 0, 0, rand(1, 2.4), pick(s.dripCol || CONFIG.bloodColors), false);
       addWet(g.x, g.y, .08);
     }
   }
@@ -164,7 +164,7 @@ function eat(c) {
                lobes: Array.from({ length: randi(5, 8) }, () => ({ dx: rand(-.55, .55), dy: rand(-.55, .55), s: rand(.45, 1) })) });
   for (let k = 0; k < 14 * amount; k++) {
     const i = randi(0, Math.min(3, s.segs.length - 1)), g = s.segs[i];
-    stainSnake(i, g.x + rand(-10, 10), g.y + rand(-10, 10), rand(1.5, 4), c.golden && Math.random() < .7 ? pick(GOLD_BLOOD) : BLOOD);
+    stainSnake(i, g.x + rand(-10, 10), g.y + rand(-10, 10), rand(1.5, 4), c.golden && Math.random() < .3 ? BLOOD : pick(bloodOf(c)));
   }
   for (let k = 0; k < c.def.grow; k++) s.stains.push([]);
   s.len += c.def.grow;
@@ -182,8 +182,9 @@ function eat(c) {
   modHud();
   shake = Math.min(CONFIG.shakeMax, shake + 2 + 12 * amount);
   camF.kv.x += sx * (60 + 70 * amount); camF.kv.y += sy * (60 + 70 * amount); // small push in the direction of the bite
-  s.drip = 2.5 * amount;
-  Sfx.eat(c.x, c.def.human, amount);
+  s.drip = 2.5 * amount; s.dripCol = bloodOf(c);
+  bloodMist(c.x, c.y, s.angle, amount, bloodOf(c));
+  Sfx.eat(c.x, c.def.human, amount, c.def.alien ? 'alien' : '');
   killFx(c.x, c.y, amount);
   deaths.push({ x: c.x, y: c.y }); if (deaths.length > 25) deaths.shift();
   witness(c.x, c.y, c);

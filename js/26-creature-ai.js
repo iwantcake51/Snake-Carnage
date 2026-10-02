@@ -36,11 +36,7 @@ function steerDir(c, want) {
 
 function updateCreature(c, dt) {
   const d = c.def;
-  if (c.golden && (c.goldT -= dt) <= 0) { // golden humans don't hang around forever
-    c.alive = false; respawnQ.push({ type: c.type, zone: c.zone, t: rand(2, 5) });
-    if (state === 'play') toast(`The golden ${c.def.human ? 'human' : c.type} got away`);
-    return;
-  }
+  if (c.golden && (c.goldT -= dt) <= 0) ungoldify(c); // the gold wears off: back to a normal person or animal
   c.pt -= dt; if (c.pt <= 0) { c.pt = (MOD.skittish ? .08 : .15) + Math.random() * .1; perceive(c); }
   c.timer -= dt;
   if (c.bubbles) for (let i = c.bubbles.length - 1; i >= 0; i--) {

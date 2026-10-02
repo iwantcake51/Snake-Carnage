@@ -10,6 +10,11 @@ const COLOR_ITEMS = [ // presets: basics are cheap, rare ones moderate; Primary 
   ['#8e5bd6', 10], ['#f08a24', 10], ['#ef6fb0', 10], ['#d9b13b', 15], ['#21a5a5', 15],
   ['#39ff14', 50], ['#ff00a8', 50], ['#8be9fd', 50], ['#b6ff00', 55], ['#e8e0cc', 60], ['#7a0000', 70], ['#14143c', 70], ['#ff6b00', 75],
   ['#7d7d86', 0, 'ratProblem'], ['#d4af37', 0, 'goldDigger'], ['#5a0606', 0, 'cleanup'], ['#c1440e', 0, 'martian'], ['#b9c0c8', 0, 'lunar']];
+const COLOR_NAMES = { '#4e7cf6': 'Cobalt', '#3fa34d': 'Moss', '#d63c3c': 'Brick', '#f2f2f2': 'Bone', '#2b2b30': 'Charcoal', '#8e5bd6': 'Violet', '#f08a24': 'Tangerine',
+  '#ef6fb0': 'Bubblegum', '#d9b13b': 'Mustard', '#21a5a5': 'Teal', '#39ff14': 'Radioactive', '#ff00a8': 'Hot Pink', '#8be9fd': 'Ice', '#b6ff00': 'Acid',
+  '#e8e0cc': 'Ivory', '#7a0000': 'Oxblood', '#14143c': 'Midnight', '#ff6b00': 'Hazard Orange', '#7d7d86': 'Sewer Grey', '#d4af37': 'Gold Leaf',
+  '#5a0606': 'Dried Blood', '#c1440e': 'Rust Dust', '#b9c0c8': 'Moondust' };
+const colorName = hex => COLOR_NAMES[hex.toLowerCase()] || hex.toUpperCase();
 const CUSTOM_PRICE = { primary: 2500, full: 6000 }; // the luxury tier: any color you want
 const SHOP = {
   pattern: [['Solid', 0], ['Stripes', 0], ['Spots', 25], ['Gradient', 35], ['Zebra', 45], ['Checker', 45], ['Diamond', 70], ['Neon', 120], ['Rainbow', 160], ['Lava', 160], ['Galaxy', 220],

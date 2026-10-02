@@ -16,7 +16,7 @@ function update(dt) {
   if (state === 'play') { updateSnake(dt); run.time += dt; crTick(dt); progressTick(dt); }
   updateCrowd();
   for (const c of creatures) if (c.alive) updateCreature(c, dt);
-  updateBlood(dt); updateGiblets(dt); updateSplashes(dt);
+  updateBlood(dt); updateGiblets(dt); updateSplashes(dt); updateMist(dt);
   if ((fadeT -= dt) <= 0) { fadeT = 2; fadeBlood(); }
   updateTrail(dt);
   updateGround(dt);
@@ -140,23 +140,33 @@ function drawSnakeNightRim(x) { // white rim at night, readable over dark ground
   const bx = Math.max(0, x0), by = Math.max(0, y0), bw = Math.min(W, x1) - bx, bh = Math.min(H, y1) - by;
   if (bw > 0 && bh > 0) x.drawImage(snOC, bx * DPR, by * DPR, bw * DPR, bh * DPR, bx, by, bw, bh);
 }
-function drawGoldenFX(x) { // soft pulsing glow + orbiting glints so golden humans stand out
+function drawGoldenFX(x) { // soft glow, orbiting glints and a ring that counts down the golden time
   for (const c of creatures) {
     if (!c.alive || !c.golden) continue;
     const a = playerSees(c.x, c.y); if (a <= .02) continue;
-    const p = .5 + .5 * Math.sin(T * 5), r = 15 + p * 4;
+    const p = .5 + .5 * Math.sin(T * 5), r = 15 + p * 4, k = clamp(c.goldT / (c.goldMax || 30), 0, 1), low = k < .25;
     const g = x.createRadialGradient(c.x, c.y, 4, c.x, c.y, r + 8);
-    g.addColorStop(0, `rgba(255,214,90,${.38 * a})`); g.addColorStop(1, 'rgba(255,214,90,0)');
+    g.addColorStop(0, `rgba(255,214,90,${.34 * a})`); g.addColorStop(1, 'rgba(255,214,90,0)');
     x.fillStyle = g; circ(x, c.x, c.y, r + 8);
     x.fillStyle = `rgba(255,248,210,${.95 * a})`;
-    for (let k = 0; k < 3; k++) { const an = T * 2.2 + k * TAU / 3; star(x, c.x + Math.cos(an) * 14, c.y + Math.sin(an) * 14, 1.8 + p * 1.2, T * 3 + k); }
-    if (c.goldT < 8) { x.strokeStyle = `rgba(255,207,51,${.7 * a})`; x.lineWidth = 1.5; x.beginPath(); x.arc(c.x, c.y, 19, -Math.PI / 2, -Math.PI / 2 + TAU * c.goldT / 8); x.stroke(); } // running out
+    for (let n = 0; n < 3; n++) { const an = T * 2.2 + n * TAU / 3; star(x, c.x + Math.cos(an) * 14, c.y + Math.sin(an) * 14, 1.8 + p * 1.2, T * 3 + n); }
+    const R = c.def.r + 11; // timer ring: a dim track plus the time that's left
+    x.lineCap = 'round'; x.lineWidth = 2.2; x.strokeStyle = `rgba(60,40,0,${.45 * a})`; x.beginPath(); x.arc(c.x, c.y, R, 0, TAU); x.stroke();
+    x.strokeStyle = low && Math.sin(T * 14) > 0 ? `rgba(255,120,60,${a})` : `rgba(255,214,70,${a})`; x.lineWidth = 2;
+    x.beginPath(); x.arc(c.x, c.y, R, -Math.PI / 2, -Math.PI / 2 + TAU * k); x.stroke(); x.lineCap = 'butt';
+  }
+  for (let i = ringPops.length - 1; i >= 0; i--) { // ran out: the ring swells, pops and fades outward
+    const q = ringPops[i]; q.t += 1 / 60; const e = q.t / .5; if (e >= 1) { ringPops.splice(i, 1); continue; }
+    const px = q.c && q.c.alive ? q.c.x : q.x, py = q.c && q.c.alive ? q.c.y : q.y, R = 20 + 26 * (1 - Math.pow(1 - e, 3));
+    x.strokeStyle = `rgba(255,214,70,${(1 - e) * .9})`; x.lineWidth = 3 * (1 - e) + .5; x.beginPath(); x.arc(px, py, R, 0, TAU); x.stroke();
+    x.fillStyle = `rgba(255,240,190,${(1 - e) * .8})`; for (let n = 0; n < 8; n++) { const an = n * TAU / 8; circ(x, px + Math.cos(an) * (R + 4), py + Math.sin(an) * (R + 4), 1.6 * (1 - e) + .3); }
   }
 }
 let goldTimer = null;
-function goldenBanner(animal) { // golden human: big gold note; golden animal: smaller and shorter
-  if (animal) { notify({ kind: 'goldA', title: `Golden ${animal}!`, sub: 'Worth a fortune. Quick.', dur: 4, bar: true, key: 'gold' }); Sfx.golden(true); return; }
-  notify({ kind: 'goldH', title: 'GOLDEN HUMAN', sub: 'Find them before they get away.', dur: 5.5, bar: true, key: 'gold' }); Sfx.golden();
+function goldenBanner(animal, c) { // each golden target gets its own note; several stack instead of replacing each other
+  if (animal) { notify({ kind: 'goldA', title: `Golden ${animal}!`, sub: 'Worth a fortune. Quick.', dur: 4, bar: true }); Sfx.golden(true); return; }
+  const who = c && c.def.alien ? 'ALIEN' : c && c.type === 'astronaut' ? 'ASTRONAUT' : 'HUMAN';
+  notify({ kind: 'goldH', title: 'GOLDEN ' + who, sub: 'Find them before the gold wears off.', dur: 5.5, bar: true }); Sfx.golden();
 }
 function drawTargetOutlines(x) { // clean silhouette rim around everything edible: black by day, white at night
   const night = light.dark > .3, col = night ? 'rgba(255,255,255,.78)' : 'rgba(0,0,0,.6)';

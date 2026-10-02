@@ -13,6 +13,14 @@ function goldify(c) { // golden target: worth a fortune, gone (back to normal) w
   if (def.human) { c.plainLook = { ...c.look }; Object.assign(c.look, { top: '#f2c230', top2: '#b8860b', pants: '#6e4f0c', shoes: '#fff3c4', outfit: c.look.outfit === 'suit' || c.look.outfit === 'alien' ? c.look.outfit : 'tee', hat: c.look.hat === 'helmet' ? 'helmet' : null }); }
   else { c.plainDef = def; c.def = { ...def, col: '#e0b52c', hcol: def.hcol ? '#c99a1a' : undefined, tcol: def.tcol ? '#b8901c' : undefined }; }
 }
+function ungoldify(c) {
+  c.golden = false; c.goldT = 0;
+  if (c.plainLook) { c.look = c.plainLook; c.plainLook = null; }
+  if (c.plainDef) { c.def = c.plainDef; c.plainDef = null; }
+  ringPops.push({ x: c.x, y: c.y, t: 0, c });
+  if (state === 'play') { notify({ kind: 'info', icon: '◌', title: `The golden ${c.def.human ? (c.def.alien ? 'alien' : c.type === 'astronaut' ? 'astronaut' : 'human') : c.type} faded`, dur: 2 }); Sfx.goldFade && Sfx.goldFade(c.x); }
+}
+let ringPops = [];
 function giveFlash(c) { if (c.def.human && Math.random() < flashChance()) c.fl = newFlash(c); return c; }
 function spawn(type, zone) {
   const def = TYPES[type], z = zone || { x: B, y: B, w: W - 2 * B, h: H - 2 * B };
@@ -23,7 +31,7 @@ function spawn(type, zone) {
     const c = giveFlash(makeCreature(type, x, y, zone)); c.born = T;
     if (def.human && state === 'play' && Math.random() < (MOD.rareAppetite ? .12 : .03)) { // rare golden target: worth a lot more
       goldify(c);
-      if (state === 'play' || state === 'ready') goldenBanner();
+      if (state === 'play' || state === 'ready') goldenBanner(null, c);
     } else if (!def.human && state === 'play' && Math.random() < (MOD.rareAppetite ? .06 : .015)) { // rarer still: a golden animal
       goldify(c);
       if (state === 'play' || state === 'ready') goldenBanner(type);

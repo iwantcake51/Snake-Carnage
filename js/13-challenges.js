@@ -112,7 +112,8 @@ function buildSet(map, rot, salt = 0) {
       t: q.t.replace('{n}', n).replace('{mod}', mod ? MODS.find(x => x.id === mod).name : '').replace(/\ba (?=(8|11|18)\D)/, 'an ') });
   };
   take('easy'); take('medium'); take('hard'); take(r() < .3 ? 'rare' : 'medium');
-  return out;
+  const ord = { easy: 0, medium: 1, hard: 2, rare: 3 };
+  return out.sort((a, b) => ord[a.tier] - ord[b.tier]); // always easiest first
 }
 const chCache = {};
 function activeChallenges(map) { // this rotation's set, never identical to the previous one

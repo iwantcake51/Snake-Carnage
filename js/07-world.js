@@ -63,6 +63,7 @@ function bakeOutline() {
 function loadMap(idx) {
   mapIdx = idx;
   const m = MAPS[idx], b = m.build();
+  Sfx.setMuffle(!!m.space);
   obstacles = [...borderWalls(m.border), ...b.obs];
   bctx.clearRect(0, 0, W, H); b.floor(bctx); resetBuckets(); gctx.clearRect(0, 0, W, H); groundParts = []; trail = []; floaters = [];
   buildGrassMask();
@@ -71,7 +72,7 @@ function loadMap(idx) {
   buildSolid();
   buildLights(b.lights || m.lights || []);
   wet = new Float32Array(WW * WH); fresh = new Float32Array(WW * WH);
-  creatures = []; parts = []; pools = []; respawnQ = []; gibs = []; splashes = []; groups = [];
+  creatures = []; parts = []; pools = []; respawnQ = []; gibs = []; splashes = []; groups = []; mist = []; ringPops = [];
   score = 0; kills = { h: 0, a: 0 }; shake = 0;
   killV = killFlash = desatHold = 0;
   light = computeLight(); shadowKey = ''; bakeShadows();
