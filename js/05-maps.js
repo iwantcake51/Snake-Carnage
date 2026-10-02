@@ -244,12 +244,12 @@ const MAPS = [
         car(114, 170, 24, 48, '#f2f2f2', { van: true }), // a delivery van backed up to the hardware store
         // the town square: fountain on a round plaza, two benches facing the cross path, a tree in each lawn
         Object.assign(C(SQC[0], SQC[1], 26, '#4aa3df', 'water'), { fountain: true }),
-        R(320, 180, 40, 8, '#7a5a38', 'bench'), R(540, 180, 40, 8, '#7a5a38', 'bench'),
-        TREE(400, 150, 13), TREE(492, 148, 14), TREE(350, 240, 14), TREE(552, 238, 12),
-        R(500, 275, 40, 8, '#7a5a38', 'bench'), C(492, 279, 4, '#3a3a40', 'bin'), // the bus stop on Main, at the curb
+        R(320, 180, 40, 8, '#7a5a38', 'bench'), R(528, 180, 40, 8, '#7a5a38', 'bench'), // mirrored about the fountain
+        TREE(396, 152, 13), TREE(492, 152, 13), TREE(360, 242, 13), TREE(528, 242, 13),
+        R(782, 263, 40, 8, '#7a5a38', 'bench'), C(774, 266, 4, '#3a3a40', 'bin'), // the bus stop: set back on the lawn edge, the sidewalk left clear
         // the church: nave, a tower facing Main, a big tree by the graves
         R(704, 140, 80, 92, '#b8ad9a', 'building', { roof: 'gable', rc: '#5a5048' }), R(728, 232, 32, 24, '#a89c88', 'building', { roof: 'hip', rc: '#4a423c' }),
-        TREE(826, 252, 12),
+        TREE(828, 136, 12),
         // the supermarket at the back of its lot, the lot's single parking row with a planted island at each end, the loading side
         R(16, 520, 250, 104, '#6b7a5a', 'building', { roof: 'flat', shop: '#2e5a3a', front: 'n', market: true }), R(268, 532, 16, 30, '#4f6b3a', 'crate', { dumpster: true }),
         mktCar(1, '#c0392b'), mktCar(2, '#2c3e50'), mktCar(5, '#95a5a6'), mktCar(8, '#ecf0f1'), mktCar(9, '#f39c12', { taxi: true }),
@@ -265,7 +265,7 @@ const MAPS = [
         ...[60, 140, 330, 410, 530, 700, 790, 880].map((x, i) => TREE(x, 17, 13 + (i % 3))), ...[170, 240, 400, 490, 590].map((y, i) => TREE(943, y, 13 + (i % 2) * 2)),
         // streetlights at the curb: every ~120 downtown, much sparser on the quiet streets; parking lights on the islands
         ...[80, 190, 330, 470, 560, 720, 820].map(x => LAMP(x, 283)), ...[60, 180, 300, 530, 700, 810].map(x => LAMP(x, 357)),
-        LAMP(130, 111), LAMP(440, 111), LAMP(760, 111), LAMP(605, 200), LAMP(605, 440), LAMP(855, 200), LAMP(855, 440), LAMP(415, 470), LAMP(720, 549),
+        LAMP(130, 111), LAMP(520, 111), LAMP(760, 111), LAMP(605, 200), LAMP(605, 440), LAMP(855, 200), LAMP(855, 440), LAMP(415, 470), LAMP(720, 549),
         LAMP(MKT_ROW.x - 10, MKT_ROW.y + MKT_ROW.d / 2), LAMP(MKT_ROW.x + MKT_ROW.n * MKT_ROW.w + 10, MKT_ROW.y + MKT_ROW.d / 2)
       ];
       const ring = []; for (let k = 0; k <= 16; k++) ring.push([SQC[0] + Math.cos(k / 16 * TAU) * 38, SQC[1] + Math.sin(k / 16 * TAU) * 38]);
@@ -285,8 +285,6 @@ const MAPS = [
             const f = o.front || 's', hz = f === 's' || f === 'n', L = hz ? o.w : o.h;
             for (let k = 10; k < L - 10; k += 10) { x.fillStyle = (k / 10) % 2 ? '#f4efe6' : o.shop; f === 's' ? x.fillRect(o.x + k, o.y + o.h - 6, 10, 9) : f === 'n' ? x.fillRect(o.x + k, o.y - 3, 10, 9) : x.fillRect(o.x - 3, o.y + k, 9, 10); }
           }
-          const sign = (t, cx, cy, bg, fg, s = 8) => { x.font = `bold ${s}px sans-serif`; const w = x.measureText(t).width + 8; x.fillStyle = bg; x.fillRect(cx - w / 2, cy - s * .75, w, s * 1.5); x.fillStyle = fg; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(t, cx, cy + .5); };
-          sign('MARKET', 141, 572, '#2e5a3a', '#f4efe6', 12); sign('DINER', 539, 586, '#1d1d22', '#ff7a5a', 11); sign('24/7', 188, 242, '#1d1d22', '#ff4a3a'); sign('GAS', 816, 409, '#c0392b', '#fff', 9);
           x.strokeStyle = '#f4efe6'; x.lineWidth = 2; x.beginPath(); x.moveTo(744, 237); x.lineTo(744, 251); x.moveTo(738, 242); x.lineTo(750, 242); x.stroke(); // the cross on the tower
           const g = seeded(77); x.fillStyle = '#8f9196'; for (let gx = 800; gx <= 836; gx += 12) for (let gy = 150; gy <= 222; gy += 18) if (g() < .8) { rrect(x, gx + g() * 3, gy + g() * 3, 6, 4, 1.5); x.fill(); } // the old graves
           x.strokeStyle = '#8a9098'; x.lineWidth = 1.2; for (let k = 0; k < 3; k++) x.strokeRect(196 + k * 7, 503, 9, 6); // carts by the market door
@@ -294,7 +292,7 @@ const MAPS = [
           x.fillStyle = '#c0392b'; for (const [hx, hy] of [[296, 284], [582, 284], [486, 356], [676, 356], [846, 284]]) { circ(x, hx, hy, 2.6); x.fillStyle = '#e8b326'; circ(x, hx, hy, 1.2); x.fillStyle = '#c0392b'; } // hydrants at the curb
           x.fillStyle = '#5a4a3a'; for (const px of [110, 380, 560, 760]) circ(x, px, 58, 2.4); // utility poles along Hill St
           x.fillStyle = '#c0392b'; for (const [sx, sy] of [[226, 284], [416, 356], [856, 284], [856, 356], [856, 110], [666, 540]]) { x.beginPath(); for (let k = 0; k < 8; k++) { const a = k * TAU / 8 + TAU / 16; x.lineTo(sx + Math.cos(a) * 3.2, sy + Math.sin(a) * 3.2); } x.fill(); } // stop signs where side streets meet
-          x.fillStyle = '#2b2b30'; x.fillRect(546, 274, 2, 10); x.fillStyle = '#2f6fb0'; x.fillRect(543, 272, 8, 4); // bus stop sign
+          x.fillStyle = '#2b2b30'; x.fillRect(828, 263, 2, 9); x.fillStyle = '#2f6fb0'; x.fillRect(825, 261, 8, 4); // bus stop sign
           x.fillStyle = '#c0392b'; x.fillRect(682, 370, 12, 12); x.fillStyle = '#ffe9a0'; x.font = 'bold 4px sans-serif'; x.textAlign = 'center'; x.fillText('3.49', 688, 377); // price board on the corner
           x.fillStyle = '#5a7fa8'; x.fillRect(780, 444, 8, 10); x.fillStyle = '#e8eef2'; x.fillRect(781, 445, 6, 3); // ice chest by the kiosk
         },
@@ -331,7 +329,7 @@ const MAPS = [
           for (let j = 20; j < H - 20; j += 40) if (![[46, 122], [272, 368], [484, 560]].some(([a, b]) => j + 22 > a && j < b)) x.fillRect(634.5, j, 3, 22); // Elm's
           x.fillStyle = '#e6e6e6'; for (const [cx, cy, cw, ch] of CROSS) if (cw > ch) for (let k = cx + 4; k < cx + cw - 4; k += 9) x.fillRect(k, cy + 2, 5, ch - 4); else for (let k = cy + 4; k < cy + ch - 4; k += 9) x.fillRect(cx + 2, k, cw - 4, 5); // zebras
           for (const [sx, sy, sw, sh] of [[232, 266, 44, 2], [422, 370, 44, 2], [862, 266, 40, 2], [862, 370, 40, 2], [862, 124, 40, 2], [680, 502, 2, 40], [842, 502, 2, 40], [232, 124, 44, 2]]) x.fillRect(sx, sy, sw, sh); // stop lines
-          x.fillStyle = '#2f2f34'; for (const [px, py] of [[150, 304], [760, 336], [623, 200], [649, 460], [520, 84], [444, 560]]) { circ(x, px, py, 6); x.fillStyle = '#3b3b41'; circ(x, px, py, 4); x.fillStyle = '#2f2f34'; } // manholes, each centred in its lane
+          x.fillStyle = '#2f2f34'; for (const [px, py] of [[150, 320], [760, 320], [636, 200], [636, 460], [380, 84], [444, 560]]) { circ(x, px, py, 6); x.fillStyle = '#3b3b41'; circ(x, px, py, 4); x.fillStyle = '#2f2f34'; } // manholes, in the middle of the road
           x.fillStyle = '#26262b'; for (const [px, py, v] of [[180, 290], [500, 350], [360, 104], [780, 542], [612, 400, 1], [862, 250, 1], [470, 590, 1]]) v ? x.fillRect(px - 2, py - 6, 4, 12) : x.fillRect(px - 6, py - 2, 12, 4); // storm drains set into the curb
           x.strokeStyle = 'rgba(30,30,34,.5)'; x.lineWidth = 1; for (const pts of [[[120, 296], [138, 304], [146, 300], [160, 312]], [[700, 326], [712, 318], [730, 322]], [[300, 76], [314, 86], [326, 82]], [[880, 470], [888, 486], [884, 498]]]) { x.beginPath(); pts.forEach(([a, b], k) => k ? x.lineTo(a, b) : x.moveTo(a, b)); x.stroke(); } // cracks
           x.fillStyle = 'rgba(0,0,0,.08)'; x.fillRect(380, 296, 40, 24); x.fillRect(872, 600, 24, 20); // patched asphalt
