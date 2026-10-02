@@ -216,14 +216,19 @@ const ANIMALS = {
     x.fillStyle = shade(d.col, .02); circ(x, 7, 0, 1.8); // woolly topknot
     EYE(x, 9.6, -1.4, .55); EYE(x, 9.6, 1.4, .55);
   },
-  rat(x, c, d) {
-    const s = Math.sin(c.phase * 1.6) * c.moveAmt;
-    x.strokeStyle = d.tcol || '#d99a9a'; x.lineWidth = 1.1; x.lineCap = 'round'; x.beginPath(); x.moveTo(-4.4, 0); x.bezierCurveTo(-8, s * 3, -10, -s * 3, -13, s * 1.5); x.stroke();
-    x.fillStyle = '#d99a9a'; circ(x, 2.4 + s, -2.4, .7); circ(x, 2.4 - s, 2.4, .7); circ(x, -2.6 - s, -2.6, .8); circ(x, -2.6 + s, 2.6, .8);
-    body(x, 5.4, 3.1, d.col, -.4);
-    x.fillStyle = d.col; ell(x, 4.4, 0, 2.8, 2); x.fillStyle = '#e8a5a5'; for (const sg of [-1, 1]) circ(x, 3.2, sg * 2.2, 1.2);
-    x.fillStyle = '#e58a8a'; circ(x, 7.2, 0, .55); EYE(x, 5.2, -1.1, .45); EYE(x, 5.2, 1.1, .45);
-    x.strokeStyle = 'rgba(255,255,255,.5)'; x.lineWidth = .4; x.beginPath(); for (const sg of [-1, 1]) { x.moveTo(6.6, sg * .6); x.lineTo(8.6, sg * 2.2); } x.stroke(); // whiskers
+  rat(x, c, d) { // low and pear-shaped: heavy haunches, a pointed snout, round ears, a long ringed tail
+    const s = Math.sin(c.phase * 1.6) * c.moveAmt, col = d.col, dk = shade(col, -.22), lt = shade(col, .14);
+    const tw = Math.sin(c.phase * .8) * (.6 + c.moveAmt); // tail: thick at the root, thin and whippy at the tip
+    for (let k = 0; k < 9; k++) { const t0 = k / 9, t1 = (k + 1) / 9, px = q => -4.6 - q * 10, py = q => Math.sin(q * 2.6 + c.phase * 1.6) * tw * q * 3;
+      x.strokeStyle = shade(d.tcol || '#d99a9a', -.08 * (k % 2)); x.lineWidth = 1.5 - t0 * 1.1; x.lineCap = 'round'; x.beginPath(); x.moveTo(px(t0), py(t0)); x.lineTo(px(t1), py(t1)); x.stroke(); }
+    x.fillStyle = '#e3a3a0'; for (const [fx, fy, ph] of [[2.6, -2.3, s], [2.6, 2.3, -s], [-2.4, -2.8, -s], [-2.4, 2.8, s]]) ell(x, fx + ph * 1.2, fy, .9, .6); // paws, stepping in turn
+    x.fillStyle = dk; x.beginPath(); x.moveTo(7.6, 0); x.bezierCurveTo(5.5, -2.2, 2, -2.6, -1, -3.2); x.bezierCurveTo(-4.4, -3.6, -5.6, -1.6, -5.6, 0); x.bezierCurveTo(-5.6, 1.6, -4.4, 3.6, -1, 3.2); x.bezierCurveTo(2, 2.6, 5.5, 2.2, 7.6, 0); x.fill(); // body outline
+    x.fillStyle = col; x.beginPath(); x.moveTo(7, 0); x.bezierCurveTo(5.2, -1.8, 2, -2.2, -1, -2.7); x.bezierCurveTo(-4, -3, -5, -1.4, -5, 0); x.bezierCurveTo(-5, 1.4, -4, 3, -1, 2.7); x.bezierCurveTo(2, 2.2, 5.2, 1.8, 7, 0); x.fill();
+    x.fillStyle = lt; ell(x, -1.4, -.6, 2.6, 1.3); // light catching the back
+    x.strokeStyle = 'rgba(40,36,36,.25)'; x.lineWidth = .3; x.beginPath(); for (let k = 0; k < 7; k++) { const fx = -4 + k * 1.3; x.moveTo(fx, -1.6 + (k % 2) * .4); x.lineTo(fx - .9, -2.1); x.moveTo(fx, 1.6 - (k % 2) * .4); x.lineTo(fx - .9, 2.1); } x.stroke(); // fur
+    for (const sg of [-1, 1]) { x.fillStyle = dk; circ(x, 3.2, sg * 2.2, 1.35); x.fillStyle = '#e8a5a5'; circ(x, 3.3, sg * 2.2, .8); } // ears
+    x.fillStyle = '#e58a8a'; circ(x, 7.7, 0, .5); EYE(x, 5.3, -1.05, .42); EYE(x, 5.3, 1.05, .42);
+    x.strokeStyle = 'rgba(255,255,255,.55)'; x.lineWidth = .3; x.beginPath(); for (const sg of [-1, 1]) for (const a of [.35, .7]) { x.moveTo(7, sg * .5); x.lineTo(7 + Math.cos(a) * 3, sg * (.5 + Math.sin(a) * 2.6)); } x.stroke(); // whiskers
   },
 };
 function drawAnimal(x, c) {

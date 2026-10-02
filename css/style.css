@@ -1088,3 +1088,9 @@ body.calm .panel,body.calm .mleft,body.calm .mright{translate:none}
 #stage.wallstun::before{backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);-webkit-mask:radial-gradient(ellipse at center,transparent 22%,#000 70%);mask:radial-gradient(ellipse at center,transparent 22%,#000 70%);
   background:radial-gradient(ellipse at center,transparent 30%,rgba(10,4,4,.6))}
 #tip .ttr span,#tip .ttr{white-space:normal}#tip .ttr .pc{display:inline-block;vertical-align:-2px;margin-left:2px}#tip:has(.tth){max-width:330px}
+/* XP bars: the stripes drift slowly; the filled part glows */
+@keyframes xpdrift{to{background-position:33.94px 0}}
+.xp,.sbar{animation:xpdrift 3.2s linear infinite}
+.xpfill,.sfill{box-shadow:0 0 8px color-mix(in srgb,var(--acc-hi) 55%,transparent),0 0 2px color-mix(in srgb,var(--acc-hi) 80%,transparent),1px 0 0 color-mix(in srgb,var(--acc-hi) 70%,#fff)!important;
+  background-image:linear-gradient(180deg,rgba(255,255,255,.28),rgba(255,255,255,0) 55%),linear-gradient(90deg,var(--acc-lo),var(--acc-hi))!important}
+.xp,.sbar{overflow:visible!important}

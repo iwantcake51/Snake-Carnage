@@ -15,7 +15,7 @@ function drawSnake(x, s = snake, cfg = SETTINGS.snake) {
   const ol = SETTINGS.snakeOutline || 'Subtle';
   if (ol !== 'Off') { // visibility rim: faint light halo plus a dark edge, readable on any ground
     const strong = ol === 'Strong';
-    x.globalAlpha = 1 - .65 * camAvg;
+    x.globalAlpha = (1 - .65 * camAvg) * (me ? render.olk ?? 1 : 1);
     for (const [grow, col] of [[strong ? 3.8 : 2.8, `rgba(255,255,255,${strong ? .24 : .11})`], [strong ? 1.9 : 1.3, `rgba(8,5,5,${strong ? .85 : .5})`]]) {
       x.fillStyle = col; x.beginPath();
       for (let i = 0; i < n; i++) { const g = pts[i], r = segR(i, n) + grow; x.moveTo(g.x + r, g.y); x.arc(g.x, g.y, r, 0, TAU); }

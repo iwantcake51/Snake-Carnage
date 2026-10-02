@@ -13,6 +13,10 @@ function render() {
     V.z = Math.pow(cam.z0, 1 - p); V.fx = snake.x + (W / 2 - snake.x) * fp; V.fy = snake.y + (H / 2 - snake.y) * fp;
   }
   V.ox = camF.x + camF.k.x; V.oy = camF.y + camF.k.y;
+  const cw = snake && snake.wallStun > 0 ? Math.pow(snake.wallStun / (snake.wallMax || 3.4), .6) * (snake.stunFx || 1) : 0;
+  if (cw > 0) { V.ox += (Math.sin(T * 1.25) * 7 + Math.sin(T * 2.9) * 2) * cw; V.oy += (Math.sin(T * .95 + 1.2) * 5 + Math.sin(T * 2.3) * 1.5) * cw; } // the room sways after a wall
+  const st0 = snake && snake.ramT > 0 ? Math.min(1, Math.pow(snake.ramT / (snake.ramMax || 1), .6) * (snake.stunFx || 1)) : 0;
+  render.olk = (render.olk ?? 1) + ((1 - st0) - (render.olk ?? 1)) * (st0 > (1 - (render.olk ?? 1)) ? .25 : .03); // outlines drop out fast, creep back slowly
   x.setTransform(DPR, 0, 0, DPR, 0, 0);
   x.fillStyle = MAPS[mapIdx].border; x.fillRect(0, 0, W, H);
   applyView(x);
@@ -32,7 +36,7 @@ function render() {
   drawFlashBodies(x); drawHitGhosts(x);
   drawGiblets(x); // chunks on the ground sit under the snake
   drawTrail(x); drawGround(x); drawSnake(x); drawStreaks(x); drawSnowFx(x);
-  x.drawImage(obsC, 0, 0, W, H); drawTrees(x);
+  x.drawImage(obsC, 0, 0, W, H); if (render.olk > .01) { x.globalAlpha = render.olk; x.drawImage(outlineC, 0, 0, W, H); x.globalAlpha = 1; } drawTrees(x);
   drawWaters(x);
   for (const b of bucketList) { if (!b.wd) continue; x.globalAlpha = bucketAlpha(b); x.drawImage(b.w, 0, 0, W, H); }
   x.globalAlpha = 1;
@@ -43,7 +47,7 @@ function render() {
   drawSparks(x);
   drawVisionMask(x);
   const px = Math.max(1, SETTINGS.pixel | 0);
-  if (px > 1) { drawGoldenFX(x); drawTargetOutlines(x); drawSnakeNightRim(x); } // pixelated look: outlines go through the same pixelation
+  if (px > 1) { drawGoldenFX(x); x.globalAlpha = render.olk ?? 1; drawTargetOutlines(x); drawSnakeNightRim(x); x.globalAlpha = 1; } // pixelated look: outlines go through the same pixelation
   x.setTransform(DPR, 0, 0, DPR, 0, 0);
 
   // pixelation
@@ -54,7 +58,7 @@ function render() {
     lctx.drawImage(sceneC, 0, 0, lw, lh);
     ctx.imageSmoothingEnabled = false; ctx.drawImage(lowC, 0, 0, cv.width, cv.height); ctx.imageSmoothingEnabled = true;
   } else ctx.drawImage(sceneC, 0, 0);
-  const ws = snake && snake.wallStun > 0 ? snake.wallStun / 3.4 : 0;
+  const ws = snake && snake.wallStun > 0 ? Math.min(1.5, Math.pow(snake.wallStun / (snake.wallMax || 3.4), .6) * (snake.stunFx || 1)) : 0;
   if (ws > .02 && px <= 1) { // seeing stars after a wall: the picture wobbles in slow waves, fading with the daze
     const bh = Math.ceil(cv.height / 48), amp = 7 * ws * DPR;
     for (let y = 0; y < cv.height; y += bh) { const o = Math.sin(y / cv.height * 9 + T * 3.1) * amp + Math.sin(T * 1.7 + y * .01) * amp * .4; ctx.drawImage(sceneC, 0, y, cv.width, bh, o, y, cv.width, bh); }
@@ -66,7 +70,7 @@ function render() {
     ctx.globalCompositeOperation = 'source-over'; ctx.fillStyle = 'rgba(0,12,4,.16)'; ctx.fillRect(0, 0, W, H);
   }
   ctx.save(); applyView(ctx); // crisp overlays above blood and lighting
-  if (px <= 1) { drawGoldenFX(ctx); drawTargetOutlines(ctx); drawSnakeNightRim(ctx); }
+  if (px <= 1) { drawGoldenFX(ctx); ctx.globalAlpha = render.olk ?? 1; drawTargetOutlines(ctx); drawSnakeNightRim(ctx); ctx.globalAlpha = 1; }
   if (nightVision) drawNVHighlights(ctx);
   drawScent(ctx);
   if (!cam) drawBubbles(ctx);
@@ -87,7 +91,7 @@ function render() {
   }
   const wantStart = state === 'ready' && !cam;
   if (wantStart !== !!render.startShown) { render.startShown = wantStart; wantStart ? showResume('to begin') : hideResume(); }
-  const stun = snake && snake.ramT > 0 ? snake.ramT / (snake.ramMax || 1) : 0; // dazed after smashing through something
+  const stun = snake && snake.ramT > 0 ? Math.min(1, Math.pow(snake.ramT / (snake.ramMax || 1), .6) * (snake.stunFx || 1)) : 0; // lingers, then eases out // dazed after smashing through something
   if (Math.abs(stun - (render.stun || 0)) > .02 || (stun === 0) !== (render.stun === 0)) { render.stun = stun; stage.style.setProperty('--stun', stun.toFixed(2)); stage.classList.toggle('stunned', stun > 0); stage.classList.toggle('wallstun', !!(snake && snake.wallStun > 0)); }
   const sat = (SETTINGS.desaturate && !nightVision ? clamp(1 - killFlash * .5, .45, 1) : 1) * (1 - .75 * stun);
   const f = nightVision ? `contrast(1.15) brightness(${(.95 - SETTINGS.darkness * .2).toFixed(2)})` : `saturate(${sat.toFixed(2)}) brightness(${(1 - SETTINGS.darkness).toFixed(2)}) contrast(1.08)`;

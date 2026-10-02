@@ -62,7 +62,7 @@ function bakeOutline() {
   olx.globalCompositeOperation = 'destination-out'; olx.drawImage(maskC, 0, 0, W, H);           // keep only the rim
   olx.globalCompositeOperation = 'source-in'; olx.fillStyle = strong ? 'rgba(5,3,3,.95)' : 'rgba(12,8,8,.75)'; olx.fillRect(0, 0, W, H);
   olx.globalCompositeOperation = 'source-over';
-  octx.drawImage(outlineC, 0, 0, W, H); // baked into the obstacle layer: one less full-screen draw every frame
+  // drawn each frame over the obstacle layer, so it can fade out while the snake is concussed
   nvx.clearRect(0, 0, W, H); nvx.drawImage(outlineC, 0, 0, W, H); // bright copy used by night vision
   nvx.globalCompositeOperation = 'source-in'; nvx.fillStyle = '#ffffff'; nvx.fillRect(0, 0, W, H); nvx.globalCompositeOperation = 'source-over';
 }

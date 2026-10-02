@@ -111,7 +111,8 @@ function smashObstacle(o, ang) {
   bakeOutline(); buildSolid(); shadowKey = ''; bakeShadows(); bakeLightMasks({ x: cx, y: cy, r: size });
   const wall = o.kind === 'bwall';
   Sfx.smash(cx, wall ? size * 2.5 : size); shake = Math.max(shake, wall ? 16 : 6);
-  snake.ramT = snake.ramMax = wall ? 3.4 : 1.1; snake.ramDeep = wall ? .78 : .5; snake.wallStun = wall ? 3.4 : 0; // dazed: slower, colours drain, edges blur, all easing back as speed returns
+  const lng = (snake.dashV || 1) > 1.25, dur = (wall ? 4.6 : 1.8) * (lng ? 1.5 : 1); // lunging in: it hits harder on screen and lasts longer, but you keep more of your speed
+  snake.ramT = snake.ramMax = dur; snake.ramDeep = (wall ? .62 : .38) * (lng ? .6 : 1); snake.wallStun = snake.wallMax = wall ? dur : 0; snake.stunFx = lng ? 1.5 : 1; // dazed: slower, colours drain, edges blur, all easing back as speed returns
   if (wall) { // a wall: bricks and plaster everywhere, a cloud of dust, and the snake sees stars
     for (let k = 0; k < 40; k++) { const a = ang + rand(-.9, .9), sp = rand(80, 300); debris.push({ x: cx + rand(-o.w / 2, o.w / 2), y: cy + rand(-o.h / 2, o.h / 2), z: rand(6, 20), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(80, 220), t: 0, s: rand(2.4, 5), c: pick([o.color, shade(o.color, -.25), shade(o.color, .2), '#8a7f74']) }); }
     for (let k = 0; k < 14; k++) mist.push({ x: cx + rand(-10, 10), y: cy + rand(-10, 10), vx: Math.cos(ang + rand(-1.4, 1.4)) * rand(20, 90), vy: Math.sin(ang + rand(-1.4, 1.4)) * rand(20, 90), r: rand(6, 14), g: rand(10, 24), t: 0, life: rand(1, 1.8), c: '#aaa096', a: rand(.25, .4) });
