@@ -68,6 +68,7 @@ const THREADS = {
   stayStill: ["near", ["SUDDEN MOVES! SUDDEN MOVES!", "Forget what I said, RUN!", "Okay, new plan— RUN!"]],
   gone: ["see", ["IT'S NOT GONE!", "Nope, it's back!", "Why did I say that.", "IT CAME BACK! WHY DID IT COME BACK?!"]],
   nothing: ["see", ["Okay, I was wrong.", "Okay. Not nothing.", "So it was NOT nothing.", "I take it back! I TAKE IT BACK!", "That's— not nothing. That's not nothing."]],
+  weird: ["see", ["SEE? I TOLD YOU SOMETHING WAS WRONG!", "I KNEW IT! I said something was off!", "Told you. I TOLD you.", "Weird. I said weird. THAT'S WEIRD!"]],
   gotThis: ["near", ["I do NOT got this!", "Okay! I don't got this!", "NEVER MIND! NEVER MIND!", "Okay, plan B. Run."]],
   animalControl: ["kill", ["Animal control isn't coming, is it?", "Forget animal control, call the army!"]],
   police: ["kill", ["The cops can't fix this.", "WHERE ARE THE COPS?!"]],
@@ -116,6 +117,9 @@ const TRAIT_LINES = {
     crowd: { 1: ["Move! MOVE!", "Out of the way!"] },
     relief: ["Better them than me.", "Whatever. I'm out of here."],
   },
+  curious: { firstSight: { 0: ["Wait, is that a snake? Hang on, let me see.", "Huh. Come look at this.", "Is it... real? I want a closer look."] }, panic: { 1: ["Okay. Okay, I've seen enough.", "Should NOT have gone closer."] } },
+  distracted: { firstSight: { 0: ["Huh? What's everyone looking at?", "Sorry, what? Oh. OH."] }, crowd: { 1: ["Wait, why are we running?#whatFrom", "Hang on, what'd I miss?#whatFrom"] } },
+  brave: { firstSight: { 0: ["Everyone get behind me.", "I'm not scared of a snake.#gotThis"] }, panic: { 1: ["Stay together!", "This way, come on!"] }, witnessHuman: { 2: ["GET AWAY FROM THEM!", "HEY! OVER HERE!"] } },
   quiet: { firstSight: ["...", "Huh.", "Oh."], panic: { 1: ["...", "No.", "Move."], 2: ["Go.", "Run."] }, relief: ["...", "Okay."] },
   talkative: {
     firstSight: { 0: ["Oh my god, guys, guys, look, are you seeing this?", "Okay, so is nobody else gonna mention the snake?", "Is that a— no way, I've seen videos of these, it's— is that real?"] },
@@ -506,3 +510,5 @@ const MAPL_MORE = {
   },
 };
 for (const [k, v] of Object.entries(MAPL_MORE)) for (const [c, arr] of Object.entries(v)) (MAPL[k][c] = MAPL[k][c] || []).push(...arr);
+
+for (const k in MAPL) delete MAPL[k].talk; // talk topics live in 25-talk.js now

@@ -195,7 +195,7 @@ function drawBubbles(x) {
   for (const c of creatures) { // stacked bubbles: newest next to the head, older ones pushed up
     if (!c.alive || !c.bubbles || !c.bubbles.length) continue;
     let seeA = playerSees(c.x, c.y); // hidden in fog, and fading out with distance so far-off chatter doesn't clutter the screen
-    if (snake) { const d = Math.hypot(c.x - snake.x, c.y - snake.y), k = clamp(1 - (d - 130) / 220, 0, 1); seeA *= k * k * (3 - 2 * k); }
+    if (snake && !pregame()) { const d = Math.hypot(c.x - snake.x, c.y - snake.y), k = clamp(1 - (d - 130) / 220, 0, 1); seeA *= k * k * (3 - 2 * k); } // before the run starts, you can hear the whole map
     if (seeA <= .02) continue;
     const vis = c.bubbles.filter(b => b.delay <= 0).slice(-3);
     let cy = c.y - 14 - bh / 2;
@@ -210,7 +210,7 @@ function drawBubbles(x) {
         const g = snake.segs[i]; near = Math.abs(g.x - bx) < w / 2 + 22 && Math.abs(g.y - by) < bh / 2 + 22;
       }
       b.fa = (b.fa ?? 1) + ((near ? .18 : 1) - (b.fa ?? 1)) * .25;
-      x.save(); x.globalAlpha = Math.min(1, (b.life - b.t) * 3) * b.fa * seeA; x.translate(bx, by); x.scale(sc, sc);
+      x.save(); x.globalAlpha = Math.min(1, (b.life - b.t) * 3) * b.fa * seeA; x.translate(bx + (b.yell ? Math.sin(T * 47 + k * 3 + c.x) * .7 : 0), by + (b.yell ? Math.cos(T * 53 + c.y) * .6 : 0)); x.scale(sc, sc); // shouting shakes
       x.fillStyle = b.act ? 'rgba(30,24,28,.82)' : b.yell ? '#fff' : 'rgba(244,244,244,.95)'; rrect(x, -w / 2, -bh / 2, w, bh, 5); x.fill();
       if (k === vis.length - 1 && !b.act) { x.beginPath(); x.moveTo(c.x - bx - 4, bh / 2 - 1); x.lineTo(c.x - bx + 1, bh / 2 + 5); x.lineTo(c.x - bx + 4, bh / 2 - 1); x.fill(); }
       x.fillStyle = b.act ? '#e8dcd2' : b.yell ? '#a10000' : '#3a3236'; x.fillText(txt, 0, .5);

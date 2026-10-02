@@ -77,7 +77,7 @@ function drawObstacleLayer(x = octx, b = curBuild, list = obstacles, ls = MAPS[m
 function loadMap(idx, sz) {
   mapIdx = idx; season = sz || null; // a season only for runs on outdoor maps; menus show the plain map
   const m = MAPS[idx], b = m.build();
-  Sfx.setMuffle(!!m.space);
+  Sfx.setMuffle(!!m.space && !m.indoor); // thin air on the surface; inside a pressurized station sound is normal
   obstacles = splitBreakables(addBreakWalls([...borderWalls(m.border), ...b.obs], m.name));
   buildSolid();
   bctx.clearRect(0, 0, W, H); b.floor(bctx); bakeContactShadows(bctx, b.obs); resetBuckets(); gctx.clearRect(0, 0, W, H); groundParts = []; trail = []; floaters = [];
