@@ -979,3 +979,23 @@ body.compact .pmwrap{grid-template-columns:150px 1fr}
 }
 @keyframes tilt{0%,30%{rotate:0deg}55%,85%{rotate:-90deg}100%{rotate:0deg}}
 .tab i{display:grid;place-items:center}.tab .ic{width:18px;height:18px;opacity:.85}.tab.on .ic{opacity:1;color:#ff6a5a}
+
+/* skills: a ring that fills as the cooldown runs out, bright when ready */
+#abil{gap:10px}
+#abil .ab{width:44px;height:44px;border-radius:50%;border:0;background:rgba(18,12,14,.82);overflow:visible}
+#abil .ab::before{content:'';position:absolute;inset:-3px;border-radius:50%;background:conic-gradient(#ff5a4a calc(360deg - var(--cd,0deg)),rgba(255,255,255,.12) 0);
+  -webkit-mask:radial-gradient(circle,transparent 21px,#000 22px);mask:radial-gradient(circle,transparent 21px,#000 22px)}
+#abil .ab .cd{border-radius:50%;background:conic-gradient(rgba(0,0,0,.55) var(--cd,0deg),transparent 0)}
+#abil .ab.ready::before{background:#ff5a4a;box-shadow:0 0 12px rgba(255,80,60,.7)}
+#abil .ab.ready{color:#fff;animation:abReady .5s var(--spring)}
+#abil .ab:not(.ready) .upi{opacity:.55}
+#abil .ab kbd{right:-4px;bottom:-4px;background:#1d171a;border-radius:4px;padding:0 3px;border:1px solid #3a2d32}
+#abil .ab.no{animation:abNo .3s}
+@keyframes abReady{40%{scale:1.15}}
+@keyframes abNo{25%{translate:-3px 0}75%{translate:3px 0}}
+#touch .tabil .ab{border-radius:50%}
+/* dazed after a smash: edges blur and darken, easing out with the stagger */
+#stage::before{content:'';position:absolute;inset:0;z-index:11;pointer-events:none;opacity:0;transition:opacity .15s;
+  backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);-webkit-mask:radial-gradient(ellipse at center,transparent 45%,#000 85%);mask:radial-gradient(ellipse at center,transparent 45%,#000 85%);
+  background:radial-gradient(ellipse at center,transparent 50%,rgba(20,0,0,.35))}
+#stage.stunned::before{opacity:var(--stun,0)}

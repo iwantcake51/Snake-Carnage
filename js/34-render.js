@@ -68,6 +68,7 @@ function render() {
   ctx.save(); applyView(ctx); // crisp overlays above blood and lighting
   if (px <= 1) { drawGoldenFX(ctx); drawTargetOutlines(ctx); drawSnakeNightRim(ctx); }
   if (nightVision) drawNVHighlights(ctx);
+  drawScent(ctx);
   if (!cam) drawBubbles(ctx);
   ctx.restore();
   if (nightVision) drawNightVision(ctx);
@@ -89,7 +90,9 @@ function render() {
     ctx.fillStyle = '#ddd'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center';
     ctx.fillText(IS_TOUCH ? 'Drag anywhere to start' : MOD.freeMove && SETTINGS.mouseFollow ? 'Click, or press an arrow key / WASD to start' : 'Press an arrow key or WASD to start', W / 2, H - 44);
   }
-  const sat = SETTINGS.desaturate && !nightVision ? clamp(1 - killFlash * .5, .45, 1) : 1;
+  const stun = snake && snake.ramT > 0 ? snake.ramT / (snake.ramMax || 1) : 0; // dazed after smashing through something
+  if (Math.abs(stun - (render.stun || 0)) > .02 || (stun === 0) !== (render.stun === 0)) { render.stun = stun; stage.style.setProperty('--stun', stun.toFixed(2)); stage.classList.toggle('stunned', stun > 0); }
+  const sat = (SETTINGS.desaturate && !nightVision ? clamp(1 - killFlash * .5, .45, 1) : 1) * (1 - .75 * stun);
   const f = nightVision ? `contrast(1.15) brightness(${(.95 - SETTINGS.darkness * .2).toFixed(2)})` : `saturate(${sat.toFixed(2)}) brightness(${(1 - SETTINGS.darkness).toFixed(2)}) contrast(1.08)`;
   if (f !== lastFilter) { cv.style.filter = f; lastFilter = f; }
   const clock = (MAPS[mapIdx].indoor ? '🏢 ' : light.day > .5 ? '☀️ ' : light.day > .05 ? '🌇 ' : '🌙 ') +

@@ -59,12 +59,13 @@ function shadeInto(dst, L, list, ox, oy, size, str, skip, soft) { // removes lig
   }
   qx.setTransform(1, 0, 0, 1, 0, 0);
 }
-function bakeLightMasks() { // static shadows per light, baked once (and again when a lamp breaks)
+function bakeLightMasks(near) { // static shadows per light, baked once; after a lamp breaks or furniture is smashed only the lights that reach it
   lightVer++;
   scast = obstacles.filter(o => o.kind !== 'lamp' && (HEIGHTS[o.kind] ?? 10) > 0).map(o => ({ ...o, z: HEIGHTS[o.kind] ?? 10,
     cx: o.t === 'r' ? o.x + o.w / 2 : o.x, cy: o.t === 'r' ? o.y + o.h / 2 : o.y, br: o.t === 'r' ? Math.hypot(o.w, o.h) / 2 : o.r })); // bounding circle, for culling
   for (const l of lights) {
     if (l.kind === 'window') continue;
+    if (near && l.mask && dist2(l.x, l.y, near.x, near.y) > (l.r + near.r) ** 2) continue;
     const s = Math.ceil(l.r * 2);
     if (!l.mask) { [l.mask, l.mx] = mkL(s); [l.tint, l.tx] = mkL(s); l.size = s; }
     l.mx.clearRect(0, 0, s, s); l.mx.drawImage(MASK_SPR, 0, 0, s, s);

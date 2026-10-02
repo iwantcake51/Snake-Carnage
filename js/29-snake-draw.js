@@ -8,6 +8,8 @@ function drawSnake(x, s = snake, cfg = SETTINGS.snake) {
     return { x: g.x - Math.sin(g.a) * o, y: g.y + Math.cos(g.a) * o, a: g.a };
   });
   if (s === snake) s._pts = pts;
+  const camo = s === snake && s.camoT > 0 ? Math.min(1, s.camoT * 3, (ABIL.camo.dur - s.camoT) * 4 + .2) : 0; // camouflage: the body fades into the ground
+  if (camo) { x.save(); x.globalAlpha = 1 - .7 * camo; }
   const ol = SETTINGS.snakeOutline || 'Subtle';
   if (ol !== 'Off') { // visibility rim: faint light halo plus a dark edge, readable on any ground
     const strong = ol === 'Strong';
@@ -30,4 +32,7 @@ function drawSnake(x, s = snake, cfg = SETTINGS.snake) {
   drawEyes(x, cfg, segColor(0, n, cfg));
   drawHat(x, cfg.hat);
   x.restore();
+  if (camo) { x.restore(); // a heat-haze shimmer so you can still find yourself
+    x.strokeStyle = `rgba(220,255,230,${(.35 * camo).toFixed(2)})`; x.lineWidth = 1; x.setLineDash([2, 5]); x.lineDashOffset = -T * 20; x.beginPath();
+    for (let i = 0; i < n; i += 2) { const g = pts[i], r = segR(i, n) + 1.5; x.moveTo(g.x + r, g.y); x.arc(g.x, g.y, r, 0, TAU); } x.stroke(); x.setLineDash([]); }
 }

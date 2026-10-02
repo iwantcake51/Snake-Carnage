@@ -71,12 +71,13 @@ function drawObstacleLayer(x = octx, b = curBuild, list = obstacles, ls = MAPS[m
   x.clearRect(0, 0, W, H); list.forEach(o => drawObstacle(x, o));
   if (b && b.decor) b.decor(x);
   for (const l of ls) fixture(x, l);
+  if (x === octx) outlineBreakables(x);
 }
 function loadMap(idx) {
   mapIdx = idx;
   const m = MAPS[idx], b = m.build();
   Sfx.setMuffle(!!m.space);
-  obstacles = [...borderWalls(m.border), ...b.obs];
+  obstacles = splitBreakables([...borderWalls(m.border), ...b.obs]);
   bctx.clearRect(0, 0, W, H); b.floor(bctx); resetBuckets(); gctx.clearRect(0, 0, W, H); groundParts = []; trail = []; floaters = [];
   buildGrassMask();
   curBuild = b; drawObstacleLayer();

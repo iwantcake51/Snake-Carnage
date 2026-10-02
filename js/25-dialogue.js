@@ -32,6 +32,8 @@ const LINES = {
     'breathe... just breathe', 'I can\'t feel my legs'],
   relief: ['oh thank god', "it didn't see me", 'phew...', 'that was way too close', "I'm still alive?", 'it just... went past',
     'holy shit, it missed me', 'okay. okay. breathe.', "don't move, it's leaving", 'I think I peed a little', 'not today, snake', 'I owe someone a prayer'],
+  stunned: ['it hit that thing hard', "it's dazed!", 'look, it slowed down!', 'is it hurt?', 'NOW! RUN WHILE IT\'S DIZZY!', 'it ran face-first into that'],
+  deaf: ["I CAN'T HEAR!", 'my ears are ringing', 'what? WHAT?', "I can't hear myself think", 'everything sounds underwater', "WHY CAN'T I HEAR?!"],
   hissed: ['WHAT WAS THAT SOUND?!', 'IT HISSED AT ME!', 'nope nope NOPE', 'THAT NOISE!', 'it sounds ANGRY'],
   crash: ['what was that?', 'did something just break?', 'that came from over there', 'hello?', "something's in here with us"],
   panic: ['RUN!', 'HELP!', 'keep running', 'call the police', 'oh god, oh god', "this isn't happening", 'SOMEBODY HELP!', 'where do we go?!', 'FUCK!',
@@ -90,6 +92,9 @@ function rattle(t, lvl, yell) { // speech gets less composed as panic rises; nev
   }
   return t; // sometimes they still get it out clean
 }
+function slur(t) { // ears ringing after a Hiss: words stretch, drop letters, trail off
+  return t.split(' ').map(w => { const r = Math.random(); if (w.length > 3 && r < .3) return w.replace(/[aeiou]/i, m => m + m + m); if (w.length > 4 && r < .5) return w.slice(0, -2) + '-'; return w; }).join(' ').replace(/[.!?]*$/, '') + pick(['...', '..?', '—']);
+}
 function finishLine(t, c, ctx) { // intensity varies by person: some shout spoken lines, calm people say yelled ones
   let yell = isYell(t);
   if (!yell && HOT_CTX.has(ctx) && c.voice.heat > .75 && Math.random() < .35) { t = t.toUpperCase(); yell = true; }
@@ -97,6 +102,7 @@ function finishLine(t, c, ctx) { // intensity varies by person: some shout spoke
   if (yell && c.voice.heat > .55 && Math.random() < .35) t = stretch(t);
   if (!yell) t = t[0].toUpperCase() + t.slice(1);
   if (!/[!?.…—]$/.test(t)) t += yell ? '!' : /^(what|where|why|is|did|how|was|which|who)\b/i.test(t) ? '?' : pick(['.', '...', '!']);
+  if (c.deafT > T) t = slur(t);
   return { text: rattle(t, panicLevel(c), yell), yell };
 }
 /* ---- conversation memory: people remember what they just said and follow it up when something answers it ---- */

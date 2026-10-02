@@ -64,7 +64,8 @@ addEventListener('keydown', e => {
     else if (state === 'dead' && document.getElementById('againBtn')) returnToMenu();
     else if (state === 'menu' && !overlay.querySelector('.menu') && !overlay.querySelector('.casebox')) transitionTo(showMenu);
   }
-  else if (e.code === 'KeyF') toggleNV();
+  else if (e.code === 'KeyF' && !e.repeat) toggleNV();
+  else if (e.repeat) return; // holding a skill key fires it once, not a stream of sounds
   else if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') useAbility('dash');
   else if (e.code === 'KeyQ') useAbility('camo');
   else if (e.code === 'KeyE') useAbility('scent');

@@ -33,6 +33,11 @@ function roof(x, o) { // pitched roofs read as a ridge with two shaded slopes; f
   }
 }
 function drawObstacle(x, o) {
+  drawObstacleBase(x, o);
+  if (o.cracked) { const r = seeded(Math.round(o.x * 5 + o.y * 3)), cx = o.t === 'r' ? o.x + o.w / 2 : o.x, cy = o.t === 'r' ? o.y + o.h / 2 : o.y, R = o.t === 'r' ? Math.min(o.w, o.h) * .5 + 6 : o.r; // cracks from a neighbour's hit
+    x.save(); x.strokeStyle = 'rgba(20,12,10,.65)'; x.lineWidth = 1; for (let k = 0; k < 4; k++) { let px = cx, py = cy, a = r() * TAU; x.beginPath(); x.moveTo(px, py); for (let j = 0; j < 4; j++) { a += (r() - .5) * 1.2; px += Math.cos(a) * R * .3; py += Math.sin(a) * R * .3; x.lineTo(px, py); } x.stroke(); } x.restore(); }
+}
+function drawObstacleBase(x, o) {
   const c = o.color, k = o.kind;
   if (k === 'water') return drawWater(x, o, 0); // static version (thumbnails); the animated copy is drawn every frame
   if (o.t === 'c') {

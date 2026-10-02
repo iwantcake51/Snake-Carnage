@@ -15,7 +15,7 @@ function breakLamp(o, ang) {
   const fa = ang + rand(-.5, .5);
   drawBrokenLamp(bctx, o.x, o.y, fa); // the bent post stays on the ground
   drawObstacleLayer();
-  bakeOutline(); buildSolid(); shadowKey = ''; bakeShadows(); bakeLightMasks();
+  bakeOutline(); buildSolid(); shadowKey = ''; bakeShadows(); bakeLightMasks({ x: o.x, y: o.y, r: 60 });
   const hx = o.x + Math.cos(fa) * 32, hy = o.y + Math.sin(fa) * 32;
   for (let k = 0; k < 16; k++) { const a = fa + rand(-1.6, 1.6), sp = rand(30, 150); debris.push({ x: hx, y: hy, z: 26, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(40, 150), t: 0, s: rand(1.1, 2.3), c: pick(['#dfe9ee', '#bcd3dc', '#f4f8fa']) }); }
   for (let k = 0; k < 5; k++) { const a = fa + rand(-1, 1), sp = rand(30, 110); debris.push({ x: hx, y: hy, z: 24, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(30, 110), t: 0, s: rand(1.8, 3), c: pick(['#5b5b5b', '#3c3c3c']) }); }

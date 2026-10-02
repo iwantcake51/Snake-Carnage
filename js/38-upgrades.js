@@ -10,42 +10,46 @@ const NET = { // multiplayer hook: nothing listens yet, but every ability use an
   on(f) { this.listeners.push(f); },
 };
 const UPGRADES = [
-  { id: 'speed', name: 'Muscle', icon: 'speed', max: 3, cost: [150, 420, 950], lvl: [2, 6, 12],
-    desc: 'Move faster.', tiers: ['+6% speed', '+12% speed', '+18% speed'] },
+  { id: 'speed', name: 'Speed Demon', icon: 'speed', max: 5, cost: [150, 380, 750, 1300, 2100], lvl: [2, 5, 9, 14, 20],
+    desc: 'Move faster.', tiers: ['+5% speed', '+10% speed', '+15% speed', '+20% speed', '+25% speed'] },
   { id: 'ram', name: 'Battering Ram', icon: 'ram', max: 2, cost: [300, 850], lvl: [4, 10],
-    desc: 'Smash through furniture instead of crashing into it.', tiers: ['Desks, tables, benches, chairs, couches, fences, hay, bushes, crates', 'Also cars, consoles, rocks, speakers and bars'] },
-  { id: 'gut', name: 'Iron Stomach', icon: 'gut', max: 2, cost: [350, 900], lvl: [7, 14],
-    desc: 'Combos last longer.', tiers: ['+10% combo time', '+20% combo time'] },
-  { id: 'dash', name: 'Lunge', icon: 'dash', max: 1, cost: [250], lvl: [3], ability: true, key: 'Shift',
-    desc: 'A short burst of speed. Great for catching runners.', tiers: ['0.6 s at 1.8x speed, 7 s cooldown'] },
-  { id: 'scent', name: 'Scent', icon: 'scent', max: 1, cost: [400], lvl: [5], ability: true, key: 'E',
-    desc: 'Smell every target on the map, even through fog and darkness.', tiers: ['Reveals everything for 6 s, 22 s cooldown'] },
-  { id: 'camo', name: 'Camouflage', icon: 'camo', max: 1, cost: [600], lvl: [8], ability: true, key: 'Q',
-    desc: 'Blend into the ground. People only notice you up close.', tiers: ['5 s, 20 s cooldown'] },
-  { id: 'hiss', name: 'Hiss', icon: 'hiss', max: 1, cost: [700], lvl: [11], ability: true, key: 'R',
-    desc: 'A blood-curdling hiss: everything nearby panics and scatters.', tiers: ['190 px radius, 15 s cooldown'] },
+    desc: 'Smash through furniture instead of crashing into it. You stagger for a moment after each hit.', tiers: ['Desks, tables, benches, chairs, couches, fences, hay, bushes, crates', 'Also cars, consoles, rocks, speakers and bars'] },
+  { id: 'gut', name: 'Iron Stomach', icon: 'gut', max: 3, cost: [350, 900, 1700], lvl: [7, 13, 19], desc: 'Combos last longer.', tiers: ['+10% combo time', '+20% combo time', '+30% combo time'] },
+  { id: 'dash', name: 'Lunge', icon: 'dash', max: 2, cost: [250, 900], lvl: [3, 12], ability: true, key: 'Shift',
+    desc: 'A short burst of speed. Great for catching runners.', tiers: ['0.6 s at 1.8x speed, 7 s cooldown', '0.8 s at 1.9x speed, 5 s cooldown'] },
+  { id: 'scent', name: 'Scent', icon: 'scent', max: 2, cost: [400, 1100], lvl: [5, 15], ability: true, key: 'E',
+    desc: 'Read the room: who can see you right now (red), who is nervous (amber), who has no idea (green), plus a line to the nearest easy meal and to every golden target. Works through fog and darkness.',
+    tiers: ['6 s, 22 s cooldown', '9 s, 16 s cooldown, also shows where people are looking'] },
+  { id: 'camo', name: 'Camouflage', icon: 'camo', max: 2, cost: [600, 1400], lvl: [8, 17], ability: true, key: 'Q',
+    desc: 'Your scales take on the ground under you. People only notice you up close.', tiers: ['5 s, 20 s cooldown', '8 s, 16 s cooldown'] },
+  { id: 'hiss', name: 'Hiss', icon: 'hiss', max: 2, cost: [700, 1600], lvl: [11, 18], ability: true, key: 'R',
+    desc: 'A blood-curdling hiss: everything nearby panics and scatters.', tiers: ['190 px radius, 15 s cooldown', 'Wider, and it rattles them: slowed for 4 s, half-deaf and slurring for 10 s'] },
 ];
 PROG.upg = PROG.upg || {}; PROG.upgOff = PROG.upgOff || {};
-const upg = id => PROG.upgOff[id] ? 0 : (PROG.upg[id] || 0); // owned and switched on
-const ABIL = {
-  dash: { cd: 7, dur: .6, go(s) { s.dashT = this.dur; Sfx.dash(); camF.kv.x += Math.cos(s.angle) * 160; camF.kv.y += Math.sin(s.angle) * 160; } },
-  scent: { cd: 22, dur: 6, go(s) { s.scentT = this.dur; Sfx.sniff(); } },
-  camo: { cd: 20, dur: 5, go(s) { s.camoT = this.dur; Sfx.camo(); } },
+const upg = id => PROG.upgOff[id] ? 0 : Math.min(PROG.upg[id] || 0, (UPGRADES.find(u => u.id === id) || { max: 9 }).max); // owned and switched on
+const ABIL = { // cd/dur read the owned level each time
+  dash: { get cd() { return upg('dash') > 1 ? 5 : 7; }, get dur() { return upg('dash') > 1 ? .8 : .6; }, go(s) { s.dashT = this.dur; s.dashK = upg('dash') > 1 ? 1.9 : 1.8; Sfx.dash(); camF.kv.x += Math.cos(s.angle) * 160; camF.kv.y += Math.sin(s.angle) * 160; } },
+  scent: { get cd() { return upg('scent') > 1 ? 16 : 22; }, get dur() { return upg('scent') > 1 ? 9 : 6; }, go(s) { s.scentT = this.dur; Sfx.sniff(); } },
+  camo: { get cd() { return upg('camo') > 1 ? 16 : 20; }, get dur() { return upg('camo') > 1 ? 8 : 5; }, go(s) { s.camoT = this.dur; Sfx.camo(); } },
   hiss: { cd: 15, dur: .8, go(s) {
-    Sfx.hiss(); shake = Math.max(shake, 5); s.hissT = this.dur;
-    for (const c of creatures) if (c.alive && dist2(c.x, c.y, s.x, s.y) < 190 * 190) { panic(c, s.x, s.y, rand(3, 5), 'hissed'); c.alert = 1; }
+    const lv = upg('hiss'), R = lv > 1 ? 240 : 190;
+    Sfx.hiss(); shake = Math.max(shake, lv > 1 ? 8 : 5); s.hissT = this.dur; s.hissR = R;
+    for (const c of creatures) if (c.alive && dist2(c.x, c.y, s.x, s.y) < R * R) {
+      panic(c, s.x, s.y, rand(3, 5) * (lv > 1 ? 1.5 : 1), 'hissed'); c.alert = 1;
+      if (lv > 1) { c.slowT = T + 4; c.deafT = T + 10; c.adren = 0; if (c.def.human && !c.def.alien) c.reply = { t: rand(.8, 1.6), ctx: 'deaf' }; }
+    }
   } },
 };
 const abilCD = {};
 function useAbility(id) {
   if (!upg(id) || state !== 'play' || !snake || !snake.alive || !snake.started) return;
-  const a = ABIL[id]; if ((abilCD[id] || 0) > T) { Sfx.deny(); return; }
+  const a = ABIL[id]; if ((abilCD[id] || 0) > T) { if (Sfx.ok() && Sfx.gate('deny', .6)) Sfx.deny(); abilityHud(); const b = document.querySelector(`#abil [data-a="${id}"]`); if (b) { b.classList.remove('no'); void b.offsetWidth; b.classList.add('no'); } return; }
   abilCD[id] = T + a.cd; a.go(snake); run.abil = (run.abil || 0) + 1;
   NET.emit({ type: 'ability', id, x: snake.x, y: snake.y, a: snake.angle });
   abilityHud(true);
 }
-function resetAbilities() { for (const k in abilCD) delete abilCD[k]; abilityHud(true); }
-const speedMult = () => 1 + .06 * upg('speed');
+function resetAbilities() { for (const k in abilCD) delete abilCD[k]; for (const u of UPGRADES) if (u.ability) abilCD[u.id] = T + ABIL[u.id].cd; abilityHud(true); } // every skill starts the round recharging
+const speedMult = () => 1 + .05 * upg('speed');
 const comboGutMult = () => 1 + .1 * upg('gut');
 
 /* ---- abilities HUD: bottom-center icons with a cooldown sweep ---- */
@@ -98,16 +102,47 @@ function smashObstacle(o, ang) {
   const i = obstacles.indexOf(o); if (i < 0) return;
   obstacles.splice(i, 1);
   const cx = o.t === 'r' ? o.x + o.w / 2 : o.x, cy = o.t === 'r' ? o.y + o.h / 2 : o.y, size = o.t === 'r' ? Math.sqrt(o.w * o.h) : o.r * 1.6;
-  bctx.save(); bctx.globalAlpha = .55; bctx.fillStyle = shade(o.color, -.35); // splintered remains stay on the floor
-  for (let k = 0; k < 6 + size / 6; k++) { const a = ang + rand(-1.4, 1.4), d = rand(0, size * .9); bctx.save(); bctx.translate(cx + Math.cos(a) * d, cy + Math.sin(a) * d); bctx.rotate(rand(0, TAU)); bctx.fillRect(-rand(2, 6), -1.2, rand(4, 12), rand(1.6, 3)); bctx.restore(); }
-  bctx.restore();
+  drawWreck(bctx, o, ang); // the broken piece stays on the floor as wreckage
+  for (const q of obstacles) if (q.group && q.group === o.group) q.cracked = true; // the rest of a long object cracks but stands
   for (let k = 0; k < 18 + size / 3; k++) { const a = ang + rand(-1.2, 1.2), sp = rand(60, 230); debris.push({ x: cx + rand(-size / 3, size / 3), y: cy + rand(-size / 3, size / 3), z: rand(4, 16), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(60, 170), t: 0, s: rand(1.6, 3.6), c: pick([o.color, shade(o.color, -.2), shade(o.color, .15)]) }); }
   drawObstacleLayer();
-  bakeOutline(); buildSolid(); shadowKey = ''; bakeShadows(); bakeLightMasks();
-  Sfx.smash(cx, size); shake = Math.max(shake, 6); snake.ramT = .25;
-  for (const c of creatures) if (c.alive && dist2(c.x, c.y, cx, cy) < 230 * 230 && (c.state === 'wander' || c.state === 'idle')) { c.state = 'uneasy'; c.fx = cx; c.fy = cy; c.timer = rand(1, 2); if (Math.random() < .5) say(c, 'crash'); }
+  bakeOutline(); buildSolid(); shadowKey = ''; bakeShadows(); bakeLightMasks({ x: cx, y: cy, r: size });
+  Sfx.smash(cx, size); shake = Math.max(shake, 6);
+  snake.ramT = snake.ramMax = 1.1; // dazed: slower, colours drain, edges blur, all easing back as speed returns
+  for (const c of creatures) if (c.alive && dist2(c.x, c.y, cx, cy) < 230 * 230) {
+    if (c.state === 'wander' || c.state === 'idle') { c.state = 'uneasy'; c.fx = cx; c.fy = cy; c.timer = rand(1, 2); if (Math.random() < .4) say(c, 'crash'); }
+    else if (c.def.human && Math.random() < .35) c.reply = { t: rand(.3, .9), ctx: 'stunned' };
+  }
   run.smashed = (run.smashed || 0) + 1; PROG.smashed = (PROG.smashed || 0) + 1;
   NET.emit({ type: 'smash', kind: o.kind, x: cx, y: cy });
+}
+function drawWreck(x, o, ang) { // a flattened, broken version of the object instead of it vanishing
+  x.save();
+  if (o.t === 'r') { x.beginPath(); const r = seeded(Math.round(o.x * 3 + o.y)); x.moveTo(o.x, o.y); for (let k = 1; k <= 8; k++) x.lineTo(o.x + o.w * k / 8, o.y + r() * o.h * .35); x.lineTo(o.x + o.w, o.y + o.h); for (let k = 7; k >= 0; k--) x.lineTo(o.x + o.w * k / 8, o.y + o.h - r() * o.h * .35); x.closePath(); x.clip(); }
+  x.globalAlpha = .7; drawObstacle(x, { ...o, cracked: true });
+  x.globalAlpha = .45; x.fillStyle = '#1a1210'; if (o.t === 'r') x.fillRect(o.x, o.y, o.w, o.h); else circ(x, o.x, o.y, o.r);
+  x.restore();
+  const cx = o.t === 'r' ? o.x + o.w / 2 : o.x, cy = o.t === 'r' ? o.y + o.h / 2 : o.y, size = o.t === 'r' ? Math.sqrt(o.w * o.h) : o.r * 1.6;
+  x.save(); x.globalAlpha = .6; x.fillStyle = shade(o.color, -.35);
+  for (let k = 0; k < 6 + size / 6; k++) { const a = ang + rand(-1.4, 1.4), d = rand(0, size * .9); x.save(); x.translate(cx + Math.cos(a) * d, cy + Math.sin(a) * d); x.rotate(rand(0, TAU)); x.fillRect(-rand(2, 6), -1.2, rand(4, 12), rand(1.6, 3)); x.restore(); }
+  x.restore();
+}
+function splitBreakables(list) { // long furniture breaks a section at a time, not all at once
+  const out = [];
+  let g = 0;
+  for (const o of list) {
+    const L = Math.max(o.w || 0, o.h || 0);
+    if (o.t !== 'r' || !RAM_KINDS[2].has(o.kind) || L < 110 || o.kind === 'desk') { out.push(o); continue; }
+    const hz = o.w >= o.h, n = Math.ceil(L / 64), step = L / n; g++;
+    for (let k = 0; k < n; k++) out.push(hz ? { ...o, x: o.x + k * step, w: step, group: g } : { ...o, y: o.y + k * step, h: step, group: g });
+  }
+  return out;
+}
+function outlineBreakables(x) { // with the Battering Ram, everything you can smash wears an amber dashed edge
+  if (!upg('ram')) return;
+  x.save(); x.strokeStyle = 'rgba(255,186,70,.75)'; x.lineWidth = 1.4; x.setLineDash([4, 3]);
+  for (const o of obstacles) if (canRam(o)) { x.beginPath(); if (o.t === 'r') x.rect(o.x - 1.5, o.y - 1.5, o.w + 3, o.h + 3); else x.arc(o.x, o.y, o.r + 1.5, 0, TAU); x.stroke(); }
+  x.restore();
 }
 
 /* ---- upgrades screen ---- */
@@ -140,3 +175,28 @@ function buyUpgrade(id) {
   const m = document.getElementById('upmsg'); if (m) m.textContent = `${u.name} ${u.max > 1 ? ['I', 'II', 'III'][lv] + ' ' : ''}unlocked.`;
 }
 const upgradeReady = () => UPGRADES.some(u => { const lv = PROG.upg[u.id] || 0; return lv < u.max && PROG.level >= u.lvl[lv] && PROG.coins >= u.cost[lv]; }); // something you can buy right now
+
+/* ---- Scent: who can see you, who is nervous, who has no idea; a line to the easiest meal and to every golden target ---- */
+function canSeeSnake(c) {
+  const s = snake, d = Math.hypot(c.x - s.x, c.y - s.y), sight = c.def.sight * (MOD.skittish ? 1.5 : MOD.oblivious ? .6 : 1) * (s.camoT > 0 ? .25 : 1);
+  return d < 40 || (d < sight && lightAt(s.x, s.y) > VISIBLE && los(c.x, c.y, s.x, s.y));
+}
+function drawScent(x) {
+  const s = snake; if (!s || !(s.scentT > 0)) return;
+  const k = Math.min(1, s.scentT * 2.5, (ABIL.scent.dur - s.scentT) * 5), lv = upg('scent');
+  let easy = null, ed = 1e9;
+  x.save(); x.lineWidth = 1.6;
+  for (const c of creatures) {
+    if (!c.alive || c.def.glow) continue;
+    const scared = c.state === 'panic' || c.state === 'flee', sees = !scared && c.def.human && canSeeSnake(c), nerv = c.state === 'uneasy' || (c.alert > .3 && !scared);
+    const col = scared || sees ? '255,70,60' : nerv ? '255,190,60' : '110,255,140';
+    if (!scared && !sees && !nerv) { const d = dist2(c.x, c.y, s.x, s.y); if (d < ed) { ed = d; easy = c; } }
+    const r = c.def.r + 6 + Math.sin(T * 6 + c.pt * 20) * 1.2;
+    x.strokeStyle = `rgba(${col},${.85 * k})`; x.beginPath(); x.arc(c.x, c.y, r, 0, TAU); x.stroke();
+    if (lv > 1 && c.def.human) { x.fillStyle = `rgba(${col},${.12 * k})`; x.beginPath(); x.moveTo(c.x, c.y); x.arc(c.x, c.y, Math.min(90, c.def.sight * .6), c.a - .6, c.a + .6); x.closePath(); x.fill(); } // where they're looking
+  }
+  const line = (c, col, dash) => { x.strokeStyle = `rgba(${col},${.7 * k})`; x.setLineDash(dash); x.lineDashOffset = -T * 30; x.beginPath(); x.moveTo(s.x, s.y); x.lineTo(c.x, c.y); x.stroke(); };
+  if (easy) line(easy, '110,255,140', [6, 6]);
+  for (const c of creatures) if (c.alive && c.golden) line(c, '255,214,70', [3, 5]);
+  x.setLineDash([]); x.restore();
+}
