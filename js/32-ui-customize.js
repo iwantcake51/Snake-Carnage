@@ -75,7 +75,8 @@ function startGame(opts = {}) {
   const animals = [...new Set(creatures.filter(c => !c.def.human).map(c => c.type))];
   runMod = { lastType: null, lastCat: null, varStreak: 0, same: 0, chain: 0, humanRun: 0, ask: null, askIn: 3, avoid: animals.length ? pick(animals) : null };
   modHud(); challengeHud(true); modBar(); resetAbilities();
-  if (runMods.length) setTimeout(() => notify({ kind: 'mod', title: `${runMods.length} modifier${runMods.length > 1 ? 's' : ''} active`, sub: runMods.map(id => (MOD_ICON[id] || '') + ' ' + MODS.find(m => m.id === id).name).join('  '), right: Math.abs(rewardMult - 1) > .005 ? 'x' + rewardMult.toFixed(2) : '', dur: 3.5 }), SETTINGS.reduceMotion ? 300 : 2400);
+  if (runMods.length && opts.mystery) modIntro(runMods);
+  else if (runMods.length) setTimeout(() => notify({ kind: 'mod', title: `${runMods.length} modifier${runMods.length > 1 ? 's' : ''} active`, sub: runMods.map(id => (MOD_ICON[id] || '') + ' ' + MODS.find(m => m.id === id).name).join('  '), right: Math.abs(rewardMult - 1) > .005 ? 'x' + rewardMult.toFixed(2) : '', dur: 3.5 }), SETTINGS.reduceMotion ? 300 : 2400);
   if (!thumbs) thumbs = makeThumbs();
   updateTime(0);
   state = 'intro';
@@ -95,6 +96,11 @@ function startGame(opts = {}) {
   intro.className = 'run'; stage.classList.add('bars');
   introTimers.forEach(clearTimeout);
   introTimers = [setTimeout(endIntro, SETTINGS.reduceMotion ? 500 : 2300)];
+}
+function modIntro(ids) { // random run: show what was rolled at the bottom for a moment, then send each one up and away
+  const el = document.getElementById('modintro'); clearTimeout(el._t);
+  el.innerHTML = ids.map((id, i) => `<span class="mi" style="--i:${i}">${MOD_ICON[id] || ''} ${MODS.find(m => m.id === id).name}</span>`).join('');
+  el._t = setTimeout(() => { el.querySelectorAll('.mi').forEach(m => m.classList.add('go')); el._t = setTimeout(() => { el.innerHTML = ''; }, 900 + ids.length * 160); }, SETTINGS.reduceMotion ? 1500 : 4200);
 }
 function endIntro(abort) { // fade the intro out, pull the bars away and start the spawn zoom
   introTimers.forEach(clearTimeout); introTimers = [];

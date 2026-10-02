@@ -1029,3 +1029,16 @@ body.calm .panel,body.calm .mleft,body.calm .mright{translate:none}
 .panel.sum{display:flex;flex-direction:column;max-height:94%!important;overflow:hidden}
 .panel.sum .scols{flex:1;min-height:0;overflow-y:auto;padding-right:4px}
 .panel.sum .sside{min-width:0}
+.mtile.blocked{opacity:.45;filter:grayscale(.8)}
+.mtile.blocked small{color:#d79a6a}
+.mtile.blocked:hover{translate:none}
+.mtile.nope{animation:abNo .3s}
+.mtile.focus{animation:tileFocus 1.6s ease}
+@keyframes tileFocus{0%,40%{box-shadow:0 0 0 2px var(--acc-hi),0 0 22px color-mix(in srgb,var(--acc) 60%,transparent)}100%{box-shadow:none}}
+/* random runs: the rolled modifiers line up at the bottom, then float up one by one and fade */
+#modintro{position:absolute;left:50%;bottom:18%;translate:-50% 0;display:flex;gap:8px;flex-wrap:wrap;justify-content:center;max-width:80%;pointer-events:none}
+#modintro .mi{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;background:rgba(16,10,12,.85);border:1px solid color-mix(in srgb,var(--acc) 55%,transparent);
+  font:700 13px "Segoe UI",system-ui,sans-serif;color:#f0e9e2;animation:miIn .45s var(--spring) backwards;animation-delay:calc(var(--i) * 90ms)}
+#modintro .mi.go{animation:miUp .9s ease-in forwards;animation-delay:calc(var(--i) * 160ms)}
+@keyframes miIn{from{opacity:0;translate:0 14px;scale:.9}}
+@keyframes miUp{to{opacity:0;translate:0 -140px;filter:blur(2px)}}

@@ -70,7 +70,7 @@ function chPool(map) {
   add('rare', 'golden', [1], 'Eat a golden human');
   add('rare', 'gore', [75], 'Get {n}% of your snake bloody');
   add('rare', 'burst', [6], 'Eat {n} targets within 3 seconds');
-  add('rare', 'modHumans', [12], 'Eat {n} humans with {mod} on', { mods: ['fastHumans', 'fog', 'fow', 'skittish', 'night'] });
+  add('rare', 'modHumans', [12], 'Eat {n} humans with {mod} on', { mods: ['fastHumans', 'fog', 'fow', 'skittish', 'noticeSnake'] });
   if (map === 'Town' || map === 'Office') {
     add('medium', 'humanStreak', [15], 'Eat {n} humans in a row without an animal');
     add('hard', 'panic', [20], 'Have {n} people panicking at once');

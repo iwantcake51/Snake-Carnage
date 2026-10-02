@@ -89,7 +89,8 @@ function showMenu() {
   document.getElementById('playBtn').onclick = startGame;
   document.getElementById('setBtn').onclick = () => { settingsFrom = 'menu'; transitionTo(() => showSettings()); };
   document.getElementById('snakeBtn').onclick = () => transitionTo(showCustomize);
-  document.getElementById('modBtn').onclick = () => transitionTo(showModifiers);
+  document.getElementById('modBtn').onclick = () => transitionTo(() => showModifiers());
+  overlay.querySelectorAll('#modline .mchip[data-mod]').forEach(ch => { ch.style.cursor = 'pointer'; ch.onclick = () => transitionTo(() => showModifiers(ch.dataset.mod)); }); // jump straight to that modifier
   document.getElementById('upBtn').onclick = () => transitionTo(showUpgrades);
   document.getElementById('chBtn').onclick = () => transitionTo(showChallenges);
 }
@@ -97,12 +98,12 @@ function modLine(list) { // active modifiers, visible before the run starts
   const ids = list || SETTINGS.mods || [];
   if (!ids.length) return '<span class="mchip dim">No modifiers</span>';
   const mm = modMult(ids);
-  return ids.map(id => { const m = MODS.find(q => q.id === id) || {}; return `<span class="mchip" data-tip="${m.desc}">${MOD_ICON[id] || ''} ${m.name}</span>`; }).join('') +
+  return ids.map(id => { const m = MODS.find(q => q.id === id) || {}; return `<span class="mchip" data-mod="${id}" data-tip="${m.desc} (click to edit)">${MOD_ICON[id] || ''} ${m.name}</span>`; }).join('') +
     (Math.abs(mm - 1) > .005 ? `<span class="mchip mult ${mm < 1 ? 'down' : ''}">Rewards x${mm.toFixed(2)}</span>` : ''); // no meaningless x1.00 chip
 }
 const TIME_TIPS = { Cycle: 'Every run starts at a random hour and the day keeps moving.', Day: 'Bright midday the whole run. Nowhere for you to hide.', Dawn: 'Frozen at first light: long shadows, lamps still on.', Dusk: 'Frozen at sunset: half-lit streets and long shadows.', Night: 'Pitch dark the whole run. Lamps, windows and flashlights only.' };
 const multLabel = ids => { const m = modMult(ids); return Math.abs(m - 1) < .005 ? 'Normal rewards' : 'Rewards x' + m.toFixed(2); };
-function showModifiers() {
+function showModifiers(focus) {
   const ids = new Set(SETTINGS.mods || []);
   overlay.className = 'menuMode';
   let lastG = '';
@@ -113,15 +114,21 @@ function showModifiers() {
         <i class="mic">${MOD_ICON[m.id] || ''}</i><span class="mtx"><b>${m.name}</b><small>${m.desc}</small></span><em class="mpct ${m.mult > 0 ? 'up' : m.mult < 0 ? 'down' : ''}">${m.mult ? (m.mult > 0 ? '+' : '') + Math.round(m.mult * 100) + '%' : ''}</em><span class="mck"></span></button>`; }).join('')}</div>
     <div class="mbtns"><label class="mfollow ${ids.has('freeMove') ? '' : 'dim'}" data-tip="Free movement only: the snake heads toward your mouse cursor while it's over the game."><button class="tgl ${SETTINGS.mouseFollow ? 'on' : ''}" id="mfTgl" data-sfx="none" role="switch" aria-checked="${!!SETTINGS.mouseFollow}"></button>Mouse steering</label>
       <span class="sp"></span><button class="btn alt" id="shufBtn" data-sfx="select">Shuffle</button><button class="btn alt" id="clrBtn" data-sfx="off">Clear</button><button class="btn" id="backBtn" data-sfx="confirm">Done</button></div></div>`;
+  const blocker = id => { const m = MODS.find(q => q.id === id); return [...ids].find(o => o !== id && ((m.not || []).includes(o) || ((MODS.find(q => q.id === o) || {}).not || []).includes(id))); };
   const sync = () => {
     SETTINGS.mods = [...ids]; saveSettings();
-    overlay.querySelectorAll('.mtile').forEach(t => { t.classList.toggle('on', ids.has(t.dataset.m)); t.setAttribute('aria-checked', ids.has(t.dataset.m)); });
+    overlay.querySelectorAll('.mtile').forEach(t => {
+      const id = t.dataset.m, on = ids.has(id), by = on ? null : blocker(id), m = MODS.find(q => q.id === id);
+      t.classList.toggle('on', on); t.setAttribute('aria-checked', on); t.classList.toggle('blocked', !!by); // conflicts are greyed out with the reason
+      t.querySelector('small').textContent = by ? `Can't use with ${MODS.find(q => q.id === by).name}` : m.desc;
+    });
     document.getElementById('mm').textContent = multLabel([...ids]);
     document.getElementById('mcount').textContent = ids.size ? ids.size + ' active' : '';
     overlay.querySelector('.mfollow').classList.toggle('dim', !ids.has('freeMove'));
   };
   overlay.querySelectorAll('.mtile').forEach(t => t.onclick = () => {
     const m = MODS.find(q => q.id === t.dataset.m);
+    if (!ids.has(m.id) && blocker(m.id)) { Sfx.deny(); t.classList.remove('nope'); void t.offsetWidth; t.classList.add('nope'); return; }
     if (ids.has(m.id)) { ids.delete(m.id); Sfx.ui('off'); } else { ids.add(m.id); (m.not || []).forEach(n => ids.delete(n)); MODS.forEach(q => (q.not || []).includes(m.id) && ids.delete(q.id)); Sfx.ui('on'); }
     t.classList.remove('pop'); void t.offsetWidth; t.classList.add('pop');
     sync();
@@ -136,6 +143,7 @@ function showModifiers() {
   document.getElementById('clrBtn').onclick = () => { ids.clear(); sync(); };
   document.getElementById('backBtn').onclick = () => transitionTo(showMenu);
   sync();
+  if (focus) requestAnimationFrame(() => { const t = overlay.querySelector(`.mtile[data-m="${focus}"]`); if (!t) return; t.scrollIntoView({ block: 'center', behavior: SETTINGS.reduceMotion ? 'auto' : 'smooth' }); t.classList.add('focus'); setTimeout(() => t.classList.remove('focus'), 1600); });
 }
 let chTab = 'profile', chMap = null;
 const TIER_ORDER = { easy: 0, medium: 1, hard: 2, rare: 3 };
@@ -252,7 +260,6 @@ const fmtSetting = (k, v) => k === 'customHour' ? String(v).padStart(2, '0') + '
 const SETTING_TABS = {
   Gameplay: { icon: 'gameplay', lead: 'How the world behaves around you.', rows: [
     ['slider', 'creatureSpeed', 'Creature speed', 'How fast people and animals move.', .3, 1.2, .05],
-    ['toggle', 'noticeSnake', 'People spot the snake', 'People run when they see you, not only after a kill.'],
     ['seg', 'timeMode', 'Time of day', 'Dynamic starts every run at a random hour and lets the day move on. The others stay fixed.', ['Cycle', 'Day', 'Dawn', 'Dusk', 'Night'], null, null, null, TIME_MODES],
     ['seg', 'bloodFade', 'Blood fades', 'How long blood stays on the ground and walls.', ['Never', 'Slow', 'Normal', 'Fast']]] },
   Graphics: { icon: 'graphics', lead: 'Look and feel of the picture.', rows: [

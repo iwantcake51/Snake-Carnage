@@ -326,7 +326,7 @@ function perceive(c) {
   else if (hum && dist < 85 && c.mem) followUp(c, 'near');
   if (hum && seen && !c.sawSnake && c.state !== 'panic') { c.sawSnake = true; if (Math.random() < .55 + gore * .4) say(c, gore > .2 ? 'bloodySnake' : 'firstSight'); }
   if (seen && c.state !== 'panic') {
-    if (c.alert > .3 || SETTINGS.noticeSnake) { // they've seen what it does: no second look needed
+    if (c.alert > .3 || MOD.noticeSnake) { // they've seen what it does: no second look needed
       if (c.alert > .3) panic(c, s.x, s.y, rand(4, 7), 'chased'); else { c.state = 'flee'; c.fx = s.x; c.fy = s.y; c.timer = 2.5; }
     } else if (gore > .45 && dist < 60 + 200 * gore && Math.random() < gore * .18) panic(c, s.x, s.y, rand(3, 5), 'bloodySnake'); // a blood-soaked snake is terrifying
     else if (dist < 75 + 170 * gore && (c.state === 'wander' || c.state === 'idle')) { // the bloodier it is, the earlier they get uneasy
