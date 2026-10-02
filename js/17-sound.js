@@ -19,8 +19,14 @@ const Sfx = {
     if (this.ctx.state === 'suspended') this.ctx.resume();
   },
   setMuffle(on) {
-    this.muffled = !!on; if (!this.lp) return;
+    this.muffled = !!on; this.dzF = 0; if (!this.lp) return;
     const t = this.ctx.currentTime; this.lp.frequency.setTargetAtTime(on ? 520 : 20000, t, .15); this.bus.gain.setTargetAtTime(on ? .9 : 1, t, .15);
+  },
+  daze(k, wall) { // concussed: the world goes muffled, much more after a wall, and clears smoothly as it wears off
+    if (!this.lp) return;
+    const base = this.muffled ? 520 : 20000, f = k > 0 ? base * Math.pow((wall ? 260 : 1300) / base, Math.min(1, k)) : base;
+    if (Math.abs(f - (this.dzF || base)) / base < .01) return; this.dzF = f;
+    const t = this.ctx.currentTime; this.lp.frequency.setTargetAtTime(Math.min(base, f), t, .12); this.bus.gain.setTargetAtTime((this.muffled ? .9 : 1) * (1 - (wall ? .35 : .15) * Math.min(1, k)), t, .12);
   },
   ok() { return this.ctx && this.ctx.state === 'running' && SETTINGS.volume > 0; },
   out(x, vol = 1) {

@@ -114,7 +114,8 @@ function smashObstacle(o, ang) {
   Sfx.smash(cx, wall ? size * 2.5 : size); shake = Math.max(shake, wall ? 16 : 6);
   const lng = (snake.dashV || 1) > 1.25, dur = (wall ? 4 : 1.3) + (lng ? 1 : 0); // lunging in: it hits harder on screen and lasts longer, but you keep more of your speed
   const res = upg('ram') >= 4 ? .75 : 1; // thick skull
-  snake.ramT = snake.ramMax = dur * res; snake.ramDeep = (wall ? .62 : .38) * (lng ? .6 : 1) * res; snake.wallStun = snake.wallMax = wall ? dur * res : 0; snake.stunFx = (lng ? 1.5 : 1) * res;
+  if (!wall && snake.wallStun > 0) snake.ramT = Math.max(snake.ramT, Math.min(snake.ramMax, dur * res)); // already seeing stars from a wall: furniture doesn't reset it
+  else { snake.ramT = snake.ramMax = dur * res; snake.ramDeep = (wall ? .62 : .38) * (lng ? .6 : 1) * res; snake.wallStun = snake.wallMax = wall ? dur * res : 0; snake.stunFx = (lng ? 1.5 : 1) * res; }
   if (wall) { snake.dashT = 0; snake.dashV = 1; snake.lk = 0; } // a wall stops a lunge dead // dazed: slower, colours drain, edges blur, all easing back as speed returns
   if (wall) { // a wall: bricks and plaster everywhere, a cloud of dust, and the snake sees stars
     for (let k = 0; k < 40; k++) { const a = ang + rand(-.9, .9), sp = rand(80, 300); debris.push({ x: cx + rand(-o.w / 2, o.w / 2), y: cy + rand(-o.h / 2, o.h / 2), z: rand(6, 20), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(80, 220), t: 0, s: rand(2.4, 5), c: pick([o.color, shade(o.color, -.25), shade(o.color, .2), '#8a7f74']) }); }
