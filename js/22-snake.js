@@ -42,7 +42,7 @@ function updateSnake(dt) {
   const s = snake; if (!s.started || !s.alive) return;
   if (MOD.freeMove) steerFree(dt);
   // ease toward the target heading: quick to start, settles softly, capped so it never snaps
-  const sl = upg('speed'), d = angDiff(s.angle, s.dir), mx = CONFIG.turnRate * dt * (1 + (sl >= 2 ? .18 : 0) + (sl >= 4 ? .18 : 0) + (sl >= 5 ? .12 : 0)) * (s.uturnT > 0 ? 2.4 : 1); // Speed Demon: snappier turns, and a fast whip round on a U-turn
+  const sl = upg('speed'), d = angDiff(s.angle, s.dir), mx = CONFIG.turnRate * dt * (1 + (sl >= 2 ? .18 : 0) + (sl >= 4 ? .18 : 0) + (sl >= 5 ? .12 : 0)) * (s.uturnT > 0 ? s.uturnK || 2.4 : 1); // Speed Demon: snappier turns, and a fast whip round on a U-turn
   s.angle += Math.abs(d) < .002 ? d : clamp(d * Math.min(1, dt * CONFIG.turnEase) + Math.sign(d) * mx * .18, -mx, mx);
   if (s.uturnT > 0) { s.uturnT -= dt; if (s.uturnTo !== undefined && Math.abs(angDiff(s.angle, s.dir)) < .5) { s.dir = s.uturnTo; s.uturnTo = undefined; } } // second half of the U-turn
   if (s.wallStun > 0) { const k = s.wallStun / (s.wallMax || 3.4); s.wallStun -= dt; s.angle += (Math.sin(T * 4.7) * 1.5 + Math.sin(T * 2.3 + 1.3)) * k * dt; } // seeing stars: it can't hold a line
@@ -104,6 +104,17 @@ function groundFX(s, dt) { // ruts in the grass and crumbs of dirt flicked out b
       groundParts.push({ x: s.x + nx * side, y: s.y + ny * side, z: 2, vx: Math.cos(back) * sp + nx * rand(-30, 30), vy: Math.sin(back) * sp + ny * rand(-30, 30),
         vz: rand(40, 110), dirt, rot: rand(0, TAU), c: dirt ? pick(['#6b4a2b', '#7d5a33', '#5a3d22']) : `rgb(${g[0] - 25},${g[1] - 12},${g[2] - 22})` });
     }
+  } else if (snowAt(s.x, s.y) < .1 && dirtAt(s.x, s.y)) { // on a dirt path: a smooth drag groove, darker where it bites in, with the loose dirt pushed up along both sides
+    const nx = -Math.sin(s.angle), ny = Math.cos(s.angle), seg = Math.hypot(s.x - s.gx, s.y - s.gy), fc = floorColAt(s.x, s.y);
+    for (let t = 0; t < seg; t += 2.5) {
+      const px = s.gx + (s.x - s.gx) * (t / seg), py = s.gy + (s.y - s.gy) * (t / seg), w = CONFIG.snakeR * (.9 + perlin(px * .04, py * .04) * .15);
+      gctx.save(); gctx.translate(px, py); gctx.rotate(s.angle);
+      gctx.globalAlpha = .2; gctx.fillStyle = `rgb(${fc[0] - 45 | 0},${fc[1] - 42 | 0},${fc[2] - 35 | 0})`; ell(gctx, 0, 0, 3, w * .75); // the groove
+      gctx.globalAlpha = .16; gctx.fillStyle = `rgb(${Math.min(255, fc[0] + 25) | 0},${Math.min(255, fc[1] + 22) | 0},${Math.min(255, fc[2] + 16) | 0})`; ell(gctx, 0, -w * .95, 2.6, 1.6); ell(gctx, 0, w * .95, 2.6, 1.6); // ridges of loose dirt either side
+      gctx.restore();
+    }
+    if ((s.gT = (s.gT || 0) - dt) <= 0 && groundParts.length < 140) { s.gT = .06; const back = s.angle + Math.PI + rand(-.8, .8), sp = rand(20, 60), side = rand(-6, 6);
+      groundParts.push({ x: s.x + nx * side, y: s.y + ny * side, z: 1.5, vx: Math.cos(back) * sp, vy: Math.sin(back) * sp, vz: rand(25, 70), dirt: true, rot: 0, c: `rgb(${fc[0] - 30 | 0},${fc[1] - 30 | 0},${fc[2] - 25 | 0})` }); } // a few crumbs kicked back
   }
   s.gx = s.x; s.gy = s.y;
 }

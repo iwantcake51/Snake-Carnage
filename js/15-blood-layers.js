@@ -69,6 +69,8 @@ const groundColAt = (x, y) => { // hex, so it mixes with body colors; snow count
   const c = floorCol[clamp(y / GM | 0, 0, GMH - 1) * GMW + clamp(x / GM | 0, 0, GMW - 1)] || [110, 150, 80];
   return '#' + c.map(v => clamp(v | 0, 0, 255).toString(16).padStart(2, '0')).join('');
 };
+const floorColAt = (x, y) => floorCol[clamp(y / GM | 0, 0, GMH - 1) * GMW + clamp(x / GM | 0, 0, GMW - 1)] || [150, 130, 100];
+const dirtAt = (x, y) => { if (grassAt(x, y)) return false; const c = floorColAt(x, y); return c[0] > c[1] && c[1] > c[2] && c[0] - c[2] > 28 && c[0] > 90 && c[0] < 230; }; // warm brown ground: a dirt path or track
 const grassColAt = (x, y) => grassCol[(y / GM | 0) * GMW + (x / GM | 0)] || [110, 170, 70];
 
 function spawnBlood(x, y, dirA, amount, spread, backFrac, gold) { // gold: a golden target, mostly gold blood with some red mixed in
