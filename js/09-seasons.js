@@ -261,10 +261,11 @@ function snowCaps(x, list) {
     const r = seeded(Math.round(o.x * 11 + o.y * 7) + 9);
     x.save(); x.beginPath(); if (o.t === 'r') x.rect(o.x, o.y, o.w, o.h); else x.arc(o.x, o.y, o.r, 0, TAU); x.clip();
     const bx = o.t === 'r' ? o.x : o.x - o.r, by = o.t === 'r' ? o.y : o.y - o.r, bw = o.t === 'r' ? o.w : o.r * 2, bh = o.t === 'r' ? o.h : o.r * 2;
-    const blobs = Math.max(3, Math.round(bw * bh / (late ? 260 : 90)));
+    const patchy = late || o.umbrella; // umbrellas just catch some, so they still read as umbrellas
+    const blobs = Math.max(3, Math.round(bw * bh / (patchy ? 260 : 90)));
     x.fillStyle = 'rgba(236,241,249,.5)';
-    for (let k = 0; k < blobs; k++) { if (late && r() < .5) continue; ell(x, bx + r() * bw, by + r() * bh, 6 + r() * Math.min(26, bw * .4), 5 + r() * Math.min(20, bh * .4)); }
-    if (!late) { x.fillStyle = 'rgba(236,241,249,.55)'; x.fillRect(bx + 2, by + 2, bw - 4, bh - 4); } // see-through enough that ridges and vents still read
+    for (let k = 0; k < blobs; k++) { if (patchy && r() < .5) continue; ell(x, bx + r() * bw, by + r() * bh, 6 + r() * Math.min(26, bw * .4), 5 + r() * Math.min(20, bh * .4)); }
+    if (!patchy) { x.fillStyle = 'rgba(236,241,249,.55)'; x.fillRect(bx + 2, by + 2, bw - 4, bh - 4); } // see-through enough that ridges and vents still read
     x.fillStyle = 'rgba(140,160,200,.35)'; x.fillRect(bx, by + bh - 2.5, bw, 2.5); x.fillRect(bx + bw - 2, by, 2, bh); // shade on the lower edges
     x.fillStyle = 'rgba(255,255,255,.5)'; x.fillRect(bx + 1, by + 1, bw - 2, 1.5);
     x.restore();

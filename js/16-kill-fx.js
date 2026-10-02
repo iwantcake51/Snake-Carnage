@@ -41,13 +41,13 @@ let puke = [];
 const VOMIT = ['#b8a641', '#a39233', '#c9b95a', '#8c7d2a'];
 function vomit(c) {
   if (SETTINGS.vomit === false || c.type === 'astronaut' || c.def.alien) return;
-  c.pukeT = .7; c.pukeA = c.a;
+  c.pukeT = .7; c.pukeA = c.a; c.pukeRun = c.state === 'panic' || c.state === 'flee'; // running ones keep going and throw up on the move
 }
 function updateVomit(dt) {
   for (const c of creatures) {
     if (!(c.pukeT > 0)) continue;
-    c.pukeT -= dt; c.spd = 0;
-    const a = c.a + rand(-.25, .25), mx = c.x + Math.cos(c.a) * 6, my = c.y + Math.sin(c.a) * 6;
+    c.pukeT -= dt; if (!c.pukeRun) c.spd = 0;
+    const a = c.a + (c.pukeRun ? Math.PI * .55 * c.side : 0) + rand(-.25, .25), mx = c.x + Math.cos(c.a) * 6, my = c.y + Math.sin(c.a) * 6; // on the run it sprays off to the side
     for (let k = 0; k < 2; k++) puke.push({ x: mx, y: my, z: 6, vx: Math.cos(a) * rand(40, 90), vy: Math.sin(a) * rand(40, 90), vz: rand(-10, 30), c: pick(VOMIT), r: rand(1, 2.2) });
   }
   for (let i = puke.length - 1; i >= 0; i--) {

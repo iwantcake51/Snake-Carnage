@@ -447,7 +447,7 @@ function witness(x, y, victim) { // a kill happened at x,y
     if (!c.def.human) { panic(c, x, y, rand(2, 4)); continue; }
     c.deathsSeen = (c.deathsSeen || 0) + 1;
     if (c.mem && followUp(c, 'kill')) { if (c.state !== 'panic') panic(c, x, y, rand(4, 7), 'none'); continue; }
-    if (c.deathsSeen === 3 && !c.def.alien && c.type !== 'astronaut' && Math.random() < .35 && d < 160) { say(c, 'act:throws up'); c.puked = T; vomit(c); if (c.state !== 'panic') panic(c, x, y, rand(4, 7), 'none'); continue; }
+    if (c.deathsSeen === 3 && !c.def.alien && c.type !== 'astronaut' && Math.random() < .14 && d < 140) { const running = c.state === 'panic'; say(c, 'act:' + (running ? 'throws up mid-run' : 'throws up')); c.puked = T; vomit(c); if (!running) panic(c, x, y, rand(4, 7), 'none'); continue; }
     const ctx = !victim.def.human ? 'witnessAnimal:' + victim.type : c.deathsSeen >= 2 ? 'multiDeath' : 'witnessHuman';
     if (c.state === 'panic') { c.timer = Math.max(c.timer, rand(4, 7)); if (Math.random() < .5) say(c, ctx); }
     else panic(c, x, y, rand(4, 7), ctx);

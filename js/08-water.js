@@ -152,6 +152,28 @@ function drawFountainTier(x, o, S, t, tint) { // raised center bowl, falling wat
 }
 function drawWaters(x) {
   if (!obstacles) return;
-  const t = performance.now() / 1000;
-  for (const o of obstacles) if (o.kind === 'water') drawWater(x, o, t);
+  const t = performance.now() / 1000, ice = iceOn();
+  for (const o of obstacles) if (o.kind === 'water') { if (ice) drawIce(x, o); else drawWater(x, o, t); }
+}
+/* winter (and late autumn snow): ponds, pools and fountains freeze over */
+const iceOn = () => !!season && (season.id === 'winter' || season.late);
+function drawIce(x, o) {
+  const S = wShape(o), key = season.id + (season.late ? 'L' : '');
+  if (!o.iceC || o.iceK !== key) { // baked once per season: the water under it, then ice with cracks, frost and snow at the edges
+    const pad = 4, w = Math.ceil((o.t === 'c' ? o.r * 2 : o.w) + pad * 2), h = Math.ceil((o.t === 'c' ? o.r * 2 : o.h) + pad * 2), ox = (o.t === 'c' ? o.x - o.r : o.x) - pad, oy = (o.t === 'c' ? o.y - o.r : o.y) - pad;
+    const c = document.createElement('canvas'), k = Math.min(DPR, 2); c.width = w * k; c.height = h * k; const g = c.getContext('2d'); g.scale(k, k); g.translate(-ox, -oy);
+    drawWater(g, o, 0);
+    const thin = season.id !== 'winter', r = seeded(Math.round(o.x * 3 + o.y * 7));
+    g.save(); wPath(g, S); g.clip();
+    g.fillStyle = thin ? 'rgba(200,220,235,.55)' : 'rgba(214,230,242,.86)'; g.fillRect(ox, oy, w, h); // the ice sheet
+    for (let k2 = 0; k2 < 26; k2++) { const px = S.cx + (r() - .5) * S.hw * 2, py = S.cy + (r() - .5) * S.hh * 2; g.fillStyle = `rgba(255,255,255,${(.15 + r() * .25).toFixed(2)})`; ell(g, px, py, 4 + r() * 14, 2 + r() * 8); } // frosty patches
+    g.strokeStyle = 'rgba(120,150,175,.55)'; g.lineWidth = .8; // cracks branching out from a few points
+    for (let k2 = 0; k2 < 5; k2++) { let px = S.cx + (r() - .5) * S.hw, py = S.cy + (r() - .5) * S.hh, a = r() * TAU; g.beginPath(); g.moveTo(px, py);
+      for (let j = 0; j < 7; j++) { a += (r() - .5) * 1.1; px += Math.cos(a) * (6 + r() * 10); py += Math.sin(a) * (6 + r() * 10); g.lineTo(px, py); if (r() < .3) { g.moveTo(px, py); g.lineTo(px + Math.cos(a + 1.2) * 7, py + Math.sin(a + 1.2) * 7); g.moveTo(px, py); } } g.stroke(); }
+    g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = .6; g.beginPath(); for (let k2 = 0; k2 < 6; k2++) { const px = S.cx + (r() - .5) * S.hw * 1.6, py = S.cy + (r() - .5) * S.hh * 1.6; g.moveTo(px, py); g.lineTo(px + 10 + r() * 14, py - 3 - r() * 6); } g.stroke(); // glints
+    if (!thin) { g.strokeStyle = 'rgba(245,248,253,.9)'; g.lineWidth = 5; wPath(g, S, 1); g.stroke(); } // snow drifted against the edge
+    g.restore();
+    o.iceC = c; o.iceK = key; o.iceX = ox; o.iceY = oy; o.iceW = w; o.iceH = h;
+  }
+  x.drawImage(o.iceC, o.iceX, o.iceY, o.iceW, o.iceH);
 }
