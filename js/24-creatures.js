@@ -8,6 +8,11 @@ function makeCreature(type, x, y, zone) {
            look: def.human ? humanLook(type) : null, alert: 0, adren: 0,
            spdK: def.human ? (Math.random() < .12 ? rand(1.2, 1.32) : rand(.86, 1.12)) : rand(.92, 1.08) }; // natural speed differences
 }
+function goldify(c) { // golden target: worth a fortune, gone (back to normal) when the ring runs out
+  const def = c.def; c.golden = true; c.goldT = c.goldMax = def.human ? 35 : 28;
+  if (def.human) { c.plainLook = { ...c.look }; Object.assign(c.look, { top: '#f2c230', top2: '#b8860b', pants: '#6e4f0c', shoes: '#fff3c4', outfit: c.look.outfit === 'suit' || c.look.outfit === 'alien' ? c.look.outfit : 'tee', hat: c.look.hat === 'helmet' ? 'helmet' : null }); }
+  else { c.plainDef = def; c.def = { ...def, col: '#e0b52c', hcol: def.hcol ? '#c99a1a' : undefined, tcol: def.tcol ? '#b8901c' : undefined }; }
+}
 function giveFlash(c) { if (c.def.human && Math.random() < flashChance()) c.fl = newFlash(c); return c; }
 function spawn(type, zone) {
   const def = TYPES[type], z = zone || { x: B, y: B, w: W - 2 * B, h: H - 2 * B };
@@ -17,11 +22,10 @@ function spawn(type, zone) {
     if (snake && k < 250 && dist2(x, y, snake.x, snake.y) < 200 * 200) continue;
     const c = giveFlash(makeCreature(type, x, y, zone)); c.born = T;
     if (def.human && state === 'play' && Math.random() < (MOD.rareAppetite ? .12 : .03)) { // rare golden target: worth a lot more
-      c.golden = true; c.goldT = 35; Object.assign(c.look, { top: '#f2c230', top2: '#b8860b', pants: '#6e4f0c', shoes: '#fff3c4', outfit: 'tee', hat: null });
+      goldify(c);
       if (state === 'play' || state === 'ready') goldenBanner();
     } else if (!def.human && state === 'play' && Math.random() < (MOD.rareAppetite ? .06 : .015)) { // rarer still: a golden animal
-      c.golden = true; c.goldT = 28;
-      c.def = { ...def, col: '#e0b52c', hcol: def.hcol ? '#c99a1a' : undefined, tcol: def.tcol ? '#b8901c' : undefined };
+      goldify(c);
       if (state === 'play' || state === 'ready') goldenBanner(type);
     }
     creatures.push(c); return;

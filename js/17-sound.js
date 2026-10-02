@@ -176,6 +176,15 @@ const Sfx = {
     this.burst(o, t + .01, .16, 6000, 1.2, .05);
     if (lit) for (let k = 0; k < 3; k++) this.burst(o, t + .04 + k * .06, .025, 7000, 2, .035, 'highpass');
   },
+  dash() { if (!this.ok()) return; const t = this.ctx.currentTime, o = this.out(snake && snake.x, .7); const f = this.burst(o, t, .35, 500, .8, .35); f.frequency.setValueAtTime(300, t); f.frequency.exponentialRampToValueAtTime(2600, t + .3); this.tone(o, t, 90, 160, .2, 'sine', .25); },
+  sniff() { if (!this.ok()) return; const t = this.ctx.currentTime, o = this.out(undefined, .6); for (let k = 0; k < 3; k++) this.burst(o, t + k * .12, .09, 2600, 1.5, .18, 'bandpass'); },
+  camo() { if (!this.ok()) return; const t = this.ctx.currentTime, o = this.out(undefined, .6); const f = this.burst(o, t, .6, 2400, .7, .12); f.frequency.setValueAtTime(3000, t); f.frequency.exponentialRampToValueAtTime(300, t + .55); },
+  hiss() { if (!this.ok()) return; const t = this.ctx.currentTime, o = this.out(snake && snake.x, 1); this.burst(o, t, .9, 5200, .6, .45, 'highpass'); this.burst(o, t, .7, 3200, 1.4, .25); this.tone(o, t, 70, 45, .6, 'sawtooth', .08); },
+  smash(x, size) { // wood and plastic giving way
+    if (!this.ok()) return; const t = this.ctx.currentTime, o = this.out(x, .9), k = clamp(size / 40, .5, 1.4);
+    this.tone(o, t, 140 / k, 45, .25, 'sine', .5); this.burst(o, t, .3, 900, .7, .5 * k, 'lowpass');
+    for (let i = 0; i < 6; i++) this.burst(o, t + rand(0, .18), rand(.02, .06), rand(1200, 4200), 3, rand(.15, .35));
+  },
   click(on) {
     if (!this.ok()) return;
     const c = this.ctx, t = c.currentTime, o = this.out(), os = c.createOscillator(), g = c.createGain();

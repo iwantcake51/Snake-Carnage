@@ -12,7 +12,7 @@ function updateHud() {
     document.getElementById('lvl').textContent = PROG.level;
     document.getElementById('xpfill').style.width = (PROG.xp / xpNeed(PROG.level) * 100).toFixed(1) + '%';
   }
-  document.getElementById('xpbar').title = `${PROG.xp} / ${xpNeed(PROG.level)} XP`;
+  document.getElementById('xptxt').textContent = `${PROG.xp} / ${xpNeed(PROG.level)} XP`;
 }
 let thumbs = null;
 const stage = document.getElementById('stage'), intro = document.getElementById('intro');
@@ -55,7 +55,7 @@ function showMenu() {
   state = 'menu'; endIntro(true);
   if (!thumbs) thumbs = makeThumbs();
   MOD = {}; rewardMult = 1; document.body.classList.remove('minimal');
-  stage.classList.add('bars'); cv.style.scale = '1.05';
+  stage.classList.remove('bars', 'paused'); cv.style.scale = '1.05';
   overlay.className = 'menuMode';
   overlay.innerHTML = `<div class="menu">${menuFx()}
     <div class="mleft">
@@ -64,9 +64,10 @@ function showMenu() {
       <div class="mlevel"><span>Level ${PROG.level}${SETTINGS.snake.title !== 'None' ? `<em class="mtitle">${SETTINGS.snake.title}</em>` : ''}</span><span class="xp" title="${PROG.xp} / ${xpNeed(PROG.level)} XP"><span class="xpfill" style="width:${(PROG.xp / xpNeed(PROG.level) * 100).toFixed(1)}%"></span></span><span class="coin"><i class="pc"></i> ${PROG.coins}</span></div>
       <button class="play" id="playBtn" data-sfx="none"><span>Play ${MAPS[mapIdx].name}</span><small>Space</small></button>
       <div class="modline" id="modline">${modLine()}</div>
-      <div class="seg" role="group" aria-label="Snake speed"><i class="sthumb"></i>${Object.keys(CONFIG.snakeSpeeds).map(sp => `<button data-sfx="tab" data-speed="${sp}" class="${sp === selSpeed ? 'on' : ''}">${sp}</button>`).join('')}</div>
-      <div class="mrow"><button class="ghost" id="snakeBtn" data-sfx="open">Shop &amp; customize</button><button class="ghost" id="setBtn" data-sfx="open">Settings</button></div>
+      <div class="seg tseg" role="group" aria-label="Time of day"><i class="sthumb"></i>${Object.keys(TIME_MODES).map(k => `<button data-sfx="tab" data-time="${k}" class="${k === SETTINGS.timeMode ? 'on' : ''}" data-tip="${TIME_TIPS[k]}">${TIME_MODES[k]}</button>`).join('')}</div>
+      <div class="mrow"><button class="ghost" id="upBtn" data-sfx="open">Upgrades${upgradeReady() ? '<i class="dot"></i>' : ''}</button><button class="ghost" id="snakeBtn" data-sfx="open">Shop</button></div>
       <div class="mrow"><button class="ghost" id="modBtn" data-sfx="open">Modifiers</button><button class="ghost" id="chBtn" data-sfx="open">Challenges</button></div>
+      <div class="mrow"><button class="ghost" id="setBtn" data-sfx="open">Settings</button></div>
       <div class="ver">v${GAME_VERSION}</div>
     </div>
     <div class="mright"><h2>Choose a map</h2><div class="mapch" id="mapch">${mapChallengesHtml()}</div><div class="cards">${MAPS.map((m, i) => `<button class="card ${i === mapIdx ? 'on' : ''}" data-sfx="select" data-map="${i}" style="--i:${i}"><img src="${thumbs[i]}" alt=""><span class="cn">${m.icon} ${m.name}</span><span class="cb">Best ${PROG.best[m.name] || 0}, ${chDoneCount(m.name)}/4 challenges</span></button>`).join('')}<button class="card rnd" data-sfx="none" data-map="rand" style="--i:${MAPS.length}">🎲<span class="cn">Random</span></button></div></div>
@@ -82,13 +83,14 @@ function showMenu() {
   });
   const seg = overlay.querySelector('.seg');
   seg.querySelectorAll('button').forEach(b => b.onclick = () => {
-    selSpeed = b.dataset.speed; seg.querySelectorAll('button').forEach(o => o.classList.toggle('on', o === b)); placeThumb(seg);
+    SETTINGS.timeMode = b.dataset.time; saveSettings(); seg.querySelectorAll('button').forEach(o => o.classList.toggle('on', o === b)); placeThumb(seg);
   });
   placeThumb(seg, true); requestAnimationFrame(() => placeThumb(seg, true));
   document.getElementById('playBtn').onclick = startGame;
   document.getElementById('setBtn').onclick = () => { settingsFrom = 'menu'; transitionTo(() => showSettings()); };
   document.getElementById('snakeBtn').onclick = () => transitionTo(showCustomize);
   document.getElementById('modBtn').onclick = () => transitionTo(showModifiers);
+  document.getElementById('upBtn').onclick = () => transitionTo(showUpgrades);
   document.getElementById('chBtn').onclick = () => transitionTo(showChallenges);
 }
 function modLine(list) { // active modifiers, visible before the run starts
@@ -98,31 +100,42 @@ function modLine(list) { // active modifiers, visible before the run starts
   return ids.map(id => { const m = MODS.find(q => q.id === id) || {}; return `<span class="mchip" data-tip="${m.desc}">${MOD_ICON[id] || ''} ${m.name}</span>`; }).join('') +
     (Math.abs(mm - 1) > .005 ? `<span class="mchip mult ${mm < 1 ? 'down' : ''}">Rewards x${mm.toFixed(2)}</span>` : ''); // no meaningless x1.00 chip
 }
+const TIME_TIPS = { Cycle: 'Every run starts at a random hour and the day keeps moving.', Day: 'Bright midday the whole run. Nowhere for you to hide.', Dawn: 'Frozen at first light: long shadows, lamps still on.', Dusk: 'Frozen at sunset: half-lit streets and long shadows.', Night: 'Pitch dark the whole run. Lamps, windows and flashlights only.' };
 const multLabel = ids => { const m = modMult(ids); return Math.abs(m - 1) < .005 ? 'Normal rewards' : 'Rewards x' + m.toFixed(2); };
 function showModifiers() {
   const ids = new Set(SETTINGS.mods || []);
   overlay.className = 'menuMode';
-  overlay.innerHTML = `<div class="panel mods"><div class="chhead"><h1>Modifiers</h1><span class="coinpill" id="mm">${multLabel([...ids])}</span></div>
-    <p class="lead">Change how the next run plays. Harder modifiers pay more XP, chips and score.</p>
-    <div class="modlist">${MODS.map((m, i) => `${i === 0 || MODS[i - 1].g !== m.g ? `<h3 class="mg">${m.g}</h3>` : ''}<div class="srow2" style="--i:${i}"><div><b><i class="mic">${MOD_ICON[m.id] || ''}</i>${m.name} <em class="mpct ${m.mult > 0 ? 'up' : m.mult < 0 ? 'down' : ''}">${m.mult ? (m.mult > 0 ? '+' : '') + Math.round(m.mult * 100) + '%' : ''}</em></b><small>${m.desc}</small></div>
-      <button class="tgl ${ids.has(m.id) ? 'on' : ''}" data-sfx="none" role="switch" aria-checked="${ids.has(m.id)}" aria-label="${m.name}" data-m="${m.id}"></button></div>`).join('')}</div>
-    <div class="mbtns"><button class="btn alt" id="shufBtn" data-sfx="select">Shuffle</button><button class="btn alt" id="clrBtn" data-sfx="off">Clear</button><button class="btn" id="backBtn" data-sfx="confirm">Done</button></div></div>`;
+  let lastG = '';
+  overlay.innerHTML = `<div class="panel mods"><div class="chhead"><h1>Modifiers</h1><span class="mcount" id="mcount"></span><span class="coinpill" id="mm">${multLabel([...ids])}</span></div>
+    <p class="lead">Change how the next run plays. Hover any modifier for exactly what it does. Harder ones pay more XP, chips and score.</p>
+    <div class="modgrid">${MODS.map((m, i) => { const head = m.g !== lastG ? `<h3 class="mg">${(lastG = m.g)}</h3>` : '';
+      return `${head}<button class="mtile ${ids.has(m.id) ? 'on' : ''}" data-sfx="none" data-m="${m.id}" role="switch" aria-checked="${ids.has(m.id)}" style="--i:${i}" data-tiph="${attr(modTip(m))}">
+        <i class="mic">${MOD_ICON[m.id] || ''}</i><span class="mtx"><b>${m.name}</b><small>${m.desc}</small></span><em class="mpct ${m.mult > 0 ? 'up' : m.mult < 0 ? 'down' : ''}">${m.mult ? (m.mult > 0 ? '+' : '') + Math.round(m.mult * 100) + '%' : ''}</em><span class="mck"></span></button>`; }).join('')}</div>
+    <div class="mbtns"><label class="mfollow ${ids.has('freeMove') ? '' : 'dim'}" data-tip="Free movement only: the snake heads toward your mouse cursor while it's over the game."><button class="tgl ${SETTINGS.mouseFollow ? 'on' : ''}" id="mfTgl" data-sfx="none" role="switch" aria-checked="${!!SETTINGS.mouseFollow}"></button>Mouse steering</label>
+      <span class="sp"></span><button class="btn alt" id="shufBtn" data-sfx="select">Shuffle</button><button class="btn alt" id="clrBtn" data-sfx="off">Clear</button><button class="btn" id="backBtn" data-sfx="confirm">Done</button></div></div>`;
   const sync = () => {
     SETTINGS.mods = [...ids]; saveSettings();
-    overlay.querySelectorAll('.tgl[data-m]').forEach(t => { t.classList.toggle('on', ids.has(t.dataset.m)); t.setAttribute('aria-checked', ids.has(t.dataset.m)); });
+    overlay.querySelectorAll('.mtile').forEach(t => { t.classList.toggle('on', ids.has(t.dataset.m)); t.setAttribute('aria-checked', ids.has(t.dataset.m)); });
     document.getElementById('mm').textContent = multLabel([...ids]);
+    document.getElementById('mcount').textContent = ids.size ? ids.size + ' active' : '';
+    overlay.querySelector('.mfollow').classList.toggle('dim', !ids.has('freeMove'));
   };
-  overlay.querySelectorAll('.tgl[data-m]').forEach(t => t.onclick = () => {
+  overlay.querySelectorAll('.mtile').forEach(t => t.onclick = () => {
     const m = MODS.find(q => q.id === t.dataset.m);
     if (ids.has(m.id)) { ids.delete(m.id); Sfx.ui('off'); } else { ids.add(m.id); (m.not || []).forEach(n => ids.delete(n)); MODS.forEach(q => (q.not || []).includes(m.id) && ids.delete(q.id)); Sfx.ui('on'); }
+    t.classList.remove('pop'); void t.offsetWidth; t.classList.add('pop');
     sync();
   });
+  document.getElementById('mfTgl').onclick = e => { const b = e.currentTarget; SETTINGS.mouseFollow = !SETTINGS.mouseFollow; b.classList.toggle('on', SETTINGS.mouseFollow); b.setAttribute('aria-checked', SETTINGS.mouseFollow); Sfx.ui(SETTINGS.mouseFollow ? 'on' : 'off'); saveSettings(); };
   document.getElementById('shufBtn').onclick = () => {
-    ids.clear(); randomMods(randi(4, 8)).forEach(id => ids.add(id)); // a properly different run
+    const keep = [...ids].filter(id => { const g = (MODS.find(m => m.id === id) || {}).g; return g === 'Style' || g === 'Controls'; }); // your own style/control picks stay
+    ids.clear(); keep.forEach(id => ids.add(id)); randomMods(randi(9, 14)).forEach(id => ids.add(id)); // a properly different run
+    overlay.querySelectorAll('.mtile').forEach((t, i) => { t.classList.remove('shuf'); void t.offsetWidth; t.style.setProperty('--d', (i * 12) + 'ms'); t.classList.add('shuf'); });
     sync();
   };
   document.getElementById('clrBtn').onclick = () => { ids.clear(); sync(); };
   document.getElementById('backBtn').onclick = () => transitionTo(showMenu);
+  sync();
 }
 function showChallenges(keepAnim) { // long-term achievements; each one unlocks a cosmetic that matches it
   const order = { easy: 0, medium: 1, hard: 2, rare: 3 }, list = [...ACH].sort((p, q) => (!!PROG.ach[p.id] - !!PROG.ach[q.id]) || order[p.tier] - order[q.tier]);
@@ -223,36 +236,41 @@ const SETTING_TABS = {
   Gameplay: { icon: '🎮', lead: 'How the world behaves around you.', rows: [
     ['slider', 'creatureSpeed', 'Creature speed', 'How fast people and animals move.', .3, 1.2, .05],
     ['toggle', 'noticeSnake', 'People spot the snake', 'People run when they see you, not only after a kill.'],
+    ['seg', 'timeMode', 'Time of day', 'Dynamic starts every run at a random hour and lets the day move on. The others stay fixed.', ['Cycle', 'Day', 'Dawn', 'Dusk', 'Night'], null, null, null, TIME_MODES],
     ['seg', 'bloodFade', 'Blood fades', 'How long blood stays on the ground and walls.', ['Never', 'Slow', 'Normal', 'Fast']]] },
   Graphics: { icon: '🖥️', lead: 'Look and feel of the picture.', rows: [
     ['slider', 'darkness', 'Darkness', 'Overall dimness of the scene.', 0, .7, .05],
     ['slider', 'pixel', 'Pixelation', 'Chunky pixel look. Off shows full detail.', 1, 8, 1],
+    ['seg', 'lightQ', 'Lighting', 'High: full dynamic lighting. Medium: fewer moving shadows. Low: baked shadows only, cheapest.', ['Low', 'Medium', 'High']],
+    ['toggle', 'dynShadows', 'Moving shadows', 'People, animals and the snake cast shadows from lamps and flashlights.'],
+    ['seg', 'fxLevel', 'Effects', 'Amount of blood mist, sparks, insects and other particles.', ['Low', 'Normal', 'High']],
     ['toggle', 'vignette', 'Kill vignette', 'A red pulse at the screen edges when you eat.'],
     ['toggle', 'desaturate', 'Color drain', 'Briefly drains color after a kill.'],
     ['toggle', 'shake', 'Screen shake', 'Shake the camera on kills and crashes.']] },
   Audio: { icon: '🔊', lead: 'Everything you hear.', rows: [
     ['slider', 'volume', 'Master volume', 'All game sounds.', 0, 1, .05],
     ['toggle', 'uiSounds', 'Menu sounds', 'Hover and click sounds in menus.']] },
-  Controls: { icon: '⌨️', lead: 'Keys you can use while playing.', keys: [
+  Controls: { icon: '⌨️', lead: 'Keys you can use while playing. On a phone or tablet, drag anywhere on the board to steer.', keys: [
     ['W A S D', 'Move. Hold two keys to go diagonal. Let go to keep going straight.'], ['Arrows', 'Also move'],
-    ['F', 'Night vision'], ['Space', 'Start, skip the intro, play again'], ['Esc', 'Back to the menu']] },
+    ['F', 'Night vision'], ['Shift', 'Lunge (upgrade)'], ['Q', 'Camouflage (upgrade)'], ['E', 'Scent (upgrade)'], ['R', 'Hiss (upgrade)'],
+    ['Mouse', 'Steer with the cursor (Free movement modifier + Mouse steering)'], ['Space', 'Start, skip the intro, play again'], ['Esc', 'Pause, back']] },
   Accessibility: { icon: '♿', lead: 'Make the game easier to see and use.', rows: [
     ['toggle', 'reduceMotion', 'Reduce motion', 'Turns off menu animations, floating buttons and the intro zoom.'],
     ['seg', 'uiScale', 'UI scale', 'Size of menus, HUD, notifications and buttons. Auto follows the size of the game.', ['Small', 'Medium', 'Large', 'Extra Large', 'Auto']],
     ['seg', 'bubbleSize', 'Speech bubble size', 'Text size of what people shout.', ['Small', 'Normal', 'Large']],
     ['seg', 'snakeOutline', 'Snake outline', 'A thin rim that keeps the snake easy to spot on any ground.', ['Off', 'Subtle', 'Strong']],
-    ['toggle', 'strongOutlines', 'Strong outlines', 'Thicker outlines around everything you can crash into.']] },
+    ['seg', 'mapOutlines', 'Map outlines', 'Dark edges around walls and everything else you can crash into.', ['Off', 'Subtle', 'Strong']]] },
 };
 let settingsTab = 'Gameplay';
 function settingsBody(tab) {
   const t = SETTING_TABS[tab];
   let html = `<h2>${tab}</h2><p class="lead">${t.lead}</p>`;
   if (t.keys) return html + `<div class="keylist">${t.keys.map(([k, d], i) => `<kbd style="--i:${i * 2}">${k}</kbd><span style="--i:${i * 2 + 1}">${d}</span>`).join('')}</div>`;
-  return html + t.rows.map(([type, k, label, desc, a, b, c, when], i) => {
+  return html + t.rows.map(([type, k, label, desc, a, b, c, when, names], i) => {
     let ctl = '';
     if (type === 'toggle') ctl = `<button class="tgl ${SETTINGS[k] ? 'on' : ''}" data-sfx="none" role="switch" aria-checked="${!!SETTINGS[k]}" aria-label="${label}" data-k="${k}"></button>`;
     if (type === 'slider') ctl = `<div class="rng"><input type="range" data-k="${k}" min="${a}" max="${b}" step="${c}" value="${SETTINGS[k]}" aria-label="${label}" style="--v:${((SETTINGS[k] - a) / (b - a) * 100).toFixed(1)}%"><output>${fmtSetting(k, SETTINGS[k])}</output></div>`;
-    if (type === 'seg') ctl = `<div class="sseg" data-k="${k}"><i class="sthumb"></i>${a.map(o => `<button class="${o === SETTINGS[k] ? 'on' : ''}" data-sfx="tab" data-v="${o}">${o}</button>`).join('')}</div>`;
+    if (type === 'seg') ctl = `<div class="sseg" data-k="${k}"><i class="sthumb"></i>${a.map(o => `<button class="${o === SETTINGS[k] ? 'on' : ''}" data-sfx="tab" data-v="${o}">${names ? names[o] : o}</button>`).join('')}</div>`;
     const dim = when && !when() ? 'dim' : '';
     return `<div class="srow2 ${dim}" style="--i:${i}" data-row="${k}"><div><b>${label}</b><small>${desc}</small></div>${ctl}</div>`;
   }).join('');
@@ -261,7 +279,7 @@ function applySetting(k) { // side effects of a setting change
   saveSettings();
   if (k === 'reduceMotion') document.body.classList.toggle('calm', !!SETTINGS.reduceMotion);
   if (k === 'uiScale') { applyUiScale(); requestAnimationFrame(() => overlay.querySelectorAll('.seg,.sseg').forEach(sg => placeThumb(sg, true))); }
-  if (k === 'strongOutlines') bakeOutline();
+  if (k === 'mapOutlines') bakeOutline();
   if (k === 'timeMode') { const t = SETTING_TABS.Gameplay.rows; overlay.querySelectorAll('[data-row]').forEach(r => { const row = t.find(x => x[1] === r.dataset.row); if (row && row[7]) r.classList.toggle('dim', !row[7]()); }); }
 }
 function wireSettings(body) {

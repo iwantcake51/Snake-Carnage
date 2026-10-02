@@ -11,8 +11,8 @@ Browser game, plain HTML/CSS/JS, no build step. Deployed with Netlify.
 
 - `index.html`: the page. It loads `css/style.css`, then `js/01-…js` to `js/NN-…js` **in numeric order**.
 - The JS files are classic scripts that share one global scope. Load order matters for top-level code, so when you add a file, give it a number in the right spot and add its `<script>` tag to `index.html`.
-- One system per file: `05-maps`, `13-challenges` (map challenges), `14-modifiers`, `18-time-of-day`, `19-light-shadows`, `20-flashlights`, `23-giblets`, `25-dialogue`, `26-creature-ai`, `27-crowds`, `33-update` (main update loop), `34-render` (render and frame loop), `35-notify` (notifications), `36-cosmetics` (shop catalog, lifetime achievements and their cosmetic rewards), `37-shop` (shop UI and custom color picker), and so on.
-- `38-boot.js` must stay last: it builds the first menu and starts the frame loop after every other file has loaded.
+- One system per file: `05-maps`, `13-challenges` (map challenges), `14-modifiers`, `18-time-of-day`, `19-light-shadows`, `20-flashlights`, `23-giblets`, `25-dialogue`, `26-creature-ai`, `27-crowds`, `33-update` (main update loop), `34-render` (render and frame loop), `35-notify` (notifications), `36-cosmetics` (shop catalog, lifetime achievements and their cosmetic rewards), `37-shop` (shop UI and custom color picker), `38-upgrades` (upgrades, abilities, battering ram, the `NET` multiplayer hook), `39-progress` (permanent and secret challenges), `40-summary` (end-of-run summary), and so on.
+- `41-boot.js` must stay last: it builds the first menu and starts the frame loop after every other file has loaded.
 
 ## Testing
 

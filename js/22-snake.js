@@ -4,7 +4,7 @@
    SNAKE
    ========================================================= */
 function newSnake(st) {
-  const s = { x: st.x, y: st.y, angle: st.a, dir: st.a, speed: CONFIG.snakeSpeeds[selSpeed] * (MOD.fastSnake ? 1.25 : 1), hist: [], segs: [],
+  const s = { x: st.x, y: st.y, angle: st.a, dir: st.a, speed: CONFIG.snakeSpeeds.Normal * speedMult() * (MOD.fastSnake ? 1.25 : 1), hist: [], segs: [],
               len: CONFIG.startLen, stains: [], started: false, alive: true, drip: 0, dripT: 0 };
   for (let k = 1; k <= 40; k++) s.hist.push({ x: st.x - Math.cos(st.a) * k * 2, y: st.y - Math.sin(st.a) * k * 2 });
   for (let i = 0; i < s.len; i++) s.stains.push([]);
@@ -40,11 +40,14 @@ function computeSegs(s) {
 
 function updateSnake(dt) {
   const s = snake; if (!s.started || !s.alive) return;
+  if (MOD.freeMove) steerFree(dt);
   // ease toward the target heading: quick to start, settles softly, capped so it never snaps
   const d = angDiff(s.angle, s.dir), mx = CONFIG.turnRate * dt;
   s.angle += Math.abs(d) < .002 ? d : clamp(d * Math.min(1, dt * CONFIG.turnEase) + Math.sign(d) * mx * .18, -mx, mx);
+  for (const k of ['dashT', 'camoT', 'scentT', 'hissT', 'ramT']) if (s[k] > 0) s[k] -= dt;
+  const v = s.speed * (s.dashT > 0 ? 1.8 : 1) * (s.ramT > 0 ? .8 : 1); // a lunge, or a stagger after smashing through something
   // unit vector * speed => identical speed in all 8 directions
-  s.x += Math.cos(s.angle) * s.speed * dt; s.y += Math.sin(s.angle) * s.speed * dt;
+  s.x += Math.cos(s.angle) * v * dt; s.y += Math.sin(s.angle) * v * dt;
   if (!s.hist.length || dist2(s.hist[0].x, s.hist[0].y, s.x, s.y) > 2.25) s.hist.unshift({ x: s.x, y: s.y });
   computeSegs(s);
   smearBlood(s, dt);
@@ -53,8 +56,10 @@ function updateSnake(dt) {
   const r = CONFIG.snakeR * .8;
   const hx = s.x + Math.cos(s.angle) * 2, hy = s.y + Math.sin(s.angle) * 2;
   for (const o of obstacles) if (o.kind === 'lamp' && dist2(hx, hy, o.x, o.y) < (CONFIG.snakeR * .72 + o.r) ** 2) { breakLamp(o, s.angle); break; } // posts snap instead of stopping you
-  if (hitObstacle(hx, hy, CONFIG.snakeR * .72)) return die();
-  for (let i = 8; i < s.segs.length; i++) if (dist2(s.x, s.y, s.segs[i].x, s.segs[i].y) < (CONFIG.snakeR * 1.1) ** 2) return die();
+  const hitO = obstacleHitBy(hx, hy, CONFIG.snakeR * .72);
+  if (hitO && canRam(hitO)) smashObstacle(hitO, s.angle); // Battering Ram: furniture gives way
+  else if (hitO) return die();
+  for (let i = 8; i < s.segs.length; i++) if (dist2(s.x, s.y, s.segs[i].x, s.segs[i].y) < (CONFIG.snakeR * 1.1) ** 2) { if (s.segs.length >= 60) { PROG.ouro = 1; checkAch(); } return die(); }
 
   let ate = false;
   for (const c of creatures) if (c.alive && dist2(s.x, s.y, c.x, c.y) < (r + c.def.r) ** 2) { eat(c); ate = true; }
@@ -172,7 +177,7 @@ function eat(c) {
   c.def.human ? (kills.h++, run.humans++) : (kills.a++, run.animals++);
   run.byType[c.type] = (run.byType[c.type] || 0) + 1; run.killed++; if (c.golden) { run.goldens++; c.def.human ? PROG.goldH = (PROG.goldH || 0) + 1 : PROG.goldA = (PROG.goldA || 0) + 1; } // lifetime golden tally
   const kxp = Math.round((c.def.human ? 12 : c.def.score * 4) * gold * rewardMult * mb.m);
-  crEat(c, pts, kxp); statEat(c);
+  crEat(c, pts, kxp); statEat(c); progressEat(c);
   gainXP(kxp, Math.max(1, Math.round(c.def.score * .6 * gold * rewardMult * mb.m)));
   modHud();
   shake = Math.min(CONFIG.shakeMax, shake + 2 + 12 * amount);

@@ -122,7 +122,7 @@ kbd{display:inline-block;min-width:22px;text-align:center;background:#231d20;bor
 /* menu */
 .menu{padding:66px 46px}
 /* one shared UI parallax layer; background layers move less in the same direction */
-.mleft,.mright,.panel,.casewin{translate:var(--ux) var(--uy);transition:translate .3s var(--ease)}
+.casewin{translate:var(--ux) var(--uy);transition:translate .3s var(--ease)}
 .logo .l1{position:relative;display:inline-block;width:max-content;font-size:36px;
   background:radial-gradient(circle at 12% 74%,#9e0b10 0 10%,transparent 11%),radial-gradient(circle at 31% 28%,#7e0609 0 7%,transparent 8%),
     radial-gradient(ellipse 18% 12% at 58% 82%,#a10d12 0 70%,transparent 72%),radial-gradient(circle at 70% 22%,#8b080c 0 5%,transparent 6%),
@@ -146,8 +146,6 @@ kbd{display:inline-block;min-width:22px;text-align:center;background:#231d20;bor
 @keyframes floatA{0%,100%{translate:0 0;rotate:-.5deg}50%{translate:0 -3px;rotate:.6deg}}
 @keyframes floatB{0%,100%{translate:0 0;rotate:.6deg}50%{translate:0 -2px;rotate:-.7deg}}
 @keyframes floatC{0%,100%{translate:0 -1px;rotate:-.9deg}50%{translate:0 2px;rotate:.5deg}}
-.mrow .ghost:first-child{animation:floatB 5.2s ease-in-out infinite}
-.mrow .ghost:last-child{animation:floatC 4.6s ease-in-out .8s infinite}
 .keys kbd{display:inline-block;animation:floatB 6s ease-in-out infinite}
 .keys span:nth-child(2n) kbd{animation:floatC 5.4s ease-in-out -2s infinite}
 /* entrance */
@@ -157,7 +155,7 @@ kbd{display:inline-block;min-width:22px;text-align:center;background:#231d20;bor
 .menu .mleft>*{animation:inLeft .6s var(--ease) backwards}
 .menu .mleft>:nth-child(1){animation-delay:.04s}.menu .mleft>:nth-child(2){animation-delay:.1s}.menu .mleft>:nth-child(3){animation-delay:.16s}
 .menu .mleft>:nth-child(5){animation-delay:.26s}.menu .mleft>:nth-child(6){animation-delay:.3s}.menu .mleft>:nth-child(7){animation-delay:.36s}.menu .mleft>:nth-child(8){animation-delay:.42s}
-.menu .play{animation:inLeft .6s var(--ease) .22s backwards,floatA 4.2s ease-in-out infinite}
+.menu .play{animation:inLeft .6s var(--ease) .22s backwards}
 .menu .splat{animation:splatIn .8s var(--spring) .15s backwards}
 .mright h2{animation:inLeft .5s var(--ease) .1s backwards}
 /* map cards */
@@ -456,9 +454,11 @@ body.minimal #chhud{display:none}
 #modbar .mb.mult.down{color:#eaf3ff;background:linear-gradient(180deg,#5b7fae,#3d5f8e)}
 #stage.bars #modbar{opacity:0;transition:opacity .3s}
 [data-tip]{position:relative}
-[data-tip]:hover::after{content:attr(data-tip);position:absolute;left:50%;top:calc(100% + 8px);translate:-50% 0;z-index:60;width:max-content;max-width:240px;padding:7px 10px;border-radius:8px;
-  font:500 12px/1.35 "Segoe UI",system-ui,sans-serif;color:#efe8e1;text-align:left;white-space:normal;background:rgba(14,12,16,.95);box-shadow:0 0 0 1px rgba(255,255,255,.12),0 8px 24px rgba(0,0,0,.5);pointer-events:none;animation:tipIn .18s ease-out}
-@keyframes tipIn{from{opacity:0;translate:-50% -4px}}
+#tip{position:fixed;left:0;top:0;z-index:9999;max-width:290px;padding:9px 12px 10px;border-radius:9px;font:500 12.5px/1.42 "Segoe UI",system-ui,sans-serif;color:#efe8e1;
+  background:#141015;border:1px solid #3a2d33;box-shadow:0 10px 28px rgba(0,0,0,.6);pointer-events:none;opacity:0;transform:translateY(4px);transition:opacity .14s,transform .14s}
+#tip.on{opacity:1;transform:none}
+#tip b{color:#fff;font-weight:700}#tip em{font-style:normal;color:#ffcf33}#tip .tdim{display:block;margin-top:5px;color:#9b8f88;font-size:11.5px}
+#tip .thead{display:block;font-weight:800;color:#fff;margin-bottom:3px;font-size:13px}
 .mchip.mult.down{background:#3d5f8e;color:#eaf3ff}
 .mic{font-style:normal;margin-right:6px}
 #combo.banked .cbar span{background:linear-gradient(90deg,#ffcf33,#fff3b0);box-shadow:0 0 8px rgba(255,220,120,.7)}
@@ -657,7 +657,203 @@ body.cs-chip-stack .card{box-shadow:0 0 0 2px #2e7d4f,0 0 0 4px #ffcf33,0 8px 18
 .menu{padding-top:8%;padding-bottom:8%}
 /* UI scale: one knob for every HUD/menu layer */
 :root{--ui:1}
-#overlay{zoom:var(--ui)}
-#combo,#rewards,#chhud,#modhud,#modbar,#notes,#resume,#lvlup,#intro .iname{zoom:var(--ui)}
+/* scaled with transforms, not zoom: zoom breaks hit-testing in some browsers (buttons that look fine but can't be clicked) */
+#overlay,.hudLayer{inset:auto;left:0;top:0;width:calc(100% / var(--ui));height:calc(100% / var(--ui));transform:scale(var(--ui));transform-origin:0 0}
+.hudLayer{position:absolute;pointer-events:none}
+#hudLo{z-index:12}
+#hudHi{z-index:21}
+#intro .iname{scale:var(--ui)}
 #bar{font-size:calc(18px * var(--ui))}
 #notes,#modbar{max-width:70%}
+
+/* =========================================================
+   v1.12
+   ========================================================= */
+/* scrollbars: thin, dark, part of the game rather than the browser */
+*{scrollbar-width:thin;scrollbar-color:#4a2a31 transparent}
+*::-webkit-scrollbar{width:8px;height:8px}
+*::-webkit-scrollbar-track,*::-webkit-scrollbar-corner{background:transparent}
+*::-webkit-scrollbar-thumb{background:#3b252a;border-radius:8px;border:2px solid transparent;background-clip:padding-box}
+*::-webkit-scrollbar-thumb:hover{background:#6b2a33;background-clip:padding-box}
+.noscroll{scrollbar-width:none}.noscroll::-webkit-scrollbar{display:none}
+
+/* modifiers: a big browsable grid of tiles, no side scrollbar */
+.panel.mods{width:min(1120px,97%);height:min(720px,94%);max-height:none;display:flex;flex-direction:column;padding:22px 26px 18px}
+.panel.mods .chhead{display:flex;align-items:center;gap:12px}
+.panel.mods .chhead h1{margin-right:auto}
+.mcount{font:700 12px "Segoe UI",system-ui,sans-serif;color:#c9bdb4;background:#2a1d21;padding:4px 10px;border-radius:999px}
+.mcount:empty{display:none}
+.modgrid{flex:1;min-height:0;overflow-y:auto;scrollbar-width:none;display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:7px;align-content:start;padding:2px 2px 12px;
+  -webkit-mask-image:linear-gradient(#000 0,#000 calc(100% - 22px),transparent);mask-image:linear-gradient(#000 0,#000 calc(100% - 22px),transparent)}
+.modgrid::-webkit-scrollbar{display:none}
+.modgrid .mg{grid-column:1/-1;margin:10px 0 0;font:800 11px "Segoe UI",system-ui,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#b8343a}
+.modgrid .mg:first-child{margin-top:0}
+.mtile{position:relative;display:grid;grid-template-columns:30px 1fr auto;align-items:center;gap:9px;padding:9px 34px 9px 10px;text-align:left;border-radius:10px;cursor:pointer;
+  background:#1d171a;border:1px solid #2c2226;color:#e6ddd5;font-family:inherit;transition:background .15s,border-color .15s,translate .15s;animation:tileIn .35s var(--ease) backwards;animation-delay:calc(var(--i) * 9ms)}
+.mtile:hover{background:#261c20;border-color:#47333a;translate:0 -1px}
+.mtile .mic{display:grid;place-items:center;width:30px;height:30px;border-radius:8px;background:#2a2024;font-size:16px;margin:0}
+.mtile .mtx{min-width:0}
+.mtile b{display:block;font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mtile small{display:block;font-size:11.5px;color:#9a8e86;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.mtile .mpct{margin:0;font-size:11.5px}
+.mtile .mck{position:absolute;right:10px;top:50%;width:16px;height:16px;margin-top:-8px;border-radius:5px;border:2px solid #4a3a40;transition:background .15s,border-color .15s}
+.mtile.on{background:#2e1a1e;border-color:#b3262d;box-shadow:inset 0 0 0 1px rgba(208,25,31,.35)}
+.mtile.on .mic{background:#5a1a20}
+.mtile.on .mck{background:#d0191f;border-color:#d0191f}
+.mtile.on .mck::after{content:'';position:absolute;left:3px;top:0;width:4px;height:8px;border:solid #fff;border-width:0 2px 2px 0;rotate:40deg}
+.mtile.pop{animation:tilePop .28s var(--spring)}
+.mtile.shuf{animation:tileShuf .4s var(--ease) backwards;animation-delay:var(--d)}
+@keyframes tileIn{from{opacity:0;translate:0 6px}}
+@keyframes tilePop{40%{scale:.96}}
+@keyframes tileShuf{from{opacity:.2;scale:.94}}
+.panel.mods .mbtns{align-items:center;margin-top:12px}
+.panel.mods .mbtns .sp{flex:1}
+.mfollow{display:flex;align-items:center;gap:9px;font-size:13px;font-weight:600;color:#d8cfc7;cursor:pointer;transition:opacity .2s}
+.mfollow.dim{opacity:.4}
+
+/* pause: two columns, always fits */
+.panel.pause{width:min(820px,96%);max-height:none;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:26px;text-align:left;padding:26px 28px;overflow:visible}
+.panel.pause .pl{display:flex;flex-direction:column}
+.panel.pause h1{text-align:left;margin:0}
+.panel.pause .pmap{color:#9b8f88;font-size:13px;margin:2px 0 4px}
+.panel.pause .stats{justify-content:flex-start;gap:26px;margin:12px 0 8px}
+.panel.pause .modline{justify-content:flex-start;margin:4px 0}
+.panel.pause .pbtns{margin-top:auto;padding-top:14px}
+.panel.pause .small{text-align:left;margin-top:10px}
+.panel.pause .pr h3{font:800 11px "Segoe UI",system-ui,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#b8343a;margin:6px 0 8px}
+.panel.pause .pch{margin-top:0}
+.panel.pause .pcr{font-size:12px}
+#overlay.pauseMode{background:radial-gradient(ellipse at center,rgba(20,8,10,.55),rgba(6,3,4,.88))}
+
+/* paused board: drained of color while you're paused or waiting to steer */
+#c{transition:filter .35s}
+#stage.paused #c{filter:grayscale(.85) brightness(.62) contrast(1.05)!important}
+#stage.paused::after{content:'';position:absolute;inset:0;z-index:11;pointer-events:none;border-radius:0 0 10px 10px;
+  background:repeating-linear-gradient(0deg,rgba(0,0,0,.08) 0 2px,transparent 2px 4px),radial-gradient(ellipse at center,transparent 45%,rgba(0,0,0,.55));animation:fadeIn .3s ease}
+
+/* resume prompt: dead center */
+#resume{left:50%;top:50%;bottom:auto;translate:-50% -50%}
+#resume .rp{padding:11px 18px;font-size:14px}
+#resume.gone .rp{animation:resumeOut .3s ease-in forwards}
+@keyframes resumeOut{to{opacity:0;scale:.92;filter:blur(2px)}}
+
+/* time of day picker in the menu */
+.seg.tseg button{font-size:13px;padding:8px 0}
+
+/* end-of-run summary */
+#overlay.sumMode{background:radial-gradient(ellipse at 50% 30%,rgba(40,6,10,.72),rgba(6,3,4,.94))}
+.panel.sum{width:min(860px,97%);max-height:none;padding:24px 28px 18px;text-align:left;overflow:visible}
+.sum .sh{display:flex;align-items:baseline;gap:14px;margin-bottom:12px}
+.sum .sh h1{font-size:34px;letter-spacing:.01em}
+.sum .smap{color:#9b8f88;font-size:13.5px}
+.sum [style*="--d"]{animation:sumIn .55s var(--ease) backwards;animation-delay:var(--d)}
+@keyframes sumIn{from{opacity:0;translate:0 10px;filter:blur(3px)}}
+.srow{display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;gap:8px}
+.srow>div{background:#1d171a;border:1px solid #2c2226;border-radius:12px;padding:10px 14px;display:flex;flex-direction:column}
+.srow b{font:400 34px/1 Impact,Haettenschweiler,"Arial Narrow Bold",sans-serif;color:#fff;letter-spacing:.02em}
+.srow .sbig b{font-size:46px;color:#fff;text-shadow:3px 3px 0 #5a0508}
+.srow span{font-size:12px;color:#9b8f88;margin-top:4px;display:flex;gap:8px;align-items:center}
+.srow em{font-style:normal;font-weight:700;color:#c9bdb4}.srow em.pb{color:#ffcf33}
+.sxp{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;margin:10px 0 4px;padding:10px 14px;background:#1d171a;border:1px solid #2c2226;border-radius:12px}
+.slv{font-weight:700;color:#d8cfc7;padding:3px 10px;border-radius:8px;transition:background .5s,color .5s}
+.slv.hit{background:linear-gradient(90deg,#ffcf33,#ff9a3d);color:#2a1206;animation:lvlhit .75s var(--spring)}
+.sbar{position:relative;height:18px;border-radius:9px;background:#2a2326;overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,.6)}
+.sfill{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#a3101a,#ff4d4d);border-radius:9px}
+.sfill.instant{transition:none}
+.stxt{position:absolute;inset:0;display:grid;place-items:center;font:700 11px "Segoe UI",system-ui,sans-serif;color:#fff;text-shadow:0 1px 2px #000}
+.sgain{display:flex;gap:12px;font-size:14px}.sgain .c{color:#ffcf33;display:flex;align-items:center;gap:4px}
+.scols{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:18px;margin-top:12px}
+.sum h3{font:800 11px "Segoe UI",system-ui,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#b8343a;margin:6px 0 8px}
+.egrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+.et{display:grid;grid-template-columns:40px 1fr auto;align-items:center;gap:8px;padding:5px 10px 5px 5px;border-radius:10px;background:#1d171a;border:1px solid #2c2226}
+.et img{width:40px;height:40px;border-radius:8px;background:radial-gradient(circle,#3a4a2e,#1f2a18)}
+.et b{font-size:13px;font-weight:700;color:#e6ddd5;text-transform:capitalize}
+.et em{font-style:normal;font:400 22px/1 Impact,Haettenschweiler,"Arial Narrow Bold",sans-serif;color:#fff}
+.et em .done{animation:numPop .3s var(--spring)}
+@keyframes numPop{50%{scale:1.3;color:#ffcf33}}
+.slist{list-style:none;display:flex;flex-direction:column;gap:5px}
+.slist li{display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:9px;background:#1d171a;border:1px solid #2c2226;font-size:13px}
+.slist .perm{font-style:normal;font-size:10px;font-weight:800;color:#ffcf33;border:1px solid rgba(255,207,51,.4);padding:0 5px;border-radius:999px}
+.slist .un{align-items:flex-start}
+.slist .uic{font-style:normal;font-size:16px;line-height:1.2}
+.slist .un small{display:block;color:#9b8f88;font-size:11.5px}
+.sum .none{color:#7d726c;font-size:13px;font-style:italic}
+.pbtns.row{flex-direction:row}
+.pbtns.row .btn{flex:1}
+.sum .small{text-align:center}
+
+/* upgrades */
+.panel.upg{width:min(1000px,97%);max-height:none;text-align:left;display:flex;flex-direction:column;padding:22px 26px 18px}
+.upgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:10px;margin-top:10px}
+.upc{display:flex;flex-direction:column;gap:8px;padding:12px 14px;border-radius:12px;background:#1d171a;border:1px solid #2c2226;animation:tileIn .4s var(--ease) backwards;animation-delay:calc(var(--i) * 40ms)}
+.upc.own{border-color:#4a2a30}
+.upc.off{opacity:.55}
+.uph{display:grid;grid-template-columns:38px 1fr;gap:10px;align-items:center}
+.upicon{display:grid;place-items:center;width:38px;height:38px;border-radius:10px;background:#2a1d21;color:#ff6a5a}
+.upc.own .upicon{background:#5a1a20;color:#ffd9d4}
+.upi{width:22px;height:22px}
+.uph b{font-size:15px;color:#fff}
+.ukey{font-style:normal;font-size:10.5px;font-weight:800;margin-left:7px;padding:1px 6px;border-radius:5px;background:#2e2a2c;color:#d8cfc7;border:1px solid #47403f}
+.uph small{display:block;color:#9b8f88;font-size:12px;margin-top:1px}
+.uptiers{list-style:none;display:flex;flex-direction:column;gap:3px;font-size:12px;color:#7d726c}
+.uptiers li::before{content:'';display:inline-block;width:6px;height:6px;border-radius:2px;background:#3a2d32;margin-right:7px;vertical-align:1px}
+.uptiers li.got{color:#cfe8d2}.uptiers li.got::before{background:#3f9a4a}
+.uptiers li.next{color:#ffe6a0}.uptiers li.next::before{background:#ffcf33}
+.upf{display:flex;align-items:center;gap:10px;margin-top:auto}
+.upf .pips{display:flex;gap:4px;margin-right:auto}
+.upf .pips i{width:18px;height:5px;border-radius:3px;background:#3a2d32}.upf .pips i.on{background:#d0191f}
+.upf .btn{margin:0;padding:7px 14px;font-size:14px;display:flex;align-items:center;gap:5px}
+.upf .btn[disabled]{opacity:.5;cursor:default}
+.upf .maxed{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#8fdc9b}
+.tgl.sm{width:38px;height:22px}.tgl.sm::after{width:16px;height:16px}.tgl.sm.on::after{left:19px}
+.upmsg{margin-right:auto;font-size:13px;color:#ffcf33}
+.ghost .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#ffcf33;margin-left:7px;vertical-align:2px;box-shadow:0 0 8px #ffcf33}
+
+/* abilities HUD */
+#abil{position:absolute;left:50%;bottom:12px;translate:-50% 0;display:flex;gap:8px;pointer-events:auto}
+#abil .ab{position:relative;width:40px;height:40px;border-radius:11px;display:grid;place-items:center;color:#ffd9d4;background:rgba(20,14,16,.78);border:1px solid rgba(255,255,255,.1);overflow:hidden}
+#abil .ab .cd,#touch .ab .cd{position:absolute;inset:0;background:conic-gradient(rgba(0,0,0,.62) var(--cd,0deg),transparent 0);pointer-events:none}
+#abil .ab.ready{border-color:rgba(255,106,90,.55);box-shadow:0 0 10px rgba(255,60,50,.25)}
+#abil .ab kbd{position:absolute;right:2px;bottom:1px;font:800 9px "Segoe UI",system-ui,sans-serif;color:#d8cfc7}
+#abil:empty{display:none}
+#stage.bars #abil{opacity:0}
+
+/* touch controls */
+#touch{position:absolute;inset:0;z-index:13;pointer-events:none;display:none;touch-action:none}
+body.touch #touch{display:block}
+body.touch #touch{pointer-events:auto}
+#overlay[style*="flex"]~#touch{pointer-events:none}
+#touch .stick{position:absolute;width:112px;height:112px;margin:-56px 0 0 -56px;border-radius:50%;border:2px solid rgba(255,255,255,.22);background:rgba(0,0,0,.18);opacity:0;transition:opacity .15s;pointer-events:none}
+#touch .stick.on{opacity:1}
+#touch .knob{position:absolute;left:50%;top:50%;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;background:rgba(255,255,255,.35);box-shadow:0 2px 10px rgba(0,0,0,.4)}
+#touch .tb{position:absolute;width:52px;height:52px;border-radius:16px;border:1px solid rgba(255,255,255,.18);background:rgba(16,12,14,.6);color:#f0e9e2;font:800 14px "Segoe UI",system-ui,sans-serif;display:grid;place-items:center;pointer-events:auto;touch-action:none;overflow:hidden}
+#touch .tb:active{background:rgba(208,25,31,.6)}
+#touch .tb-pause{right:12px;top:12px}
+#touch .tb-nv{right:12px;bottom:12px}
+#touch .tb-nv.on{background:rgba(60,170,90,.6)}
+#touch .tabil{position:absolute;right:74px;bottom:12px;display:flex;gap:8px}
+#touch .tabil .tb{position:relative;width:52px;height:52px}
+body.touch #abil{display:none}
+
+/* corner HUD fades when the snake gets close */
+#chhud,#modhud,#combo,#rewards,#modbar{transition:opacity .35s}
+#chhud.near,#modhud.near,#combo.near,#rewards.near,#modbar.near,#abil.near{opacity:.5}
+
+/* top bar: aligned stat icons, XP numbers on the bar */
+#bar .bstat{display:inline-flex;align-items:center;gap:6px;line-height:1}
+#bar .bstat.dim{color:#c9bdb4}
+#bar .bi{width:1em;height:1em;flex:none}
+#bar .xp{width:170px;height:16px;border-radius:8px}
+#bar .xpfill{border-radius:8px}
+#bar .xpfill::after{display:none}
+.xpt{position:absolute;inset:0;display:grid;place-items:center;font:700 10.5px/1 "Segoe UI",system-ui,sans-serif;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.9);letter-spacing:.02em;white-space:nowrap;pointer-events:none}
+
+/* level up: a compact badge, not a billboard */
+#lvlup{top:12px}
+.lu{min-width:0;padding:7px 18px 8px;border-radius:11px;display:flex;align-items:center;gap:10px}
+.lu small{font-size:11px;letter-spacing:.12em;text-transform:uppercase}
+.lu b{margin:0;font-size:32px}
+.lu em{font-size:11.5px;padding:2px 9px}
+/* clip, not hidden: a hidden overflow can still be scrolled by focus/scrollIntoView, which shoved the whole board up */
+#stage,#overlay{overflow:clip}
+#overlay.menuMode .panel.mods,#overlay.menuMode .panel.upg,#overlay .panel.sum,#overlay.menuMode .panel.pause{max-height:96%}

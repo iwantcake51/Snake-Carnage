@@ -1,7 +1,7 @@
 /* =========================================================
    LOOP
    ========================================================= */
-let UT = 0, rotT = 0; // UI clock keeps running while the world is paused
+let UT = 0, rotT = 0, abilT = 0; // UI clock keeps running while the world is paused
 function update(dt) {
   UT += dt;
   if ((rotT -= dt) <= 0) { rotT = .5; checkRotation(); updateRotClocks(); }
@@ -13,7 +13,7 @@ function update(dt) {
     return;
   }
   T += dt;
-  if (state === 'play') { updateSnake(dt); run.time += dt; crTick(dt); }
+  if (state === 'play') { updateSnake(dt); run.time += dt; crTick(dt); progressTick(dt); }
   updateCrowd();
   for (const c of creatures) if (c.alive) updateCreature(c, dt);
   updateBlood(dt); updateGiblets(dt); updateSplashes(dt);
@@ -28,6 +28,7 @@ function update(dt) {
   updateTime(dt);
   if (cam && !cam.hold) { cam.t += dt; if (state === 'intro' && cam.t > cam.dur * .8) state = 'ready'; if (cam.t >= cam.dur) cam = null; }
   updateCamFollow(dt); updateCombo(dt); updateEvents(dt);
+  if ((abilT -= dt) <= 0) { abilT = .1; abilityHud(); hudNear(); }
   if (state === 'play' && (chT -= dt) <= 0) {
     chT = .5;
     const pan = creatures.filter(c => c.alive && c.def.human && c.state === 'panic').length;
@@ -206,4 +207,19 @@ function applyView(x) { // shake, spawn zoom and look-ahead, shared by the scene
   x.translate(V.sx, V.sy);
   if (V.z) { x.translate(W / 2, H / 2); x.scale(V.z, V.z); x.translate(-V.fx, -V.fy); }
   x.translate(-V.ox, -V.oy);
+}
+const NEAR_IDS = ['chhud', 'modhud', 'combo', 'rewards', 'modbar', 'abil'];
+let nearRects = null, nearRectT = 0;
+function hudNear() { // corner UI turns half see-through while the snake is close to it
+  if (!snake) return;
+  const cr = cv.getBoundingClientRect(); if (!cr.width) return;
+  if (!nearRects || UT - nearRectT > .5) { // measure the HUD boxes in board units (twice a second is plenty)
+    nearRectT = UT; nearRects = NEAR_IDS.map(id => { const el = document.getElementById(id), r = el.getBoundingClientRect();
+      return { el, x0: (r.left - cr.left) / cr.width * W, y0: (r.top - cr.top) / cr.height * H, x1: (r.right - cr.left) / cr.width * W, y1: (r.bottom - cr.top) / cr.height * H, empty: !r.width }; });
+  }
+  const pts = snake.segs.slice(0, 12), pad = 46;
+  for (const b of nearRects) {
+    const near = !b.empty && state !== 'menu' && pts.some(g => g.x - V.ox > b.x0 - pad && g.x - V.ox < b.x1 + pad && g.y - V.oy > b.y0 - pad && g.y - V.oy < b.y1 + pad);
+    if (b.el.classList.contains('near') !== near) b.el.classList.toggle('near', near);
+  }
 }

@@ -110,7 +110,7 @@ function drawAnimal(x, c) {
   if (d.beak) { x.fillStyle = '#f2a20c'; x.beginPath(); x.moveTo(hx + d.hr - 1, -1.4); x.lineTo(hx + d.hr + 3, 0); x.lineTo(hx + d.hr - 1, 1.4); x.fill(); }
   if (d.snout) { x.fillStyle = shade(d.col, -.15); circ(x, hx + d.hr, 0, 2.2); }
 }
-function drawCreature(x, c) {
+function drawCreature(x, c, portrait) {
   if (c.hz > .3) { x.fillStyle = 'rgba(0,0,0,.18)'; ell(x, c.x, c.y, c.def.r * .9, c.def.r * .7); } // ground shadow under a hopping frog
   x.save(); x.translate(c.x, c.y - (c.hz || 0) * .6); x.rotate(c.a); if (c.hz) x.scale(1 + c.hz * .035, 1 + c.hz * .035);
   c.def.human ? drawHuman(x, c) : drawAnimal(x, c);
@@ -122,7 +122,7 @@ function drawCreature(x, c) {
     for (const t of c.stains) { x.beginPath(); x.ellipse(t.x, t.y, t.r * (t.e || 1), t.r, t.a || 0, 0, TAU); x.fill(); }
   }
   x.restore();
-  if (c.def.human && c.state !== 'wander' && c.state !== 'idle' && !(c.bubbles && c.bubbles.some(b => b.delay <= 0))) {
+  if (!portrait && c.def.human && c.state !== 'wander' && c.state !== 'idle' && !(c.bubbles && c.bubbles.some(b => b.delay <= 0))) {
     x.font = 'bold 13px sans-serif'; x.textAlign = 'center';
     x.fillStyle = c.state === 'panic' ? '#d00' : c.state === 'flee' ? '#e67e00' : '#555';
     x.fillText(c.state === 'uneasy' ? '?' : '!', c.x, c.y - 13);

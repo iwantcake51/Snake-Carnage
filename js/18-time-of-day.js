@@ -3,7 +3,8 @@
    ========================================================= */
 const HEIGHTS = { block: 22, border: 14, wall: 18, building: 28, barn: 32, silo: 40, tree: 22, bush: 8, rock: 8, car: 9, fence: 6,
                   desk: 5, chair: 4, couch: 6, bench: 4, table: 5, hay: 9, lamp: 34, water: 0 };
-const FIXED_TIMES = { Day: 12, Dusk: 18.2, Night: 23 };
+const FIXED_TIMES = { Day: 12.5, Dawn: 6.05, Dusk: 17.95, Night: 23 };
+const TIME_MODES = { Cycle: 'Dynamic', Day: 'Daytime', Dawn: 'Dawn', Dusk: 'Dusk', Night: 'Night' };
 const VISIBLE = .35;
 /* Light colors by source, and how high each source hangs (decides shadow length). */
 const LCOL = { street: '255,156,58', fluor: '226,238,255', pool: '80,215,255', emerg: '255,40,36', fire: '255,150,60', window: '255,196,110', fixed: '255,214,150', alien: '110,255,160' };
@@ -92,13 +93,14 @@ function updateLights(dt) {
 }
 function updateTime(dt) {
   if (MOD.night) tod = 23;
-  else if (SETTINGS.timeMode === 'Cycle') tod = (tod + dt * 24 / (SETTINGS.dayMinutes * 60)) % 24;
+  else if (SETTINGS.timeMode === 'Cycle') { if (state === 'play' && snake && snake.started) tod = (tod + dt * 24 / (SETTINGS.dayMinutes * 60)) % 24; } // the clock waits until you actually move
   else tod = SETTINGS.timeMode === 'Custom' ? +SETTINGS.customHour : FIXED_TIMES[SETTINGS.timeMode] ?? 12;
   light = computeLight();
   const key = light.sdx.toFixed(2) + ',' + light.sdy.toFixed(2);
   if (key !== shadowKey) { shadowKey = key; bakeShadows(); }
   updateLights(dt); updateEnclosures(); updateWaters(dt); updateBeams(dt);
 }
+const clockText = () => String(Math.floor(tod)).padStart(2, '0') + ':' + String(Math.floor(tod % 1 * 60)).padStart(2, '0');
 function lightAt(x, y) { // 0 = pitch black, 1 = fully lit (ambient + lamps/windows + flashlight beams)
   if (lightCache.f === lightFrame && lightCache.x === x && lightCache.y === y) return lightCache.v;
   let v = 1 - light.dark / .74;

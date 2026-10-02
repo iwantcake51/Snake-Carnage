@@ -201,7 +201,7 @@ function checkRotation() { // reroll every 15 minutes, without restarting anythi
   if (document.getElementById('chhud').innerHTML) { challengeHud(true, true); notify({ kind: 'reset', title: 'Challenges reset', sub: 'A fresh set is up for this map', dur: 3.2 }); Sfx.ui('select'); }
   const mc = document.getElementById('mapch');
   if (mc) { mc.classList.add('rotOut'); setTimeout(() => { if (!mc.isConnected) return; mc.innerHTML = mapChallengesHtml(); mc.classList.remove('rotOut', 'swap'); void mc.offsetWidth; mc.classList.add('swap'); }, 420); }
-  if (overlay.querySelector('.pause')) showPause();
+  if (state === 'paused' && overlay.style.display !== 'none' && overlay.querySelector('.pause')) { const pc = overlay.querySelector('.pch'); if (pc) pc.innerHTML = challengeRows(); } // refresh in place, never open it
   overlay.querySelectorAll('.card[data-map] .cb').forEach(el => { const m = MAPS[+el.closest('.card').dataset.map].name; el.textContent = `Best ${PROG.best[m] || 0}, ${chDoneCount(m)}/4 challenges`; });
 }
 function checkChallenges() {
@@ -215,8 +215,10 @@ function checkChallenges() {
     const r = chReward(ch);
     if (r.bonus) run.bonus = (run.bonus || 0) + r.bonus;
     PROG.chTotal = (PROG.chTotal || 0) + 1; PROG.chMaps = [...new Set([...(PROG.chMaps || []), m])]; // lifetime, for achievements
+    (run.chList = run.chList || []).push({ name: ch.name, tier: ch.tier });
     challengePopup(ch, r); gainXP(Math.round(r.xp * rewardMult), Math.round(r.chips * rewardMult));
   }
+  checkPermChallenges();
   saveProg();
   challengeHud();
   modHud();

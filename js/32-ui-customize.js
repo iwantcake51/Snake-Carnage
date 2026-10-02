@@ -1,48 +1,42 @@
-function showDead() {
-  stage.classList.remove('bars');
-  const m = MAPS[mapIdx].name, pb = score >= (PROG.best[m] || 0) && score > 0;
-  overlay.className = ''; overlay.innerHTML = `<div class="panel dead"><h1>Crashed</h1>
-    <div class="stats"><span><b>${score}</b>score${pb ? ' (best!)' : ''}</span><span><b>${run.maxCombo}x</b>best combo</span><span><b>${kills.h + kills.a}</b>eaten</span><span><b>${Math.floor(run.time)}s</b>survived</span></div>
-    <div class="pbtns"><button class="btn" id="againBtn" data-sfx="none">Retry</button><button class="btn alt" id="menuBtn2" data-sfx="close">Return to menu</button></div>
-    <p class="small">Space to retry</p></div>`;
-  overlay.style.display = 'flex';
-  document.getElementById('againBtn').onclick = () => startGame();
-  document.getElementById('menuBtn2').onclick = returnToMenu;
-}
 let pausedFrom = null, settingsFrom = 'menu';
 function pauseGame() {
   if (state === 'intro') endIntro();
   pausedFrom = state === 'intro' ? 'ready' : state; state = 'paused';
+  hideResume(); // pausing again: the "press to continue" prompt fades away
   Sfx.ui('open'); showPause();
 }
 function showPause() {
-  state = 'paused'; stage.classList.add('bars');
+  state = 'paused'; stage.classList.remove('bars'); stage.classList.add('paused');
   const ids = runMods;
-  overlay.className = 'menuMode'; overlay.style.display = 'flex';
-  overlay.innerHTML = `<div class="panel pause"><h1>Paused</h1>
-    <div class="stats"><span><b>${score}</b>score</span><span><b>${combo ? combo.n : 0}x</b>combo</span><span><b>${Math.floor(run.time)}s</b>time</span></div>
+  overlay.className = 'menuMode pauseMode'; overlay.style.display = 'flex';
+  overlay.innerHTML = `<div class="panel pause"><div class="pl">
+    <h1>Paused</h1><p class="pmap">${MAPS[mapIdx].name} · ${clockText()}</p>
+    <div class="stats"><span><b>${score}</b>score</span><span><b>${combo ? combo.n : 0}x</b>combo</span><span><b>${fmtTime(run.time)}</b>time</span></div>
     ${ids.length ? `<div class="modline center">${modLine(ids)}</div>` : ''}
-    <div class="pch">${challengeRows()}</div>
-    <div class="pbtns"><button class="btn" id="resBtn" data-sfx="confirm">Resume</button><button class="btn alt" id="pSetBtn" data-sfx="open">Settings</button><button class="btn alt" id="pMenuBtn" data-sfx="close">Return to menu</button></div>
-    <p class="small">Esc or Space to resume</p></div>`;
+    <div class="pbtns"><button class="btn" id="resBtn" data-sfx="confirm">Resume</button><button class="btn alt" id="pSetBtn" data-sfx="open">Settings</button><button class="btn alt" id="pMenuBtn" data-sfx="close">Quit to menu</button></div>
+    <p class="small">${IS_TOUCH ? 'Tap Resume to continue' : 'Esc or Space to resume'}</p></div>
+    <div class="pr"><h3>Challenges</h3><div class="pch">${challengeRows()}</div></div></div>`;
   document.getElementById('resBtn').onclick = resumeGame;
   document.getElementById('pSetBtn').onclick = () => { settingsFrom = 'pause'; transitionTo(() => showSettings()); };
   document.getElementById('pMenuBtn').onclick = returnToMenu;
 }
+const fmtTime = t => { t = Math.floor(t); return t < 60 ? t + 's' : Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); };
 function showResume() {
   const el = document.getElementById('resume');
-  el.innerHTML = `<div class="rp"><span class="keys"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><span class="or">or</span><span class="keys"><kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd></span><b>to continue</b></div>`;
+  el.innerHTML = IS_TOUCH ? `<div class="rp"><b>Steer to continue</b></div>`
+    : `<div class="rp"><span class="keys"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><span class="or">or</span><span class="keys"><kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd></span><b>to continue</b></div>`;
   el.className = 'show';
 }
-function hideResume() { const el = document.getElementById('resume'); if (el.classList.contains('show')) { el.className = 'gone'; setTimeout(() => { if (el.className === 'gone') { el.className = ''; el.innerHTML = ''; } }, 250); } }
+function hideResume() { const el = document.getElementById('resume'); if (el.classList.contains('show')) { el.className = 'gone'; setTimeout(() => { if (el.className === 'gone') { el.className = ''; el.innerHTML = ''; } }, 320); } }
 function resumeGame() {
   if (state !== 'paused') return;
   state = pausedFrom === 'play' || pausedFrom === 'held' ? 'held' : pausedFrom || 'play'; // the menu closes, but nothing moves until you steer
-  if (state === 'held') { held.clear(); showResume(); }
+  if (state === 'held') { held.clear(); showResume(); } else stage.classList.remove('paused');
   stage.classList.remove('bars'); hideOverlay();
   if (document.activeElement) document.activeElement.blur();
 }
 function returnToMenu() { // ends the run on purpose; only now is the game reset
+  stage.classList.remove('paused');
   if (state === 'paused' && run.time > 1) statRunEnd();
   hideResume(); clearNotes();
   document.getElementById('chhud').innerHTML = ''; document.getElementById('modhud').innerHTML = ''; runMods = []; modBar();
@@ -70,14 +64,14 @@ function startGame(opts = {}) {
   runMods = opts.mods || SETTINGS.mods || []; // the random map also rolls its own modifiers
   MOD = Object.fromEntries(runMods.map(id => [id, true])); rewardMult = modMult(runMods);
   document.body.classList.toggle('minimal', !!MOD.minimal);
-  if (SETTINGS.timeMode === 'Cycle') tod = pickStartTime(MAPS[mapIdx]); // every run starts at a different time of day, weighted per map
+  tod = SETTINGS.timeMode === 'Cycle' ? pickStartTime(MAPS[mapIdx]) : FIXED_TIMES[SETTINGS.timeMode] ?? 12; // dynamic runs start at a different hour, weighted per map
   nightVision = false; endCombo(true); document.getElementById('rewards').innerHTML = ''; hideResume(); clearNotes();
   camF.x = camF.y = camF.k.x = camF.k.y = camF.kv.x = camF.kv.y = 0;
   newRun();
   loadMap(mapIdx); run.startPop = creatures.length;
   const animals = [...new Set(creatures.filter(c => !c.def.human).map(c => c.type))];
   runMod = { lastType: null, lastCat: null, varStreak: 0, same: 0, chain: 0, humanRun: 0, ask: null, askIn: 3, avoid: animals.length ? pick(animals) : null };
-  modHud(); challengeHud(true); modBar();
+  modHud(); challengeHud(true); modBar(); resetAbilities();
   if (runMods.length) setTimeout(() => notify({ kind: 'mod', title: `${runMods.length} modifier${runMods.length > 1 ? 's' : ''} active`, sub: runMods.map(id => (MOD_ICON[id] || '') + ' ' + MODS.find(m => m.id === id).name).join('  '), right: Math.abs(rewardMult - 1) > .005 ? 'x' + rewardMult.toFixed(2) : '', dur: 3.5 }), SETTINGS.reduceMotion ? 300 : 2400);
   if (!thumbs) thumbs = makeThumbs();
   updateTime(0);

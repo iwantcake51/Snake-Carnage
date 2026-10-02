@@ -25,7 +25,8 @@ const SHOP = {
   effect: [['None', 0], ['Embers', 160], ['Snow', 160], ['Gold Dust', 0, 'midas'], ['Blood Rain', 0, 'paintRed'], ['Alarm Lights', 0, 'wrongPlace'], ['Stars', 0, 'worldEater']],
   title: [['None', 0], ['Rat King', 0, 'ratKing'], ['People Person', 0, 'peoplePerson'], ['Public Menace', 0, 'publicMenace'], ['Roadkill Enthusiast', 0, 'roadkill'],
     ['Gold Digger', 0, 'goldDigger'], ["Don't Mind Me", 0, 'dontMind'], ['Absolutely Starving', 0, 'starving'], ['Checklist Enjoyer', 0, 'checklist'],
-    ['Thrill Seeker', 0, 'thrill'], ['Tourist', 0, 'tourist'], ['Veteran', 0, 'veteran'], ['High Roller', 0, 'highRoller'], ['Oops, All Humans', 0, 'allHumans']],
+    ['Thrill Seeker', 0, 'thrill'], ['Tourist', 0, 'tourist'], ['Veteran', 0, 'veteran'], ['High Roller', 0, 'highRoller'], ['Oops, All Humans', 0, 'allHumans'],
+    ['Cartographer', 0, 'cartographer'], ['Bull in a China Shop', 0, 'smasher'], ['Apex Predator', 0, 'apex'], ['Snake Charmer', 0, 'charmer'], ['Ouroboros', 0, 'ouroboros'], ['Glow Worm', 0, 'glowWorm'], ['Last Call', 0, 'lastCall']],
 };
 const CAT_LABEL = { color: 'Primary color', color2: 'Secondary color', pattern: 'Skin', hat: 'Hat', eyes: 'Eyes', trail: 'Trail', theme: 'UI theme', card: 'Card style', effect: 'Menu effect', title: 'Title' };
 SETTINGS.snake = Object.assign({ theme: 'Default', card: 'Default', effect: 'None', title: 'None' }, SETTINGS.snake);
@@ -93,19 +94,37 @@ const ACH = [
   ['worldEater', 'World Eater', 'Complete a challenge on {n} different maps', () => PROG.chMaps.length, 10, 'rare'],
   ['lunar', 'Lunar Lunch', 'Eat {n} astronauts', () => PROG.kT.astronaut || 0, 40, 'medium'],
   ['martian', 'Martian Cuisine', 'Eat {n} aliens', () => PROG.kT.alien || 0, 40, 'medium'],
-].map(([id, name, what, stat, n, tier]) => ({ id, name, what: what.replace('{n}', n), stat, n, tier }));
+  ['cartographer', 'Cartographer', 'Play every map at least once', () => PROG.mapsPlayed.length, () => MAPS.length, 'medium', { chips: 200 }],
+  ['smasher', 'Bull in a China Shop', 'Smash through {n} pieces of furniture', () => PROG.smashed || 0, 50, 'medium', { chips: 200 }],
+  ['toolkit', 'Toolkit', 'Use abilities {n} times', () => PROG.abilUses || 0, 100, 'medium', { chips: 150 }],
+  ['marathon', 'Marathon', 'Survive {n} minutes in one run', () => Math.floor((PROG.longestRun || 0) / 60), 10, 'hard', { chips: 300 }],
+  ['goldRush', 'Gold Rush', 'Eat {n} golden targets in one run', () => PROG.maxGoldRun || 0, 3, 'rare', { chips: 400 }],
+  ['bottomless', 'Bottomless', 'Reach a {n}x combo', () => PROG.bestCombo1, 35, 'rare', { chips: 450 }],
+  ['apex', 'Apex Predator', 'Reach level {n}', () => PROG.level, 40, 'rare', { chips: 600 }],
+  // secret: the name and goal stay hidden until earned; the clue is all you get
+  ['charmer', 'Snake Charmer', 'Coil all the way around a light', () => PROG.coiled || 0, 1, 'hard', { secret: 1, clue: 'Some lights are best kept close. Very close.', chips: 250 }],
+  ['ouroboros', 'Ouroboros', 'Bite your own tail while 60+ segments long', () => PROG.ouro || 0, 1, 'hard', { secret: 1, clue: 'The oldest snake story there is. You need to be long for it.', chips: 250 }],
+  ['lightsOut', 'Lights Out', 'Break {n} streetlights in one run', () => PROG.maxLampsRun || 0, 8, 'medium', { secret: 1, clue: 'The dark is your friend. Make more of it.', chips: 200 }],
+  ['notHungry', 'Not Hungry', 'Survive {n} seconds without eating anything', () => Math.floor(PROG.maxFastT || 0), 90, 'medium', { secret: 1, clue: 'Patience. Even predators wait for the right moment.', chips: 150 }],
+  ['spitTake', 'Spit Take', 'Get blood in {n} mouths in one run', () => PROG.maxSpitRun || 0, 6, 'hard', { secret: 1, clue: 'Some people scream with their mouths wide open. Messy eaters take note.', chips: 250 }],
+  ['glowWorm', 'Glow Worm', 'Eat {n} fireflies', () => PROG.kT.firefly || 0, 25, 'medium', { secret: 1, clue: 'Some snacks glow in the dark, out in the open grass.', chips: 200 }],
+  ['goldenHour', 'Golden Hour', 'Eat a golden target at dawn or dusk', () => PROG.goldenHour || 0, 1, 'hard', { secret: 1, clue: 'Gold looks best in the right light. Try the edges of the day.', chips: 250 }],
+  ['lastCall', 'Last Call', 'Eat {n} people in one run at the club', () => PROG.clubMax || 0, 25, 'rare', { secret: 1, clue: 'The party ends when the snake says so.', chips: 400 }],
+].map(([id, name, what, stat, n, tier, ex = {}]) => { const goal = typeof n === 'function' ? n : () => n; return { id, name, get n() { return goal(); }, get what() { return what.replace('{n}', goal()); }, stat, tier, ...ex }; });
 const achRewards = id => [['color', COLOR_ITEMS], ['color2', COLOR_ITEMS], ...Object.entries(SHOP)].flatMap(([cat, l]) => l.filter(i => i[2] === id).map(i => [cat, i[0]]));
 function checkAch() {
   for (const a of ACH) {
     if (PROG.ach[a.id] || a.stat() < a.n) continue;
     PROG.ach[a.id] = Date.now();
     const got = achRewards(a.id); got.forEach(([cat, v]) => { if (!PROG.owned.includes(ownKey(cat, v))) PROG.owned.push(ownKey(cat, v)); });
+    if (a.chips) { PROG.coins += a.chips; PROG.earned = (PROG.earned || 0) + a.chips; }
+    if (run && state !== 'menu') (run.unlocks = run.unlocks || []).push({ kind: 'ach', id: a.id });
     unlockFx(a, got);
   }
 }
 function unlockFx(a, got) { // the satisfying bit: a gold-edged unlock card plus a little fanfare
   const list = got.filter(([cat]) => cat !== 'color2').map(([cat, v]) => `${CAT_LABEL[cat]}: ${cat.startsWith('color') ? `<i class="sw0" style="background:${v}"></i>` : v}`).join(' · ');
-  notify({ kind: 'unlock', icon: '🏆', title: `Unlocked: ${a.name}`, sub: list || a.what, dur: 5.5 });
+  notify({ kind: 'unlock', icon: a.secret ? '🗝️' : '🏆', title: `${a.secret ? 'Secret found' : 'Unlocked'}: ${a.name}`, sub: [list, a.chips ? `+${a.chips} <i class="pc"></i>` : ''].filter(Boolean).join(' · ') || a.what, dur: 5.5 });
   Sfx.levelUp && Sfx.levelUp();
 }
 const achProgress = a => Math.min(1, a.stat() / a.n);

@@ -44,11 +44,12 @@ function render() {
   drawLighting(x);
   drawSparks(x);
   drawVisionMask(x);
+  const px = Math.max(1, SETTINGS.pixel | 0);
+  if (px > 1) { drawGoldenFX(x); drawTargetOutlines(x); drawSnakeNightRim(x); } // pixelated look: outlines go through the same pixelation
   x.setTransform(DPR, 0, 0, DPR, 0, 0);
 
   // pixelation
   ctx.setTransform(1, 0, 0, 1, 0, 0);
-  const px = Math.max(1, SETTINGS.pixel | 0);
   if (px > 1) {
     const lw = Math.ceil(W / px), lh = Math.ceil(H / px);
     if (lowC.width !== lw || lowC.height !== lh) { lowC.width = lw; lowC.height = lh; }
@@ -62,9 +63,7 @@ function render() {
     ctx.globalCompositeOperation = 'source-over'; ctx.fillStyle = 'rgba(0,12,4,.16)'; ctx.fillRect(0, 0, W, H);
   }
   ctx.save(); applyView(ctx); // crisp overlays above blood and lighting
-  drawGoldenFX(ctx);
-  drawTargetOutlines(ctx);
-  drawSnakeNightRim(ctx);
+  if (px <= 1) { drawGoldenFX(ctx); drawTargetOutlines(ctx); drawSnakeNightRim(ctx); }
   if (nightVision) drawNVHighlights(ctx);
   if (!cam) drawBubbles(ctx);
   ctx.restore();
