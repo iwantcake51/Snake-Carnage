@@ -78,7 +78,7 @@ function loadMap(idx, sz) {
   mapIdx = idx; season = sz || null; // a season only for runs on outdoor maps; menus show the plain map
   const m = MAPS[idx], b = m.build();
   Sfx.setMuffle(!!m.space);
-  obstacles = splitBreakables([...borderWalls(m.border), ...b.obs]);
+  obstacles = splitBreakables(addBreakWalls([...borderWalls(m.border), ...b.obs], m.name));
   buildSolid();
   bctx.clearRect(0, 0, W, H); b.floor(bctx); bakeContactShadows(bctx, b.obs); resetBuckets(); gctx.clearRect(0, 0, W, H); groundParts = []; trail = []; floaters = [];
   buildGrassMask(); gradeGround(); seasonDetails(bctx);

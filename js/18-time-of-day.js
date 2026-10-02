@@ -1,7 +1,7 @@
 /* =========================================================
    TIME OF DAY, SHADOWS, LIGHTS
    ========================================================= */
-const HEIGHTS = { block: 22, border: 14, wall: 18, building: 28, barn: 32, silo: 40, tree: 22, bush: 8, rock: 8, car: 9, fence: 6,
+const HEIGHTS = { bwall: 18, block: 22, border: 14, wall: 18, building: 28, barn: 32, silo: 40, tree: 22, bush: 8, rock: 8, car: 9, fence: 6,
                   desk: 5, chair: 4, couch: 6, bench: 4, table: 5, hay: 9, lamp: 34, water: 0, hedge: 16, glass: 18, plant: 8, shelf: 14, crate: 9,
                   pod: 14, holo: 4, cryo: 14, saucer: 10, reactor: 12, console: 6, dome: 20, tube: 8, module: 14, lander: 16, solar: 4, chess: 24,
                   generator: 10, tent: 12, dj: 6, speaker: 14, bar: 7, booth: 7, pillar: 30, barrier: 5, gazebo: 18, slide: 7, bed: 5 };

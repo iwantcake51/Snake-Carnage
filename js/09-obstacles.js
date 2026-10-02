@@ -94,6 +94,7 @@ function drawObstacleBase(x, o) {
   const hz = o.w >= o.h, X = o.x, Y = o.y, w = o.w, h = o.h;
   switch (k) {
     case 'border': x.fillStyle = c; x.fillRect(X, Y, w, h); return;
+    case 'bwall': drawBreakWall(x, o); return;
     case 'building': roof(x, o); return edge(x, o, .35);
     case 'barn': {
       x.fillStyle = '#7a2a20'; x.fillRect(X, Y, w, h); roof(x, { ...o, rc: '#8c2f24', roof: 'gable' });

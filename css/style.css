@@ -1084,3 +1084,7 @@ body.calm .panel,body.calm .mleft,body.calm .mright{translate:none}
 #intro .iname.mys .tbadge.szn{margin-top:8px}
 @media (max-width:700px){#intro .iname2{font-size:48px}#intro .iwrap{left:6%;bottom:9%}}
 #intro.out{transition:opacity .6s ease .12s}
+/* after smashing through a wall: much heavier blur at the edges, a dark vignette closing in */
+#stage.wallstun::before{backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);-webkit-mask:radial-gradient(ellipse at center,transparent 22%,#000 70%);mask:radial-gradient(ellipse at center,transparent 22%,#000 70%);
+  background:radial-gradient(ellipse at center,transparent 30%,rgba(10,4,4,.6))}
+#tip .ttr span,#tip .ttr{white-space:normal}#tip .ttr .pc{display:inline-block;vertical-align:-2px;margin-left:2px}#tip:has(.tth){max-width:330px}

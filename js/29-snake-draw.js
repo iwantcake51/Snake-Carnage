@@ -48,12 +48,12 @@ function lungeK(s) { // 0..1 lunge momentum: snaps in, peaks early, eases out af
   const dur = ABIL.dash.dur, on = s.dashT > 0, t = on ? dur - s.dashT : 0;
   const target = on ? sstep(0, .07, t) * (.4 + .6 * sstep(0, dur * .75, s.dashT)) : 0, cur = s.lk || 0;
   s.lk = cur + (target - cur) * (target > cur ? .45 : .1);
-  const h = s.hist || (s.hist = []); // where the head has been lately: the wake trails behind it
+  const h = s.wake || (s.wake = []); // where the head has been lately (not s.hist: that's the body's path): the wake trails behind it
   if (!h.length || h[h.length - 1].t !== T) h.push({ x: s.x, y: s.y, t: T, a: s.angle });
   while (h.length && T - h[0].t > .45) h.shift();
   return s.lk < .01 ? 0 : s.lk;
 }
-function histAt(s, back) { const h = s.hist, t = T - back; for (let i = h.length - 1; i >= 0; i--) if (h[i].t <= t) return h[i]; return h[0]; }
+function histAt(s, back) { const h = s.wake || [], t = T - back; for (let i = h.length - 1; i >= 0; i--) if (h[i].t <= t) return h[i]; return h[0]; }
 function drawLungeFx(x, s, pts, n, k, lv) {
   const m = x.getTransform(), sc = Math.hypot(m.a, m.b);
   // the wake: the ground behind the head is magnified and pushed out, like air shoved aside by something very fast
