@@ -86,6 +86,9 @@ function drawTrail(x) {
       case 'Gold Dust': x.fillStyle = k > .5 ? '#fff1b0' : '#d4af37'; star(x, p.x, p.y, 1.8 * k + .8, p.rot); break;
       case 'Blood Drip': x.fillStyle = '#7a0909'; ell(x, p.x, p.y, 1.3, 1.3 + (1 - k) * 1.6); break;
       case 'Alarm': x.fillStyle = Math.floor(p.t * 8) % 2 ? '#ff2b2b' : '#ffffff'; circ(x, p.x, p.y, 1.8 * k + .6); break;
+      case 'Afterglow': x.globalAlpha = k * .5; x.fillStyle = SETTINGS.snake.color || '#4e7cf6'; circ(x, p.x, p.y, 2.5 + (1 - k) * 4); break;
+      case 'Nuggets': x.save(); x.translate(p.x, p.y); x.rotate(p.rot * .3); x.fillStyle = '#b8860b'; x.fillRect(-2, -1.6, 4, 3.2); x.fillStyle = '#ffe27a'; x.fillRect(-1.6, -1.4, 2, 1.2); x.restore(); break;
+      case 'Shrapnel': x.save(); x.translate(p.x, p.y); x.rotate(p.rot); x.fillStyle = k > .6 ? '#c9c2b6' : '#7d776e'; x.beginPath(); x.moveTo(-2, -1); x.lineTo(2.2, 0); x.lineTo(-1, 1.6); x.fill(); x.restore(); break;
       case 'Stardust': x.fillStyle = p.c === '#3fd4ff' ? '#9fe6ff' : '#ffffff'; star(x, p.x, p.y, 1.4 * k + .6, p.rot); break;
     }
   }

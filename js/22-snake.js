@@ -149,13 +149,13 @@ function smearBlood(s, dt) {
     s.smW = clamp((s.smW || 1.4) + rand(-.12, .12), 1, 1.8); s.smO = clamp((s.smO || 0) + rand(-.5, .5), -2.5, 2.5); // width and drift wander
     const sc = s.smC ? `rgb(${s.smC[0] | 0},${s.smC[1] | 0},${s.smC[2] | 0})` : BLOOD;
     markF(); fctx.save(); fctx.lineCap = 'round'; fctx.strokeStyle = sc; fctx.fillStyle = sc;
-    fctx.globalAlpha = s.smear * rand(.3, .45); fctx.lineWidth = CONFIG.snakeR * s.smW;
+    fctx.globalAlpha = s.smear * rand(.5, .64); fctx.lineWidth = CONFIG.snakeR * s.smW;
     line(lx + nx * s.smO, ly + ny * s.smO, s.x + nx * s.smO, s.y + ny * s.smO);
-    fctx.globalAlpha = s.smear * rand(.55, .8); fctx.lineWidth = rand(1, 2.2);
+    fctx.globalAlpha = s.smear * rand(.75, .95); fctx.lineWidth = rand(1, 2.2);
     for (const o of [-5, 0, 5]) if (Math.random() < .75) { const q = o + rand(-1, 1) + s.smO; line(lx + nx * q, ly + ny * q, s.x + nx * q, s.y + ny * q); }
     if (Math.random() < .14 * s.smear) { const side = (Math.random() < .5 ? -1 : 1) * rand(7, 12); fctx.globalAlpha = .85; circ(fctx, s.x + nx * side, s.y + ny * side, rand(.6, 1.9)); }
     fctx.restore();
-    s.smear *= Math.exp(-s.speed * dt / 80); // trails last longer, so you can read where you've been
+    s.smear *= Math.exp(-s.speed * dt / (80 * BQ().trail)); // trails last longer, so you can read where you've been
   }
   s.lastX = s.x; s.lastY = s.y;
   for (let i = 0; i < s.segs.length; i++) { // body soaks up blood it lies in
@@ -178,7 +178,7 @@ function eat(c) {
   if (snake.camoT > 0 && upg('camo') > 2) snake.camoT = Math.min(12, snake.camoT + 2); // Ambush: each kill buys more time hidden
   if (snake.dashT > 0 && upg('dash') > 2) { abilCD.dash = Math.min(abilCD.dash || 0, T + 1.2); snake.dashT = Math.max(snake.dashT, .3); } // pounce: straight into the next one
   c.alive = false; dropFlash(c); leaveGroup(c);
-  hitGhosts.push({ c, t: 0 }); hitStop = Math.max(hitStop, c.def.human ? .055 : c.def.r >= 9 ? .045 : .03); // a frozen beat on the bite
+  hitGhosts.push({ c, t: 0, ka: snake.angle }); // the impact lives on the victim's sprite only: no freeze, the game keeps running
   const s = snake, sx = Math.cos(s.angle), sy = Math.sin(s.angle);
   const mv = clamp(c.spd / (c.def.run * SETTINGS.creatureSpeed), 0, 1);
   const headOn = -(sx * Math.cos(c.a) + sy * Math.sin(c.a)) * mv;           // +1 = target ran into the snake
@@ -209,7 +209,7 @@ function eat(c) {
   crEat(c, pts, kxp); statEat(c); progressEat(c);
   gainXP(kxp, Math.max(1, Math.round(c.def.score * .6 * gold * rewardMult * mb.m)));
   modHud();
-  shake = Math.min(CONFIG.shakeMax, shake + 2 + 12 * amount);
+  shake = Math.min(CONFIG.shakeMax * .4, shake + .5 + 2.5 * amount); // just a nudge: the hit is felt on the target, not the camera
   camF.kv.x += sx * (60 + 70 * amount); camF.kv.y += sy * (60 + 70 * amount); // small push in the direction of the bite
   s.drip = 2.5 * amount; s.dripCol = bloodOf(c);
   bloodMist(c.x, c.y, s.angle, amount, bloodOf(c));

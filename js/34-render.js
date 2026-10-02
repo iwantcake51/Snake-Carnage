@@ -190,7 +190,7 @@ function loopError(e, where) { // a bug in one frame must never freeze the run o
 
 /* airborne blood: the faster a drop flies, the longer and softer it smears along its path; slow drops are round again.
    Always the drop's own color. Blood quality picks how much of this is drawn. */
-const DROP_Q = { Low: 0, Normal: 1, High: 2, Extreme: 3 };
+const DROP_Q = { Low: 0, Medium: 1, Normal: 1, High: 2, Extreme: 3 };
 function drawDrops(x) {
   const q = SETTINGS.bloodBlur === false ? 0 : DROP_Q[SETTINGS.bloodQ] ?? 2; x.lineCap = 'round';
   for (const p of parts) {

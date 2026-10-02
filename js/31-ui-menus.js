@@ -70,15 +70,15 @@ function showMenu() {
       <div class="mrow"><button class="ghost" id="setBtn" data-sfx="open">Settings</button></div>
       <div class="ver">v${GAME_VERSION}</div>
     </div>
-    <div class="mright"><h2>Choose a map</h2><div class="mapch" id="mapch">${mapChallengesHtml()}</div><div class="cards">${MAPS.map((m, i) => `<button class="card ${i === mapIdx ? 'on' : ''}" data-sfx="select" data-map="${i}" style="--i:${i}"><img src="${thumbs[i]}" alt=""><span class="cn">${m.icon} ${m.name}</span><span class="cb">Best ${PROG.best[m.name] || 0} · ${chDoneCount(m.name)}/4 ✓</span></button>`).join('')}<button class="card rnd" data-sfx="none" data-map="rand" style="--i:${MAPS.length}">🎲<span class="cn">Random</span></button></div></div>
+    <div class="mright"><h2>Choose a map</h2><div class="mapch" id="mapch">${mapChallengesHtml()}</div><div class="cards">${MAPS.map((m, i) => `<button class="card ${i === mapIdx ? 'on' : ''}" data-sfx="select" data-map="${i}" style="--i:${i}"><img src="${thumbs[i]}" alt=""><span class="cn">${m.icon} ${m.name}</span><span class="cb">Best ${PROG.best[m.name] || 0} · ${chDoneCount(m.name)}/${activeChallenges(m.name).length} ✓</span></button>`).join('')}<button class="card rnd" data-sfx="none" data-map="rand" style="--i:${MAPS.length}">🎲<span class="cn">Random</span></button></div></div>
   </div>`;
   overlay.style.display = 'flex';
   overlay.querySelectorAll('.card').forEach(card => {
     card.onpointermove = e => { // tilt toward the cursor
       const r = card.getBoundingClientRect(), px = (e.clientX - r.left) / r.width - .5, py = (e.clientY - r.top) / r.height - .5;
-      card.style.setProperty('--ry', (px * 16).toFixed(1) + 'deg'); card.style.setProperty('--rx', (-py * 14).toFixed(1) + 'deg');
+      card.style.setProperty('--ry', (px * 11).toFixed(1) + 'deg'); card.style.setProperty('--rx', (-py * 9).toFixed(1) + 'deg'); card.style.setProperty('--px', px.toFixed(3)); card.style.setProperty('--py', py.toFixed(3)); // gentle: a few degrees, the picture shifts a little against it
     };
-    card.onpointerleave = () => { card.style.setProperty('--rx', '0deg'); card.style.setProperty('--ry', '0deg'); };
+    card.onpointerleave = () => { for (const [k, v] of [['--rx', '0deg'], ['--ry', '0deg'], ['--px', 0], ['--py', 0]]) card.style.setProperty(k, v); };
     card.onclick = () => card.dataset.map === 'rand' ? randomRoll() : selectMap(+card.dataset.map);
   });
   const seg = overlay.querySelector('.seg');
@@ -156,7 +156,7 @@ function showChallenges(keepAnim) { // profile-wide goals (cosmetics, chips, sec
       <div class="ctabs"><button class="${chTab === 'profile' ? 'on' : ''}" data-ct="profile" data-sfx="tab">Profile <em>${doneN}/${ACH.length}</em></button><button class="${chTab === 'maps' ? 'on' : ''}" data-ct="maps" data-sfx="tab">Maps <em>${pmN}/${pmTot}</em></button></div></div>
     <div class="chbody">${chTab === 'profile' ? profileChallenges() : mapPermChallenges()}</div>
     <div class="chfoot"><span class="rot">${chTab === 'profile' ? 'Sorted easiest to hardest. Unlocked cosmetics show up in the Shop, free to equip. Secret ones only give you a clue.' : 'Permanent goals that never reset. Each pays XP and chips once.'}</span><button class="btn" id="backBtn" data-sfx="close">Done</button></div></div>`;
-  drawPreviews(overlay);
+  drawPreviews(overlay); runCarousels(overlay);
   overlay.querySelectorAll('[data-ct]').forEach(b => b.onclick = () => { chTab = b.dataset.ct; showChallenges(true); });
   overlay.querySelectorAll('[data-cm]').forEach(b => b.onclick = () => { chMap = b.dataset.cm; showChallenges(true); });
   document.getElementById('backBtn').onclick = () => transitionTo(showMenu);
@@ -164,12 +164,22 @@ function showChallenges(keepAnim) { // profile-wide goals (cosmetics, chips, sec
 function profileChallenges() {
   const list = ACH.map((a, i) => ({ a, i })).sort((p, q) => TIER_ORDER[p.a.tier] - TIER_ORDER[q.a.tier] || (!!p.a.secret - !!q.a.secret) || p.i - q.i).map(o => o.a);
   return `<div class="achg">${list.map((a, i) => {
-    const got = !!PROG.ach[a.id], hide = a.secret && !got, p = hide ? 0 : achProgress(a), rw = achRewards(a.id).filter(([c]) => c !== 'color2');
-    const reward = [...rw.map(([cat, v]) => `${CAT_LABEL[cat]}${cat.startsWith('color') ? ': ' + colorName(v) : ': ' + v}`), a.chips ? `${a.chips} chips` : ''].filter(Boolean).join(' · ');
-    const tip = got ? `<span class="thead">${a.name}</span>${a.what}<span class="tdim">Earned ${fmtDate(PROG.ach[a.id])}</span>` : hide ? `<span class="thead">Secret challenge</span>Clue: ${a.clue}` : `<span class="thead">${a.name}</span>${a.what}<span class="tdim">Reward: ${reward}</span>`;
-    return `<div class="ach ${got ? 'done' : ''} ${hide ? 'secret' : ''} t-${a.tier}" style="--i:${i}" data-tiph="${attr(tip)}"><div class="ap">${hide ? '<div class="prv sil q">?</div>' : rw.length ? achPreview(rw[0][0], rw[0][1], got || (a.tier !== 'rare' && p >= .5)) : `<div class="prv chipr"><i class="pc"></i><b>${a.chips}</b></div>`}</div>
+    const got = !!PROG.ach[a.id], hide = a.secret && !got, p = achProgress(a), rw = achRewards(a.id).filter(([c]) => c !== 'color2'), xp = ACH_XP[a.tier] || 0;
+    const reward = [...rw.map(([cat, v]) => `${CAT_LABEL[cat]}${cat.startsWith('color') ? ': ' + colorName(v) : ': ' + v}`), `${xp} XP`, a.chips ? `${a.chips} chips` : ''].filter(Boolean).join(' · ');
+    const tip = got ? `<span class="thead">${a.name}</span>${a.what}<span class="tdim">Earned ${fmtDate(PROG.ach[a.id])}</span>` : hide ? `<span class="thead">Secret challenge</span>Clue: ${a.clue}<span class="tdim">Progress ${Math.min(a.stat(), a.n)}/${a.n}</span>` : `<span class="thead">${a.name}</span>${a.what}<span class="tdim">Reward: ${reward}</span>`;
+    const clear = got || (a.tier !== 'rare' && p >= .5);
+    const slides = hide ? ['<div class="prv sil q">?</div>'] : [...rw.map(([c, v]) => achPreview(c, v, clear)), ...(a.chips ? [`<div class="prv chipr"><i class="pc"></i><b>${a.chips}</b></div>`] : []), `<div class="prv xpr"><b>${xp}</b><small>XP</small></div>`];
+    const car = slides.length > 1 ? `<div class="ap car" data-n="${slides.length}"><div class="track">${slides.join('')}</div><div class="dots">${slides.map((_, k) => `<i class="${k ? '' : 'on'}"></i>`).join('')}</div></div>` : `<div class="ap">${slides[0]}</div>`;
+    return `<div class="ach ${got ? 'done' : ''} ${hide ? 'secret' : ''} t-${a.tier}" style="--i:${i}" data-tiph="${attr(tip)}">${car}
       <div class="ab"><em class="tier ${hide ? 'secret' : a.tier}">${hide ? 'Secret' : TIERS[a.tier].label}</em><b>${got ? '✔ ' : ''}${hide ? '???' : a.name}</b><small>${hide ? '<i class="clue">' + a.clue + '</i>' : a.what}</small>
-      ${hide ? '' : `<span class="pbar"><span style="width:${(p * 100).toFixed(0)}%"></span></span><span class="af"><span>${Math.min(a.stat(), a.n)}/${a.n}</span><span>${reward}</span></span>`}</div></div>`; }).join('')}</div>`;
+      <span class="pbar"><span style="width:${(p * 100).toFixed(0)}%"></span></span><span class="af"><span>${Math.min(a.stat(), a.n)}/${a.n}</span><span>${hide ? 'Reward: ???' : reward}</span></span></div></div>`; }).join('')}</div>`;
+}
+function runCarousels(root) { // multi-reward previews slide sideways, one at a time, pausing while hovered
+  const cars = [...root.querySelectorAll('.ap.car')]; if (!cars.length) return;
+  const tick = () => { if (!cars[0].isConnected) return clearInterval(iv);
+    for (const c of cars) { if (c.matches(':hover')) continue; const n = +c.dataset.n, k = ((+c.dataset.k || 0) + 1) % n; c.dataset.k = k;
+      c.querySelector('.track').style.translate = `${-k * 64}px 0`; c.querySelectorAll('.dots i').forEach((d, q) => d.classList.toggle('on', q === k)); } };
+  const iv = setInterval(tick, 2400);
 }
 function mapPermChallenges() {
   const list = permChallenges(chMap), best = (PROG.pmBest || {})[chMap] || {};
@@ -282,7 +292,7 @@ const SETTING_TABS = {
     ['toggle', 'dynShadows', 'Moving shadows', 'People, animals and the snake cast shadows from lamps and flashlights.'],
     ['seg', 'fxLevel', 'Particles', 'How many particles are simulated: blood mist, smoke, sparks, snow powder, scent wisps, insects. Low simulates far fewer.', ['Low', 'Normal', 'High']],
     ['toggle', 'bloodBlur', 'Blood motion blur', 'Fast drops stretch and smear along their path. Off: plain round drops.'],
-    ['seg', 'bloodQ', 'Blood quality', 'How fast-flying blood is drawn. Extreme: smoothest motion blur. Low: plain drops, cheapest.', ['Low', 'Normal', 'High', 'Extreme']],
+    ['seg', 'bloodQ', 'Blood quality', 'How much blood is simulated and how finely it is drawn. Low: fewer, chunkier drops updated at half rate, short trails, no mist (fastest). Extreme: the most drops, smooth motion blur, mist and long-lasting trails.', ['Low', 'Medium', 'High', 'Extreme']],
     ['toggle', 'vignette', 'Kill vignette', 'A red pulse at the screen edges when you eat.'],
     ['toggle', 'desaturate', 'Color drain', 'Briefly drains color after a kill.'],
     ['toggle', 'shake', 'Screen shake', 'Shake the camera on kills and crashes.']] },

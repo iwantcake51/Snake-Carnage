@@ -75,14 +75,14 @@ const grassColAt = (x, y) => grassCol[(y / GM | 0) * GMW + (x / GM | 0)] || [110
 
 function spawnBlood(x, y, dirA, amount, spread, backFrac, gold) { // gold: a golden target, mostly gold blood with some red mixed in
   const ba = { Minimal: .2, Reduced: .5 }[SETTINGS.bloodAmt] || 1, pq = SETTINGS.fxLevel === 'Low' ? .55 : 1;
-  const n = Math.round(95 * amount * (parts.length > 500 ? .5 : 1) * ba * pq); // fewer drops simulated, not just hidden
+  const bq = BQ(), n = Math.round(95 * amount * (parts.length > 500 ? .5 : 1) * ba * pq * bq.n); // fewer drops simulated, not just hidden (lower quality: fewer, slightly bigger drops)
   for (let i = 0; i < n && parts.length < CONFIG.maxParticles; i++) {
     let a, sp; const r = Math.random();
     if (r < backFrac) { a = dirA + Math.PI + gauss() * .9; sp = rand(60, 220); }       // back-spray onto the snake
     else if (r < backFrac + .2) { a = rand(0, TAU); sp = rand(20, 140); }             // radial burst
     else { a = dirA + gauss() * spread; sp = rand(120, 480) * (.6 + amount * .4); }   // main forward jet
     parts.push({ x: x + rand(-3, 3), y: y + rand(-3, 3), z: rand(4, 12), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
-                 vz: rand(20, 200), r: Math.random() < .15 ? rand(3, 5) : rand(1.2, 3), c: gold === true ? pick(GOLD_BLOOD) : gold ? pick(gold) : pick(CONFIG.bloodColors), ox: x, oy: y }); // gold: golden target; an array: that creature's own blood colors
+                 vz: rand(20, 200), r: (Math.random() < .15 ? rand(3, 5) : rand(1.2, 3)) * bq.size, c: gold === true ? pick(GOLD_BLOOD) : gold ? pick(gold) : pick(CONFIG.bloodColors), ox: x, oy: y }); // gold: golden target; an array: that creature's own blood colors
   }
 }
 
@@ -108,7 +108,9 @@ function rebuildSegGrid() { // bucket snake segments so blood drops only test ne
   });
 }
 function killPart(i) { parts[i] = parts[parts.length - 1]; parts.pop(); }
+let bloodAcc = 0, bloodTick = 0;
 function updateBlood(dt) {
+  const st = BQ().step; if (st > 1) { bloodAcc += dt; if (++bloodTick % st) return; dt = bloodAcc; bloodAcc = 0; } // Low: blood physics runs at half rate
   if (parts.length) rebuildSegGrid();
   for (let i = parts.length - 1; i >= 0; i--) {
     const p = parts[i];

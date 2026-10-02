@@ -11,7 +11,8 @@ function updateCamFollow(dt) {
 let combo = null;
 const COMBO_STYLES = { // how each bought combo style behaves (the look itself is in the CSS: body.cb-<name>)
   Default: { shake: 1, shatter: true }, Minimal: { shake: 0, shatter: false }, Typewriter: { shake: 0, shatter: false }, Arcade: { shake: 1.2, shatter: true, step: true },
-  Brutal: { shake: 1.8, shatter: true }, Neon: { shake: .6, shatter: false }, Gilded: { shake: .8, shatter: true }, Manhunt: { shake: 1.4, shatter: true }, Overdrive: { shake: 1.6, shatter: true, step: true } };
+  Brutal: { shake: 1.8, shatter: true }, Neon: { shake: .6, shatter: false }, Gilded: { shake: .8, shatter: true }, Manhunt: { shake: 1.4, shatter: true }, Overdrive: { shake: 1.6, shatter: true, step: true },
+  Hollow: { shake: .4, shatter: false }, Splatter: { shake: 1.3, shatter: true }, Marquee: { shake: .5, shatter: false } };
 const comboStyle = () => COMBO_STYLES[SETTINGS.snake && SETTINGS.snake.combo] || COMBO_STYLES.Default;
 const comboDur = () => 6.5 * (MOD.comboFocus ? .75 : 1) * (MOD.comboCushion ? 1.5 : 1) * comboGutMult();
 const COMBO_CAP = 1.8; // the timer can bank up to 1.8x its normal length

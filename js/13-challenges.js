@@ -1,4 +1,4 @@
-/* MAP CHALLENGES: every map draws 4 challenges (easy, medium, hard, and a medium or extreme) from a large pool.
+/* MAP CHALLENGES: every map draws 3 challenges (a quick easy one, a medium, and a hard or extreme) from a large pool.
    The set rerolls every 15 minutes for everyone (based on the clock), progress resets with it,
    while long-term stats (best scores, levels, unlocks) are kept separately. Targets scale with how many
    people/animals the map actually has. Rewards are XP and chips; cosmetics come from lifetime achievements. */
@@ -28,27 +28,24 @@ const CH_NAMES = { // short and plain; the odd dark joke, not a pun every time
   sequence: { medium: 'Farm to Table' }, nvKills: { medium: 'Night Shift' }, darkCombo: { hard: 'In the Dark' }, edgeFree: { medium: 'Middle Ground' },
   aliens: { medium: 'Abduction', hard: 'Close Encounters' }, astronauts: { medium: 'Ground Control', hard: 'Houston' },
 };
-const chName = (k, tier, type) => k === 'type' ? `${type[0].toUpperCase() + type.slice(1)} Problem` : (CH_NAMES[k] || {})[tier] || Object.values(CH_NAMES[k] || { x: 'Mystery Meat' })[0];
+const chName = (k, tier, type) => k === 'type' ? (tier === 'easy' ? `${type[0].toUpperCase() + type.slice(1)} Snack` : `${type[0].toUpperCase() + type.slice(1)} Problem`) : (CH_NAMES[k] || {})[tier] || Object.values(CH_NAMES[k] || { x: 'Mystery Meat' })[0];
 function chPool(map) {
   const m = MAPS.find(q => q.name === map), animals = [...new Set(m.pop.filter(q => q[0] !== 'human').map(q => q[0]))], hasA = animals.length > 0, P = [];
   const hPop = m.pop.filter(q => TYPES[q[0]].human).reduce((a, q) => a + q[1], 0), aPop = m.pop.filter(q => !TYPES[q[0]].human).reduce((a, q) => a + q[1], 0);
   const fh = clamp(hPop / 12, .6, 1.5), fa = clamp(aPop / 10, .5, 1.5); // fewer people on the map = smaller human targets
   const HUM = new Set(['humans', 'panic', 'panicKills', 'humanStreak', 'watched', 'humanCombo']), ANI = new Set(['animals', 'animalStreak']);
   const add = (tier, k, ns, t, extra = {}) => P.push({ tier, k, ns: ns.map(n => Math.max(1, Math.round(n * (HUM.has(k) ? fh : ANI.has(k) ? fa : 1)))), t, ...extra });
-  add('easy', 'humans', [5, 6, 8], 'Eat {n} people');
-  if (hasA) add('easy', 'animals', [3, 4, 5], 'Eat {n} animals');
-  add('easy', 'combo', [4, 5], 'Reach a {n}x combo');
-  add('easy', 'score', [40, 50, 60], 'Reach {n} score');
-  add('easy', 'survive', [60, 90], 'Stay alive for {n} seconds');
-  add('easy', 'dist', [400, 600], 'Travel {n} m');
-  add('easy', 'panic', [3, 4], 'Get {n} people panicking at once');
+  // easy: quick, natural goals you hit just by playing (a minute or two at most)
+  const PL = { sheep: 'sheep', deer: 'deer', mouse: 'mice', fish: 'fish' }, plural = t => PL[t] || t + 's';
+  P.push({ tier: 'easy', k: 'humans', ns: [2, 3], t: 'Eat {n} people' });
+  for (const t of animals) P.push({ tier: 'easy', k: 'type', ns: [2, 3], t: `Eat {n} ${plural(t)}`, type: t });
+  P.push({ tier: 'easy', k: 'combo', ns: [3, 4], t: 'Reach a {n}x combo' });
+  if (hasA) P.push({ tier: 'easy', k: 'comboTypes', ns: [2], t: 'Eat {n} different kinds of thing in one combo' });
   add('medium', 'panic', [6, 7], 'Get {n} people panicking at once');
-  add('easy', 'xp', [60, 90], 'Earn {n} XP from kills');
   add('medium', 'humans', [10, 12, 14], 'Eat {n} people');
   add('medium', 'combo', [7, 8, 9], 'Reach a {n}x combo');
   if (hasA) add('medium', 'comboTypes', [3], 'Eat {n} different kinds of thing in one combo');
   add('medium', 'panicKills', [4, 5, 6], 'Eat {n} people while they run');
-  add('easy', 'unaware', [3, 4], 'Eat {n} targets before they notice you');
   add('medium', 'unaware', [6, 7], 'Eat {n} targets before they notice you');
   add('medium', 'sharp', [2, 3], 'Eat {n} targets right after a sharp turn');
   add('medium', 'burst', [3], 'Eat {n} targets within 3 seconds');
@@ -56,7 +53,6 @@ function chPool(map) {
   add('medium', 'humanStreak', [5, 6], 'Eat {n} people in a row, no animals');
   add('hard', 'humanStreak', [10, 12], 'Eat {n} people in a row, no animals');
   if (hasA) add('medium', 'animalStreak', [5, 6], 'Eat {n} animals in a row, no people');
-  add('easy', 'noNVScore', [50, 70], 'Reach {n} score without using night vision');
   add('medium', 'gore', [35, 45], 'Get {n}% of your body bloody');
   add('medium', 'comboTime', [20, 25], 'Keep a combo going for {n} seconds');
   add('medium', 'xp', [150, 200], 'Earn {n} XP from kills');
@@ -116,7 +112,7 @@ function buildSet(map, rot, salt = 0) {
     out.push({ id: `${q.k}-${n}${q.type ? '-' + q.type : ''}${mod ? '-' + mod : ''}`, k: q.k, n, tier, type: q.type, seq: q.seq, mod, name: chName(q.k, q.tier, q.type),
       t: q.t.replace('{n}', n).replace('{mod}', mod ? MODS.find(x => x.id === mod).name : '').replace(/\ba (?=(8|11|18)\D)/, 'an ') });
   };
-  take('easy'); take('medium'); take('hard'); take(r() < .3 ? 'rare' : 'medium');
+  take('easy'); take('medium'); take(r() < .25 ? 'rare' : 'hard'); // three at a time: one quick, one that needs a bit of focus, one real goal
   const ord = { easy: 0, medium: 1, hard: 2, rare: 3 };
   return out.sort((a, b) => ord[a.tier] - ord[b.tier]); // always easiest first
 }
@@ -208,7 +204,7 @@ function checkRotation() { // reroll every 15 minutes, without restarting anythi
   const mc = document.getElementById('mapch');
   if (mc) { mc.classList.add('rotOut'); setTimeout(() => { if (!mc.isConnected) return; mc.innerHTML = mapChallengesHtml(); mc.classList.remove('rotOut', 'swap'); void mc.offsetWidth; mc.classList.add('swap'); }, 420); }
   if (state === 'paused' && overlay.style.display !== 'none' && overlay.querySelector('.pause')) { const pc = overlay.querySelector('.pch'); if (pc) pc.innerHTML = challengeRows(); } // refresh in place, never open it
-  overlay.querySelectorAll('.card[data-map] .cb').forEach(el => { const m = MAPS[+el.closest('.card').dataset.map].name; el.textContent = `Best ${PROG.best[m] || 0}, ${chDoneCount(m)}/4 challenges`; });
+  overlay.querySelectorAll('.card[data-map] .cb').forEach(el => { const m = MAPS[+el.closest('.card').dataset.map].name; el.textContent = `Best ${PROG.best[m] || 0} · ${chDoneCount(m)}/${activeChallenges(m).length} ✓`; });
 }
 function checkChallenges() {
   if (state !== 'play' && state !== 'dead') return;
