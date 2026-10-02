@@ -134,7 +134,7 @@ function footprints(c, moved) {
   c.step = 0; c.fs = -c.fs;
   if (c.feet <= .3) return;
   const off = c.fs * (hum ? 3.5 : 2);
-  fctx.save();
+  markF(); fctx.save();
   fctx.translate(c.x - Math.sin(c.a) * off, c.y + Math.cos(c.a) * off); fctx.rotate(c.a);
   fctx.globalAlpha = Math.min(.85, c.feet * .11); fctx.fillStyle = BLOOD;
   if (hum) ell(fctx, 0, 0, 3.4, 1.8);

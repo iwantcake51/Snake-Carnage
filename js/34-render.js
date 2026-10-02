@@ -22,7 +22,7 @@ function render() {
   x.drawImage(baseC, 0, 0, W, H);
   x.drawImage(groundC, 0, 0, W, H);
   if (MAPS[mapIdx].club) drawDanceFloor(x);
-  for (const b of bucketList) { x.globalAlpha = bucketAlpha(b); x.drawImage(b.f, 0, 0, W, H); }
+  for (const b of bucketList) { if (!b.fd) continue; x.globalAlpha = bucketAlpha(b); x.drawImage(b.f, 0, 0, W, H); }
   x.globalAlpha = L.salpha; x.drawImage(shadowC, 0, 0, W, H); x.globalAlpha = 1;
   x.fillStyle = `rgba(0,0,0,${L.salpha})`; x.beginPath(); // creature + snake shadows as one shape
   for (const c of creatures) if (c.alive) { const r = c.def.r * .85, sx = c.x + L.sdx * 5, sy = c.y + L.sdy * 5; x.moveTo(sx + r, sy); x.arc(sx, sy, r, 0, TAU); }
@@ -34,9 +34,8 @@ function render() {
   drawTrail(x); drawGround(x); drawSnake(x);
   x.drawImage(obsC, 0, 0, W, H);
   drawWaters(x);
-  for (const b of bucketList) { x.globalAlpha = bucketAlpha(b); x.drawImage(b.w, 0, 0, W, H); }
+  for (const b of bucketList) { if (!b.wd) continue; x.globalAlpha = bucketAlpha(b); x.drawImage(b.w, 0, 0, W, H); }
   x.globalAlpha = 1;
-  x.drawImage(outlineC, 0, 0, W, H);
   x.lineCap = 'round'; x.strokeStyle = BLOOD;
   for (const p of parts) { // airborne drops drawn as motion streaks
     const py = p.y - p.z * .25; x.lineWidth = p.r * 2 * (1 + p.z / 80);

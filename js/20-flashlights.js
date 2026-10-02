@@ -62,7 +62,7 @@ function updateBeams(dt) {
   const list = [];
   for (const c of creatures) if (c.alive && c.fl && c.fl.k > .01) list.push(c.fl);
   for (const d of dropped) if (d.k > .01) list.push(d);
-  const cap = lowFx ? 4 : 6, sx = snake ? snake.x : W / 2, sy = snake ? snake.y : H / 2;
+  const cap = lq().beams, sx = snake ? snake.x : W / 2, sy = snake ? snake.y : H / 2;
   const key = f => dist2(f.x, f.y, sx, sy) * (f.sel ? .6 : 1); // already-shown beams get a head start, so the set doesn't churn
   if (list.length > cap) list.sort((a, b) => key(a) - key(b)); // nearest first, capped for speed
   beams = [];

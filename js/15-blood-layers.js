@@ -2,7 +2,8 @@
    then fades smoothly via globalAlpha (no 8-bit leftovers). Old layers are recycled. */
 const FADE = { Never: null, Slow: { hold: 90, fade: 60 }, Normal: { hold: 40, fade: 35 }, Fast: { hold: 15, fade: 20 } }; // seconds
 const BLOOD_BUCKETS = 4; // each layer is two full-screen canvases drawn every frame, so keep this small
-let bucketList = [], bucketPool = [];
+let bucketList = [], bucketPool = [], curBucket = null;
+const markF = () => { if (curBucket) curBucket.fd = true; }, markW = () => { if (curBucket) curBucket.wd = true; };
 function makeBucket() {
   const f = document.createElement('canvas'), w = document.createElement('canvas');
   const k = Math.min(DPR, 2); f.width = w.width = W * k; f.height = w.height = H * k; // crisp blood
@@ -22,14 +23,15 @@ function addBloodAmount(a) { // called per kill: keeps total blood under the lim
   for (const b of bucketList) { if (tot <= BLOOD_LIMIT) break; if (b.ff === undefined && b !== bucketList[bucketList.length - 1]) { b.ff = T; tot -= b.amt || 0; } }
 }
 function mergeOldest() { // out of layers: fold the oldest into the next one so nothing pops
-  const a = bucketList.shift(), n = bucketList[0], al = bucketAlpha(a);
+  const a = bucketList.shift(), n = bucketList[0], al = bucketAlpha(a); n.fd = n.fd || a.fd; n.wd = n.wd || a.wd;
   for (const [dst, src] of [[n.fx, a.f], [n.wx, a.w]]) { dst.save(); dst.globalCompositeOperation = 'destination-over'; dst.globalAlpha = al; dst.drawImage(src, 0, 0, W, H); dst.restore(); }
   bucketPool.push(a);
 }
 function newBucket() {
   let b = bucketPool.pop();
   if (!b) { if (bucketList.length < BLOOD_BUCKETS) b = makeBucket(); else { mergeOldest(); b = bucketPool.pop(); } }
-  b.fx.clearRect(0, 0, W, H); b.wx.clearRect(0, 0, W, H); b.born = T; b.amt = 0; b.ff = undefined;
+  b.fx.clearRect(0, 0, W, H); b.wx.clearRect(0, 0, W, H); b.born = T; b.amt = 0; b.ff = undefined; b.fd = b.wd = false; // fd/wd: has ground/wall blood
+  curBucket = b;
   bucketList.push(b); fctx = b.fx; wctx = b.wx;
 }
 function resetBuckets() { bucketPool.push(...bucketList); bucketList = []; newBucket(); }
@@ -139,7 +141,7 @@ function updateBlood(dt) {
   }
   for (let i = pools.length - 1; i >= 0; i--) { // pools grow under the kill site
     const pl = pools[i];
-    pl.r += (pl.max - pl.r) * dt * 2.2;
+    pl.r += (pl.max - pl.r) * dt * 2.2; markF();
     fctx.fillStyle = pl.c || BLOOD;
     for (const l of pl.lobes) ell(fctx, pl.x + l.dx * pl.r, pl.y + l.dy * pl.r, pl.r * l.s, pl.r * l.s * .85);
     for (let j = -2; j <= 2; j++) for (let k = -2; k <= 2; k++) {

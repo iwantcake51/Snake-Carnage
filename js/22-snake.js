@@ -124,7 +124,7 @@ function smearBlood(s, dt) {
     const lx = s.lastX, ly = s.lastY, line = (ax, ay, bx, by) => { fctx.beginPath(); fctx.moveTo(ax, ay); fctx.lineTo(bx, by); fctx.stroke(); };
     const nx = -Math.sin(s.angle), ny = Math.cos(s.angle);
     s.smW = clamp((s.smW || 1.4) + rand(-.12, .12), 1, 1.8); s.smO = clamp((s.smO || 0) + rand(-.5, .5), -2.5, 2.5); // width and drift wander
-    fctx.save(); fctx.lineCap = 'round'; fctx.strokeStyle = BLOOD; fctx.fillStyle = BLOOD;
+    markF(); fctx.save(); fctx.lineCap = 'round'; fctx.strokeStyle = BLOOD; fctx.fillStyle = BLOOD;
     fctx.globalAlpha = s.smear * rand(.16, .3); fctx.lineWidth = CONFIG.snakeR * s.smW;
     line(lx + nx * s.smO, ly + ny * s.smO, s.x + nx * s.smO, s.y + ny * s.smO);
     fctx.globalAlpha = s.smear * rand(.35, .6); fctx.lineWidth = rand(.8, 1.7);

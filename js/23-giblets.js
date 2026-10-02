@@ -65,7 +65,7 @@ function updateGiblets(dt) {
     } else { // sliding on the ground: friction, and a thin smear along the way
       const f = Math.exp(-dt * 5.5); g.vx *= f; g.vy *= f; g.vr *= f;
       const sp = Math.hypot(g.vx, g.vy);
-      if (sp > 10) { fctx.strokeStyle = g.bl ? g.bl[0] : BLOOD; fctx.globalAlpha = .55; fctx.lineCap = 'round'; fctx.lineWidth = g.s * .7; fctx.beginPath(); fctx.moveTo(px, py); fctx.lineTo(g.x, g.y); fctx.stroke(); fctx.globalAlpha = 1; }
+      if (sp > 10) { markF(); fctx.strokeStyle = g.bl ? g.bl[0] : BLOOD; fctx.globalAlpha = .55; fctx.lineCap = 'round'; fctx.lineWidth = g.s * .7; fctx.beginPath(); fctx.moveTo(px, py); fctx.lineTo(g.x, g.y); fctx.stroke(); fctx.globalAlpha = 1; }
       if (sp < 5) g.rest = 1e-3;
     }
   }

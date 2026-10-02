@@ -19,7 +19,7 @@ const CONFIG = {
 };
 const SETTINGS = Object.assign({
   darkness: .2, pixel: 1, creatureSpeed: .55, timeMode: 'Cycle', dayMinutes: 4, bloodFade: 'Normal', customHour: 22, volume: .7,
-  lightQ: 'High', dynShadows: true, fxLevel: 'Normal', mouseFollow: false,
+  lightQ: (() => { try { return matchMedia('(pointer: coarse)').matches ? 'Medium' : 'High'; } catch (e) { return 'High'; } })(), dynShadows: true, fxLevel: 'Normal', mouseFollow: false,
   vignette: true, desaturate: true, shake: true, noticeSnake: false, uiSounds: true, mods: [], reduceMotion: false, bubbleSize: 'Normal', strongOutlines: false, snakeOutline: 'Subtle', uiScale: 'Auto',
 }, (() => { try { return JSON.parse(localStorage.getItem('snakeCarnageSettings')) || {}; } catch (e) { return {}; } })());
 if (!SETTINGS.mapOutlines) SETTINGS.mapOutlines = SETTINGS.strongOutlines ? 'Strong' : 'Subtle'; // "Strong outlines" became "Map outlines"

@@ -105,7 +105,7 @@ function obstacleAt(px, py) {
 }
 function wallSplat(px, py, vx, vy, r, c) { // clipped to the object that was hit
   const o = obstacleAt(px, py); if (!o) return;
-  wctx.save(); wctx.beginPath();
+  markW(); wctx.save(); wctx.beginPath();
   if (o.t === 'r') wctx.rect(o.x, o.y, o.w, o.h); else wctx.arc(o.x, o.y, o.r, 0, TAU);
   if (o.kind === 'water') { // only the basin rim / coping takes stains; the water itself tints instead
     const S = wShape(o);

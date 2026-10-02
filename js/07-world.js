@@ -21,7 +21,7 @@ function los(ax, ay, bx, by) {
 }
 function addWet(x, y, v) {
   const i = x / WS | 0, j = y / WS | 0;
-  if (i >= 0 && j >= 0 && i < WW && j < WH) { wet[j * WW + i] += v; fresh[j * WW + i] += v; }
+  if (i >= 0 && j >= 0 && i < WW && j < WH) { wet[j * WW + i] += v; fresh[j * WW + i] += v; } markF();
 }
 function freshAt(x, y) {
   const i = x / WS | 0, j = y / WS | 0;
@@ -57,6 +57,7 @@ function bakeOutline() {
   olx.globalCompositeOperation = 'destination-out'; olx.drawImage(maskC, 0, 0, W, H);           // keep only the rim
   olx.globalCompositeOperation = 'source-in'; olx.fillStyle = strong ? 'rgba(5,3,3,.95)' : 'rgba(12,8,8,.75)'; olx.fillRect(0, 0, W, H);
   olx.globalCompositeOperation = 'source-over';
+  octx.drawImage(outlineC, 0, 0, W, H); // baked into the obstacle layer: one less full-screen draw every frame
   nvx.clearRect(0, 0, W, H); nvx.drawImage(outlineC, 0, 0, W, H); // bright copy used by night vision
   nvx.globalCompositeOperation = 'source-in'; nvx.fillStyle = '#ffffff'; nvx.fillRect(0, 0, W, H); nvx.globalCompositeOperation = 'source-over';
 }

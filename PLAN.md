@@ -68,8 +68,8 @@ Each box gets ticked as soon as that piece is done and checked in a headless run
 - [x] Ring expands and pops when time runs out; target turns back to normal
 
 ## 10. Animals
-- [ ] Redrawn animals
-- [ ] Frogs and bunnies hop: sprite grows, shadow shrinks at the top of the hop
+- [x] Redrawn animals
+- [x] Frogs and bunnies hop: sprite grows, shadow shrinks at the top of the hop
 
 ## 11. Maps
 - [x] Space maps rebuilt to look believable; all sound muffled on space maps
@@ -83,10 +83,10 @@ Each box gets ticked as soon as that piece is done and checked in a headless run
 - [x] Other maps reworked to look designed (Town, Office, Farm, Park, Meadow, Checkerboard, Maze)
 
 ## 12. Lighting / performance
-- [ ] Lighting optimized: nearest/visible lights get dynamic shadows, the rest use baked masks
+- [x] Lighting optimized: nearest/visible lights get dynamic shadows, the rest use baked masks
 - [x] No light where there is no source (every fixed light has a visible fixture, windows only on real walls)
 - [x] Flashlight flicker fixed
-- [ ] Graphics options: lighting quality, dynamic shadows, particles/effects
+- [x] Graphics options: lighting quality, dynamic shadows, particles/effects
 - [x] Insects around lamps; they scatter and fade when the lamp breaks
 
 ## 13. Time modes

@@ -296,7 +296,8 @@ function applySetting(k) { // side effects of a setting change
   saveSettings();
   if (k === 'reduceMotion') document.body.classList.toggle('calm', !!SETTINGS.reduceMotion);
   if (k === 'uiScale') { applyUiScale(); requestAnimationFrame(() => overlay.querySelectorAll('.seg,.sseg').forEach(sg => placeThumb(sg, true))); }
-  if (k === 'mapOutlines') bakeOutline();
+  if (k === 'mapOutlines') { drawObstacleLayer(); bakeOutline(); }
+  if (k === 'lightQ') resizeLights();
   if (k === 'timeMode') { const t = SETTING_TABS.Gameplay.rows; overlay.querySelectorAll('[data-row]').forEach(r => { const row = t.find(x => x[1] === r.dataset.row); if (row && row[7]) r.classList.toggle('dim', !row[7]()); }); }
 }
 function wireSettings(body) {
