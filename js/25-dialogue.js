@@ -489,7 +489,7 @@ function perceive(c) {
     if (solid(c.x + dx * 26, c.y + dy * 26)) { c.avx -= dx * .5; c.avy -= dy * .5; }
   }
   if (state !== 'play' || !s.started) return;
-  const dist = Math.hypot(c.x - s.x, c.y - s.y), sight = c.def.sight * (MOD.skittish ? 1.5 : MOD.oblivious ? .6 : 1) * (s.camoT > 0 ? .25 - (upg('camo') > 2 ? .15 * (s.still || 0) : 0) : 1) * (hasTrait(c, 'distracted') ? .7 : hasTrait(c, 'curious') ? 1.15 : 1); // camouflage: only up close
+  const dist = Math.hypot(c.x - s.x, c.y - s.y), sight = c.def.sight * (MOD.skittish ? 1.5 : MOD.oblivious ? .6 : 1) * (MOD.fog ? .55 : 1) * (s.camoT > 0 ? .25 - (upg('camo') > 2 ? .15 * (s.still || 0) : 0) : 1) * (hasTrait(c, 'distracted') ? .7 : hasTrait(c, 'curious') ? 1.15 : 1); // camouflage: only up close
   const blind = MOD.blind && hum;
   const seen = !blind && (dist < (s.camoT > 0 ? (upg('camo') > 2 ? 9 : 22) : 40) || (dist < sight * (c.alert > .3 ? 1.25 : 1) && lightAt(s.x, s.y) > VISIBLE && los(c.x, c.y, s.x, s.y)));
   if (blind && dist < 95 && c.state !== 'panic') { // heard something slither close by: bolt, roughly away from the sound

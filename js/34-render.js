@@ -1,9 +1,6 @@
-function snakeShadowPath(x, ox, oy) { // squared-off segments, turned with the body, like the hitbox they come from
+function snakeShadowPath(x, ox, oy) { // round, soft-edged discs per segment, like everyone else's shadow
   const sg = snake.segs, n = sg.length;
-  for (let i = 0; i < n; i++) {
-    const g = sg[i], r = segR(i, n) * .95, c = Math.cos(g.a), s = Math.sin(g.a), sx = g.x + ox, sy = g.y + oy;
-    x.moveTo(sx + (c * r - s * r), sy + (s * r + c * r)); x.lineTo(sx + (-c * r - s * r), sy + (-s * r + c * r)); x.lineTo(sx + (-c * r + s * r), sy + (-s * r - c * r)); x.lineTo(sx + (c * r + s * r), sy + (s * r - c * r)); x.closePath();
-  }
+  for (let i = 0; i < n; i++) { const g = sg[i], r = segR(i, n) * .95, sx = g.x + ox, sy = g.y + oy; x.moveTo(sx + r, sy); x.arc(sx, sy, r, 0, TAU); }
 }
 function render() {
   const x = sctx, L = light, sh = shake && SETTINGS.shake ? shake * (SETTINGS.shakeK ?? 1) : 0;
@@ -66,7 +63,7 @@ function render() {
     for (let y = 0; y < cv.height; y += bh) { const o = Math.sin(y / cv.height * 9 + T * 3.1) * amp + Math.sin(T * 1.7 + y * .01) * amp * .4; ctx.drawImage(sceneC, 0, y, cv.width, bh, o, y, cv.width, bh); }
     if (!SETTINGS.reduceFlash && !SETTINGS.simpleFx) chromaSplit(Math.min(1, ws));
   }
-  if (snake && snake.ramT > 0 && px <= 1 && !SETTINGS.reduceFlash) { const bk = Math.pow(snake.ramT / (snake.ramMax || 1), .6) * (snake.stunFx || 1); concussBloom(bk * (snake.wallStun > 0 ? .42 : .22)); } // any daze blooms; walls much more
+  if (snake && snake.ramT > 0 && px <= 1 && !SETTINGS.reduceFlash) { const bk = Math.pow(snake.ramT / (snake.ramMax || 1), .6) * (snake.stunFx || 1); concussBloom(bk * (snake.wallStun > 0 ? .26 : .1)); } // any daze blooms; walls much more
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   if (nightVision) { // green phosphor look done in-canvas, so the overlays after it keep their real colors
     ctx.globalCompositeOperation = 'saturation'; ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
@@ -98,9 +95,11 @@ function render() {
   if (pg !== !!render.pg) { render.pg = pg; stage.classList.toggle('pregame', pg); if (!pg) { stage.classList.add('hudin'); clearTimeout(render.hudT); render.hudT = setTimeout(() => stage.classList.remove('hudin'), 900); } }
   const wantStart = state === 'ready' && !cam;
   if (wantStart !== !!render.startShown) { render.startShown = wantStart; wantStart ? showResume('to begin') : hideResume(); }
-  const stun = snake && snake.ramT > 0 ? Math.min(1, Math.pow(snake.ramT / (snake.ramMax || 1), .6) * (snake.stunFx || 1)) : 0; // lingers, then eases out // dazed after smashing through something
+  const stunRaw = snake && snake.ramT > 0 ? Math.min(1, Math.pow(snake.ramT / (snake.ramMax || 1), .45) * (snake.stunFx || 1)) : 0; // dazed after smashing through something
+  render.stunS = (render.stunS || 0) + (stunRaw - (render.stunS || 0)) * (stunRaw > (render.stunS || 0) ? .07 : .022); // heavy but smooth: eases in, then drains slowly as speed returns
+  const stun = render.stunS < .01 ? 0 : render.stunS;
   if (Math.abs(stun - (render.stun || 0)) > .02 || (stun === 0) !== (render.stun === 0)) { render.stun = stun; stage.style.setProperty('--stun', stun.toFixed(2)); stage.classList.toggle('stunned', stun > 0); stage.classList.toggle('wallstun', !!(snake && snake.wallStun > 0)); }
-  const sat = (SETTINGS.desaturate && !nightVision ? clamp(1 - killFlash * .5, .45, 1) : 1) * (1 - .75 * stun);
+  const sat = (SETTINGS.desaturate && !nightVision ? clamp(1 - killFlash * .5, .45, 1) : 1) * (1 - .93 * stun);
   const f = nightVision ? `contrast(1.15) brightness(${(.95 - SETTINGS.darkness * .2).toFixed(2)})` : `saturate(${sat.toFixed(2)}) brightness(${(1 - SETTINGS.darkness).toFixed(2)}) contrast(1.08)`;
   if (f !== lastFilter) { cv.style.filter = f; lastFilter = f; }
   const clock = (MAPS[mapIdx].indoor ? '🏢 ' : light.day > .5 ? '☀️ ' : light.day > .05 ? '🌇 ' : '🌙 ') +

@@ -68,9 +68,9 @@ button:focus-visible,input:focus-visible{outline:3px solid #e0a030}
 .logo .l1{font-size:30px;color:#ece6df;letter-spacing:.5px}
 .logo .l2{font-size:94px;color:var(--acc);text-shadow:4px 4px 0 #3e0407,0 0 34px color-mix(in srgb,var(--acc) 35%,transparent)}
 .tag{margin:12px 0 18px;font-size:16px;line-height:1.5;color:#bdb3aa;max-width:30ch}
-.play{display:flex;align-items:center;justify-content:space-between;width:100%;background:var(--acc);color:#fff;border:0;border-radius:10px;padding:16px 20px;font-size:21px;font-weight:700;cursor:pointer;box-shadow:0 6px 0 #6d0a0e;transition:transform .08s,box-shadow .08s,background .12s}
-.play:hover{background:#e3242b}
-.play:active{transform:translateY(4px);box-shadow:0 2px 0 #6d0a0e}
+.play{display:flex;align-items:center;justify-content:space-between;width:100%;background:var(--acc);color:#fff;border:0;border-radius:10px;padding:16px 20px;font-size:21px;font-weight:700;cursor:pointer;box-shadow:0 6px 0 var(--acc-deep);transition:transform .08s,box-shadow .08s,background .12s}
+.play:hover{background:var(--acc-hi)}
+.play:active{transform:translateY(4px);box-shadow:0 2px 0 var(--acc-deep)}
 .play small{font-size:12px;font-weight:600;background:rgba(0,0,0,.25);padding:4px 8px;border-radius:6px}
 .seg{display:flex;margin:12px 0 10px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:4px;gap:4px}
 .seg button{flex:1;background:none;border:0;color:#bdb3aa;padding:9px 0;border-radius:7px;font-size:15px;font-weight:600;cursor:pointer}
@@ -146,7 +146,7 @@ kbd{display:inline-block;min-width:22px;text-align:center;background:#231d20;bor
 .play:hover,.ghost:hover,.btn:hover,.chip:hover,.sw:hover,#bar button:hover{scale:1.06}
 .seg button:hover,.sseg button:hover{color:#fff}
 .play:active,.ghost:active,.btn:active,.chip:active,.sw:active,#bar button:active,.tab:active{scale:.94;transition-duration:.08s}
-.play:hover{box-shadow:0 6px 0 #6d0a0e,0 0 26px rgba(255,40,40,.45)}
+.play:hover{box-shadow:0 6px 0 var(--acc-deep),0 0 26px color-mix(in srgb,var(--acc-hi) 45%,transparent)}
 .play span{display:inline-block}
 .play span.bump{animation:bump .45s var(--spring)}
 @keyframes bump{0%{transform:scale(1)}40%{transform:scale(1.12)}100%{transform:scale(1)}}
@@ -169,10 +169,10 @@ kbd{display:inline-block;min-width:22px;text-align:center;background:#231d20;bor
 /* map cards */
 .card{position:relative;transform:perspective(520px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));
   transition:transform .25s var(--ease),scale .28s var(--spring),box-shadow .35s ease,border-color .3s;animation:inCard .55s var(--spring) backwards;animation-delay:calc(.12s + var(--i,0) * 55ms)}
-.card:hover{transform:perspective(520px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));scale:1.07;border-color:#ff5a5a;
-  box-shadow:0 0 0 1px color-mix(in srgb,var(--acc-hi) 60%,transparent),0 0 24px 3px rgba(255,40,40,.45),0 10px 24px rgba(0,0,0,.5);z-index:2}
+.card:hover{transform:perspective(520px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));scale:1.07;border-color:var(--acc-hi);
+  box-shadow:0 0 0 1px color-mix(in srgb,var(--acc-hi) 60%,transparent),0 0 24px 3px color-mix(in srgb,var(--acc-hi) 45%,transparent),0 10px 24px rgba(0,0,0,.5);z-index:2}
 .card.on{border-color:var(--acc);box-shadow:0 0 0 2px color-mix(in srgb,var(--acc) 35%,transparent),0 0 16px color-mix(in srgb,var(--acc) 35%,transparent)}
-.card.on:hover{box-shadow:0 0 0 2px color-mix(in srgb,var(--acc-hi) 75%,transparent),0 0 28px 5px rgba(255,40,40,.55),0 10px 24px rgba(0,0,0,.5)}
+.card.on:hover{box-shadow:0 0 0 2px color-mix(in srgb,var(--acc-hi) 75%,transparent),0 0 28px 5px color-mix(in srgb,var(--acc-hi) 55%,transparent),0 10px 24px rgba(0,0,0,.5)}
 .card.picked{animation:pick .5s var(--spring)}
 @keyframes pick{0%{scale:1}35%{scale:1.13}100%{scale:1.07}}
 .card img{transition:scale .4s var(--ease)}
@@ -192,7 +192,7 @@ kbd{display:inline-block;min-width:22px;text-align:center;background:#231d20;bor
 .leaving{animation:panelOut .18s ease-in forwards!important}
 @keyframes panelOut{to{opacity:0;transform:translateY(8px) scale(.96)}}
 .btn{transition:scale .24s var(--spring),background .2s,box-shadow .25s}
-.btn:hover{box-shadow:0 0 18px rgba(255,40,40,.4)}
+.btn:hover{box-shadow:0 0 18px color-mix(in srgb,var(--acc-hi) 40%,transparent)}
 /* random map: case opening */
 .casebox{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(5,3,4,.74);animation:fadeIn .25s ease backwards}
 .casebox.leaving{animation:fadeOut .3s ease forwards!important}
@@ -218,7 +218,7 @@ kbd{display:inline-block;min-width:22px;text-align:center;background:#231d20;bor
 .case.win.pop{animation:toss 1.05s cubic-bezier(.3,.7,.4,1) forwards}
 @keyframes toss{0%{transform:none}16%{transform:scale(1.18)}44%{transform:scale(1.2) translateY(-44px) rotate(-7deg)}72%{transform:scale(1.13) translateY(5px) rotate(2deg)}86%{transform:scale(1.15) translateY(-6px) rotate(-1deg)}100%{transform:scale(1.14)}}
 .case.win.reveal .flip{transform:rotateY(180deg)}
-.case.win.reveal .face.back{box-shadow:0 0 30px rgba(255,60,60,.6)}
+.case.win.reveal .face.back{box-shadow:0 0 30px color-mix(in srgb,var(--acc-hi) 60%,transparent)}
 .caselabel{text-shadow:0 2px 10px #000,0 0 2px #000;margin-top:20px;font-size:20px;font-weight:700;color:#ece6df;min-height:28px;transition:opacity .3s}
 .caselabel.big{animation:bump .5s var(--spring)}
 /* map intro */
@@ -330,7 +330,7 @@ body.calm *,body.calm *::before,body.calm *::after{animation-duration:.001ms!imp
 #combo.out{display:block;animation:cbOut .45s ease-in forwards}
 @keyframes cbIn{from{opacity:0;transform:translateX(-24px) scale(.85)}}
 @keyframes cbOut{to{opacity:0;transform:translateX(-30px) scale(.9);filter:blur(3px)}}
-.cbn{display:flex;align-items:baseline;gap:2px;font:400 56px/1 Impact,Haettenschweiler,"Arial Narrow Bold",sans-serif;color:#fff;text-shadow:3px 3px 0 #5a0508,0 0 18px rgba(0,0,0,.6)}
+.cbn{display:flex;align-items:baseline;gap:2px;font:400 56px/1 Impact,Haettenschweiler,"Arial Narrow Bold",sans-serif;color:#fff;text-shadow:3px 3px 0 var(--acc-deep),0 0 18px rgba(0,0,0,.6)}
 .cbn b{font-weight:400;display:inline-block;transform-origin:60% 70%}
 .cbn i{font-style:normal;font-size:30px;color:var(--acc-hi)}
 .cbn b.punch{animation:punch .38s var(--spring)}
@@ -344,7 +344,7 @@ body.calm *,body.calm *::before,body.calm *::after{animation-duration:.001ms!imp
 .cbar span{display:block;height:100%;background:linear-gradient(90deg,#ff8a3d,#ffcf33);border-radius:4px;transition:background .3s}
 #combo.warn .cbar span{background:linear-gradient(90deg,var(--acc),var(--acc-hi))}
 #combo.crit .cbar{animation:cbPulse .35s ease-in-out infinite alternate}
-@keyframes cbPulse{to{box-shadow:0 0 0 1px rgba(255,80,80,.7),0 0 12px rgba(255,40,40,.7)}}
+@keyframes cbPulse{to{box-shadow:0 0 0 1px color-mix(in srgb,var(--acc-hi) 70%,transparent),0 0 12px color-mix(in srgb,var(--acc-hi) 70%,transparent)}}
 body.minimal #combo ul,body.minimal #rewards{display:none}
 #evt{position:absolute;left:50%;bottom:16px;translate:-50% 0;z-index:12;pointer-events:none;display:none;padding:6px 14px;border-radius:999px;font:700 13px "Segoe UI",system-ui,sans-serif;color:#2a1206;background:linear-gradient(90deg,#ffcf33,#ff9a3d);box-shadow:0 0 18px rgba(255,190,60,.55)}
 #evt.show{display:block;animation:rwIn .45s var(--spring) backwards}
@@ -402,7 +402,7 @@ body.minimal #combo ul,body.minimal #rewards{display:none}
 #modhud{position:absolute;right:14px;bottom:14px;z-index:12;pointer-events:none;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
 .mh{padding:4px 10px;border-radius:999px;font:700 11.5px "Segoe UI",system-ui,sans-serif;color:#efe6de;background:rgba(14,10,12,.7);border:1px solid rgba(255,255,255,.12);animation:rwIn .4s var(--spring) backwards}
 .mh.hot{color:#2a1206;background:linear-gradient(90deg,#ffcf33,#ff9a3d);border-color:transparent}
-.mh.bad{color:#ffd0d0;border-color:rgba(255,80,80,.5)}
+.mh.bad{color:#ffd0d0;border-color:color-mix(in srgb,var(--acc-hi) 50%,transparent)}
 body.minimal #chhud{display:none}
 #stage.bars #chhud,#stage.bars #modhud{opacity:0;transition:opacity .3s}
 /* pause challenge list */
@@ -821,7 +821,7 @@ body.cs-chip-stack .card{box-shadow:0 0 0 2px #2e7d4f,0 0 0 4px #ffcf33,0 8px 18
 #abil{position:absolute;left:50%;bottom:12px;translate:-50% 0;display:flex;gap:8px;pointer-events:auto}
 #abil .ab{position:relative;width:40px;height:40px;border-radius:11px;display:grid;place-items:center;color:#ffd9d4;background:rgba(20,14,16,.78);border:1px solid rgba(255,255,255,.1);overflow:hidden}
 #abil .ab .cd,#touch .ab .cd{position:absolute;inset:0;background:conic-gradient(rgba(0,0,0,.62) var(--cd,0deg),transparent 0);pointer-events:none}
-#abil .ab.ready{border-color:rgba(255,106,90,.55);box-shadow:0 0 10px rgba(255,60,50,.25)}
+#abil .ab.ready{border-color:color-mix(in srgb,var(--acc-hi) 55%,transparent);box-shadow:0 0 10px color-mix(in srgb,var(--acc-hi) 25%,transparent)}
 #abil .ab kbd{position:absolute;right:2px;bottom:1px;font:800 9px "Segoe UI",system-ui,sans-serif;color:#d8cfc7}
 #abil:empty{display:none}
 #stage.bars #abil{opacity:0}
@@ -932,7 +932,7 @@ body.touch #abil{display:none}
 #combo li{font-size:12px;font-weight:700;color:#efe6de;text-align:right}
 #combo li b{min-width:0;margin-left:6px;color:#ffcf33}
 #combo .cbox{position:relative;display:flex;flex-direction:column;align-items:stretch;gap:5px;padding:6px 10px 7px;border-radius:10px;background:rgba(16,10,12,.72);
-  border:1px solid rgba(255,90,74,calc(.15 + var(--heat,0) * .5));box-shadow:0 6px 18px rgba(0,0,0,.4),0 0 calc(var(--heat,0) * 22px) rgba(255,60,40,calc(var(--heat,0) * .45))}
+  border:1px solid color-mix(in srgb,var(--acc-hi) calc((.15 + var(--heat,0) * .5) * 100%),transparent);box-shadow:0 6px 18px rgba(0,0,0,.4),0 0 calc(var(--heat,0) * 22px) color-mix(in srgb,var(--acc-hi) calc((var(--heat,0) * .45) * 100%),transparent)}
 #combo .cbn{font-size:38px;justify-content:center}
 #combo .cbn i{font-size:20px}
 #combo .cbar{width:78px;height:4px}
@@ -994,7 +994,7 @@ body.compact .pmwrap{grid-template-columns:150px 1fr}
 #abil .ab::before{content:'';position:absolute;inset:-3px;border-radius:50%;background:conic-gradient(var(--acc-hi) calc(360deg - var(--cd,0deg)),rgba(255,255,255,.12) 0);
   -webkit-mask:radial-gradient(circle,transparent 21px,#000 22px);mask:radial-gradient(circle,transparent 21px,#000 22px)}
 #abil .ab .cd{border-radius:50%;background:conic-gradient(rgba(0,0,0,.55) var(--cd,0deg),transparent 0)}
-#abil .ab.ready::before{background:var(--acc-hi);box-shadow:0 0 12px rgba(255,80,60,.7)}
+#abil .ab.ready::before{background:var(--acc-hi);box-shadow:0 0 12px color-mix(in srgb,var(--acc-hi) 70%,transparent)}
 #abil .ab.ready{color:#fff;animation:abReady .5s var(--spring)}
 #abil .ab:not(.ready) .upi{opacity:.55}
 #abil .ab kbd{right:-4px;bottom:-4px;background:var(--bg2);border-radius:4px;padding:0 3px;border:1px solid #3a2d32}
@@ -1003,8 +1003,8 @@ body.compact .pmwrap{grid-template-columns:150px 1fr}
 @keyframes abNo{25%{translate:-3px 0}75%{translate:3px 0}}
 #touch .tabil .ab{border-radius:50%}
 /* dazed after a smash: edges blur and darken, easing out with the stagger */
-#stage::before{content:'';position:absolute;inset:0;z-index:11;pointer-events:none;opacity:0;transition:opacity .15s;
-  backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);-webkit-mask:radial-gradient(ellipse at center,transparent 45%,#000 85%);mask:radial-gradient(ellipse at center,transparent 45%,#000 85%);
+#stage::before{content:'';position:absolute;inset:0;z-index:11;pointer-events:none;opacity:0;transition:opacity .6s ease;
+  backdrop-filter:blur(5px) grayscale(.6);-webkit-backdrop-filter:blur(5px) grayscale(.6);-webkit-mask:radial-gradient(ellipse at center,transparent 35%,#000 80%);mask:radial-gradient(ellipse at center,transparent 35%,#000 80%);
   background:radial-gradient(ellipse at center,transparent 50%,rgba(20,0,0,.35))}
 #stage.stunned::before{opacity:var(--stun,0)}
 
@@ -1126,8 +1126,86 @@ body.calm .panel,body.calm .mleft,body.calm .mright{translate:none}
 #abil .ab.off{opacity:.45;filter:grayscale(1)}
 
 /* the start / continue prompt sits in the middle of the frame */
-#resume{bottom:auto!important;top:50%!important;translate:-50% -50%!important}
+#resume{bottom:auto!important;top:72%!important;translate:-50% -50%!important} /* centred, but below the snake */
 #stage.started #modbar{opacity:0!important;pointer-events:none;transition:opacity .35s}
 /* input safety: the intro never sits above a menu, and anything fading out stops taking clicks */
 #intro{z-index:13}
 #intro.out,.leaving,#overlay.hide *{pointer-events:none!important}
+/* in play the challenge list shrinks to one quiet line each: "Eat 3 rats — 1/3" */
+#stage.started #chhud{gap:2px}
+#stage.started #chhud .hch,#stage.started #chhud .cn2,#stage.started #chhud .sep,#stage.started #chhud .rw2{display:none}
+#stage.started #chhud .hc{grid-template-columns:10px auto auto;justify-content:start;padding:2px 8px 3px 6px;font-size:10.5px;background:rgba(14,10,12,.4)}
+#stage.started #chhud .hc .v::before{content:'— ';color:#cfc6be}
+#stage.started #chhud .hc .ck{width:9px;height:9px;font-size:7px}
+#stage.started #chhud{opacity:.55}
+/* HUD under the snake's body fades well back, smoothly */
+#chhud,#modhud,#combo,#rewards,#modbar,#abil,#notes,#lvlup,#evt{transition:opacity .35s ease}
+#stage #chhud.near,#stage #modhud.near,#stage #combo.near,#stage #rewards.near,#stage #modbar.near,#stage #abil.near,#stage #notes.near,#stage #lvlup.near,#stage #evt.near{opacity:.14!important}
+/* ---- combo styles (shop): font, number animation, break, border, colors; shake strength lives in COMBO_STYLES ---- */
+.pvCombo{display:grid;place-items:center;width:100%;height:100%;min-height:62px}
+.pvCombo .cbox{position:relative;display:flex;flex-direction:column;align-items:stretch;gap:5px;padding:6px 10px 7px;border-radius:10px;background:rgba(16,10,12,.72);border:1px solid color-mix(in srgb,var(--acc-hi) 40%,transparent)}
+.pvCombo .cbn{font-size:30px;justify-content:center}.pvCombo .cbn i{font-size:16px}
+.pvCombo .cbar{width:64px;height:4px}.pvCombo .cbar span{width:60%}
+/* Minimal: thin type, no box, a plain fade instead of shattering */
+:is(body.cb-minimal #combo,.pvCombo.cb-minimal) .cbox{background:none;border:0;box-shadow:none;padding:2px 4px}
+:is(body.cb-minimal #combo,.pvCombo.cb-minimal) .cbn{font:300 38px/1 "Segoe UI",system-ui,sans-serif;text-shadow:0 1px 6px rgba(0,0,0,.8);letter-spacing:-.02em}
+:is(body.cb-minimal #combo,.pvCombo.cb-minimal) .cbn i{color:#cfc6be;font-size:18px}
+:is(body.cb-minimal #combo,.pvCombo.cb-minimal) .cbar{height:2px;background:rgba(255,255,255,.15);box-shadow:none}
+:is(body.cb-minimal #combo,.pvCombo.cb-minimal) .cbar span{background:#fff}
+body.cb-minimal #combo .cbn b.punch{animation:cbFadeUp .3s ease-out}
+@keyframes cbFadeUp{from{opacity:.2;transform:translateY(6px)}}
+/* Typewriter: monospaced, the number clacks in, the box is paper-dark with a ruled line */
+:is(body.cb-typewriter #combo,.pvCombo.cb-typewriter) .cbox{border-radius:2px;background:rgba(24,20,16,.82);border:0;border-bottom:2px solid var(--acc-hi)}
+:is(body.cb-typewriter #combo,.pvCombo.cb-typewriter) .cbn{font:700 32px/1 "Courier New",ui-monospace,monospace;text-shadow:none;color:#efe6d6}
+:is(body.cb-typewriter #combo,.pvCombo.cb-typewriter) .cbn i{font-size:16px;color:var(--acc-hi)}
+:is(body.cb-typewriter #combo,.pvCombo.cb-typewriter) .cbar{border-radius:0}
+body.cb-typewriter #combo .cbn b.punch{animation:cbClack .18s steps(2)}
+@keyframes cbClack{0%{transform:translateY(-5px);opacity:.3}100%{transform:none}}
+/* Arcade: chunky pixel type, hard square corners, stepped motion */
+:is(body.cb-arcade #combo,.pvCombo.cb-arcade) .cbox{border-radius:0;background:#0d0b10;border:2px solid var(--acc-hi);box-shadow:4px 4px 0 var(--acc-deep)}
+:is(body.cb-arcade #combo,.pvCombo.cb-arcade) .cbn{font:900 30px/1 "Lucida Console",ui-monospace,monospace;letter-spacing:.06em;text-shadow:3px 3px 0 var(--acc-deep);color:#fff6c8}
+:is(body.cb-arcade #combo,.pvCombo.cb-arcade) .cbar{border-radius:0;height:5px}
+:is(body.cb-arcade #combo,.pvCombo.cb-arcade) .cbar span{border-radius:0;background:repeating-linear-gradient(90deg,var(--acc-hi) 0 6px,transparent 6px 8px)}
+body.cb-arcade #combo .cbn b.punch{animation:cbArc .3s steps(3)}
+@keyframes cbArc{0%{transform:scale(1.5)}50%{transform:scale(1.2)}100%{transform:none}}
+/* Brutal: heavy slab, thick accent border, big slam */
+:is(body.cb-brutal #combo,.pvCombo.cb-brutal) .cbox{border-radius:3px;border:3px solid var(--acc);background:rgba(8,6,7,.88);box-shadow:0 0 0 1px #000,6px 6px 0 rgba(0,0,0,.55)}
+:is(body.cb-brutal #combo,.pvCombo.cb-brutal) .cbn{font-size:46px;text-shadow:4px 4px 0 var(--acc-deep),0 0 2px #000}
+.pvCombo.cb-brutal .cbn{font-size:34px}
+body.cb-brutal #combo .cbn b.punch{animation:cbSlam .34s cubic-bezier(.2,1.6,.4,1)}
+@keyframes cbSlam{0%{transform:scale(2.1) rotate(-6deg);filter:blur(2px)}60%{transform:scale(.88)}100%{transform:none}}
+/* Neon: glowing tube lettering in the theme colour; flickers out instead of shattering */
+:is(body.cb-neon #combo,.pvCombo.cb-neon) .cbox{background:rgba(6,5,10,.8);border:1px solid color-mix(in srgb,var(--acc-hi) 55%,transparent);box-shadow:0 0 14px color-mix(in srgb,var(--acc-hi) 35%,transparent),inset 0 0 10px color-mix(in srgb,var(--acc-hi) 18%,transparent)}
+:is(body.cb-neon #combo,.pvCombo.cb-neon) .cbn{font:600 36px/1 "Segoe UI",system-ui,sans-serif;color:#fff;text-shadow:0 0 4px var(--acc-hi),0 0 12px var(--acc-hi),0 0 24px var(--acc)}
+:is(body.cb-neon #combo,.pvCombo.cb-neon) .cbar span{background:var(--acc-hi);box-shadow:0 0 8px var(--acc-hi)}
+body.cb-neon #combo.out .cbox:not(.shard){animation:cbFlicker .6s steps(1) forwards}
+@keyframes cbFlicker{0%{opacity:1}15%{opacity:.2}25%{opacity:.9}40%{opacity:.1}55%{opacity:.6}70%,100%{opacity:0}}
+/* Gilded (Midas Touch): gold leaf lettering and frame */
+:is(body.cb-gilded #combo,.pvCombo.cb-gilded) .cbox{border:2px solid #d9a21a;background:linear-gradient(180deg,rgba(40,30,10,.88),rgba(18,13,6,.88));box-shadow:0 0 0 1px #5a420e,0 0 16px rgba(255,200,60,.25)}
+:is(body.cb-gilded #combo,.pvCombo.cb-gilded) .cbn{background:linear-gradient(180deg,#fff3b0,#e0a92a 55%,#9a6e10);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none;filter:drop-shadow(2px 2px 0 #3a2a08)}
+:is(body.cb-gilded #combo,.pvCombo.cb-gilded) .cbn i{color:#ffe27a}
+:is(body.cb-gilded #combo,.pvCombo.cb-gilded) .cbar span{background:linear-gradient(90deg,#9a6e10,#ffe27a)}
+/* Manhunt (Humans Only): stencilled, crosshair corners */
+:is(body.cb-manhunt #combo,.pvCombo.cb-manhunt) .cbox{border-radius:0;background:rgba(10,10,10,.8);border:0;
+  background-image:linear-gradient(var(--acc-hi),var(--acc-hi)),linear-gradient(var(--acc-hi),var(--acc-hi)),linear-gradient(var(--acc-hi),var(--acc-hi)),linear-gradient(var(--acc-hi),var(--acc-hi));
+  background-size:10px 2px,2px 10px,10px 2px,2px 10px;background-position:0 0,0 0,100% 100%,100% 100%;background-repeat:no-repeat}
+:is(body.cb-manhunt #combo,.pvCombo.cb-manhunt) .cbn{font:900 34px/1 "Arial Black",Impact,sans-serif;letter-spacing:.04em;text-shadow:none;color:#ece6de}
+/* Overdrive (Bottomless): the heat drives a pulsing aura and a slanted, speeding number */
+:is(body.cb-overdrive #combo,.pvCombo.cb-overdrive) .cbox{border-radius:4px;transform:skewX(-8deg);background:linear-gradient(100deg,rgba(14,8,10,.9),color-mix(in srgb,var(--acc) 30%,rgba(14,8,10,.9)));border:1px solid var(--acc-hi);
+  box-shadow:0 0 calc(8px + var(--heat,.5) * 24px) color-mix(in srgb,var(--acc-hi) 60%,transparent)}
+:is(body.cb-overdrive #combo,.pvCombo.cb-overdrive) .cbn{font-style:italic;text-shadow:3px 0 0 var(--acc),-2px 0 0 rgba(80,200,255,.6)}
+body.cb-overdrive #combo .cbox{animation:cbAura .5s ease-in-out infinite alternate}
+@keyframes cbAura{to{filter:brightness(1.18)}}
+/* map grid: every card the same height, names on one line, Random sits in the grid like the rest */
+.cards{grid-auto-rows:1fr;flex:none;align-items:stretch}
+.card{display:flex;flex-direction:column}
+.card .cn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .cb{margin-top:auto}
+.card.rnd{justify-content:center}
+/* shop: the tab list fits without the Done button falling off the bottom */
+.panel.shop2 .snav{gap:1px;padding-top:18px}
+.panel.shop2 .snav h1{margin-bottom:10px}
+.panel.shop2 .snav .tab{padding-top:7px;padding-bottom:7px}
+.pvCombo .cbox{scale:.82}
+.card .cn{font-size:11.5px;letter-spacing:-.01em;padding-left:7px;padding-right:6px}
+#stage.started #chhud{align-items:flex-start}

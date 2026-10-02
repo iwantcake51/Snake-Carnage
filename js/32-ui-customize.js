@@ -64,7 +64,7 @@ function startGame(opts = {}) {
   // a clean slate: nothing from the last run (frozen frame, filters, effects, stray timers) may leak into this one
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height); cv.style.filter = ''; lastFilter = '';
   stage.classList.remove('paused', 'stunned'); dropped = []; debris = []; beams = []; trail = []; strayBugs = []; ringPops = []; mist = []; shake = 0; deadT = 0; loopErrs = 0;
-  runMods = (opts.mods || SETTINGS.mods || []).filter(id => MODS.some(m => m.id === id)); // the random map also rolls its own modifiers; ids that no longer exist are dropped
+  runMods = (opts.mods || SETTINGS.mods || []).filter(id => MODS.some(m => m.id === id)); { const set = new Set(runMods); runMods = runMods.filter(id => !modBlockReason(id, set)); } // nothing that can't actually do anything this run // the random map also rolls its own modifiers; ids that no longer exist are dropped
   MOD = Object.fromEntries(runMods.map(id => [id, true])); rewardMult = modMult(runMods);
   document.body.classList.toggle('minimal', !!MOD.minimal);
   tod = SETTINGS.timeMode === 'Cycle' ? pickStartTime(MAPS[mapIdx]) : FIXED_TIMES[SETTINGS.timeMode] ?? 12; // dynamic runs start at a different hour, weighted per map

@@ -187,7 +187,7 @@ const MAPS = [
     name: 'Meadow', icon: '🌾', border: '#4f7f30', start: { x: 200, y: 520, a: 0 }, times: { dawn: 2, morning: 2.5, sunset: 1.5 }, open: true,
     pop: [['human', 6], ['rabbit', 5], ['deer', 3], ['frog', 5, { x: 560, y: 160, w: 260, h: 200 }]], fireflies: 16, walkers: 4, grass: 260,
     build: () => { // a lake up in the north-east with a campsite on its shore; one trail network linking the lake, the camp and both edges
-      const main = [[-10, 470], [150, 470], [300, 430], [430, 370], [520, 330], [560, 300]], south = [[300, 430], [330, 540], [420, 660]], camp = [[430, 370], [470, 300], [500, 255]];
+      const main = [[-10, 470], [150, 470], [300, 430], [430, 370], [520, 330], [575, 292], [606, 276]], south = [[300, 430], [330, 540], [420, 660]], camp = [[430, 370], [470, 300], [500, 255]];
       return {
         obs: [ // a wood along the north and west edges (touching the border, so no gaps to get caught in), a few lone trees in the open
           TREE(60, 70, 40), TREE(130, 40, 30), TREE(200, 60, 24), TREE(40, 150, 30), TREE(36, 230, 22),
@@ -345,7 +345,7 @@ const MAPS = [
     pop: [['human', 5], ['chicken', 7, { x: 300, y: 90, w: 380, h: 120 }], ['sheep', 6, { x: 580, y: 350, w: 350, h: 260 }],
           ['pig', 4, { x: 60, y: 200, w: 240, h: 80 }], ['dog', 1]], walkers: 2,
     build: () => ({
-      paths: [[[230, 210], [500, 210], [700, 210], [707, 260], [707, 320]]], // the yard road from the barn to the paddock gate // red barn and silo, the farmhouse, a coop, the sheep paddock, pig pen and the crop field
+      paths: [[[300, 240], [500, 240], [751, 240], [751, 140]], [[751, 240], [751, 332]]], // the yard road: pig pen gate -> farmhouse door, with a branch to the paddock gate // red barn and silo, the farmhouse, a coop, the sheep paddock, pig pen and the crop field
       obs: [
         R(16, 16, 210, 150, '#a83a2c', 'barn'), C(262, 52, 36, '#b8b8c0', 'silo'),
         R(760, 16, 184, 120, '#c9b18a', 'building', { roof: 'gable', rc: '#5a3d2a' }), R(420, 20, 76, 52, '#b56a3a', 'building', { roof: 'gable', rc: '#7a3a22' }),
@@ -355,11 +355,11 @@ const MAPS = [
         R(40, 180, 6, 110, '#8b6b45', 'fence'), R(40, 180, 260, 6, '#8b6b45', 'fence'), R(294, 180, 6, 40, '#8b6b45', 'fence'), R(294, 260, 6, 30, '#8b6b45', 'fence'), R(40, 284, 100, 6, '#8b6b45', 'fence'), R(200, 284, 100, 6, '#8b6b45', 'fence'),
         C(736, 482, 24, '#e3c565', 'hay'), C(690, 560, 18, '#e3c565', 'hay'), R(640, 410, 40, 16, '#7d8a90', 'crate', { trough: true }),
         TREE(930, 250, 30), TREE(900, 300, 18),
-        LAMP(250, 190), LAMP(740, 150), LAMP(545, 320)
+        LAMP(250, 190), LAMP(712, 150), LAMP(545, 320)
       ],
       floor(x) {
         checker(x, ...GRASS, 32);
-        x.fillStyle = '#c8a26a'; x.fillRect(226, 196, 534, 28); x.fillRect(682, 136, 50, 194); // dirt yard roads
+        x.fillStyle = '#c8a26a'; x.fillRect(300, 226, 476, 28); x.fillRect(726, 136, 50, 200); // dirt yard roads: from the pen gate along to the farmhouse, and down to the paddock gate
         speckle(x, 400, ['#b18c58', '#d6b47e'], 3);
         x.fillStyle = '#8b5e34'; x.fillRect(40, 320, 440, 290); // the crop field
         x.fillStyle = '#6f9a35'; for (let y = 332; y < 600; y += 18) { x.fillRect(48, y, 424, 6); for (let i = 52; i < 470; i += 9) circ(x, i, y + 3, 2.6); }
@@ -372,7 +372,7 @@ const MAPS = [
     pop: [['human', 9], ['dog', 1], ['duck', 4, { x: 500, y: 200, w: 220, h: 200 }], ['rabbit', 3]], walkers: 5, grass: 90,
     build: () => { // a city park: a loop path round the duck pond, paths in from three gates, a playground, a bandstand. Trees stay at the edges.
       const loop = []; for (let k = 0; k <= 24; k++) { const a = k / 24 * TAU; loop.push([600 + Math.cos(a) * 140, 300 + Math.sin(a) * 120]); }
-      const west = [[-10, 330], [180, 330], [330, 310], [460, 300]], south = [[600, 420], [570, 540], [540, 660]], east = [[740, 300], [860, 300], [970, 330]], band = [[330, 310], [270, 220], [250, 170]];
+      const play = [[200, 330], [186, 380], [172, 420]], west = [[-10, 330], [180, 330], [330, 310], [460, 300]], south = [[600, 420], [570, 540], [540, 660]], east = [[740, 300], [860, 300], [970, 330]], band = [[330, 310], [270, 220], [250, 170]];
       return {
         obs: [
           C(600, 300, 84, '#4aa3df', 'water'),
@@ -380,14 +380,14 @@ const MAPS = [
           TREE(70, 80, 40), TREE(150, 50, 26), TREE(40, 170, 26), TREE(880, 70, 40), TREE(930, 160, 24), TREE(900, 580, 36), TREE(820, 610, 24), TREE(60, 590, 34), TREE(140, 610, 22),
           R(368, 280, 40, 12, '#7a5a38', 'bench'), R(560, 452, 40, 12, '#7a5a38', 'bench'), R(722, 180, 12, 40, '#7a5a38', 'bench'),
           R(150, 468, 44, 12, '#c0392b', 'slide'),
-          LAMP(200, 350), LAMP(470, 330), LAMP(740, 420), LAMP(600, 160), LAMP(590, 560)
+          LAMP(232, 356), LAMP(470, 330), LAMP(740, 420), LAMP(600, 160), LAMP(590, 560)
         ],
-        paths: [loop, west, south, east, band],
+        paths: [loop, west, south, east, band, play],
         floor(x) {
           checker(x, ...GRASS, 32);
           x.lineCap = 'round'; x.lineJoin = 'round'; x.strokeStyle = '#c9ad78'; x.lineWidth = 30;
           const poly = pts => { x.beginPath(); pts.forEach((p, i) => i ? x.lineTo(...p) : x.moveTo(...p)); x.stroke(); };
-          [loop, west, south, east, band].forEach(poly); x.strokeStyle = '#dcc493'; x.lineWidth = 24; [loop, west, south, east, band].forEach(poly);
+          [loop, west, south, east, band, play].forEach(poly); x.strokeStyle = '#dcc493'; x.lineWidth = 24; [loop, west, south, east, band, play].forEach(poly); // one network: every path joins another or leaves the park
           x.fillStyle = '#e8d49a'; x.beginPath(); x.ellipse(170, 470, 72, 52, 0, 0, TAU); x.fill(); x.strokeStyle = '#c9a85e'; x.lineWidth = 3; x.beginPath(); x.ellipse(170, 470, 72, 52, 0, 0, TAU); x.stroke(); // playground sand
           flowers(x, 70, ['#ff9ecb', '#ffffff', '#ffd23f'], 8, 5);
         },

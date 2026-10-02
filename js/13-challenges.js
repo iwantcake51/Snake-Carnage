@@ -241,7 +241,7 @@ function challengeHud(rebuild, refreshed) { // live checklist in the bottom-left
   if (rebuild || el.dataset.key !== m + rotIndex()) {
     el.dataset.key = m + rotIndex();
     el.innerHTML = `<div class="hch">Challenges<span>New in <b data-rot>${fmtClock(rotLeft())}</b></span></div>` +
-      list.map((ch, i) => `<div class="hc" data-id="${ch.id}" style="--i:${i}"><span class="ck ${ch.tier}"></span><span class="t" title="${ch.name}: ${ch.t}"><b class="cn2">${ch.name}</b> · ${ch.t}</span><span class="v"></span><span class="rw2">${rewardText(ch, true)}</span><i></i></div>`).join('');
+      list.map((ch, i) => `<div class="hc" data-id="${ch.id}" style="--i:${i}"><span class="ck ${ch.tier}"></span><span class="t" title="${ch.name}: ${ch.t}"><b class="cn2">${ch.name}</b><span class="sep"> · </span>${ch.t}</span><span class="v"></span><span class="rw2">${rewardText(ch, true)}</span><i></i></div>`).join('');
     el.classList.remove('refresh'); if (refreshed) { void el.offsetWidth; el.classList.add('refresh'); }
   }
   for (const ch of list) {

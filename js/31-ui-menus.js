@@ -70,7 +70,7 @@ function showMenu() {
       <div class="mrow"><button class="ghost" id="setBtn" data-sfx="open">Settings</button></div>
       <div class="ver">v${GAME_VERSION}</div>
     </div>
-    <div class="mright"><h2>Choose a map</h2><div class="mapch" id="mapch">${mapChallengesHtml()}</div><div class="cards">${MAPS.map((m, i) => `<button class="card ${i === mapIdx ? 'on' : ''}" data-sfx="select" data-map="${i}" style="--i:${i}"><img src="${thumbs[i]}" alt=""><span class="cn">${m.icon} ${m.name}</span><span class="cb">Best ${PROG.best[m.name] || 0}, ${chDoneCount(m.name)}/4 challenges</span></button>`).join('')}<button class="card rnd" data-sfx="none" data-map="rand" style="--i:${MAPS.length}">🎲<span class="cn">Random</span></button></div></div>
+    <div class="mright"><h2>Choose a map</h2><div class="mapch" id="mapch">${mapChallengesHtml()}</div><div class="cards">${MAPS.map((m, i) => `<button class="card ${i === mapIdx ? 'on' : ''}" data-sfx="select" data-map="${i}" style="--i:${i}"><img src="${thumbs[i]}" alt=""><span class="cn">${m.icon} ${m.name}</span><span class="cb">Best ${PROG.best[m.name] || 0} · ${chDoneCount(m.name)}/4 ✓</span></button>`).join('')}<button class="card rnd" data-sfx="none" data-map="rand" style="--i:${MAPS.length}">🎲<span class="cn">Random</span></button></div></div>
   </div>`;
   overlay.style.display = 'flex';
   overlay.querySelectorAll('.card').forEach(card => {
@@ -114,13 +114,14 @@ function showModifiers(focus) {
         <i class="mic">${MOD_ICON[m.id] || ''}</i><span class="mtx"><b>${m.name}</b><small>${m.desc}</small></span><em class="mpct ${m.mult > 0 ? 'up' : m.mult < 0 ? 'down' : ''}">${m.mult ? (m.mult > 0 ? '+' : '') + Math.round(m.mult * 100) + '%' : ''}</em><span class="mck"></span></button>`; }).join('')}</div>
     <div class="mbtns"><label class="mfollow ${ids.has('freeMove') ? '' : 'dim'}" data-tip="Free movement only: the snake heads toward your mouse cursor while it's over the game."><button class="tgl ${SETTINGS.mouseFollow ? 'on' : ''}" id="mfTgl" data-sfx="none" role="switch" aria-checked="${!!SETTINGS.mouseFollow}"></button>Mouse steering</label>
       <span class="sp"></span><button class="btn alt" id="shufBtn" data-sfx="select">Shuffle</button><button class="btn alt" id="clrBtn" data-sfx="off">Clear</button><button class="btn" id="backBtn" data-sfx="confirm">Done</button></div></div>`;
-  const blocker = id => { const m = MODS.find(q => q.id === id); return [...ids].find(o => o !== id && ((m.not || []).includes(o) || ((MODS.find(q => q.id === o) || {}).not || []).includes(id))); };
+  const blocker = id => modBlockReason(id, ids);
   const sync = () => {
+    for (const id of [...ids]) if (modBlockReason(id, ids) && !(MODS.find(q => q.id === id).not || []).some(o => ids.has(o))) ids.delete(id); // a newer pick made this one pointless: it switches itself off
     SETTINGS.mods = [...ids]; saveSettings();
     overlay.querySelectorAll('.mtile').forEach(t => {
       const id = t.dataset.m, on = ids.has(id), by = on ? null : blocker(id), m = MODS.find(q => q.id === id);
       t.classList.toggle('on', on); t.setAttribute('aria-checked', on); t.classList.toggle('blocked', !!by); // conflicts are greyed out with the reason
-      t.querySelector('small').textContent = by ? `Can't use with ${MODS.find(q => q.id === by).name}` : m.desc;
+      t.querySelector('small').textContent = by || m.desc; t.querySelector('b').textContent = modName(id, ids);
     });
     document.getElementById('mm').textContent = multLabel([...ids]);
     document.getElementById('mcount').textContent = ids.size ? ids.size + ' active' : '';

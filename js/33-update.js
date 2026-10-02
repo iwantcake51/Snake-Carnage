@@ -15,6 +15,7 @@ function update(dt) {
   }
   if (hitStop > 0) { hitStop -= dt; return; } // hit-stop: the world holds its breath for a few frames
   T += dt;
+  if (!snake || !snake.started) for (const k in abilCD) abilCD[k] += dt; // frozen opening: cooldowns don't tick until you first move
   if (state === 'play') { updateSnake(dt); run.time += dt; crTick(dt); progressTick(dt); }
   updateCrowd(); updateConvos(dt);
   for (const c of creatures) if (c.alive) updateCreature(c, dt);
@@ -92,10 +93,12 @@ function drawTrail(x) {
 }
 const OLC = document.createElement('canvas'), OLX = OLC.getContext('2d');
 OLC.width = OLC.height = 80;
+const fogR = a => 1 + .11 * Math.sin(3 * a + T * .23) + .07 * Math.sin(5 * a - T * .37 + 1.3) + .04 * Math.sin(9 * a + T * .61 + 4); // the fog's edge billows: lobes that slowly drift and change shape
+function fogBlob(x, cx, cy, r, ph) { x.beginPath(); for (let k = 0; k <= 48; k++) { const a = k / 48 * TAU, rr = r * fogR(a + ph); k ? x.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr) : x.moveTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); } x.closePath(); x.fill(); }
 function playerSees(x, y) { // 0..1 how visible a point is through heavy fog / tunnel vision
   if (!snake || (!MOD.fog && !MOD.fow)) return 1;
   const dx = x - snake.x, dy = y - snake.y, d = Math.hypot(dx, dy);
-  if (MOD.fog) return clamp(1 - (d - 105) / 70, 0, 1);
+  if (MOD.fog) { const R = fogR(Math.atan2(dy, dx)); return clamp(1 - (d - 105 * R) / 70, 0, 1); }
   const near = clamp(1 - (d - 52) / 22, 0, 1), ang = Math.abs(angDiff(snake.angle, Math.atan2(dy, dx)));
   const cone = clamp((.85 - ang) / .18, 0, 1) * clamp((285 - d) / 60, 0, 1);
   return Math.max(near, cone);
@@ -109,7 +112,10 @@ function drawVisionMask(x) { // opaque haze everywhere you can't see
   vctx.globalCompositeOperation = 'destination-out';
   if ('filter' in vctx) vctx.filter = 'blur(10px)';
   vctx.fillStyle = '#000';
-  if (MOD.fog) { const g = vctx.createRadialGradient(snake.x, snake.y, 80, snake.x, snake.y, 180); g.addColorStop(0, '#000'); g.addColorStop(1, 'rgba(0,0,0,0)'); vctx.fillStyle = g; circ(vctx, snake.x, snake.y, 180); }
+  if (MOD.fog) { // layered, irregular clearing: a clear core, then two thinner rings, each with its own drifting lobes
+    for (const [r, al, ph] of [[178, .28, 2.1], [140, .5, 1.1], [100, 1, 0]]) { vctx.globalAlpha = al; fogBlob(vctx, snake.x, snake.y, r, ph); }
+    vctx.globalAlpha = 1;
+  }
   else {
     circ(vctx, snake.x, snake.y, 60);
     const g = vctx.createRadialGradient(snake.x, snake.y, 200, snake.x, snake.y, 290); g.addColorStop(0, '#000'); g.addColorStop(1, 'rgba(0,0,0,0)');
@@ -118,6 +124,11 @@ function drawVisionMask(x) { // opaque haze everywhere you can't see
   if ('filter' in vctx) vctx.filter = 'none';
   vctx.globalCompositeOperation = 'source-over';
   x.drawImage(visC, 0, 0, W, H);
+  if (MOD.fog && !SETTINGS.simpleFx) { // thin wisps drifting through the clear patch, so it never reads as a clean hole
+    x.fillStyle = col;
+    for (let k = 0; k < 5; k++) { const a = T * (.05 + k * .013) + k * 1.9, d = 60 + 40 * Math.sin(T * .09 + k * 2.3); x.globalAlpha = .06 + .03 * Math.sin(T * .3 + k); fogBlob(x, snake.x + Math.cos(a) * d, snake.y + Math.sin(a) * d, 34 + k * 6, k * 1.7); }
+    x.globalAlpha = 1;
+  }
   if (MOD.fow) { // walls you aren't looking at stay nearly black, but a faint trace nearby keeps you from driving blind into them
     x.save(); x.beginPath(); x.arc(snake.x, snake.y, 150, 0, TAU); x.clip();
     x.globalAlpha = .16; x.drawImage(outlineC, 0, 0, W, H); x.restore();
@@ -227,7 +238,7 @@ function applyView(x) { // shake, spawn zoom and look-ahead, shared by the scene
   if (V.z) { x.translate(W / 2, H / 2); x.scale(V.z, V.z); x.translate(-V.fx, -V.fy); }
   x.translate(-V.ox, -V.oy);
 }
-const NEAR_IDS = ['chhud', 'modhud', 'combo', 'rewards', 'modbar', 'abil', 'notes', 'lvlup'];
+const NEAR_IDS = ['chhud', 'modhud', 'combo', 'rewards', 'modbar', 'abil', 'notes', 'lvlup', 'evt'];
 let nearRects = null, nearRectT = 0;
 function hudNear() { // corner UI turns half see-through while the snake is close to it
   if (!snake) return;
@@ -237,10 +248,11 @@ function hudNear() { // corner UI turns half see-through while the snake is clos
       return { el, x0: (r.left - cr.left) / cr.width * W, y0: (r.top - cr.top) / cr.height * H, x1: (r.right - cr.left) / cr.width * W, y1: (r.bottom - cr.top) / cr.height * H, empty: !r.width }; });
   }
   document.getElementById('chhud').classList.toggle('dim', state === 'play' && run.time > 4); // the checklist steps back once you're playing
-  const pts = snake.segs.slice(0, 12), pad = 46, ah = Math.cos(snake.angle), av = Math.sin(snake.angle);
+  const pts = snake.segs.filter((g, i) => i % 3 === 0), pad = 30, ah = Math.cos(snake.angle), av = Math.sin(snake.angle); // the whole body, not just the head
   pts.push({ x: snake.x + ah * 90, y: snake.y + av * 90 }); // where the head is about to be: fade before it gets there
   for (const b of nearRects) {
     const near = !b.empty && state !== 'menu' && pts.some(g => g.x - V.ox > b.x0 - pad && g.x - V.ox < b.x1 + pad && g.y - V.oy > b.y0 - pad && g.y - V.oy < b.y1 + pad);
-    if (b.el.classList.contains('near') !== near) b.el.classList.toggle('near', near);
+    if (near) b.nearT = UT; const on = near || UT - (b.nearT ?? -9) < .7; // stays faded a moment after the body clears
+    if (b.el.classList.contains('near') !== on) b.el.classList.toggle('near', on);
   }
 }

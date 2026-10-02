@@ -5,7 +5,7 @@
 const SHOP_TABS = [
   { id: 'color', label: 'Primary colors', icon: 'palette' }, { id: 'color2', label: 'Secondary colors', icon: 'brush' }, { id: 'custom', label: 'Custom color', icon: 'rainbow' },
   { id: 'pattern', label: 'Skins', icon: 'skin' }, { id: 'hat', label: 'Hats', icon: 'hat' }, { id: 'eyes', label: 'Eyes', icon: 'eyes' }, { id: 'trail', label: 'Trails', icon: 'trail' },
-  { id: 'theme', label: 'UI themes', icon: 'theme' }, { id: 'card', label: 'Card styles', icon: 'card' }, { id: 'effect', label: 'Effects', icon: 'effect' }, { id: 'title', label: 'Titles', icon: 'title' }];
+  { id: 'theme', label: 'UI themes', icon: 'theme' }, { id: 'combo', label: 'Combo styles', icon: 'card' }, { id: 'card', label: 'Card styles', icon: 'card' }, { id: 'effect', label: 'Effects', icon: 'effect' }, { id: 'title', label: 'Titles', icon: 'title' }];
 let shopTab = 'color', shopMsg = '', shopPrev = null;
 const TIERCOL = { easy: '#5fd07a', medium: '#ffcf33', hard: '#ff8a3d', rare: '#c77dff' };
 function shopCard(cat, [v, p, achId], i) {
@@ -24,6 +24,7 @@ function itemPreview(cat, v) { // what the item actually looks like, not an emoj
   if (cat.startsWith('color')) return `<i class="swb" style="background:${v}"></i>`;
   if (cat === 'pattern' || cat === 'hat' || cat === 'eyes' || cat === 'trail') return `<canvas class="pv" data-cat="${cat}" data-v="${attr(v)}" width="176" height="84"></canvas>`;
   if (cat === 'theme') return `<span class="pvTheme th-${slug(v)}"><i class="tb"></i><i class="tp"></i><i class="tc"></i><i class="tc"></i></span>`;
+  if (cat === 'combo') return `<span class="pvCombo cb-${slug(v)}"><span class="cbox"><span class="cbn"><b>12</b><i>x</i></span><span class="cbar"><span></span></span></span></span>`;
   if (cat === 'card') return `<span class="pvCard cs-${slug(v)}"><i class="ci"></i><i class="cl"></i></span>`;
   if (cat === 'effect') return v === 'None' ? '<span class="pvFx none"></span>' : `<span class="pvFx mfx ${slug(v)}">${Array.from({ length: 9 }, (_, k) => `<i style="--x:${(k * 11 + 5) % 100}%;--d:${(-k * 1.3).toFixed(1)}s;--s:${(4 + k % 3).toFixed(1)}s;--z:${(.6 + (k % 3) * .25).toFixed(2)}"></i>`).join('')}</span>`;
   if (cat === 'title') return v === 'None' ? '<span class="pvTitle none">No title</span>' : `<span class="pvTitle">${v}</span>`;

@@ -25,6 +25,7 @@ const SHOP = {
   eyes: [['Normal', 0], ['Angry', 10], ['Sleepy', 10], ['Googly', 30], ['Dead', 40], ['Shades', 50], ['Cyclops', 60], ['Hearts', 70], ['Stars', 70], ['Visor', 90], ['Laser', 0, 'starving']],
   trail: [['None', 0], ['Smoke', 60], ['Bubbles', 70], ['Sparkles', 80], ['Hearts', 90], ['Petals', 90], ['Confetti', 110], ['Embers', 120],
     ['Cheese Crumbs', 0, 'ratKing'], ['Gold Dust', 0, 'goldenOpp'], ['Blood Drip', 0, 'paintRed'], ['Alarm', 0, 'badHood'], ['Stardust', 0, 'worldEater']],
+  combo: [['Default', 0], ['Minimal', 60], ['Typewriter', 80], ['Arcade', 90], ['Brutal', 120], ['Neon', 150], ['Gilded', 0, 'midas'], ['Manhunt', 0, 'allHumans'], ['Overdrive', 0, 'bottomless']],
   theme: [['Default', 0], ['Midnight', 180], ['Toxic', 220], ['Panic', 0, 'wrongPlace'], ['Gold', 0, 'midas'], ['Blood', 0, 'paintRed']],
   card: [['Default', 0], ['Neon', 150], ['Gold Frame', 0, 'goldenOpp'], ['Bloody', 0, 'cleanup'], ['Hazard', 0, 'overachiever'], ['Chip Stack', 0, 'highRoller']],
   effect: [['None', 0], ['Embers', 160], ['Snow', 160], ['Gold Dust', 0, 'midas'], ['Blood Rain', 0, 'paintRed'], ['Alarm Lights', 0, 'wrongPlace'], ['Stars', 0, 'worldEater']],
@@ -38,8 +39,8 @@ const SHOP = {
   PROG.owned = PROG.owned.map(k => k.startsWith('title:') && RN[k.slice(6)] ? 'title:' + RN[k.slice(6)] : k);
   if (SETTINGS.snake && RN[SETTINGS.snake.title]) SETTINGS.snake.title = RN[SETTINGS.snake.title];
 }
-const CAT_LABEL = { color: 'Primary color', color2: 'Secondary color', pattern: 'Skin', hat: 'Hat', eyes: 'Eyes', trail: 'Trail', theme: 'UI theme', card: 'Card style', effect: 'Menu effect', title: 'Title' };
-SETTINGS.snake = Object.assign({ theme: 'Default', card: 'Default', effect: 'None', title: 'None' }, SETTINGS.snake);
+const CAT_LABEL = { color: 'Primary color', color2: 'Secondary color', pattern: 'Skin', hat: 'Hat', eyes: 'Eyes', trail: 'Trail', theme: 'UI theme', card: 'Card style', combo: 'Combo style', effect: 'Menu effect', title: 'Title' };
+SETTINGS.snake = Object.assign({ theme: 'Default', combo: 'Default', card: 'Default', effect: 'None', title: 'None' }, SETTINGS.snake);
 const itemsOf = cat => cat.startsWith('color') ? COLOR_ITEMS : SHOP[cat];
 const findItem = (cat, v) => itemsOf(cat).find(i => i[0] === v);
 const ownKey = (cat, v) => cat + ':' + v; // Primary and Secondary colors are owned separately
@@ -90,6 +91,7 @@ const ACH = [
   ['dontMind', "Don't Mind Me", 'Eat {n} targets before they notice you', () => PROG.unawareT, 150, 'medium'],
   ['starving', 'Starving', 'Reach a {n}x combo', () => PROG.bestCombo1, 20, 'rare'],
   ['allHumans', 'Humans Only', 'Reach a {n}x combo eating only humans', () => PROG.bestHCombo, 12, 'hard'],
+  ['bottomless', 'Bottomless', 'Reach a {n}x combo', () => PROG.bestCombo1, 35, 'rare'],
   ['wrongPlace', 'Mass Panic', 'Have {n} people panicking at once', () => PROG.maxPanic, 20, 'hard'],
   ['badHood', 'Runners', 'Eat {n} people while they run', () => PROG.panicKillsT, 300, 'medium'],
   ['cleanup', 'Body Count', 'Eat {n} things in total', () => PROG.kH + PROG.kA, 1500, 'hard'],
@@ -147,6 +149,7 @@ function applyCosmetics() {
   document.body.className = document.body.className.replace(/\b(theme|cs|fx)-\S+/g, '').trim();
   if (c.theme !== 'Default') document.body.classList.add('theme-' + c.theme.toLowerCase());
   if (c.card !== 'Default') document.body.classList.add('cs-' + c.card.toLowerCase().replace(/\s+/g, '-'));
+  document.body.className = document.body.className.replace(/\bcb-\S+/g, '').trim(); if (c.combo && c.combo !== 'Default') document.body.classList.add('cb-' + c.combo.toLowerCase());
 }
 function menuFx() { // background particles behind the main menu
   const e = SETTINGS.snake.effect; if (!e || e === 'None') return '';
