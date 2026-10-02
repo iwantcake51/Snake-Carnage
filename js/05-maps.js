@@ -223,6 +223,7 @@ const MAPS = [
       const ROADS = [MAIN, ELM, CHURCH, OAK, WEST, RIDGE, MILL, SOUTH, EAST], QUIET = [RIDGE, MILL, SOUTH, EAST, WEST]; // residential and service roads are a shade darker
       const LOT = [16, 362, 454, 262], PARK = [440, 58, 260, 204], FORE = [748, 58, 196, 222];
       const car = (x, y, w, h, col, ex) => R(x, y, w, h, col, 'car', ex);
+      const BAY_X = 236, BAY_W = 28, BAY_D = 48, BAY_ROWS = [370, 488], BAYS = 8; // one parking plan: every bay the same size, two aligned rows, a wide aisle between
       const CROSS = [[60, 262, 44, 18], [392, 262, 48, 18], [700, 262, 48, 18], [700, 344, 48, 18], [470, 344, 48, 18], [900, 344, 44, 18], // across each side street where it meets Main
         [446, 280, 20, 64], [680, 280, 18, 64], [750, 280, 18, 64], [700, 522, 48, 18]]; // across Main at the square and either side of the Elm crossroads, and Elm at South St
       const OBS = [
@@ -235,17 +236,15 @@ const MAPS = [
         R(146, 192, 30, 15, '#4f6b3a', 'crate', { dumpster: true }), R(316, 192, 30, 15, '#4f6b3a', 'crate', { dumpster: true }),
         // the town square: fountain in the middle, benches and old trees round the edge
         Object.assign(C(570, 170, 30, '#4aa3df', 'water'), { fountain: true }),
-        R(530, 80, 40, 10, '#7a5a38', 'bench'), R(590, 236, 40, 10, '#7a5a38', 'bench'),
-        TREE(476, 90, 15), TREE(668, 236, 15), TREE(664, 88, 13),
+        R(462, 146, 40, 10, '#7a5a38', 'bench'), R(640, 184, 40, 10, '#7a5a38', 'bench'), // benches along the cross path, facing it
+        TREE(476, 90, 15), TREE(668, 238, 11), TREE(664, 88, 13),
         R(612, 264, 40, 10, '#7a5a38', 'bench'), // the bus stop on Main
         // gas station: kiosk in the corner, two pump islands under the canopy
         R(864, 70, 80, 80, '#d8cfbf', 'building', { roof: 'flat', shop: '#c0392b' }),
         R(800, 180, 12, 48, '#d9d9d9', 'crate', { pump: true }), R(856, 180, 12, 48, '#d9d9d9', 'crate', { pump: true }),
         // the market and its lot; carts and a dumpster round the side
         R(16, 470, 200, 154, '#6b7a5a', 'building', { roof: 'flat', market: true }), R(218, 590, 16, 30, '#4f6b3a', 'crate', { dumpster: true }),
-        car(252, 384, 24, 44, '#c0392b'), car(280, 384, 24, 44, '#2c3e50'), car(396, 384, 24, 44, '#95a5a6'),
-        car(300, 472, 24, 44, '#ecf0f1'), car(430, 472, 24, 44, '#f39c12', { taxi: true }),
-        R(360, 570, 30, 8, '#e8b326', 'barrier'), R(392, 570, 30, 8, '#e8b326', 'barrier'), R(424, 570, 30, 8, '#e8b326', 'barrier'), // road works: a trench across the back of the lot
+        ...[[0, 0, '#c0392b'], [0, 1, '#2c3e50'], [0, 5, '#95a5a6'], [1, 2, '#ecf0f1'], [1, 6, '#7d8a90'], [1, 7, '#f39c12', { taxi: true }]].map(([r, k, col, ex]) => car(BAY_X + k * BAY_W + 3, BAY_ROWS[r] + 4, BAY_W - 6, BAY_D - 8, col, ex)), // centered in their bays
         // the diner on the corner of Main and Oak, a patio out back and a little playground
         R(536, 364, 108, 64, '#b8463a', 'building', { roof: 'flat', shop: '#f1c40f', diner: true }),
         Object.assign(C(566, 470, 7, '#c0392b', 'table'), { umbrella: true }), Object.assign(C(616, 474, 7, '#2f6fb0', 'table'), { umbrella: true }),
@@ -254,18 +253,19 @@ const MAPS = [
         R(772, 366, 108, 76, '#7d6b58', 'building', { roof: 'hip' }), R(772, 442, 108, 78, '#5d6670', 'building', { roof: 'gable' }),
         TREE(560, 612, 10), TREE(680, 610, 11), TREE(860, 612, 10), // the south verge
         // streetlights: Main and the crossroads are well lit, the residential streets much less so
-        LAMP(150, 271), LAMP(360, 271), LAMP(470, 271), LAMP(860, 271), LAMP(120, 353), LAMP(330, 353), LAMP(560, 353), LAMP(690, 353), LAMP(840, 353),
-        LAMP(250, 64), LAMP(691, 140), LAMP(757, 450), LAMP(800, 594), LAMP(240, 364), LAMP(462, 470)
+        // streetlights stand at the curb, evenly spaced: closer together downtown, sparser on the residential streets
+        ...[150, 340, 560, 860].map(x => LAMP(x, 275)), ...[120, 330, 600, 840].map(x => LAMP(x, 349)), LAMP(250, 64), LAMP(694, 110), LAMP(694, 210), LAMP(754, 450), LAMP(810, 590),
+        LAMP(BAY_X - 7, BAY_ROWS[0] + BAY_D / 2), LAMP(BAY_X - 7, BAY_ROWS[1] + BAY_D / 2) // on the curbed islands at the end of each parking row
       ];
       return {
         roads: ROADS, crossings: CROSS,
         lights: [{ x: 834, y: 188, r: 120, kind: 'fluor', fix: 'panel' }, { x: 834, y: 222, r: 120, kind: 'fluor', fix: 'panel' }, // the canopy, bright all night
           { x: 340, y: 272, r: 70, kind: 'red', fix: 'none' }, { x: 590, y: 438, r: 80, kind: 'bar', fix: 'none' }, { x: 116, y: 462, r: 95, kind: 'fluor', fix: 'none' }], // the 24/7's red sign, the diner's neon, the market's doors
         paths: [ // sidewalks, crossing at the crosswalks
-          [[24, 271], [392, 271], [440, 271], [700, 271], [930, 271]], [[24, 353], [470, 353], [518, 353], [700, 353], [930, 353]],
+          [[24, 266], [392, 266], [440, 266], [700, 266], [930, 266]], [[24, 360], [470, 360], [518, 360], [700, 360], [930, 360]],
           [[456, 270], [456, 354]], [[690, 270], [690, 354]], [[758, 270], [758, 354]],
-          [[450, 68], [690, 68], [690, 252], [450, 252], [450, 68]], [[112, 66], [380, 66]],
-          [[758, 66], [758, 270]], [[690, 354], [690, 530]], [[758, 354], [758, 530]], [[528, 532], [890, 532]], [[40, 452], [460, 452]]],
+          [[446, 64], [694, 64], [694, 256], [446, 256], [446, 64]], [[112, 64], [380, 64]],
+          [[762, 66], [762, 270]], [[692, 360], [692, 530]], [[762, 360], [762, 530]], [[528, 531], [890, 531]], [[40, 452], [460, 452]]],
         obs: OBS,
         decor(x) {
           for (const o of OBS) if (o.shop && o.kind === 'building') { // striped awnings over the shop doors
@@ -276,9 +276,9 @@ const MAPS = [
           sign('MARKET', 116, 520, '#2e5a3a', '#f4efe6', 11); sign('DINER', 590, 392, '#1d1d22', '#ff7a5a', 10); sign('24/7', 340, 232, '#1d1d22', '#ff4a3a'); sign('GAS', 904, 106, '#c0392b', '#fff', 9);
           x.fillStyle = '#e8e2d4'; for (let k = 0; k < 9; k++) x.fillRect(34 + k * 18, 462, 12, 8); // the market's entrance canopy
           x.strokeStyle = '#8a9098'; x.lineWidth = 1.2; for (let k = 0; k < 3; k++) { const cx = 196 + k * 7; x.strokeRect(cx, 448, 9, 6); } // carts left by the doors
-          x.fillStyle = '#d0453a'; for (const [mx, my] of [[150, 62], [300, 62], [792, 362], [792, 524]]) { x.fillRect(mx - 3, my - 2, 6, 4); x.fillStyle = '#3a3a3a'; x.fillRect(mx - .5, my + 2, 1, 3); x.fillStyle = '#d0453a'; } // mailboxes
+          x.fillStyle = '#d0453a'; for (const [mx, my] of [[150, 66], [300, 66], [764, 396], [764, 474]]) { x.fillRect(mx - 3, my - 2, 6, 4); x.fillStyle = '#3a3a3a'; x.fillRect(mx - .5, my + 2, 1, 3); x.fillStyle = '#d0453a'; } // mailboxes
           x.fillStyle = '#c0392b'; for (const [hx, hy] of [[108, 274], [446, 350], [696, 274], [524, 536], [896, 350]]) { circ(x, hx, hy, 2.6); x.fillStyle = '#e8b326'; circ(x, hx, hy, 1.2); x.fillStyle = '#c0392b'; } // hydrants
-          x.fillStyle = '#5a4a3a'; for (const [ux, uy] of [[60, 140], [60, 230], [904, 420], [904, 500], [600, 586]]) circ(x, ux, uy, 2.4); // utility poles
+          x.fillStyle = '#5a4a3a'; for (const [ux, uy] of [[50, 140], [50, 230], [890, 420], [890, 500], [600, 591]]) circ(x, ux, uy, 2.4); // utility poles
           x.fillStyle = '#c0392b'; for (const [sx, sy] of [[440, 274], [104, 274], [518, 350], [900, 350]]) { x.beginPath(); for (let k = 0; k < 8; k++) { const a = k * TAU / 8 + TAU / 16; x.lineTo(sx + Math.cos(a) * 3.2, sy + Math.sin(a) * 3.2); } x.fill(); } // stop signs at the T-junctions
           x.fillStyle = '#2b2b30'; x.fillRect(606, 264, 2, 10); x.fillStyle = '#2f6fb0'; x.fillRect(603, 262, 8, 4); // bus stop sign
           x.fillStyle = '#3a3a3a'; circ(x, 570, 252, 3.4); x.fillStyle = '#f4efe6'; circ(x, 570, 252, 2.4); x.strokeStyle = '#222'; x.lineWidth = .6; x.beginPath(); x.moveTo(570, 252); x.lineTo(570, 250.4); x.moveTo(570, 252); x.lineTo(571.4, 252); x.stroke(); // the square's clock
@@ -288,18 +288,18 @@ const MAPS = [
           const paveA = '#b9b3a7', paveB = '#c6c0b3';
           x.fillStyle = paveA; x.fillRect(0, 0, W, H); x.fillStyle = paveB; for (let i = 0; i < W; i += 24) for (let j = 0; j < H; j += 24) if ((i / 24 + j / 24) % 2) x.fillRect(i, j, 24, 24); // sidewalk slabs everywhere off the road
           const grass = (r, seed) => { x.fillStyle = '#93bf55'; x.fillRect(...r); const g = seeded(seed); for (let k = 0; k < r[2] * r[3] / 60; k++) { x.fillStyle = g() < .5 ? '#86b24b' : '#a2cb62'; x.fillRect(r[0] + g() * r[2], r[1] + g() * r[3], 2, 2); } x.strokeStyle = 'rgba(70,90,40,.35)'; x.lineWidth = 1.5; x.strokeRect(r[0] + .75, r[1] + .75, r[2] - 1.5, r[3] - 1.5); };
-          grass([16, 58, 44, 222], 31); grass([104, 58, 288, 88], 32); grass(PARK, 33); grass([768, 362, 130, 172], 34); grass([470, 584, 474, 40], 35); grass([536, 440, 160, 96], 36);
-          x.fillStyle = '#c7bfae'; x.fillRect(214, 58, 22, 88); x.fillRect(158, 58, 24, 18); x.fillRect(300, 58, 24, 14); x.fillRect(748, 400, 26, 20); x.fillRect(748, 478, 26, 20); // driveways and garden paths
-          x.fillStyle = '#cfc6b4'; x.fillRect(440, 160, 260, 20); x.fillRect(560, 58, 20, 204); circ(x, 570, 170, 52); // the square's paths
+          grass([16, 58, 44, 222], 31); grass([104, 70, 288, 76], 32); grass([452, 70, 236, 180], 33); grass([768, 362, 114, 160], 34); grass([470, 598, 474, 26], 35); grass([536, 446, 150, 76], 36); // lawns, each with a sidewalk between it and the street
+          x.fillStyle = '#c7bfae'; x.fillRect(214, 70, 22, 62); x.fillRect(160, 70, 20, 4); x.fillRect(768, 400, 4, 20); x.fillRect(768, 478, 4, 20); // driveways and garden paths
+          x.fillStyle = '#cfc6b4'; x.fillRect(452, 160, 236, 20); x.fillRect(560, 70, 20, 180); circ(x, 570, 170, 52); // the square's paths
           x.strokeStyle = '#bfb5a1'; x.lineWidth = 1; x.beginPath(); x.arc(570, 170, 52, 0, TAU); x.stroke();
           x.fillStyle = '#d9c99a'; x.fillRect(560, 496, 64, 34); x.strokeStyle = '#a58a5a'; x.lineWidth = 2; x.strokeRect(561, 497, 62, 32); // sandpit
           x.fillStyle = '#8f8c86'; x.fillRect(...FORE); x.fillStyle = '#9a978f'; for (let i = 748; i < 944; i += 28) x.fillRect(i, 58, 1, 222); // forecourt concrete
           x.fillStyle = '#4b4b52'; x.fillRect(...LOT);
-          x.fillStyle = '#7a6a52'; x.fillRect(356, 580, 102, 40); x.fillStyle = 'rgba(0,0,0,.25)'; x.fillRect(372, 590, 70, 22); // the trench behind the barriers
           for (const r of ROADS) { x.fillStyle = QUIET.includes(r) ? '#3f3f45' : '#45454c'; x.fillRect(...r); }
           speckle(x, 1300, ['#3e3e44', '#53535a', '#4a4a50'], 7, 1.2);
           x.strokeStyle = '#e6e6e6'; x.lineWidth = 2; // parking bays
-          for (const [bx, by] of [[250, 382], [394, 382], [298, 470], [428, 470]]) for (let k = 0; k < 4; k++) { x.beginPath(); x.moveTo(bx - 2 + k * 28, by); x.lineTo(bx - 2 + k * 28, by + 48); x.stroke(); }
+          for (const ry of BAY_ROWS) { for (let k = 0; k <= BAYS; k++) { x.beginPath(); x.moveTo(BAY_X + k * BAY_W, ry); x.lineTo(BAY_X + k * BAY_W, ry + BAY_D); x.stroke(); } }
+          x.fillStyle = '#8e887c'; for (const ry of BAY_ROWS) { x.fillRect(BAY_X - 14, ry, 12, BAY_D); x.fillStyle = '#93bf55'; x.fillRect(BAY_X - 12, ry + 2, 8, BAY_D - 4); x.fillStyle = '#8e887c'; } // curbed planting islands at the row ends
           x.fillStyle = 'rgba(230,230,230,.5)'; x.fillRect(180, 436, 30, 2); x.beginPath(); x.moveTo(170, 437); x.lineTo(180, 432); x.lineTo(180, 442); x.fill(); // faded lot arrow
           x.fillStyle = 'rgba(0,0,0,.18)'; for (const [cx, cy, rr] of [[230, 316], [760, 300], [330, 412], [820, 210], [160, 168], [610, 560]].map(p => [...p, 9])) ell(x, cx, cy, rr * 1.4, rr); // oil stains
           x.strokeStyle = '#8e887c'; x.lineWidth = 2; for (const [rx, ry, rw, rh] of ROADS) x.strokeRect(rx + 1, ry + 1, rw - 2, rh - 2); // curbs
@@ -314,10 +314,10 @@ const MAPS = [
           x.strokeStyle = 'rgba(30,30,34,.55)'; x.lineWidth = 1; // cracked asphalt and patched pavement
           for (const pts of [[[150, 296], [168, 304], [176, 300], [190, 312]], [[610, 330], [622, 322], [640, 326]], [[820, 560], [834, 566], [842, 560]], [[200, 30], [214, 40], [226, 36]], [[320, 160], [330, 174], [344, 170]]]) { x.beginPath(); pts.forEach(([a, b], k) => k ? x.lineTo(a, b) : x.moveTo(a, b)); x.stroke(); }
           x.fillStyle = 'rgba(0,0,0,.08)'; x.fillRect(820, 300, 40, 24); x.fillRect(260, 548, 30, 30);
-          x.fillStyle = '#2f2f34'; for (const [px, py] of [[360, 300], [600, 326], [416, 120], [722, 460], [610, 562]]) { circ(x, px, py, 6); x.fillStyle = '#3b3b41'; circ(x, px, py, 4); x.fillStyle = '#2f2f34'; } // manholes
-          x.fillStyle = '#26262b'; for (const [px, py] of [[200, 340], [560, 284], [640, 340], [820, 284], [180, 150], [600, 580], [940, 420]]) x.fillRect(px - 6, py - 2, 12, 4); // storm drains at the curb
+          x.fillStyle = '#2f2f34'; for (const [px, py] of [[360, 296], [600, 328], [416, 120], [712, 460], [610, 562]]) { circ(x, px, py, 6); x.fillStyle = '#3b3b41'; circ(x, px, py, 4); x.fillStyle = '#2f2f34'; } // manholes
+          x.fillStyle = '#26262b'; for (const [px, py, v] of [[200, 341], [560, 283], [640, 341], [820, 283], [180, 149], [600, 581], [903, 420, 1], [745, 200, 1]]) v ? x.fillRect(px - 2, py - 6, 4, 12) : x.fillRect(px - 6, py - 2, 12, 4); // storm drains set into the curb
           x.save(); x.globalAlpha = .55; x.fillStyle = '#ececec'; x.fillRect(780, 168, 110, 72); x.restore(); x.strokeStyle = '#c0392b'; x.lineWidth = 3; x.strokeRect(781.5, 169.5, 107, 69); // the gas canopy
-          x.fillStyle = '#93bf55'; for (const [tx, ty] of [[476, 90], [668, 236], [664, 88]]) circ(x, tx, ty, 18); // tree pits in the square
+          x.fillStyle = '#93bf55'; for (const [tx, ty] of [[476, 90], [668, 238], [664, 88]]) circ(x, tx, ty, 17); // tree pits in the square
         }
       };
     }

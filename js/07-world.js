@@ -76,17 +76,40 @@ function drawObstacleLayer(x = octx, b = curBuild, list = obstacles, ls = MAPS[m
   for (const l of ls) fixture(x, l);
   if (x === octx) outlineBreakables(x);
 }
-function nudgeLamps(list, paths) { // a lamp post standing in the middle of a path gets moved to its edge
+/* ---- placement rules, applied to every map as it loads ----
+   street furniture never stands in a road (it's pushed back to the curb), a lamp is only moved off a walkway when it is really in it
+   (and never into a road or a wall), and anything left with a pinched, snake-sized gap to its neighbour is reported */
+const PROP_KINDS = new Set(['lamp', 'bench', 'bin', 'tree', 'bush', 'table', 'plant', 'barrier']);
+const inRoadRect = (x, y, r, roads) => roads.some(q => x + r > q[0] && x - r < q[0] + q[2] && y + r > q[1] && y - r < q[1] + q[3]);
+function hitsSolid(list, o, x, y, r) { return list.some(q => q !== o && q.kind !== 'border' && (q.t === 'r' ? x + r > q.x && x - r < q.x + q.w && y + r > q.y && y - r < q.y + q.h : Math.hypot(x - q.x, y - q.y) < r + q.r)); }
+function nudgeLamps(list, paths, roads = []) { // a lamp post standing in the middle of a path gets moved to its edge
   if (!paths.length) return;
   const P = paths.map(p => trailPoints(p));
   for (const o of list) {
     if (o.kind !== 'lamp' || o.mast || o.lantern) continue;
     let best = null, bd = 1e9; for (const pts of P) for (const q of pts) { const d = Math.hypot(o.x - q[0], o.y - q[1]); if (d < bd) { bd = d; best = q; } }
-    const need = 16; if (!best || bd >= need) continue;
+    const need = 12; if (!best || bd >= 9) continue; // a pole beside the walkway is fine; only one standing in it moves
     let nx = o.x - best[0], ny = o.y - best[1]; const l = Math.hypot(nx, ny);
-    if (l < .5) { const i = P.flat().indexOf(best); nx = 0; ny = 1; } else { nx /= l; ny /= l; }
-    o.x = best[0] + nx * need; o.y = best[1] + ny * need;
-    for (const l2 of (MAPS[mapIdx].lights || [])) if (l2.o === o) { l2.x = o.x; l2.y = o.y; }
+    if (l < .5) { nx = 0; ny = 1; } else { nx /= l; ny /= l; }
+    for (const sg of [1, -1]) { const x = best[0] + nx * need * sg, y = best[1] + ny * need * sg;
+      if (inRoadRect(x, y, o.r, roads) || hitsSolid(list, o, x, y, o.r)) continue; // never into the traffic or a wall
+      o.x = x; o.y = y; for (const l2 of (MAPS[mapIdx].lights || [])) if (l2.o === o) { l2.x = o.x; l2.y = o.y; } break; }
+  }
+}
+function tidyPlacement(list, roads) {
+  for (const o of list) {
+    if (!PROP_KINDS.has(o.kind) || o.mast) continue;
+    for (const q of roads) { // out of the road, back to the nearest curb
+      const [x0, y0, w, h] = q, cx = o.t === 'r' ? o.x + o.w / 2 : o.x, cy = o.t === 'r' ? o.y + o.h / 2 : o.y, hw = o.t === 'r' ? o.w / 2 : o.r, hh = o.t === 'r' ? o.h / 2 : o.r;
+      if (!(cx + hw > x0 && cx - hw < x0 + w && cy + hh > y0 && cy - hh < y0 + h)) continue;
+      const opts = [[x0 - hw - 2 - cx, 0], [x0 + w + hw + 2 - cx, 0], [0, y0 - hh - 2 - cy], [0, y0 + h + hh + 2 - cy]].sort((a, b) => Math.abs(a[0]) + Math.abs(a[1]) - Math.abs(b[0]) - Math.abs(b[1]));
+      const [dx, dy] = opts[0]; o.x += dx; o.y += dy; console.debug('[map] moved', o.kind, 'out of the road');
+    }
+  }
+  if (typeof location !== 'undefined' && /mapcheck/.test(location.search)) { // ?mapcheck: list pinched gaps a snake would scrape through
+    const S = list.filter(o => o.kind !== 'border' && o.kind !== 'lamp'), box = o => o.t === 'r' ? [o.x, o.y, o.x + o.w, o.y + o.h] : [o.x - o.r, o.y - o.r, o.x + o.r, o.y + o.r];
+    for (let i = 0; i < S.length; i++) for (let j = i + 1; j < S.length; j++) { const a = box(S[i]), b = box(S[j]), gx = Math.max(a[0] - b[2], b[0] - a[2]), gy = Math.max(a[1] - b[3], b[1] - a[3]), g = Math.max(gx, gy);
+      if (Math.min(gx, gy) <= 0 && g > 2 && g < 26 && !(S[i].kind === 'car' && S[j].kind === 'car')) console.warn('[mapcheck] tight gap', Math.round(g), S[i].kind, Math.round(a[0]), Math.round(a[1]), '<->', S[j].kind, Math.round(b[0]), Math.round(b[1])); }
   }
 }
 function loadMap(idx, sz) {
@@ -94,7 +117,7 @@ function loadMap(idx, sz) {
   const m = MAPS[idx], b = m.build();
   Sfx.setMuffle(!!m.space && !m.indoor); // thin air on the surface; inside a pressurized station sound is normal
   obstacles = splitBreakables(addBreakWalls([...borderWalls(m.border), ...b.obs], m.name));
-  nudgeLamps(obstacles, b.paths || []);
+  nudgeLamps(obstacles, b.paths || [], b.roads || []); tidyPlacement(obstacles, b.roads || []);
   buildSolid();
   bctx.clearRect(0, 0, W, H); b.floor(bctx); bakeContactShadows(bctx, b.obs); resetBuckets(); gctx.clearRect(0, 0, W, H); groundParts = []; trail = []; floaters = [];
   buildGrassMask(); gradeGround(); seasonDetails(bctx);
