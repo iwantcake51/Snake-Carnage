@@ -200,7 +200,7 @@ function drawBubbles(x) {
     let cy = c.y - 14 - bh / 2;
     for (let k = vis.length - 1; k >= 0; k--) {
       const b = vis[k];
-      const txt = b.act ? `*${b.text}*` : b.text;
+      const txt = b.act ? `*${b.text}*` : b.cps ? b.text.slice(0, Math.max(1, shownLen(b))) : b.text;
       x.font = b.act ? `italic 600 ${fs * .92}px "Segoe UI", sans-serif` : `${b.yell ? 800 : 600} ${fs}px "Segoe UI", sans-serif`;
       const w = x.measureText(txt).width + 9, pop = Math.min(1, b.t / .14), sc = .6 + .4 * (1 - Math.pow(1 - pop, 3));
       const bx = clamp(c.x + (vis.length - 1 - k) * 5, w / 2 + 2, W - w / 2 - 2), by = Math.max(bh, cy);
