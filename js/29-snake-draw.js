@@ -21,7 +21,7 @@ function drawSnake(x, s = snake, cfg = SETTINGS.snake) {
     const g = pts[i], r = segR(i, n);
     const sts = s.stains[i] || [], soak = Math.min(.55, sts.length / 50);
     const base = segColor(i, n, cfg);
-    x.fillStyle = soak ? mixColor(base, '#4a0606', soak) : base;
+    x.fillStyle = soak ? mixColor(base, soakCol(sts), soak) : base;
     circ(x, g.x, g.y, r);
     patternOverlay(x, g, r, i, cfg);
     if (sts.length) { x.save(); x.translate(g.x, g.y); x.rotate(g.a); x.drawImage(stainSprite(sts), -r, -r, r * 2, r * 2); x.restore(); }

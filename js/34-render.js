@@ -29,15 +29,16 @@ function render() {
   snakeShadowPath(x, L.sdx * 6, L.sdy * 6);
   x.fill();
   for (const c of creatures) if (c.alive) drawCreature(x, c);
-  drawFlashBodies(x);
+  drawFlashBodies(x); drawHitGhosts(x);
   drawGiblets(x); // chunks on the ground sit under the snake
   drawTrail(x); drawGround(x); drawSnake(x);
   x.drawImage(obsC, 0, 0, W, H);
   drawWaters(x);
   for (const b of bucketList) { if (!b.wd) continue; x.globalAlpha = bucketAlpha(b); x.drawImage(b.w, 0, 0, W, H); }
   x.globalAlpha = 1;
-  x.lineCap = 'round'; x.strokeStyle = BLOOD;
-  for (const p of parts) { // airborne drops drawn as motion streaks
+  x.lineCap = 'round'; let lastC = '';
+  for (const p of parts) { // airborne drops drawn as motion streaks, each in its own blood colour
+    if (p.c !== lastC) { lastC = p.c; x.strokeStyle = p.c || BLOOD; }
     const py = p.y - p.z * .25; x.lineWidth = p.r * 2 * (1 + p.z / 80);
     x.beginPath(); x.moveTo(p.x - p.vx * .016, py - p.vy * .016); x.lineTo(p.x + .01, py); x.stroke();
   }

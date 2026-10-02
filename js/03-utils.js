@@ -2,6 +2,7 @@
    UTILS
    ========================================================= */
 const rand = (a, b) => a + Math.random() * (b - a);
+const rgbOf2 = s => s[0] === '#' ? [parseInt(s.slice(1, 3), 16), parseInt(s.slice(3, 5), 16), parseInt(s.slice(5, 7), 16)] : s.match(/\d+/g).slice(0, 3).map(Number);
 const randi = (a, b) => Math.floor(rand(a, b + 1));
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;

@@ -19,9 +19,14 @@ function los(ax, ay, bx, by) {
   for (let k = 1; k < n; k++) { const t = k / n; if (solid(ax + (bx - ax) * t, ay + (by - ay) * t)) return false; }
   return true;
 }
-function addWet(x, y, v) {
+/* blood colour per wet cell: a weighted mix, so gold stays gold, alien stays green and crossing them blends */
+const RGB = {}; const rgbOf = h => RGB[h] || (RGB[h] = h.startsWith('#') ? [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)] : [140, 10, 10]);
+let wetC = new Float32Array(1);
+function tintWet(k, v, col) { const c = rgbOf(col || BLOOD), w = Math.min(1, v / (wet[k] + .001)); for (let n = 0; n < 3; n++) wetC[k * 3 + n] += (c[n] - wetC[k * 3 + n]) * w; }
+function wetColAt(x, y) { const i = x / WS | 0, j = y / WS | 0; if (i < 0 || j < 0 || i >= WW || j >= WH) return BLOOD; const k = (j * WW + i) * 3; return `rgb(${wetC[k] | 0},${wetC[k + 1] | 0},${wetC[k + 2] | 0})`; }
+function addWet(x, y, v, col) {
   const i = x / WS | 0, j = y / WS | 0;
-  if (i >= 0 && j >= 0 && i < WW && j < WH) { wet[j * WW + i] += v; fresh[j * WW + i] += v; } markF();
+  if (i >= 0 && j >= 0 && i < WW && j < WH) { const k = j * WW + i; wet[k] += v; fresh[k] += v; tintWet(k, v, col); } markF();
 }
 function freshAt(x, y) {
   const i = x / WS | 0, j = y / WS | 0;
@@ -78,8 +83,8 @@ function loadMap(idx) {
   bakeOutline();
   buildSolid();
   buildLights(b.lights || m.lights || []);
-  wet = new Float32Array(WW * WH); fresh = new Float32Array(WW * WH);
-  creatures = []; parts = []; pools = []; respawnQ = []; gibs = []; splashes = []; groups = []; mist = []; ringPops = [];
+  wet = new Float32Array(WW * WH); fresh = new Float32Array(WW * WH); wetC = new Float32Array(WW * WH * 3);
+  creatures = []; parts = []; pools = []; respawnQ = []; gibs = []; splashes = []; groups = []; mist = []; ringPops = []; hitGhosts = []; hitStop = 0;
   score = 0; kills = { h: 0, a: 0 }; shake = 0;
   killV = killFlash = desatHold = 0;
   light = computeLight(); shadowKey = ''; bakeShadows();

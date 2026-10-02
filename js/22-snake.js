@@ -72,7 +72,7 @@ function updateSnake(dt) {
       if (Math.random() < .15) Sfx.drip(s.x);
       const g = s.segs[1] || s.segs[0];
       splat(fctx, g.x + rand(-5, 5), g.y + rand(-5, 5), 0, 0, rand(1, 2.4), pick(s.dripCol || CONFIG.bloodColors), false);
-      addWet(g.x, g.y, .08);
+      addWet(g.x, g.y, .08, (s.dripCol || CONFIG.bloodColors)[0]);
     }
   }
 }
@@ -119,39 +119,41 @@ function drawGround(x) {
 function smearBlood(s, dt) {
   if (s.lastX === undefined) { s.lastX = s.x; s.lastY = s.y; s.smear = 0; }
   const fh = freshAt(s.x, s.y);
-  if (fh > .6) s.smear = Math.min(1, s.smear + fh * .25);
+  if (fh > .6) { s.smear = Math.min(1, s.smear + fh * .25); const c = rgbOf2(wetColAt(s.x, s.y)); s.smC = s.smC ? s.smC.map((v, n) => v + (c[n] - v) * .35) : c; } // the belly picks up whatever it slides through
   if (s.smear > .02) { // belly drag marks on the ground
     const lx = s.lastX, ly = s.lastY, line = (ax, ay, bx, by) => { fctx.beginPath(); fctx.moveTo(ax, ay); fctx.lineTo(bx, by); fctx.stroke(); };
     const nx = -Math.sin(s.angle), ny = Math.cos(s.angle);
     s.smW = clamp((s.smW || 1.4) + rand(-.12, .12), 1, 1.8); s.smO = clamp((s.smO || 0) + rand(-.5, .5), -2.5, 2.5); // width and drift wander
-    markF(); fctx.save(); fctx.lineCap = 'round'; fctx.strokeStyle = BLOOD; fctx.fillStyle = BLOOD;
-    fctx.globalAlpha = s.smear * rand(.16, .3); fctx.lineWidth = CONFIG.snakeR * s.smW;
+    const sc = s.smC ? `rgb(${s.smC[0] | 0},${s.smC[1] | 0},${s.smC[2] | 0})` : BLOOD;
+    markF(); fctx.save(); fctx.lineCap = 'round'; fctx.strokeStyle = sc; fctx.fillStyle = sc;
+    fctx.globalAlpha = s.smear * rand(.3, .45); fctx.lineWidth = CONFIG.snakeR * s.smW;
     line(lx + nx * s.smO, ly + ny * s.smO, s.x + nx * s.smO, s.y + ny * s.smO);
-    fctx.globalAlpha = s.smear * rand(.35, .6); fctx.lineWidth = rand(.8, 1.7);
+    fctx.globalAlpha = s.smear * rand(.55, .8); fctx.lineWidth = rand(1, 2.2);
     for (const o of [-5, 0, 5]) if (Math.random() < .75) { const q = o + rand(-1, 1) + s.smO; line(lx + nx * q, ly + ny * q, s.x + nx * q, s.y + ny * q); }
     if (Math.random() < .14 * s.smear) { const side = (Math.random() < .5 ? -1 : 1) * rand(7, 12); fctx.globalAlpha = .85; circ(fctx, s.x + nx * side, s.y + ny * side, rand(.6, 1.9)); }
     fctx.restore();
-    s.smear *= Math.exp(-s.speed * dt / 55);
+    s.smear *= Math.exp(-s.speed * dt / 80); // trails last longer, so you can read where you've been
   }
   s.lastX = s.x; s.lastY = s.y;
   for (let i = 0; i < s.segs.length; i++) { // body soaks up blood it lies in
     if (Math.random() > .08) continue;
     const g = s.segs[i];
-    if (freshAt(g.x, g.y) > .6) stainSnake(i, g.x + rand(-9, 9), g.y + rand(-9, 9), rand(1.2, 3), pick(CONFIG.bloodColors));
+    if (freshAt(g.x, g.y) > .6) stainSnake(i, g.x + rand(-9, 9), g.y + rand(-9, 9), rand(1.2, 3), wetColAt(g.x, g.y));
   }
 }
 
-function bleedIntoWater(x, y, amount) {
+function bleedIntoWater(x, y, amount, col = BLOOD) {
   for (const o of obstacles) {
     if (o.kind !== 'water') continue;
     const S = wShape(o); let ex, ey, d;
     if (S.round) { const dx = x - S.cx, dy = y - S.cy, dd = Math.hypot(dx, dy) || 1; d = dd - S.hw; ex = S.cx + dx / dd * (S.hw - 4); ey = S.cy + dy / dd * (S.hw - 4); }
     else { ex = clamp(x, S.cx - S.hw + 4, S.cx + S.hw - 4); ey = clamp(y, S.cy - S.hh + 4, S.cy + S.hh - 4); d = Math.hypot(x - ex, y - ey) - 4; }
-    if (d < 45) for (let k = 0; k < 4; k++) waterBlood(o, ex + rand(-6, 6), ey + rand(-6, 6), amount * .5 * (1 - Math.max(0, d) / 45));
+    if (d < 45) for (let k = 0; k < 4; k++) waterBlood(o, ex + rand(-6, 6), ey + rand(-6, 6), amount * .5 * (1 - Math.max(0, d) / 45), 0, 0, col);
   }
 }
 function eat(c) {
   c.alive = false; dropFlash(c); leaveGroup(c);
+  hitGhosts.push({ c, t: 0 }); hitStop = Math.max(hitStop, c.def.human ? .055 : c.def.r >= 9 ? .045 : .03); // a frozen beat on the bite
   const s = snake, sx = Math.cos(s.angle), sy = Math.sin(s.angle);
   const mv = clamp(c.spd / (c.def.run * SETTINGS.creatureSpeed), 0, 1);
   const headOn = -(sx * Math.cos(c.a) + sy * Math.sin(c.a)) * mv;           // +1 = target ran into the snake
@@ -159,12 +161,12 @@ function eat(c) {
   const amount = c.def.blood * (1 + .5 * headOn) * rand(.9, 1.15) * (MOD.bloody ? 1.8 : 1);
   spawnBlood(c.x, c.y, s.angle, amount, .3 + .55 * side, .1 + .2 * Math.max(0, headOn), c.golden || c.def.bloodCol);
   spawnGiblets(c, s.angle); addBloodAmount(amount);
-  bleedIntoWater(c.x, c.y, amount);
+  bleedIntoWater(c.x, c.y, amount, bloodOf(c)[0]);
   pools.push({ x: c.x, y: c.y, r: 2, c: c.golden ? GOLD_BLOOD[0] : c.def.bloodCol ? c.def.bloodCol[0] : BLOOD, max: (4 + amount * 15) * rand(.85, 1.15),
                lobes: Array.from({ length: randi(5, 8) }, () => ({ dx: rand(-.55, .55), dy: rand(-.55, .55), s: rand(.45, 1) })) });
   for (let k = 0; k < 14 * amount; k++) {
     const i = randi(0, Math.min(3, s.segs.length - 1)), g = s.segs[i];
-    stainSnake(i, g.x + rand(-10, 10), g.y + rand(-10, 10), rand(1.5, 4), c.golden && Math.random() < .3 ? BLOOD : pick(bloodOf(c)));
+    stainSnake(i, g.x + rand(-10, 10), g.y + rand(-10, 10), rand(1.5, 4), pick(bloodOf(c)));
   }
   for (let k = 0; k < c.def.grow; k++) s.stains.push([]);
   s.len += c.def.grow;

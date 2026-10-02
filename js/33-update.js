@@ -13,6 +13,7 @@ function update(dt) {
     if (deadT > 0) { deadT -= dt; if (deadT <= 0) showDead(); }
     return;
   }
+  if (hitStop > 0) { hitStop -= dt; return; } // hit-stop: the world holds its breath for a few frames
   T += dt;
   if (state === 'play') { updateSnake(dt); run.time += dt; crTick(dt); progressTick(dt); }
   updateCrowd();

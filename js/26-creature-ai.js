@@ -128,7 +128,7 @@ function hopSpeed(c, dt, spd) { // returns this frame's speed: fast while airbor
 function footprints(c, moved) {
   if (moved <= 0) return;
   const hum = c.def.human;
-  if (wetAt(c.x, c.y) > .8) c.feet = Math.max(c.feet, hum ? 9 : 6);
+  if (wetAt(c.x, c.y) > .8) { c.feet = Math.max(c.feet, hum ? 9 : 6); c.feetCol = wetColAt(c.x, c.y); }
   c.step += moved;
   if (c.step < (hum ? 11 : 6)) return;
   c.step = 0; c.fs = -c.fs;
@@ -136,7 +136,7 @@ function footprints(c, moved) {
   const off = c.fs * (hum ? 3.5 : 2);
   markF(); fctx.save();
   fctx.translate(c.x - Math.sin(c.a) * off, c.y + Math.cos(c.a) * off); fctx.rotate(c.a);
-  fctx.globalAlpha = Math.min(.85, c.feet * .11); fctx.fillStyle = BLOOD;
+  fctx.globalAlpha = Math.min(.85, c.feet * .11); fctx.fillStyle = c.feetCol || BLOOD;
   if (hum) ell(fctx, 0, 0, 3.4, 1.8);
   else { circ(fctx, 0, 0, 1.3); circ(fctx, 1.8, -1.2, .7); circ(fctx, 1.8, 1.2, .7); }
   fctx.restore();

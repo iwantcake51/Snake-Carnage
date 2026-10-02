@@ -70,7 +70,7 @@ function spawnBlood(x, y, dirA, amount, spread, backFrac, gold) { // gold: a gol
     else if (r < backFrac + .2) { a = rand(0, TAU); sp = rand(20, 140); }             // radial burst
     else { a = dirA + gauss() * spread; sp = rand(120, 480) * (.6 + amount * .4); }   // main forward jet
     parts.push({ x: x + rand(-3, 3), y: y + rand(-3, 3), z: rand(4, 12), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
-                 vz: rand(20, 200), r: Math.random() < .15 ? rand(3, 5) : rand(1.2, 3), c: gold === true ? (Math.random() < .75 ? pick(GOLD_BLOOD) : pick(CONFIG.bloodColors)) : gold ? pick(gold) : pick(CONFIG.bloodColors), ox: x, oy: y }); // gold: golden target; an array: that creature's own blood colors
+                 vz: rand(20, 200), r: Math.random() < .15 ? rand(3, 5) : rand(1.2, 3), c: gold === true ? pick(GOLD_BLOOD) : gold ? pick(gold) : pick(CONFIG.bloodColors), ox: x, oy: y }); // gold: golden target; an array: that creature's own blood colors
   }
 }
 
@@ -105,7 +105,7 @@ function updateBlood(dt) {
     if (solid(p.x, p.y) && p.z < 60) { // lamps are thin poles: blood flies past their tops and lands around them
       const o = obstacleAt(p.x, p.y);
       if (o && o.kind === 'water') { // water is low: drops arc over the rim and come down in it
-        if (inWater(o, p.x, p.y)) { if (p.z <= 2) { waterBlood(o, p.x, p.y, p.r * p.r * .02, p.vx, p.vy); killPart(i); } continue; }
+        if (inWater(o, p.x, p.y)) { if (p.z <= 2) { waterBlood(o, p.x, p.y, p.r * p.r * .02, p.vx, p.vy, p.c); killPart(i); } continue; }
         if (p.z > 3) continue;
       }
       if (!o || o.kind !== 'lamp') { wallSplat(p.x, p.y, p.vx, p.vy, p.r * 1.4, p.c); Sfx.splat(p.x, true); killPart(i); continue; }
@@ -118,7 +118,7 @@ function updateBlood(dt) {
         if (Math.abs(p.x - c.x) < rr && Math.abs(p.y - c.y) < rr && dist2(p.x, p.y, c.x, c.y) < rr * rr) {
           stainCreature(c, p.x, p.y, p.r * 1.4, p.c, Math.atan2(p.vy, p.vx), Math.hypot(p.vx, p.vy)); p.hc = 1;
           const lx = (p.x - c.x) * Math.cos(c.a) + (p.y - c.y) * Math.sin(c.a), screaming = c.state === 'panic' || (c.bubbles && c.bubbles.some(q => q.yell && q.delay <= 0));
-          if (c.def.human && screaming && lx > 2 && !c.mouthBlood && Math.random() < .35) mouthBlood(c); // hit in the face, mouth wide open
+          if (c.def.human && screaming && lx > 2 && !c.mouthBlood && Math.random() < .35) { c.mouthCol = p.c; mouthBlood(c); } // hit in the face, mouth wide open
           else if (c.def.human && T - (c.bloodSaid || -9) > 4 && Math.random() < .5) { c.bloodSaid = T; say(c, 'bloodOnMe'); }
           hit = Math.random() < .6; break;
         }
@@ -137,7 +137,7 @@ function updateBlood(dt) {
       }
       if (hit) { killPart(i); continue; }
     }
-    if (p.z <= 0) { splat(fctx, p.x, p.y, p.vx, p.vy, p.r, p.c, false); addWet(p.x, p.y, p.r * .15); if (p.r > 2) Sfx.splat(p.x, false); killPart(i); }
+    if (p.z <= 0) { splat(fctx, p.x, p.y, p.vx, p.vy, p.r, p.c, false); addWet(p.x, p.y, p.r * .15, p.c); if (p.r > 2) Sfx.splat(p.x, false); killPart(i); }
   }
   for (let i = pools.length - 1; i >= 0; i--) { // pools grow under the kill site
     const pl = pools[i];
@@ -146,7 +146,7 @@ function updateBlood(dt) {
     for (const l of pl.lobes) ell(fctx, pl.x + l.dx * pl.r, pl.y + l.dy * pl.r, pl.r * l.s, pl.r * l.s * .85);
     for (let j = -2; j <= 2; j++) for (let k = -2; k <= 2; k++) {
       const gx = pl.x + k * WS, gy = pl.y + j * WS;
-      if (dist2(gx, gy, pl.x, pl.y) < pl.r * pl.r) { const ii = (gx / WS | 0), jj = (gy / WS | 0); if (ii >= 0 && jj >= 0 && ii < WW && jj < WH) wet[jj * WW + ii] = Math.max(wet[jj * WW + ii], 3); fresh[jj * WW + ii] = Math.max(fresh[jj * WW + ii], 3); }
+      if (dist2(gx, gy, pl.x, pl.y) < pl.r * pl.r) { const ii = (gx / WS | 0), jj = (gy / WS | 0); if (ii >= 0 && jj >= 0 && ii < WW && jj < WH) { const kk = jj * WW + ii; if (wet[kk] < 3) tintWet(kk, 3 - wet[kk] + .5, pl.c); wet[kk] = Math.max(wet[kk], 3); } fresh[jj * WW + ii] = Math.max(fresh[jj * WW + ii], 3); }
     }
     if (pl.r > pl.max * .97) {
       pools.splice(i, 1);

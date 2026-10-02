@@ -94,7 +94,7 @@ function drawHuman(x, c) { // top-down person, +x = facing direction
   }
   else if (L.hat === 'straw') { x.fillStyle = '#e3c36a'; circ(x, -.2, 0, 7.4); x.fillStyle = '#d4ad4f'; circ(x, -.2, 0, 4.3); x.strokeStyle = '#8b3a2b'; x.lineWidth = 1; x.beginPath(); x.arc(-.2, 0, 4.5, 0, TAU); x.stroke(); }
   x.strokeStyle = O; x.lineWidth = .8; x.beginPath(); x.arc(.6, 0, 4.8, 0, TAU); x.stroke();
-  if (c.mouthBlood && L.hat !== 'helmet') { x.fillStyle = BLOOD; ell(x, 4.6, 0, 1.1, 1.8); } // blood round the mouth
+  if (c.mouthBlood && L.hat !== 'helmet') { x.fillStyle = c.mouthCol || BLOOD; ell(x, 4.6, 0, 1.1, 1.8); } // blood round the mouth
 }
 function drawAlien(x, c, d) { // little grey-green visitor: big head, huge black eyes, wobbling antennae
   const lp = Math.sin(c.phase) * c.moveAmt, w = Math.sin(T * 6 + c.pt * 40) * .6;
@@ -239,7 +239,7 @@ function drawCreature(x, c, portrait) {
   if (c.stains.length) {
     shapePath(x, c); x.clip();
     const n = c.stains.length;
-    x.fillStyle = BLOOD;
+    x.fillStyle = c.stains[n - 1].c || BLOOD;
     if (n > 12) { x.globalAlpha = Math.min(.4, n / 140); x.fillRect(-20, -20, 40, 40); x.globalAlpha = 1; } // soaked look
     for (const t of c.stains) { x.fillStyle = t.c || BLOOD; x.beginPath(); x.ellipse(t.x, t.y, t.r * (t.e || 1), t.r, t.a || 0, 0, TAU); x.fill(); }
   }
@@ -420,6 +420,7 @@ function drawHat(x, hat) { // head-local frame, +x = forward; hats sit behind th
       } break;
   }
 }
+const soakCol = sts => { const c = sts[sts.length - 1].c; if (!c || c === BLOOD) return '#4a0606'; const v = rgbOf2(c); return '#' + v.map(n => Math.round(n * .55).toString(16).padStart(2, '0')).join(''); };
 function stainSprite(sts) { // re-rendered only when that segment gets new blood
   const R0 = CONFIG.snakeR, S = 4; // 4 px per unit for crisp scaling
   if (!sts.spr) { sts.spr = document.createElement('canvas'); sts.spr.width = sts.spr.height = R0 * 2 * S; sts.dirty = true; }

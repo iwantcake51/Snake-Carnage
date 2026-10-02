@@ -36,7 +36,7 @@ function updateGiblets(dt) {
       const nx = g.x + g.vx * dt, ny = g.y + g.vy * dt;
       if (inWater(g.fl, nx, ny)) { g.x = nx; g.y = ny; } else { g.vx *= -.5; g.vy *= -.5; } // bump off the edge
       g.rot += g.vr * dt; g.vr *= Math.exp(-dt); g.bob = Math.sin(T * 2.2 + g.s * 7) * .4;
-      if (Math.random() < dt * .6) waterBlood(g.fl, g.x, g.y, .01);
+      if (Math.random() < dt * .6) waterBlood(g.fl, g.x, g.y, .01, 0, 0, (g.bl || CONFIG.bloodColors)[0]);
       continue;
     }
     if (g.rest > 0) continue; // settled on the ground
@@ -51,14 +51,14 @@ function updateGiblets(dt) {
         g.z = 0;
         const o = obstacleAt(g.x, g.y);
         if (o && o.kind === 'water' && inWater(o, g.x, g.y)) { // splash, then float
-          g.fl = o; g.z = 0; g.vz = 0; g.vx *= .25; g.vy *= .25; waterBlood(o, g.x, g.y, .05);
+          g.fl = o; g.z = 0; g.vz = 0; g.vx *= .25; g.vy *= .25; waterBlood(o, g.x, g.y, .05, 0, 0, (g.bl || CONFIG.bloodColors)[0]);
           const b = o.wb; if (b.rings.length < 12) b.rings.push({ x: g.x, y: g.y, t: 0 });
           for (let k = 0; k < 6; k++) { const a = rand(0, TAU), sp = rand(20, 60); splashes.push({ x: g.x, y: g.y, z: 1, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(40, 90) }); }
           Sfx.splat(g.x, false); continue;
         }
         if (!g.landed) { // first touch: sometimes a proper little splat
           g.landed = true;
-          if (Math.random() < .55) { splat(fctx, g.x, g.y, g.vx, g.vy, g.s * rand(1.1, 1.6), pick(g.bl || CONFIG.bloodColors), false); addWet(g.x, g.y, .15); }
+          if (Math.random() < .55) { splat(fctx, g.x, g.y, g.vx, g.vy, g.s * rand(1.1, 1.6), pick(g.bl || CONFIG.bloodColors), false); addWet(g.x, g.y, .15, (g.bl || CONFIG.bloodColors)[0]); }
         }
         if (g.vz < -45) { g.vz *= -.36; g.vx *= .72; g.vy *= .72; g.vr *= .7; } else g.vz = 0; // bounce, or stay down and slide
       }
