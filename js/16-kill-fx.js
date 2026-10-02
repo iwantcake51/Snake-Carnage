@@ -41,7 +41,7 @@ let puke = [];
 const VOMIT = ['#b8a641', '#a39233', '#c9b95a', '#8c7d2a'];
 function vomit(c) {
   if (SETTINGS.vomit === false || c.type === 'astronaut' || c.def.alien) return;
-  c.pukeT = .7; c.pukeA = c.a; c.pukeRun = c.state === 'panic' || c.state === 'flee'; // running ones keep going and throw up on the move
+  c.pukeT = .7; c.pukeA = c.a; c.pukeRun = false;
 }
 function updateVomit(dt) {
   for (const c of creatures) {

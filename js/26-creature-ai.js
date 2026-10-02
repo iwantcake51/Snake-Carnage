@@ -52,6 +52,10 @@ function updateCreature(c, dt) {
   }
   if (c.reply && (c.reply.t -= dt) <= 0) { const r = c.reply; c.reply = null; say(c, r.ctx); }
   if (d.human) aftertaste(c, dt);
+  if (c.queasy && !c.puked && (c.state === 'wander' || c.state === 'idle') && T - c.queasy > 6 && (!snake || dist2(c.x, c.y, snake.x, snake.y) > 220 * 220) && Math.random() < dt * .25) { // safe now, breath back, and it catches up with them
+    c.queasy = 0; c.puked = T; say(c, 'act:' + pick(['doubles over and throws up', 'throws up', 'retches']));
+    c.state = 'idle'; c.timer = 2.5; vomit(c);
+  }
   if (c.puked && T - c.puked > 6 && !c.sorry && c.state !== 'panic' && Math.random() < dt * .3) { c.sorry = true; say(c, 'act:wipes mouth'); }
   if (c.warn && (c.warn.t -= dt) <= 0) { const w = c.warn; c.warn = null; panic(c, w.x, w.y, rand(3, 5), 'warned'); }
   let want = c.a, spd = 0;

@@ -13,7 +13,12 @@ function keyAngle() {
   return dx || dy ? Math.atan2(dy, dx) : null;
 }
 function setHeading(a) { // one place where a new target heading is accepted (8-way rules)
-  if (snake.started && Math.abs(angDiff(snake.dir, a)) > Math.PI * .9) return; // no instant reversal
+  if (snake.started && Math.abs(angDiff(snake.dir, a)) > Math.PI * .9) { // no instant reversal... unless Speed Demon V lets you whip round
+    if (upg('speed') < 5 || T - (snake.uturnAt || -9) < .6 || snake.uturnT > 0) return;
+    const L = snake.dir - Math.PI / 2, R2 = snake.dir + Math.PI / 2, open = a2 => { let n = 0; for (const d of [15, 30, 45]) if (!solid(snake.x + Math.cos(a2) * d, snake.y + Math.sin(a2) * d)) n++; return n; };
+    const side = open(L) >= open(R2) ? L : R2; // swing round on the side with room
+    snake.uturnAt = T; snake.uturnT = .55; snake.uturnTo = a; snake.dir = side; Sfx.turn(); return;
+  }
   if (snake.started && Math.abs(angDiff(snake.dir, a)) > .1) Sfx.turn();
   if (snake.started && Math.abs(angDiff(snake.dir, a)) > 1.4) snake.hardTurnT = T; // 90 degrees or more
   snake.dir = a;

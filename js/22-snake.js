@@ -42,8 +42,9 @@ function updateSnake(dt) {
   const s = snake; if (!s.started || !s.alive) return;
   if (MOD.freeMove) steerFree(dt);
   // ease toward the target heading: quick to start, settles softly, capped so it never snaps
-  const sl = upg('speed'), d = angDiff(s.angle, s.dir), mx = CONFIG.turnRate * dt * (1 + (sl >= 2 ? .12 : 0) + (sl >= 4 ? .14 : 0)); // Speed Demon: snappier turns
+  const sl = upg('speed'), d = angDiff(s.angle, s.dir), mx = CONFIG.turnRate * dt * (1 + (sl >= 2 ? .18 : 0) + (sl >= 4 ? .18 : 0) + (sl >= 5 ? .12 : 0)) * (s.uturnT > 0 ? 2.4 : 1); // Speed Demon: snappier turns, and a fast whip round on a U-turn
   s.angle += Math.abs(d) < .002 ? d : clamp(d * Math.min(1, dt * CONFIG.turnEase) + Math.sign(d) * mx * .18, -mx, mx);
+  if (s.uturnT > 0) { s.uturnT -= dt; if (s.uturnTo !== undefined && Math.abs(angDiff(s.angle, s.dir)) < .5) { s.dir = s.uturnTo; s.uturnTo = undefined; } } // second half of the U-turn
   if (s.wallStun > 0) { const k = s.wallStun / (s.wallMax || 3.4); s.wallStun -= dt; s.angle += (Math.sin(T * 4.7) * 1.5 + Math.sin(T * 2.3 + 1.3)) * k * dt; } // seeing stars: it can't hold a line
   for (const k of ['dashT', 'camoT', 'scentT', 'hissT', 'ramT']) if (s[k] > 0) s[k] -= dt * (k === 'ramT' && sl >= 3 ? 1.33 : 1); // Speed Demon III shakes off dazes faster
   if (s.camoT > 0) { const turning = Math.abs(angDiff(s.angle, s.dir)) > .05 || s.dashT > 0; s.still = clamp((s.still || 0) + (turning ? -dt * 4 : dt * 1.1), 0, 1); } else s.still = 0; // camouflage settles in on a straight line
@@ -84,12 +85,19 @@ let groundParts = [], regrowT = .4;
 function groundFX(s, dt) { // ruts in the grass and crumbs of dirt flicked out behind the snake
   if (s.gx === undefined) { s.gx = s.x; s.gy = s.y; }
   if (grassAt(s.x, s.y) && snowAt(s.x, s.y) < .1) {
-    const nx = -Math.sin(s.angle), ny = Math.cos(s.angle);
-    gctx.lineCap = 'round';
-    gctx.strokeStyle = 'rgba(112,86,46,.14)'; gctx.lineWidth = 10;
-    gctx.beginPath(); gctx.moveTo(s.gx, s.gy); gctx.lineTo(s.x, s.y); gctx.stroke();
-    gctx.strokeStyle = 'rgba(92,66,34,.32)'; gctx.lineWidth = 2;
-    for (const o of [-4, 4]) { gctx.beginPath(); gctx.moveTo(s.gx + nx * o, s.gy + ny * o); gctx.lineTo(s.x + nx * o, s.y + ny * o); gctx.stroke(); }
+    const nx = -Math.sin(s.angle), ny = Math.cos(s.angle), gc = grassColAt(s.x, s.y), seg = Math.hypot(s.x - s.gx, s.y - s.gy);
+    const turn = Math.abs(angDiff(s.lastGA ?? s.angle, s.angle)) / Math.max(.001, dt); s.lastGA = s.angle;
+    for (let t = 0; t < seg; t += 3) { // pressed every few pixels along the way
+      const px = s.gx + (s.x - s.gx) * (t / seg), py = s.gy + (s.y - s.gy) * (t / seg), wob = perlin(px * .08, py * .08) * 1.6, w = CONFIG.snakeR * (1 + perlin(px * .03, py * .05) * .2);
+      gctx.save(); gctx.translate(px + nx * wob * .5, py + ny * wob * .5); gctx.rotate(s.angle);
+      gctx.globalAlpha = .07; gctx.fillStyle = `rgb(${gc[0] + 30 | 0},${gc[1] + 18 | 0},${gc[2] - 10 | 0})`; ell(gctx, 0, 0, 3.4, w); // grass pressed flat and pale
+      gctx.globalAlpha = .1; gctx.fillStyle = '#6b5234'; ell(gctx, 0, wob * .4, 2.6, w * .42); // belly scrape: soil starts to show in the middle
+      gctx.restore();
+      if (Math.random() < .25) { const sd = Math.random() < .5 ? -1 : 1, ex = px + nx * sd * (w + 1.5), ey = py + ny * sd * (w + 1.5), ba = s.angle + Math.PI + sd * rand(.6, 1.1); // blades bent outward along the edges
+        gctx.strokeStyle = `rgba(${gc[0] - 35 | 0},${gc[1] - 20 | 0},${gc[2] - 30 | 0},.45)`; gctx.lineWidth = .8; gctx.beginPath(); gctx.moveTo(ex, ey); gctx.lineTo(ex + Math.cos(ba) * 3, ey + Math.sin(ba) * 3); gctx.stroke(); }
+    }
+    if (turn > 4 && Math.random() < .5) { const sd = Math.sign(angDiff(s.lastGA2 ?? s.angle, s.angle)) || 1; gctx.globalAlpha = .22; gctx.fillStyle = '#5e4429'; ell(gctx, s.x - nx * sd * 6, s.y - ny * sd * 6, rand(2, 4), rand(1.4, 2.6)); gctx.globalAlpha = 1; } // hard turns tear up a clump of turf on the outside
+    s.lastGA2 = s.angle;
     if ((s.gT = (s.gT || 0) - dt) <= 0 && groundParts.length < 140) {
       s.gT = .04;
       const back = s.angle + Math.PI + rand(-.7, .7), sp = rand(30, 90), dirt = Math.random() < .6, g = grassColAt(s.x, s.y), side = rand(-6, 6);

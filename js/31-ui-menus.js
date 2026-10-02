@@ -280,6 +280,7 @@ const SETTING_TABS = {
     ['seg', 'lightQ', 'Lighting', 'High: full dynamic lighting. Medium: fewer moving shadows. Low: baked shadows only, cheapest.', ['Low', 'Medium', 'High']],
     ['toggle', 'dynShadows', 'Moving shadows', 'People, animals and the snake cast shadows from lamps and flashlights.'],
     ['seg', 'fxLevel', 'Particles', 'How many particles are simulated: blood mist, smoke, sparks, snow powder, scent wisps, insects. Low simulates far fewer.', ['Low', 'Normal', 'High']],
+    ['toggle', 'bloodBlur', 'Blood motion blur', 'Fast drops stretch and smear along their path. Off: plain round drops.'],
     ['seg', 'bloodQ', 'Blood quality', 'How fast-flying blood is drawn. Extreme: smoothest motion blur. Low: plain drops, cheapest.', ['Low', 'Normal', 'High', 'Extreme']],
     ['toggle', 'vignette', 'Kill vignette', 'A red pulse at the screen edges when you eat.'],
     ['toggle', 'desaturate', 'Color drain', 'Briefly drains color after a kill.'],

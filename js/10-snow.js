@@ -5,17 +5,17 @@
    along its whole body, packs the middle, pushes snow out to the sides and smears some behind. Blood soaks
    into the snow in its own color, and moves with the snow when it's pushed around.
    ========================================================= */
-const SN = 2, SNW = W / SN, SNH = H / SN;
-let snowOn = false, snowD = null, snowS = null, snowC3 = null, snowAO = null;
+const SN = 1, SNW = W / SN, SNH = H / SN; // one cell per world pixel: smooth edges, no stair steps
+let snowOn = false, snowD = null, snowS = null, snowC3 = null, snowAO = null, snowW = null; // snowW: how worn down each spot is by repeated passes
 const snowCv = document.createElement('canvas'); snowCv.width = SNW; snowCv.height = SNH;
 const snowX = snowCv.getContext('2d'); let snowImg = null;
-let snowDirty = null, snowFx = [], soaks = [];
+let snowDirty = null, snowFx = [], soaks = [], snowSoakT = 0;
 const snowAt = (x, y) => { if (!snowOn) return 0; const i = x / SN | 0, j = y / SN | 0; return i >= 0 && j >= 0 && i < SNW && j < SNH ? snowD[j * SNW + i] : 0; };
 function buildSnow() {
   snowOn = snowy(); snowFx = []; soaks = []; snowDirty = null;
   if (!snowOn) return;
   const N = SNW * SNH, late = season.id !== 'winter', sd = season.seed;
-  snowD = new Float32Array(N); snowS = new Float32Array(N); snowC3 = new Float32Array(N * 3); snowAO = new Float32Array(N);
+  snowD = new Float32Array(N); snowS = new Float32Array(N); snowC3 = new Float32Array(N * 3); snowAO = new Float32Array(N); snowW = new Float32Array(N);
   // distance to the nearest solid thing (px, capped). Trees and bushes don't count past their trunk: snow lies under bare branches
   const blk = new Uint8Array(GW * GH), dist = new Float32Array(GW * GH).fill(99), q = [];
   const fill = (o, rr) => { if (o.t === 'r') { for (let j = Math.floor(o.y / SG); j < Math.ceil((o.y + o.h) / SG); j++) for (let i = Math.floor(o.x / SG); i < Math.ceil((o.x + o.w) / SG); i++) if (i >= 0 && j >= 0 && i < GW && j < GH) blk[j * GW + i] = 1; }
@@ -25,7 +25,7 @@ function buildSnow() {
   for (let h = 0; h < q.length; h++) { const k = q[h], i = k % GW, j = k / GW | 0, d = dist[k] + SG; if (d > 40) continue;
     for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const ii = i + di, jj = j + dj; if (ii < 0 || jj < 0 || ii >= GW || jj >= GH) continue; const kk = jj * GW + ii; if (dist[kk] > d) { dist[kk] = d; q.push(kk); } } }
   const pines = obstacles.filter(o => o.kind === 'tree' && o.tinfo && o.tinfo.pine);
-  const NC = 3, nw = Math.ceil(SNW / NC) + 2, nh = Math.ceil(SNH / NC) + 2, NZ = new Float32Array(nw * nh), LZ = new Float32Array(nw * nh); // noise on a coarser grid, smoothly upsampled
+  const NC = 6, nw = Math.ceil(SNW / NC) + 2, nh = Math.ceil(SNH / NC) + 2, NZ = new Float32Array(nw * nh), LZ = new Float32Array(nw * nh); // noise on a coarser grid, smoothly upsampled
   for (let j = 0; j < nh; j++) for (let i = 0; i < nw; i++) { const x = i * NC * SN, y = j * NC * SN; NZ[j * nw + i] = fbm(x / 190 + sd, y / 190 - sd, 4) + perlin(x / 47 + sd * 2, y / 47) * .22; LZ[j * nw + i] = .5 + .45 * sstep(-.3, .6, fbm(x / 70 - sd, y / 70 + sd, 2)) + perlin(x / 22 + sd, y / 22 - sd) * .14; }
   const up = (A, i, j) => { const fx = i / NC, fy = j / NC, i0 = fx | 0, j0 = fy | 0, tx = fx - i0, ty = fy - j0, q = j0 * nw + i0; return (A[q] * (1 - tx) + A[q + 1] * tx) * (1 - ty) + (A[q + nw] * (1 - tx) + A[q + nw + 1] * tx) * ty; };
   const nAt = (i, j) => up(NZ, i, j);
@@ -35,7 +35,7 @@ function buildSnow() {
     const n = nAt(i, j);
     let cov = late ? sstep(.16, .36, n) : sstep(-.38, -.04, n);
     let d = cov * up(LZ, i, j); // lumpy, not flat
-    const gr = greenField ? greenField[k] : grassAt(x, y); d *= (late ? .25 : .3) + (late ? .75 : .7) * gr; // paths and pavement get trodden and cleared
+    const gr = greenField ? greenField[(j * SN >> 1) * (W >> 1) + (i * SN >> 1)] : grassAt(x, y); d *= (late ? .25 : .3) + (late ? .75 : .7) * gr; // paths and pavement get trodden and cleared
     if (!late && dd < 40) d += .4 * Math.exp(-(dd - SG) / 10) * sstep(-.7, -.1, n); // drifts pile up against walls and props
     for (const t of pines) { const r = Math.hypot(x - t.x, y - t.y); if (r < t.r * 1.15) d *= .3 + .7 * (r / (t.r * 1.15)) ** 2; } // sheltered under evergreens
     d *= sstep(SG * .5, SG * 2.2, dd); // eases off right at the base of things
@@ -49,9 +49,9 @@ function shadeSnow(x0, y0, x1, y1) { // light from the upper left, AO in hollows
   for (let j = Math.max(0, y0); j < Math.min(SNH, y1); j++) for (let i = Math.max(0, x0); i < Math.min(SNW, x1); i++) {
     const k = j * SNW + i, d = D[k], o = k * 4;
     if (d < .025) { P[o + 3] = 0; continue; }
-    const l = i > 1 ? D[k - 2] : d, r = i < SNW - 2 ? D[k + 2] : d, u = j > 1 ? D[k - 2 * SNW] : d, b = j < SNH - 2 ? D[k + 2 * SNW] : d;
+    const l = i > 3 ? D[k - 4] : d, r = i < SNW - 4 ? D[k + 4] : d, u = j > 3 ? D[k - 4 * SNW] : d, b = j < SNH - 4 ? D[k + 4 * SNW] : d;
     const lit = clamp(1 + (r - l + b - u) * 1.5, .5, 1.3); // slopes facing the light (upper left) are brighter, the far sides fall into blue shade
-    const far = ((i > 3 ? D[k - 4] : d) + (i < SNW - 4 ? D[k + 4] : d) + (j > 3 ? D[k - 4 * SNW] : d) + (j < SNH - 4 ? D[k + 4 * SNW] : d)) * .25;
+    const far = ((i > 7 ? D[k - 8] : d) + (i < SNW - 8 ? D[k + 8] : d) + (j > 7 ? D[k - 8 * SNW] : d) + (j < SNH - 8 ? D[k + 8 * SNW] : d)) * .25;
     const cav = clamp((far - d) * 2.2, 0, .5), rim = 1 - sstep(.03, .3, d); // hollows and grooves are darker; thin edges show depth
     const L = clamp(lit * snowAO[k] * (1 - cav * (1 - rim * .7)) * (1 - .1 * rim) + rim * .08, .38, 1.25); // thin dustings stay light, not grey
     const pk = .86 + .14 * sstep(.22, .42, d); // packed snow in a groove is greyer than fresh powder
@@ -65,7 +65,7 @@ function shadeSnow(x0, y0, x1, y1) { // light from the upper left, AO in hollows
     P[o] = R; P[o + 1] = G; P[o + 2] = B; P[o + 3] = 255 * sstep(.025, .26, d) * .97;
   }
 }
-const STL = 16, STW = Math.ceil(SNW / STL), STH = Math.ceil(SNH / STL); // changed snow is redrawn per 32px tile, never the whole map
+const STL = 32, STW = Math.ceil(SNW / STL), STH = Math.ceil(SNH / STL); // changed snow is redrawn per 32px tile, never the whole map
 const markSnow = (i, j) => { if (!snowDirty) snowDirty = new Set(); snowDirty.add((j / STL | 0) * STW + (i / STL | 0)); };
 function addSnow(i, j, v, si, sr, sg, sb) { // deposit snow (and whatever blood it carries) into a cell
   if (i < 0 || j < 0 || i >= SNW || j >= SNH || v <= 0) return;
@@ -76,17 +76,18 @@ function addSnow(i, j, v, si, sr, sg, sb) { // deposit snow (and whatever blood 
 }
 function softAdd(x, y, v, s, r, g, b) { // spread a deposit over a small round footprint so piles stay smooth
   const ci = x / SN, cj = y / SN; let tot = 0; const w = [];
-  for (let dj = -2; dj <= 2; dj++) for (let di = -2; di <= 2; di++) { const q = Math.max(0, 1 - Math.hypot(di + .5 - (ci % 1), dj + .5 - (cj % 1)) / 2.4); w.push(q); tot += q; }
+  for (let dj = -4; dj <= 4; dj++) for (let di = -4; di <= 4; di++) { const q = Math.max(0, 1 - Math.hypot(di + .5 - (ci % 1), dj + .5 - (cj % 1)) / 4.6); w.push(q); tot += q; }
   if (!tot) return; let n = 0;
-  for (let dj = -2; dj <= 2; dj++) for (let di = -2; di <= 2; di++) { const q = w[n++] / tot; if (q > 0) addSnow((ci | 0) + di, (cj | 0) + dj, v * q, s * q, r, g, b); }
+  for (let dj = -4; dj <= 4; dj++) for (let di = -4; di <= 4; di++) { const q = w[n++] / tot; if (q > 0) addSnow((ci | 0) + di, (cj | 0) + dj, v * q, s * q, r, g, b); }
 }
-function carveSnow(px, py, rr, ang, keep, push) { // press a soft round foot into the snow; returns how much moved
+function carveSnow(px, py, rr, ang, keep, push, wear = 0) { // press a soft round foot into the snow; returns how much moved
   const ci = px / SN, cj = py / SN, R = rr * 1.05 / SN, nx = -Math.sin(ang), ny = Math.cos(ang), dx = Math.cos(ang), dy = Math.sin(ang);
   let moved = 0;
   for (let j = Math.max(0, Math.floor(cj - R)); j <= Math.min(SNH - 1, Math.ceil(cj + R)); j++) for (let i = Math.max(0, Math.floor(ci - R)); i <= Math.min(SNW - 1, Math.ceil(ci + R)); i++) {
     const k = j * SNW + i, d = snowD[k]; if (d < .03) continue;
     const ox = (i + .5 - ci) * SN, oy = (j + .5 - cj) * SN, dd = Math.hypot(ox, oy); if (dd > rr * 1.05) continue;
-    const t = keep + sstep(rr * .45, rr * 1.05, dd) * 1.7; // packed flat in the middle, a smooth wall up to the untouched edge (same every pass, so it never keeps eating in)
+    if (wear && dd < rr * .7) snowW[k] = Math.min(1, snowW[k] + wear * (1 - dd / (rr * .7))); // the head wears the groove down a bit more on every pass
+    const t = keep * (1 - snowW[k]) + sstep(rr * .45, rr * 1.05, dd) * 1.7; // worn right through: bare ground shows // packed flat in the middle, a smooth wall up to the untouched edge (same every pass, so it never keeps eating in)
     if (d <= t + .004) continue;
     const rem = d - t, frac = rem / d; snowD[k] = t; moved += rem; markSnow(i, j);
     if (!push) continue;
@@ -109,7 +110,7 @@ function stainDisk(x, y, r, amt, c) {
   const ci = x / SN, cj = y / SN, R = r / SN + 1, tot = Math.max(1, R * R * 2);
   for (let j = Math.max(0, Math.floor(cj - R)); j <= Math.min(SNH - 1, Math.ceil(cj + R)); j++) for (let i = Math.max(0, Math.floor(ci - R)); i <= Math.min(SNW - 1, Math.ceil(ci + R)); i++) {
     const k = j * SNW + i; if (snowD[k] < .05) continue;
-    const dd = Math.hypot(i + .5 - ci, j + .5 - cj) / R, n = perlin(i * .45 + x, j * .45) * .35; // feathered, uneven edge
+    const h = Math.sin(i * 12.9898 + j * 78.233) * 43758.5453, dd = Math.hypot(i + .5 - ci, j + .5 - cj) / R, n = (h - Math.floor(h) - .5) * .35; // feathered, uneven edge (cheap hash, not Perlin)
     const w = sstep(1, .35, dd + n); if (w <= 0) continue;
     const v = amt * w * 6 / tot, s0 = snowS[k], f = v / (s0 + v);
     snowC3[k * 3] += (c[0] - snowC3[k * 3]) * f; snowC3[k * 3 + 1] += (c[1] - snowC3[k * 3 + 1]) * f; snowC3[k * 3 + 2] += (c[2] - snowC3[k * 3 + 2]) * f;
@@ -118,9 +119,11 @@ function stainDisk(x, y, r, amt, c) {
 }
 function updateSnow(dt) {
   if (!snowOn) return;
+  snowSoakT = (snowSoakT || 0) + dt; const soakStep = snowSoakT >= .1; if (soakStep) snowSoakT = 0; // soaking only needs updating ten times a second
+  if (soaks.length > 40) soaks.splice(0, soaks.length - 40);
   for (let i = soaks.length - 1; i >= 0; i--) { // fresh blood keeps creeping outward through the snow for a moment
     const s = soaks[i]; s.t += dt; const k = s.t / s.life;
-    stainDisk(s.x, s.y, s.r * (1 + k * 1.3), s.a * dt * 1.1, s.c);
+    if (soakStep) stainDisk(s.x, s.y, s.r * (1 + k * 1.3), s.a * .1 * 1.1, s.c);
     if (k >= 1) soaks.splice(i, 1);
   }
   const sn = snake;
@@ -129,7 +132,7 @@ function updateSnow(dt) {
     let headMoved = 0;
     for (let i = 0; i < n; i += 1) { // the whole body, not just the head
       const g = sn.segs[i], a = i ? Math.atan2(sn.segs[i - 1].y - g.y, sn.segs[i - 1].x - g.x) : sn.angle;
-      const m = carveSnow(g.x, g.y, segR(i, n) * 1.08, a, .24, true);
+      const m = carveSnow(g.x, g.y, segR(i, n) * 1.08, a, .24, true, i < 2 ? dt * 1.6 : 0);
       if (i < 3) headMoved += m;
     }
     if (headMoved > .02) { // powder kicked up off the head; the faster, the more (and the odd clump)
@@ -144,10 +147,14 @@ function updateSnow(dt) {
       }
     }
   }
-  for (const c of creatures) { // feet press shallow prints as people and animals walk through
-    if (!c.alive || c.def.fly || (c.hz || 0) > 1) continue;
-    if (Math.abs((c.fpX ?? c.x) - c.x) + Math.abs((c.fpY ?? c.y) - c.y) < 4) continue;
-    c.fpX = c.x; c.fpY = c.y; carveSnow(c.x, c.y, c.def.r * .55, c.a || 0, .5, false);
+  for (const c of creatures) { // every foot leaves a print: alternating left and right, a stride apart
+    if (!c.alive || c.def.fly || (c.hz || 0) > .5) continue;
+    const mv = Math.hypot(c.x - (c.fpX ?? c.x), c.y - (c.fpY ?? c.y)); c.fpX = c.x; c.fpY = c.y;
+    c.snowStep = (c.snowStep || 0) + mv; const stride = c.def.human ? 8 : Math.max(4, c.def.r * .8);
+    if (c.snowStep < stride) continue; c.snowStep = 0; c.snowSide = -(c.snowSide || 1);
+    const a = c.a || 0, off = c.snowSide * (c.def.human ? 3 : c.def.r * .35), fx = c.x - Math.sin(a) * off, fy = c.y + Math.cos(a) * off;
+    carveSnow(fx, fy, c.def.human ? 2.6 : Math.max(1.4, c.def.r * .22), a, .4, false);
+    if (!c.def.human && c.def.r > 6) carveSnow(fx + Math.cos(a) * c.def.r * .7, fy + Math.sin(a) * c.def.r * .7, Math.max(1.4, c.def.r * .2), a, .4, false); // front and back feet on bigger animals
   }
   for (let i = snowFx.length - 1; i >= 0; i--) {
     const p = snowFx[i]; p.t += dt;
@@ -162,7 +169,7 @@ function updateSnow(dt) {
     if (p.t > p.life) { snowFx[i] = snowFx[snowFx.length - 1]; snowFx.pop(); }
   }
   if (snowDirty) { // shading looks a few cells around, so each tile is redrawn with a small margin
-    for (const t of snowDirty) { const a = (t % STW) * STL - 5, b = (t / STW | 0) * STL - 5, a1 = a + STL + 10, b1 = b + STL + 10;
+    for (const t of snowDirty) { const a = (t % STW) * STL - 9, b = (t / STW | 0) * STL - 9, a1 = a + STL + 18, b1 = b + STL + 18;
       shadeSnow(a, b, a1, b1); const x0 = Math.max(0, a), y0 = Math.max(0, b); snowX.putImageData(snowImg, 0, 0, x0, y0, Math.min(SNW, a1) - x0, Math.min(SNH, b1) - y0); }
     snowDirty = null;
   }

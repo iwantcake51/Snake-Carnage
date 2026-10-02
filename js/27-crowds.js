@@ -25,7 +25,8 @@ function noteSpot(c) { // remember corners and dead ends this one got stuck in, 
   b.push({ x: c.x, y: c.y }); if (b.length > 4) b.shift();
 }
 function spotScore(c, x, y) { // shared by wandering and fleeing: open, uncrowded, off the edges, not somewhere it got stuck before
-  let sc = -edgePenalty(x, y) - Math.max(0, crowdAt(x, y) - 3) * 28;
+  let sc = -edgePenalty(x, y) - Math.max(0, crowdAt(x, y) - 1) * 22; // spread out: people don't all pile into one room
+  if (c.home && c.state === 'wander') sc -= Math.hypot(x - c.home.x, y - c.home.y) * .18; // ...and each drifts around their own part of the map
   if (c.badSpots) for (const p of c.badSpots) { const q = Math.hypot(x - p.x, y - p.y); if (q < 120) sc -= (120 - q) * 1.2; }
   return sc;
 }
@@ -42,7 +43,12 @@ function openDir(c) { // the most open direction from here that isn't straight b
   }
   return best;
 }
-function pickWander(c) { // a heading toward somewhere reasonable, with plenty of randomness left in
+function pickHome(c) { // somewhere of their own to hang around, reachable and not in the road; changes every so often
+  const z = c.zone || { x: B, y: B, w: W - 2 * B, h: H - 2 * B };
+  for (let k = 0; k < 40; k++) { const x = rand(z.x + 10, z.x + z.w - 10), y = rand(z.y + 10, z.y + z.h - 10); if (!free(x, y, 10) || (c.def.human && onRoad(x, y))) continue; c.home = { x, y }; c.homeT = T + rand(25, 60); return; }
+}
+function pickWander(c) {
+  if (!c.home || T > c.homeT) pickHome(c); // a heading toward somewhere reasonable, with plenty of randomness left in
   let best = c.a + rand(-1.6, 1.6), bs = -1e9;
   for (let k = 0; k < 6; k++) {
     const a = k < 4 ? c.a + rand(-1.8, 1.8) : rand(0, TAU), d = rand(80, 160), x = c.x + Math.cos(a) * d, y = c.y + Math.sin(a) * d;

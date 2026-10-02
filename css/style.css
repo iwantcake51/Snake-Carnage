@@ -1120,3 +1120,7 @@ body.calm .panel,body.calm .mleft,body.calm .mright{translate:none}
 .mc.fit-bad{opacity:.45}
 .mc.fit-meh{box-shadow:inset 3px 0 0 #c9a227}
 .mc{position:relative}
+
+/* notifications live in the bottom-right corner, newest at the bottom, stacking upward */
+#notes{left:auto!important;right:14px;top:auto!important;bottom:14px;translate:none!important;align-items:flex-end!important;flex-direction:column-reverse!important;width:min(360px,46%)!important}
+#abil .ab.off{opacity:.45;filter:grayscale(1)}

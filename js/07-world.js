@@ -62,11 +62,13 @@ function bakeOutline() {
   olx.globalCompositeOperation = 'destination-out'; olx.drawImage(maskC, 0, 0, W, H);           // keep only the rim
   olx.globalCompositeOperation = 'source-in'; olx.fillStyle = strong ? 'rgba(5,3,3,.95)' : 'rgba(12,8,8,.75)'; olx.fillRect(0, 0, W, H);
   olx.globalCompositeOperation = 'source-over';
-  // drawn each frame over the obstacle layer, so it can fade out while the snake is concussed
+  plainX.clearRect(0, 0, W, H); plainX.drawImage(obsC, 0, 0, W, H); // a copy without outlines, only used while they fade during a daze
+  octx.drawImage(outlineC, 0, 0, W, H); // baked in: one less full-screen draw every frame
   nvx.clearRect(0, 0, W, H); nvx.drawImage(outlineC, 0, 0, W, H); // bright copy used by night vision
   nvx.globalCompositeOperation = 'source-in'; nvx.fillStyle = '#ffffff'; nvx.fillRect(0, 0, W, H); nvx.globalCompositeOperation = 'source-over';
 }
 let curBuild = null;
+const [plainC, plainX] = makeLayer();
 function drawObstacleLayer(x = octx, b = curBuild, list = obstacles, ls = MAPS[mapIdx].lights || (b && b.lights) || []) { // walls and objects, then the details on top of them
   x.clearRect(0, 0, W, H); list.forEach(o => drawObstacle(x, o));
   if (b && b.decor) b.decor(x);
@@ -74,11 +76,25 @@ function drawObstacleLayer(x = octx, b = curBuild, list = obstacles, ls = MAPS[m
   for (const l of ls) fixture(x, l);
   if (x === octx) outlineBreakables(x);
 }
+function nudgeLamps(list, paths) { // a lamp post standing in the middle of a path gets moved to its edge
+  if (!paths.length) return;
+  const P = paths.map(p => trailPoints(p));
+  for (const o of list) {
+    if (o.kind !== 'lamp' || o.mast || o.lantern) continue;
+    let best = null, bd = 1e9; for (const pts of P) for (const q of pts) { const d = Math.hypot(o.x - q[0], o.y - q[1]); if (d < bd) { bd = d; best = q; } }
+    const need = 16; if (!best || bd >= need) continue;
+    let nx = o.x - best[0], ny = o.y - best[1]; const l = Math.hypot(nx, ny);
+    if (l < .5) { const i = P.flat().indexOf(best); nx = 0; ny = 1; } else { nx /= l; ny /= l; }
+    o.x = best[0] + nx * need; o.y = best[1] + ny * need;
+    for (const l2 of (MAPS[mapIdx].lights || [])) if (l2.o === o) { l2.x = o.x; l2.y = o.y; }
+  }
+}
 function loadMap(idx, sz) {
   mapIdx = idx; season = sz || null; // a season only for runs on outdoor maps; menus show the plain map
   const m = MAPS[idx], b = m.build();
   Sfx.setMuffle(!!m.space && !m.indoor); // thin air on the surface; inside a pressurized station sound is normal
   obstacles = splitBreakables(addBreakWalls([...borderWalls(m.border), ...b.obs], m.name));
+  nudgeLamps(obstacles, b.paths || []);
   buildSolid();
   bctx.clearRect(0, 0, W, H); b.floor(bctx); bakeContactShadows(bctx, b.obs); resetBuckets(); gctx.clearRect(0, 0, W, H); groundParts = []; trail = []; floaters = [];
   buildGrassMask(); gradeGround(); seasonDetails(bctx);

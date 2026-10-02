@@ -38,7 +38,7 @@ function render() {
   drawFlashBodies(x); drawHitGhosts(x);
   drawGiblets(x); // chunks on the ground sit under the snake
   drawTrail(x); drawGround(x); drawSnake(x); drawRamCharge(x); drawStreaks(x); drawSnowFx(x);
-  x.drawImage(obsC, 0, 0, W, H); if (render.olk > .01) { x.globalAlpha = render.olk; x.drawImage(outlineC, 0, 0, W, H); x.globalAlpha = 1; } drawTrees(x);
+  if ((render.olk ?? 1) > .995 || SETTINGS.mapOutlines === 'Off') x.drawImage(obsC, 0, 0, W, H); else { x.drawImage(plainC, 0, 0, W, H); if (render.olk > .01) { x.globalAlpha = render.olk; x.drawImage(outlineC, 0, 0, W, H); x.globalAlpha = 1; } } drawTrees(x); // outlines only cost extra while they're fading
   drawWaters(x);
   for (const b of bucketList) { if (!b.wd) continue; x.globalAlpha = bucketAlpha(b); x.drawImage(b.w, 0, 0, W, H); }
   x.globalAlpha = 1;
@@ -192,7 +192,7 @@ function loopError(e, where) { // a bug in one frame must never freeze the run o
    Always the drop's own color. Blood quality picks how much of this is drawn. */
 const DROP_Q = { Low: 0, Normal: 1, High: 2, Extreme: 3 };
 function drawDrops(x) {
-  const q = DROP_Q[SETTINGS.bloodQ] ?? 2; x.lineCap = 'round';
+  const q = SETTINGS.bloodBlur === false ? 0 : DROP_Q[SETTINGS.bloodQ] ?? 2; x.lineCap = 'round';
   for (const p of parts) {
     const c = p.c || BLOOD, py = p.y - p.z * .25, R = p.r * (1 + p.z / 80), sp = Math.hypot(p.vx, p.vy);
     if (!q || sp < 60) { x.fillStyle = c; circ(x, p.x, py, R); continue; }

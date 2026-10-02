@@ -11,15 +11,15 @@ const NET = { // multiplayer hook: nothing listens yet, but every ability use an
 };
 const UPGRADES = [
   { id: 'speed', name: 'Speed Demon', icon: 'speed', max: 5, cost: [150, 380, 750, 1300, 2100], lvl: [2, 5, 9, 14, 20],
-    desc: 'Faster, and quicker to recover. You trail speed lines from level III.', tiers: ['+5% speed', '+10% speed, snappier turns', '+15% speed, shake off dazes a third faster, speed lines', '+20% speed, even sharper turns', '+25% speed. Smashing through things no longer kills your momentum'] },
+    desc: 'Faster, and quicker to recover. You trail speed lines from level III.', tiers: ['+5% speed', '+10% speed, snappier turns', '+15% speed, shake off dazes a third faster, speed lines', '+20% speed, even sharper turns', '+25% speed, sharper turns. Smashing through things keeps your momentum, and pressing the opposite way whips you round in a tight U-turn'] },
   { id: 'ram', name: 'Battering Ram', icon: 'ram', max: 4, cost: [300, 850, 1900, 3200], lvl: [4, 10, 16, 22],
     desc: 'Smash through furniture instead of crashing into it. You stagger for a moment after each hit.', tiers: ['Desks, tables, benches, chairs, couches, fences, hay, bushes, crates', 'Also cars, consoles, rocks, speakers and bars', 'Also the cracked wall sections on some maps: shortcuts, but the hit leaves you seeing stars', 'Thick skull: every concussion is 25% shorter and gentler'] },
   { id: 'gut', name: 'Iron Stomach', icon: 'gut', max: 3, cost: [350, 900, 1700], lvl: [7, 13, 19], desc: 'Combos last longer.', tiers: ['+10% combo time', '+20% combo time', '+30% combo time'] },
   { id: 'dash', name: 'Lunge', icon: 'dash', max: 3, cost: [250, 900, 1800], lvl: [3, 12, 18], ability: true, key: 'Shift',
     desc: 'A short burst of speed. Great for catching runners.', tiers: ['0.6 s at 1.8x speed, 7 s cooldown', '0.8 s at 1.9x speed, 5 s cooldown, a cleaner wake', 'Pounce: eat something mid-lunge and the cooldown almost resets, and you keep going'] },
   { id: 'scent', name: 'Scent', icon: 'scent', max: 3, cost: [400, 1100, 2000], lvl: [5, 15, 21], ability: true, key: 'E',
-    desc: 'Taste the air. Wisps drift toward the best meal nearby, the closest person or a bigger animal worth more, and get stronger as you close in. They bump off walls, so you still have to find the way.',
-    tiers: ['6 s, 22 s cooldown. One trail', '9 s, 16 s cooldown. Wisps are colored by what is at the end, and you see who can spot you', 'Bloodhound: three trails at once, and golden targets always get one'] },
+    desc: 'Always tasting the air (E switches it off and on). Wisps drift toward the best meal: big animals close by, golden animals, golden people, and crowds over lone targets. Easy, unaware prey smells strongest. Wisps bump off walls, so you still have to find the way.',
+    tiers: ['One trail', 'Wisps are colored by what is at the end, and you see who can spot you', 'Bloodhound: three trails at once, and golden targets always get one'] },
   { id: 'camo', name: 'Camouflage', icon: 'camo', max: 3, cost: [600, 1400, 2400], lvl: [8, 17, 23], ability: true, key: 'Q',
     desc: 'Your scales take on the ground under you. People only notice you up close.', tiers: ['5 s, 20 s cooldown', '8 s, 16 s cooldown, better blending', 'Stillness: hold a straight line and you fade almost completely. Turning breaks it'] },
   { id: 'hiss', name: 'Hiss', icon: 'hiss', max: 3, cost: [700, 1600, 2600], lvl: [11, 18, 24], ability: true, key: 'R',
@@ -29,7 +29,7 @@ PROG.upg = PROG.upg || {}; PROG.upgOff = PROG.upgOff || {};
 const upg = id => PROG.upgOff[id] ? 0 : Math.min(PROG.upg[id] || 0, (UPGRADES.find(u => u.id === id) || { max: 9 }).max); // owned and switched on
 const ABIL = { // cd/dur read the owned level each time
   dash: { get cd() { return upg('dash') > 1 ? 5 : 7; }, get dur() { return upg('dash') > 1 ? .8 : .6; }, go(s) { s.dashT = this.dur; s.dashK = upg('dash') > 1 ? 1.9 : 1.8; s.lk = Math.max(s.lk || 0, .25); Sfx.dash(); camF.kv.x += Math.cos(s.angle) * 160; camF.kv.y += Math.sin(s.angle) * 160; } },
-  scent: { get cd() { return upg('scent') > 1 ? 16 : 22; }, get dur() { return upg('scent') > 1 ? 9 : 6; }, go(s) { s.scentT = this.dur; Sfx.sniff(); } },
+  scent: { cd: 1, dur: 1, go(s) { s.scentOn = !s.scentOn; if (s.scentOn) Sfx.sniff(); else Sfx.ui && Sfx.ui('off'); } }, // always on; the key switches it off and on again
   camo: { get cd() { return upg('camo') > 1 ? 16 : 20; }, get dur() { return upg('camo') > 1 ? 8 : 5; }, go(s) { s.camoT = this.dur; Sfx.camo(); } },
   hiss: { cd: 15, dur: .8, go(s) {
     const lv = upg('hiss'), R = lv > 2 ? 270 : lv > 1 ? 240 : 190; s.hissLv = lv;
@@ -49,7 +49,7 @@ function useAbility(id) {
   NET.emit({ type: 'ability', id, x: snake.x, y: snake.y, a: snake.angle });
   abilityHud(true);
 }
-function resetAbilities() { for (const k in abilCD) delete abilCD[k]; for (const u of UPGRADES) if (u.ability) abilCD[u.id] = T + ABIL[u.id].cd; abilityHud(true); } // every skill starts the round recharging
+function resetAbilities() { for (const k in abilCD) delete abilCD[k]; for (const u of UPGRADES) if (u.ability) abilCD[u.id] = T + ABIL[u.id].cd; abilCD.scent = T; if (snake) snake.scentOn = upg('scent') > 0; abilityHud(true); } // every skill starts the round recharging
 const speedMult = () => 1 + .05 * upg('speed');
 const comboGutMult = () => 1 + .1 * upg('gut');
 
@@ -66,7 +66,7 @@ function abilityHud(rebuild) {
     const left = Math.max(0, (abilCD[u.id] || 0) - T), k = left / ABIL[u.id].cd;
     for (const host of [el, document.querySelector('#touch .tabil')]) {
       const b = host && host.querySelector(`[data-a="${u.id}"]`); if (!b) continue;
-      b.classList.toggle('ready', k <= 0); b.style.setProperty('--cd', (k * 360).toFixed(0) + 'deg');
+      b.classList.toggle('ready', k <= 0); b.style.setProperty('--cd', (k * 360).toFixed(0) + 'deg'); if (u.id === 'scent') b.classList.toggle('off', !(snake && snake.scentOn));
     }
   }
 }
@@ -208,9 +208,18 @@ function canSeeSnake(c) {
 }
 /* ---- Scent: wisps drift from your head toward the best meals; brighter and thicker the closer you get ---- */
 let wisps = [];
-function scentTargets(s, n) { // closest person, or something bigger if it's worth more for the distance
+function scentTargets(s, n) { // what's worth hunting: big and close first, gold animals, gold people, and a crowd beats a loner
   const out = [];
-  for (const c of creatures) { if (!c.alive || c.def.fly || c.def.glow) continue; const d = Math.hypot(c.x - s.x, c.y - s.y), val = (c.def.human ? 3 : c.def.score || 1) * (c.golden ? 3 : 1); out.push({ c, d, sc: val / (d + 80) }); }
+  for (const c of creatures) {
+    if (!c.alive || c.def.fly || c.def.glow) continue;
+    const d = Math.hypot(c.x - s.x, c.y - s.y);
+    let val = c.def.human ? 2 : (c.def.score || 1) * (1 + c.def.r / 12); // bigger animals are a bigger meal
+    if (c.golden) val *= c.def.human ? 5 : 4; // gold people above gold animals
+    if (c.def.human) { let g = 0; for (const o of creatures) if (o !== c && o.alive && o.def.human && dist2(o.x, o.y, c.x, c.y) < 70 * 70) g++; val *= 1 + g * .45; } // a group means a combo
+    if (c.state === 'wander' || c.state === 'idle') val *= 1.3; else if (c.state === 'panic') val *= .75; // unaware prey smells strongest; runners are harder
+    if (c.fl && c.fl.on) val *= .85; // flashlights spot you first
+    out.push({ c, d, sc: val / (d + 90) });
+  }
   out.sort((a, b) => b.sc - a.sc); const top = out.slice(0, n);
   if (n > 1) for (const g of out) if (g.c.golden && !top.includes(g)) top.push(g); // bloodhound: gold always gets a trail
   return top;
@@ -226,7 +235,7 @@ function updateScent(dt) {
     if (solid(nx, ny)) w.a += (Math.random() < .5 ? -1 : 1) * 1.6; else { w.x = nx; w.y = ny; }
     w.pts.push(w.x, w.y); if (w.pts.length > 16) w.pts.splice(0, 2);
   }
-  if (!s || !(s.scentT > 0)) return;
+  if (!s || !s.scentOn || !upg('scent') || state !== 'play') return;
   const lv = upg('scent');
   for (const g of scentTargets(s, lv > 2 ? 3 : 1)) {
     const close = clamp(1 - g.d / 650, .15, 1);
@@ -243,8 +252,8 @@ function drawScent(x) {
     x.strokeStyle = `rgba(${w.col},${(.3 + .5 * w.k) * f})`; x.lineWidth = 1.4 + 2.6 * w.k * f;
     x.beginPath(); x.moveTo(P[0], P[1]); for (let i = 2; i < P.length; i += 2) x.lineTo(P[i], P[i + 1]); x.stroke();
   }
-  if (s.scentT > 0 && upg('scent') > 1) { // who can see you right now
-    const k = Math.min(1, s.scentT * 2.5, (ABIL.scent.dur - s.scentT) * 5); x.lineWidth = 1.4;
+  if (s.scentOn && upg('scent') > 1) { // who can see you right now
+    const k = .8; x.lineWidth = 1.4;
     for (const c of creatures) {
       if (!c.alive || !c.def.human) continue;
       const scared = c.state === 'panic' || c.state === 'flee', sees = !scared && canSeeSnake(c); if (!sees) continue;

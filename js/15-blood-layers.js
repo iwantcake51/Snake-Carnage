@@ -1,6 +1,7 @@
 /* BLOOD BUCKETS: blood is drawn into time-slice layers. A layer stays fully opaque for a long hold time,
    then fades smoothly via globalAlpha (no 8-bit leftovers). Old layers are recycled. */
 const FADE = { Never: null, Slow: { hold: 90, fade: 60 }, Normal: { hold: 40, fade: 35 }, Fast: { hold: 15, fade: 20 } }; // seconds
+const fadeCfg = () => SETTINGS.bloodQ === 'Extreme' ? { hold: 18, fade: 10 } : FADE[SETTINGS.bloodFade]; // Extreme draws a lot more blood, so it always clears after half a minute or so
 const BLOOD_BUCKETS = 4; // each layer is two full-screen canvases drawn every frame, so keep this small
 let bucketList = [], bucketPool = [], curBucket = null;
 const markF = () => { if (curBucket) curBucket.fd = true; }, markW = () => { if (curBucket) curBucket.wd = true; };
@@ -13,7 +14,7 @@ function makeBucket() {
 const BLOOD_LIMIT = 14, BLOOD_FF = 6; // ~14 big kills on screen at once; past that, the oldest blood fades out over 6s
 function bucketAlpha(b) {
   const ff = b.ff !== undefined ? clamp(1 - (T - b.ff) / BLOOD_FF, 0, 1) : 1; // forced fade (blood limit)
-  const p = FADE[SETTINGS.bloodFade]; if (!p) return ff;
+  const p = fadeCfg(); if (!p) return ff;
   const age = T - b.born; return Math.min(ff, age < p.hold ? 1 : clamp(1 - (age - p.hold) / p.fade, 0, 1));
 }
 function addBloodAmount(a) { // called per kill: keeps total blood under the limit
@@ -36,14 +37,14 @@ function newBucket() {
 }
 function resetBuckets() { bucketPool.push(...bucketList); bucketList = []; newBucket(); }
 function updateBuckets() {
-  const p = FADE[SETTINGS.bloodFade], span = p ? (p.hold + p.fade) / (BLOOD_BUCKETS - 2) : Infinity; // blood that never fades needs one layer
+  const p = fadeCfg(), span = p ? (p.hold + p.fade) / (BLOOD_BUCKETS - 2) : Infinity; // blood that never fades needs one layer
   if (T - bucketList[bucketList.length - 1].born > span) newBucket();
   while (bucketList.length > 1 && bucketAlpha(bucketList[0]) <= 0) bucketPool.push(bucketList.shift());
 }
 function fadeBlood() { // every 2s: rotate layers and let old ground wetness dry out (stains on bodies stay)
   updateBuckets();
   if (bucketList.some(b => b.ff !== undefined)) for (let i = 0; i < wet.length; i++) wet[i] *= .9; // forced fade dries the floor too
-  const p = FADE[SETTINGS.bloodFade]; if (!p) return;
+  const p = fadeCfg(); if (!p) return;
   const k = 2 / (p.hold + p.fade);
   for (let i = 0; i < wet.length; i++) wet[i] *= 1 - k;
 }

@@ -28,7 +28,7 @@ const LINES = {
   bloodNearby: ["Is that blood?", "Why's there blood everywhere?", "Oh. Oh no.", "Something's wrong.", "That's... a lot of blood.", "I don't like this.", "What happened here?#whatHappened", "Is someone hurt?#whatHappened", "We should go.", "It's probably ketchup.#nothing", "Probably nothing. Right?#nothing", "Okay, that's not ketchup."],
   chased: {
     1: ["It's behind me, isn't it.", "Don't look back. Don't look back.", "Is it following me?"],
-    2: ["GET AWAY!", "LEAVE ME ALONE!", "NOT ME!", "IT'S RIGHT BEHIND ME!", "FASTER!", "GET THE FUCK AWAY!", "IT'S GAINING!", "WHY ME?!"],
+    2: ["GET AWAY!", "LEAVE ME ALONE!", "NOT ME!", "IT'S RIGHT BEHIND ME!", "WHY IS IT FOLLOWING ME?!", "GO AWAY! GO AWAY!", "I CAN'T OUTRUN IT!", "SOMEBODY HELP ME!", "IT'S TOO FAST!", "NOT LIKE THIS!", "FASTER!", "GET THE FUCK AWAY!", "IT'S GAINING!", "WHY ME?!"],
     3: ["NO NO NO—", "GO!", "MOVE!", "HELP—", "AAH!", "PLEASE—", "OH SHIT—", "FUCK—"],
   },
   crowd: {
@@ -45,9 +45,9 @@ const LINES = {
   crash: ["What was that?", "Did something just break?", "That came from over there.", "Hello?", "Something's in here.", "It's probably nothing.#nothing", "Probably the wind.#nothing", "Did you hear that?#nothing", "Okay, that was loud."],
   panic: {
     0: ["Did you hear something?", "Something's off.", "Hm?"],
-    1: ["Wait— what was that?", "Okay, uh, we should go.", "Is it still back there?", "Keep walking. Just keep walking.", "Oh god. Oh god.", "This isn't happening.", "We should hide.#hide", "Somebody call {someone|the cops}.#police", "Which way? Which way?", "Okay. Okay."],
-    2: ["MOVE!", "GO! GO!", "DON'T STOP!", "WHICH WAY?!", "SOMEBODY HELP!", "GET INSIDE!", "OH SHIT, MOVE!", "RUN!", "WHERE DO WE GO?!", "HELP!", "KEEP GOING!", "Don't stop, don't stop."],
-    3: ["GO, GO, GO!", "RUN!", "MOVE—", "OH SHIT—", "HELP!", "NO—", "GO!", "AAH!"],
+    1: ["Wait— what was that?", "Okay, uh, we should go.", "Don't run. Don't run. Okay, run.", "My heart's going crazy.", "Where did it go? Where did it go?", "I can hear it.", "Stay close to me.", "Is it still following?", "I don't wanna be here.", "Quiet. Be quiet.", "Is it still back there?", "Keep walking. Just keep walking.", "Oh god. Oh god.", "This isn't happening.", "We should hide.#hide", "Somebody call {someone|the cops}.#police", "Which way? Which way?", "Okay. Okay."],
+    2: ["MOVE!", "GO! GO!", "DON'T STOP!", "WHICH WAY?!", "GET BACK, GET BACK!", "IT'S RIGHT THERE!", "OUT OF THE WAY!", "KEEP RUNNING, DON'T LOOK!", "WE'RE GONNA DIE!", "SOMEONE CALL SOMEONE!", "THIS WAY! NO— THAT WAY!", "DON'T LET IT SEE YOU!", "WHERE'S EVERYONE GOING?!", "I CAN'T SEE IT! WHERE IS IT?!", "STAY AWAY FROM IT!", "JUST RUN!", "SOMEBODY HELP!", "GET INSIDE!", "OH SHIT, MOVE!", "RUN!", "WHERE DO WE GO?!", "HELP!", "KEEP GOING!", "Don't stop, don't stop."],
+    3: ["GO, GO, GO!", "RUN!", "MOVE—", "OH SHIT—", "HELP!", "NO—", "GO!", "AAH!", "NONONO—", "GET—", "IT'S—", "PLEASE—", "OH GOD OH GOD—", "WAIT— WAIT—", "FASTER—"],
   },
   wallSmash: {
     1: ["Did it just— go through the wall?", "That was a WALL.", "Okay, walls don't stop it. Great."],

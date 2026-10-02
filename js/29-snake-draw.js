@@ -59,6 +59,7 @@ function lungeK(s) { // 0..1 lunge momentum: snaps in, peaks early, eases out af
 function histAt(s, back) { const h = s.wake || [], t = T - back; for (let i = h.length - 1; i >= 0; i--) if (h[i].t <= t) return h[i]; return h[0]; }
 function drawLungeFx(x, s, pts, n, k, lv) {
   const m = x.getTransform(), sc = Math.hypot(m.a, m.b);
+  const W0 = histAt(s, .3) || s, gr = grabScene(m.transformPoint({ x: Math.min(s.x, W0.x) - 40, y: Math.min(s.y, W0.y) - 40 }), m.transformPoint({ x: Math.max(s.x, W0.x) + 40, y: Math.max(s.y, W0.y) + 40 }));
   // the wake: the ground behind the head is magnified and pushed out, like air shoved aside by something very fast
   for (let j = 1; j <= (lv > 1 ? 5 : 4); j++) {
     const hp = histAt(s, j * .05); if (!hp) break;
@@ -66,7 +67,7 @@ function drawLungeFx(x, s, pts, n, k, lv) {
     x.save(); x.beginPath(); x.arc(hp.x, hp.y, R, 0, TAU); x.clip();
     x.globalAlpha = .75 * w; x.setTransform(1, 0, 0, 1, 0, 0);
     const sr = R * sc, dr = sr * mag;
-    x.drawImage(sceneC, P.x - sr, P.y - sr, sr * 2, sr * 2, P.x - dr, P.y - dr, dr * 2, dr * 2);
+    if (gr) x.drawImage(grabC, P.x - sr - gr.sx, P.y - sr - gr.sy, sr * 2, sr * 2, P.x - dr, P.y - dr, dr * 2, dr * 2);
     x.restore();
     x.strokeStyle = `rgba(255,255,255,${(.13 * w).toFixed(3)})`; x.lineWidth = 1; x.beginPath(); x.arc(hp.x, hp.y, R * .92, hp.a + 1.2, hp.a + 5.1); x.stroke(); // the edge of the pressure wave
   }
@@ -108,8 +109,18 @@ function camoField(s, n) {
   const still = lv > 2 ? (s.still || 0) : 0; if (still) for (let i = 0; i < n; i++) a[i] = Math.min(1, a[i] * (1 + .25 * still)); // Stillness: fades further
   return { a, avg: sum / n, lv, still };
 }
+const grabC = document.createElement('canvas'), grx = grabC.getContext('2d');
+function grabScene(A, B) { // copy just this patch of the frame once (drawing the scene onto itself forces a full copy every call)
+  const sx = Math.max(0, Math.floor(A.x)), sy = Math.max(0, Math.floor(A.y)), sw = Math.min(sceneC.width, Math.ceil(B.x)) - sx, sh = Math.min(sceneC.height, Math.ceil(B.y)) - sy;
+  if (sw <= 0 || sh <= 0) return null;
+  if (grabC.width < sw || grabC.height < sh) { grabC.width = Math.max(grabC.width, sw); grabC.height = Math.max(grabC.height, sh); }
+  grx.clearRect(0, 0, sw, sh); grx.drawImage(sceneC, sx, sy, sw, sh, 0, 0, sw, sh);
+  return { sx, sy, sw, sh };
+}
 function refractBody(x, s, pts, n, cam) { // the background seen through the body, swirled and split slightly
-  const m = x.getTransform(), sc = Math.hypot(m.a, m.b), G = 5;
+  const m = x.getTransform(), sc = Math.hypot(m.a, m.b), G = 8;
+  let bx0 = 1e9, by0 = 1e9, bx1 = -1e9, by1 = -1e9; for (let i = 0; i < n; i++) { const g = pts[i]; bx0 = Math.min(bx0, g.x); by0 = Math.min(by0, g.y); bx1 = Math.max(bx1, g.x); by1 = Math.max(by1, g.y); }
+  const gr = grabScene(m.transformPoint({ x: bx0 - 20, y: by0 - 20 }), m.transformPoint({ x: bx1 + 20, y: by1 + 20 })); if (!gr) return;
   for (let g0 = 0; g0 < n; g0 += G) {
     let w = 0, x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; x.save(); x.beginPath();
     for (let i = g0; i < Math.min(n, g0 + G); i++) { const g = pts[i], r = segR(i, n) + .5; if (cam.a[i] < .02) continue; w += cam.a[i]; x.moveTo(g.x + r, g.y); x.arc(g.x, g.y, r, 0, TAU); x0 = Math.min(x0, g.x - r); y0 = Math.min(y0, g.y - r); x1 = Math.max(x1, g.x + r); y1 = Math.max(y1, g.y + r); }
@@ -118,9 +129,9 @@ function refractBody(x, s, pts, n, cam) { // the background seen through the bod
     const A = m.transformPoint({ x: x0 - 4, y: y0 - 4 }), B = m.transformPoint({ x: x1 + 4, y: y1 + 4 }), sw = B.x - A.x, sh = B.y - A.y;
     const ang = T * 2.1 + g0 * .19, mag = (1.6 + .7 * cam.lv) * w * sc, ox = Math.cos(ang) * mag, oy = Math.sin(ang * 1.3) * mag;
     x.setTransform(1, 0, 0, 1, 0, 0);
-    if (sw > 0 && sh > 0) {
-      x.globalAlpha = .9 * w; x.drawImage(sceneC, A.x, A.y, sw, sh, A.x + ox, A.y + oy, sw, sh);
-      x.globalAlpha = .35 * w; x.drawImage(sceneC, A.x, A.y, sw, sh, A.x - ox * .8, A.y - oy * .8, sw, sh); // a faint second image: the edge of the lens
+    if (sw > 0 && sh > 0) { const lx = A.x - gr.sx, ly = A.y - gr.sy;
+      x.globalAlpha = .9 * w; x.drawImage(grabC, lx, ly, sw, sh, A.x + ox, A.y + oy, sw, sh);
+      if (cam.lv > 1) { x.globalAlpha = .35 * w; x.drawImage(grabC, lx, ly, sw, sh, A.x - ox * .8, A.y - oy * .8, sw, sh); } // a faint second image: the edge of the lens
     }
     x.restore();
   }
