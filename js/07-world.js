@@ -78,14 +78,14 @@ function loadMap(idx) {
   const m = MAPS[idx], b = m.build();
   Sfx.setMuffle(!!m.space);
   obstacles = splitBreakables([...borderWalls(m.border), ...b.obs]);
-  bctx.clearRect(0, 0, W, H); b.floor(bctx); resetBuckets(); gctx.clearRect(0, 0, W, H); groundParts = []; trail = []; floaters = [];
+  bctx.clearRect(0, 0, W, H); b.floor(bctx); bakeContactShadows(bctx, b.obs); resetBuckets(); gctx.clearRect(0, 0, W, H); groundParts = []; trail = []; floaters = [];
   buildGrassMask();
   curBuild = b; drawObstacleLayer();
   bakeOutline();
   buildSolid();
   buildLights(b.lights || m.lights || []);
   wet = new Float32Array(WW * WH); fresh = new Float32Array(WW * WH); wetC = new Float32Array(WW * WH * 3);
-  creatures = []; parts = []; pools = []; respawnQ = []; gibs = []; splashes = []; groups = []; mist = []; ringPops = []; hitGhosts = []; hitStop = 0;
+  creatures = []; parts = []; pools = []; respawnQ = []; gibs = []; splashes = []; groups = []; mist = []; ringPops = []; hitGhosts = []; hitStop = 0; puke = [];
   score = 0; kills = { h: 0, a: 0 }; shake = 0;
   killV = killFlash = desatHold = 0;
   light = computeLight(); shadowKey = ''; bakeShadows();
@@ -94,6 +94,7 @@ function loadMap(idx) {
     const k = type === 'human' ? (MOD.overcrowded ? 2.1 : 1) : (MOD.noAnimals ? 0 : 1);
     for (let i = 0; i < Math.round(n * k); i++) spawn(type, zone);
   }
+  makeFlies(m.fireflies || 0);
   deaths = []; if (typeof run === 'object') run.startPop = creatures.length;
   updateHud();
 }

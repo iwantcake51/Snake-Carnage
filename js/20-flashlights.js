@@ -39,7 +39,7 @@ function dropFlash(c) { // eaten: the flashlight tumbles, then dies or stays poi
   if (dropped.length > 5) dropped.shift();
   const a = snake ? snake.angle : 0;
   dropped.push({ ...f, holder: null, vx: Math.cos(a) * rand(40, 110) + rand(-50, 50), vy: Math.sin(a) * rand(40, 110) + rand(-50, 50), va: rand(-16, 16), t: 0,
-                 offAt: Math.random() < .45 ? rand(30, 80) : rand(1, 1.6), on: true });
+                 offAt: rand(.7, 1.3), on: true });
 }
 function updateBeams(dt) {
   lightFrame++;
@@ -48,8 +48,9 @@ function updateBeams(dt) {
     const nx = d.x + d.vx * dt, ny = d.y + d.vy * dt;
     if (!solid(nx, ny)) { d.x = nx; d.y = ny; } else { d.vx *= -.4; d.vy *= -.4; }
     d.a += d.va * dt; d.da = d.a;
-    if (d.on && d.t > d.offAt) { d.on = false; if (state === 'play') Sfx.flClick(d.x, false); }
-    d.k = d.on ? d.pow * (d.t < 1.2 ? .75 + .25 * Math.sin(d.t * 40) : 1) : 0; // contacts rattle while tumbling (smoothly, no strobing)
+    if (d.on && d.t > d.offAt + .45) { d.on = false; if (state === 'play') Sfx.flClick(d.x, false); }
+    const fl = d.t < d.offAt ? (Math.sin(d.t * 47) > -.2 ? 1 : .15) : clamp(1 - (d.t - d.offAt) / .45, 0, 1); // the contacts stutter for a moment, then the bulb fades out
+    d.k = d.on ? d.pow * fl : 0;
   }
   for (let i = debris.length - 1; i >= 0; i--) {
     const p = debris[i]; p.t += dt; p.vz -= 420 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; p.vx *= 1 - 1.5 * dt; p.vy *= 1 - 1.5 * dt;

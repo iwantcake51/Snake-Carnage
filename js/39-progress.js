@@ -5,7 +5,7 @@
    ========================================================= */
 PROG.pmc = PROG.pmc || {};
 const PM_SPECIAL = { // one signature goal per map: name, text, run stat, goal, tier
-  'Open Field': ['Firefly Season', 'Eat {n} fireflies in one run', r => r.byType.firefly || 0, 10, 'hard'],
+  'Open Field': ['Open Season', 'Eat {n} deer in one run', r => r.byType.deer || 0, 6, 'hard'],
   Meadow: ['Pond Life', 'Eat {n} frogs in one run', r => r.byType.frog || 0, 8, 'hard'],
   Town: ['Blackout', 'Break {n} streetlights in one run', r => r.lamps || 0, 6, 'hard'],
   Maze: ['Minotaur', 'Eat {n} people in the dark in one run', r => r.darkKills || 0, 12, 'hard'],

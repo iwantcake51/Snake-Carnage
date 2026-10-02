@@ -18,7 +18,7 @@ function update(dt) {
   if (state === 'play') { updateSnake(dt); run.time += dt; crTick(dt); progressTick(dt); }
   updateCrowd();
   for (const c of creatures) if (c.alive) updateCreature(c, dt);
-  updateBlood(dt); updateGiblets(dt); updateSplashes(dt); updateMist(dt);
+  updateBlood(dt); updateGiblets(dt); updateSplashes(dt); updateMist(dt); updateFlies(dt); updateVomit(dt);
   if ((fadeT -= dt) <= 0) { fadeT = 2; fadeBlood(); }
   updateTrail(dt);
   updateGround(dt);
@@ -177,11 +177,13 @@ function drawTargetOutlines(x) { // clean silhouette rim around everything edibl
     let a = 1;
     a = playerSees(c.x, c.y); if (a <= .02) continue;
     // stroke the outline, then cut the body out of it: leaves only the outer rim, no lines across the head or arms
-    OLX.setTransform(1, 0, 0, 1, 0, 0); OLX.clearRect(0, 0, 80, 80); OLX.setTransform(2, 0, 0, 2, 40, 40); OLX.rotate(c.a);
+    if (c.def.fly) continue;
+    const hz = c.hz || 0, sc = 2 * (1 + hz * .045);
+    OLX.setTransform(1, 0, 0, 1, 0, 0); OLX.clearRect(0, 0, 80, 80); OLX.setTransform(sc, 0, 0, sc, 40, 40); OLX.rotate(c.a);
     shapePath(OLX, c);
     OLX.strokeStyle = c.golden ? '#ffcf33' : col; OLX.lineWidth = c.golden ? 3.2 : 2; OLX.stroke();
     OLX.globalCompositeOperation = 'destination-out'; OLX.fill(); OLX.globalCompositeOperation = 'source-over';
-    x.globalAlpha = a; x.drawImage(OLC, c.x - 20, c.y - 20, 40, 40); x.globalAlpha = 1;
+    x.globalAlpha = a; x.drawImage(OLC, c.x - 20, c.y - 20 - hz * .7, 40, 40); x.globalAlpha = 1; // the rim rides up with a hop
   }
 }
 function drawBubbles(x) {

@@ -1,11 +1,8 @@
-function snakeShadowPath(x, ox, oy) { // circles joined by quads (all clockwise, so nonzero fill = one solid shape, no notches)
+function snakeShadowPath(x, ox, oy) { // squared-off segments, turned with the body, like the hitbox they come from
   const sg = snake.segs, n = sg.length;
   for (let i = 0; i < n; i++) {
-    const g = sg[i], r = segR(i, n), sx = g.x + ox, sy = g.y + oy; x.moveTo(sx + r, sy); x.arc(sx, sy, r, 0, TAU);
-    if (i === n - 1) continue;
-    const h = sg[i + 1], r2 = segR(i + 1, n), dx = h.x - g.x, dy = h.y - g.y, d = Math.hypot(dx, dy); if (d < .01) continue;
-    const nx = -dy / d, ny = dx / d; // with y down, this order winds clockwise like arc()
-    x.moveTo(sx + nx * r, sy + ny * r); x.lineTo(sx - nx * r, sy - ny * r); x.lineTo(h.x + ox - nx * r2, h.y + oy - ny * r2); x.lineTo(h.x + ox + nx * r2, h.y + oy + ny * r2); x.closePath();
+    const g = sg[i], r = segR(i, n) * .95, c = Math.cos(g.a), s = Math.sin(g.a), sx = g.x + ox, sy = g.y + oy;
+    x.moveTo(sx + (c * r - s * r), sy + (s * r + c * r)); x.lineTo(sx + (-c * r - s * r), sy + (-s * r + c * r)); x.lineTo(sx + (-c * r + s * r), sy + (-s * r - c * r)); x.lineTo(sx + (c * r + s * r), sy + (s * r - c * r)); x.closePath();
   }
 }
 function render() {
@@ -42,7 +39,7 @@ function render() {
     const py = p.y - p.z * .25; x.lineWidth = p.r * 2 * (1 + p.z / 80);
     x.beginPath(); x.moveTo(p.x - p.vx * .016, py - p.vy * .016); x.lineTo(p.x + .01, py); x.stroke();
   }
-  drawDebris(x); drawMist(x);
+  drawDebris(x); drawMist(x); drawVomit(x);
   drawLighting(x);
   drawLampBugs(x); drawFireflyGlow(x);
   drawSparks(x);

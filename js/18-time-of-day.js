@@ -44,17 +44,27 @@ function computeLight() {
            dc: `${Math.round(16 * mo + 46 * dusk)},${Math.round(24 * mo + 22 * dusk)},${Math.round(50 * mo + 64 * dusk)}`, // moonlight blue, purple near dusk
            tTop: tt.top, tBot: tt.bot, tA: tt.a };
 }
-function bakeShadows() {
-  const L = light; shx.clearRect(0, 0, W, H); shx.fillStyle = '#000';
+const [tmpSC, tsx] = makeLayer();
+function bakeShadows() { // sun shadows: sharp at the base, softer the further they reach (drawn as two passes: crisp core, blurred tail)
+  const L = light; tsx.clearRect(0, 0, W, H); tsx.fillStyle = '#000'; shx.clearRect(0, 0, W, H);
   for (const o of obstacles) {
     const h = HEIGHTS[o.kind] ?? 10; if (!h) continue;
     const ox = L.sdx * h, oy = L.sdy * h, n = Math.max(1, Math.ceil(Math.hypot(ox, oy) / 2.5));
     for (let k = 1; k <= n; k++) {
       const t = k / n;
-      if (o.t === 'r') shx.fillRect(o.x + ox * t, o.y + oy * t, o.w, o.h);
-      else circ(shx, o.x + ox * t, o.y + oy * t, o.kind === 'lamp' && k < n ? 2 : o.r);
+      if (o.t === 'r') tsx.fillRect(o.x + ox * t, o.y + oy * t, o.w, o.h);
+      else circ(tsx, o.x + ox * t, o.y + oy * t, o.kind === 'lamp' && k < n ? 2 : o.r);
     }
   }
+  const soft = clamp(Math.hypot(L.sdx, L.sdy) * 2.2, 1, 5); // long evening shadows are blurrier than noon ones
+  if ('filter' in shx) { shx.filter = `blur(${soft.toFixed(1)}px)`; shx.globalAlpha = .9; shx.drawImage(tmpSC, 0, 0, W, H); shx.filter = 'none'; shx.globalAlpha = .55; shx.drawImage(tmpSC, 0, 0, W, H); shx.globalAlpha = 1; }
+  else shx.drawImage(tmpSC, 0, 0, W, H);
+}
+function bakeContactShadows(x, list) { // a soft dark rim where every object meets the floor, day or night
+  if (!('filter' in x)) return;
+  x.save(); x.filter = 'blur(3px)'; x.globalAlpha = .35; x.fillStyle = '#000';
+  for (const o of list) { const h = HEIGHTS[o.kind] ?? 10; if (!h || o.kind === 'border') continue; const g = Math.min(4, 1 + h * .1); if (o.t === 'r') x.fillRect(o.x - g, o.y - g, o.w + g * 2, o.h + g * 2); else circ(x, o.x, o.y, o.r + g); }
+  x.restore();
 }
 
 /* ---- light sources ---- */

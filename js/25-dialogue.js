@@ -50,7 +50,7 @@ function stretch(t) { // FUCKKK, NOOOO
 }
 function pickLine(c, ctx, name) {
   let pool = LINES[ctx] || LINES.panic;
-  const env = envPool(ctx); if (env.length && Math.random() < .45) pool = env; // where you are colors what you shout
+  const env = envPool(ctx); if (env.length && (Math.random() < .45 || (c.type === 'astronaut' && ENV_LINES.space[ctx]))) pool = env; // where you are colors what you shout; astronauts always talk like astronauts when they can
   if (!c.voice.swears) { const clean = pool.filter(l => !/fuck|shit|hell|damn/i.test(l)); if (clean.length) pool = clean; }
   const unused = pool.filter(l => !c.recent.includes(l)); if (unused.length) pool = unused;
   let l = pick(pool); c.recent.push(l); if (c.recent.length > 5) c.recent.shift();
@@ -273,7 +273,7 @@ function witness(x, y, victim) { // a kill happened at x,y
     if (!c.def.human) { panic(c, x, y, rand(2, 4)); continue; }
     c.deathsSeen = (c.deathsSeen || 0) + 1;
     if (c.mem && followUp(c, 'kill')) { if (c.state !== 'panic') panic(c, x, y, rand(4, 7), 'none'); continue; }
-    if (c.deathsSeen === 3 && !c.def.alien && Math.random() < .35 && d < 160) { say(c, 'act:throws up'); c.puked = T; if (c.state !== 'panic') panic(c, x, y, rand(4, 7), 'none'); continue; }
+    if (c.deathsSeen === 3 && !c.def.alien && c.type !== 'astronaut' && Math.random() < .35 && d < 160) { say(c, 'act:throws up'); c.puked = T; vomit(c); if (c.state !== 'panic') panic(c, x, y, rand(4, 7), 'none'); continue; }
     const ctx = !victim.def.human ? 'witnessAnimal:' + victim.type : c.deathsSeen >= 2 ? 'multiDeath' : 'witnessHuman';
     if (c.state === 'panic') { c.timer = Math.max(c.timer, rand(4, 7)); if (Math.random() < .5) say(c, ctx); }
     else panic(c, x, y, rand(4, 7), ctx);

@@ -20,7 +20,7 @@ const CONFIG = {
 const SETTINGS_MIGRATE = s => { if (s.noticeSnake && s.mods && !s.mods.includes('noticeSnake')) s.mods.push('noticeSnake'); delete s.noticeSnake; return s; }; // moved from Settings to a modifier
 const SETTINGS = Object.assign({
   darkness: .2, pixel: 1, creatureSpeed: .55, timeMode: 'Cycle', dayMinutes: 4, bloodFade: 'Normal', customHour: 22, volume: .7,
-  lightQ: (() => { try { return matchMedia('(pointer: coarse)').matches ? 'Medium' : 'High'; } catch (e) { return 'High'; } })(), dynShadows: true, fxLevel: 'Normal', mouseFollow: false,
+  lightQ: (() => { try { return matchMedia('(pointer: coarse)').matches ? 'Medium' : 'High'; } catch (e) { return 'High'; } })(), dynShadows: true, vomit: true, fxLevel: 'Normal', mouseFollow: false,
   vignette: true, desaturate: true, shake: true, noticeSnake: false, uiSounds: true, mods: [], reduceMotion: false, bubbleSize: 'Normal', strongOutlines: false, snakeOutline: 'Subtle', uiScale: 'Auto',
 }, (() => { try { return SETTINGS_MIGRATE(JSON.parse(localStorage.getItem('snakeCarnageSettings')) || {}); } catch (e) { return {}; } })());
 if (!SETTINGS.mapOutlines) SETTINGS.mapOutlines = SETTINGS.strongOutlines ? 'Strong' : 'Subtle'; // "Strong outlines" became "Map outlines"

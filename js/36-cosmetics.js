@@ -31,7 +31,7 @@ const SHOP = {
   title: [['None', 0], ['Rat King', 0, 'ratKing'], ['People Person', 0, 'peoplePerson'], ['Public Menace', 0, 'publicMenace'], ['Roadkill Enthusiast', 0, 'roadkill'],
     ['Gold Digger', 0, 'goldDigger'], ["Don't Mind Me", 0, 'dontMind'], ['Absolutely Starving', 0, 'starving'], ['Checklist Enjoyer', 0, 'checklist'],
     ['Thrill Seeker', 0, 'thrill'], ['Tourist', 0, 'tourist'], ['Veteran', 0, 'veteran'], ['High Roller', 0, 'highRoller'], ['Oops, All Humans', 0, 'allHumans'],
-    ['Cartographer', 0, 'cartographer'], ['Bull in a China Shop', 0, 'smasher'], ['Apex Predator', 0, 'apex'], ['Snake Charmer', 0, 'charmer'], ['Ouroboros', 0, 'ouroboros'], ['Glow Worm', 0, 'glowWorm'], ['Last Call', 0, 'lastCall']],
+    ['Cartographer', 0, 'cartographer'], ['Bull in a China Shop', 0, 'smasher'], ['Apex Predator', 0, 'apex'], ['Snake Charmer', 0, 'charmer'], ['Ouroboros', 0, 'ouroboros'], ['Dog Walker', 0, 'glowWorm'], ['Last Call', 0, 'lastCall']],
 };
 const CAT_LABEL = { color: 'Primary color', color2: 'Secondary color', pattern: 'Skin', hat: 'Hat', eyes: 'Eyes', trail: 'Trail', theme: 'UI theme', card: 'Card style', effect: 'Menu effect', title: 'Title' };
 SETTINGS.snake = Object.assign({ theme: 'Default', card: 'Default', effect: 'None', title: 'None' }, SETTINGS.snake);
@@ -112,7 +112,7 @@ const ACH = [
   ['lightsOut', 'Lights Out', 'Break {n} streetlights in one run', () => PROG.maxLampsRun || 0, 8, 'medium', { secret: 1, clue: 'The dark is your friend. Make more of it.', chips: 200 }],
   ['notHungry', 'Not Hungry', 'Survive {n} seconds without eating anything', () => Math.floor(PROG.maxFastT || 0), 90, 'medium', { secret: 1, clue: 'Patience. Even predators wait for the right moment.', chips: 150 }],
   ['spitTake', 'Spit Take', 'Get blood in {n} mouths in one run', () => PROG.maxSpitRun || 0, 6, 'hard', { secret: 1, clue: 'Some people scream with their mouths wide open. Messy eaters take note.', chips: 250 }],
-  ['glowWorm', 'Glow Worm', 'Eat {n} fireflies', () => PROG.kT.firefly || 0, 25, 'medium', { secret: 1, clue: 'Some snacks glow in the dark, out in the open grass.', chips: 200 }],
+  ['glowWorm', 'Dog Walker', 'Eat a dog and the person walking it within 3 seconds', () => PROG.dogWalker || 0, 1, 'medium', { secret: 1, clue: "Some people never go for a walk alone. Don't let them.", chips: 200 }],
   ['goldenHour', 'Golden Hour', 'Eat a golden target at dawn or dusk', () => PROG.goldenHour || 0, 1, 'hard', { secret: 1, clue: 'Gold looks best in the right light. Try the edges of the day.', chips: 250 }],
   ['lastCall', 'Last Call', 'Eat {n} people in one run at the club', () => PROG.clubMax || 0, 25, 'rare', { secret: 1, clue: 'The party ends when the snake says so.', chips: 400 }],
 ].map(([id, name, what, stat, n, tier, ex = {}]) => { const goal = typeof n === 'function' ? n : () => n; return { id, name, get n() { return goal(); }, get what() { return what.replace('{n}', goal()); }, stat, tier, ...ex }; });

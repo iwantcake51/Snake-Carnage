@@ -85,6 +85,7 @@ function updateCreature(c, dt) {
     }
   }
   if (c.adren > 0) c.adren -= dt;
+  if (c.pukeT > 0) spd = 0; // bent double
   spd *= SETTINGS.creatureSpeed * (d.human && MOD.fastHumans ? 1.3 : 1) * (c.spdK || 1) * (c.adren > 0 ? 1.45 : 1) * (c.slowT > T ? .5 : 1); // a Hiss II victim staggers // some people are just faster; fear gives a short burst
   // smooth the desired heading so it can't flip back and forth (no spinning in place)
   c.wantA = c.wantA === undefined ? want : c.wantA + angDiff(c.wantA, want) * Math.min(1, dt * 7);

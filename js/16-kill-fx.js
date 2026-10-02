@@ -36,3 +36,23 @@ function drawMist(x) {
   }
   x.globalAlpha = 1;
 }
+/* VOMIT: a short stream from the mouth and a puddle that stays (can be turned off in Settings) */
+let puke = [];
+const VOMIT = ['#b8a641', '#a39233', '#c9b95a', '#8c7d2a'];
+function vomit(c) {
+  if (SETTINGS.vomit === false || c.type === 'astronaut' || c.def.alien) return;
+  c.pukeT = .7; c.pukeA = c.a;
+}
+function updateVomit(dt) {
+  for (const c of creatures) {
+    if (!(c.pukeT > 0)) continue;
+    c.pukeT -= dt; c.spd = 0;
+    const a = c.a + rand(-.25, .25), mx = c.x + Math.cos(c.a) * 6, my = c.y + Math.sin(c.a) * 6;
+    for (let k = 0; k < 2; k++) puke.push({ x: mx, y: my, z: 6, vx: Math.cos(a) * rand(40, 90), vy: Math.sin(a) * rand(40, 90), vz: rand(-10, 30), c: pick(VOMIT), r: rand(1, 2.2) });
+  }
+  for (let i = puke.length - 1; i >= 0; i--) {
+    const p = puke[i]; p.vz -= 400 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
+    if (p.z <= 0) { markF(); fctx.globalAlpha = .85; fctx.fillStyle = p.c; ell(fctx, p.x, p.y, p.r * 1.8, p.r * 1.3); if (Math.random() < .3) { fctx.fillStyle = '#d6c870'; circ(fctx, p.x + rand(-2, 2), p.y + rand(-2, 2), .7); } fctx.globalAlpha = 1; puke.splice(i, 1); }
+  }
+}
+function drawVomit(x) { for (const p of puke) { x.fillStyle = p.c; circ(x, p.x, p.y - p.z * .3, p.r); } }

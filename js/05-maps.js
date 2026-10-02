@@ -127,7 +127,7 @@ function buildMaze() {
 const MAPS = [
   {
     name: 'Open Field', icon: '🟩', border: '#578a34', start: { x: 480, y: 320, a: 0 }, times: { sunset: 2, evening: 2, night: 2.5 }, open: true,
-    pop: [['human', 10], ['rabbit', 6], ['deer', 4], ['frog', 3], ['firefly', 16]],
+    pop: [['human', 10], ['rabbit', 6], ['deer', 4], ['frog', 3]], fireflies: 22,
     build: () => ({ // nothing to hide behind: two worn trails, three lone trees and a lot of grass
       obs: [TREE(168, 486, 22), TREE(812, 136, 26), TREE(660, 540, 15, '#46802f')],
       lights: [],
@@ -141,7 +141,7 @@ const MAPS = [
   },
   {
     name: 'Meadow', icon: '🌾', border: '#578a34', start: { x: 480, y: 120, a: 0 }, times: { dawn: 2, morning: 2.5, sunset: 1.5 }, open: true,
-    pop: [['human', 7], ['rabbit', 5], ['deer', 3], ['frog', 5, { x: 380, y: 250, w: 260, h: 200 }], ['firefly', 6]],
+    pop: [['human', 7], ['rabbit', 5], ['deer', 3], ['frog', 5, { x: 380, y: 250, w: 260, h: 200 }]], fireflies: 14,
     build: () => ({ // a pond in a dip, a tree line along the north-west, scattered oaks, and a camp by the water
       obs: [
         TREE(130, 150, 30), TREE(178, 118, 22), TREE(232, 96, 26), TREE(96, 214, 20), TREE(300, 74, 18),
