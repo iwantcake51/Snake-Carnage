@@ -148,7 +148,9 @@ function frame(now) {
   if (!lowFx && frameMs > 24) { lowFx = true; fastT = 0; }
   else if (lowFx && frameMs < 15) { if ((fastT += raw) > 8000) lowFx = false; } else fastT = 0; // only back to full quality after 8s of clearly fast frames
   const dt = Math.min(.033, raw / 1000); last = now;
-  update(dt); render(); requestAnimationFrame(frame);
+  requestAnimationFrame(frame); // scheduled first: nothing below can ever stop the loop
+  try { update(dt); } catch (e) { loopError(e, 'update'); }
+  try { render(); } catch (e) { loopError(e, 'render'); }
 }
 
 overlay.addEventListener('pointermove', e => { // mouse parallax on the menu
@@ -167,4 +169,10 @@ function drawDanceFloor(x) {
     x.fillRect(302 + i * 40, 222 + j * 43.3, 36, 39);
   }
   x.globalAlpha = 1;
+}
+
+let loopErrs = 0;
+function loopError(e, where) { // a bug in one frame must never freeze the run or leave a stale picture on screen
+  if (loopErrs++ < 5) console.error(`[${where}]`, e);
+  if (state === 'play' && snake && !isFinite(snake.x + snake.y)) { snake.x = W / 2; snake.y = H / 2; }
 }

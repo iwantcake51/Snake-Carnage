@@ -96,3 +96,73 @@ Each box gets ticked as soon as that piece is done and checked in a headless run
 ## 14. Overall polish
 - [x] Remove generic / placeholder-looking UI bits, tighten spacing and styling (drawn tab icons, Excel-palette buildings replaced, real item previews)
 - [x] Version bumped to 1.12
+
+---
+
+# Round 2
+
+## Bugs
+- [x] Frame loop can never die (an error in one frame used to freeze the game and leave the old frame on screen for the next run)
+- [x] New run fully resets the previous render/game state
+- [ ] Light poles can never freeze/soft-lock the run
+
+## UI / themes / menus
+- [ ] Themes recolor the whole UI (XP bar, menus, accents, buttons, notifications)
+- [ ] Map name removed from the top bar
+- [ ] Selected map glows clearly
+- [ ] Parallax on the menus
+- [ ] Crashed/summary panel scrolls and never clips
+- [ ] "Move to begin" prompt matches the unpause key prompt
+- [ ] Challenge HUD fades to ~50% a few seconds into the round
+- [ ] Notifications fade when the snake heads toward them, and never overlap
+- [ ] ? / ! marks pop in smoothly, stay small
+
+## Modifiers
+- [ ] Random runs: modifiers show at the bottom, then float up one by one and fade
+- [ ] Clicking a modifier chip jumps to it in the modifier menu
+- [ ] Incompatible modifiers greyed out with the reason
+- [ ] Time-based modifiers removed
+- [ ] "People spot the snake" moved from Settings to a modifier
+
+## Maps
+- [ ] Every map reworked again: laid out like the real place, room to turn and coil (it's Snake: long open runs, no tight dead ends)
+- [ ] Meadow: one connected trail network, swaying grass, campsite by the lake
+- [ ] Moon: rover tracks no longer run through the base
+- [ ] People already walking along paths at the start, some with dogs
+
+## Dialogue / AI
+- [ ] Pool idle chatter; astronaut-specific lines; no blood-in-mouth or vomiting for astronauts
+- [ ] Longer back-and-forth conversations, survivors talking afterwards
+- [ ] Personality traits (funny, jumpy, calm, nervous, brave, pessimist, talkative, quiet) change panic and lines
+- [ ] Hiss II: stronger stun, victims slowed, "I can't hear", slurred speech for a while
+- [ ] Vomit is visible (stream + puddle), with a setting to turn it off
+
+## Blood / impact
+- [ ] Brief hit-stop on the eaten target
+- [ ] Snake blood trails more visible
+- [ ] Blood keeps its type everywhere (red / gold / alien green) and mixes when crossed; no silent fallback to red
+- [ ] Gold ring pop only shows if you can see it
+
+## Shadows / outlines / lights
+- [ ] Object shadows more believable
+- [ ] Snake shadow square-ish
+- [ ] Outlines follow hopping sprites; fireflies never outlined
+- [ ] Dropped flashlights flicker briefly then die; no flicker in normal use
+- [ ] Fireflies cosmetic only: not edible, never flicker, visible at night
+- [ ] Lamp bugs only at night, gathering gradually; still scatter
+
+## Breakables
+- [ ] Breakable objects clearly outlined
+- [ ] Smashing slows the snake with a desaturated, edge-blurred stun that fades; people comment
+- [ ] Big objects get damaged sprites and break in sections instead of vanishing
+
+## Upgrades / skills
+- [ ] Skill HUD with ready state and radial cooldown border
+- [ ] Skills start each round on cooldown
+- [ ] Holding a skill key no longer spams its sound
+- [ ] Higher max levels where it fits; Muscle renamed Speed Demon
+- [ ] Camouflage visibly changes the snake
+- [ ] Scent reworked to be genuinely useful
+
+## Balance
+- [ ] Challenge tiers re-checked against what they actually require

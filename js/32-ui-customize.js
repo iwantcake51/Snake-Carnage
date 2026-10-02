@@ -61,6 +61,9 @@ function modBar() { // every active modifier, compact, at the top of the screen;
 }
 function startGame(opts = {}) {
   if (!opts.mystery) Sfx.start();
+  // a clean slate: nothing from the last run (frozen frame, filters, effects, stray timers) may leak into this one
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height); cv.style.filter = ''; lastFilter = '';
+  stage.classList.remove('paused', 'stunned'); dropped = []; debris = []; beams = []; trail = []; strayBugs = []; ringPops = []; mist = []; shake = 0; deadT = 0; loopErrs = 0;
   runMods = opts.mods || SETTINGS.mods || []; // the random map also rolls its own modifiers
   MOD = Object.fromEntries(runMods.map(id => [id, true])); rewardMult = modMult(runMods);
   document.body.classList.toggle('minimal', !!MOD.minimal);
