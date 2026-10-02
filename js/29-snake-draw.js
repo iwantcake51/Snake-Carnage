@@ -10,9 +10,6 @@ function drawSnake(x, s = snake, cfg = SETTINGS.snake) {
   if (s === snake) s._pts = pts;
   const me = s === snake, lv = me ? upg('dash') : 0, lk = me ? lungeK(s) : 0, cam = me ? camoField(s, n) : null;
   if (lk > .01 && !SETTINGS.simpleFx) drawLungeFx(x, s, pts, n, lk, lv);
-  const sd = me ? upg('speed') : 0;
-  if (false) { // gone again at max level const i = Math.floor(Math.random() * Math.min(n, 8)), g = pts[i], side = Math.random() < .5 ? -1 : 1, off = segR(i, n) + rand(2, 6); // Speed Demon: a few lines peel off as you go
-    streaks.push({ x: g.x - Math.sin(g.a) * off * side, y: g.y + Math.cos(g.a) * off * side, a: g.a, len: rand(8, 16) * (sd / 4), t: 0, life: rand(.14, .22) }); }
   if (cam && !SETTINGS.simpleFx) refractBody(x, s, pts, n, cam);
   const camAvg = cam ? cam.avg : 0;
   const ol = SETTINGS.snakeOutline || 'Subtle';
@@ -45,7 +42,7 @@ function drawSnake(x, s = snake, cfg = SETTINGS.snake) {
   x.restore();
   if (cam) camoSheen(x, pts, n, cam);
 }
-/* ---- LUNGE: motion ghosts, a wake that bends the air behind, speed streaks. Strongest at peak speed ---- */
+/* ---- LUNGE: blurred motion ghosts and a wake that bends the air behind. Strongest at peak speed ---- */
 let streaks = [];
 function lungeK(s) { // 0..1 lunge momentum: snaps in, peaks early, eases out after it ends
   const dur = ABIL.dash.dur, on = s.dashT > 0, t = on ? dur - s.dashT : 0;
@@ -81,11 +78,6 @@ function drawLungeFx(x, s, pts, n, k, lv) {
   }
   if ('filter' in x) x.filter = 'none';
   x.globalAlpha = 1;
-  // speed streaks peeling off the sides
-  if (false) for (let q = 0; q < 1; q++) { // speed lines removed
-    const i = Math.floor(Math.random() * Math.min(n, 14)), g = pts[i], side = Math.random() < .5 ? -1 : 1, off = segR(i, n) + rand(3, 9);
-    streaks.push({ x: g.x - Math.sin(g.a) * off * side, y: g.y + Math.cos(g.a) * off * side, a: g.a, len: rand(16, 34) * k * (lv > 1 ? 1.3 : 1), t: 0, life: rand(.18, .3) });
-  }
 }
 function drawStreaks(x) {
   const dt = Math.max(0, Math.min(.05, T - (drawStreaks.t ?? T))); drawStreaks.t = T;
