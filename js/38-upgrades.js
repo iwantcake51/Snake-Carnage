@@ -12,8 +12,8 @@ const NET = { // multiplayer hook: nothing listens yet, but every ability use an
 const UPGRADES = [
   { id: 'speed', name: 'Speed Demon', icon: 'speed', max: 5, cost: [150, 380, 750, 1300, 2100], lvl: [2, 5, 9, 14, 20],
     desc: 'Move faster.', tiers: ['+5% speed', '+10% speed', '+15% speed', '+20% speed', '+25% speed'] },
-  { id: 'ram', name: 'Battering Ram', icon: 'ram', max: 3, cost: [300, 850, 1900], lvl: [4, 10, 16],
-    desc: 'Smash through furniture instead of crashing into it. You stagger for a moment after each hit.', tiers: ['Desks, tables, benches, chairs, couches, fences, hay, bushes, crates', 'Also cars, consoles, rocks, speakers and bars', 'Also the cracked wall sections on some maps: shortcuts, but the hit leaves you seeing stars'] },
+  { id: 'ram', name: 'Battering Ram', icon: 'ram', max: 4, cost: [300, 850, 1900, 3200], lvl: [4, 10, 16, 22],
+    desc: 'Smash through furniture instead of crashing into it. You stagger for a moment after each hit.', tiers: ['Desks, tables, benches, chairs, couches, fences, hay, bushes, crates', 'Also cars, consoles, rocks, speakers and bars', 'Also the cracked wall sections on some maps: shortcuts, but the hit leaves you seeing stars', 'Thick skull: every concussion is 25% shorter and gentler'] },
   { id: 'gut', name: 'Iron Stomach', icon: 'gut', max: 3, cost: [350, 900, 1700], lvl: [7, 13, 19], desc: 'Combos last longer.', tiers: ['+10% combo time', '+20% combo time', '+30% combo time'] },
   { id: 'dash', name: 'Lunge', icon: 'dash', max: 2, cost: [250, 900], lvl: [3, 12], ability: true, key: 'Shift',
     desc: 'A short burst of speed. Great for catching runners.', tiers: ['0.6 s at 1.8x speed, 7 s cooldown', '0.8 s at 1.9x speed, 5 s cooldown'] },
@@ -91,6 +91,7 @@ function upIcon(k) { // small hand-drawn SVG glyphs, so the upgrades don't lean 
 const RAM_KINDS = [null, new Set(['desk', 'table', 'bench', 'chair', 'couch', 'fence', 'hay', 'bush', 'crate', 'plant', 'shelf', 'bed', 'barrier']),
   new Set(['desk', 'table', 'bench', 'chair', 'couch', 'fence', 'hay', 'bush', 'crate', 'plant', 'shelf', 'bed', 'barrier', 'car', 'console', 'rock', 'speaker', 'bar', 'booth'])];
 RAM_KINDS.push(new Set([...RAM_KINDS[2], 'bwall'])); // tier 3: the marked wall sections
+RAM_KINDS.push(RAM_KINDS[3]); // tier 4: same targets, softer landings
 function obstacleHitBy(x, y, r) {
   for (const o of obstacles) {
     if (o.t === 'r') { const nx = clamp(x, o.x, o.x + o.w), ny = clamp(y, o.y, o.y + o.h); if (dist2(x, y, nx, ny) < r * r) return o; }
@@ -112,7 +113,8 @@ function smashObstacle(o, ang) {
   const wall = o.kind === 'bwall';
   Sfx.smash(cx, wall ? size * 2.5 : size); shake = Math.max(shake, wall ? 16 : 6);
   const lng = (snake.dashV || 1) > 1.25, dur = (wall ? 4 : 1.3) + (lng ? 1 : 0); // lunging in: it hits harder on screen and lasts longer, but you keep more of your speed
-  snake.ramT = snake.ramMax = dur; snake.ramDeep = (wall ? .62 : .38) * (lng ? .6 : 1); snake.wallStun = snake.wallMax = wall ? dur : 0; snake.stunFx = lng ? 1.5 : 1;
+  const res = upg('ram') >= 4 ? .75 : 1; // thick skull
+  snake.ramT = snake.ramMax = dur * res; snake.ramDeep = (wall ? .62 : .38) * (lng ? .6 : 1) * res; snake.wallStun = snake.wallMax = wall ? dur * res : 0; snake.stunFx = (lng ? 1.5 : 1) * res;
   if (wall) { snake.dashT = 0; snake.dashV = 1; snake.lk = 0; } // a wall stops a lunge dead // dazed: slower, colours drain, edges blur, all easing back as speed returns
   if (wall) { // a wall: bricks and plaster everywhere, a cloud of dust, and the snake sees stars
     for (let k = 0; k < 40; k++) { const a = ang + rand(-.9, .9), sp = rand(80, 300); debris.push({ x: cx + rand(-o.w / 2, o.w / 2), y: cy + rand(-o.h / 2, o.h / 2), z: rand(6, 20), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(80, 220), t: 0, s: rand(2.4, 5), c: pick([o.color, shade(o.color, -.25), shade(o.color, .2), '#8a7f74']) }); }

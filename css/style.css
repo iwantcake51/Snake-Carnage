@@ -1094,3 +1094,8 @@ body.calm .panel,body.calm .mleft,body.calm .mright{translate:none}
 .xpfill,.sfill{box-shadow:0 0 8px color-mix(in srgb,var(--acc-hi) 55%,transparent),0 0 2px color-mix(in srgb,var(--acc-hi) 80%,transparent),1px 0 0 color-mix(in srgb,var(--acc-hi) 70%,#fff)!important;
   background-image:linear-gradient(180deg,rgba(255,255,255,.28),rgba(255,255,255,0) 55%),linear-gradient(90deg,var(--acc-lo),var(--acc-hi))!important}
 .xp,.sbar{overflow:visible!important}
+/* XP bars: light from the filled part spills softly into the empty stripes */
+.xpfill,.sfill{position:absolute}
+#bar .xpfill::after,.xp .xpfill::after,.sbar .sfill::after{content:'';display:block;position:absolute;top:0;bottom:0;right:-26px;width:30px;pointer-events:none;border-radius:0 999px 999px 0;
+  background:radial-gradient(ellipse 100% 70% at 0% 50%,color-mix(in srgb,var(--acc-hi) 55%,transparent) 0%,color-mix(in srgb,var(--acc-hi) 22%,transparent) 38%,transparent 72%);mix-blend-mode:screen}
+.xp,.sbar{overflow:hidden!important}

@@ -65,6 +65,7 @@ function render() {
     for (let y = 0; y < cv.height; y += bh) { const o = Math.sin(y / cv.height * 9 + T * 3.1) * amp + Math.sin(T * 1.7 + y * .01) * amp * .4; ctx.drawImage(sceneC, 0, y, cv.width, bh, o, y, cv.width, bh); }
     chromaSplit(Math.min(1, ws));
   }
+  if (snake && snake.ramT > 0 && px <= 1) { const bk = Math.pow(snake.ramT / (snake.ramMax || 1), .6) * (snake.stunFx || 1); concussBloom(bk * (snake.wallStun > 0 ? .42 : .22)); } // any daze blooms; walls much more
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   if (nightVision) { // green phosphor look done in-canvas, so the overlays after it keep their real colors
     ctx.globalCompositeOperation = 'saturation'; ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
@@ -95,7 +96,7 @@ function render() {
   if (wantStart !== !!render.startShown) { render.startShown = wantStart; wantStart ? showResume('to begin') : hideResume(); }
   const stun = snake && snake.ramT > 0 ? Math.min(1, Math.pow(snake.ramT / (snake.ramMax || 1), .6) * (snake.stunFx || 1)) : 0; // lingers, then eases out // dazed after smashing through something
   if (Math.abs(stun - (render.stun || 0)) > .02 || (stun === 0) !== (render.stun === 0)) { render.stun = stun; stage.style.setProperty('--stun', stun.toFixed(2)); stage.classList.toggle('stunned', stun > 0); stage.classList.toggle('wallstun', !!(snake && snake.wallStun > 0)); }
-  const sat = (SETTINGS.desaturate && !nightVision ? clamp(1 - killFlash * .5, .45, 1) : 1) * (1 - (snake && snake.wallStun > 0 ? .4 : .75) * stun); // walls keep a little color so the red/blue split still reads
+  const sat = (SETTINGS.desaturate && !nightVision ? clamp(1 - killFlash * .5, .45, 1) : 1) * (1 - .75 * stun);
   const f = nightVision ? `contrast(1.15) brightness(${(.95 - SETTINGS.darkness * .2).toFixed(2)})` : `saturate(${sat.toFixed(2)}) brightness(${(1 - SETTINGS.darkness).toFixed(2)}) contrast(1.08)`;
   if (f !== lastFilter) { cv.style.filter = f; lastFilter = f; }
   const clock = (MAPS[mapIdx].indoor ? '🏢 ' : light.day > .5 ? '☀️ ' : light.day > .05 ? '🌇 ' : '🌙 ') +
@@ -205,18 +206,18 @@ function drawDrops(x) {
   }
 }
 
-/* after a wall: red and blue pull apart and the picture doubles and triples, all easing back together */
-const caR = document.createElement('canvas'), caB = document.createElement('canvas');
+/* after a wall: grey ghost copies of the picture pulse left and right (double, then triple vision) */
+const caR = document.createElement('canvas');
 function chromaSplit(k) {
-  const w = cv.width, h = cv.height;
-  for (const c of [caR, caB]) if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
-  const tint = (c, col) => { const x = c.getContext('2d'); x.globalCompositeOperation = 'copy'; x.drawImage(cv, 0, 0); x.globalCompositeOperation = 'multiply'; x.fillStyle = col; x.fillRect(0, 0, w, h); x.globalCompositeOperation = 'destination-in'; x.drawImage(cv, 0, 0); return c; };
-  tint(caR, '#ff0000'); tint(caB, '#0000ff');
-  const d = (4 + 7 * k) * DPR, a = T * 1.9, dx = Math.cos(a) * d, dy = Math.sin(a * .7) * d * .6;
+  const w = cv.width, h = cv.height; if (caR.width !== w || caR.height !== h) { caR.width = w; caR.height = h; }
+  const g = caR.getContext('2d'); g.filter = 'grayscale(1) contrast(1.1)'; g.globalCompositeOperation = 'copy'; g.drawImage(cv, 0, 0); g.filter = 'none';
+  const p = Math.sin(T * 5.5), d = (3 + 9 * k) * DPR * p; // swinging side to side
   ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = '#00ff00'; ctx.fillRect(0, 0, w, h); // keep green where it is
-  ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(caR, dx, dy); ctx.drawImage(caB, -dx, -dy); // red and blue shifted apart
-  ctx.globalCompositeOperation = 'source-over';
-  for (const [g, al] of [[1.9, .22 * k], [-2.6, .14 * k]]) { ctx.globalAlpha = al; ctx.drawImage(cv, dx * g + Math.sin(T * 1.3) * d, dy * g - Math.cos(T) * d * .5); } // seeing double, then triple
+  for (const [m, al] of [[1, .22], [-1, .22], [2.1, .1]]) { ctx.globalAlpha = al * k; ctx.drawImage(caR, d * m, 0); }
   ctx.restore();
+}
+const bloomC = document.createElement('canvas'); bloomC.width = W / 4; bloomC.height = H / 4; const blx = bloomC.getContext('2d');
+function concussBloom(k) { // bright parts spill light while dazed
+  blx.globalCompositeOperation = 'copy'; blx.filter = "blur(3px) brightness(1.15) contrast(1.4)"; blx.drawImage(cv, 0, 0, W / 4, H / 4); blx.filter = 'none';
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalCompositeOperation = 'screen'; ctx.globalAlpha = Math.min(.85, k); ctx.imageSmoothingEnabled = true; ctx.drawImage(bloomC, 0, 0, cv.width, cv.height); ctx.restore();
 }
