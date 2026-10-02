@@ -69,7 +69,7 @@ function linePool(c, ctx) {
     if (tl && (t === 'funny' ? tier < 3 : true) && Math.random() < (t === 'quiet' ? .7 : .38)) return tl;
   }
   const m = mapL(), ml = m[ctx] && tiered(m[ctx], tier);
-  if (ml && Math.random() < (c.type === 'astronaut' ? .65 : .4)) return ml; // astronauts mostly sound like astronauts
+  if (ml && Math.random() < (c.type === 'astronaut' ? .7 : .55)) return ml; // astronauts mostly sound like astronauts
   const base = tiered(LINES[ctx === 'warned' ? 'crowd' : ctx] || LINES.panic, tier);
   if (out.length) return out.concat(base);
   return base;
