@@ -13,7 +13,7 @@ const UPGRADES = [
   { id: 'speed', name: 'Speed Demon', icon: 'speed', max: 5, cost: [150, 380, 750, 1300, 2100], lvl: [2, 5, 9, 14, 20],
     desc: 'Faster, and quicker to recover.', tiers: ['+5% speed', '+10% speed, snappier turns', '+15% speed, shake off dazes a third faster', '+20% speed, even sharper turns', '+25% speed, sharper turns. Smashing through things keeps your momentum, and pressing the opposite way whips you round in a tight U-turn'] },
   { id: 'ram', name: 'Battering Ram', icon: 'ram', max: 4, cost: [300, 850, 1900, 3200], lvl: [4, 10, 16, 22],
-    desc: 'Smash through things instead of crashing into them. Each level takes on heavier things; the heavier it is, the harder the knock.', tiers: ['Small things: chairs, plants, bushes, crates, hay, fences, bins. Barely slows you', 'Big furniture: desks, tables, benches, couches, shelves, beds, bars, consoles, speakers. A harder knock', 'Cars, rocks and the cracked wall sections on some maps: shortcuts, but the hit leaves you seeing stars', 'Thick skull: every concussion is 25% shorter and gentler'] },
+    desc: 'Smash through things instead of crashing into them. Each level takes on heavier things; the heavier it is, the harder the knock.', tiers: ['Small things: chairs, plants, bushes, crates, hay, fences, bins. Barely slows you', 'Big furniture and small trees: desks, tables, benches, couches, shelves, beds, bars, consoles, speakers, saplings. A harder knock', 'Cars, rocks and the cracked wall sections on some maps: shortcuts, but the hit leaves you seeing stars', 'Thick skull: every concussion is 25% shorter and gentler'] },
   { id: 'gut', name: 'Iron Stomach', icon: 'gut', max: 3, cost: [350, 900, 1700], lvl: [7, 13, 19], desc: 'Combos last longer.', tiers: ['+10% combo time', '+20% combo time', '+30% combo time'] },
   { id: 'dash', name: 'Lunge', icon: 'dash', max: 3, cost: [250, 900, 1800], lvl: [3, 12, 18], ability: true, key: 'Shift',
     desc: 'A short burst of speed. Great for catching runners.', tiers: ['0.6 s at 1.8x speed, 7 s cooldown', '0.8 s at 1.9x speed, 5 s cooldown, a cleaner wake', 'Pounce: eat something mid-lunge and the cooldown almost resets, and you keep going'] },
@@ -89,7 +89,7 @@ function upIcon(k) { // small hand-drawn SVG glyphs, so the upgrades don't lean 
 }
 
 /* ---- breaking through furniture (Battering Ram) ---- */
-const RAM_SMALL = ['chair', 'plant', 'bush', 'crate', 'hay', 'barrier', 'bin', 'fence'], RAM_LARGE = ['desk', 'table', 'bench', 'couch', 'shelf', 'bed', 'bar', 'booth', 'console', 'speaker'], RAM_HEAVY = ['car', 'rock', 'bwall'];
+const RAM_SMALL = ['chair', 'plant', 'bush', 'crate', 'hay', 'barrier', 'bin', 'fence'], RAM_LARGE = ['tree', 'desk', 'table', 'bench', 'couch', 'shelf', 'bed', 'bar', 'booth', 'console', 'speaker'], RAM_HEAVY = ['car', 'rock', 'bwall'];
 const RAM_KINDS = [null, new Set(RAM_SMALL), new Set([...RAM_SMALL, ...RAM_LARGE]), new Set([...RAM_SMALL, ...RAM_LARGE, ...RAM_HEAVY])];
 RAM_KINDS.push(RAM_KINDS[3]); // tier 4: same targets, softer landings
 const ramClass = o => RAM_HEAVY.includes(o.kind) ? 3 : RAM_LARGE.includes(o.kind) ? 2 : 1;
@@ -100,7 +100,7 @@ function obstacleHitBy(x, y, r) {
   }
   return null;
 }
-const canRam = o => { const lv = upg('ram'); return lv > 0 && o && o.kind !== 'border' && RAM_KINDS[lv].has(o.kind) && !(o.kind === 'rock' && o.r > 26); };
+const canRam = o => { const lv = upg('ram'); return lv > 0 && o && o.kind !== 'border' && RAM_KINDS[lv].has(o.kind) && !(o.kind === 'rock' && o.r > 26) && !(o.kind === 'tree' && (o.r > 20 || o.tinfo && o.tinfo.pine && o.r > 16)); }; // only saplings and small trees snap; big trunks still stop you
 function smashObstacle(o, ang) {
   const i = obstacles.indexOf(o); if (i < 0) return;
   obstacles.splice(i, 1);
@@ -137,6 +137,7 @@ function smashObstacle(o, ang) {
 function drawWreck(x, o, ang) { // a flattened, broken version of the object instead of it vanishing
   if (o.kind === 'speaker') return brokenSpeaker(x, o, ang);
   if (o.kind === 'bwall') return brokenWall(x, o, ang);
+  if (o.kind === 'tree') return brokenTree(x, o, ang);
   x.save();
   if (o.t === 'r') { x.beginPath(); const r = seeded(Math.round(o.x * 3 + o.y)); x.moveTo(o.x, o.y); for (let k = 1; k <= 8; k++) x.lineTo(o.x + o.w * k / 8, o.y + r() * o.h * .35); x.lineTo(o.x + o.w, o.y + o.h); for (let k = 7; k >= 0; k--) x.lineTo(o.x + o.w * k / 8, o.y + o.h - r() * o.h * .35); x.closePath(); x.clip(); }
   x.globalAlpha = .7; drawObstacle(x, { ...o, cracked: true });
@@ -145,6 +146,19 @@ function drawWreck(x, o, ang) { // a flattened, broken version of the object ins
   const cx = o.t === 'r' ? o.x + o.w / 2 : o.x, cy = o.t === 'r' ? o.y + o.h / 2 : o.y, size = o.t === 'r' ? Math.sqrt(o.w * o.h) : o.r * 1.6;
   x.save(); x.globalAlpha = .6; x.fillStyle = shade(o.color, -.35);
   for (let k = 0; k < 6 + size / 6; k++) { const a = ang + rand(-1.4, 1.4), d = rand(0, size * .9); x.save(); x.translate(cx + Math.cos(a) * d, cy + Math.sin(a) * d); x.rotate(rand(0, TAU)); x.fillRect(-rand(2, 6), -1.2, rand(4, 12), rand(1.6, 3)); x.restore(); }
+  x.restore();
+}
+function brokenTree(x, o, ang) { // snapped at the base: a splintered stump, the trunk and crown lying where it fell, leaves everywhere
+  const r = seeded(Math.round(o.x * 5 + o.y * 3)), ca = Math.cos(ang), sa = Math.sin(ang), L = o.r * 2.2;
+  x.save();
+  x.fillStyle = 'rgba(0,0,0,.22)'; x.save(); x.translate(o.x + ca * L * .6 + 2, o.y + sa * L * .6 + 3); x.rotate(ang); ell(x, 0, 0, L * .6, o.r * .55); x.restore(); // shadow of the fallen crown
+  x.save(); x.translate(o.x, o.y); x.rotate(ang); // the trunk, lying along the hit
+  x.fillStyle = '#5a3d24'; x.fillRect(0, -o.r * .16, L * .55, o.r * .32); x.fillStyle = '#7a5434'; x.fillRect(0, -o.r * .16, L * .55, o.r * .09);
+  for (let k = 0; k < 9; k++) { const t = .45 + r() * .9; x.fillStyle = r() < .5 ? o.color : shade(o.color, r() < .5 ? .15 : -.2); circ(x, L * t, (r() - .5) * o.r * 1.1, o.r * (.28 + r() * .3)); } // the crown, flattened and spread
+  x.restore();
+  x.fillStyle = '#4a3220'; circ(x, o.x, o.y, o.r * .26); x.fillStyle = '#c9a473'; circ(x, o.x, o.y, o.r * .19); x.strokeStyle = '#9a7a4f'; x.lineWidth = .6; x.beginPath(); x.arc(o.x, o.y, o.r * .11, 0, TAU); x.stroke(); // stump with its rings
+  x.strokeStyle = '#e2c79a'; x.lineWidth = 1; for (let k = 0; k < 5; k++) { const a = r() * TAU, d = o.r * .2; x.beginPath(); x.moveTo(o.x + Math.cos(a) * d, o.y + Math.sin(a) * d); x.lineTo(o.x + Math.cos(a) * (d + 2 + r() * 3), o.y + Math.sin(a) * (d + 2 + r() * 3)); x.stroke(); } // splinters
+  for (let k = 0; k < 18; k++) { const a = ang + (r() - .5) * 2.6, d = r() * L * 1.2; x.fillStyle = shade(o.color, (r() - .5) * .4); ell(x, o.x + Math.cos(a) * d, o.y + Math.sin(a) * d, 1.4, .9); } // loose leaves
   x.restore();
 }
 function splitBreakables(list) { // long furniture breaks a section at a time, not all at once

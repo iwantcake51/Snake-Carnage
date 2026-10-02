@@ -290,11 +290,46 @@ function drawWeather(x) {
 
 /* ---- snow settles on roofs and on top of things (baked into the obstacle layer) ---- */
 const CAPPED = new Set(['building', 'barn', 'car', 'tent', 'bench', 'table', 'crate', 'hay', 'generator', 'shelf', 'slide', 'fence', 'hedge', 'wall', 'silo', 'gazebo', 'rock']);
+function roofSnow(x, o, late) { // a proper blanket: follows the roof's shape, piles up at the eaves, hangs over the edge, drips icicles
+  const r = seeded(Math.round(o.x * 13 + o.y * 5) + 3), { x: X, y: Y, w, h } = o, type = o.kind === 'barn' ? 'gable' : (o.roof || 'gable'), hz = w >= h;
+  const cover = late ? .55 : .92, S = 'rgb(240,244,250)', SH = 'rgba(150,170,205,', blur = 'filter' in x;
+  x.save();
+  // 1. the blanket itself, clipped to the roof and softened so it reads as a mass, not a sticker
+  x.save(); x.beginPath(); x.rect(X, Y, w, h); x.clip(); if (blur) x.filter = 'blur(1.6px)';
+  x.globalAlpha = cover; x.fillStyle = S;
+  if (late) { for (let k = 0; k < Math.max(4, w * h / 220); k++) ell(x, X + r() * w, Y + r() * h, 5 + r() * 16, 4 + r() * 12); } // late autumn: patches
+  else x.fillRect(X - 2, Y - 2, w + 4, h + 4);
+  x.filter = 'none'; x.globalAlpha = 1;
+  // 2. shading: slopes facing away from the light are bluer; the ridge pokes through a little where the wind scoured it
+  const g = hz ? x.createLinearGradient(0, Y, 0, Y + h) : x.createLinearGradient(X, 0, X + w, 0);
+  if (type === 'flat') { g.addColorStop(0, 'rgba(255,255,255,.18)'); g.addColorStop(.5, 'rgba(255,255,255,0)'); g.addColorStop(1, SH + '.22)'); }
+  else { g.addColorStop(0, 'rgba(255,255,255,.22)'); g.addColorStop(.48, 'rgba(255,255,255,.05)'); g.addColorStop(.52, SH + '.18)'); g.addColorStop(1, SH + '.3)'); }
+  x.fillStyle = g; x.fillRect(X, Y, w, h);
+  if (type !== 'flat') { // the ridge line, partly showing through
+    x.strokeStyle = 'rgba(80,70,70,.28)'; x.lineWidth = 1.4; x.setLineDash([6 + r() * 6, 4 + r() * 5]); x.beginPath();
+    if (type === 'hip') { const m = Math.min(w, h) / 2; if (hz) { x.moveTo(X + m, Y + h / 2); x.lineTo(X + w - m, Y + h / 2); } else { x.moveTo(X + w / 2, Y + m); x.lineTo(X + w / 2, Y + h - m); } }
+    else if (hz) { x.moveTo(X, Y + h / 2); x.lineTo(X + w, Y + h / 2); } else { x.moveTo(X + w / 2, Y); x.lineTo(X + w / 2, Y + h); }
+    x.stroke(); x.setLineDash([]);
+  } else { x.strokeStyle = SH + '.35)'; x.lineWidth = 2; x.strokeRect(X + 3, Y + 3, w - 6, h - 6); } // flat roof: the parapet edge under a soft drift line
+  for (let k = 0; k < w * h / 120; k++) { x.fillStyle = r() < .5 ? 'rgba(255,255,255,.7)' : SH + '.25)'; x.fillRect(X + r() * w, Y + r() * h, 1, 1); } // sparkle and grain
+  x.restore();
+  if (late) { x.restore(); return; }
+  // 3. the overhang: a rounded lip of snow over the lower (south) eave and a thin one on the east side, with a soft shadow under it
+  x.fillStyle = 'rgba(30,40,60,.18)'; x.fillRect(X + 2, Y + h + 1, w - 2, 3);
+  x.fillStyle = S; x.beginPath(); x.moveTo(X, Y + h - 1);
+  for (let px = X; px <= X + w; px += 6) x.quadraticCurveTo(px + 3, Y + h + 2.2 + r() * 1.6, px + 6, Y + h + .6);
+  x.lineTo(X + w, Y + h - 1); x.closePath(); x.fill();
+  x.fillStyle = SH + '.45)'; x.fillRect(X, Y + h + .4, w, .9);
+  // 4. icicles along the south eave, irregular
+  for (let px = X + 3; px < X + w - 2; px += 4 + r() * 7) { if (r() < .35) continue; const L = 2 + r() * 5; x.fillStyle = 'rgba(225,238,250,.9)'; x.beginPath(); x.moveTo(px - 1, Y + h + 1.5); x.lineTo(px + 1, Y + h + 1.5); x.lineTo(px, Y + h + 1.5 + L); x.closePath(); x.fill(); }
+  x.restore();
+}
 function snowCaps(x, list) {
   if (!snowy()) return;
   const late = season.id !== 'winter';
   for (const o of list) {
     if (!CAPPED.has(o.kind) || o.kind === 'border') continue;
+    if ((o.kind === 'building' || o.kind === 'barn') && o.t === 'r') { roofSnow(x, o, late); continue; }
     const r = seeded(Math.round(o.x * 11 + o.y * 7) + 9);
     x.save(); x.beginPath(); if (o.t === 'r') x.rect(o.x, o.y, o.w, o.h); else x.arc(o.x, o.y, o.r, 0, TAU); x.clip();
     const bx = o.t === 'r' ? o.x : o.x - o.r, by = o.t === 'r' ? o.y : o.y - o.r, bw = o.t === 'r' ? o.w : o.r * 2, bh = o.t === 'r' ? o.h : o.r * 2;

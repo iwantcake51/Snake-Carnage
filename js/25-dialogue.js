@@ -180,7 +180,7 @@ const NAMES_RE = /\{name\}/g;
 const heard = new Map(); // line -> when anyone last said it: nobody repeats what someone nearby just said
 const recentTopics = []; // [{id, T}]: different pairs don't all talk about the same thing
 const freshLine = l => T - (heard.get(l) ?? -99) > 40;
-function talkPool() { const k = mapKey(); return (TALK[k] || []).concat(MAPS[mapIdx].club ? [] : TALK.generic.map(t => ({ ...t, generic: true }))); }
+function talkPool() { const k = mapKey(); return (TALK[k] || []).concat(MAPS[mapIdx].club ? [] : TALK.generic.map(t => ({ ...t, generic: true }))).concat(weatherTalk().map(t => ({ ...t, generic: true }))); } // people talk about the weather they're actually standing in
 function pickTopic(a, b) {
   const used = new Set(recentTopics.filter(r => T - r.T < 70).map(r => r.id));
   let pool = talkPool().filter(t => !a.topics.includes(t.id) && !b.topics.includes(t.id) && !used.has(t.id));
