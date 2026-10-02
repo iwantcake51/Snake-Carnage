@@ -180,11 +180,22 @@ function mapPermChallenges() {
 function achPreview(cat, v, clear) { // rewards show as a real preview; early on (and rare ones) stay silhouetted
   return `<div class="prv ${clear ? '' : 'sil'}">${itemPreview(cat, v)}</div>`;
 }
+function chFit(ch) { // does this challenge suit how the next run is set up? A gentle hint, never a requirement
+  const mods = new Set(SETTINGS.mods || []), tm = SETTINGS.timeMode;
+  if (ch.mod && mods.has(ch.mod)) return ['good', 'Your modifiers are set up for this one'];
+  if (mods.has('noAnimals') && ['animals', 'animalStreak', 'comboTypes', 'allAnimals', 'sequence', 'type', 'goldenAny'].includes(ch.k)) return ['bad', 'No Animals is on: this one can\'t be done'];
+  if (mods.has('overcrowded') && ['humans', 'humanStreak', 'humanCombo', 'panic', 'panicKills', 'watched'].includes(ch.k)) return ['good', 'Overcrowded: plenty of people for this'];
+  if ((tm === 'Night' || tm === 'Dusk') && ['nvKills', 'darkCombo', 'noNVScore', 'unaware'].includes(ch.k)) return ['good', 'Suits a night run'];
+  if (tm === 'Day' && ['darkCombo', 'nvKills'].includes(ch.k)) return ['meh', 'Hard in daylight'];
+  if ((mods.has('fog') || mods.has('fow')) && ['unaware'].includes(ch.k)) return ['good', 'Fog makes sneaking easier'];
+  return null;
+}
 function mapChallengesHtml() { // the selected map's current challenges: name, progress, reward, difficulty, rotation timer
   const m = MAPS[mapIdx].name, done = PROG.chDone[m] || {}, best = PROG.chBest[m] || {};
   return `<div class="mch"><b>${MAPS[mapIdx].icon} ${m} challenges</b><span>New set in <b data-rot>${fmtClock(rotLeft())}</b></span></div><div class="mcg">` +
     [...activeChallenges(m)].sort((p, q) => TIER_ORDER[p.tier] - TIER_ORDER[q.tier]).map((ch, i) => { const v = done[ch.id] ? ch.n : (best[ch.id] || 0);
-      return `<div class="mc ${done[ch.id] ? 'done' : ''}" style="--i:${i}" data-tip="${ch.t}. Reward: ${rewardText(ch).replace(/<[^>]+>/g, '')} chips"><em class="tier ${ch.tier}">${TIERS[ch.tier].label}</em><b>${done[ch.id] ? '✔ ' : ''}${ch.name}</b><small>${ch.t}</small>
+      const fit = !done[ch.id] && chFit(ch);
+      return `<div class="mc ${done[ch.id] ? 'done' : ''} ${fit ? 'fit-' + fit[0] : ''}" style="--i:${i}" data-tip="${ch.t}. Reward: ${rewardText(ch).replace(/<[^>]+>/g, '')} chips${fit ? '. ' + fit[1] : ''}"><em class="tier ${ch.tier}">${TIERS[ch.tier].label}</em><b>${done[ch.id] ? '✔ ' : ''}${ch.name}</b><small>${ch.t}</small>
         <span class="pbar"><span style="width:${(v / ch.n * 100).toFixed(0)}%"></span></span><span class="mcf"><span>${v}${chUnit(ch)}/${ch.n}${chUnit(ch)}</span><span class="rw3">+${TIERS[ch.tier].chips} <i class="pc"></i></span></span></div>`; }).join('') + '</div>';
 }
 function selectMap(i) { // updates the menu in place, so nothing else resets
@@ -256,7 +267,7 @@ function randomRoll() { // case-opening roll; the pick stays secret until the ga
     }, 1100);
   };
 }
-const fmtSetting = (k, v) => k === 'customHour' ? String(v).padStart(2, '0') + ':00' : k === 'dayMinutes' ? v + ' min' : k === 'pixel' ? (v <= 1 ? 'Off' : v + 'x') : Math.round(v * 100) + '%';
+const fmtSetting = (k, v) => k === 'shakeK' ? (v <= 0 ? 'Off' : Math.round(v * 100) + '%') : k === 'customHour' ? String(v).padStart(2, '0') + ':00' : k === 'dayMinutes' ? v + ' min' : k === 'pixel' ? (v <= 1 ? 'Off' : v + 'x') : Math.round(v * 100) + '%';
 const SETTING_TABS = {
   Gameplay: { icon: 'gameplay', lead: 'How the world behaves around you.', rows: [
     ['slider', 'creatureSpeed', 'Creature speed', 'How fast people and animals move.', .3, 1.2, .05],
@@ -268,7 +279,7 @@ const SETTING_TABS = {
     ['slider', 'pixel', 'Pixelation', 'Chunky pixel look. Off shows full detail.', 1, 8, 1],
     ['seg', 'lightQ', 'Lighting', 'High: full dynamic lighting. Medium: fewer moving shadows. Low: baked shadows only, cheapest.', ['Low', 'Medium', 'High']],
     ['toggle', 'dynShadows', 'Moving shadows', 'People, animals and the snake cast shadows from lamps and flashlights.'],
-    ['seg', 'fxLevel', 'Effects', 'Amount of blood mist, sparks, insects and other particles.', ['Low', 'Normal', 'High']],
+    ['seg', 'fxLevel', 'Particles', 'How many particles are simulated: blood mist, smoke, sparks, snow powder, scent wisps, insects. Low simulates far fewer.', ['Low', 'Normal', 'High']],
     ['seg', 'bloodQ', 'Blood quality', 'How fast-flying blood is drawn. Extreme: smoothest motion blur. Low: plain drops, cheapest.', ['Low', 'Normal', 'High', 'Extreme']],
     ['toggle', 'vignette', 'Kill vignette', 'A red pulse at the screen edges when you eat.'],
     ['toggle', 'desaturate', 'Color drain', 'Briefly drains color after a kill.'],
@@ -286,7 +297,11 @@ const SETTING_TABS = {
     ['toggle', 'vomit', 'Show vomit', 'People who see too much throw up, and it stays on the floor. Turn off to skip it.'],
     ['seg', 'bubbleSize', 'Speech bubble size', 'Text size of what people shout.', ['Small', 'Normal', 'Large']],
     ['seg', 'snakeOutline', 'Snake outline', 'A thin rim that keeps the snake easy to spot on any ground.', ['Off', 'Subtle', 'Strong']],
-    ['seg', 'mapOutlines', 'Map outlines', 'Dark edges around walls and everything else you can crash into.', ['Off', 'Subtle', 'Strong']]] },
+    ['seg', 'mapOutlines', 'Map outlines', 'Dark edges around walls and everything else you can crash into.', ['Off', 'Subtle', 'Strong']],
+    ['slider', 'shakeK', 'Shake strength', 'How hard the screen shakes, from none to full.', 0, 1, .1],
+    ['toggle', 'reduceFlash', 'Reduce flashes', 'No bloom, double vision or color drain flashes after kills and hits.'],
+    ['seg', 'bloodAmt', 'Amount of blood', 'Fewer drops, smaller pools and fewer chunks. Purely visual.', ['Minimal', 'Reduced', 'Full']],
+    ['toggle', 'simpleFx', 'Simplified effects', 'Plain versions of skill and impact effects: no warping, wakes or ghosting.']] },
 };
 let settingsTab = 'Gameplay';
 function settingsBody(tab) {

@@ -11,7 +11,7 @@ const ALIEN_BLOOD = ['#3f9a1c', '#4fae24', '#58b82c'];
 const bloodOf = c => c.golden ? GOLD_BLOOD : c.def.bloodCol || CONFIG.bloodColors; // every target bleeds its own color
 function spawnGiblets(c, dirA) {
   const d = c.def; if (!d.human && d.r < 9 && !c.golden) return; // humans, aliens, the bigger animals and anything golden
-  const n = d.human ? randi(4, 7) : randi(3, 5) + (d.r >= 10 ? 1 : 0), flesh = c.golden ? GIB_GOLD : d.alien ? GIB_ALIEN : GIB_FLESH, bl = bloodOf(c);
+  const n = Math.round((d.human ? randi(4, 7) : randi(3, 5) + (d.r >= 10 ? 1 : 0)) * ({ Minimal: .3, Reduced: .6 }[SETTINGS.bloodAmt] || 1)), flesh = c.golden ? GIB_GOLD : d.alien ? GIB_ALIEN : GIB_FLESH, bl = bloodOf(c);
   for (let k = 0; k < n; k++) {
     if (gibs.length >= GIB_MAX) { const j = gibs.findIndex(g => g.rest > 0); gibs.splice(Math.max(0, j), 1); } // drop a settled one first, else the oldest
     const a = Math.random() < .7 ? dirA + gauss() * .9 : rand(0, TAU), sp = rand(60, 210);

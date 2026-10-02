@@ -1114,3 +1114,9 @@ body.calm .panel,body.calm .mleft,body.calm .mright{translate:none}
 .upc.leveled .uptiers li.got:nth-last-child(1),.upc.leveled .uptiers li.next{transition:color .4s}
 .coinpill.spent{animation:coinSpend .5s ease}
 @keyframes coinSpend{0%{transform:scale(1)}30%{transform:scale(.88);color:#ff8a7a}100%{transform:none}}
+/* map menu: challenges that suit your setup get a quiet nudge; impossible ones dim */
+.mc.fit-good{box-shadow:inset 3px 0 0 #5fcf6a,0 0 0 1px rgba(95,207,106,.25)}
+.mc.fit-good::after{content:'fits your setup';position:absolute;right:8px;top:6px;font:700 9px "Segoe UI",sans-serif;letter-spacing:.06em;text-transform:uppercase;color:#7fd98a;opacity:.85}
+.mc.fit-bad{opacity:.45}
+.mc.fit-meh{box-shadow:inset 3px 0 0 #c9a227}
+.mc{position:relative}

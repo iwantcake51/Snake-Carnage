@@ -12,7 +12,7 @@ function drawHitGhosts(x) { // the eaten body hangs for a frame or two, flashed 
 let killV = 0, killFlash = 0, desatHold = 0, lastFilter = '';
 function killFx(x, y, amount) {
   killV = Math.min(1, killV + .35 + .5 * amount);
-  killFlash = .8; desatHold = .1;
+  killFlash = SETTINGS.reduceFlash ? 0 : .8; desatHold = .1;
 }
 /* BLOOD MIST: a short, soft puff right where something gets eaten (in the target's own blood color) */
 let mist = [];

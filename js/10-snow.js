@@ -134,7 +134,7 @@ function updateSnow(dt) {
     }
     if (headMoved > .02) { // powder kicked up off the head; the faster, the more (and the odd clump)
       const k = Math.min(3, headMoved * 1.5) * (lunge ? 2 : 1), nx = -Math.sin(sn.angle), ny = Math.cos(sn.angle), st = stainedNear(sn.x, sn.y);
-      for (let p = 0; p < k && snowFx.length < 160; p++) {
+      for (let p = 0; p < k * FX_K() && snowFx.length < 160 * FX_K(); p++) {
         const side = Math.random() < .5 ? -1 : 1, sp = rand(20, 60) * (lunge ? 1.8 : 1);
         snowFx.push({ x: sn.x + nx * side * 9, y: sn.y + ny * side * 9, z: rand(1, 4), vx: nx * side * sp + Math.cos(sn.angle) * rand(-10, 30), vy: ny * side * sp + Math.sin(sn.angle) * rand(-10, 30), vz: rand(30, 80), r: rand(2, 4.5), t: 0, life: rand(.4, .8), puff: true, c: st });
       }

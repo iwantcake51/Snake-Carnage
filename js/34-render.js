@@ -6,7 +6,7 @@ function snakeShadowPath(x, ox, oy) { // squared-off segments, turned with the b
   }
 }
 function render() {
-  const x = sctx, L = light, sh = shake && SETTINGS.shake ? shake : 0;
+  const x = sctx, L = light, sh = shake && SETTINGS.shake ? shake * (SETTINGS.shakeK ?? 1) : 0;
   V.sx = sh ? rand(-sh, sh) : 0; V.sy = sh ? rand(-sh, sh) : 0; V.z = 0;
   if (cam) { // spawn camera: starts tight on the snake, eases out to the full map
     const q = cam.hold ? 0 : Math.min(1, cam.t / cam.dur), p = q < .5 ? 4 * q * q * q : 1 - Math.pow(-2 * q + 2, 3) / 2, fp = Math.pow(p, 2.5);
@@ -61,12 +61,12 @@ function render() {
     ctx.imageSmoothingEnabled = false; ctx.drawImage(lowC, 0, 0, cv.width, cv.height); ctx.imageSmoothingEnabled = true;
   } else ctx.drawImage(sceneC, 0, 0);
   const ws = snake && snake.wallStun > 0 ? Math.min(1.5, Math.pow(snake.wallStun / (snake.wallMax || 3.4), .6) * (snake.stunFx || 1)) : 0;
-  if (ws > .02 && px <= 1) { // seeing stars after a wall: the picture wobbles in slow waves, fading with the daze
+  if (ws > .02 && px <= 1 && !SETTINGS.simpleFx) { // seeing stars after a wall: the picture wobbles in slow waves, fading with the daze
     const bh = Math.ceil(cv.height / 48), amp = 7 * ws * DPR;
     for (let y = 0; y < cv.height; y += bh) { const o = Math.sin(y / cv.height * 9 + T * 3.1) * amp + Math.sin(T * 1.7 + y * .01) * amp * .4; ctx.drawImage(sceneC, 0, y, cv.width, bh, o, y, cv.width, bh); }
-    chromaSplit(Math.min(1, ws));
+    if (!SETTINGS.reduceFlash && !SETTINGS.simpleFx) chromaSplit(Math.min(1, ws));
   }
-  if (snake && snake.ramT > 0 && px <= 1) { const bk = Math.pow(snake.ramT / (snake.ramMax || 1), .6) * (snake.stunFx || 1); concussBloom(bk * (snake.wallStun > 0 ? .42 : .22)); } // any daze blooms; walls much more
+  if (snake && snake.ramT > 0 && px <= 1 && !SETTINGS.reduceFlash) { const bk = Math.pow(snake.ramT / (snake.ramMax || 1), .6) * (snake.stunFx || 1); concussBloom(bk * (snake.wallStun > 0 ? .42 : .22)); } // any daze blooms; walls much more
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   if (nightVision) { // green phosphor look done in-canvas, so the overlays after it keep their real colors
     ctx.globalCompositeOperation = 'saturation'; ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);

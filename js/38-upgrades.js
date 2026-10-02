@@ -226,7 +226,7 @@ function updateScent(dt) {
   const lv = upg('scent');
   for (const g of scentTargets(s, lv > 2 ? 3 : 1)) {
     const close = clamp(1 - g.d / 650, .15, 1);
-    if (Math.random() > dt * (5 + 14 * close)) continue; // more of them, the closer you are
+    if (Math.random() > dt * (5 + 14 * close) * Math.min(1, FX_K())) continue; // more of them, the closer you are
     const a = Math.atan2(g.c.y - s.y, g.c.x - s.x) + rand(-.6, .6);
     wisps.push({ c: g.c, x: s.x + Math.cos(a) * 10, y: s.y + Math.sin(a) * 10, a, sp: rand(55, 90), t: 0, life: rand(.9, 1.5) * (.6 + close * .6), k: close, col: lv > 1 ? wispCol(g.c) : '230,220,200', pts: [] });
   }
