@@ -85,7 +85,7 @@ function loadMap(idx, sz) {
   curBuild = b; drawObstacleLayer(); buildTrees();
   bakeOutline();
   buildSnow();
-  buildLights(b.lights || m.lights || []);
+  buildLights(b.lights || m.lights || []); setupSpeakers();
   wet = new Float32Array(WW * WH); fresh = new Float32Array(WW * WH); wetC = new Float32Array(WW * WH * 3);
   creatures = []; parts = []; pools = []; respawnQ = []; gibs = []; splashes = []; groups = []; mist = []; ringPops = []; hitGhosts = []; hitStop = 0; puke = []; convos = []; lastDead = null;
   score = 0; kills = { h: 0, a: 0 }; shake = 0;
