@@ -11,7 +11,7 @@ function drawSnake(x, s = snake, cfg = SETTINGS.snake) {
   const me = s === snake, lv = me ? upg('dash') : 0, lk = me ? lungeK(s) : 0, cam = me ? camoField(s, n) : null;
   if (lk > .01 && !SETTINGS.simpleFx) drawLungeFx(x, s, pts, n, lk, lv);
   const sd = me ? upg('speed') : 0;
-  if (sd >= 3 && sd < 5 && moving && Math.random() < .12 * (sd - 2)) { // gone again at max level const i = Math.floor(Math.random() * Math.min(n, 8)), g = pts[i], side = Math.random() < .5 ? -1 : 1, off = segR(i, n) + rand(2, 6); // Speed Demon: a few lines peel off as you go
+  if (false) { // gone again at max level const i = Math.floor(Math.random() * Math.min(n, 8)), g = pts[i], side = Math.random() < .5 ? -1 : 1, off = segR(i, n) + rand(2, 6); // Speed Demon: a few lines peel off as you go
     streaks.push({ x: g.x - Math.sin(g.a) * off * side, y: g.y + Math.cos(g.a) * off * side, a: g.a, len: rand(8, 16) * (sd / 4), t: 0, life: rand(.14, .22) }); }
   if (cam && !SETTINGS.simpleFx) refractBody(x, s, pts, n, cam);
   const camAvg = cam ? cam.avg : 0;
@@ -49,7 +49,7 @@ function drawSnake(x, s = snake, cfg = SETTINGS.snake) {
 let streaks = [];
 function lungeK(s) { // 0..1 lunge momentum: snaps in, peaks early, eases out after it ends
   const dur = ABIL.dash.dur, on = s.dashT > 0, t = on ? dur - s.dashT : 0;
-  const target = on ? sstep(0, .07, t) * (.4 + .6 * sstep(0, dur * .75, s.dashT)) : 0, cur = s.lk || 0;
+  const sp = clamp(((s.dashV || 1) - 1) / ((s.dashK || 1.8) - 1), 0, 1), target = on ? sstep(0, .07, t) * (.4 + .6 * sp) : sp, cur = s.lk || 0; // follows the real speed: fades as the lunge loses momentum
   s.lk = cur + (target - cur) * (target > cur ? .45 : .1);
   const h = s.wake || (s.wake = []); // where the head has been lately (not s.hist: that's the body's path): the wake trails behind it
   if (!h.length || h[h.length - 1].t !== T) h.push({ x: s.x, y: s.y, t: T, a: s.angle });
@@ -73,14 +73,16 @@ function drawLungeFx(x, s, pts, n, k, lv) {
   }
   // motion ghosts: the body smeared backward along its own path
   const N = lv > 1 ? 4 : 3, col = segColor(0, n, SETTINGS.snake);
+  if ('filter' in x) x.filter = `blur(${(1 + 4 * k).toFixed(1)}px)`; // a soft blur smeared out behind the body, fading as the speed bleeds off
   for (let c = N; c >= 1; c--) {
-    x.globalAlpha = .3 * k * (1 - c / (N + 1.5)); x.fillStyle = col; x.beginPath();
+    x.globalAlpha = .5 * k * (1 - c / (N + 1.5)); x.fillStyle = col; x.beginPath();
     for (let i = 0; i < n; i += 1) { const g = pts[i], d = c * k * (lv > 1 ? 6 : 5) * (1 - i / (n + 4)), r = segR(i, n) * (1 - .06 * c); const gx = g.x - Math.cos(g.a) * d, gy = g.y - Math.sin(g.a) * d; x.moveTo(gx + r, gy); x.arc(gx, gy, r, 0, TAU); }
     x.fill();
   }
+  if ('filter' in x) x.filter = 'none';
   x.globalAlpha = 1;
   // speed streaks peeling off the sides
-  if (k > .25 && Math.random() < k * (lv > 1 ? 1.4 : 1)) for (let q = 0; q < (lv > 1 ? 2 : 1); q++) {
+  if (false) for (let q = 0; q < 1; q++) { // speed lines removed
     const i = Math.floor(Math.random() * Math.min(n, 14)), g = pts[i], side = Math.random() < .5 ? -1 : 1, off = segR(i, n) + rand(3, 9);
     streaks.push({ x: g.x - Math.sin(g.a) * off * side, y: g.y + Math.cos(g.a) * off * side, a: g.a, len: rand(16, 34) * k * (lv > 1 ? 1.3 : 1), t: 0, life: rand(.18, .3) });
   }
