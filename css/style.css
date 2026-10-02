@@ -1348,10 +1348,7 @@ input[type=range]{accent-color:var(--acc)}
 /* top bar */
 #bar{background:var(--grain),#121012!important;border-bottom:1px solid var(--edge)!important;box-shadow:inset 0 -2px 0 var(--acc)!important;font-family:var(--f-num)!important;font-size:17px!important;border-radius:6px 6px 0 0!important}
 #bar button{border-radius:2px!important;background:transparent!important;border:1px solid var(--edge2)!important}
-.xp{border-radius:1px!important;background:rgba(255,255,255,.06)!important;box-shadow:inset 0 0 0 1px var(--edge2)!important}
 .xp,.xpfill,.sbar,.sfill{border-radius:1px!important}
-.xpfill,.sfill{background:var(--acc)!important;box-shadow:none!important}
-.xpfill::after,#bar .xpfill::after,.xp .xpfill::after,.sbar .sfill::after{display:none!important}
 .xpt{font-size:10px!important;text-shadow:0 1px 2px #000!important}
 /* tooltips */
 #tip{border-radius:3px!important;background:var(--grain),#151214!important;border:1px solid var(--edge2)!important;box-shadow:0 12px 28px rgba(0,0,0,.6)!important}
@@ -1379,7 +1376,6 @@ input[type=range]{accent-color:var(--acc)}
 .srow>div,.sxp{border-radius:3px!important;background:var(--p2)!important;border-color:var(--edge)!important}
 .srow b{font-family:var(--f-head)!important;font-weight:700!important;letter-spacing:0}
 .srow .sbig b{text-shadow:none!important;color:var(--ink)!important}
-.sbar,.xp{background:rgba(255,255,255,.06)!important;background-image:none!important;border-radius:1px!important;box-shadow:inset 0 0 0 1px var(--edge2)!important}
 .sbar{height:12px!important}
 .seg button,.sseg button{font-size:13px!important;letter-spacing:.02em!important}
 .card .cn{font-size:12.5px!important;letter-spacing:.02em!important}
@@ -1431,3 +1427,4 @@ input[type=range]{accent-color:var(--acc)}
 .upc.leveled{animation:upFlash .7s ease-out both!important;transform:none!important}
 @keyframes upFlash{0%{box-shadow:inset 0 0 0 1px var(--acc-hi),inset 0 0 26px color-mix(in srgb,var(--acc-hi) 30%,transparent)}100%{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--acc-hi) 40%,transparent),inset 0 0 0 transparent}}
 .upc.leveled .pips i.last{animation:none!important}
+.xpt{z-index:3}
