@@ -1045,7 +1045,7 @@ body.calm .panel,body.calm .mleft,body.calm .mright{translate:none}
 
 /* XP bars: the empty part wears thin diagonal stripes in the theme's tint, so it reads as locked rather than blank.
    The opaque fill sits on top, so the stripes only show where there's no XP yet and shrink as it fills. */
-.xp,.sbar{background-color:color-mix(in srgb,var(--acc-deep) 45%,#120e10);
-  background-image:repeating-linear-gradient(135deg,color-mix(in srgb,var(--acc) 22%,transparent) 0 1px,transparent 1px 5px);
-  background-clip:padding-box;isolation:isolate}
-.xpfill,.sfill{background-color:var(--acc-lo);box-shadow:2px 0 4px rgba(0,0,0,.45)}
+.xp,.sbar{background-color:color-mix(in srgb,var(--acc) 10%,#100d10)!important;
+  background-image:repeating-linear-gradient(-45deg,color-mix(in srgb,color-mix(in srgb,var(--acc) 35%,#cfc8d0) 30%,transparent) 0 1.5px,transparent 1.5px 6px)!important;
+  background-clip:padding-box;isolation:isolate;box-shadow:inset 0 1px 3px rgba(0,0,0,.7),inset 0 0 0 1px rgba(255,255,255,.05)}
+.xpfill,.sfill{background-color:var(--acc-lo);box-shadow:1px 0 0 color-mix(in srgb,var(--acc-hi) 70%,#fff),3px 0 6px rgba(0,0,0,.55);z-index:1}
