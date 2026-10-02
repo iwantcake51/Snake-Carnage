@@ -1,4 +1,4 @@
-/* MAP CHALLENGES: every map draws 3 challenges (a quick easy one, a medium, and a hard or extreme) from a large pool.
+/* MAP CHALLENGES: every map draws 4 challenges (a quick easy one, a medium, a hard, and a medium or extreme) from a large pool.
    The set rerolls every 15 minutes for everyone (based on the clock), progress resets with it,
    while long-term stats (best scores, levels, unlocks) are kept separately. Targets scale with how many
    people/animals the map actually has. Rewards are XP and chips; cosmetics come from lifetime achievements. */
@@ -112,7 +112,7 @@ function buildSet(map, rot, salt = 0) {
     out.push({ id: `${q.k}-${n}${q.type ? '-' + q.type : ''}${mod ? '-' + mod : ''}`, k: q.k, n, tier, type: q.type, seq: q.seq, mod, name: chName(q.k, q.tier, q.type),
       t: q.t.replace('{n}', n).replace('{mod}', mod ? MODS.find(x => x.id === mod).name : '').replace(/\ba (?=(8|11|18)\D)/, 'an ') });
   };
-  take('easy'); take('medium'); take(r() < .25 ? 'rare' : 'hard'); // three at a time: one quick, one that needs a bit of focus, one real goal
+  take('easy'); take('medium'); take('hard'); take(r() < .3 ? 'rare' : 'medium'); // four at a time: one quick, one or two that need focus, one real goal
   const ord = { easy: 0, medium: 1, hard: 2, rare: 3 };
   return out.sort((a, b) => ord[a.tier] - ord[b.tier]); // always easiest first
 }

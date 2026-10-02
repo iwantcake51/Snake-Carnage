@@ -627,7 +627,7 @@ body.cs-chip-stack .card{box-shadow:0 0 0 2px #2e7d4f,0 0 0 4px #ffcf33,0 8px 18
 .mright{display:flex;flex-direction:column;min-height:0}
 .mapch{order:3;margin-top:10px}
 .mch{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:#93897f;margin-bottom:6px}.mch>b{font-size:13px;color:#ece6df}.mch span b{color:#ffcf33}
-.mcg{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.mcg{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
 .mc{position:relative;display:flex;flex-direction:column;gap:2px;padding:7px 8px 6px;border-radius:10px;background:linear-gradient(180deg,var(--bg2),#151113);border:1px solid var(--line);min-width:0;cursor:help;
   animation:liIn .45s var(--spring) backwards;animation-delay:calc(var(--i) * 70ms)}
 .mc b{font-size:12px;color:#f0e9e2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -1390,3 +1390,17 @@ input[type=range]{accent-color:var(--acc)}
 #intro .iflav{font-style:normal!important;color:var(--dim)!important}
 .upc .ukey,.ukey,kbd{border-radius:2px!important;font-family:var(--f-num)!important}
 .panel.shop2 .tab{overflow:hidden;text-overflow:ellipsis}
+/* dark gradients: depth on the big surfaces, kept subtle so the grain and borders still read */
+.panel{background:var(--grain),radial-gradient(120% 80% at 0% 0%,color-mix(in srgb,var(--acc) 7%,transparent),transparent 55%),linear-gradient(180deg,#1b1719,#0e0c0d)!important}
+.snav{background:linear-gradient(180deg,rgba(0,0,0,.15),rgba(0,0,0,.4))!important}
+.card,.mtile,.ach,.upc,.mc,.pmc,.sc,.srow>div,.sxp{background:linear-gradient(180deg,#1d191b,#131012)!important}
+.mtile.on{background:linear-gradient(180deg,color-mix(in srgb,var(--acc) 14%,#1d191b),#131012)!important}
+.card .cn,.card .cb{background:linear-gradient(180deg,transparent,rgba(0,0,0,.25))}
+#bar{background:var(--grain),linear-gradient(180deg,#1a1618,#0d0b0c)!important}
+.note{background:var(--grain),linear-gradient(90deg,rgba(26,21,23,.96),rgba(12,10,11,.94))!important}
+#tip{background:var(--grain),linear-gradient(180deg,#1b1719,#0f0d0e)!important}
+#combo .cbox{background:linear-gradient(180deg,rgba(26,20,22,.85),rgba(10,8,9,.85))}
+.hc{background:linear-gradient(90deg,rgba(14,11,12,.7),rgba(14,11,12,.25))!important}
+.btn.alt,.ghost{background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(0,0,0,.18))!important}
+.play{background:linear-gradient(180deg,color-mix(in srgb,var(--acc) 100%,#fff 4%),color-mix(in srgb,var(--acc) 72%,#000))!important}
+.btn:not(.alt){background:linear-gradient(180deg,var(--acc),color-mix(in srgb,var(--acc) 75%,#000))!important}
