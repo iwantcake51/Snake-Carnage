@@ -944,3 +944,37 @@ body.touch #abil{display:none}
 #intro .tbadge.night .ticon,#intro .tbadge.evening .ticon{color:#c9d6ff}
 #intro .tbadge.dawn .ticon{color:#ffb38a}#intro .tbadge.sunset .ticon{color:#ff8a4c}
 #intro .iname.mys{top:auto;bottom:12%;translate:0;font-size:0}
+
+/* ---------- phones and small windows ---------- */
+body.phone #wrap{justify-content:flex-start;padding-top:max(0px,env(safe-area-inset-top))}
+body.phone #bar{gap:10px;padding:4px 10px;font-size:14px!important;border-radius:0}
+body.phone #bar .xp{width:110px;height:13px}
+body.phone .xpt{font-size:9px}
+body.phone #mapName{display:none}
+body.phone #stage,body.phone canvas,body.phone #overlay{border-radius:0}
+body.touch #bar button{padding:6px 14px;font-size:18px}
+body.touch .mtile:hover,body.touch .card:hover{translate:none}
+body.touch *{-webkit-tap-highlight-color:transparent}
+body.touch #stage{touch-action:none;user-select:none;-webkit-user-select:none}
+/* compact menus: when the menus get less than ~820x540 of their own space */
+body.compact .menu{gap:20px;padding:14px 22px;overflow-y:auto}
+body.compact .menu .logo{margin-bottom:-6px}
+body.compact .menu .tag{display:none}
+body.compact .menu .mrow .ghost{padding-top:8px;padding-bottom:8px}
+body.narrow .menu{grid-template-columns:1fr;align-items:start}
+body.compact .panel{width:98%!important;max-height:98%!important;padding:14px 16px!important}
+body.compact .panel.set,body.compact .panel.shop2{grid-template-columns:150px 1fr;height:98%!important}
+body.compact .panel.pause{grid-template-columns:1fr;overflow-y:auto}
+body.compact .panel.sum{overflow-y:auto}
+body.compact .scols,body.compact .srow{grid-template-columns:1fr 1fr}
+body.compact .panel.mods,body.compact .panel.chal2,body.compact .panel.upg{height:98%}
+body.compact .upgrid{overflow-y:auto;max-height:calc(100% - 120px)}
+body.compact .modgrid{grid-template-columns:repeat(auto-fill,minmax(190px,1fr))}
+body.compact .pmwrap{grid-template-columns:150px 1fr}
+#rotate{display:none}
+@media (orientation:portrait) and (pointer:coarse){
+  #rotate{display:flex;position:fixed;inset:0;z-index:9000;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:#0c0a0b;color:#e8dcd2;font:700 18px "Segoe UI",system-ui,sans-serif;text-align:center;padding:24px}
+  #rotate svg{width:72px;height:72px;color:#d0191f;animation:tilt 2.4s ease-in-out infinite}
+  #rotate small{font-weight:500;font-size:14px;color:#9b8f88}
+}
+@keyframes tilt{0%,30%{rotate:0deg}55%,85%{rotate:-90deg}100%{rotate:0deg}}

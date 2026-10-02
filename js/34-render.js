@@ -86,7 +86,7 @@ function render() {
   if (state === 'ready' && !cam) {
     ctx.fillStyle = 'rgba(0,0,0,.65)'; ctx.fillRect(W / 2 - 190, H - 70, 380, 40);
     ctx.fillStyle = '#ddd'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText('Press an arrow key or WASD to start', W / 2, H - 44);
+    ctx.fillText(IS_TOUCH ? 'Drag anywhere to start' : MOD.freeMove && SETTINGS.mouseFollow ? 'Click, or press an arrow key / WASD to start' : 'Press an arrow key or WASD to start', W / 2, H - 44);
   }
   const sat = SETTINGS.desaturate && !nightVision ? clamp(1 - killFlash * .5, .45, 1) : 1;
   const f = nightVision ? `contrast(1.15) brightness(${(.95 - SETTINGS.darkness * .2).toFixed(2)})` : `saturate(${sat.toFixed(2)}) brightness(${(1 - SETTINGS.darkness).toFixed(2)}) contrast(1.08)`;

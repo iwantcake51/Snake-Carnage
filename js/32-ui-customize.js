@@ -106,14 +106,18 @@ intro.onclick = () => endIntro();
 document.getElementById('menuBtn').onclick = () => { if (['play', 'ready', 'intro', 'held'].includes(state)) pauseGame(); document.activeElement.blur(); };
 let boardScale = 1;
 function fit() {
-  const s = boardScale = Math.min((innerWidth - 24) / W, (innerHeight - 70) / H, 2.2); // render the game larger when there's room
+  const small = innerHeight < 560 || innerWidth < 760; document.body.classList.toggle('phone', small); // phones: thin bar, no margins
+  const barH = small ? 34 : 70, pad = small ? 4 : 24;
+  const s = boardScale = Math.min((innerWidth - pad) / W, (innerHeight - barH) / H, 2.2); // render the game larger when there's room
   cv.style.width = W * s + 'px'; cv.style.height = H * s + 'px'; bar.style.width = W * s + 'px';
   applyUiScale();
 }
 const UI_SCALES = { Small: .85, Medium: 1, Large: 1.15, 'Extra Large': 1.3 };
 function applyUiScale() { // zoom every HUD/menu layer; overlay is shrunk by the same factor first so percentages still fit
-  const u = UI_SCALES[SETTINGS.uiScale] || clamp(boardScale * .92, .8, 1.45);
+  const u = UI_SCALES[SETTINGS.uiScale] || clamp(boardScale * .92, document.body.classList.contains('phone') ? .62 : .8, 1.45);
   document.documentElement.style.setProperty('--ui', u.toFixed(3));
+  const lw = W * boardScale / u, lh = H * boardScale / u; // how much room the menus actually get, in their own units
+  document.body.classList.toggle('compact', lw < 820 || lh < 600); document.body.classList.toggle('narrow', lw < 640);
   layoutHud();
 }
 function layoutHud() { // safe zones: notifications always sit below the modifier strip, whatever its height

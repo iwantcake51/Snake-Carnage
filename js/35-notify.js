@@ -57,6 +57,6 @@ document.addEventListener('pointerover', e => {
   if (el === tipFor) return;
   if (el) showTip(el); else hideTip();
 });
-document.addEventListener('pointerdown', e => { if (e.pointerType === 'touch') { const el = e.target.closest && e.target.closest('[data-tip],[data-tiph]'); if (el && el !== tipFor && !el.closest('button')) { showTip(el); setTimeout(() => tipFor === el && hideTip(), 2600); } else hideTip(); } });
+document.addEventListener('pointerdown', e => { if (e.pointerType === 'touch') { const el = e.target.closest && e.target.closest('[data-tip],[data-tiph]'); if (el && el !== tipFor && (!el.closest('button') || el.dataset.tiph !== undefined)) { showTip(el); setTimeout(() => tipFor === el && hideTip(), 2600); } else hideTip(); } });
 addEventListener('scroll', () => tipFor && placeTip(tipFor), true);
 new MutationObserver(() => { if (tipFor && !tipFor.isConnected) hideTip(); }).observe(document.body, { childList: true, subtree: true });

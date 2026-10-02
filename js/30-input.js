@@ -107,10 +107,8 @@ cv.addEventListener('pointerdown', e => {
 const touchEl = document.getElementById('touch');
 function buildTouch() {
   touchEl.innerHTML = `<div class="stick"><i class="knob"></i></div>
-    <button class="tb tb-pause" data-sfx="open" aria-label="Pause">❚❚</button>
-    <button class="tb tb-nv" data-sfx="none" aria-label="Night vision">NV</button>
+    <button class="tb tb-nv" data-sfx="none" aria-label="Night vision"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="7" cy="13" r="4"/><circle cx="17" cy="13" r="4"/><path d="M11 13h2M3 9l2-3h14l2 3"/></svg></button>
     <div class="tabil"></div>`;
-  touchEl.querySelector('.tb-pause').onclick = () => { if (['play', 'ready', 'intro', 'held'].includes(state)) pauseGame(); };
   touchEl.querySelector('.tb-nv').onclick = toggleNV;
   refreshTouchAbilities();
 }
@@ -124,9 +122,10 @@ function stickMove(cx, cy) {
   if (state === 'ready' || state === 'held') { setHeading(MOD.freeMove ? a : Math.round(a / (Math.PI / 4)) * (Math.PI / 4)); goInput(); }
   else if (state === 'play') steerAnalog(a);
 }
+function enableTouch() { if (document.body.classList.contains('touch')) return; IS_TOUCH = true; document.body.classList.add('touch'); if (!touchEl.firstElementChild) buildTouch(); }
 touchEl.addEventListener('pointerdown', e => {
   if (e.pointerType === 'mouse' || e.target.closest('button')) return;
-  IS_TOUCH = true; document.body.classList.add('touch');
+  enableTouch();
   Sfx.init();
   if (state === 'intro') { endIntro(); return; }
   if (!['play', 'ready', 'held'].includes(state) || stick.id !== null) return;
@@ -143,4 +142,4 @@ const stickUp = e => {
 };
 touchEl.addEventListener('pointerup', stickUp); touchEl.addEventListener('pointercancel', stickUp);
 addEventListener('touchmove', e => { if (e.target.closest && e.target.closest('#stage') && !e.target.closest('.sgrid,.modgrid,.sbody,.achg,.cards,.menu,.panel,.sumbox')) e.preventDefault(); }, { passive: false }); // no page scroll / rubber-banding while steering
-addEventListener('pointerdown', e => { if (e.pointerType === 'touch' && !IS_TOUCH) { IS_TOUCH = true; document.body.classList.add('touch'); } }, true);
+addEventListener('pointerdown', e => { if (e.pointerType === 'touch') enableTouch(); }, true);
