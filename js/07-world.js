@@ -88,7 +88,7 @@ function nudgeLamps(list, paths, roads = []) { // a lamp post standing in the mi
   for (const o of list) {
     if (o.kind !== 'lamp' || o.mast || o.lantern) continue;
     let best = null, bd = 1e9; for (const pts of P) for (const q of pts) { const d = Math.hypot(o.x - q[0], o.y - q[1]); if (d < bd) { bd = d; best = q; } }
-    const need = 12; if (!best || bd >= 9) continue; // a pole beside the walkway is fine; only one standing in it moves
+    const need = 12; if (!best || bd >= 6) continue; // a pole beside the walkway is fine; only one standing in it moves
     let nx = o.x - best[0], ny = o.y - best[1]; const l = Math.hypot(nx, ny);
     if (l < .5) { nx = 0; ny = 1; } else { nx /= l; ny /= l; }
     for (const sg of [1, -1]) { const x = best[0] + nx * need * sg, y = best[1] + ny * need * sg;

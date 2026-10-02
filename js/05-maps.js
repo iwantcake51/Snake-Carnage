@@ -214,110 +214,129 @@ const MAPS = [
     }
   },
   {
-    name: 'Town', icon: '🏘️', border: '#55555c', start: { x: 170, y: 312, a: 0 }, times: { sunset: 1.5, evening: 2.5, night: 2.5 },
+    name: 'Town', icon: '🏘️', border: '#55555c', start: { x: 110, y: 320, a: 0 }, times: { sunset: 1.5, evening: 2.5, night: 2.5 },
     pop: [['human', 18], ['cat', 1], ['rat', 2]], walkers: 8,
-    build: () => { // a small town laid out around Main Street: downtown shops, the square, the gas station, the market lot, a diner and two quiet residential corners, all looping back into each other
-      // roads: Main St is the wide one through the middle; Elm St crosses it; Church St (north) and Oak St (south) meet it a little offset, the way old towns grew
-      const MAIN = [16, 280, 928, 64], ELM = [700, 58, 48, 526], CHURCH = [392, 58, 48, 222], OAK = [470, 344, 48, 196], WEST = [60, 58, 44, 222],
-        RIDGE = [16, 16, 928, 42], MILL = [104, 146, 288, 44], SOUTH = [470, 540, 474, 44], EAST = [900, 344, 44, 196];
-      const ROADS = [MAIN, ELM, CHURCH, OAK, WEST, RIDGE, MILL, SOUTH, EAST], QUIET = [RIDGE, MILL, SOUTH, EAST, WEST]; // residential and service roads are a shade darker
-      const LOT = [16, 362, 454, 262], PARK = [440, 58, 260, 204], FORE = [748, 58, 196, 222];
+    build: () => {
+      /* A slice of a small town. Main St runs across the middle and Elm St crosses it at the one real crossroads.
+         Every block is wrapped in streets, so you can always drive round it:
+           north of Main: the shop row with its service yard | the town square | the church | (Station Rd) | the east verge
+           south of Main: the supermarket and its lot | (Oak St) | the diner and its lot | (Elm) | the gas station, houses on Birch Ln behind it
+         Hill St runs along the top with a tree line beyond it; the streets that reach the edge of the map carry on out of town.
+         Sidewalks are 16 wide on every built-up side of every street, lamps stand at the curb, lots have one bay size. */
+      const SW = 16;
+      const MAIN = [16, 288, 928, 64], HILL = [16, 62, 928, 44], ELM = [610, 16, 52, 608], CHURCH = [230, 16, 48, 272], OAK = [420, 352, 48, 272],
+        STATION = [860, 106, 44, 518], BIRCH = [662, 500, 198, 44];
+      const ROADS = [MAIN, HILL, ELM, CHURCH, OAK, STATION, BIRCH], QUIET = [HILL, CHURCH, OAK, STATION, BIRCH];
+      const SQ = [294, 122, 300, 150], SQC = [444, 197]; // the square's lawn (inside its sidewalks) and its centre
+      const MKT_ROW = { x: 72, y: 416, w: 26, d: 44, n: 10 }, DIN_ROW = { x: 484, y: 392, w: 26, d: 44, n: 4 }; // the two parking plans: same bay size
       const car = (x, y, w, h, col, ex) => R(x, y, w, h, col, 'car', ex);
-      const BAY_X = 236, BAY_W = 28, BAY_D = 48, BAY_ROWS = [370, 488], BAYS = 8; // one parking plan: every bay the same size, two aligned rows, a wide aisle between
-      const CROSS = [[60, 262, 44, 18], [392, 262, 48, 18], [700, 262, 48, 18], [700, 344, 48, 18], [470, 344, 48, 18], [900, 344, 44, 18], // across each side street where it meets Main
-        [446, 280, 20, 64], [680, 280, 18, 64], [750, 280, 18, 64], [700, 522, 48, 18]]; // across Main at the square and either side of the Elm crossroads, and Elm at South St
+      const mktCar = (k, col, ex) => car(MKT_ROW.x + k * MKT_ROW.w + 3, MKT_ROW.y + 3, MKT_ROW.w - 6, MKT_ROW.d - 6, col, ex); // nose-in, centred in its bay
+      const dinCar = (k, col) => car(DIN_ROW.x + 3, DIN_ROW.y + k * DIN_ROW.w + 3, DIN_ROW.d - 6, DIN_ROW.w - 6, col);
+      const CROSS = [ // zebra crossings on Main, each lined up with the sidewalks either side of it
+        [278, 288, 16, 64], [468, 288, 16, 64], [594, 288, 16, 64], [662, 288, 16, 64], [844, 288, 16, 64],
+        [230, 272, 48, 16], [610, 272, 52, 16], [860, 272, 44, 16], [420, 352, 48, 16], [610, 352, 52, 16], [860, 352, 44, 16]];
+      const CORNERS = [[230, 106, 48, 16], [610, 106, 52, 16], [860, 106, 44, 16], [662, 500, 16, 44], [844, 500, 16, 44]]; // unmarked corners on the quiet streets, where people cross anyway
       const OBS = [
-        // north-west: two houses on Ridge Rd, their back yards running down to Mill Lane
-        R(128, 74, 84, 56, '#7d6b58', 'building', { roof: 'hip' }), R(268, 70, 104, 62, '#8a4a3a', 'building', { roof: 'gable' }),
-        TREE(34, 112, 12), TREE(36, 228, 13), // the west verge
-        // downtown: a row of shops with their fronts on Main St and their bins out back on Mill Lane
-        R(112, 208, 92, 54, '#9a5038', 'building', { roof: 'gable', shop: '#c0392b' }), R(204, 208, 96, 54, '#5d6670', 'building', { roof: 'flat', shop: '#2f6fb0' }),
-        R(300, 208, 80, 54, '#a5553a', 'building', { roof: 'flat', shop: '#d63a2a', conv: true }),
-        R(146, 192, 30, 15, '#4f6b3a', 'crate', { dumpster: true }), R(316, 192, 30, 15, '#4f6b3a', 'crate', { dumpster: true }),
-        // the town square: fountain in the middle, benches and old trees round the edge
-        Object.assign(C(570, 170, 30, '#4aa3df', 'water'), { fountain: true }),
-        R(462, 146, 40, 10, '#7a5a38', 'bench'), R(640, 184, 40, 10, '#7a5a38', 'bench'), // benches along the cross path, facing it
-        TREE(476, 90, 15), TREE(668, 238, 11), TREE(664, 88, 13),
-        R(612, 264, 40, 10, '#7a5a38', 'bench'), // the bus stop on Main
-        // gas station: kiosk in the corner, two pump islands under the canopy
-        R(864, 70, 80, 80, '#d8cfbf', 'building', { roof: 'flat', shop: '#c0392b' }),
-        R(800, 180, 12, 48, '#d9d9d9', 'crate', { pump: true }), R(856, 180, 12, 48, '#d9d9d9', 'crate', { pump: true }),
-        // the market and its lot; carts and a dumpster round the side
-        R(16, 470, 200, 154, '#6b7a5a', 'building', { roof: 'flat', market: true }), R(218, 590, 16, 30, '#4f6b3a', 'crate', { dumpster: true }),
-        ...[[0, 0, '#c0392b'], [0, 1, '#2c3e50'], [0, 5, '#95a5a6'], [1, 2, '#ecf0f1'], [1, 6, '#7d8a90'], [1, 7, '#f39c12', { taxi: true }]].map(([r, k, col, ex]) => car(BAY_X + k * BAY_W + 3, BAY_ROWS[r] + 4, BAY_W - 6, BAY_D - 8, col, ex)), // centered in their bays
-        // the diner on the corner of Main and Oak, a patio out back and a little playground
-        R(536, 364, 108, 64, '#b8463a', 'building', { roof: 'flat', shop: '#f1c40f', diner: true }),
-        Object.assign(C(566, 470, 7, '#c0392b', 'table'), { umbrella: true }), Object.assign(C(616, 474, 7, '#2f6fb0', 'table'), { umbrella: true }),
-        R(650, 492, 12, 38, '#c0392b', 'slide'),
-        // east: a pair of semi-detached houses between Elm St and East Lane
-        R(772, 366, 108, 76, '#7d6b58', 'building', { roof: 'hip' }), R(772, 442, 108, 78, '#5d6670', 'building', { roof: 'gable' }),
-        TREE(560, 612, 10), TREE(680, 610, 11), TREE(860, 612, 10), // the south verge
-        // streetlights: Main and the crossroads are well lit, the residential streets much less so
-        // streetlights stand at the curb, evenly spaced: closer together downtown, sparser on the residential streets
-        ...[150, 340, 560, 860].map(x => LAMP(x, 275)), ...[120, 330, 600, 840].map(x => LAMP(x, 349)), LAMP(250, 64), LAMP(694, 110), LAMP(694, 210), LAMP(754, 450), LAMP(810, 590),
-        LAMP(BAY_X - 7, BAY_ROWS[0] + BAY_D / 2), LAMP(BAY_X - 7, BAY_ROWS[1] + BAY_D / 2) // on the curbed islands at the end of each parking row
+        // the shop row: bakery, hardware store and the 24/7 on the corner, their backs on a service yard that opens onto Hill St and Church St
+        R(16, 220, 76, 52, '#9a5038', 'building', { roof: 'gable', shop: '#c0392b' }), R(92, 220, 70, 52, '#5d6670', 'building', { roof: 'flat', shop: '#2f6fb0' }),
+        R(162, 220, 52, 52, '#a5553a', 'building', { roof: 'flat', shop: '#d63a2a' }),
+        R(40, 204, 28, 14, '#4f6b3a', 'crate', { dumpster: true }), R(176, 204, 28, 14, '#4f6b3a', 'crate', { dumpster: true }), // against the back walls
+        car(114, 170, 24, 48, '#f2f2f2', { van: true }), // a delivery van backed up to the hardware store
+        // the town square: fountain on a round plaza, two benches facing the cross path, a tree in each lawn
+        Object.assign(C(SQC[0], SQC[1], 26, '#4aa3df', 'water'), { fountain: true }),
+        R(320, 180, 40, 8, '#7a5a38', 'bench'), R(540, 180, 40, 8, '#7a5a38', 'bench'),
+        TREE(400, 150, 13), TREE(492, 148, 14), TREE(350, 240, 14), TREE(552, 238, 12),
+        R(500, 275, 40, 8, '#7a5a38', 'bench'), C(492, 279, 4, '#3a3a40', 'bin'), // the bus stop on Main, at the curb
+        // the church: nave, a tower facing Main, a big tree by the graves
+        R(704, 140, 80, 92, '#b8ad9a', 'building', { roof: 'gable', rc: '#5a5048' }), R(728, 232, 32, 24, '#a89c88', 'building', { roof: 'hip', rc: '#4a423c' }),
+        TREE(826, 252, 12),
+        // the supermarket at the back of its lot, the lot's single parking row with a planted island at each end, the loading side
+        R(16, 520, 250, 104, '#6b7a5a', 'building', { roof: 'flat', shop: '#2e5a3a', front: 'n', market: true }), R(268, 532, 16, 30, '#4f6b3a', 'crate', { dumpster: true }),
+        mktCar(1, '#c0392b'), mktCar(2, '#2c3e50'), mktCar(5, '#95a5a6'), mktCar(8, '#ecf0f1'), mktCar(9, '#f39c12', { taxi: true }),
+        // the diner at the back of its own lot, bays along Oak St
+        R(490, 548, 98, 76, '#b8463a', 'building', { roof: 'flat', shop: '#f1c40f', front: 'n', diner: true }),
+        dinCar(0, '#8e44ad'), dinCar(2, '#2f5fa8'),
+        // the gas station on the corner: kiosk at the back, two pump islands under the canopy
+        R(788, 382, 56, 54, '#d8cfbf', 'building', { roof: 'flat', shop: '#c0392b', front: 'w' }),
+        R(696, 398, 12, 48, '#d9d9d9', 'crate', { pump: true }), R(740, 398, 12, 48, '#d9d9d9', 'crate', { pump: true }),
+        // two houses and a garage on Birch Ln, front lawns to the sidewalk, backs to the edge of town
+        R(684, 572, 72, 52, '#7d6b58', 'building', { roof: 'hip' }), R(756, 588, 30, 36, '#8a7a66', 'building', { roof: 'flat' }), R(786, 568, 58, 56, '#8a4a3a', 'building', { roof: 'gable' }),
+        // the tree line past Hill St and down the east side: trunks just beyond the edge, crowns hanging over
+        ...[60, 140, 330, 410, 530, 700, 790, 880].map((x, i) => TREE(x, 17, 13 + (i % 3))), ...[170, 240, 400, 490, 590].map((y, i) => TREE(943, y, 13 + (i % 2) * 2)),
+        // streetlights at the curb: every ~120 downtown, much sparser on the quiet streets; parking lights on the islands
+        ...[80, 190, 330, 470, 560, 720, 820].map(x => LAMP(x, 283)), ...[60, 180, 300, 530, 700, 810].map(x => LAMP(x, 357)),
+        LAMP(130, 111), LAMP(440, 111), LAMP(760, 111), LAMP(605, 200), LAMP(605, 440), LAMP(855, 200), LAMP(855, 440), LAMP(415, 470), LAMP(720, 549),
+        LAMP(MKT_ROW.x - 10, MKT_ROW.y + MKT_ROW.d / 2), LAMP(MKT_ROW.x + MKT_ROW.n * MKT_ROW.w + 10, MKT_ROW.y + MKT_ROW.d / 2)
       ];
+      const ring = []; for (let k = 0; k <= 16; k++) ring.push([SQC[0] + Math.cos(k / 16 * TAU) * 38, SQC[1] + Math.sin(k / 16 * TAU) * 38]);
       return {
-        roads: ROADS, crossings: CROSS,
-        lights: [{ x: 834, y: 188, r: 120, kind: 'fluor', fix: 'panel' }, { x: 834, y: 222, r: 120, kind: 'fluor', fix: 'panel' }, // the canopy, bright all night
-          { x: 340, y: 272, r: 70, kind: 'red', fix: 'none' }, { x: 590, y: 438, r: 80, kind: 'bar', fix: 'none' }, { x: 116, y: 462, r: 95, kind: 'fluor', fix: 'none' }], // the 24/7's red sign, the diner's neon, the market's doors
-        paths: [ // sidewalks, crossing at the crosswalks
-          [[24, 266], [392, 266], [440, 266], [700, 266], [930, 266]], [[24, 360], [470, 360], [518, 360], [700, 360], [930, 360]],
-          [[456, 270], [456, 354]], [[690, 270], [690, 354]], [[758, 270], [758, 354]],
-          [[446, 64], [694, 64], [694, 256], [446, 256], [446, 64]], [[112, 64], [380, 64]],
-          [[762, 66], [762, 270]], [[692, 360], [692, 530]], [[762, 360], [762, 530]], [[528, 531], [890, 531]], [[40, 452], [460, 452]]],
+        roads: ROADS, crossings: [...CROSS, ...CORNERS],
+        lights: [{ x: 724, y: 406, r: 120, kind: 'fluor', fix: 'panel' }, { x: 724, y: 440, r: 120, kind: 'fluor', fix: 'panel' }, // the gas canopy, lit all night
+          { x: 188, y: 280, r: 70, kind: 'red', fix: 'none' }, { x: 539, y: 540, r: 85, kind: 'bar', fix: 'none' }, { x: 140, y: 512, r: 95, kind: 'fluor', fix: 'none' }], // the 24/7's sign, the diner's neon, the market doors
+        paths: [ // sidewalk centre lines; people cross at the crossings and corners
+          [[24, 277], [930, 277]], [[24, 363], [930, 363]], [[24, 117], [930, 117]], [[670, 552], [852, 552]],
+          [[222, 122], [222, 272]], [[286, 122], [286, 272]], [[599, 122], [599, 272]], [[670, 122], [670, 272]], [[849, 122], [849, 272]],
+          [[409, 368], [409, 616]], [[476, 368], [476, 616]], [[599, 368], [599, 616]], [[670, 368], [670, 552]], [[849, 368], [849, 552]],
+          [[294, 197], [406, 197]], [[482, 197], [594, 197]], [[444, 122], [444, 159]], [[444, 235], [444, 272]], ring,
+          [[40, 392], [396, 392]], [[140, 392], [140, 512]], [[744, 256], [744, 272]]],
         obs: OBS,
         decor(x) {
-          for (const o of OBS) if (o.shop && o.kind === 'building') { // striped awnings over the shop doors
-            const ay = o.y + o.h - 6; for (let k = 0; k < o.w - 20; k += 10) { x.fillStyle = (k / 10) % 2 ? '#f4efe6' : o.shop; x.fillRect(o.x + 10 + k, ay, 10, 9); }
-            x.fillStyle = 'rgba(0,0,0,.25)'; x.fillRect(o.x + 10, ay + 9, o.w - 20, 1.5);
+          for (const o of OBS) if (o.shop && o.kind === 'building') { // striped awning over the front door, on whichever side faces the street or lot
+            const f = o.front || 's', hz = f === 's' || f === 'n', L = hz ? o.w : o.h;
+            for (let k = 10; k < L - 10; k += 10) { x.fillStyle = (k / 10) % 2 ? '#f4efe6' : o.shop; f === 's' ? x.fillRect(o.x + k, o.y + o.h - 6, 10, 9) : f === 'n' ? x.fillRect(o.x + k, o.y - 3, 10, 9) : x.fillRect(o.x - 3, o.y + k, 9, 10); }
           }
           const sign = (t, cx, cy, bg, fg, s = 8) => { x.font = `bold ${s}px sans-serif`; const w = x.measureText(t).width + 8; x.fillStyle = bg; x.fillRect(cx - w / 2, cy - s * .75, w, s * 1.5); x.fillStyle = fg; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(t, cx, cy + .5); };
-          sign('MARKET', 116, 520, '#2e5a3a', '#f4efe6', 11); sign('DINER', 590, 392, '#1d1d22', '#ff7a5a', 10); sign('24/7', 340, 232, '#1d1d22', '#ff4a3a'); sign('GAS', 904, 106, '#c0392b', '#fff', 9);
-          x.fillStyle = '#e8e2d4'; for (let k = 0; k < 9; k++) x.fillRect(34 + k * 18, 462, 12, 8); // the market's entrance canopy
-          x.strokeStyle = '#8a9098'; x.lineWidth = 1.2; for (let k = 0; k < 3; k++) { const cx = 196 + k * 7; x.strokeRect(cx, 448, 9, 6); } // carts left by the doors
-          x.fillStyle = '#d0453a'; for (const [mx, my] of [[150, 66], [300, 66], [764, 396], [764, 474]]) { x.fillRect(mx - 3, my - 2, 6, 4); x.fillStyle = '#3a3a3a'; x.fillRect(mx - .5, my + 2, 1, 3); x.fillStyle = '#d0453a'; } // mailboxes
-          x.fillStyle = '#c0392b'; for (const [hx, hy] of [[108, 274], [446, 350], [696, 274], [524, 536], [896, 350]]) { circ(x, hx, hy, 2.6); x.fillStyle = '#e8b326'; circ(x, hx, hy, 1.2); x.fillStyle = '#c0392b'; } // hydrants
-          x.fillStyle = '#5a4a3a'; for (const [ux, uy] of [[50, 140], [50, 230], [890, 420], [890, 500], [600, 591]]) circ(x, ux, uy, 2.4); // utility poles
-          x.fillStyle = '#c0392b'; for (const [sx, sy] of [[440, 274], [104, 274], [518, 350], [900, 350]]) { x.beginPath(); for (let k = 0; k < 8; k++) { const a = k * TAU / 8 + TAU / 16; x.lineTo(sx + Math.cos(a) * 3.2, sy + Math.sin(a) * 3.2); } x.fill(); } // stop signs at the T-junctions
-          x.fillStyle = '#2b2b30'; x.fillRect(606, 264, 2, 10); x.fillStyle = '#2f6fb0'; x.fillRect(603, 262, 8, 4); // bus stop sign
-          x.fillStyle = '#3a3a3a'; circ(x, 570, 252, 3.4); x.fillStyle = '#f4efe6'; circ(x, 570, 252, 2.4); x.strokeStyle = '#222'; x.lineWidth = .6; x.beginPath(); x.moveTo(570, 252); x.lineTo(570, 250.4); x.moveTo(570, 252); x.lineTo(571.4, 252); x.stroke(); // the square's clock
-          x.fillStyle = '#c0392b'; x.fillRect(756, 264, 10, 12); x.fillStyle = '#ffe9a0'; x.font = 'bold 4px sans-serif'; x.textAlign = 'center'; x.fillText('3.49', 761, 271); // price board
+          sign('MARKET', 141, 572, '#2e5a3a', '#f4efe6', 12); sign('DINER', 539, 586, '#1d1d22', '#ff7a5a', 11); sign('24/7', 188, 242, '#1d1d22', '#ff4a3a'); sign('GAS', 816, 409, '#c0392b', '#fff', 9);
+          x.strokeStyle = '#f4efe6'; x.lineWidth = 2; x.beginPath(); x.moveTo(744, 237); x.lineTo(744, 251); x.moveTo(738, 242); x.lineTo(750, 242); x.stroke(); // the cross on the tower
+          const g = seeded(77); x.fillStyle = '#8f9196'; for (let gx = 800; gx <= 836; gx += 12) for (let gy = 150; gy <= 222; gy += 18) if (g() < .8) { rrect(x, gx + g() * 3, gy + g() * 3, 6, 4, 1.5); x.fill(); } // the old graves
+          x.strokeStyle = '#8a9098'; x.lineWidth = 1.2; for (let k = 0; k < 3; k++) x.strokeRect(196 + k * 7, 503, 9, 6); // carts by the market door
+          x.fillStyle = '#d0453a'; for (const [mx, my] of [[700, 548], [830, 548]]) { x.fillRect(mx - 3, my - 2, 6, 4); x.fillStyle = '#3a3a3a'; x.fillRect(mx - .5, my + 2, 1, 3); x.fillStyle = '#d0453a'; } // mailboxes at the curb
+          x.fillStyle = '#c0392b'; for (const [hx, hy] of [[296, 284], [582, 284], [486, 356], [676, 356], [846, 284]]) { circ(x, hx, hy, 2.6); x.fillStyle = '#e8b326'; circ(x, hx, hy, 1.2); x.fillStyle = '#c0392b'; } // hydrants at the curb
+          x.fillStyle = '#5a4a3a'; for (const px of [110, 380, 560, 760]) circ(x, px, 58, 2.4); // utility poles along Hill St
+          x.fillStyle = '#c0392b'; for (const [sx, sy] of [[226, 284], [416, 356], [856, 284], [856, 356], [856, 110], [666, 540]]) { x.beginPath(); for (let k = 0; k < 8; k++) { const a = k * TAU / 8 + TAU / 16; x.lineTo(sx + Math.cos(a) * 3.2, sy + Math.sin(a) * 3.2); } x.fill(); } // stop signs where side streets meet
+          x.fillStyle = '#2b2b30'; x.fillRect(546, 274, 2, 10); x.fillStyle = '#2f6fb0'; x.fillRect(543, 272, 8, 4); // bus stop sign
+          x.fillStyle = '#c0392b'; x.fillRect(682, 370, 12, 12); x.fillStyle = '#ffe9a0'; x.font = 'bold 4px sans-serif'; x.textAlign = 'center'; x.fillText('3.49', 688, 377); // price board on the corner
+          x.fillStyle = '#5a7fa8'; x.fillRect(780, 444, 8, 10); x.fillStyle = '#e8eef2'; x.fillRect(781, 445, 6, 3); // ice chest by the kiosk
         },
         floor(x) {
           const paveA = '#b9b3a7', paveB = '#c6c0b3';
-          x.fillStyle = paveA; x.fillRect(0, 0, W, H); x.fillStyle = paveB; for (let i = 0; i < W; i += 24) for (let j = 0; j < H; j += 24) if ((i / 24 + j / 24) % 2) x.fillRect(i, j, 24, 24); // sidewalk slabs everywhere off the road
-          const grass = (r, seed) => { x.fillStyle = '#93bf55'; x.fillRect(...r); const g = seeded(seed); for (let k = 0; k < r[2] * r[3] / 60; k++) { x.fillStyle = g() < .5 ? '#86b24b' : '#a2cb62'; x.fillRect(r[0] + g() * r[2], r[1] + g() * r[3], 2, 2); } x.strokeStyle = 'rgba(70,90,40,.35)'; x.lineWidth = 1.5; x.strokeRect(r[0] + .75, r[1] + .75, r[2] - 1.5, r[3] - 1.5); };
-          grass([16, 58, 44, 222], 31); grass([104, 70, 288, 76], 32); grass([452, 70, 236, 180], 33); grass([768, 362, 114, 160], 34); grass([470, 598, 474, 26], 35); grass([536, 446, 150, 76], 36); // lawns, each with a sidewalk between it and the street
-          x.fillStyle = '#c7bfae'; x.fillRect(214, 70, 22, 62); x.fillRect(160, 70, 20, 4); x.fillRect(768, 400, 4, 20); x.fillRect(768, 478, 4, 20); // driveways and garden paths
-          x.fillStyle = '#cfc6b4'; x.fillRect(452, 160, 236, 20); x.fillRect(560, 70, 20, 180); circ(x, 570, 170, 52); // the square's paths
-          x.strokeStyle = '#bfb5a1'; x.lineWidth = 1; x.beginPath(); x.arc(570, 170, 52, 0, TAU); x.stroke();
-          x.fillStyle = '#d9c99a'; x.fillRect(560, 496, 64, 34); x.strokeStyle = '#a58a5a'; x.lineWidth = 2; x.strokeRect(561, 497, 62, 32); // sandpit
-          x.fillStyle = '#8f8c86'; x.fillRect(...FORE); x.fillStyle = '#9a978f'; for (let i = 748; i < 944; i += 28) x.fillRect(i, 58, 1, 222); // forecourt concrete
-          x.fillStyle = '#4b4b52'; x.fillRect(...LOT);
-          for (const r of ROADS) { x.fillStyle = QUIET.includes(r) ? '#3f3f45' : '#45454c'; x.fillRect(...r); }
+          x.fillStyle = paveA; x.fillRect(0, 0, W, H); x.fillStyle = paveB; for (let i = 0; i < W; i += 24) for (let j = 0; j < H; j += 24) if ((i / 24 + j / 24) % 2) x.fillRect(i, j, 24, 24); // sidewalk slabs
+          const grass = (r, seed, edge = true) => { x.fillStyle = '#93bf55'; x.fillRect(...r); const g = seeded(seed); for (let k = 0; k < r[2] * r[3] / 60; k++) { x.fillStyle = g() < .5 ? '#86b24b' : '#a2cb62'; x.fillRect(r[0] + g() * r[2], r[1] + g() * r[3], 2, 2); } if (edge) { x.strokeStyle = 'rgba(70,90,40,.35)'; x.lineWidth = 1.5; x.strokeRect(r[0] + .75, r[1] + .75, r[2] - 1.5, r[3] - 1.5); } };
+          const asph = (r, c = '#4b4b52') => { x.fillStyle = c; x.fillRect(...r); };
+          grass([16, 16, 928, 46], 31, false); grass([904, 16, 40, 608], 32, false); // the verges at the edge of town
+          grass(SQ, 33); grass([678, 122, 166, 150], 34); grass([678, 560, 166, 64], 35); // the square, the churchyard, the front lawns
+          asph([16, 122, 198, 98], '#48484f'); asph([16, 368, 388, 152]); asph([266, 520, 138, 104], '#48484f'); asph([484, 368, 110, 180]); // service yard, market lot, loading side, diner lot
+          x.fillStyle = '#8f8c86'; x.fillRect(678, 368, 166, 116); x.fillStyle = '#9a978f'; for (let i = 678; i < 844; i += 28) x.fillRect(i, 368, 1, 116); // forecourt concrete
+          x.fillStyle = '#cfc6b4'; x.fillRect(SQ[0], SQC[1] - 8, SQ[2], 16); x.fillRect(SQC[0] - 8, SQ[1], 16, SQ[3]); circ(x, SQC[0], SQC[1], 48); // the square's paths and plaza
+          x.strokeStyle = '#bfb5a1'; x.lineWidth = 1; x.beginPath(); x.arc(SQC[0], SQC[1], 48, 0, TAU); x.stroke();
+          x.fillStyle = '#cfc6b4'; x.fillRect(736, 256, 16, 16); x.fillRect(712, 560, 12, 12); x.fillRect(808, 560, 12, 8); x.fillRect(758, 560, 26, 28); // church path, garden paths, the driveway
+          for (const r of ROADS) asph(r, QUIET.includes(r) ? '#3f3f45' : '#45454c');
           speckle(x, 1300, ['#3e3e44', '#53535a', '#4a4a50'], 7, 1.2);
-          x.strokeStyle = '#e6e6e6'; x.lineWidth = 2; // parking bays
-          for (const ry of BAY_ROWS) { for (let k = 0; k <= BAYS; k++) { x.beginPath(); x.moveTo(BAY_X + k * BAY_W, ry); x.lineTo(BAY_X + k * BAY_W, ry + BAY_D); x.stroke(); } }
-          x.fillStyle = '#8e887c'; for (const ry of BAY_ROWS) { x.fillRect(BAY_X - 14, ry, 12, BAY_D); x.fillStyle = '#93bf55'; x.fillRect(BAY_X - 12, ry + 2, 8, BAY_D - 4); x.fillStyle = '#8e887c'; } // curbed planting islands at the row ends
-          x.fillStyle = 'rgba(230,230,230,.5)'; x.fillRect(180, 436, 30, 2); x.beginPath(); x.moveTo(170, 437); x.lineTo(180, 432); x.lineTo(180, 442); x.fill(); // faded lot arrow
-          x.fillStyle = 'rgba(0,0,0,.18)'; for (const [cx, cy, rr] of [[230, 316], [760, 300], [330, 412], [820, 210], [160, 168], [610, 560]].map(p => [...p, 9])) ell(x, cx, cy, rr * 1.4, rr); // oil stains
-          x.strokeStyle = '#8e887c'; x.lineWidth = 2; for (const [rx, ry, rw, rh] of ROADS) x.strokeRect(rx + 1, ry + 1, rw - 2, rh - 2); // curbs
-          const open = (a, b, c, d) => { // junction mouths: no curb where roads meet
-            x.fillStyle = '#45454c'; x.fillRect(a, b, c, d); };
-          open(62, 276, 40, 8); open(394, 276, 44, 8); open(702, 276, 44, 8); open(702, 340, 44, 8); open(472, 340, 44, 8); open(902, 340, 40, 8);
-          open(62, 54, 40, 8); open(394, 54, 44, 8); open(702, 54, 44, 8); open(100, 148, 8, 40); open(388, 148, 8, 40); open(702, 536, 44, 8); open(696, 542, 8, 40); open(472, 536, 44, 8); open(902, 536, 40, 8); open(940, 542, 4, 40);
-          x.fillStyle = '#e8d06a'; for (let i = 20; i < W - 20; i += 40) if (!(i > 380 && i < 530) && !(i > 680 && i < 770)) x.fillRect(i, 310, 22, 3); // Main's center line, broken at the junctions
-          for (let j = 70; j < 570; j += 40) if (!(j > 250 && j < 360)) x.fillRect(722, j, 3, 22); // Elm's
-          x.fillStyle = '#e6e6e6'; for (const [cx, cy, cw, ch] of CROSS) if (cw > ch) for (let k = cx + 4; k < cx + cw - 4; k += 9) x.fillRect(k, cy + 2, 5, ch - 4); else for (let k = cy + 4; k < cy + ch - 4; k += 9) x.fillRect(cx + 2, k, cw - 4, 5); // zebra crossings
-          x.fillRect(472, 346 + 22, 44, 2); x.fillRect(394, 256, 44, 2); x.fillRect(62, 256, 40, 2); x.fillRect(902, 366, 40, 2); // stop lines
-          x.strokeStyle = 'rgba(30,30,34,.55)'; x.lineWidth = 1; // cracked asphalt and patched pavement
-          for (const pts of [[[150, 296], [168, 304], [176, 300], [190, 312]], [[610, 330], [622, 322], [640, 326]], [[820, 560], [834, 566], [842, 560]], [[200, 30], [214, 40], [226, 36]], [[320, 160], [330, 174], [344, 170]]]) { x.beginPath(); pts.forEach(([a, b], k) => k ? x.lineTo(a, b) : x.moveTo(a, b)); x.stroke(); }
-          x.fillStyle = 'rgba(0,0,0,.08)'; x.fillRect(820, 300, 40, 24); x.fillRect(260, 548, 30, 30);
-          x.fillStyle = '#2f2f34'; for (const [px, py] of [[360, 296], [600, 328], [416, 120], [712, 460], [610, 562]]) { circ(x, px, py, 6); x.fillStyle = '#3b3b41'; circ(x, px, py, 4); x.fillStyle = '#2f2f34'; } // manholes
-          x.fillStyle = '#26262b'; for (const [px, py, v] of [[200, 341], [560, 283], [640, 341], [820, 283], [180, 149], [600, 581], [903, 420, 1], [745, 200, 1]]) v ? x.fillRect(px - 2, py - 6, 4, 12) : x.fillRect(px - 6, py - 2, 12, 4); // storm drains set into the curb
-          x.save(); x.globalAlpha = .55; x.fillStyle = '#ececec'; x.fillRect(780, 168, 110, 72); x.restore(); x.strokeStyle = '#c0392b'; x.lineWidth = 3; x.strokeRect(781.5, 169.5, 107, 69); // the gas canopy
-          x.fillStyle = '#93bf55'; for (const [tx, ty] of [[476, 90], [668, 238], [664, 88]]) circ(x, tx, ty, 17); // tree pits in the square
+          // curbs: along every road edge, then opened up wherever two roads meet
+          x.strokeStyle = '#8e887c'; x.lineWidth = 2; for (const [rx, ry, rw, rh] of ROADS) x.strokeRect(rx + 1, ry + 1, rw - 2, rh - 2);
+          const isect = (a, b) => { const x0 = Math.max(a[0], b[0]), y0 = Math.max(a[1], b[1]), x1 = Math.min(a[0] + a[2], b[0] + b[2]), y1 = Math.min(a[1] + a[3], b[1] + b[3]); return x1 > x0 && y1 > y0 ? [x0, y0, x1 - x0, y1 - y0] : null; };
+          const grow = (r, k) => [r[0] - k, r[1] - k, r[2] + 2 * k, r[3] + 2 * k];
+          for (const a of ROADS) for (const b of ROADS) if (a !== b) { const m = isect(a, grow(b, 3)); if (m) asph(m, QUIET.includes(a) && QUIET.includes(b) ? '#3f3f45' : '#45454c'); }
+          // parking: one bay size everywhere, lines evenly spaced, curbed planting islands at the ends of the market row
+          x.strokeStyle = '#e6e6e6'; x.lineWidth = 2;
+          for (let k = 0; k <= MKT_ROW.n; k++) { const lx = MKT_ROW.x + k * MKT_ROW.w; x.beginPath(); x.moveTo(lx, MKT_ROW.y); x.lineTo(lx, MKT_ROW.y + MKT_ROW.d); x.stroke(); }
+          for (let k = 0; k <= DIN_ROW.n; k++) { const ly = DIN_ROW.y + k * DIN_ROW.w; x.beginPath(); x.moveTo(DIN_ROW.x, ly); x.lineTo(DIN_ROW.x + DIN_ROW.d, ly); x.stroke(); }
+          for (const ix of [MKT_ROW.x - 20, MKT_ROW.x + MKT_ROW.n * MKT_ROW.w]) { x.fillStyle = '#8e887c'; x.fillRect(ix, MKT_ROW.y, 20, MKT_ROW.d); x.fillStyle = '#93bf55'; x.fillRect(ix + 2, MKT_ROW.y + 2, 16, MKT_ROW.d - 4); }
+          x.fillStyle = '#e8b326'; for (let k = 0; k < 6; k++) x.fillRect(268, 572 + k * 8, 20, 3); // loading bay hatching
+          x.fillStyle = 'rgba(230,230,230,.5)'; x.fillRect(200, 476, 40, 2); x.beginPath(); x.moveTo(190, 477); x.lineTo(200, 472); x.lineTo(200, 482); x.fill(); // faded arrow in the lot aisle
+          // driveway aprons across the sidewalk into each lot: lighter concrete, the curb dropped
+          x.fillStyle = '#d2cbbd'; for (const r of [[34, 106, 44, 16], [150, 106, 44, 16], [214, 150, 16, 44], [40, 352, 44, 16], [330, 352, 44, 16], [404, 470, 16, 40], [520, 352, 44, 16], [594, 470, 16, 40], [700, 352, 44, 16], [792, 352, 40, 16], [662, 400, 16, 40], [700, 484, 44, 16], [758, 544, 26, 16]]) x.fillRect(...r);
+          // markings
+          x.fillStyle = '#e8d06a'; for (let i = 20; i < W - 20; i += 40) if (![[214, 294], [404, 484], [594, 678], [844, 920]].some(([a, b]) => i + 22 > a && i < b)) x.fillRect(i, 318.5, 22, 3); // Main's centre line
+          for (let j = 20; j < H - 20; j += 40) if (![[46, 122], [272, 368], [484, 560]].some(([a, b]) => j + 22 > a && j < b)) x.fillRect(634.5, j, 3, 22); // Elm's
+          x.fillStyle = '#e6e6e6'; for (const [cx, cy, cw, ch] of CROSS) if (cw > ch) for (let k = cx + 4; k < cx + cw - 4; k += 9) x.fillRect(k, cy + 2, 5, ch - 4); else for (let k = cy + 4; k < cy + ch - 4; k += 9) x.fillRect(cx + 2, k, cw - 4, 5); // zebras
+          for (const [sx, sy, sw, sh] of [[232, 266, 44, 2], [422, 370, 44, 2], [862, 266, 40, 2], [862, 370, 40, 2], [862, 124, 40, 2], [680, 502, 2, 40], [842, 502, 2, 40], [232, 124, 44, 2]]) x.fillRect(sx, sy, sw, sh); // stop lines
+          x.fillStyle = '#2f2f34'; for (const [px, py] of [[150, 304], [760, 336], [623, 200], [649, 460], [520, 84], [444, 560]]) { circ(x, px, py, 6); x.fillStyle = '#3b3b41'; circ(x, px, py, 4); x.fillStyle = '#2f2f34'; } // manholes, each centred in its lane
+          x.fillStyle = '#26262b'; for (const [px, py, v] of [[180, 290], [500, 350], [360, 104], [780, 542], [612, 400, 1], [862, 250, 1], [470, 590, 1]]) v ? x.fillRect(px - 2, py - 6, 4, 12) : x.fillRect(px - 6, py - 2, 12, 4); // storm drains set into the curb
+          x.strokeStyle = 'rgba(30,30,34,.5)'; x.lineWidth = 1; for (const pts of [[[120, 296], [138, 304], [146, 300], [160, 312]], [[700, 326], [712, 318], [730, 322]], [[300, 76], [314, 86], [326, 82]], [[880, 470], [888, 486], [884, 498]]]) { x.beginPath(); pts.forEach(([a, b], k) => k ? x.lineTo(a, b) : x.moveTo(a, b)); x.stroke(); } // cracks
+          x.fillStyle = 'rgba(0,0,0,.08)'; x.fillRect(380, 296, 40, 24); x.fillRect(872, 600, 24, 20); // patched asphalt
+          x.fillStyle = 'rgba(0,0,0,.18)'; for (const [cx, cy] of [[90, 160], [180, 446], [310, 446], [506, 440], [720, 470], [126, 316]]) ell(x, cx, cy, 12, 8); // oil stains
+          x.save(); x.globalAlpha = .55; x.fillStyle = '#ececec'; x.fillRect(684, 390, 82, 64); x.restore(); x.strokeStyle = '#c0392b'; x.lineWidth = 3; x.strokeRect(685.5, 391.5, 79, 61); // the gas canopy
         }
       };
     }
