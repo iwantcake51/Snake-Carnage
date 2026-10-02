@@ -1404,3 +1404,22 @@ input[type=range]{accent-color:var(--acc)}
 .btn.alt,.ghost{background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(0,0,0,.18))!important}
 .play{background:linear-gradient(180deg,color-mix(in srgb,var(--acc) 100%,#fff 4%),color-mix(in srgb,var(--acc) 72%,#000))!important}
 .btn:not(.alt){background:linear-gradient(180deg,var(--acc),color-mix(in srgb,var(--acc) 75%,#000))!important}
+/* ---- feel: halftone on the main buttons, soft press, ripple, smooth scrolling ---- */
+.play,.btn:not(.alt){position:relative;overflow:hidden;isolation:isolate}
+.play::before,.btn:not(.alt)::before{content:'';position:absolute;inset:-12px;z-index:-1;pointer-events:none;opacity:.32;
+  background-image:radial-gradient(circle,#000 0 1.1px,transparent 1.5px),radial-gradient(circle,#000 0 .7px,transparent 1.1px);background-size:7px 7px,7px 7px;background-position:0 0,3.5px 3.5px;
+  -webkit-mask:linear-gradient(100deg,#000 0%,rgba(0,0,0,.55) 45%,transparent 85%);mask:linear-gradient(100deg,#000 0%,rgba(0,0,0,.55) 45%,transparent 85%);
+  animation:halftone 9s linear infinite}
+.play>*,.btn:not(.alt)>*{position:relative}
+@keyframes halftone{to{background-position:70px -35px,73.5px -31.5px}}
+@media (prefers-reduced-motion:reduce){.play::before,.btn:not(.alt)::before{animation:none}}
+/* press: a quick, soft sink and an ease back, never a snap */
+.play,.ghost,.btn,.tab,.seg button,.sseg button,.ctabs button,.card,.mtile,.sc,.ach,.upc,.mc,.pmc,#bar button,.tgl{transition:background .18s ease,border-color .18s ease,color .18s ease,box-shadow .18s ease,transform .32s cubic-bezier(.2,.9,.25,1),filter .18s ease!important;will-change:transform}
+.play:active,.ghost:active,.btn:active,.tab:active,.seg button:active,.sseg button:active,.ctabs button:active,.mtile:active,.sc:active,#bar button:active{transform:translateY(1px) scale(.975)!important;filter:brightness(.92);transition-duration:.08s!important}
+.card:active{transform:perspective(520px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg)) scale(.97)!important;transition-duration:.08s!important}
+.ripple{position:absolute;border-radius:50%;pointer-events:none;background:rgba(255,255,255,.22);transform:scale(0);animation:ripple .55s cubic-bezier(.2,.7,.3,1) forwards;z-index:0}
+@keyframes ripple{to{transform:scale(1);opacity:0}}
+/* scrolling: thin scrollbars, momentum stays inside the menu */
+#overlay *{scrollbar-width:thin;scrollbar-color:var(--edge2) transparent;overscroll-behavior:contain}
+#overlay ::-webkit-scrollbar{width:8px;height:8px}#overlay ::-webkit-scrollbar-thumb{background:var(--edge2);border-radius:0;border:2px solid transparent;background-clip:padding-box}
+#overlay ::-webkit-scrollbar-thumb:hover{background-color:var(--acc)}#overlay ::-webkit-scrollbar-track{background:transparent}
