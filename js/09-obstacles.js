@@ -51,6 +51,7 @@ function drawObstacleBase(x, o) {
         x.fillStyle = shade(c, .3); circ(x, o.x - o.r * .32, o.y - o.r * .36, o.r * .2);
         return;
       }
+      case 'bin': x.fillStyle = shade(c, -.25); circ(x, o.x, o.y, o.r); x.fillStyle = c; circ(x, o.x, o.y, o.r - 1.4); x.strokeStyle = shade(c, .25); x.lineWidth = 1; x.beginPath(); x.arc(o.x, o.y, o.r * .55, 0, TAU); x.stroke(); x.fillStyle = shade(c, .3); x.fillRect(o.x - 2.5, o.y - .8, 5, 1.6); return edge(x, o, .35); // a wheelie bin, lid and handle
       case 'rock': x.fillStyle = c; circ(x, o.x, o.y, o.r); x.fillStyle = shade(c, .18); circ(x, o.x - o.r * .28, o.y - o.r * .3, o.r * .5); x.fillStyle = shade(c, -.15); circ(x, o.x + o.r * .35, o.y + o.r * .3, o.r * .35);
         if (o.antenna) { x.fillStyle = '#d8dde2'; circ(x, o.x, o.y, o.r * .9); x.strokeStyle = '#7d848c'; x.lineWidth = 1.5; x.beginPath(); x.arc(o.x, o.y, o.r * .9, 0, TAU); x.stroke(); x.fillStyle = '#6a7078'; circ(x, o.x, o.y, 2.2); }
         return edge(x, o, .25);
@@ -126,12 +127,15 @@ function drawObstacleBase(x, o) {
     case 'car': {
       if (o.tractor) { x.fillStyle = '#222'; x.fillRect(X - 2, Y - 3, 14, 6); x.fillRect(X - 2, Y + h - 3, 14, 6); x.fillRect(X + w - 14, Y - 1, 10, 4); x.fillRect(X + w - 14, Y + h - 3, 10, 4); x.fillStyle = c; x.fillRect(X, Y, w, h); x.fillStyle = shade(c, -.25); x.fillRect(X + 2, Y + 4, 18, h - 8); x.fillStyle = '#bfe3f5'; x.fillRect(X + 4, Y + 6, 14, h - 12); x.fillStyle = '#555'; circ(x, X + w - 8, Y + h / 2, 3); return edge(x, o); }
       if (o.rover) { x.fillStyle = '#3a3e44'; for (const fx of [.15, .5, .85]) { x.fillRect(X + w * fx - 4, Y - 3, 8, 5); x.fillRect(X + w * fx - 4, Y + h - 2, 8, 5); } x.fillStyle = c; x.fillRect(X, Y, w, h); x.fillStyle = '#2c3e66'; x.fillRect(X + 4, Y + 4, w * .45, h - 8); x.fillStyle = '#9aa1aa'; circ(x, X + w * .78, Y + h / 2, 4); return edge(x, o); }
+      if (o.van) { x.fillStyle = c; rrect(x, X, Y, w, h, 3); x.fill(); x.fillStyle = '#bfe3f5'; hz ? x.fillRect(X + w - 9, Y + 3, 5, h - 6) : x.fillRect(X + 3, Y + 3, w - 6, 6); x.strokeStyle = 'rgba(0,0,0,.15)'; x.lineWidth = 1; for (let k = 1; k < 4; k++) { x.beginPath(); hz ? (x.moveTo(X + w * k / 5, Y + 2), x.lineTo(X + w * k / 5, Y + h - 2)) : (x.moveTo(X + 2, Y + 12 + k * (h - 14) / 4), x.lineTo(X + w - 2, Y + 12 + k * (h - 14) / 4)); x.stroke(); } x.fillStyle = '#d63c3c'; hz ? x.fillRect(X + 4, Y + h / 2 - 2, w * .5, 4) : x.fillRect(X + w / 2 - 2, Y + 16, 4, h * .5); return edge(x, o); } // delivery van: roof ribs and a logo stripe
       x.fillStyle = c; x.fillRect(X, Y, w, h); x.fillStyle = '#bfe3f5';
+      if (o.taxi) { x.fillStyle = '#2b2b30'; hz ? x.fillRect(X + w * .42, Y + h / 2 - 3, 8, 6) : x.fillRect(X + w / 2 - 3, Y + h * .42, 6, 8); x.fillStyle = '#bfe3f5'; } // roof sign
       if (hz) { x.fillRect(X + w * .62, Y + 3, w * .14, h - 6); x.fillRect(X + w * .18, Y + 3, w * .1, h - 6); } else { x.fillRect(X + 3, Y + h * .2, w - 6, h * .14); x.fillRect(X + 3, Y + h * .7, w - 6, h * .1); }
       return edge(x, o);
     }
     case 'crate':
       if (o.printer) { x.fillStyle = c; x.fillRect(X, Y, w, h); x.fillStyle = '#5a5a62'; x.fillRect(X + 6, Y + 6, w - 12, 8); x.fillStyle = '#fff'; x.fillRect(X + 14, Y + h - 10, w - 28, 6); return edge(x, o); }
+      if (o.dumpster) { x.fillStyle = shade(c, -.2); x.fillRect(X, Y, w, h); x.fillStyle = c; x.fillRect(X + 1.5, Y + 1.5, w - 3, h / 2 - 2); x.fillStyle = shade(c, .08); x.fillRect(X + 1.5, Y + h / 2, w - 3, h / 2 - 1.5); x.fillStyle = '#d9d9d9'; x.fillRect(X + w / 2 - 4, Y + 2, 8, 2); return edge(x, o, .4); } // two lids, a hinge bar
       if (o.trough) { x.fillStyle = c; x.fillRect(X, Y, w, h); x.fillStyle = '#6fb0d0'; x.fillRect(X + 3, Y + 3, w - 6, h - 6); return edge(x, o); }
       x.fillStyle = c; x.fillRect(X, Y, w, h); x.strokeStyle = shade(c, -.3); x.lineWidth = 3; x.strokeRect(X + 2.5, Y + 2.5, w - 5, h - 5); x.lineWidth = 2.5; x.beginPath(); x.moveTo(X + 4, Y + 4); x.lineTo(X + w - 4, Y + h - 4); x.moveTo(X + w - 4, Y + 4); x.lineTo(X + 4, Y + h - 4); x.stroke(); return edge(x, o);
     case 'shelf':

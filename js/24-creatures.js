@@ -28,6 +28,7 @@ function spawn(type, zone) {
   for (let k = 0; k < 300; k++) {
     const x = rand(z.x + def.r, z.x + z.w - def.r), y = rand(z.y + def.r, z.y + z.h - def.r);
     if (!free(x, y, def.r + 3)) continue;
+    if (def.human && k < 200 && typeof onRoad === 'function' && onRoad(x, y)) continue; // nobody starts out standing in the road
     if (snake && k < 250 && dist2(x, y, snake.x, snake.y) < 200 * 200) continue;
     const c = giveFlash(makeCreature(type, x, y, zone)); c.born = T; giveTraits(c);
     if (def.human && state === 'play' && Math.random() < (MOD.rareAppetite ? .12 : .03)) { // rare golden target: worth a lot more

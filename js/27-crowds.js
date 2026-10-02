@@ -29,6 +29,9 @@ function spotScore(c, x, y) { // shared by wandering and fleeing: open, uncrowde
   if (c.badSpots) for (const p of c.badSpots) { const q = Math.hypot(x - p.x, y - p.y); if (q < 120) sc -= (120 - q) * 1.2; }
   return sc;
 }
+let curRoads = [], curCross = [];
+const inRect = (x, y, r) => x >= r[0] && y >= r[1] && x <= r[0] + r[2] && y <= r[1] + r[3];
+const onRoad = (x, y) => curRoads.some(r => inRect(x, y, r)), onCrossing = (x, y) => curCross.some(r => inRect(x, y, r));
 function openDir(c) { // the most open direction from here that isn't straight back into what blocked it
   let best = c.a + Math.PI, bs = -1e9;
   for (let k = 0; k < 12; k++) {
@@ -45,6 +48,10 @@ function pickWander(c) { // a heading toward somewhere reasonable, with plenty o
     const a = k < 4 ? c.a + rand(-1.8, 1.8) : rand(0, TAU), d = rand(80, 160), x = c.x + Math.cos(a) * d, y = c.y + Math.sin(a) * d;
     if (x < B || y < B || x > W - B || y > H - B || solid(x, y) || !los(c.x, c.y, x, y)) continue; // only places it can actually walk straight to
     if (c.failed && c.failed.some(f => T - f.t < 20 && dist2(f.x, f.y, x, y) < 50 * 50)) continue; // not the spot it just failed to reach
+    if (c.def.human && curRoads.length) { // people keep to the sidewalks, and only cross where there's a crosswalk
+      let jay = false; for (let t = .15; t <= 1; t += .17) { const qx = c.x + (x - c.x) * t, qy = c.y + (y - c.y) * t; if (onRoad(qx, qy) && !onCrossing(qx, qy)) { jay = true; break; } }
+      if (jay && c.state !== 'flee' && Math.random() < .93) continue; // the odd jaywalker
+    }
     const sc = spotScore(c, x, y) + openness(x, y) * 8 + Math.cos(angDiff(c.a, a)) * 25 + rand(0, 40);
     if (sc > bs) { bs = sc; best = a; }
   }

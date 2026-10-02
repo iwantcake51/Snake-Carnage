@@ -92,12 +92,13 @@ function loadMap(idx, sz) {
   killV = killFlash = desatHold = 0;
   light = computeLight(); shadowKey = ''; bakeShadows();
   snake = newSnake(b.start || m.start);
+  curRoads = b.roads || []; curCross = b.crossings || [];
   for (const [type, n, zone] of m.pop) { // run modifiers can change the crowd
     const k = type === 'human' ? (MOD.overcrowded ? 2.1 : 1) : (MOD.noAnimals ? 0 : 1);
     for (let i = 0; i < Math.round(n * k); i++) spawn(type, zone);
   }
   makeFlies(m.fireflies || 0);
-  curPaths = b.paths || []; spawnWalkers(m.walkers || 0); makeGrass(m.grass || 0); makeWeather();
+  curPaths = b.paths || []; curRoads = b.roads || []; curCross = b.crossings || []; spawnWalkers(m.walkers || 0); makeGrass(m.grass || 0); makeWeather();
   deaths = []; if (typeof run === 'object') run.startPop = creatures.length;
   updateHud();
 }
