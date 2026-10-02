@@ -202,6 +202,10 @@ function buyUpgrade(id) {
 }
 const upgradeReady = () => UPGRADES.some(u => { const lv = PROG.upg[u.id] || 0; return lv < u.max && PROG.level >= u.lvl[lv] && PROG.coins >= u.cost[lv]; }); // something you can buy right now
 
+function canSeeSnake(c) {
+  const s = snake, d = Math.hypot(c.x - s.x, c.y - s.y), sight = c.def.sight * (MOD.skittish ? 1.5 : MOD.oblivious ? .6 : 1) * (s.camoT > 0 ? .25 - (upg('camo') > 2 ? .15 * (s.still || 0) : 0) : 1);
+  return d < 40 || (d < sight && lightAt(s.x, s.y) > VISIBLE && los(c.x, c.y, s.x, s.y));
+}
 /* ---- Scent: wisps drift from your head toward the best meals; brighter and thicker the closer you get ---- */
 let wisps = [];
 function scentTargets(s, n) { // closest person, or something bigger if it's worth more for the distance

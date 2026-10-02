@@ -202,3 +202,40 @@ Each box gets ticked as soon as that piece is done and checked in a headless run
 - [x] Club speakers are positional music sources; broken speakers go silent with a scratch, broken sprite
 - [x] Better club music
 - [x] Ram tier 3: authored breakable wall sections with a heavy stun shader and reactions
+
+---
+
+# Round 4
+
+## Dialogue
+- [x] Typed openers (yes/no, when, where, what, how, who, statement) with answers that fit what was asked
+- [x] Multi-turn talks: follow-ups from either side, topic switches, mishearing, never ends on an unanswered question
+- [x] Nobody repeats a topic or line someone nearby just used; talks only between people standing close; less often
+- [x] Callbacks ("something's weird tonight" -> "SEE? I TOLD YOU"); lines about what they're doing (dog, dancing, flashlight, season, dark)
+- [x] New traits: brave, curious, distracted; club yells; shouting text shakes; pre-game chatter visible map-wide
+
+## Pre-game
+- [x] HUD hidden until you move, then skills / challenges / modifiers slide in staggered
+- [x] Mouse look with a dwell zoom that keeps your snake in frame
+
+## Creatures
+- [x] Deer: bucks/does, size/coat/antler variation, ears flick instead of flapping (stable art seed)
+- [x] Stuck animals/people turn to open ground, remember failed spots, only wander to reachable targets
+- [x] Human walk/run: stride, bob, sway, lean, pumping arms; jumpy ones flail
+- [x] Throw up while running, less often overall
+- [x] Space Station crew are normal people (no space muffling inside)
+
+## Skills
+- [x] Lunge III pounce, Scent wisps + bloodhound, Camouflage stillness, Hiss shockwave + visible wave, Speed Demon turning/recovery/momentum + speed lines, Ram charge glow
+- [x] Upgrades buy in place with a celebration on the bought card
+
+## World / rendering
+- [x] Town rebuilt as a real block with sidewalks, crosswalks, alley, parking, plaza, parked vehicles; people use sidewalks
+- [x] Organic dirt trails that merge cleanly
+- [x] Blood pools: shape, settle, satellite drops, color mixing, glossy highlight (quality-scaled)
+- [x] Ice in winter / late autumn
+- [x] High lighting: fake AO under characters, body volume, wider wall occlusion
+
+## Settings / menus
+- [x] Shake strength, reduce flashes, amount of blood, simplified effects; Low particles simulate less
+- [x] Map menu nudges challenges that fit your setup and dims impossible ones
