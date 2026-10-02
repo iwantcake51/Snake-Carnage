@@ -472,8 +472,8 @@ const MAPS = [
     name: 'Checkerboard', icon: '🏁', border: '#1d1d22', start: { x: 480, y: 320, a: 0 },
     pop: [['human', 15], ['cat', 1], ['rat', 1]],
     build: () => ({ // a giant outdoor chess set, four pieces still standing, floodlit from the corners
-      obs: [R(192, 128, 64, 64, '#efe9de', 'chess', { piece: 'rook' }), R(704, 128, 64, 64, '#2c2c33', 'chess', { piece: 'knight' }),
-            R(192, 448, 64, 64, '#2c2c33', 'chess', { piece: 'bishop' }), R(704, 448, 64, 64, '#efe9de', 'chess', { piece: 'queen' }),
+      obs: [C(224, 160, 30, '#efe9de', 'chess', { piece: 'rook' }), C(736, 160, 30, '#2c2c33', 'chess', { piece: 'knight' }),
+            C(224, 480, 30, '#2c2c33', 'chess', { piece: 'bishop' }), C(736, 480, 30, '#efe9de', 'chess', { piece: 'queen' }),
             MAST(80, 80), MAST(880, 80), MAST(80, 560), MAST(880, 560), LAMP(480, 160), LAMP(480, 480)],
       floor(x) { checker(x, '#ece8e0', '#3a3a42', 64); x.strokeStyle = 'rgba(0,0,0,.25)'; x.lineWidth = 1; for (let i = 0; i <= W; i += 64) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i, H); x.stroke(); } }
     })

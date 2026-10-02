@@ -1424,6 +1424,6 @@ input[type=range]{accent-color:var(--acc)}
 #overlay ::-webkit-scrollbar{width:8px;height:8px}#overlay ::-webkit-scrollbar-thumb{background:var(--edge2);border-radius:0;border:2px solid transparent;background-clip:padding-box}
 #overlay ::-webkit-scrollbar-thumb:hover{background-color:var(--acc)}#overlay ::-webkit-scrollbar-track{background:transparent}
 /* parallax only lives on the main menu; pause and death panels sit still */
-#overlay:not(:has(.menu)) .panel{translate:none!important}
+#overlay:not(:has(.menu)) .panel{translate:none!important;transform:translate3d(calc(var(--mx,0) * -6px),calc(var(--my,0) * -4px),0);transition:transform .35s cubic-bezier(.2,.8,.2,1)} /* pause/death: the panel alone drifts, on its own layer, so the blurred game behind never redraws */
 .panel,.mleft,.mright{will-change:translate}
 #stage.stunned::before{transition:opacity .05s linear}

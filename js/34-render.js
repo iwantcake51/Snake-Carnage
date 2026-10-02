@@ -165,13 +165,13 @@ function frame(now) {
 }
 
 let plxQ = null; // mouse parallax: main menu only, at most once a frame. Over the blurred pause/death backdrop every nudge re-blurs the whole screen, so it stays still there
-overlay.addEventListener('pointermove', e => {
-  if (state !== 'menu' || SETTINGS.reduceMotion) return;
+document.addEventListener('pointermove', e => { // on the document: during play the game holds the pointer, so the overlay itself only heard moves after a click
+  if ((state !== 'menu' && state !== 'paused' && state !== 'dead') || SETTINGS.reduceMotion) return;
   const first = !plxQ; plxQ = [e.clientX, e.clientY]; if (!first) return;
   requestAnimationFrame(() => {
     const r = overlay.getBoundingClientRect(), mx = (plxQ[0] - r.left) / r.width * 2 - 1, my = (plxQ[1] - r.top) / r.height * 2 - 1; plxQ = null;
-    if (state !== 'menu') return;
     overlay.style.setProperty('--mx', mx.toFixed(2)); overlay.style.setProperty('--my', my.toFixed(2));
+    if (state !== 'menu') return; // over a paused or finished game only the panel drifts; moving the game under the blur is what made it lag
     cv.style.translate = `${(-mx * 2.5).toFixed(1)}px ${(-my * 1.6).toFixed(1)}px`; // deepest layer, moves least
   });
 });
