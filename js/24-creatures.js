@@ -10,7 +10,7 @@ function makeCreature(type, x, y, zone) {
            spdK: def.human ? (Math.random() < .12 ? rand(1.2, 1.32) : rand(.86, 1.12)) : rand(.92, 1.08) }; // natural speed differences
 }
 function goldify(c) { // golden target: worth a fortune, gone (back to normal) when the ring runs out
-  const def = c.def; c.golden = true; c.goldT = c.goldMax = def.human ? 35 : 28;
+  const def = c.def; c.golden = true; c.goldAt = T; c.goldT = c.goldMax = def.human ? 35 : 28;
   if (def.human) { c.plainLook = { ...c.look }; Object.assign(c.look, { top: '#f2c230', top2: '#b8860b', pants: '#6e4f0c', shoes: '#fff3c4', outfit: c.look.outfit === 'suit' || c.look.outfit === 'alien' ? c.look.outfit : 'tee', hat: c.look.hat === 'helmet' ? 'helmet' : null }); }
   else { c.plainDef = def; c.def = { ...def, col: '#e0b52c', hcol: def.hcol ? '#c99a1a' : undefined, tcol: def.tcol ? '#b8901c' : undefined }; }
 }

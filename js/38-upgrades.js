@@ -252,6 +252,13 @@ function drawScent(x) {
     x.strokeStyle = `rgba(${w.col},${(.3 + .5 * w.k) * f})`; x.lineWidth = 1.4 + 2.6 * w.k * f;
     x.beginPath(); x.moveTo(P[0], P[1]); for (let i = 2; i < P.length; i += 2) x.lineTo(P[i], P[i + 1]); x.stroke();
   }
+  if (s.scentOn && upg('scent') && state === 'play') { // golden targets always get a dotted gold line, the moment they appear
+    x.lineWidth = 1.6; x.setLineDash([3, 5]); x.lineDashOffset = -T * 30;
+    for (const c of creatures) { if (!c.alive || !c.golden) continue;
+      const age = T - (c.goldAt ?? 0), pop = age < .6 ? 1 + (1 - age / .6) * 1.5 : 1; // a brighter, thicker line right when it shows up
+      x.strokeStyle = `rgba(255,214,70,${Math.min(1, .7 * pop)})`; x.lineWidth = 1.6 * pop; x.beginPath(); x.moveTo(s.x, s.y); x.lineTo(c.x, c.y); x.stroke(); }
+    x.setLineDash([]);
+  }
   if (s.scentOn && upg('scent') > 1) { // who can see you right now
     const k = .8; x.lineWidth = 1.4;
     for (const c of creatures) {
