@@ -115,7 +115,9 @@ function updateBlood(dt) {
         const rr = c.def.r + 1;
         if (Math.abs(p.x - c.x) < rr && Math.abs(p.y - c.y) < rr && dist2(p.x, p.y, c.x, c.y) < rr * rr) {
           stainCreature(c, p.x, p.y, p.r * 1.4, p.c, Math.atan2(p.vy, p.vx), Math.hypot(p.vx, p.vy)); p.hc = 1;
-          if (c.def.human && T - (c.bloodSaid || -9) > 4 && Math.random() < .5) { c.bloodSaid = T; say(c, 'bloodOnMe'); }
+          const lx = (p.x - c.x) * Math.cos(c.a) + (p.y - c.y) * Math.sin(c.a), screaming = c.state === 'panic' || (c.bubbles && c.bubbles.some(q => q.yell && q.delay <= 0));
+          if (c.def.human && screaming && lx > 2 && !c.mouthBlood && Math.random() < .35) mouthBlood(c); // hit in the face, mouth wide open
+          else if (c.def.human && T - (c.bloodSaid || -9) > 4 && Math.random() < .5) { c.bloodSaid = T; say(c, 'bloodOnMe'); }
           hit = Math.random() < .6; break;
         }
       }

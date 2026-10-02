@@ -32,6 +32,8 @@ const LINES = {
     'breathe... just breathe', 'I can\'t feel my legs'],
   relief: ['oh thank god', "it didn't see me", 'phew...', 'that was way too close', "I'm still alive?", 'it just... went past',
     'holy shit, it missed me', 'okay. okay. breathe.', "don't move, it's leaving", 'I think I peed a little', 'not today, snake', 'I owe someone a prayer'],
+  hissed: ['WHAT WAS THAT SOUND?!', 'IT HISSED AT ME!', 'nope nope NOPE', 'THAT NOISE!', 'it sounds ANGRY'],
+  crash: ['what was that?', 'did something just break?', 'that came from over there', 'hello?', "something's in here with us"],
   panic: ['RUN!', 'HELP!', 'keep running', 'call the police', 'oh god, oh god', "this isn't happening", 'SOMEBODY HELP!', 'where do we go?!', 'FUCK!',
     "don't stop", 'SHIT!', 'we have to hide', 'GET INSIDE!']
 };
@@ -46,6 +48,7 @@ function stretch(t) { // FUCKKK, NOOOO
 }
 function pickLine(c, ctx, name) {
   let pool = LINES[ctx] || LINES.panic;
+  const env = envPool(ctx); if (env.length && Math.random() < .45) pool = env; // where you are colors what you shout
   if (!c.voice.swears) { const clean = pool.filter(l => !/fuck|shit|hell|damn/i.test(l)); if (clean.length) pool = clean; }
   const unused = pool.filter(l => !c.recent.includes(l)); if (unused.length) pool = unused;
   let l = pick(pool); c.recent.push(l); if (c.recent.length > 5) c.recent.shift();
@@ -96,26 +99,135 @@ function finishLine(t, c, ctx) { // intensity varies by person: some shout spoke
   if (!/[!?.…—]$/.test(t)) t += yell ? '!' : /^(what|where|why|is|did|how|was|which|who)\b/i.test(t) ? '?' : pick(['.', '...', '!']);
   return { text: rattle(t, panicLevel(c), yell), yell };
 }
+/* ---- conversation memory: people remember what they just said and follow it up when something answers it ---- */
+const FOLLOW = { // a line someone says -> the thread it opens
+  "what are we running from?!": 'whatFrom', "what's happening?!": 'whatFrom', 'why is everyone running?!': 'whatFrom', "what's going on": 'whatFrom', 'where is it?!': 'whereIs',
+  'is that... a snake?': 'isSnake', 'is that thing real?': 'isSnake', 'what is that': 'isSnake', "don't make any sudden moves": 'stayStill', 'stay quiet!': 'stayStill', 'shhh!': 'stayStill',
+  'is it gone?': 'gone', 'I think I lost it': 'gone', 'it just... went past': 'gone', "don't move, it's leaving": 'gone', 'oh thank god': 'gone', 'not today, snake': 'gone',
+  'somebody call animal control': 'animalControl', 'call the police': 'police', 'what happened here?': 'whatHappened', 'is someone hurt?': 'whatHappened', 'is that blood?': 'whatHappened',
+  'we have to hide': 'hide', 'everyone stay calm!': 'calm', 'which way is the exit?!': 'exit', 'is this part of the show?!': 'show', 'is this a drill?!': 'drill',
+};
+const FOLLOW_UPS = { // thread -> what has to happen next, and what they say when it does
+  whatFrom: ['see', ["OH FUCK, THAT'S WHAT.", "oh. OH. THAT'S WHAT.", 'never mind, I see it', "THAT! WE'RE RUNNING FROM THAT!", 'okay, running makes sense now']],
+  whereIs: ['see', ['THERE IT IS!', "found it. wish I hadn't", "IT'S RIGHT THERE!"]],
+  isSnake: ['kill', ["YEP, IT'S A SNAKE!", "IT'S REAL! IT'S VERY REAL!", 'okay. snake. confirmed. RUN.', "that answers that"]],
+  stayStill: ['near', ['SUDDEN MOVES! SUDDEN MOVES!', 'FORGET WHAT I SAID, RUN!', 'okay, new plan: RUN']],
+  gone: ['see', ["IT'S NOT GONE! IT'S NOT GONE!", 'NOPE, IT CAME BACK!', 'why did I say that', "IT'S BACK! WHY IS IT BACK?!"]],
+  animalControl: ['kill', ["animal control isn't coming, is it?", 'CANCEL ANIMAL CONTROL, CALL THE ARMY!']],
+  police: ['kill', ["the police can't fix this", 'WHERE ARE THE COPS?!']],
+  whatHappened: ['see', ['oh. THAT happened.', 'never mind, I know what happened', 'OH GOD, IT DID THIS!']],
+  hide: ['near', ["HIDING ISN'T WORKING!", 'IT FOUND US!']],
+  calm: ['kill', ['I AM NOT CALM ANYMORE!', 'okay, panic. PANIC NOW.']],
+  exit: ['near', ['FORGET THE EXIT, JUST RUN!', 'ANY DOOR! ANY DOOR!']],
+  show: ['kill', ["THAT'S NOT A SHOW!", "IT'S NOT PART OF THE SHOW!"]],
+  drill: ['kill', ['NOT A DRILL! NOT A DRILL!', "this is DEFINITELY not a drill"]],
+};
+const ANSWERS = { // someone nearby who already knows answers the question
+  whatFrom: ['THE SNAKE!', 'A GIANT FUCKING SNAKE!', "don't ask, just RUN!", 'IT ATE SOMEONE!', 'BEHIND YOU!'],
+  whereIs: ['RIGHT THERE!', 'EVERYWHERE!', "behind the— just run!"],
+  isSnake: ["don't find out!", 'yes. move.', "I think so. Don't go closer.", 'BIGGEST ONE I EVER SAW'],
+  whatHappened: ["you don't want to know", 'the snake. the snake happened.', "don't look"],
+  exit: ['THIS WAY!', 'BACK DOWN THE HALL!', 'NO IDEA!'],
+};
+/* where you are changes what people shout: open ground, inside a building, out in space, in the club... */
+const ENV_LINES = {
+  open: { panic: ["there's nowhere to hide!", "it's wide open out here!", 'get to the trees!', 'WHERE DO WE EVEN GO?!', 'run for the road!'],
+    chased: ["THERE'S NOWHERE TO HIDE!", "IT'S FASTER THAN ME!"], crowd: ['which way?!', 'SPREAD OUT!'] },
+  indoor: { panic: ['get to the exit!', 'which way is the exit?!', 'LOCK THE DOORS!', 'down the hall!', 'get in a room and shut the door!', "the door won't open!"],
+    chased: ["IT'S IN THE HALL!", 'SHUT THE DOOR! SHUT THE DOOR!'], crowd: ["what's in the hallway?!", 'everyone out!'], dark: ['who turned off the lights?!', "I can't see anything in here"] },
+  office: { panic: ['I knew I should have worked from home', 'this is not in the handbook', 'HR is gonna hear about this', 'save the laptops! no wait, SAVE ME!', 'TAKE THE STAIRS!'],
+    relief: ['I need a raise for this', "I'm taking the rest of the day off"] },
+  space: { panic: ['GET TO THE AIRLOCK!', "we're in SPACE, there's nowhere to run!", 'how did a snake get up here?!', 'Houston?! HOUSTON?!', 'SEAL THE HATCH!'],
+    chased: ['MY SUIT! IT GOT MY SUIT!', 'IT CAN BREATHE OUT HERE?!'], bloodOnMe: ["it's all over my visor!", 'I CAN\'T WIPE MY VISOR!'], firstSight: ['is that... on the moon?', 'how is it breathing?!', 'mission control is not gonna believe this'] },
+  club: { panic: ['TURN THE MUSIC OFF!', "THE DJ ISN'T STOPPING!", 'is this part of the show?!', 'GET TO THE DOOR!', 'somebody spiked my drink... no, that\'s real'],
+    firstSight: ['is that a costume?', 'is this part of the show?!', 'who brought a SNAKE?'], crowd: ["why is everyone running? it's a banger!"] },
+  bunker: { panic: ['CODE RED! CODE RED!', 'lock down the bunker!', 'is this a drill?!', 'SEAL THE BLAST DOORS!', 'get to the armory!'],
+    firstSight: ['contact! contact!', 'what the hell got in here?', 'is that a drill?'] },
+  farm: { panic: ["it's after the animals!", 'get to the barn!', 'GET THE SHOTGUN! oh, we don\'t have one', 'run for the house!'], witnessAnimal: ['THAT WAS OUR BEST {A}!', 'not the {a}! we need that {a}!'] },
+  town: { panic: ['GET INSIDE!', 'run for the square!', 'somebody stop it!', 'call 911! CALL 911!'] },
+  pool: { panic: ['GET OUT OF THE WATER! wait, it\'s not IN the water', 'my towel! leave it!', 'run for the changing rooms!'] },
+};
+function envKey() { const m = MAPS[mapIdx]; return m.club ? 'club' : m.name === 'Bunker' ? 'bunker' : m.space ? 'space' : m.name === 'Office' ? 'office' : m.name === 'Farm' ? 'farm' : m.name === 'Town' ? 'town' : m.name === 'Pool' ? 'pool' : m.indoor ? 'indoor' : m.open ? 'open' : null; }
+function envPool(ctx) {
+  const k = envKey(), out = [];
+  if (k && ENV_LINES[k] && ENV_LINES[k][ctx]) out.push(...ENV_LINES[k][ctx]);
+  if ((k === 'office' || k === 'bunker' || k === 'club') && ENV_LINES.indoor[ctx]) out.push(...ENV_LINES.indoor[ctx]); // still a building
+  if (MAPS[mapIdx].indoor && light && light.dark > .4 && ctx === 'panic' && Math.random() < .3) out.push(...ENV_LINES.indoor.dark);
+  return out;
+}
+/* aliens: the same panic, in their own language */
+const ALIEN_SYL = ['zh', 'kra', 'vesh', 'tol', 'qua', 'xi', 'ro', 'mek', 'thul', 'gra', 'nak', 'vo', 'ree', 'yth', 'kk', 'oth', 'sil', 'brr', 'eek', 'za', 'qor', 'lix'];
+function gibberish(yell) {
+  const words = Array.from({ length: randi(1, 3) }, () => { let w = ''; for (let k = randi(1, 3); k > 0; k--) w += pick(ALIEN_SYL) + (Math.random() < .15 ? "'" : ''); return w.replace(/'$/, ''); });
+  let t = words.join(' ');
+  if (yell) { t = t.toUpperCase(); if (Math.random() < .5) t = stretch(t); t += pick(['!', '!!', '?!']); } else t = t[0].toUpperCase() + t.slice(1) + pick(['.', '?', '...']);
+  return t;
+}
 function say(c, ctxRaw) {
   if (!c.def.human || !c.alive || MOD.mute) return;
   const [ctx, name] = ctxRaw.split(':');
   c.voice = c.voice || { heat: rand(.2, 1), swears: Math.random() < .7 }; c.recent = c.recent || [];
   const b = c.bubbles || (c.bubbles = []);
   if (b.some(q => q.delay > 0)) return; // still mid-sentence
+  const urgent = ctx === 'chased' || ctx === 'bloodOnMe' || ctx === 'spit' || ctx === 'follow' || ctx === 'answer';
   const talking = creatures.reduce((n, o) => n + (o !== c && o.bubbles && o.bubbles.length ? 1 : 0), 0);
-  if (talking >= 5 && ctx !== 'chased' && ctx !== 'bloodOnMe') { c.sayCD = rand(1.5, 3); return; }
+  if (talking >= 5 && !urgent) { c.sayCD = rand(1.5, 3); return; }
+  if (c.def.alien) { // gibberish, sometimes with a little action
+    const yell = HOT_CTX.has(ctx) || ctx === 'panic' || ctx === 'chased' || ctx === 'spit' || Math.random() < .4;
+    if (ctx === 'spit') b.push({ text: pick(['spits green', 'gags', 'chitters in disgust']), act: true, t: 0, life: 1.4, delay: 0 }, { text: gibberish(true), yell: true, t: 0, life: 1.8, delay: .9 });
+    else if (Math.random() < .12) b.push({ text: pick(['clicks frantically', 'chitters', 'antennae flatten', 'hisses back']), act: true, t: 0, life: 1.4, delay: 0 });
+    else b.push({ text: gibberish(yell), yell, t: 0, life: rand(1.5, 2.2), delay: 0 });
+    if (b.length > 4) b.splice(0, b.length - 4);
+    if (yell) Sfx.shout(c.x);
+    c.sayCD = rand(3, 5.5); return;
+  }
+  if (ctx === 'spit') { // an action, then the line that goes with it
+    b.push({ text: pick(['spits blood', 'spits', 'gags and spits']), act: true, t: 0, life: 1.4, delay: 0 },
+           { ...finishLine(pick(c.voice.swears ? ['EW, WHAT THE FUCK?', 'IT WENT IN MY MOUTH!', "that's SOMEONE'S BLOOD!", 'oh god oh god, I swallowed some'] : ['EW, EW, EW!', 'IT WENT IN MY MOUTH!', "that's someone's blood!", 'oh no, I swallowed some']), c, 'bloodOnMe'), t: 0, life: 2, delay: .9 });
+    if (b.length > 4) b.splice(0, b.length - 4);
+    Sfx.shout(c.x); c.sayCD = rand(3, 5); return;
+  }
+  if (ctx === 'act') { b.push({ text: name, act: true, t: 0, life: 1.6, delay: 0 }); if (b.length > 4) b.splice(0, b.length - 4); return; }
   const chaos = (ctx === 'witnessHuman' || ctx === 'multiDeath' || ctx === 'chased') && c.voice.heat > .8 && Math.random() < .3;
   if (chaos) { // one word, shouted again and again with a breath in between
     const w = pick(c.voice.swears ? ['FUCK', 'NO', 'HELP', 'OH GOD', 'SHIT'] : ['NO', 'HELP', 'OH GOD', 'PLEASE']);
     let d = 0;
     for (let k = randi(2, 3); k > 0; k--) { b.push({ text: (d ? stretch(w) : w) + '!', yell: true, t: 0, life: rand(1, 1.4), delay: d }); d += rand(.65, 1); }
   } else {
-    b.push({ ...finishLine(pickLine(c, ctx, name), c, ctx), t: 0, life: rand(1.7, 2.4), delay: 0 });
-    if (Math.random() < .22 * c.voice.heat) b.push({ ...finishLine(pickLine(c, ctx, name), c, ctx), t: 0, life: rand(1.5, 2.1), delay: rand(1.2, 1.9) });
+    const raw = ctx === 'follow' ? pick(FOLLOW_UPS[name][1]) : ctx === 'answer' ? pick(ANSWERS[name] || ANSWERS.whatFrom) : pickLine(c, ctx, name);
+    b.push({ ...finishLine(raw, c, ctx), t: 0, life: rand(1.7, 2.4), delay: 0 });
+    const tag = FOLLOW[raw.toLowerCase().replace(/^./, m => m)] || FOLLOW[raw];
+    if (tag) { c.mem = { tag, t: T }; askAround(c, tag); } // the question hangs in the air until something answers it
+    else if (Math.random() < .22 * c.voice.heat && ctx !== 'follow' && ctx !== 'answer') b.push({ ...finishLine(pickLine(c, ctx, name), c, ctx), t: 0, life: rand(1.5, 2.1), delay: rand(1.2, 1.9) });
   }
   if (b.length > 4) b.splice(0, b.length - 4);
   if (b[b.length - 1] && b.find(q => q.delay <= 0 && q.t === 0 && q.yell)) Sfx.shout(c.x);
   c.sayCD = ctx === 'chased' ? rand(2.4, 3.6) : rand(3.5, 6);
+}
+function askAround(c, tag) { // someone close by who has already seen the snake answers the question
+  if (!ANSWERS[tag]) return;
+  for (const o of creatures) {
+    if (o === c || !o.alive || !o.def.human || o.def.alien || o.reply || !o.sawSnake || dist2(o.x, o.y, c.x, c.y) > 160 * 160) continue;
+    if (Math.random() < .7) { o.reply = { t: rand(.7, 1.3), ctx: 'answer:' + tag }; c.mem = null; } // answered: no need to follow up themselves
+    return;
+  }
+}
+function followUp(c, on) { // something just answered what they said a moment ago
+  const m = c.mem; if (!m || T - m.t < 1 || T - m.t > 22) { if (m && T - m.t > 22) c.mem = null; return false; }
+  const f = FOLLOW_UPS[m.tag]; if (!f || f[0] !== on) return false;
+  c.mem = null; c.bubbles = (c.bubbles || []).filter(q => q.delay <= 0); say(c, 'follow:' + m.tag); return true;
+}
+function mouthBlood(c) { // blood went in while they were screaming
+  if (c.mouthBlood || !c.def.human || c.look && c.look.hat === 'helmet') return;
+  c.mouthBlood = T; c.spitN = 0; say(c, 'spit');
+  run.spits = (run.spits || 0) + 1; PROG.maxSpitRun = Math.max(PROG.maxSpitRun || 0, run.spits);
+}
+function aftertaste(c, dt) { // the blood stays with them: more spitting and complaining for a while
+  if (!c.mouthBlood || c.spitN >= 3 || T - c.mouthBlood > 40 || (c.bubbles && c.bubbles.length)) return;
+  if ((c.tasteT = (c.tasteT ?? rand(5, 9)) - dt) > 0) return;
+  c.tasteT = rand(7, 12); c.spitN++;
+  if (Math.random() < .5) say(c, 'act:' + pick(c.def.alien ? ['spits green', 'gags'] : ['spits again', 'gags', 'wipes mouth on sleeve', 'retches']));
+  else { c.bubbles = c.bubbles || []; c.bubbles.push({ ...finishLine(pick(['I can still taste it', "it's in my teeth...", "that was someone's BLOOD in my mouth", 'I need to brush my teeth for a year', "I'm gonna throw up", 'why does it taste like pennies']), c, 'bloodOnMe'), t: 0, life: 2.2, delay: 0 }); }
 }
 function scream(c, ctx = 'panic') {
   say(c, ctx);
@@ -134,7 +246,7 @@ function panic(c, x, y, t, ctx = 'panic') {
   c.alert = Math.max(c.alert || 0, c.def.human ? 1 : .6);
   c.timer = was ? Math.max(c.timer, t) : t;
   c.state = 'panic'; c.fx = x; c.fy = y;
-  if (c.def.human && !was) { scream(c, ctx); groupAlarm(c, x, y); }
+  if (c.def.human && !was) { if (ctx === 'none') { if (!MOD.mute) scream(c, 'panic'); } else scream(c, ctx); groupAlarm(c, x, y); }
   else if (!c.def.human && !was) Sfx.animal(c.x, c.type);
 }
 function flee(c, x, y, t) {
@@ -154,6 +266,8 @@ function witness(x, y, victim) { // a kill happened at x,y
     if (!sees) { if (c.fl && c.fl.on && d < 300) c.fl.look = { x, y, t: rand(1.2, 2.2) }; continue; } // heard it: point the light there
     if (!c.def.human) { panic(c, x, y, rand(2, 4)); continue; }
     c.deathsSeen = (c.deathsSeen || 0) + 1;
+    if (c.mem && followUp(c, 'kill')) { if (c.state !== 'panic') panic(c, x, y, rand(4, 7), 'none'); continue; }
+    if (c.deathsSeen === 3 && !c.def.alien && Math.random() < .35 && d < 160) { say(c, 'act:throws up'); c.puked = T; if (c.state !== 'panic') panic(c, x, y, rand(4, 7), 'none'); continue; }
     const ctx = !victim.def.human ? 'witnessAnimal:' + victim.type : c.deathsSeen >= 2 ? 'multiDeath' : 'witnessHuman';
     if (c.state === 'panic') { c.timer = Math.max(c.timer, rand(4, 7)); if (Math.random() < .5) say(c, ctx); }
     else panic(c, x, y, rand(4, 7), ctx);
@@ -202,6 +316,8 @@ function perceive(c) {
   }
   if (seen && c.fl && c.fl.on && !c.flSpotted) { c.flSpotted = true; c.flSnap = rand(.35, .6); } // beam snaps onto it
   const gore = hum ? goreLvl : 0; // 0 clean .. 1 drenched
+  if (hum && seen && c.mem && followUp(c, 'see')) { /* "what are we running from?" ... "OH. THAT." */ }
+  else if (hum && dist < 85 && c.mem) followUp(c, 'near');
   if (hum && seen && !c.sawSnake && c.state !== 'panic') { c.sawSnake = true; if (Math.random() < .55 + gore * .4) say(c, gore > .2 ? 'bloodySnake' : 'firstSight'); }
   if (seen && c.state !== 'panic') {
     if (c.alert > .3 || SETTINGS.noticeSnake) { // they've seen what it does: no second look needed

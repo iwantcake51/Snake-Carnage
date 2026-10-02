@@ -45,9 +45,9 @@ Each box gets ticked as soon as that piece is done and checked in a headless run
 - [x] Abilities (dash, camouflage, scent) built as data so they can be synced in multiplayer later
 
 ## 6. AI dialogue
-- [ ] Conversation memory: follow-up lines that refer to what was just said ("What are we running from?" → "OH FUCK, THAT'S WHAT.")
-- [ ] Action lines (*spits blood* "Ew, what the fuck?") and lasting state (blood in mouth, reacting later)
-- [ ] Map-aware lines: open maps, indoor maps, space, alien gibberish
+- [x] Conversation memory: follow-up lines that refer to what was just said ("What are we running from?" → "OH FUCK, THAT'S WHAT.")
+- [x] Action lines (*spits blood* "Ew, what the fuck?") and lasting state (blood in mouth, reacting later)
+- [x] Map-aware lines: open maps, indoor maps, space, alien gibberish
 
 ## 7. Eating / gibs / blood
 - [x] Gibs drawn under the snake
@@ -72,25 +72,25 @@ Each box gets ticked as soon as that piece is done and checked in a headless run
 - [ ] Frogs and bunnies hop: sprite grows, shadow shrinks at the top of the hop
 
 ## 11. Maps
-- [ ] Space maps rebuilt to look believable; all sound muffled on space maps
-- [ ] Aliens never share a map with humans; aliens act like people (gibberish, green blood/gibs)
-- [ ] Astronauts use helmet lights, not handheld flashlights
-- [ ] Alien Facility rewritten: no water, real enterable rooms, even and deliberate lighting
-- [ ] New indoor red-light map
-- [ ] New disco / club map
-- [ ] Open Field: no campfires, dirt trails, fireflies (glow without lighting the map, bleed when eaten)
-- [ ] Pool: concrete barriers removed
-- [ ] Other maps reworked to look designed (Town, Office, Farm, Park, Meadow, Checkerboard, Maze)
+- [x] Space maps rebuilt to look believable; all sound muffled on space maps
+- [x] Aliens never share a map with humans; aliens act like people (gibberish, green blood/gibs)
+- [x] Astronauts use helmet lights, not handheld flashlights
+- [x] Alien Facility rewritten: no water, real enterable rooms, even and deliberate lighting
+- [x] New indoor red-light map
+- [x] New disco / club map
+- [x] Open Field: no campfires, dirt trails, fireflies (glow without lighting the map, bleed when eaten)
+- [x] Pool: concrete barriers removed
+- [x] Other maps reworked to look designed (Town, Office, Farm, Park, Meadow, Checkerboard, Maze)
 
 ## 12. Lighting / performance
 - [ ] Lighting optimized: nearest/visible lights get dynamic shadows, the rest use baked masks
-- [ ] No light where there is no source (every fixed light has a visible fixture, windows only on real walls)
-- [ ] Flashlight flicker fixed
+- [x] No light where there is no source (every fixed light has a visible fixture, windows only on real walls)
+- [x] Flashlight flicker fixed
 - [ ] Graphics options: lighting quality, dynamic shadows, particles/effects
-- [ ] Insects around lamps; they scatter and fade when the lamp breaks
+- [x] Insects around lamps; they scatter and fade when the lamp breaks
 
 ## 13. Time modes
-- [ ] Loading screen shows the time of day
+- [x] Loading screen shows the time of day
 - [x] Time modes: Dynamic, Daytime, Dawn, Dusk, Night
 
 ## 14. Overall polish

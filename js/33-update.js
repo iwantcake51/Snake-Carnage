@@ -195,8 +195,9 @@ function drawBubbles(x) {
     let cy = c.y - 14 - bh / 2;
     for (let k = vis.length - 1; k >= 0; k--) {
       const b = vis[k];
-      x.font = `${b.yell ? 800 : 600} ${fs}px "Segoe UI", sans-serif`;
-      const w = x.measureText(b.text).width + 9, pop = Math.min(1, b.t / .14), sc = .6 + .4 * (1 - Math.pow(1 - pop, 3));
+      const txt = b.act ? `*${b.text}*` : b.text;
+      x.font = b.act ? `italic 600 ${fs * .92}px "Segoe UI", sans-serif` : `${b.yell ? 800 : 600} ${fs}px "Segoe UI", sans-serif`;
+      const w = x.measureText(txt).width + 9, pop = Math.min(1, b.t / .14), sc = .6 + .4 * (1 - Math.pow(1 - pop, 3));
       const bx = clamp(c.x + (vis.length - 1 - k) * 5, w / 2 + 2, W - w / 2 - 2), by = Math.max(bh, cy);
       let near = false; // fade bubbles the snake is under, so they never hide the action
       if (snake) for (let i = 0; i < Math.min(snake.segs.length, 24) && !near; i += 2) {
@@ -204,9 +205,9 @@ function drawBubbles(x) {
       }
       b.fa = (b.fa ?? 1) + ((near ? .18 : 1) - (b.fa ?? 1)) * .25;
       x.save(); x.globalAlpha = Math.min(1, (b.life - b.t) * 3) * b.fa * seeA; x.translate(bx, by); x.scale(sc, sc);
-      x.fillStyle = b.yell ? '#fff' : 'rgba(244,244,244,.95)'; rrect(x, -w / 2, -bh / 2, w, bh, 5); x.fill();
-      if (k === vis.length - 1) { x.beginPath(); x.moveTo(c.x - bx - 4, bh / 2 - 1); x.lineTo(c.x - bx + 1, bh / 2 + 5); x.lineTo(c.x - bx + 4, bh / 2 - 1); x.fill(); }
-      x.fillStyle = b.yell ? '#a10000' : '#3a3236'; x.fillText(b.text, 0, .5);
+      x.fillStyle = b.act ? 'rgba(30,24,28,.82)' : b.yell ? '#fff' : 'rgba(244,244,244,.95)'; rrect(x, -w / 2, -bh / 2, w, bh, 5); x.fill();
+      if (k === vis.length - 1 && !b.act) { x.beginPath(); x.moveTo(c.x - bx - 4, bh / 2 - 1); x.lineTo(c.x - bx + 1, bh / 2 + 5); x.lineTo(c.x - bx + 4, bh / 2 - 1); x.fill(); }
+      x.fillStyle = b.act ? '#e8dcd2' : b.yell ? '#a10000' : '#3a3236'; x.fillText(txt, 0, .5);
       x.restore();
       cy -= bh + 2;
     }

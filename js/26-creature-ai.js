@@ -50,6 +50,9 @@ function updateCreature(c, dt) {
     const near = snake && dist2(c.x, c.y, snake.x, snake.y) < 90 * 90;
     if (near) say(c, 'chased'); else if (Math.random() < .45) say(c, 'panic'); else c.sayCD = rand(2, 4);
   }
+  if (c.reply && (c.reply.t -= dt) <= 0) { const r = c.reply; c.reply = null; say(c, r.ctx); }
+  if (d.human) aftertaste(c, dt);
+  if (c.puked && T - c.puked > 6 && !c.sorry && c.state !== 'panic' && Math.random() < dt * .3) { c.sorry = true; say(c, 'act:wipes mouth'); }
   if (c.warn && (c.warn.t -= dt) <= 0) { const w = c.warn; c.warn = null; panic(c, w.x, w.y, rand(3, 5), 'warned'); }
   let want = c.a, spd = 0;
   if (c.alert > 0) c.alert = Math.max(0, c.alert - dt * .012); // fades over a minute or so, never instantly
