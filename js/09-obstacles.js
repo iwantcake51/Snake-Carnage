@@ -136,6 +136,7 @@ function drawObstacleBase(x, o) {
     case 'crate':
       if (o.printer) { x.fillStyle = c; x.fillRect(X, Y, w, h); x.fillStyle = '#5a5a62'; x.fillRect(X + 6, Y + 6, w - 12, 8); x.fillStyle = '#fff'; x.fillRect(X + 14, Y + h - 10, w - 28, 6); return edge(x, o); }
       if (o.dumpster) { x.fillStyle = shade(c, -.2); x.fillRect(X, Y, w, h); x.fillStyle = c; x.fillRect(X + 1.5, Y + 1.5, w - 3, h / 2 - 2); x.fillStyle = shade(c, .08); x.fillRect(X + 1.5, Y + h / 2, w - 3, h / 2 - 1.5); x.fillStyle = '#d9d9d9'; x.fillRect(X + w / 2 - 4, Y + 2, 8, 2); return edge(x, o, .4); } // two lids, a hinge bar
+      if (o.pump) { x.fillStyle = '#7d7a72'; x.fillRect(X - 2, Y - 2, w + 4, h + 4); x.fillStyle = c; x.fillRect(X, Y + 6, w, h - 12); x.fillStyle = '#c0392b'; x.fillRect(X + 1, Y + 8, w - 2, 6); x.fillRect(X + 1, Y + h - 14, w - 2, 6); x.fillStyle = '#1d1d22'; x.fillRect(X + 3, Y + 16, w - 6, 4); return edge(x, o); } // pump island: kerb, two pumps
       if (o.trough) { x.fillStyle = c; x.fillRect(X, Y, w, h); x.fillStyle = '#6fb0d0'; x.fillRect(X + 3, Y + 3, w - 6, h - 6); return edge(x, o); }
       x.fillStyle = c; x.fillRect(X, Y, w, h); x.strokeStyle = shade(c, -.3); x.lineWidth = 3; x.strokeRect(X + 2.5, Y + 2.5, w - 5, h - 5); x.lineWidth = 2.5; x.beginPath(); x.moveTo(X + 4, Y + 4); x.lineTo(X + w - 4, Y + h - 4); x.moveTo(X + w - 4, Y + 4); x.lineTo(X + 4, Y + h - 4); x.stroke(); return edge(x, o);
     case 'shelf':
