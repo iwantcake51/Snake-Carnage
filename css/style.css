@@ -1259,3 +1259,134 @@ body.cb-marquee #combo .cbox{animation:marq 1s steps(2) infinite}
 .ach .prv.xpr{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;color:var(--acc-hi);font:800 15px/1 "Segoe UI",system-ui,sans-serif}
 .ach .prv.xpr small{font:700 9px "Segoe UI",system-ui,sans-serif;letter-spacing:.12em;color:#a89e96}
 .ach.secret .pbar span{background:linear-gradient(90deg,#6a5a9a,#a08ad8)}
+
+/* =====================================================================
+   UI v2 — one grounded visual language for every screen.
+   Matte panels with a little grain, squared edges, hairline borders, condensed
+   uppercase headings, stamp-like labels, mono numbers. No glows, no bouncy scaling,
+   no emoji icons. Everything that should change with the theme uses --acc*.
+   ===================================================================== */
+:root{--f-body:"Barlow","Segoe UI",system-ui,sans-serif;--f-head:"Barlow Condensed","Arial Narrow",Impact,sans-serif;--f-num:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  --ink:#ebe5de;--dim:#a39a92;--faint:#6e6660;--p1:#131012;--p2:#191517;--p3:#211c1e;--edge:#2e2729;--edge2:#3d3437;--r:4px;
+  --grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+#overlay *:not(.pvCombo):not(.pvCombo *):not(.logo):not(.logo *):not(svg *),#bar,#bar *,#tip,#tip *,#notes *,#chhud *,#modhud *,#modbar *,#abil *,#rewards *,#resume *,#lvlup *,#gold *,#intro *:not(.iname2){font-family:var(--f-body)!important}
+/* the backdrop behind menus: dim, vignetted, grainy — no glowing red mesh */
+#overlay::before,#overlay::after{display:none!important}
+#overlay.menuMode,#overlay{background:radial-gradient(ellipse at 50% 40%,rgba(10,8,9,.55),rgba(6,5,6,.88) 75%),var(--grain)!important}
+/* panels */
+.panel,.menu .mleft,.casebox .casewin{border-radius:var(--r)!important}
+.panel{background:var(--grain),linear-gradient(180deg,var(--p2),var(--p1))!important;border:1px solid var(--edge)!important;box-shadow:0 1px 0 rgba(255,255,255,.04) inset,0 24px 60px rgba(0,0,0,.55)!important;animation:panelIn2 .28s cubic-bezier(.2,.7,.2,1) backwards!important}
+.panel::before{content:'';position:absolute;left:0;top:0;width:56px;height:3px;background:var(--acc)}
+.panel{position:relative}
+@keyframes panelIn2{from{opacity:0;translate:0 8px}}
+.panel h1,.snav h1,.chhead h1{font-family:var(--f-head)!important;font-weight:700!important;text-transform:uppercase;letter-spacing:.02em;font-size:34px!important;line-height:1;color:var(--ink)}
+.panel h2,.mright h2{font-family:var(--f-head)!important;font-weight:600!important;text-transform:uppercase;letter-spacing:.06em;color:var(--dim)!important;font-size:15px!important}
+.panel h3,.mg{font-family:var(--f-head)!important;font-weight:700!important;text-transform:uppercase;letter-spacing:.16em!important;font-size:12px!important;color:var(--acc-text)!important;border-bottom:1px solid var(--edge);padding-bottom:4px}
+.lead,.panel p.lead,.tag{color:var(--dim)!important;font-size:14px!important;line-height:1.45}
+/* buttons: squared, flat, uppercase condensed; hover lifts the border, never the size */
+.play,.ghost,.btn,.tab,.seg button,.sseg button,.ctabs button,#bar button,.chip,.sc,.card,.mtile,.ach,.upc,.mc,.pmc{transition:background .15s,border-color .15s,color .15s,box-shadow .15s,transform .45s cubic-bezier(.2,.8,.2,1)!important}
+.play:hover,.ghost:hover,.btn:hover,.chip:hover,.sw:hover,#bar button:hover,.mtile:hover,.sc:hover{scale:1!important}
+.play:active,.ghost:active,.btn:active,.chip:active,#bar button:active,.tab:active,.mtile:active,.sc:active{scale:1!important;transform:translateY(1px)}
+.btn,.play,.ghost{font-family:var(--f-head)!important;text-transform:uppercase;letter-spacing:.06em;font-weight:700!important;border-radius:3px!important}
+.btn{background:var(--acc)!important;color:#fff;border:1px solid color-mix(in srgb,var(--acc) 70%,#000)!important;box-shadow:inset 0 -2px 0 rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.12)!important;padding:10px 24px;font-size:18px}
+.btn:hover{background:color-mix(in srgb,var(--acc) 85%,#fff)!important;box-shadow:inset 0 -2px 0 rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.18)!important}
+.btn.alt,.ghost{background:transparent!important;color:var(--ink)!important;border:1px solid var(--edge2)!important;box-shadow:none!important}
+.btn.alt:hover,.ghost:hover{background:rgba(255,255,255,.04)!important;border-color:color-mix(in srgb,var(--acc-hi) 55%,var(--edge2))!important}
+.play{background:var(--acc)!important;border:1px solid color-mix(in srgb,var(--acc) 65%,#000)!important;box-shadow:inset 0 -3px 0 rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.14),0 10px 22px rgba(0,0,0,.35)!important;font-size:24px!important;padding:15px 20px!important}
+.play:hover{background:color-mix(in srgb,var(--acc) 88%,#fff)!important}
+.play small{font-family:var(--f-num)!important;font-size:11px!important;letter-spacing:0;text-transform:none;background:rgba(0,0,0,.28)!important;border-radius:2px!important;padding:3px 7px!important}
+/* segmented controls and tabs */
+.seg,.sseg,.ctabs{background:rgba(0,0,0,.3)!important;border:1px solid var(--edge)!important;border-radius:3px!important;padding:3px!important}
+.seg .sthumb,.sseg .sthumb{border-radius:2px!important;background:var(--acc)!important;opacity:.9}
+.seg button,.sseg button,.ctabs button{border-radius:2px!important;font-family:var(--f-head)!important;text-transform:uppercase;letter-spacing:.05em;font-weight:600!important;font-size:14px!important;color:var(--dim)!important}
+.seg button.on,.sseg button.on,.ctabs button.on{color:#fff!important}
+.ctabs button.on{background:var(--acc)!important}
+.ctabs button em{font-family:var(--f-num)!important;font-style:normal;font-size:11px;opacity:.75}
+.tab{border-radius:2px!important;font-family:var(--f-head)!important;text-transform:uppercase;letter-spacing:.05em;font-size:15px!important;color:var(--dim)!important}
+.tab.on{background:rgba(255,255,255,.04)!important;color:var(--ink)!important;box-shadow:inset 3px 0 0 var(--acc)!important}
+.tab.on::before{display:none!important}
+.snav{background:rgba(0,0,0,.22)!important;border-right:1px solid var(--edge)!important}
+/* toggles and sliders: squared */
+.tgl{border-radius:2px!important;background:#2a2426!important;box-shadow:inset 0 0 0 1px var(--edge2)}
+.tgl::after{border-radius:1px!important}
+.tgl.on{background:var(--acc)!important}
+input[type=range]{accent-color:var(--acc)}
+/* labels: stamps, not candy pills */
+.tier{border-radius:2px!important;font-family:var(--f-head)!important;text-transform:uppercase;letter-spacing:.1em;font-size:10px!important;font-weight:700!important;padding:1px 6px!important;background:transparent!important;border:1px solid currentColor}
+.tier.easy{color:#7fbf6a!important}.tier.medium{color:#d9b23f!important}.tier.hard{color:#e07a3c!important}.tier.rare{color:#b58cf0!important}.tier.secret{color:#9a8fb8!important}
+.coinpill,.mchip,.mb,.imod,#modbar .mb{border-radius:2px!important}
+.coinpill{background:rgba(0,0,0,.35)!important;border:1px solid var(--edge2);font-family:var(--f-num)!important;color:#e9c45a!important}
+.mchip{background:transparent!important;border:1px solid var(--edge2)!important;color:var(--dim)!important;font-size:11.5px!important}
+.mchip.mult{color:#e9c45a!important;border-color:rgba(233,196,90,.4)!important}
+/* numbers: monospaced, steady */
+.v,.mpct,.xpt,.price,.af span:first-child,.mcf span:first-child,.sbig,#bar .val,.pmc .af span:first-child,.hc .v,.cnum,.stat b{font-family:var(--f-num)!important;font-variant-numeric:tabular-nums}
+/* map cards */
+.card{border-radius:3px!important;border:1px solid var(--edge)!important;background:var(--p2)!important}
+.card .cn{font-family:var(--f-head)!important;text-transform:uppercase;letter-spacing:.04em;font-size:14px!important;font-weight:700!important}
+.card .cb{font-family:var(--f-num)!important;font-size:10px!important;color:var(--faint)!important}
+.card.on{border-color:var(--acc-hi)!important}
+.card.rnd{background:repeating-linear-gradient(135deg,#171314 0 8px,#1c1719 8px 16px)!important}
+/* list cards: modifiers, challenges, upgrades, shop items */
+.mtile,.ach,.upc,.mc,.pmc,.sc,.hc{border-radius:3px!important}
+.mtile{background:var(--p2)!important;border:1px solid var(--edge)!important;grid-template-columns:1fr auto!important;padding-left:12px!important}
+.mtile .mic{display:none!important}
+.mtile:hover{border-color:var(--edge2)!important;background:var(--p3)!important}
+.mtile.on{border-color:var(--acc)!important;box-shadow:inset 3px 0 0 var(--acc)!important;background:color-mix(in srgb,var(--acc) 8%,var(--p2))!important}
+.mtile.blocked{opacity:.45}
+.mtile b{font-family:var(--f-head)!important;text-transform:uppercase;letter-spacing:.03em;font-size:15px!important}
+.mtile .mck{border-radius:2px!important}
+.ach,.upc,.mc,.pmc{background:var(--p2)!important;border:1px solid var(--edge)!important}
+.ach b,.upc b,.mc b,.pmc b{font-family:var(--f-head)!important;text-transform:uppercase;letter-spacing:.03em;font-size:16px!important}
+.ach.done,.pmc.done,.mc.done{box-shadow:inset 3px 0 0 #6fae5a!important}
+.ach.secret{background:repeating-linear-gradient(135deg,var(--p2) 0 10px,#1b171a 10px 20px)!important;border-style:dashed!important}
+.pbar{border-radius:0!important;height:3px!important;background:rgba(255,255,255,.07)!important}
+.pbar span{border-radius:0!important;background:var(--acc)!important}
+.sc{background:var(--p2)!important;border:1px solid var(--edge)!important}
+.sc.on{border-color:var(--acc)!important;box-shadow:inset 0 0 0 1px var(--acc)!important}
+.upc .upicon,.ach .prv,.ach .ap{border-radius:2px!important}
+.upc .upicon{background:rgba(0,0,0,.3)!important;box-shadow:inset 0 0 0 1px var(--edge2)!important}
+/* top bar */
+#bar{background:var(--grain),#121012!important;border-bottom:1px solid var(--edge)!important;box-shadow:inset 0 -2px 0 var(--acc)!important;font-family:var(--f-num)!important;font-size:17px!important;border-radius:6px 6px 0 0!important}
+#bar button{border-radius:2px!important;background:transparent!important;border:1px solid var(--edge2)!important}
+.xp{border-radius:1px!important;background:rgba(255,255,255,.06)!important;box-shadow:inset 0 0 0 1px var(--edge2)!important}
+.xp,.xpfill,.sbar,.sfill{border-radius:1px!important}
+.xpfill,.sfill{background:var(--acc)!important;box-shadow:none!important}
+.xpfill::after,#bar .xpfill::after,.xp .xpfill::after,.sbar .sfill::after{display:none!important}
+.xpt{font-size:10px!important;text-shadow:0 1px 2px #000!important}
+/* tooltips */
+#tip{border-radius:3px!important;background:var(--grain),#151214!important;border:1px solid var(--edge2)!important;box-shadow:0 12px 28px rgba(0,0,0,.6)!important}
+#tip .thead{font-family:var(--f-head)!important;text-transform:uppercase;letter-spacing:.05em;font-size:14px}
+/* notifications: a paper slip with a coloured edge, no emoji */
+.note{border-radius:2px!important;background:var(--grain),rgba(18,15,16,.94)!important;border:1px solid var(--edge2)!important;box-shadow:inset 3px 0 0 var(--acc),0 10px 24px rgba(0,0,0,.45)!important;backdrop-filter:none!important}
+.note .ni{display:none!important}
+.note b{font-family:var(--f-head)!important;text-transform:uppercase;letter-spacing:.04em;font-size:15px}
+#intro .sic{display:none!important}
+/* HUD chips in play */
+#rewards .rw{border-radius:2px!important;font-family:var(--f-num)!important}
+#combo .cbox{border-radius:3px}
+.hc{background:rgba(12,10,11,.55)!important}
+#abil .ab,#touch .ab{border-radius:3px!important}
+#resume>*{border-radius:3px!important}
+/* menu */
+.menu .mlevel span:first-child{font-family:var(--f-head)!important;text-transform:uppercase;letter-spacing:.05em}
+.menu .ver{font-family:var(--f-num)!important}
+.mch b{font-family:var(--f-head)!important;text-transform:uppercase;letter-spacing:.05em}
+.mapch .mc small{color:var(--dim)!important}
+/* pause and summary numbers */
+.sbig,.pstats b{font-family:var(--f-head)!important;font-weight:700!important}
+.panel.sum .sh h1{font-size:44px!important;color:var(--acc-hi)}
+.slist li,.pch>*{border-radius:2px!important}
+.srow>div,.sxp{border-radius:3px!important;background:var(--p2)!important;border-color:var(--edge)!important}
+.srow b{font-family:var(--f-head)!important;font-weight:700!important;letter-spacing:0}
+.srow .sbig b{text-shadow:none!important;color:var(--ink)!important}
+.sbar,.xp{background:rgba(255,255,255,.06)!important;background-image:none!important;border-radius:1px!important;box-shadow:inset 0 0 0 1px var(--edge2)!important}
+.sbar{height:12px!important}
+.seg button,.sseg button{font-size:13px!important;letter-spacing:.02em!important}
+.card .cn{font-size:12.5px!important;letter-spacing:.02em!important}
+.mtile b{font-size:14px!important;letter-spacing:.02em!important}
+.panel.shop2 .tab{font-size:13px!important;white-space:nowrap;padding-top:6px!important;padding-bottom:6px!important;letter-spacing:.03em!important}
+#intro .tbadge,#intro .imod,.tbadge{border-radius:2px!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)!important}
+#intro .iname2{font-family:var(--f-head)!important;font-weight:800;text-transform:uppercase;letter-spacing:.01em}
+#intro .iflav{font-style:normal!important;color:var(--dim)!important}
+.upc .ukey,.ukey,kbd{border-radius:2px!important;font-family:var(--f-num)!important}
+.panel.shop2 .tab{overflow:hidden;text-overflow:ellipsis}

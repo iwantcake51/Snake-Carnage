@@ -108,7 +108,7 @@ function seasonBadge() { return season ? `<span class="tbadge szn ${season.id}">
 function introHtml(sz) { // the loading card: map name, when, what season, which modifiers
   const m = MAPS[mapIdx], tags = [m.space ? 'Space' : m.indoor ? 'Indoors' : 'Outdoors'];
   const szB = sz ? `<span class="tbadge szn ${sz.id}"><i class="sic">${sz.icon}</i><b>${sz.name}</b></span>` : '';
-  const mods = runMods.map(id => { const q = MODS.find(x => x.id === id); return q ? `<span class="imod">${MOD_ICON[id] || ''} ${q.name}</span>` : ''; }).join('');
+  const mods = runMods.map(id => { const q = MODS.find(x => x.id === id); return q ? `<span class="imod">${q.name}</span>` : ''; }).join('');
   return `<canvas class="iimg" width="${W}" height="${H}"></canvas><div class="ishade"></div>
     <div class="iwrap"><span class="ieye" style="--d:.05s">${tags.join(' · ')}</span>
       <h2 class="iname2" style="--d:.12s">${m.name}</h2>
@@ -123,7 +123,7 @@ function introShot(c) { // the real map, this season, as the backdrop
 }
 function modIntro(ids) { // random run: show what was rolled at the bottom for a moment, then send each one up and away
   const el = document.getElementById('modintro'); clearTimeout(el._t);
-  el.innerHTML = ids.map((id, i) => `<span class="mi" style="--i:${i}">${MOD_ICON[id] || ''} ${MODS.find(m => m.id === id).name}</span>`).join('');
+  el.innerHTML = ids.map((id, i) => `<span class="mi" style="--i:${i}">${MODS.find(m => m.id === id).name}</span>`).join('');
   el._t = setTimeout(() => { el.querySelectorAll('.mi').forEach(m => m.classList.add('go')); el._t = setTimeout(() => { el.innerHTML = ''; }, 900 + ids.length * 160); }, SETTINGS.reduceMotion ? 1500 : 4200);
 }
 function endIntro(abort) { // fade the intro out, pull the bars away and start the spawn zoom

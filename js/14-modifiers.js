@@ -137,5 +137,5 @@ let fadeT = 2;
 function modTip(m) { // full explanation shown on hover
   const pct = m.mult ? `<span class="tdim">Rewards ${m.mult > 0 ? '+' : ''}${Math.round(m.mult * 100)}% XP, chips and score</span>` : '<span class="tdim">No change to rewards</span>';
   const not = (m.not || []).length ? `<span class="tdim">Can't combine with ${m.not.map(id => (MODS.find(q => q.id === id) || {}).name).join(', ')}</span>` : '';
-  return `<span class="thead">${MOD_ICON[m.id] || ''} ${m.name}</span>${MOD_HOW[m.id] || m.desc}${pct}${not}`;
+  return `<span class="thead">${m.name}</span>${MOD_HOW[m.id] || m.desc}${pct}${not}`;
 }
