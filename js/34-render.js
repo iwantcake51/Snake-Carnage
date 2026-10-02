@@ -62,6 +62,7 @@ function render() {
   if (ws > .02 && px <= 1) { // seeing stars after a wall: the picture wobbles in slow waves, fading with the daze
     const bh = Math.ceil(cv.height / 48), amp = 7 * ws * DPR;
     for (let y = 0; y < cv.height; y += bh) { const o = Math.sin(y / cv.height * 9 + T * 3.1) * amp + Math.sin(T * 1.7 + y * .01) * amp * .4; ctx.drawImage(sceneC, 0, y, cv.width, bh, o, y, cv.width, bh); }
+    chromaSplit(Math.min(1, ws));
   }
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   if (nightVision) { // green phosphor look done in-canvas, so the overlays after it keep their real colors
@@ -93,7 +94,7 @@ function render() {
   if (wantStart !== !!render.startShown) { render.startShown = wantStart; wantStart ? showResume('to begin') : hideResume(); }
   const stun = snake && snake.ramT > 0 ? Math.min(1, Math.pow(snake.ramT / (snake.ramMax || 1), .6) * (snake.stunFx || 1)) : 0; // lingers, then eases out // dazed after smashing through something
   if (Math.abs(stun - (render.stun || 0)) > .02 || (stun === 0) !== (render.stun === 0)) { render.stun = stun; stage.style.setProperty('--stun', stun.toFixed(2)); stage.classList.toggle('stunned', stun > 0); stage.classList.toggle('wallstun', !!(snake && snake.wallStun > 0)); }
-  const sat = (SETTINGS.desaturate && !nightVision ? clamp(1 - killFlash * .5, .45, 1) : 1) * (1 - .75 * stun);
+  const sat = (SETTINGS.desaturate && !nightVision ? clamp(1 - killFlash * .5, .45, 1) : 1) * (1 - (snake && snake.wallStun > 0 ? .4 : .75) * stun); // walls keep a little color so the red/blue split still reads
   const f = nightVision ? `contrast(1.15) brightness(${(.95 - SETTINGS.darkness * .2).toFixed(2)})` : `saturate(${sat.toFixed(2)}) brightness(${(1 - SETTINGS.darkness).toFixed(2)}) contrast(1.08)`;
   if (f !== lastFilter) { cv.style.filter = f; lastFilter = f; }
   const clock = (MAPS[mapIdx].indoor ? '🏢 ' : light.day > .5 ? '☀️ ' : light.day > .05 ? '🌇 ' : '🌙 ') +
@@ -201,4 +202,20 @@ function drawDrops(x) {
     x.lineWidth = thin; x.beginPath(); x.moveTo(p.x - ux * len * .8, py - uy * len * .8); x.lineTo(p.x + ux * .01, py + uy * .01); x.stroke();
     if (q === 3) { x.fillStyle = c; circ(x, p.x, py, thin * .55); } // a rounded leading edge
   }
+}
+
+/* after a wall: red and blue pull apart and the picture doubles and triples, all easing back together */
+const caR = document.createElement('canvas'), caB = document.createElement('canvas');
+function chromaSplit(k) {
+  const w = cv.width, h = cv.height;
+  for (const c of [caR, caB]) if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+  const tint = (c, col) => { const x = c.getContext('2d'); x.globalCompositeOperation = 'copy'; x.drawImage(cv, 0, 0); x.globalCompositeOperation = 'multiply'; x.fillStyle = col; x.fillRect(0, 0, w, h); x.globalCompositeOperation = 'destination-in'; x.drawImage(cv, 0, 0); return c; };
+  tint(caR, '#ff0000'); tint(caB, '#0000ff');
+  const d = (4 + 7 * k) * DPR, a = T * 1.9, dx = Math.cos(a) * d, dy = Math.sin(a * .7) * d * .6;
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = '#00ff00'; ctx.fillRect(0, 0, w, h); // keep green where it is
+  ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(caR, dx, dy); ctx.drawImage(caB, -dx, -dy); // red and blue shifted apart
+  ctx.globalCompositeOperation = 'source-over';
+  for (const [g, al] of [[1.9, .22 * k], [-2.6, .14 * k]]) { ctx.globalAlpha = al; ctx.drawImage(cv, dx * g + Math.sin(T * 1.3) * d, dy * g - Math.cos(T) * d * .5); } // seeing double, then triple
+  ctx.restore();
 }
