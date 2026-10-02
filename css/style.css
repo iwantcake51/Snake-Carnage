@@ -1042,3 +1042,10 @@ body.calm .panel,body.calm .mleft,body.calm .mright{translate:none}
 #modintro .mi.go{animation:miUp .9s ease-in forwards;animation-delay:calc(var(--i) * 160ms)}
 @keyframes miIn{from{opacity:0;translate:0 14px;scale:.9}}
 @keyframes miUp{to{opacity:0;translate:0 -140px;filter:blur(2px)}}
+
+/* XP bars: the empty part wears thin diagonal stripes in the theme's tint, so it reads as locked rather than blank.
+   The opaque fill sits on top, so the stripes only show where there's no XP yet and shrink as it fills. */
+.xp,.sbar{background-color:color-mix(in srgb,var(--acc-deep) 45%,#120e10);
+  background-image:repeating-linear-gradient(135deg,color-mix(in srgb,var(--acc) 22%,transparent) 0 1px,transparent 1px 5px);
+  background-clip:padding-box;isolation:isolate}
+.xpfill,.sfill{background-color:var(--acc-lo);box-shadow:2px 0 4px rgba(0,0,0,.45)}
