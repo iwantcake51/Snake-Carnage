@@ -151,6 +151,37 @@ function seasonFull(o, ti) {
   if (o.kind === 'bush' && id === 'winter') f = .12;
   return clamp(f, 0, 1);
 }
+function buildLimbs(o, ti, full, r, sz, id) {
+  const R = o.r, S = R * 2 + 24, C0 = S / 2, cols = sz.leaves, n = ti.branches, limbs = [], spr = Math.min(DPR, 1.4);
+  const blossom = id === 'spring' && ti.blossom < sz.blossom, bc = ti.blossom < .15 ? ['#ffd6e6', '#ffffff'] : ['#ffffff', '#fff6d8'];
+  for (let b = 0; b < n; b++) {
+    const c = document.createElement('canvas'); c.width = c.height = Math.ceil(S * spr); const x = c.getContext('2d'); x.scale(spr, spr);
+    const a0 = b / n * TAU + ti.ph + (r() - .5) * .4, L = R * (.78 + r() * .2), sector = TAU / n * .62, bark = sz.bark, tips = [];
+    x.lineCap = 'round';
+    const grow = (px, py, a, len, w, depth) => { // the limb, then forks off it, thinning as they go
+      const nx = px + Math.cos(a) * len, ny = py + Math.sin(a) * len;
+      x.strokeStyle = shade(bark, -.12 + depth * .06); x.lineWidth = w; x.beginPath(); x.moveTo(px, py); x.quadraticCurveTo((px + nx) / 2 + Math.cos(a + 1.57) * len * .12 * (r() - .5), (py + ny) / 2 + Math.sin(a + 1.57) * len * .12 * (r() - .5), nx, ny); x.stroke();
+      if (snowy()) { x.strokeStyle = 'rgba(242,246,252,.8)'; x.lineWidth = w * .45; x.beginPath(); x.moveTo(px - .5, py - .5); x.lineTo(nx - .5, ny - .5); x.stroke(); }
+      if (depth >= 3 || len < 3) { tips.push([nx, ny, a]); return; }
+      const k = depth === 0 ? 2 : 1 + (r() < .6 ? 1 : 0);
+      for (let f = 0; f < k; f++) grow(nx, ny, a + (f ? -1 : 1) * (.35 + r() * .45) * (k > 1 ? 1 : (r() < .5 ? -1 : 1)), len * (.6 + r() * .2), w * .62, depth + 1);
+      if (depth > 0) tips.push([nx, ny, a]);
+    };
+    grow(C0, C0, a0, L * .42, R * .1, 0);
+    if (full > .05) {
+      const stamp = (px, py, lvl, sc) => { const st = leafStamp(cols, lvl, Math.floor(r() * 5)), w = 26 * sc; x.save(); x.translate(px, py); x.rotate(r() * TAU); x.drawImage(st, -w / 2, -w / 2, w, w); x.restore(); };
+      const N = Math.round(R * R / (19 * n) * 2.6);
+      for (let k = 0; k < N; k++) { if (r() > full) continue; const aa = a0 + (r() - .5) * sector * 2, d = (.3 + Math.pow(r(), .7) * .68) * R; stamp(C0 + Math.cos(aa) * d, C0 + Math.sin(aa) * d, -.2 + (Math.cos(aa - 3.93) > 0 ? .1 : -.04), .62 + r() * .4); } // the mass of leaves this limb holds
+      for (const [tx, ty] of tips) for (let k = 0; k < 2; k++) { if (r() > full) continue; stamp(tx + (r() - .5) * 5, ty + (r() - .5) * 5, .02 + r() * .14, .5 + r() * .35); } // clusters right on the twig ends
+      if (blossom) for (let k = 0; k < N; k++) { const aa = a0 + (r() - .5) * sector * 2, d = (.35 + r() * .6) * R; x.fillStyle = bc[k & 1]; circ(x, C0 + Math.cos(aa) * d, C0 + Math.sin(aa) * d, .9 + r() * .7); }
+    }
+    limbs.push({ c, ph: r() * TAU, k: .7 + r() * .6 });
+  }
+  const [hi, hx] = makeSprite(S); // the crown over the trunk, so the middle never looks hollow
+  if (full > .05) { const st = (px, py, lvl, sc) => { const t = leafStamp(cols, lvl, Math.floor(r() * 5)), w = 26 * sc; hx.save(); hx.translate(px, py); hx.rotate(r() * TAU); hx.drawImage(t, -w / 2, -w / 2, w, w); hx.restore(); };
+    for (let k = 0; k < R * .9; k++) { if (r() > full) continue; const aa = r() * TAU, d = Math.sqrt(r()) * R * .42; st(C0 + Math.cos(aa) * d - R * .06, C0 + Math.sin(aa) * d - R * .06, .12 + r() * .1, .5 + r() * .35); } }
+  return { limbs, hi, S, amp: 1 };
+}
 function buildCanopy(o) { // two sprite layers: an under layer and a lighter top layer that sways a little more
   const ti = treeInfo(o), R = o.r, S = R * 2 + 18, C0 = S / 2, r = seeded(ti.seed), id = seasonId(), sz = SZN();
   const [lo, lx] = makeSprite(S), [hi, hx] = makeSprite(S);
@@ -165,6 +196,7 @@ function buildCanopy(o) { // two sprite layers: an under layer and a lighter top
     return { lo, hi, S, amp: .5 };
   }
   const full = seasonFull(o, ti), bare = full < .55;
+  if (o.kind === 'tree') return buildLimbs(o, ti, full, r, sz, id); // real trees: every limb carries its own leaves and sways on its own
   if (bare || o.kind === 'bush') { // fine twigs, visible through thin leaves (they sway with the under layer)
     lx.strokeStyle = shade(sz.bark, .08); lx.lineCap = 'round';
     for (let b = 0; b < ti.branches * 2; b++) {
@@ -197,7 +229,7 @@ function drawTrunk(x, o) { // baked: trunk and the main limbs, which show throug
   if (ti.pine) { x.fillStyle = 'rgba(30,40,25,.25)'; circ(x, o.x, o.y, R * .9); return; }
   if (o.kind === 'bush') { x.fillStyle = 'rgba(30,40,25,.18)'; circ(x, o.x, o.y, R * .8); return; }
   x.lineCap = 'round';
-  for (let b = 0; b < ti.branches; b++) {
+  for (let b = 0; b < (o.kind === 'tree' ? 0 : ti.branches); b++) { // limbs live in the swaying sprites now; only the trunk is baked
     const a = b / ti.branches * TAU + ti.ph + (r() - .5) * .5, L = R * (.72 + r() * .22);
     let px = o.x, py = o.y, aa = a, w = R * .1;
     for (let s = 0; s < 3; s++) {
@@ -217,6 +249,11 @@ function windAt(px, py, ph) { // a slow gust rolls across the map; each tree als
 function drawTrees(x) {
   for (const t of treeSprites) {
     const o = t.o, w = windAt(o.x, o.y, t.o.tinfo.ph), w2 = windAt(o.x + 40, o.y + 30, t.o.tinfo.ph + 1.3), A = (1 + o.r * .025) * t.amp, s = t.S;
+    if (t.limbs) { // each limb swings about the trunk on its own beat, carrying its leaves with it
+      for (const l of t.limbs) { x.save(); x.translate(o.x, o.y); x.rotate((w * .035 + Math.sin(T * 1.8 + l.ph) * .016) * l.k); const sc = 1 + Math.sin(T * 1.3 + l.ph) * .008; x.scale(sc, sc); x.drawImage(l.c, -s / 2, -s / 2, s, s); x.restore(); }
+      x.save(); x.translate(o.x + w * .6, o.y + w2 * .3); x.rotate(w * .015); x.drawImage(t.hi, -s / 2, -s / 2, s, s); x.restore();
+      continue;
+    }
     x.save(); x.translate(o.x + w * A * .45, o.y + w2 * A * .25); x.rotate(w * .012 * t.amp); x.drawImage(t.lo, -s / 2, -s / 2, s, s); x.restore();
     x.save(); x.translate(o.x + w * A, o.y + w2 * A * .55); x.rotate(w * .02 * t.amp); x.drawImage(t.hi, -s / 2, -s / 2, s, s); x.restore();
   }
