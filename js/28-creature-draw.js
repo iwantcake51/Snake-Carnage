@@ -16,11 +16,14 @@ function shapePath(x, c) {
     if (L.outfit === 'alien') { x.moveTo(6.6, 0); x.ellipse(.6, 0, 6, 5.6, 0, 0, TAU); } else { x.moveTo(5.4, 0); x.arc(.6, 0, 4.8, 0, TAU); }
     x.moveTo(a1 + 2.5, b1); x.arc(a1, b1, 2.5, 0, TAU);
     x.moveTo(a2 + 2.5, b2); x.arc(a2, b2, 2.5, 0, TAU);
-  } else {
-    x.ellipse(0, 0, d.bl, d.bw, 0, 0, TAU);
-    x.moveTo(d.bl * .85 + d.hr, 0); x.arc(d.bl * .85, 0, d.hr, 0, TAU);
+  } else { // body ellipse + head circle, matching each animal's drawing
+    const S = ANIMAL_SHAPE[c.type] || [d.bl, d.bw, 0, d.bl * .85, d.hr];
+    x.ellipse(S[2], 0, S[0], S[1], 0, 0, TAU);
+    x.moveTo(S[3] + S[4], 0); x.arc(S[3], 0, S[4], 0, TAU);
   }
 }
+const ANIMAL_SHAPE = { rabbit: [6.6, 4.8, -1, 5, 3.3], deer: [11.2, 6.2, -1, 12, 3.2], frog: [5.2, 4.6, -.6, 3.2, 2.4], dog: [9.6, 5.6, -.5, 9.6, 4.6], cat: [7.6, 4.4, -.5, 6.4, 3.8],
+  chicken: [5.4, 4.4, -.6, 4.8, 3], duck: [6.2, 4.6, -.6, 6, 3], pig: [10.2, 7.6, -.5, 9.6, 5], sheep: [8.2, 7.6, 0, 8.8, 3.8], rat: [5.6, 3.3, -.4, 4.8, 2.3], firefly: [2.4, 1.8, 0, 2, 1] };
 function drawHuman(x, c) { // top-down person, +x = facing direction
   const L = c.look, s = Math.sin(c.phase) * c.moveAmt, [a1, b1, a2, b2] = armPos(c), O = 'rgba(0,0,0,.3)', fy = L.w * .38;
   // legs and shoes stride out from under the body
@@ -108,30 +111,129 @@ function drawFirefly(x, c, d) { // a little beetle: dark wing cases, a flicker o
   x.fillStyle = 'rgba(220,230,240,.35)'; ell(x, -.2, -1.6 - fl * .5, 2.2, 1.1); ell(x, -.2, 1.6 + fl * .5, 2.2, 1.1);
   x.fillStyle = '#2e2a1c'; ell(x, .4, 0, 2.2, 1.4); x.fillStyle = '#c8d86a'; ell(x, -1.8, 0, 1.2, 1); x.fillStyle = '#5a3a1a'; circ(x, 2.4, 0, .8);
 }
+/* ---- animals: top-down, +x forward. Each one: feet that actually step, a shaded body, a head with real features ---- */
+const EYE = (x, px, py, r = .8) => { x.fillStyle = '#121212'; circ(x, px, py, r); x.fillStyle = 'rgba(255,255,255,.7)'; circ(x, px + r * .3, py - r * .3, r * .35); };
+function feet(x, c, d, fx, bx, wy, col, r = 1.5) { // four paws/hooves stepping in a trot
+  const s = Math.sin(c.phase) * c.moveAmt * 2.2; x.fillStyle = col;
+  circ(x, fx + s, -wy, r); circ(x, fx - s, wy, r); circ(x, bx - s, -wy, r); circ(x, bx + s, wy, r);
+}
+function body(x, len, wid, col, cx = 0) { // shaded oval: darker underside edge, lit back
+  x.fillStyle = shade(col, -.18); ell(x, cx, 0, len, wid);
+  x.fillStyle = col; ell(x, cx - .3, -.25, len - .7, wid - .8);
+  x.fillStyle = 'rgba(255,255,255,.14)'; ell(x, cx - len * .15, -wid * .32, len * .55, wid * .32);
+}
+const ANIMALS = {
+  rabbit(x, c, d) {
+    const air = Math.min(1, (c.hz || 0) / 5), st = air * 3; // legs stretch out mid-bound
+    x.fillStyle = shade(d.col, -.1); ell(x, -5 - st, -3.2, 3 + st * .6, 1.6); ell(x, -5 - st, 3.2, 3 + st * .6, 1.6); // big hind feet
+    x.fillStyle = shade(d.col, -.2); circ(x, 3 + st * .8, -2, 1.2); circ(x, 3 + st * .8, 2, 1.2);
+    body(x, 6.4, 4.6, d.col, -1); x.fillStyle = '#fff'; circ(x, -7.4, 0, 2.1); // cottontail
+    x.fillStyle = shade(d.col, .05); ell(x, 4.6, 0, 3.4, 3); // head
+    const flop = Math.sin(T * 3 + c.pt * 20) * .15 + air * .3;
+    for (const sg of [-1, 1]) { x.save(); x.translate(3.4, sg * 1.3); x.rotate(Math.PI + sg * (.28 + flop)); x.fillStyle = shade(d.col, -.08); ell(x, 3.2, 0, 3.4, 1.1); x.fillStyle = 'rgba(227,181,168,.8)'; ell(x, 3.4, 0, 2.3, .45); x.restore(); }
+    EYE(x, 5.6, -1.9, .7); EYE(x, 5.6, 1.9, .7); x.fillStyle = '#d98a8a'; circ(x, 7.8, 0, .6);
+  },
+  deer(x, c, d) {
+    feet(x, c, d, 7, -8, 3.4, '#3a2a1c', 1.3);
+    body(x, 11, 6, d.col, -1);
+    x.fillStyle = '#f2ead8'; ell(x, -11, 0, 2.4, 2.2); x.fillStyle = shade(d.col, -.25); circ(x, -12, 0, 1); // white rump, tail
+    x.fillStyle = 'rgba(255,255,255,.45)'; for (const [sx, sy] of [[-4, -2], [-1, 2], [2, -1.5], [-6, 1.5], [4, 1.8]]) circ(x, sx, sy, .8); // spots on the back
+    x.fillStyle = shade(d.col, -.05); ell(x, 9.5, 0, 3, 2.6); ell(x, 13, 0, 2.6, 1.8); // neck, head
+    x.fillStyle = '#2a1c12'; circ(x, 15.4, 0, .9);
+    for (const sg of [-1, 1]) { x.fillStyle = shade(d.col, -.15); ell(x, 11.2, sg * 2.8, 1.8, .9); }
+    if (c.pt > .1) { x.strokeStyle = '#6e5236'; x.lineWidth = 1.1; x.lineCap = 'round'; for (const sg of [-1, 1]) { x.beginPath(); x.moveTo(12, sg * 1); x.lineTo(9.5, sg * 5); x.lineTo(8, sg * 6.4); x.moveTo(9.6, sg * 4.6); x.lineTo(11.4, sg * 6); x.stroke(); } } // antlers on the stags
+    EYE(x, 13.4, -1.5, .6); EYE(x, 13.4, 1.5, .6);
+  },
+  frog(x, c, d) {
+    const air = Math.min(1, (c.hz || 0) / 3), st = air * 3;
+    x.fillStyle = shade(d.col, -.15); // folded back legs kick out when it jumps
+    for (const sg of [-1, 1]) { ell(x, -2.6 - st, sg * (3.6 - air), 2.8 + st * .7, 1.3); circ(x, -4.6 - st * 1.6, sg * (4.4 - air), 1.1); ell(x, 2.6, sg * 3.6, 1.6, .9); }
+    body(x, 4.6, 4, d.col);
+    x.fillStyle = '#c9d77a'; ell(x, .6, 0, 2.6, 2.2); x.fillStyle = 'rgba(40,70,20,.5)'; circ(x, -1.6, -1.6, .8); circ(x, -.4, 1.8, .7); circ(x, -2.4, .6, .6);
+    for (const sg of [-1, 1]) { x.fillStyle = shade(d.col, .1); circ(x, 3.2, sg * 2.1, 1.5); EYE(x, 3.5, sg * 2.2, .9); }
+  },
+  dog(x, c, d) {
+    feet(x, c, d, 6, -6, 3, shade(d.col, -.3), 1.4);
+    const wag = Math.sin(T * (c.state === 'wander' ? 12 : 22) + c.pt * 30) * (c.state === 'panic' ? .3 : .6);
+    x.strokeStyle = shade(d.col, -.12); x.lineWidth = 2; x.lineCap = 'round'; x.beginPath(); x.moveTo(-8, 0); x.quadraticCurveTo(-11, wag * 4, -13, wag * 6); x.stroke();
+    body(x, 9.5, 5.4, d.col, -.5);
+    x.fillStyle = shade(d.col, -.22); ell(x, -2, 0, 4, 3.4); // darker saddle
+    x.fillStyle = d.col; circ(x, 8.4, 0, 4.2); x.fillStyle = shade(d.col, .12); ell(x, 11.6, 0, 2.6, 2.2); x.fillStyle = '#1a1210'; circ(x, 13.4, 0, 1.1); // head, muzzle, nose
+    for (const sg of [-1, 1]) { x.fillStyle = shade(d.col, -.35); ell(x, 7, sg * 4.2, 2.6, 1.6); }
+    EYE(x, 9.8, -1.8, .7); EYE(x, 9.8, 1.8, .7);
+    x.fillStyle = '#c0392b'; x.fillRect(5.2, -3.6, 1.2, 7.2); // collar
+  },
+  cat(x, c, d) {
+    feet(x, c, d, 4.6, -4.6, 2.6, shade(d.col, -.15), 1.2);
+    const sw = Math.sin(T * 3 + c.pt * 20) * .5;
+    x.strokeStyle = d.col; x.lineWidth = 2.2; x.lineCap = 'round'; x.beginPath(); x.moveTo(-6, 0); x.bezierCurveTo(-10, sw * 4, -12, -sw * 5, -14, sw * 2); x.stroke();
+    x.strokeStyle = shade(d.col, -.25); x.lineWidth = 2.2; x.beginPath(); x.moveTo(-13.2, sw * 2.6); x.lineTo(-14, sw * 2); x.stroke(); // dark tail tip
+    body(x, 7.4, 4.2, d.col, -.5);
+    x.strokeStyle = shade(d.col, -.22); x.lineWidth = 1; x.beginPath(); for (let k = -1; k <= 1; k++) { x.moveTo(-4 + k * 3, -3.4); x.quadraticCurveTo(-3.2 + k * 3, 0, -4 + k * 3, 3.4); } x.stroke(); // tabby stripes
+    x.fillStyle = d.col; circ(x, 6.2, 0, 3.6);
+    for (const sg of [-1, 1]) { x.fillStyle = shade(d.col, -.1); x.beginPath(); x.moveTo(4.6, sg * 1.6); x.lineTo(4, sg * 4.6); x.lineTo(6.6, sg * 3.2); x.fill(); x.fillStyle = '#f2b5b0'; circ(x, 4.9, sg * 3.3, .55); }
+    x.fillStyle = '#7bd36a'; circ(x, 7.6, -1.4, .75); circ(x, 7.6, 1.4, .75); x.fillStyle = '#111'; x.fillRect(7.5, -1.8, .4, .8); x.fillRect(7.5, 1, .4, .8);
+    x.fillStyle = '#e58a8a'; circ(x, 9.4, 0, .5);
+  },
+  chicken(x, c, d) {
+    const s = Math.sin(c.phase * 1.4) * c.moveAmt * 1.6; x.fillStyle = '#e8a01c'; circ(x, 1 + s, -1.8, .9); circ(x, 1 - s, 1.8, .9); // feet
+    x.fillStyle = shade(d.col, -.12); for (const sg of [-1, 1]) ell(x, -1, sg * 3.2, 3.6, 1.6); // folded wings
+    body(x, 5.2, 4.2, d.col, -.4);
+    x.fillStyle = shade(d.col, -.08); for (let k = 0; k < 3; k++) ell(x, -5 - k, (k - 1) * 1.2, 2, .9); // tail feathers
+    const peck = c.state === 'idle' ? Math.max(0, Math.sin(T * 6 + c.pt * 40)) * 1.2 : 0;
+    x.fillStyle = d.col; circ(x, 4.4 + peck, 0, 2.8);
+    x.fillStyle = '#d62828'; circ(x, 3.8 + peck, 0, 1.2); circ(x, 5 + peck, 0, 1); ell(x, 6.4 + peck, .9, .8, .6); // comb + wattle
+    x.fillStyle = '#f2a20c'; x.beginPath(); x.moveTo(6.6 + peck, -.9); x.lineTo(8.6 + peck, 0); x.lineTo(6.6 + peck, .9); x.fill();
+    EYE(x, 5.2 + peck, -1.6, .5); EYE(x, 5.2 + peck, 1.6, .5);
+  },
+  duck(x, c, d) {
+    const s = Math.sin(c.phase * 1.2) * c.moveAmt * 1.4; x.fillStyle = '#f08a1c'; ell(x, 1 + s, -2, 1.3, .9); ell(x, 1 - s, 2, 1.3, .9);
+    x.fillStyle = shade(d.col, -.15); for (const sg of [-1, 1]) ell(x, -1.4, sg * 3, 4.2, 1.6);
+    body(x, 6, 4.4, d.col, -.6);
+    x.fillStyle = '#4a4a4a'; ell(x, -6.4, 0, 1.6, 1.2); x.fillStyle = '#2f6fbf'; x.fillRect(-2.6, -4.2, 2.4, 1); x.fillRect(-2.6, 3.2, 2.4, 1); // tail + blue wing patch
+    const hc = d.hcol || d.col; x.fillStyle = '#f2f2ea'; ell(x, 3, 0, 1.4, 2.4); // white neck ring
+    x.fillStyle = hc; circ(x, 5, 0, 2.8);
+    x.fillStyle = '#f2b01c'; x.beginPath(); x.ellipse(8.2, 0, 2.2, 1.2, 0, 0, TAU); x.fill(); x.fillStyle = 'rgba(0,0,0,.25)'; x.fillRect(7.2, -.15, 2.6, .3);
+    EYE(x, 5.6, -1.6, .5); EYE(x, 5.6, 1.6, .5);
+  },
+  pig(x, c, d) {
+    feet(x, c, d, 5.5, -5.5, 4.4, '#7a4a4a', 1.3);
+    x.strokeStyle = shade(d.col, -.15); x.lineWidth = 1.2; x.beginPath(); x.arc(-11, 0, 1.6, 0, Math.PI * 1.6); x.stroke(); // curly tail
+    body(x, 10, 7.4, d.col, -.5);
+    x.fillStyle = 'rgba(120,70,40,.35)'; ell(x, -4, 2.6, 2.6, 1.8); ell(x, 2, -3.4, 1.8, 1.2); // mud
+    x.fillStyle = shade(d.col, .05); circ(x, 8.6, 0, 4.8);
+    for (const sg of [-1, 1]) { x.fillStyle = shade(d.col, -.12); x.beginPath(); x.moveTo(7, sg * 2.2); x.lineTo(6, sg * 6.2); x.lineTo(9.4, sg * 4.2); x.fill(); }
+    x.fillStyle = shade(d.col, -.12); ell(x, 12.6, 0, 1.8, 2.4); x.fillStyle = '#7a3a4a'; circ(x, 13, -.9, .5); circ(x, 13, .9, .5);
+    EYE(x, 10, -2, .65); EYE(x, 10, 2, .65);
+  },
+  sheep(x, c, d) {
+    feet(x, c, d, 5.5, -5.5, 4.2, '#222', 1.2);
+    x.fillStyle = shade(d.col, -.14); circ(x, 0, 0, 8);
+    const r = seeded(Math.round(c.pt * 1e4)); // a fluffy fleece of overlapping curls
+    for (let k = 0; k < 11; k++) { const a = k * TAU / 11, rr = 5.6 + r() * 1.2; x.fillStyle = shade(d.col, -.05 + r() * .08); circ(x, Math.cos(a) * rr * .95, Math.sin(a) * rr * .8, 3.2); }
+    x.fillStyle = d.col; circ(x, -.4, -.4, 5.4); x.fillStyle = 'rgba(255,255,255,.45)'; circ(x, -2, -2, 2.4);
+    const hc = d.hcol || '#333'; x.fillStyle = hc; ell(x, 8.6, 0, 3.6, 3); for (const sg of [-1, 1]) ell(x, 7.4, sg * 3.4, 2.2, 1);
+    x.fillStyle = shade(d.col, .02); circ(x, 7, 0, 1.8); // woolly topknot
+    EYE(x, 9.6, -1.4, .55); EYE(x, 9.6, 1.4, .55);
+  },
+  rat(x, c, d) {
+    const s = Math.sin(c.phase * 1.6) * c.moveAmt;
+    x.strokeStyle = d.tcol || '#d99a9a'; x.lineWidth = 1.1; x.lineCap = 'round'; x.beginPath(); x.moveTo(-4.4, 0); x.bezierCurveTo(-8, s * 3, -10, -s * 3, -13, s * 1.5); x.stroke();
+    x.fillStyle = '#d99a9a'; circ(x, 2.4 + s, -2.4, .7); circ(x, 2.4 - s, 2.4, .7); circ(x, -2.6 - s, -2.6, .8); circ(x, -2.6 + s, 2.6, .8);
+    body(x, 5.4, 3.1, d.col, -.4);
+    x.fillStyle = d.col; ell(x, 4.4, 0, 2.8, 2); x.fillStyle = '#e8a5a5'; for (const sg of [-1, 1]) circ(x, 3.2, sg * 2.2, 1.2);
+    x.fillStyle = '#e58a8a'; circ(x, 7.2, 0, .55); EYE(x, 5.2, -1.1, .45); EYE(x, 5.2, 1.1, .45);
+    x.strokeStyle = 'rgba(255,255,255,.5)'; x.lineWidth = .4; x.beginPath(); for (const sg of [-1, 1]) { x.moveTo(6.6, sg * .6); x.lineTo(8.6, sg * 2.2); } x.stroke(); // whiskers
+  },
+};
 function drawAnimal(x, c) {
   if (c.def.fly) return drawFirefly(x, c, c.def);
-  const d = c.def, hc = d.hcol || d.col, lp = Math.sin(c.phase) * c.moveAmt, hx = d.bl * .85;
-  if (d.tail === 'puff') { x.fillStyle = '#fff'; circ(x, -d.bl, 0, 2); }
-  else if (d.tail) {
-    x.strokeStyle = d.tcol || shade(d.col, -.25); x.lineWidth = d.tail === 'line' ? 2 : 1.4;
-    x.beginPath(); x.moveTo(-d.bl * .8, 0);
-    x.quadraticCurveTo(-d.bl * 1.4, lp * 4 + 2, -d.bl * (d.tail === 'long' ? 2 : 1.6), lp * 6); x.stroke();
-  }
-  if (d.legs) { const st = d.hop ? Math.min(1, (c.hz || 0) / 3) : 0; x.fillStyle = shade(d.col, -.15); // legs kick back mid-hop
-    ell(x, -d.bl * .5 - lp * 2 - st * 3, -d.bw + st, 3 + st * 2, 1.5); ell(x, -d.bl * .5 + lp * 2 - st * 3, d.bw - st, 3 + st * 2, 1.5); }
-  x.fillStyle = d.col; ell(x, 0, 0, d.bl, d.bw);
-  if (d.fluff) for (let k = 0; k < 6; k++) circ(x, Math.cos(k) * d.bl * .7, Math.sin(k * 2) * d.bw * .7, 3.2);
-  if (d.ears === 'long') { x.fillStyle = shade(d.col, -.12); ell(x, hx - 4, -2, 4, 1.4); ell(x, hx - 4, 2, 4, 1.4); }
-  x.fillStyle = hc; circ(x, hx, 0, d.hr);
-  if (d.ears === 'short') { x.fillStyle = shade(hc, -.15); circ(x, hx - 1, -d.hr * .8, 1.6); circ(x, hx - 1, d.hr * .8, 1.6); }
-  if (d.ears === 'flop') { x.fillStyle = shade(hc, -.3); ell(x, hx - 1, -d.hr, 2.4, 1.6); ell(x, hx - 1, d.hr, 2.4, 1.6); }
-  if (d.comb) { x.fillStyle = '#d62828'; circ(x, hx + .5, 0, 1.6); }
-  if (d.beak) { x.fillStyle = '#f2a20c'; x.beginPath(); x.moveTo(hx + d.hr - 1, -1.4); x.lineTo(hx + d.hr + 3, 0); x.lineTo(hx + d.hr - 1, 1.4); x.fill(); }
-  if (d.snout) { x.fillStyle = shade(d.col, -.15); circ(x, hx + d.hr, 0, 2.2); }
+  const f = ANIMALS[c.type]; if (f) return f(x, c, c.def);
+  body(x, c.def.bl || 6, c.def.bw || 4, c.def.col || '#888');
 }
 function drawCreature(x, c, portrait) {
-  if (c.hz > .3) { x.fillStyle = 'rgba(0,0,0,.18)'; ell(x, c.x, c.y, c.def.r * .9, c.def.r * .7); } // ground shadow under a hopping frog
-  x.save(); x.translate(c.x, c.y - (c.hz || 0) * .6); x.rotate(c.a); if (c.hz) x.scale(1 + c.hz * .035, 1 + c.hz * .035);
+  if (c.hz > .3) { const k = clamp(1 - c.hz / 14, .45, 1); x.fillStyle = `rgba(0,0,0,${(.24 * k).toFixed(3)})`; ell(x, c.x, c.y, c.def.r * .95 * k, c.def.r * .75 * k); } // the shadow shrinks as it leaves the ground
+  x.save(); x.translate(c.x, c.y - (c.hz || 0) * .7); x.rotate(c.a); if (c.hz) x.scale(1 + c.hz * .045, 1 + c.hz * .045); // ...and the body gets bigger, closer to you
   if (c.dance) { const b = Math.abs(Math.sin(T * CLUB_BPM / 60 * Math.PI + c.pt * 30)); x.scale(1 + b * .05, 1 + b * .05); x.rotate(Math.sin(T * 2 + c.pt * 9) * .12); }
   c.def.human ? drawHuman(x, c) : drawAnimal(x, c);
   if (c.stains.length) {

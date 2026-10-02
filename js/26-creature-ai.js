@@ -120,8 +120,9 @@ function hopSpeed(c, dt, spd) { // returns this frame's speed: fast while airbor
   c.hz = 0;
   if (spd <= 0) return 0;
   if ((c.hopW = (c.hopW ?? rand(0, .5)) - dt) > 0) return 0;
-  const dist = scared ? rand(26, 42) : rand(12, 22) * (spd / c.def.walk > 1.5 ? 1.4 : 1);
-  c.hopDur = scared ? rand(.18, .24) : rand(.22, .3); c.hopT = c.hopDur; c.hopH = scared ? rand(5, 8) : rand(3, 5); c.hopV = dist / c.hopDur;
+  const P = c.def.hopP || { d: [12, 22], ds: [26, 42], h: [3, 5], hs: [5, 8], t: [.22, .3], ts: [.18, .24] }; // frogs by default; rabbits bound further and higher
+  const dist = scared ? rand(...P.ds) : rand(...P.d) * (spd / c.def.walk > 1.5 ? 1.4 : 1);
+  c.hopDur = scared ? rand(...P.ts) : rand(...P.t); c.hopT = c.hopDur; c.hopH = scared ? rand(...P.hs) : rand(...P.h); c.hopV = dist / c.hopDur;
   return c.hopV;
 }
 function footprints(c, moved) {
