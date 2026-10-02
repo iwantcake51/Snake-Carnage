@@ -12,12 +12,25 @@ function keyAngle() {
   const dx = (held.has('r') ? 1 : 0) - (held.has('l') ? 1 : 0), dy = (held.has('d') ? 1 : 0) - (held.has('u') ? 1 : 0);
   return dx || dy ? Math.atan2(dy, dx) : null;
 }
+function predictUTurn(side, final) { // play the turn forward: would the head hit a wall or the body on the way round?
+  const s = snake, sl = upg('speed'), v = s.speed, R = CONFIG.snakeR;
+  let x = s.x, y = s.y, ang = s.angle, dir = side, bad = 0;
+  for (let k = 0; k < 60; k++) { const dt = 1 / 60, mx = CONFIG.turnRate * dt * (1 + .48) * 2.4, d = angDiff(ang, dir);
+    ang += Math.abs(d) < .002 ? d : clamp(d * Math.min(1, dt * CONFIG.turnEase) + Math.sign(d) * mx * .18, -mx, mx);
+    if (dir !== final && Math.abs(angDiff(ang, dir)) < .5) dir = final;
+    x += Math.cos(ang) * v * dt; y += Math.sin(ang) * v * dt;
+    if (hitObstacle(x, y, R * .75) || x < B || y < B || x > W - B || y > H - B) bad += 10; // a wall
+    for (let i = 8; i < s.segs.length; i++) if (dist2(x, y, s.segs[i].x, s.segs[i].y) < (R * 1.25) ** 2) { bad += 5; break; } // your own body
+    if (Math.abs(angDiff(ang, final)) < .15 && k > 10) break;
+  }
+  return bad;
+}
 function setHeading(a) { // one place where a new target heading is accepted (8-way rules)
   if (snake.started && Math.abs(angDiff(snake.dir, a)) > Math.PI * .9) { // no instant reversal... unless Speed Demon V lets you whip round
     if (upg('speed') < 5 || T - (snake.uturnAt || -9) < .6 || snake.uturnT > 0) return;
-    const L = snake.dir - Math.PI / 2, R2 = snake.dir + Math.PI / 2, open = a2 => { let n = 0; for (const d of [15, 30, 45]) if (!solid(snake.x + Math.cos(a2) * d, snake.y + Math.sin(a2) * d)) n++; return n; };
-    const side = open(L) >= open(R2) ? L : R2; // swing round on the side with room
-    snake.uturnAt = T; snake.uturnT = .55; snake.uturnTo = a; snake.dir = side; Sfx.turn(); return;
+    const sides = [snake.dir - Math.PI / 2, snake.dir + Math.PI / 2].map(sd => ({ sd, bad: predictUTurn(sd, a) })).sort((p, q) => p.bad - q.bad);
+    if (sides[0].bad > 0) return; // both ways would hit a wall or your own body: no U-turn
+    snake.uturnAt = T; snake.uturnT = .55; snake.uturnTo = a; snake.dir = sides[0].sd; Sfx.turn(); return; // the clear side (and if the first choice isn't clear, the other one)
   }
   if (snake.started && Math.abs(angDiff(snake.dir, a)) > .1) Sfx.turn();
   if (snake.started && Math.abs(angDiff(snake.dir, a)) > 1.4) snake.hardTurnT = T; // 90 degrees or more

@@ -11,7 +11,7 @@ function drawSnake(x, s = snake, cfg = SETTINGS.snake) {
   const me = s === snake, lv = me ? upg('dash') : 0, lk = me ? lungeK(s) : 0, cam = me ? camoField(s, n) : null;
   if (lk > .01 && !SETTINGS.simpleFx) drawLungeFx(x, s, pts, n, lk, lv);
   const sd = me ? upg('speed') : 0;
-  if (sd >= 3 && moving && Math.random() < .12 * (sd - 2)) { const i = Math.floor(Math.random() * Math.min(n, 8)), g = pts[i], side = Math.random() < .5 ? -1 : 1, off = segR(i, n) + rand(2, 6); // Speed Demon: a few lines peel off as you go
+  if (sd >= 3 && sd < 5 && moving && Math.random() < .12 * (sd - 2)) { // gone again at max level const i = Math.floor(Math.random() * Math.min(n, 8)), g = pts[i], side = Math.random() < .5 ? -1 : 1, off = segR(i, n) + rand(2, 6); // Speed Demon: a few lines peel off as you go
     streaks.push({ x: g.x - Math.sin(g.a) * off * side, y: g.y + Math.cos(g.a) * off * side, a: g.a, len: rand(8, 16) * (sd / 4), t: 0, life: rand(.14, .22) }); }
   if (cam && !SETTINGS.simpleFx) refractBody(x, s, pts, n, cam);
   const camAvg = cam ? cam.avg : 0;
