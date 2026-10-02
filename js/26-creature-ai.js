@@ -59,6 +59,7 @@ function updateCreature(c, dt) {
   if (c.path && c.state === 'idle' && !c.convo && c.alert < .3 && c.timer > 2) c.timer = rand(.5, 1.5); // strollers only pause briefly
   if (c.state === 'idle') {
     if (c.timer <= 0) { c.state = 'wander'; c.timer = rand(2, 5); c.wa = pickWander(c); }
+    else if (!c.convo && solid(c.x + Math.cos(c.a) * 16, c.y + Math.sin(c.a) * 16)) { const a = openDir(c); c.a += clamp(angDiff(c.a, a), -dt * 3, dt * 3); } // nobody stands with their nose to a wall
   } else if (c.state === 'wander') {
     spd = d.walk * (c.alert > .3 ? 1.7 : 1) * (c.dance ? .22 : 1); // cautious people walk briskly; dancers barely move
     if (c.timer <= 0) {
@@ -69,6 +70,7 @@ function updateCreature(c, dt) {
     if (c.owner && c.owner.alive && c.owner.state !== 'panic' && c.alert < .3) { const h = heelDog(c); c.wa = h.a; spd *= h.k; c.timer = Math.max(c.timer, 1); if (c.state === 'idle') c.state = 'wander'; }
     const z = c.zone;
     if (z && (c.x < z.x || c.x > z.x + z.w || c.y < z.y || c.y > z.y + z.h)) c.wa = Math.atan2(z.y + z.h / 2 - c.y, z.x + z.w / 2 - c.x);
+    if (c.detour) { if ((c.detour.t -= dt) <= 0) c.detour = null; else c.wa = c.detour.a; } // walking away from whatever it got stuck on
     want = Math.atan2(Math.sin(c.wa) + c.avy * .8, Math.cos(c.wa) + c.avx * .8);
   } else {
     spd = c.state === 'uneasy' ? d.walk * 2.2 : d.run * (c.state === 'panic' ? 1 : .9);
@@ -105,7 +107,9 @@ function updateCreature(c, dt) {
     else if (free(nx, ny, d.r * .8)) { moved = mv * dt; c.x = nx; c.y = ny; }
     else { c.steerT = 0; if (d.hop) c.hopT = 0; if (T - (c.sideT || -9) > .8) { c.side = -c.side; c.sideT = T; } } // re-steer, but don't flip sides every frame
     if (mv > 0) c.stuck = moved < mv * dt * .3 ? (c.stuck || 0) + dt : 0;
-    if (c.state === 'wander' && c.stuck > .5) { noteSpot(c); c.wa = c.a + Math.PI + rand(-.8, .8); c.stuck = 0; }
+    if (c.state === 'wander' && c.stuck > .4) { // notice it isn't getting anywhere: remember where it was headed, turn to open ground, go
+      noteSpot(c); (c.failed = c.failed || []).push({ x: c.x + Math.cos(c.wa) * 80, y: c.y + Math.sin(c.wa) * 80, t: T }); if (c.failed.length > 4) c.failed.shift();
+      c.detour = { a: openDir(c), t: rand(1.2, 2.4) }; c.wa = c.detour.a; c.steerA = undefined; c.stuck = 0; }
   }
   c.spd = dt > 0 ? moved / dt : 0;
   c.moveAmt += ((moved > 0 ? 1 : 0) - c.moveAmt) * Math.min(1, dt * 8);

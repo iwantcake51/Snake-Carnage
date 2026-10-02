@@ -29,11 +29,22 @@ function spotScore(c, x, y) { // shared by wandering and fleeing: open, uncrowde
   if (c.badSpots) for (const p of c.badSpots) { const q = Math.hypot(x - p.x, y - p.y); if (q < 120) sc -= (120 - q) * 1.2; }
   return sc;
 }
+function openDir(c) { // the most open direction from here that isn't straight back into what blocked it
+  let best = c.a + Math.PI, bs = -1e9;
+  for (let k = 0; k < 12; k++) {
+    const a = k * TAU / 12 + rand(-.15, .15); let free_ = 0;
+    for (const d of [12, 24, 40, 60]) { if (solid(c.x + Math.cos(a) * d, c.y + Math.sin(a) * d)) break; free_++; }
+    const sc = free_ * 10 - Math.cos(angDiff(c.a, a)) * 8 + rand(0, 6);
+    if (sc > bs) { bs = sc; best = a; }
+  }
+  return best;
+}
 function pickWander(c) { // a heading toward somewhere reasonable, with plenty of randomness left in
   let best = c.a + rand(-1.6, 1.6), bs = -1e9;
   for (let k = 0; k < 6; k++) {
     const a = k < 4 ? c.a + rand(-1.8, 1.8) : rand(0, TAU), d = rand(80, 160), x = c.x + Math.cos(a) * d, y = c.y + Math.sin(a) * d;
-    if (x < B || y < B || x > W - B || y > H - B || solid(x, y)) continue;
+    if (x < B || y < B || x > W - B || y > H - B || solid(x, y) || !los(c.x, c.y, x, y)) continue; // only places it can actually walk straight to
+    if (c.failed && c.failed.some(f => T - f.t < 20 && dist2(f.x, f.y, x, y) < 50 * 50)) continue; // not the spot it just failed to reach
     const sc = spotScore(c, x, y) + openness(x, y) * 8 + Math.cos(angDiff(c.a, a)) * 25 + rand(0, 40);
     if (sc > bs) { bs = sc; best = a; }
   }
