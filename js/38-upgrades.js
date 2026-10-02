@@ -102,7 +102,7 @@ function smashObstacle(o, ang) {
   for (let k = 0; k < 6 + size / 6; k++) { const a = ang + rand(-1.4, 1.4), d = rand(0, size * .9); bctx.save(); bctx.translate(cx + Math.cos(a) * d, cy + Math.sin(a) * d); bctx.rotate(rand(0, TAU)); bctx.fillRect(-rand(2, 6), -1.2, rand(4, 12), rand(1.6, 3)); bctx.restore(); }
   bctx.restore();
   for (let k = 0; k < 18 + size / 3; k++) { const a = ang + rand(-1.2, 1.2), sp = rand(60, 230); debris.push({ x: cx + rand(-size / 3, size / 3), y: cy + rand(-size / 3, size / 3), z: rand(4, 16), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(60, 170), t: 0, s: rand(1.6, 3.6), c: pick([o.color, shade(o.color, -.2), shade(o.color, .15)]) }); }
-  octx.clearRect(0, 0, W, H); obstacles.forEach(q => drawObstacle(octx, q));
+  drawObstacleLayer();
   bakeOutline(); buildSolid(); shadowKey = ''; bakeShadows(); bakeLightMasks();
   Sfx.smash(cx, size); shake = Math.max(shake, 6); snake.ramT = .25;
   for (const c of creatures) if (c.alive && dist2(c.x, c.y, cx, cy) < 230 * 230 && (c.state === 'wander' || c.state === 'idle')) { c.state = 'uneasy'; c.fx = cx; c.fy = cy; c.timer = rand(1, 2); if (Math.random() < .5) say(c, 'crash'); }

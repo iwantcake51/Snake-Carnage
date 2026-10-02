@@ -2,13 +2,16 @@
    TIME OF DAY, SHADOWS, LIGHTS
    ========================================================= */
 const HEIGHTS = { block: 22, border: 14, wall: 18, building: 28, barn: 32, silo: 40, tree: 22, bush: 8, rock: 8, car: 9, fence: 6,
-                  desk: 5, chair: 4, couch: 6, bench: 4, table: 5, hay: 9, lamp: 34, water: 0 };
+                  desk: 5, chair: 4, couch: 6, bench: 4, table: 5, hay: 9, lamp: 34, water: 0, hedge: 16, glass: 18, plant: 8, shelf: 14, crate: 9,
+                  pod: 14, holo: 4, cryo: 14, saucer: 10, reactor: 12, console: 6, dome: 20, tube: 8, module: 14, lander: 16, solar: 4, chess: 24,
+                  generator: 10, dj: 6, speaker: 14, bar: 7, booth: 7, pillar: 30, barrier: 5, gazebo: 18, slide: 7, bed: 5 };
 const FIXED_TIMES = { Day: 12.5, Dawn: 6.05, Dusk: 17.95, Night: 23 };
 const TIME_MODES = { Cycle: 'Dynamic', Day: 'Daytime', Dawn: 'Dawn', Dusk: 'Dusk', Night: 'Night' };
 const VISIBLE = .35;
 /* Light colors by source, and how high each source hangs (decides shadow length). */
-const LCOL = { street: '255,156,58', fluor: '226,238,255', pool: '80,215,255', emerg: '255,40,36', fire: '255,150,60', window: '255,196,110', fixed: '255,214,150', alien: '110,255,160' };
-const LIGHT_H = { street: 55, fluor: 70, fixed: 50, fire: 6, pool: 0, emerg: 45, window: 0, alien: 50 };
+const LCOL = { street: '255,156,58', fluor: '226,238,255', pool: '80,215,255', emerg: '255,40,36', fire: '255,150,60', window: '255,196,110', fixed: '255,214,150', alien: '170,255,215',
+  red: '255,46,30', reactor: '120,255,200', bar: '255,170,90', booth: '255,80,170', dj: '120,90,255', disco: '255,60,200', flood: '235,240,255' };
+const LIGHT_H = { street: 55, fluor: 70, fixed: 50, fire: 6, pool: 0, emerg: 45, window: 0, alien: 70, red: 55, reactor: 30, bar: 40, booth: 40, dj: 30, disco: 0, flood: 90 };
 let tod = 16, light = null, shadowKey = '', lights = [], windows = [], beams = [], dropped = [], debris = [], scast = [];
 let lightFrame = 0; const lightCache = { x: NaN, y: NaN, f: -1, v: 0 };
 
@@ -34,7 +37,7 @@ function todTint(h) {
 }
 function computeLight() {
   const m = MAPS[mapIdx], sun = Math.sin((tod - 6) / 12 * Math.PI), day = clamp(sun * 1.6 + .1, 0, 1);
-  if (m.indoor) return { day, dark: .12 + (1 - day) * .4, dusk: 0, sdx: .25, sdy: .35, salpha: .28, lampsOn: 1, dc: '12,12,22', tA: 0 };
+  if (m.indoor) { const amb = m.ambient ?? .2; return { day, dark: clamp(.52 - amb * .7 + (1 - day) * .04, .08, .72), dusk: 0, sdx: .25, sdy: .35, salpha: .28, lampsOn: 1, dc: m.club ? '10,4,18' : m.name === 'Bunker' ? '14,6,6' : '12,12,22', tA: 0 }; } // indoors: the building's own lighting decides, not the sun
   const p = clamp((tod - 6) / 12, 0, 1), len = clamp(.4 / Math.max(.18, sun), .4, 2.2);
   const dusk = clamp(1 - Math.abs(sun - .1) / .25, 0, 1), tt = todTint(tod), mo = 1 - dusk;
   return { day, dark: (1 - day) * .74, dusk, sdx: -Math.cos(p * Math.PI) * len, sdy: .45 * len, salpha: .07 + .25 * day, lampsOn: clamp((1 - day - .15) * 3, 0, 1),
@@ -59,14 +62,18 @@ function buildLights(extra) {
   const m = MAPS[mapIdx];
   lights = extra.map(l => { const kind = l.kind || (m.indoor ? 'fluor' : 'fixed'); return { c: LCOL[kind], h: LIGHT_H[kind], ...l, kind }; });
   windows = [];
-  const add = (x, y, wx, wy, ww, wh) => { if (Math.random() < .6) { lights.push({ x, y, r: 48, c: LCOL.window, kind: 'window', h: 0, flick: Math.random() < .1 }); windows.push({ x: wx, y: wy, w: ww, h: wh }); } };
+  const add = (x, y, wx, wy, ww, wh) => { // a lit window only where there's open ground outside it
+    if (Math.random() > .6 || x < B + 4 || y < B + 4 || x > W - B - 4 || y > H - B - 4 || solid(x, y)) return;
+    lights.push({ x, y, r: 48, c: LCOL.window, kind: 'window', h: 0, flick: Math.random() < .08 }); windows.push({ x: wx, y: wy, w: ww, h: wh });
+  };
   for (const o of obstacles) {
-    if (o.kind === 'lamp') lights.push({ x: o.x, y: o.y, r: 130, c: LCOL.street, kind: 'street', h: LIGHT_H.street, flick: Math.random() < .15, thr: rand(.3, .62), o });
-    if (o.kind !== 'building' && o.kind !== 'barn') continue; // light spilling out of windows
+    if (o.kind === 'lamp') lights.push({ x: o.x, y: o.y, r: o.lr || (o.lantern ? 105 : 130), c: o.mast ? LCOL.flood : o.lantern ? LCOL.fire : LCOL.street, kind: 'street', h: o.mast ? LIGHT_H.flood : LIGHT_H.street, flick: Math.random() < .12, thr: rand(.3, .62), o });
+    if ((o.kind !== 'building' && o.kind !== 'barn') || m.indoor) continue; // light spilling out of windows
     for (let xx = o.x + 18; xx < o.x + o.w - 10; xx += 40) { add(xx, o.y - 8, xx - 5, o.y + 1, 10, 3); add(xx, o.y + o.h + 8, xx - 5, o.y + o.h - 4, 10, 3); }
     for (let yy = o.y + 18; yy < o.y + o.h - 10; yy += 40) { add(o.x - 8, yy, o.x + 1, yy - 5, 3, 10); add(o.x + o.w + 8, yy, o.x + o.w - 4, yy - 5, 3, 10); }
   }
-  beams = []; dropped = []; debris = [];
+  beams = []; dropped = []; debris = []; strayBugs = [];
+  for (const l of lights) if (l.kind === 'street' && !MAPS[mapIdx].space) makeLampBugs(l); // moths need air
   bakeLightMasks();
 }
 function lightTarget(l) {
@@ -89,7 +96,14 @@ function updateLights(dt) {
     else if (l.fT > 0) { l.fT -= dt; if ((l.fN -= dt) <= 0) { l.fN = rand(.04, .09); l.fv = Math.random() < .5 ? rand(.45, .75) : 1; } fl = l.fv; } // a short, rare stutter
     else if (l.flick && Math.random() < dt * .05) { l.fT = rand(.15, .45); l.fN = 0; }
     l.fl = fl;
+    if (l.kind === 'disco') { // club spots sweep the dance floor and drift through the colors
+      const a = T * .55 + l.spin * Math.PI / 2; l.x = 480 + Math.cos(a) * 110 + Math.cos(T * 1.3 + l.spin) * 30; l.y = 350 + Math.sin(a * 1.3) * 80;
+      const hue = (T * 40 + l.spin * 90) % 360, rgb = hsl2hex(hue, 100, 58); l.c = `${parseInt(rgb.slice(1, 3), 16)},${parseInt(rgb.slice(3, 5), 16)},${parseInt(rgb.slice(5, 7), 16)}`;
+      if (l.tx && (l.tintT = (l.tintT || 0) - dt) <= 0) { l.tintT = .1; tintFrom(l.tx, l.mask, l.size, l.c); }
+    }
+    if (l.bugs) updateLampBugs(l, dt);
   }
+  for (let i = strayBugs.length - 1; i >= 0; i--) { const b = strayBugs[i]; b.t += dt; b.x += b.vx * dt; b.y += b.vy * dt; b.vx += rand(-90, 90) * dt; b.vy += rand(-90, 90) * dt; if (b.t > b.life) strayBugs.splice(i, 1); }
 }
 function updateTime(dt) {
   if (MOD.night) tod = 23;
@@ -99,6 +113,14 @@ function updateTime(dt) {
   const key = light.sdx.toFixed(2) + ',' + light.sdy.toFixed(2);
   if (key !== shadowKey) { shadowKey = key; bakeShadows(); }
   updateLights(dt); updateEnclosures(); updateWaters(dt); updateBeams(dt);
+}
+const phaseName = h => h >= 5 && h < 7 ? 'Dawn' : h < 11 && h >= 7 ? 'Morning' : h >= 11 && h < 14 ? 'Midday' : h >= 14 && h < 17 ? 'Afternoon' : h >= 17 && h < 19 ? 'Sunset' : h >= 19 && h < 21.5 ? 'Evening' : 'Night';
+function timeBadge() { // the time the run starts at, shown on the loading screen
+  const ph = phaseName(tod), sunUp = ph !== 'Night' && ph !== 'Evening', low = ph === 'Dawn' || ph === 'Sunset';
+  const icon = sunUp ? `<svg viewBox="0 0 24 24" class="ticon">${low ? '<path d="M3 17h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M6 17a6 6 0 0 1 12 0" fill="currentColor"/>' : '<circle cx="12" cy="12" r="5" fill="currentColor"/>'}${[0, 45, 90, 135, 180, 225, 270, 315].filter(a => !low || (a >= 180 || a === 0)).map(a => `<path d="M12 ${low ? 9 : 2.5}v2.4" stroke="currentColor" stroke-width="2" stroke-linecap="round" transform="rotate(${a} 12 ${low ? 17 : 12})"/>`).join('')}</svg>`
+    : '<svg viewBox="0 0 24 24" class="ticon"><path d="M15 3a8 8 0 1 0 6 13A7 7 0 0 1 15 3z" fill="currentColor"/></svg>';
+  const fixed = SETTINGS.timeMode !== 'Cycle' || MOD.night;
+  return `<span class="tbadge ${ph.toLowerCase()}">${icon}<b>${clockText()}</b><i>${ph}${fixed ? ' · fixed' : ''}${MAPS[mapIdx].indoor ? ' · indoors' : ''}</i></span>`;
 }
 const clockText = () => String(Math.floor(tod)).padStart(2, '0') + ':' + String(Math.floor(tod % 1 * 60)).padStart(2, '0');
 function lightAt(x, y) { // 0 = pitch black, 1 = fully lit (ambient + lamps/windows + flashlight beams)

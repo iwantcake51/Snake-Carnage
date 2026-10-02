@@ -60,6 +60,12 @@ function bakeOutline() {
   nvx.clearRect(0, 0, W, H); nvx.drawImage(outlineC, 0, 0, W, H); // bright copy used by night vision
   nvx.globalCompositeOperation = 'source-in'; nvx.fillStyle = '#ffffff'; nvx.fillRect(0, 0, W, H); nvx.globalCompositeOperation = 'source-over';
 }
+let curBuild = null;
+function drawObstacleLayer(x = octx, b = curBuild, list = obstacles, ls = MAPS[mapIdx].lights || (b && b.lights) || []) { // walls and objects, then the details on top of them
+  x.clearRect(0, 0, W, H); list.forEach(o => drawObstacle(x, o));
+  if (b && b.decor) b.decor(x);
+  for (const l of ls) fixture(x, l);
+}
 function loadMap(idx) {
   mapIdx = idx;
   const m = MAPS[idx], b = m.build();
@@ -67,7 +73,7 @@ function loadMap(idx) {
   obstacles = [...borderWalls(m.border), ...b.obs];
   bctx.clearRect(0, 0, W, H); b.floor(bctx); resetBuckets(); gctx.clearRect(0, 0, W, H); groundParts = []; trail = []; floaters = [];
   buildGrassMask();
-  octx.clearRect(0, 0, W, H); obstacles.forEach(o => drawObstacle(octx, o));
+  curBuild = b; drawObstacleLayer();
   bakeOutline();
   buildSolid();
   buildLights(b.lights || m.lights || []);

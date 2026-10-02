@@ -4,7 +4,8 @@
 function armPos(c) {
   const L = c.look, s = Math.sin(c.phase) * c.moveAmt, sw = L.w + .4;
   if (c.state === 'panic') { const f = Math.sin(T * 25 + c.side) * 2; return [5.5 + f, -sw + 1.5, 5.5 - f, sw - 1.5]; }
-  if (c.fl && c.fl.on) return [-s * 4, -sw, 6 + s * .8, sw - 2]; // right hand held out in front with the flashlight
+  if (c.dance) { const b = Math.sin(T * CLUB_BPM / 60 * Math.PI * 2 + c.pt * 30); return [3 + b * 2.5, -sw - 1.5, 3 - b * 2.5, sw + 1.5]; } // hands up
+  if (c.fl && c.fl.on && !c.fl.helmet) return [-s * 4, -sw, 6 + s * .8, sw - 2]; // right hand held out in front with the flashlight
   return [-s * 4, -sw, s * 4, sw];
 }
 function shapePath(x, c) {
@@ -12,7 +13,7 @@ function shapePath(x, c) {
   if (d.human) {
     const L = c.look, [a1, b1, a2, b2] = armPos(c);
     x.ellipse(0, 0, L.d, L.w, 0, 0, TAU);
-    x.moveTo(5.4, 0); x.arc(.6, 0, 4.8, 0, TAU);
+    if (L.outfit === 'alien') { x.moveTo(6.6, 0); x.ellipse(.6, 0, 6, 5.6, 0, 0, TAU); } else { x.moveTo(5.4, 0); x.arc(.6, 0, 4.8, 0, TAU); }
     x.moveTo(a1 + 2.5, b1); x.arc(a1, b1, 2.5, 0, TAU);
     x.moveTo(a2 + 2.5, b2); x.arc(a2, b2, 2.5, 0, TAU);
   } else {
@@ -49,6 +50,7 @@ function drawHuman(x, c) { // top-down person, +x = facing direction
     case 'labcoat': x.fillStyle = L.top2; x.fillRect(L.d * .1, -.5, L.d, 1); x.fillStyle = '#7fa6c9'; x.fillRect(L.d * .2, L.w * .35, 1.6, 2.4); break; // pocket + pen
     case 'jumpsuit': x.fillStyle = L.top2; x.fillRect(-L.d, -.6, L.d * 2, 1.2); x.fillStyle = L.patch; circ(x, L.d * .3, -L.w * .5, 1.3); break;
     case 'vest': x.fillStyle = '#d9d9d9'; x.fillRect(-L.d, -L.w * .55, L.d * 2, 1.3); x.fillRect(-L.d, L.w * .55 - 1.3, L.d * 2, 1.3); break;
+    case 'alien': x.fillStyle = L.top2; x.fillRect(L.d * .2, -L.w, 1.3, L.w * 2); x.fillStyle = 'rgba(255,255,255,.35)'; circ(x, L.d * .55, 0, 1.2); break; // tunic seam and a little badge
   }
   if (L.tie) { x.fillStyle = L.tie; x.fillRect(L.d * .45, -.9, L.d * .55, 1.8); }
   x.fillStyle = 'rgba(255,255,255,.1)'; ell(x, -L.d * .25, -L.w * .45, L.d * .6, L.w * .3); // soft top light
@@ -56,6 +58,16 @@ function drawHuman(x, c) { // top-down person, +x = facing direction
   if (L.acc === 'bag') { x.strokeStyle = '#3a2a1e'; x.lineWidth = 1.1; x.beginPath(); x.moveTo(-L.d * .8, -L.w * .7); x.lineTo(L.d * .8, L.w * .7); x.stroke(); x.fillStyle = '#6b4a2e'; ell(x, -1, L.w + 2.2, 2.8, 2); }
   x.strokeStyle = O; x.lineWidth = .9; x.beginPath(); x.ellipse(0, 0, L.d, L.w, 0, 0, TAU); x.stroke();
   if (L.outfit === 'hoodie') { x.fillStyle = L.top; ell(x, -2.6, 0, 3.6, 5.4); x.strokeStyle = O; x.stroke(); }
+  if (L.acc === 'glow') { x.strokeStyle = ['#7dff6a', '#ff3fa4', '#3fd4ff'][(c.pt * 100 | 0) % 3]; x.lineWidth = 1.6; x.beginPath(); x.moveTo(a1 - 1, b1 - 3); x.lineTo(a1 + 2, b1 + 2); x.stroke(); }
+  if (L.outfit === 'alien') { // big smooth head, wide black eyes, a slit of a mouth
+    x.fillStyle = 'rgba(0,0,0,.18)'; ell(x, -.1, 0, 6.2, 5.8);
+    x.fillStyle = L.skin; ell(x, .6, 0, 6, 5.6); x.fillStyle = shade(L.skin, .14); ell(x, -.6, -1.2, 3.4, 2.6);
+    x.fillStyle = '#0c0f0c'; x.beginPath(); x.ellipse(3.6, -2.4, 2.4, 1.3, -.55, 0, TAU); x.fill(); x.beginPath(); x.ellipse(3.6, 2.4, 2.4, 1.3, .55, 0, TAU); x.fill();
+    x.fillStyle = 'rgba(255,255,255,.75)'; circ(x, 4.2, -2.7, .45); circ(x, 4.2, 2.1, .45);
+    if (c.mouthBlood) { x.fillStyle = '#3f9a1c'; ell(x, 5.4, 0, 1, 1.6); }
+    x.strokeStyle = 'rgba(0,0,0,.3)'; x.lineWidth = .8; x.beginPath(); x.ellipse(.6, 0, 6, 5.6, 0, 0, TAU); x.stroke();
+    return;
+  }
   // head
   x.fillStyle = 'rgba(0,0,0,.18)'; circ(x, -.3, 0, 5.2);
   x.fillStyle = L.skin; circ(x, .6, 0, 4.8);
@@ -75,9 +87,11 @@ function drawHuman(x, c) { // top-down person, +x = facing direction
     x.fillStyle = 'rgba(235,240,246,.95)'; circ(x, .2, 0, 6.6); x.strokeStyle = 'rgba(0,0,0,.3)'; x.lineWidth = .8; x.beginPath(); x.arc(.2, 0, 6.6, 0, TAU); x.stroke();
     x.fillStyle = L.hatCol; x.beginPath(); x.ellipse(2.4, 0, 3.6, 4.8, 0, -Math.PI / 2, Math.PI / 2); x.fill();
     x.fillStyle = 'rgba(255,255,255,.55)'; ell(x, 3.4, -2.2, 1, 1.6);
+    x.fillStyle = '#3a3e44'; x.fillRect(4.6, -2.2, 2.4, 4.4); x.fillStyle = c.fl && c.fl.k > .01 ? `rgb(${c.fl.c})` : '#777'; x.fillRect(6.4, -1.6, 1, 3.2); // helmet lamp
   }
   else if (L.hat === 'straw') { x.fillStyle = '#e3c36a'; circ(x, -.2, 0, 7.4); x.fillStyle = '#d4ad4f'; circ(x, -.2, 0, 4.3); x.strokeStyle = '#8b3a2b'; x.lineWidth = 1; x.beginPath(); x.arc(-.2, 0, 4.5, 0, TAU); x.stroke(); }
   x.strokeStyle = O; x.lineWidth = .8; x.beginPath(); x.arc(.6, 0, 4.8, 0, TAU); x.stroke();
+  if (c.mouthBlood && L.hat !== 'helmet') { x.fillStyle = BLOOD; ell(x, 4.6, 0, 1.1, 1.8); } // blood round the mouth
 }
 function drawAlien(x, c, d) { // little grey-green visitor: big head, huge black eyes, wobbling antennae
   const lp = Math.sin(c.phase) * c.moveAmt, w = Math.sin(T * 6 + c.pt * 40) * .6;
@@ -89,8 +103,13 @@ function drawAlien(x, c, d) { // little grey-green visitor: big head, huge black
   x.fillStyle = '#0c0f0c'; x.beginPath(); x.ellipse(5.4, -2.2, 1.9, 1.1, -.5, 0, TAU); x.fill(); x.beginPath(); x.ellipse(5.4, 2.2, 1.9, 1.1, .5, 0, TAU); x.fill();
   x.fillStyle = 'rgba(255,255,255,.7)'; circ(x, 5.8, -2.5, .4); circ(x, 5.8, 1.9, .4);
 }
+function drawFirefly(x, c, d) { // a little beetle: dark wing cases, a flicker of wings, the lantern at the tail
+  const fl = Math.sin(T * 60 + c.pt * 99);
+  x.fillStyle = 'rgba(220,230,240,.35)'; ell(x, -.2, -1.6 - fl * .5, 2.2, 1.1); ell(x, -.2, 1.6 + fl * .5, 2.2, 1.1);
+  x.fillStyle = '#2e2a1c'; ell(x, .4, 0, 2.2, 1.4); x.fillStyle = '#c8d86a'; ell(x, -1.8, 0, 1.2, 1); x.fillStyle = '#5a3a1a'; circ(x, 2.4, 0, .8);
+}
 function drawAnimal(x, c) {
-  if (c.def.alien) return drawAlien(x, c, c.def);
+  if (c.def.fly) return drawFirefly(x, c, c.def);
   const d = c.def, hc = d.hcol || d.col, lp = Math.sin(c.phase) * c.moveAmt, hx = d.bl * .85;
   if (d.tail === 'puff') { x.fillStyle = '#fff'; circ(x, -d.bl, 0, 2); }
   else if (d.tail) {
@@ -113,6 +132,7 @@ function drawAnimal(x, c) {
 function drawCreature(x, c, portrait) {
   if (c.hz > .3) { x.fillStyle = 'rgba(0,0,0,.18)'; ell(x, c.x, c.y, c.def.r * .9, c.def.r * .7); } // ground shadow under a hopping frog
   x.save(); x.translate(c.x, c.y - (c.hz || 0) * .6); x.rotate(c.a); if (c.hz) x.scale(1 + c.hz * .035, 1 + c.hz * .035);
+  if (c.dance) { const b = Math.abs(Math.sin(T * CLUB_BPM / 60 * Math.PI + c.pt * 30)); x.scale(1 + b * .05, 1 + b * .05); x.rotate(Math.sin(T * 2 + c.pt * 9) * .12); }
   c.def.human ? drawHuman(x, c) : drawAnimal(x, c);
   if (c.stains.length) {
     shapePath(x, c); x.clip();

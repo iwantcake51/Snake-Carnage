@@ -39,6 +39,8 @@ function updateCreature(c, dt) {
   if (c.golden && (c.goldT -= dt) <= 0) ungoldify(c); // the gold wears off: back to a normal person or animal
   c.pt -= dt; if (c.pt <= 0) { c.pt = (MOD.skittish ? .08 : .15) + Math.random() * .1; perceive(c); }
   c.timer -= dt;
+  c.dance = MAPS[mapIdx].club && !!c.zone && (c.state === 'idle' || c.state === 'wander') && c.alert < .3;
+  if (d.fly) { c.hz = 3.5 + Math.sin(T * 3 + c.pt * 50) * 1.5; if (c.state === 'wander' && Math.random() < dt * 2) c.wa += rand(-1.2, 1.2); } // fireflies drift and bob
   if (c.bubbles) for (let i = c.bubbles.length - 1; i >= 0; i--) {
     const b = c.bubbles[i];
     if (b.delay > 0) { if ((b.delay -= dt) <= 0 && b.yell) Sfx.shout(c.x); }
@@ -54,7 +56,7 @@ function updateCreature(c, dt) {
   if (c.state === 'idle') {
     if (c.timer <= 0) { c.state = 'wander'; c.timer = rand(2, 5); c.wa = pickWander(c); }
   } else if (c.state === 'wander') {
-    spd = d.walk * (c.alert > .3 ? 1.7 : 1); // cautious people walk briskly
+    spd = d.walk * (c.alert > .3 ? 1.7 : 1) * (c.dance ? .22 : 1); // cautious people walk briskly; dancers barely move
     if (c.timer <= 0) {
       if (Math.random() < (c.alert > .3 ? .08 : .35)) { c.state = 'idle'; c.timer = rand(1, 3) * (c.alert > .3 ? .5 : 1); }
       else { c.timer = rand(1.5, 4); c.wa = pickWander(c); }

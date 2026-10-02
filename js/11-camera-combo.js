@@ -12,7 +12,7 @@ let combo = null;
 const comboDur = () => 6.5 * (MOD.comboFocus ? .75 : 1) * (MOD.comboCushion ? 1.5 : 1) * comboGutMult();
 const COMBO_CAP = 1.8; // the timer can bank up to 1.8x its normal length
 const comboGain = c => comboDur() * (c.golden ? .9 : c.def.human ? .55 : c.def.score >= 2 ? .45 : .32); // bigger, juicier targets buy more time
-const typeLabel = c => (c.golden ? 'Golden ' : '') + (c.def.human ? 'human' : c.type).replace(/^./, m => m.toUpperCase());
+const typeLabel = c => (c.golden ? 'Golden ' : '') + (c.def.alien ? 'alien' : c.type === 'astronaut' ? 'astronaut' : c.def.human ? 'human' : c.type).replace(/^./, m => m.toUpperCase());
 function addCombo(c) {
   const el = document.getElementById('combo');
   if (!combo) {

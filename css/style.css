@@ -935,3 +935,12 @@ body.touch #abil{display:none}
 @keyframes shardFall{0%{translate:0 0;rotate:0deg;opacity:1}15%{translate:calc(var(--dx) * .2) -6px}100%{translate:var(--dx) 150px;rotate:var(--rot);opacity:0}}
 #rewards{right:auto;left:14px;align-items:flex-start}
 .rw.ch{align-items:flex-start}
+
+/* loading screen: the time the run starts at */
+#intro .tbadge{display:flex;width:max-content;margin:16px auto 0;align-items:center;gap:10px;padding:7px 16px 7px 10px;border-radius:999px;background:rgba(10,8,12,.65);box-shadow:0 0 0 1px rgba(255,255,255,.14);
+  font:700 22px "Segoe UI",system-ui,sans-serif;letter-spacing:normal;text-shadow:none;color:#fff}
+#intro .tbadge i{font:600 14px "Segoe UI",system-ui,sans-serif;font-style:normal;color:#d8cfc7}
+#intro .ticon{width:26px;height:26px;color:#ffd23f}
+#intro .tbadge.night .ticon,#intro .tbadge.evening .ticon{color:#c9d6ff}
+#intro .tbadge.dawn .ticon{color:#ffb38a}#intro .tbadge.sunset .ticon{color:#ff8a4c}
+#intro .iname.mys{top:auto;bottom:12%;translate:0;font-size:0}

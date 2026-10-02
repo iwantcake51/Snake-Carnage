@@ -5,6 +5,7 @@ let UT = 0, rotT = 0, abilT = 0; // UI clock keeps running while the world is pa
 function update(dt) {
   UT += dt;
   if ((rotT -= dt) <= 0) { rotT = .5; checkRotation(); updateRotClocks(); }
+  Sfx.musicUpdate(!!MAPS[mapIdx].music && ['play', 'ready', 'intro', 'held'].includes(state));
   if (state === 'menu' || state === 'paused' || state === 'held') return; // time stops: no AI, movement, blood or sounds
   if (state === 'dead') { // the world is frozen; only the camera settles and the death screen arrives
     shake *= Math.exp(-dt * 8); if (shake < .2) shake = 0;

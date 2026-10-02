@@ -18,7 +18,7 @@ const PM_SPECIAL = { // one signature goal per map: name, text, run stat, goal, 
   Mars: ['Red Planet', 'Eat {n} astronauts in one run', r => r.byType.astronaut || 0, 16, 'hard'],
   'Alien Facility': ['First Contact', 'Eat {n} aliens in one run', r => r.byType.alien || 0, 22, 'hard'],
   'Space Station': ['Hull Breach', 'Eat {n} crew in one run with night vision off', r => r.usedNV ? 0 : r.humans, 18, 'rare'],
-  'Red Room': ['Seeing Red', 'Eat {n} people in the dark in one run', r => r.darkKills || 0, 15, 'hard'],
+  Bunker: ['Seeing Red', 'Eat {n} people in the dark in one run', r => r.darkKills || 0, 15, 'hard'],
   Club: ['Last Song', 'Reach a {n}x combo on the dance floor', r => r.maxCombo || 0, 22, 'rare'],
 };
 function permChallenges(map) {

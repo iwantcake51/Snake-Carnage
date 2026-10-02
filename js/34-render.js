@@ -21,6 +21,7 @@ function render() {
   applyView(x);
   x.drawImage(baseC, 0, 0, W, H);
   x.drawImage(groundC, 0, 0, W, H);
+  if (MAPS[mapIdx].club) drawDanceFloor(x);
   for (const b of bucketList) { x.globalAlpha = bucketAlpha(b); x.drawImage(b.f, 0, 0, W, H); }
   x.globalAlpha = L.salpha; x.drawImage(shadowC, 0, 0, W, H); x.globalAlpha = 1;
   x.fillStyle = `rgba(0,0,0,${L.salpha})`; x.beginPath(); // creature + snake shadows as one shape
@@ -43,6 +44,7 @@ function render() {
   }
   drawDebris(x); drawMist(x);
   drawLighting(x);
+  drawLampBugs(x); drawFireflyGlow(x);
   drawSparks(x);
   drawVisionMask(x);
   const px = Math.max(1, SETTINGS.pixel | 0);
@@ -155,3 +157,15 @@ overlay.addEventListener('pointermove', e => { // mouse parallax on the menu
   overlay.style.setProperty('--mx', mx.toFixed(3)); overlay.style.setProperty('--my', my.toFixed(3));
   if (state === 'menu') cv.style.translate = `${(-mx * 2.5).toFixed(1)}px ${(-my * 1.6).toFixed(1)}px`; // deepest layer, moves least
 });
+/* ---- club: the dance floor lights up in time with the beat ---- */
+const CLUB_BPM = 124;
+function drawDanceFloor(x) {
+  const beat = T * CLUB_BPM / 60, bar = Math.floor(beat / 4), cols = ['#ff2d95', '#2de2ff', '#b6ff2d', '#ffb02d', '#8a5cff', '#ff4b2d'];
+  const pulse = 1 - (beat % 1); // bright on the beat, fading between
+  for (let j = 0; j < 6; j++) for (let i = 0; i < 9; i++) {
+    const h = (i * 7 + j * 13 + bar * 5) % 11, on = (h + Math.floor(beat)) % 3 === 0;
+    x.fillStyle = cols[(i + j + bar) % cols.length]; x.globalAlpha = on ? .32 + .38 * pulse : .08;
+    x.fillRect(302 + i * 40, 222 + j * 43.3, 36, 39);
+  }
+  x.globalAlpha = 1;
+}

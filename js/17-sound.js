@@ -135,6 +135,22 @@ const Sfx = {
     this.tone(o, t + .32, 2093, 2093, .5, 'sine', .05); this.tone(o, t + .4, 2637, 2637, .45, 'sine', .035);
   },
   goldFade(x) { if (!this.ok()) return; const t = this.ctx.currentTime, o = this.out(x, .5); [2349, 1976, 1568].forEach((f, k) => this.tone(o, t + k * .07, f, f * .98, .25, 'sine', .04)); },
+  musicUpdate(on) { // a simple four-on-the-floor loop for the club, scheduled a little ahead
+    if (!this.ctx || this.ctx.state !== 'running') return;
+    const c = this.ctx, now = c.currentTime;
+    if (!on || SETTINGS.volume <= 0) { if (this.mus) { this.mus.g.gain.setTargetAtTime(0, now, .25); const m = this.mus; setTimeout(() => m.g.disconnect(), 1500); this.mus = null; } return; }
+    if (!this.mus) { const g = c.createGain(), lp = c.createBiquadFilter(); g.gain.value = 0; g.gain.setTargetAtTime(.55, now, .6); lp.type = 'lowpass'; lp.frequency.value = 2400; g.connect(lp); lp.connect(this.bus); this.mus = { g, next: now + .05, step: 0 }; }
+    const m = this.mus, spb = 60 / CLUB_BPM / 4, v = SETTINGS.volume;
+    while (m.next < now + .25) { this.musicStep(m.step, m.next, m.g, v); m.next += spb; m.step = (m.step + 1) % 64; }
+  },
+  musicStep(s, t, o, v) {
+    const c = this.ctx, BASS = [55, 55, 65.41, 49, 55, 55, 73.42, 61.74];
+    if (s % 4 === 0) { const os = c.createOscillator(), g = c.createGain(); os.frequency.setValueAtTime(130, t); os.frequency.exponentialRampToValueAtTime(42, t + .16); g.gain.setValueAtTime(.9 * v, t); g.gain.exponentialRampToValueAtTime(.001, t + .22); os.connect(g); g.connect(o); os.start(t); os.stop(t + .25); }
+    if (s % 8 === 4) this.burst(o, t, .14, 1900, .9, .32 * v);
+    if (s % 2 === 1) this.burst(o, t, .03, 8500, 1.5, (s % 4 === 3 ? .16 : .08) * v, 'highpass');
+    if (s % 4 === 2) { const f = BASS[Math.floor(s / 8) % BASS.length], os = c.createOscillator(), lp = c.createBiquadFilter(), g = c.createGain(); os.type = 'sawtooth'; os.frequency.value = f * 2; lp.type = 'lowpass'; lp.frequency.setValueAtTime(900, t); lp.frequency.exponentialRampToValueAtTime(180, t + .2); g.gain.setValueAtTime(.22 * v, t); g.gain.exponentialRampToValueAtTime(.001, t + .24); os.connect(lp); lp.connect(g); g.connect(o); os.start(t); os.stop(t + .26); }
+    if (s % 16 === 14) { const os = c.createOscillator(), g = c.createGain(); os.type = 'square'; os.frequency.value = [440, 523, 392, 587][Math.floor(s / 16) % 4]; g.gain.setValueAtTime(.05 * v, t); g.gain.exponentialRampToValueAtTime(.001, t + .18); os.connect(g); g.connect(o); os.start(t); os.stop(t + .2); }
+  },
   comboBreak() { if (!this.ok()) return; const t = this.ctx.currentTime, o = this.out(undefined, .6); this.burst(o, t, .12, 3200, 1.2, .25); this.tone(o, t, 520, 140, .25, 'triangle', .08); for (let k = 0; k < 3; k++) this.tone(o, t + .05 + k * .06, 2600 - k * 500, 1800 - k * 400, .05, 'sine', .03); },
   combo(n) { // rising blip that climbs with the streak
     if (!this.ok()) return;

@@ -21,7 +21,7 @@ function ungoldify(c) {
   if (state === 'play') { notify({ kind: 'info', icon: '◌', title: `The golden ${c.def.human ? (c.def.alien ? 'alien' : c.type === 'astronaut' ? 'astronaut' : 'human') : c.type} faded`, dur: 2 }); Sfx.goldFade && Sfx.goldFade(c.x); }
 }
 let ringPops = [];
-function giveFlash(c) { if (c.def.human && Math.random() < flashChance()) c.fl = newFlash(c); return c; }
+function giveFlash(c) { if (c.def.human && Math.random() < flashChance(c)) c.fl = newFlash(c); return c; }
 function spawn(type, zone) {
   const def = TYPES[type], z = zone || { x: B, y: B, w: W - 2 * B, h: H - 2 * B };
   for (let k = 0; k < 300; k++) {

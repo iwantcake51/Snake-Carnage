@@ -19,7 +19,7 @@ const stage = document.getElementById('stage'), intro = document.getElementById(
 function makeThumbs() { // rendered preview of every map (used by the cards, the roll and the intro)
   return MAPS.map(m => {
     const [c, x] = makeLayer(), b = m.build();
-    b.floor(x); [...borderWalls(m.border), ...b.obs].forEach(o => drawObstacle(x, o));
+    b.floor(x); const [oc, ox] = makeLayer(); drawObstacleLayer(ox, b, [...borderWalls(m.border), ...b.obs], m.lights || b.lights || []); x.drawImage(oc, 0, 0, W, H);
     const t = document.createElement('canvas'); t.width = 480; t.height = 320;
     t.getContext('2d').drawImage(c, 0, 0, 480, 320);
     return t.toDataURL ? t.toDataURL() : '';

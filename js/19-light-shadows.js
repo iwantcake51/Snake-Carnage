@@ -121,7 +121,7 @@ function beamAdd(f, s, a, rich) {
   if (hit) { const spr = glowSprites[f.c] || (glowSprites[f.c] = lightSprite(f.c, .3)), rr = 14 + hit * .25; adx.globalAlpha = .55 * (1 - hit / 90) * f.k; adx.drawImage(spr, f.x + ca * hit - rr, f.y + sa * hit - rr, rr * 2, rr * 2); }
 }
 const desC = document.createElement('canvas'); desC.width = lightC.width / 2; desC.height = lightC.height / 2; const dsx = desC.getContext('2d'); // where it's dark, colors fade (night vision of the eye)
-const VEIL = { street: .2, pool: .26, emerg: .3, fluor: .07, fire: .16, fixed: .12, alien: .3 };
+const VEIL = { street: .2, pool: .26, emerg: .3, fluor: .07, fire: .16, fixed: .12, alien: .1, red: .42, reactor: .3, bar: .25, booth: .35, dj: .4, disco: .55, flood: .05 };
 function drawLighting(x) {
   const L = light, nv = nightVision;
   if (!nv && L.tA > .005) { // dawn / dusk grade: sky-side to horizon-side colors

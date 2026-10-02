@@ -82,14 +82,13 @@ function startGame(opts = {}) {
   setTimeout(() => overlay.querySelectorAll('.casebox').forEach(b => b.remove()), 600);
   introTimers.forEach(clearTimeout);
   if (opts.mystery) { // random map: no picture or name, the world itself is the reveal
-    intro.innerHTML = ''; intro.className = 'run ghost'; stage.classList.add('bars');
+    intro.innerHTML = `<div class="iname mys">${timeBadge()}</div>`; intro.className = 'run ghost'; stage.classList.add('bars');
     introTimers = [setTimeout(endIntro, SETTINGS.reduceMotion ? 200 : 650)];
     return;
   }
-  const night = !MAPS[mapIdx].indoor && light.day < .05, phase = MAPS[mapIdx].indoor ? 'Indoors' : light.day > .5 ? 'Daytime' : light.day > .05 ? 'Dusk' : 'Night';
-  const hh = String(Math.floor(tod)).padStart(2, '0') + ':' + String(Math.floor(tod % 1 * 60)).padStart(2, '0');
+  const night = !MAPS[mapIdx].indoor && light.day < .05;
   intro.innerHTML = `<div class="iimg" style="background-image:url(${thumbs[mapIdx]})"></div><div class="ishade"></div>
-    <div class="iname">${MAPS[mapIdx].name}<small>${phase}, ${hh}${night ? '. Stay out of the light.' : ''}</small><em>Space to skip</em></div>`;
+    <div class="iname">${MAPS[mapIdx].name}${timeBadge()}<small>${night ? 'Stay out of the light.' : MAPS[mapIdx].indoor ? 'Indoors: the lights are whatever the building gives you.' : light.day > .5 ? 'Broad daylight. Everyone can see you coming.' : 'The light is going. Use it.'}</small><em>${IS_TOUCH ? 'Tap to skip' : 'Space to skip'}</em></div>`;
   intro.className = 'run'; stage.classList.add('bars');
   introTimers.forEach(clearTimeout);
   introTimers = [setTimeout(endIntro, SETTINGS.reduceMotion ? 500 : 2300)];

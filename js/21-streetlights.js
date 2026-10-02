@@ -14,7 +14,7 @@ function breakLamp(o, ang) {
   let lit = 0; for (const l of lights) if (l.o === o) { lit = lightK(l); l.dead = true; l.cur = 0; l.fl = 0; }
   const fa = ang + rand(-.5, .5);
   drawBrokenLamp(bctx, o.x, o.y, fa); // the bent post stays on the ground
-  octx.clearRect(0, 0, W, H); obstacles.forEach(q => drawObstacle(octx, q));
+  drawObstacleLayer();
   bakeOutline(); buildSolid(); shadowKey = ''; bakeShadows(); bakeLightMasks();
   const hx = o.x + Math.cos(fa) * 32, hy = o.y + Math.sin(fa) * 32;
   for (let k = 0; k < 16; k++) { const a = fa + rand(-1.6, 1.6), sp = rand(30, 150); debris.push({ x: hx, y: hy, z: 26, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(40, 150), t: 0, s: rand(1.1, 2.3), c: pick(['#dfe9ee', '#bcd3dc', '#f4f8fa']) }); }
@@ -39,4 +39,43 @@ function drawSparks(x) {
     x.beginPath(); x.moveTo(p.x - p.vx * .02, py - p.vy * .02); x.lineTo(p.x, py); x.stroke();
   }
   if (any) x.globalCompositeOperation = 'source-over';
+}
+/* ---- insects around lamps: they flutter round the bulb while it's lit, and scatter when it breaks ---- */
+let strayBugs = [];
+function makeLampBugs(l) { const n = Math.round(randi(4, 7) * FX_K()); l.bugs = Array.from({ length: n }, () => ({ a: rand(0, TAU), r: rand(5, 15), sp: rand(2.5, 6) * (Math.random() < .5 ? -1 : 1), ph: rand(0, TAU), x: l.x, y: l.y, z: rand(20, 30) })); }
+function updateLampBugs(l, dt) {
+  const k = lightK(l);
+  for (const b of l.bugs) {
+    b.a += b.sp * dt * (k > .1 ? 1 : .3); b.ph += dt * rand(4, 9);
+    const wob = Math.sin(b.ph) * 3, r = b.r + wob * (k > .1 ? 1 : 2.5);
+    b.x = l.x + Math.cos(b.a) * r + Math.sin(b.ph * 1.7) * 1.5; b.y = l.y - 4 + Math.sin(b.a) * r * .8 + Math.cos(b.ph) * 1.5;
+  }
+}
+function scatterBugs(o) { // the bulb is gone: everyone flies off and fades
+  for (const l of lights) if (l.o === o && l.bugs) { for (const b of l.bugs) { const a = Math.atan2(b.y - l.y, b.x - l.x) + rand(-.6, .6), sp = rand(60, 130); strayBugs.push({ x: b.x, y: b.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: 0, life: rand(.8, 1.6) }); } l.bugs = null; }
+}
+function drawLampBugs(x) { // drawn after the lighting so they catch the lamp's glow
+  if (!light) return;
+  x.fillStyle = '#fff6d0';
+  for (const l of lights) {
+    if (!l.bugs) continue; const k = lightK(l), vis = clamp(k * light.lampsOn + .25 * (1 - light.dark), .15, 1);
+    for (const b of l.bugs) { x.globalAlpha = vis * (.55 + .45 * Math.sin(b.ph * 3)); x.fillRect(b.x - .7, b.y - .7, 1.4, 1.4); }
+  }
+  for (const b of strayBugs) { x.globalAlpha = .8 * (1 - b.t / b.life); x.fillRect(b.x - .7, b.y - .7, 1.4, 1.4); }
+  x.globalAlpha = 1;
+}
+/* ---- fireflies: their glow shows clearly in the dark, but it lights nothing around them ---- */
+function drawFireflyGlow(x) {
+  const dark = light ? light.dark : 0, vis = .25 + .75 * clamp(dark / .5, 0, 1);
+  let any = false;
+  for (const c of creatures) {
+    if (!c.alive || !c.def.glow) continue;
+    const p = .5 + .5 * Math.sin(T * 2.2 + c.pt * 60), a = vis * (.25 + .75 * p * p) * playerSees(c.x, c.y); if (a < .03) continue;
+    if (!any) { any = true; x.globalCompositeOperation = 'lighter'; }
+    const fy = c.y - (c.hz || 0) * .6, tx = c.x - Math.cos(c.a) * 1.6, ty = fy - Math.sin(c.a) * 1.6;
+    const spr = glowSprites['ff'] || (glowSprites['ff'] = lightSprite('190,255,90', .25));
+    x.globalAlpha = a * .8; x.drawImage(spr, tx - 9, ty - 9, 18, 18);
+    x.globalAlpha = a; x.fillStyle = '#eaff9a'; circ(x, tx, ty, 1.3);
+  }
+  if (any) { x.globalCompositeOperation = 'source-over'; x.globalAlpha = 1; }
 }
