@@ -11,7 +11,7 @@ const PM_SPECIAL = { // one signature goal per map: name, text, run stat, goal, 
   Maze: ['Minotaur', 'Eat {n} people in the dark in one run', r => r.darkKills || 0, 12, 'hard'],
   Farm: ['Whole Farm', 'Eat every kind of farm animal in one combo', r => r.maxComboTypes || 0, 5, 'rare'],
   Park: ['Duck Season', 'Eat {n} ducks in one run', r => r.byType.duck || 0, 6, 'hard'],
-  Pool: ['Pool Party Crasher', 'Eat {n} swimmers and sunbathers in one run', r => r.humans || 0, 30, 'rare'],
+  Pool: ['Everybody Out', 'Eat {n} swimmers and sunbathers in one run', r => r.humans || 0, 30, 'rare'],
   Office: ['Mass Layoffs', 'Eat {n} office workers in 60 seconds', r => r.burst60 || 0, 12, 'rare'],
   Checkerboard: ['Checkmate', 'Reach a {n}x combo without touching the outer ring', r => r.maxEdgeCombo || 0, 12, 'rare'],
   Moon: ['One Small Step', 'Eat {n} astronauts in one run', r => r.byType.astronaut || 0, 18, 'hard'],
@@ -26,9 +26,9 @@ function permChallenges(map) {
   const pop = m.pop.reduce((a, q) => a + q[1], 0), f = clamp(pop / 18, .6, 1.4), r5 = v => Math.max(5, Math.round(v * f / 5) * 5);
   const list = [
     { id: 'surv', name: 'Long Haul', t: 'Survive {n} minutes in one run', stat: r => Math.floor(r.time / 60), n: 6, tier: 'medium', unit: ' min' },
-    { id: 'eat', name: 'Feeding Frenzy', t: 'Eat {n} targets in one run', stat: r => r.killed, n: r5(45), tier: 'hard' },
+    { id: 'eat', name: 'Seconds', t: 'Eat {n} targets in one run', stat: r => r.killed, n: r5(45), tier: 'hard' },
     { id: 'combo', name: 'Unbroken', t: 'Reach a {n}x combo', stat: r => r.maxCombo, n: Math.round(16 * f), tier: 'hard' },
-    { id: 'score', name: 'Local Legend', t: 'Score {n} in one run', stat: r => r.score, n: r5(400), tier: 'rare' },
+    { id: 'score', name: 'Notorious', t: 'Score {n} in one run', stat: r => r.score, n: r5(400), tier: 'rare' },
   ];
   const sp = PM_SPECIAL[map]; if (sp) list.push({ id: 'special', name: sp[0], t: sp[1], stat: sp[2], n: sp[3], tier: sp[4] });
   const order = { easy: 0, medium: 1, hard: 2, rare: 3 };
@@ -60,7 +60,8 @@ function progressTick(dt) { // while playing, a few times a second
 }
 function progressEat(c) {
   const pair = c.dog || c.owner; if (pair) { if (!pair.alive && T - (pair.eatenT || -9) < 3) { PROG.dogWalker = 1; checkAch(); } c.eatenT = T; }
-  run.lastKillT = T; run.fastT = 0;
+  run.lastKillT = T; run.fastT = 0; if (c.def.human) run.lastHumanT = T;
+  if (c.def.human && c.adren > 0) { PROG.adrenKills = (PROG.adrenKills || 0) + 1; checkAch(); } // caught mid-sprint
   (run.eatT = run.eatT || []).push(T); run.eatT = run.eatT.filter(t => T - t < 60); run.burst60 = Math.max(run.burst60 || 0, run.eatT.length);
   if (light.dark > .45) run.darkKills = (run.darkKills || 0) + 1;
   if (c.golden) { run.goldRun = (run.goldRun || 0) + 1; PROG.maxGoldRun = Math.max(PROG.maxGoldRun || 0, run.goldRun); if (tod > 5 && tod < 7.2 || tod > 17 && tod < 19) PROG.goldenHour = 1; }

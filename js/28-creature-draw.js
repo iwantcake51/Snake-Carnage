@@ -370,6 +370,11 @@ function drawHat(x, hat) { // head-local frame, +x = forward; hats sit behind th
     case 'Halo':
       x.strokeStyle = 'rgba(255,230,120,.3)'; x.lineWidth = 5; x.beginPath(); x.ellipse(c, 0, 6, 7.5, 0, 0, TAU); x.stroke();
       x.strokeStyle = 'rgba(255,220,90,.95)'; x.lineWidth = 2; x.stroke(); break;
+    case 'Cracked Halo': // what goes around comes around: a dimmer halo with a chunk missing
+      x.strokeStyle = 'rgba(220,200,140,.22)'; x.lineWidth = 5; x.beginPath(); x.ellipse(c, 0, 6, 7.5, 0, .5, TAU - .2); x.stroke();
+      x.strokeStyle = 'rgba(210,190,110,.9)'; x.lineWidth = 2; x.beginPath(); x.ellipse(c, 0, 6, 7.5, 0, .55, TAU - .25); x.stroke();
+      x.strokeStyle = 'rgba(90,70,40,.9)'; x.lineWidth = .8; x.beginPath(); x.moveTo(c + 5.2, -3.6); x.lineTo(c + 6.6, -2.4); x.lineTo(c + 5.6, -1.2); x.stroke();
+      x.fillStyle = 'rgba(210,190,110,.9)'; circ(x, c + 7.6, 3.2, .9); break; // the bit that broke off
     case 'Horns':
       for (const sg of [-1, 1]) {
         x.fillStyle = '#e9e1cf'; x.beginPath(); x.moveTo(-1, sg * 4.5);

@@ -200,6 +200,7 @@ function die() {
   Sfx.crash(snake.x);
   const m = MAPS[mapIdx].name;
   PROG.best[m] = Math.max(PROG.best[m] || 0, score); PROG.runs++; PROG.kills += kills.h + kills.a;
+  if (run.lastHumanT !== undefined && T - run.lastHumanT < 2 && PROG.kH >= 250) PROG.karma = 1; // ate someone, then died for it
   checkChallenges(); statRunEnd();
   updateHud();
 }
