@@ -111,7 +111,7 @@ function smashObstacle(o, ang) {
   bakeOutline(); buildSolid(); shadowKey = ''; bakeShadows(); bakeLightMasks({ x: cx, y: cy, r: size });
   const wall = o.kind === 'bwall';
   Sfx.smash(cx, wall ? size * 2.5 : size); shake = Math.max(shake, wall ? 16 : 6);
-  const lng = (snake.dashV || 1) > 1.25, dur = (wall ? 5.6 : 1.8) * (lng ? 1.5 : 1); // lunging in: it hits harder on screen and lasts longer, but you keep more of your speed
+  const lng = (snake.dashV || 1) > 1.25, dur = (wall ? 4 : 1.3) + (lng ? 1 : 0); // lunging in: it hits harder on screen and lasts longer, but you keep more of your speed
   snake.ramT = snake.ramMax = dur; snake.ramDeep = (wall ? .62 : .38) * (lng ? .6 : 1); snake.wallStun = snake.wallMax = wall ? dur : 0; snake.stunFx = lng ? 1.5 : 1;
   if (wall) { snake.dashT = 0; snake.dashV = 1; snake.lk = 0; } // a wall stops a lunge dead // dazed: slower, colours drain, edges blur, all easing back as speed returns
   if (wall) { // a wall: bricks and plaster everywhere, a cloud of dust, and the snake sees stars
