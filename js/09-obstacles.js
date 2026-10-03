@@ -131,7 +131,10 @@ function drawObstacleBase(x, o) {
   switch (k) {
     case 'border': x.fillStyle = c; x.fillRect(X, Y, w, h); return;
     case 'bwall': drawBreakWall(x, o); return;
-    case 'building': roof(x, o); return edge(x, o, .35);
+    case 'building': roof(x, o); if (o.shop) { // striped awning over the front door, on whichever side faces the street or lot (part of the building, so it moves with it)
+        const f = o.front || 's', hz = f === 's' || f === 'n', L = hz ? o.w : o.h;
+        for (let k = 10; k < L - 10; k += 10) { x.fillStyle = (k / 10) % 2 ? '#f4efe6' : o.shop; f === 's' ? x.fillRect(o.x + k, o.y + o.h - 6, 10, 9) : f === 'n' ? x.fillRect(o.x + k, o.y - 3, 10, 9) : f === 'e' ? x.fillRect(o.x + o.w - 6, o.y + k, 9, 10) : x.fillRect(o.x - 3, o.y + k, 9, 10); }
+      } return edge(x, o, .35);
     case 'barn': {
       x.fillStyle = '#7a2a20'; x.fillRect(X, Y, w, h); roof(x, { ...o, rc: '#8c2f24', roof: 'gable' });
       x.strokeStyle = '#f2efe6'; x.lineWidth = 3; const dx = X + w / 2 - 22, dy = Y + h - 2; x.strokeRect(dx, dy - 4, 44, 6); // hay door trim on the eave

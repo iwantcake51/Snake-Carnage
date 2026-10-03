@@ -289,10 +289,6 @@ const MAPS = [
           [[40, 392], [396, 392]], [[176, 392], [176, 512]], [[736, 256], [736, 272]]],
         obs: OBS,
         decor(x) {
-          for (const o of OBS) if (o.shop && o.kind === 'building') { // striped awning over the front door, on whichever side faces the street or lot
-            const f = o.front || 's', hz = f === 's' || f === 'n', L = hz ? o.w : o.h;
-            for (let k = 10; k < L - 10; k += 10) { x.fillStyle = (k / 10) % 2 ? '#f4efe6' : o.shop; f === 's' ? x.fillRect(o.x + k, o.y + o.h - 6, 10, 9) : f === 'n' ? x.fillRect(o.x + k, o.y - 3, 10, 9) : x.fillRect(o.x - 3, o.y + k, 9, 10); }
-          }
           x.strokeStyle = '#f4efe6'; x.lineWidth = 2; x.beginPath(); x.moveTo(736, 237); x.lineTo(736, 251); x.moveTo(730, 242); x.lineTo(742, 242); x.stroke(); // the cross on the tower
           const g = seeded(77); x.fillStyle = '#8f9196'; for (let gx = 800; gx <= 836; gx += 12) for (let gy = 150; gy <= 222; gy += 18) if (g() < .8) { rrect(x, gx + g() * 3, gy + g() * 3, 6, 4, 1.5); x.fill(); } // the old graves
           x.strokeStyle = '#8a9098'; x.lineWidth = 1.2; for (let k = 0; k < 3; k++) x.strokeRect(196 + k * 7, 503, 9, 6); // carts by the market door

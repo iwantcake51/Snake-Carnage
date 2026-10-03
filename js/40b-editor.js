@@ -16,6 +16,16 @@ const ED_PROPS = [ // palette: [label, kind, shape, size..., color, extra]
   ['Booth', 'booth', 'r', 40, 100, '#5a1a3a'], ['Campfire', 'campfire', 'c', 14, 0, '#6d6a63'], ['Pod', 'pod', 'c', 20, 0, '#7fffc8'], ['Cryo tube', 'cryo', 'r', 36, 70, '#a9c4cc'], ['Silo', 'silo', 'c', 36, 0, '#b8b8c0'],
 ];
 const ED_KINDS = [...new Set(ED_PROPS.map(p => p[1]).concat(['barn', 'module', 'tube', 'solar', 'dome', 'lander', 'gazebo', 'slide', 'chess', 'dj', 'holo', 'saucer', 'reactor']))].sort();
+const ED_VARIANTS = { // looks a kind can take: [flag, name]; '' is the plain one
+  car: [['', 'Car'], ['taxi', 'Taxi'], ['van', 'Van'], ['tractor', 'Tractor'], ['rover', 'Rover']],
+  crate: [['', 'Crate'], ['dumpster', 'Dumpster'], ['pump', 'Fuel pump'], ['printer', 'Printer'], ['trough', 'Water trough']],
+  shelf: [['', 'Shelf'], ['fridge', 'Fridge'], ['plants', 'Plant rack'], ['suits', 'Suit lockers']],
+  table: [['', 'Table'], ['umbrella', 'Parasol table'], ['lab', 'Lab bench']], bed: [['', 'Bed'], ['med', 'Hospital bed']], desk: [['', 'Desk'], ['reception', 'Reception desk']],
+  rock: [['', 'Rock'], ['antenna', 'Antenna']], lamp: [['', 'Street lamp'], ['lantern', 'Lantern'], ['mast', 'Floodlight mast']],
+  water: [['', 'Pond / pool'], ['fountain', 'Fountain'], ['tank', 'Specimen tank']], building: [['', 'Building'], ['market', 'Supermarket'], ['diner', 'Diner']],
+  dome: [['', 'Dome'], ['green', 'Greenhouse']], lander: [['', 'Lander'], ['rocket', 'Rocket']], module: [['', 'Module'], ['command', 'Command module']],
+};
+const edVariant = o => { const v = ED_VARIANTS[o.kind]; if (!v) return null; return v.find(([f]) => f && o[f]) || v[0]; };
 const ED_FIX = ['panel', 'strip', 'cage', 'spot', 'pool', 'exit', 'none'];
 const ED = { open: false };
 const ED_RUNTIME = new Set(['tinfo', 'wb', 'iceC', 'iceK', 'group', 'cracked', 'src', 'snk', 'z', 'cx', 'cy', 'br', 'dropped', 'ext', 'mask', 'tint', 'size', 'cur', 'fl', 'dead', 'dynNow', 'enc', 'o', 'c0']);
@@ -32,7 +42,7 @@ function openEditor(idx = mapIdx) {
   const b = MAPS[idx].build(), ov = mapOverride(MAPS[idx].name);
   ED.trails = ov && ov.trails ? edClone(ov.trails) : captureTrails(b); // the map's painted trails, as editable paths
   ED.floorBase = makeLayer()[0]; { const x = ED.floorBase.getContext('2d'); x.setTransform(DPR, 0, 0, DPR, 0, 0); trailMute = true; try { b.floor(x); } finally { trailMute = false; } }
-  ED.floor = makeLayer()[0]; edFloor(true);
+  ED.floor = makeLayer()[0]; edFloor(true); ED.decorFn = b.decor || null; // signs, crosses, hydrants...: painted over the objects, as in the game
   ED.border = MAPS[idx].border;
   edBuildUI(); edFit(); edLoop();
 }
@@ -119,6 +129,7 @@ function edLoop() {
   x.fillStyle = ED.border; x.fillRect(0, 0, W, B); x.fillRect(0, H - B, W, B); x.fillRect(0, 0, B, H); x.fillRect(W - B, 0, B, H);
   for (const o of ED.obs) { if (o._hide) continue; try { drawObstacle(x, o); } catch (e) { x.fillStyle = o.color || '#888'; o.t === 'r' ? x.fillRect(o.x, o.y, o.w, o.h) : circ(x, o.x, o.y, o.r); }
     if (o.kind === 'tree' || o.kind === 'bush') { x.globalAlpha = .55; x.fillStyle = o.color; circ(x, o.x, o.y, o.r); x.globalAlpha = 1; } }
+  if (ED.decorFn) try { ED.decorFn(x); } catch (e) {}
   for (const l of ED.lights) if (!l._hide) try { fixture(x, l); } catch (e) {}
   if (ED.lit) { // night preview: darkness with every light's pool cut out in its own color
     x.save(); x.globalAlpha = .78; x.fillStyle = '#05060c'; x.fillRect(0, 0, W, H); x.globalAlpha = 1; x.globalCompositeOperation = 'lighter';
@@ -436,7 +447,8 @@ function edPanel() {
       <div class="edbtns"><button data-a="dup">Duplicate</button><button data-a="del">Delete</button><button data-a="clr">Use type's color</button></div>`;
   } else {
     const lamp = o.kind === 'lamp';
-    p.innerHTML = `<h4>${o.kind}</h4><label>Kind <button class="edpick okind"></button></label>
+    const vr = edVariant(o), vlist = ED_VARIANTS[o.kind];
+    p.innerHTML = `<h4>${vr ? vr[1] : o.kind}${vr && vr[0] ? ` <small>(a ${o.kind})</small>` : ''}</h4><label>Kind <button class="edpick okind"></button></label>${vlist ? `<label>Type <select class="ovar">${vlist.map(([f, n]) => `<option value="${f}" ${vr && vr[0] === f ? 'selected' : ''}>${n}</option>`).join('')}</select></label>` : ''}
       <div class="edgrid2">${num('x', 'X')}${num('y', 'Y')}${o.t === 'r' ? num('w', 'Width', 2) + num('h', 'Height', 2) : num('r', 'Radius', 2)}</div>
       <label>Size <input type="range" min="25" max="400" value="100" class="edsz"><output>100%</output></label>
       <label>Color <input type="color" data-c value="${edHex(o.color)}"></label>
@@ -452,6 +464,7 @@ function edPanel() {
     sz.onchange = () => { sz._p = false; edDirty(); };
   }
   const lk = p.querySelector('.lkind'); if (lk) { edPickBtn(lk, 'light', o.kind); lk.onclick = () => edPicker(lk, 'light', o.kind, v => { edPush(); o.kind = v; delete o.c; edPanel(); }); }
+  const ov = p.querySelector('.ovar'); if (ov) ov.onchange = () => { edPush(); for (const [f] of ED_VARIANTS[o.kind]) if (f) delete o[f]; if (ov.value) o[ov.value] = o.kind === 'chess' ? ov.value : true; edPanel(); };
   const ok = p.querySelector('.okind'); if (ok) { edPickBtn(ok, 'kind', o.kind); ok.onclick = () => edPicker(ok, 'kind', o.kind, v => { edPush(); o.kind = v; const pp = ED_PROPS.find(q => q[1] === v); if (pp && pp[2] === o.t) o.color = pp[5]; edPanel(); }); }
   p.querySelectorAll('input[data-k]').forEach(inp => inp.onchange = () => { edPush(); o[inp.dataset.k] = +inp.value; });
   p.querySelectorAll('select[data-ks]').forEach(sel => sel.onchange = () => { edPush(); o[sel.dataset.ks] = sel.value; if (s.t === 'l' && sel.dataset.ks === 'kind') delete o.c; edPanel(); });
@@ -803,7 +816,7 @@ function edMinimap(r) {
   x.strokeStyle = '#fff'; x.lineWidth = 1.5; x.strokeRect(a0 * s, b0 * s, (a1 - a0) * s, (b1 - b0) * s);
 }
 /* ---- layers ---- */
-function edLayerName(t, o) { return t === 'l' ? `Light · ${o.kind || 'fixed'}` : t === 'p' ? `Path · ${PATH_STYLES[o.style || 'dirt']}` : o.poly ? 'Water (shape)' : ((ED_PROPS.find(p => p[1] === o.kind) || [o.kind])[0]); }
+function edLayerName(t, o) { const v = t === 'o' && edVariant(o); return t === 'l' ? `Light · ${o.kind || 'fixed'}` : t === 'p' ? `Path · ${PATH_STYLES[o.style || 'dirt']}` : o.poly ? 'Water (shape)' : v && v[0] ? v[1] : ((ED_PROPS.find(p => p[1] === o.kind) || [o.kind])[0]); }
 function edLayers() {
   const el = ED.root && ED.root.querySelector('.edlayers'); if (!el || el.style.display === 'none') return;
   const q = (ED.layQ || '').toLowerCase(), f = ED.layF || 'all';
