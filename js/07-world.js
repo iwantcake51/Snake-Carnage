@@ -40,7 +40,10 @@ function wetAt(x, y) {
 function buildSolid() {
   solidGrid = new Uint8Array(GW * GH);
   for (const o of obstacles) {
-    if (o.t === 'r') {
+    if (o.poly) { const P = polyShape(o); // custom water: the real shape
+      for (let j = Math.floor(o.y / SG); j < Math.ceil((o.y + o.h) / SG); j++) for (let i = Math.floor(o.x / SG); i < Math.ceil((o.x + o.w) / SG); i++)
+        if (i >= 0 && j >= 0 && i < GW && j < GH && pointInPoly(P, i * SG + 2, j * SG + 2)) solidGrid[j * GW + i] = 1;
+    } else if (o.t === 'r') {
       for (let j = Math.floor(o.y / SG); j < Math.ceil((o.y + o.h) / SG); j++)
         for (let i = Math.floor(o.x / SG); i < Math.ceil((o.x + o.w) / SG); i++)
           if (i >= 0 && j >= 0 && i < GW && j < GH) solidGrid[j * GW + i] = 1;
@@ -54,7 +57,7 @@ function buildSolid() {
 
 function bakeOutline() {
   mkx.clearRect(0, 0, W, H); mkx.fillStyle = '#000';
-  for (const o of obstacles) { if (o.t === 'r') mkx.fillRect(o.x, o.y, o.w, o.h); else circ(mkx, o.x, o.y, o.r); }
+  for (const o of obstacles) { if (o.poly) { polyPath(mkx, o); mkx.fill(); } else if (o.t === 'r') mkx.fillRect(o.x, o.y, o.w, o.h); else circ(mkx, o.x, o.y, o.r); }
   olx.clearRect(0, 0, W, H);
   const mo = SETTINGS.mapOutlines; if (mo === 'Off') { olx.clearRect(0, 0, W, H); nvx.clearRect(0, 0, W, H); return; }
   const strong = mo === 'Strong', ow = strong ? 2.7 : 1.6;
@@ -162,12 +165,16 @@ function loadMap(idx, sz) {
   Sfx.setMuffle(!!m.space && !m.indoor); // thin air on the surface; inside a pressurized station sound is normal
   const ov = mapOverride(m.name); // edits made in the map editor replace the map's own objects and lights as they are
   if (ov) { b.obs = JSON.parse(JSON.stringify(ov.obs)); b.lights = JSON.parse(JSON.stringify(ov.lights)); }
+  if (ov && ov.trails) { // walkers follow the edited paths (and keep any sidewalk routes that weren't painted trails)
+    const old = captureTrails(m.build()), near = (p, q) => Math.abs(p[0] - q[0]) < 2 && Math.abs(p[1] - q[1]) < 2;
+    b.paths = [...(b.paths || []).filter(p => !old.some(t => t.pts.some(q => near(p[0], q)))), ...ov.trails.map(t => t.pts)];
+  }
   let pre = [...borderWalls(m.border), ...b.obs];
   if (!ov) { nudgeLamps(pre, b.paths || [], b.roads || []); tidyPlacement(pre, b.roads || []); pre = settleGaps(pre, b.roads || [], b.paths || []); }
   curPre = pre.filter(o => o.kind !== 'border'); curMapLights = b.lights || m.lights || []; // spacing works on whole objects, before long ones are split into breakable sections
   obstacles = splitBreakables(addBreakWalls(pre, m.name));
   buildSolid();
-  b.obs = b.obs.filter(o => !o.dropped); bctx.clearRect(0, 0, W, H); b.floor(bctx); bakeContactShadows(bctx, b.obs); resetBuckets(); gctx.clearRect(0, 0, W, H); groundParts = []; trail = []; floaters = [];
+  b.obs = b.obs.filter(o => !o.dropped); bctx.clearRect(0, 0, W, H); if (ov && ov.trails) { trailMute = true; try { b.floor(bctx); } finally { trailMute = false; } paintTrails(bctx, ov.trails); } else b.floor(bctx); // edited paths replace the map's painted trails bakeContactShadows(bctx, b.obs); resetBuckets(); gctx.clearRect(0, 0, W, H); groundParts = []; trail = []; floaters = [];
   buildGrassMask(); gradeGround(); seasonDetails(bctx);
   curBuild = b; drawObstacleLayer(); buildTrees();
   bakeOutline();

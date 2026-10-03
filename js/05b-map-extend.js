@@ -278,7 +278,7 @@ function extendBuild(m, idx) {
       else { for (const { e } of strips) e.floor.forEach(f => f(x)); local(x, () => floor0.call(b, x)); for (const { e } of strips) e.cover.forEach(f => f(x)); }
       for (const { st, e } of strips) if (trails.length) clipStrip(x, st, () => { // the carried-on trails, in the map's own trail style
         if (e.trailStyle === 'park') { x.lineCap = 'round'; x.lineJoin = 'round'; for (const [c, lw] of [['#c9ad78', 30], ['#dcc493', 24]]) { x.strokeStyle = c; x.lineWidth = lw; for (const p of trails) { x.beginPath(); p.forEach(([a, bb], i) => i ? x.lineTo(a, bb) : x.moveTo(a, bb)); x.stroke(); } } }
-        else dirtTrails(x, trails.map((p, i) => [p, 18, 90 + i]));
+        else { trailExt = true; try { dirtTrails(x, trails.map((p, i) => [p, 18, 90 + i])); } finally { trailExt = false; } }
       });
     },
     decor: decor0 && (x => local(x, () => decor0.call(b, x))),
