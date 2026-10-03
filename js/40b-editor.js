@@ -46,6 +46,7 @@ function openEditor(idx = mapIdx) {
   ED.floor = makeLayer()[0]; edFloor(true); ED.decorFn = b.decor || null; // signs, crosses, hydrants...: painted over the objects, as in the game
   ED.border = MAPS[idx].border;
   edBuildUI(); edFit(); edLoop();
+  clearInterval(ED.autoT); ED.autoT = setInterval(() => { if (ED.open && ED.dirtySave) edSave(); }, 300000); // autosave every 5 minutes
 }
 function closeEditor(play) {
   ED.open = false; cancelAnimationFrame(ED.raf); ED.root.remove(); document.querySelectorAll('.edpop,#propEd').forEach(p => p.remove()); removeEventListener('keydown', edKey, true);
@@ -58,15 +59,15 @@ function edUndo(dir) {
   const from = dir < 0 ? ED.undo : ED.redo, to = dir < 0 ? ED.redo : ED.undo; if (!from.length) return;
   to.push(edClone({ o: ED.obs, l: ED.lights, t: ED.trails, a: ED.areas, b: ED.base })); const s = from.pop(); ED.obs = s.o; ED.lights = s.l; ED.trails = s.t || ED.trails; ED.areas = s.a || []; ED.base = s.b || ''; ED.areas.forEach(polyBounds); ED.sel = []; edFloor(true); edDirty(); edPanel();
 }
-function edDirty() { ED.unshared = true; clearTimeout(ED.saveT); ED.saveT = setTimeout(edSave, 400); edStatus('Unsaved changes…'); }
+function edDirty() { ED.unshared = true; ED.dirtySave = true; edStatus('Unsaved changes · Ctrl+S to save (autosaves every 5 minutes)'); }
 function edSave() {
-  const all = localMapEdits(); const clean = list => list.map(o => { const c = {}; for (const k in o) if (!ED_RUNTIME.has(k)) c[k] = o[k]; return c; }); // only what was authored, not what the game worked out at runtime
+  const all = edDrafts(); const clean = list => list.map(o => { const c = {}; for (const k in o) if (!ED_RUNTIME.has(k)) c[k] = o[k]; return c; }); // only what was authored, not what the game worked out at runtime
   all[mapEditKey(MAPS[ED.map].name)] = { obs: clean(ED.obs), lights: clean(ED.lights), trails: ED.trails, areas: ED.areas.map(a => ({ poly: a.poly, tex: a.tex, sharp: a.sharp || undefined, edge: a.edge })), base: ED.base || undefined };
-  try { localStorage.setItem('snakeCarnageMapEdits', JSON.stringify(all)); edStatus('Saved in this browser'); } catch (e) { edStatus('Could not save (storage full?)'); }
+  try { localStorage.setItem('snakeCarnageEdDrafts', JSON.stringify(all)); ED.dirtySave = false; edStatus(`Saved ${new Date().toLocaleTimeString()} · in the editor only (File → Use in my game to play it normally)`); } catch (e) { edStatus('Could not save (storage full?)'); }
 }
 function edReset() {
   if (!confirm('Throw away your edits to ' + MAPS[ED.map].name + ' and go back to the original layout?')) return;
-  const all = localMapEdits(); delete all[mapEditKey(MAPS[ED.map].name)]; try { localStorage.setItem('snakeCarnageMapEdits', JSON.stringify(all)); } catch (e) {}
+  const all = edDrafts(); delete all[mapEditKey(MAPS[ED.map].name)]; try { localStorage.setItem('snakeCarnageEdDrafts', JSON.stringify(all)); } catch (e) {}
   const keep = MAP_OVERRIDES[mapEditKey(MAPS[ED.map].name)]; if (keep) delete MAP_OVERRIDES[mapEditKey(MAPS[ED.map].name)];
   loadMap(ED.map); ED.obs = edClone(curPre); ED.lights = edClone(curMapLights); ED.trails = captureTrails(MAPS[ED.map].build()); ED.areas = []; ED.base = ''; edFloor(true); ED.undo = []; ED.redo = []; ED.sel = []; edPanel(); edStatus('Back to the original');
 }
@@ -78,10 +79,10 @@ function edExport() {
 }
 function edImport(file) {
   file.text().then(t => {
-    if (/^SNAKE CARNAGE EDITS/.test(t)) { const d = JSON.parse(t.slice(t.indexOf('{'))); localStorage.setItem('snakeCarnageMapEdits', JSON.stringify({ ...localMapEdits(), ...(d.maps || {}) })); localStorage.setItem('snakeCarnagePropDefs', JSON.stringify({ ...edLocalProps(), ...(d.props || {}) })); propApply();
+    if (/^SNAKE CARNAGE EDITS/.test(t)) { const d = JSON.parse(t.slice(t.indexOf('{'))); localStorage.setItem('snakeCarnageEdDrafts', JSON.stringify({ ...edDrafts(), ...(d.maps || {}) })); localStorage.setItem('snakeCarnagePropDefs', JSON.stringify({ ...edLocalProps(), ...(d.props || {}) })); propApply();
       const ov = mapOverride(MAPS[ED.map].name); if (ov) { edPush(); ED.obs = edClone(ov.obs); ED.lights = edClone(ov.lights); if (ov.trails) ED.trails = edClone(ov.trails); edFloor(true); } edPreviews(); edPanel(); return edStatus(`Imported ${Object.keys(d.maps || {}).length} map(s) and ${Object.keys(d.props || {}).length} prop(s)`); } const m = t.match(/MAP_OVERRIDES = (\{[\s\S]*?\});\n/), pm = t.match(/PROP_OVERRIDES = (\{[\s\S]*?\});/); const data = JSON.parse(m ? m[1] : t);
     if (pm) { try { localStorage.setItem('snakeCarnagePropDefs', JSON.stringify({ ...propDefs(), ...JSON.parse(pm[1]) })); propApply(); } catch (e) {} }
-    const all = { ...localMapEdits(), ...data }; localStorage.setItem('snakeCarnageMapEdits', JSON.stringify(all));
+    const all = { ...edDrafts(), ...data }; localStorage.setItem('snakeCarnageEdDrafts', JSON.stringify(all));
     const ov = mapOverride(MAPS[ED.map].name); if (ov) { edPush(); ED.obs = edClone(ov.obs); ED.lights = edClone(ov.lights); if (ov.trails) ED.trails = edClone(ov.trails); edFloor(true); } edStatus('Imported ' + Object.keys(data).length + ' map(s)'); edPanel(); })
     .catch(() => edStatus('That file is not a map export'));
 }
@@ -321,14 +322,14 @@ const ED_ICON = { // small line icons for the toolbar and menus
 const edSvg = (k, s = 16) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="${ED_ICON[k]}"/></svg>`;
 const ED_TOOLS = [['select', 'Select / move', 'V'], ['wall', 'Draw wall', 'W'], ['rect', 'Draw block', 'B'], ['path', 'Draw path', 'T'], ['water', 'Draw water', 'Y'], ['area', 'Floor area', 'U'], ['light', 'Add light', 'L'], ['pan', 'Pan', 'Space']];
 const ED_MENUS = {
-  File: [['save', 'Save', 'Ctrl+S'], ['saveas', 'Save a copy as…', 'Ctrl+Shift+S'], ['library', 'My saved maps…', 'Ctrl+O'], '-', ['dlmap', 'Download this map as a file'], ['openfile', 'Open a map file…'], '-', ['share', 'Share…'], ['export', 'Download edits file'], ['import', 'Import…'], '-', ['reset', 'Reset this map…'], '-', ['play', 'Play test', 'P'], ['exit', 'Exit editor', 'Esc']],
+  File: [['save', 'Save', 'Ctrl+S'], ['saveas', 'Save a copy as…', 'Ctrl+Shift+S'], ['library', 'My saved maps…', 'Ctrl+O'], '-', ['dlmap', 'Download this map as a file'], ['openfile', 'Open a map file…'], '-', ['apply', 'Use in my game'], ['unapply', 'Go back to the original in my game'], '-', ['share', 'Share…'], ['export', 'Download edits file'], ['import', 'Import…'], '-', ['reset', 'Reset this map…'], '-', ['play', 'Play test', 'P'], ['exit', 'Exit editor', 'Esc']],
   Edit: [['undo', 'Undo', 'Ctrl+Z'], ['redo', 'Redo', 'Ctrl+Y'], '-', ['copy', 'Copy', 'Ctrl+C'], ['paste', 'Paste', 'Ctrl+V'], ['dup', 'Duplicate', 'Ctrl+D'], ['del', 'Delete', 'Del'], '-', ['all', 'Select all', 'Ctrl+A'], ['none', 'Select none', 'Esc'], '-', ['lock', 'Lock / unlock selection', 'Ctrl+L'], ['hide', 'Hide / show selection', 'Ctrl+H'], ['unhideall', 'Show everything']],
   View: [['fit', 'Fit map', '0'], ['focus', 'Focus selection', 'F'], ['zin', 'Zoom in', '+'], ['zout', 'Zoom out', '-'], '-', ['tg:showGrid', 'Grid', 'G'], ['tg:lit', 'Night preview', 'N'], ['tg:lightsLayer', 'Light reach', 'O'], ['tg:mini', 'Minimap', 'M'], ['tg:help', 'Controls', 'H']],
   Tools: [...[['select', 'Select / move', 'V'], ['wall', 'Draw wall', 'W'], ['rect', 'Draw block', 'B'], ['path', 'Draw path', 'T'], ['water', 'Draw water', 'Y'], ['light', 'Add light', 'L']].map(([t, n, k]) => ['tool:' + t, n, k]), '-', ['propEd', 'Prop editor…']],
 };
 function edCmd(c) {
   if (c.startsWith('tool:')) return edTool(c.slice(5)); if (c.startsWith('tg:')) return edToggle(c.slice(3));
-  const A = { saveas: edSaveAs, library: edLibrary, dlmap: edDownloadMap, openfile: () => edOpenFile(), save: edSave, share: () => edShare(), export: edExport, import: () => ED.root.querySelector('.edimp input').click(), reset: edReset, play: () => closeEditor(true), exit: () => closeEditor(),
+  const A = { apply: edApply, unapply: edUnapply, saveas: edSaveAs, library: edLibrary, dlmap: edDownloadMap, openfile: () => edOpenFile(), save: edSave, share: () => edShare(), export: edExport, import: () => ED.root.querySelector('.edimp input').click(), reset: edReset, play: () => closeEditor(true), exit: () => closeEditor(),
     undo: () => edUndo(-1), redo: () => edUndo(1), copy: edCopy, paste: edPaste, dup: () => edDuplicate(), del: edDelete, all: () => { ED.sel = [...ED.obs.map((o, i) => ({ t: 'o', i })), ...ED.lights.map((l, i) => ({ t: 'l', i })), ...ED.trails.map((t, i) => ({ t: 'p', i }))].filter(s => !edItem(s)._lock && !edItem(s)._hide); edPanel(); }, none: () => { ED.sel = []; edPanel(); },
     lock: () => edFlagSel('_lock'), hide: () => edFlagSel('_hide'), unhideall: () => { edPush(); for (const o of [...ED.obs, ...ED.lights, ...ED.trails]) delete o._hide; edFloor(true); edLayers(); },
     fit: edFit, focus: edFocus, zin: () => edZoomC(1.25), zout: () => edZoomC(.8), propEd: () => openPropEditor(ED.sel.length === 1 && ED.sel[0].t === 'o' ? edItem(ED.sel[0]).kind : 'tree') };
@@ -402,7 +403,7 @@ function edBuildUI() {
   root.querySelector('.edsave').onclick = edSave; root.querySelector('.edshare').onclick = () => edShare();
   root.querySelector('.edimp input').onchange = e => e.target.files[0] && edImport(e.target.files[0]);
   root.querySelector('.edplay').onclick = () => closeEditor(true); root.querySelector('.edclose').onclick = () => closeEditor();
-  root.querySelector('.edmap').onchange = e => { edSave(); const i = +e.target.value; cancelAnimationFrame(ED.raf); root.remove(); removeEventListener('keydown', edKey, true); removeEventListener('keyup', edKey, true); openEditor(i); };
+  root.querySelector('.edmap').onchange = e => { if (ED.dirtySave) edSave(); const i = +e.target.value; cancelAnimationFrame(ED.raf); root.remove(); removeEventListener('keydown', edKey, true); removeEventListener('keyup', edKey, true); openEditor(i); };
   addEventListener('keydown', edKey, true); addEventListener('keyup', edKey, true);
   root.querySelector('.edpe').onclick = () => edCmd('propEd');
   { // the controls panel: drag it by its title, resize it from the corner; both remembered
@@ -505,7 +506,8 @@ let edTesting = null; // the map being play-tested from the editor: quitting goe
 const _edShowMenu = showMenu;
 showMenu = function () {
   _edShowMenu.apply(this, arguments);
-  if (edTesting !== null && state === 'menu' && !ED.open && ED.leaving) { const i = edTesting; edTesting = null; ED.leaving = false; openEditor(i); return; }
+  if (edTesting !== null && state === 'menu' && !ED.open && ED.leaving) { const i = edTesting; edTesting = null; ED.leaving = false; const was = edTestData; openEditor(i); if (was) { ED.dirtySave = ED.unshared = true; edStatus('Back from the play test: your unsaved changes are still here (Ctrl+S to save)'); } edTestData = null; return; }
+  if (edTesting === null) edTestData = null;
   const row = document.getElementById('setBtn'); if (!row || document.getElementById('edBtn')) return;
   const b = document.createElement('button'); b.className = 'ghost'; b.id = 'edBtn'; b.dataset.sfx = 'open'; b.textContent = 'Map editor';
   b.onclick = () => openEditor(mapIdx); row.parentElement.appendChild(b);
@@ -683,10 +685,10 @@ for (const [fn, id, label] of [['showPause', 'pMenuBtn', 'Back to editor'], ['sh
 }
 /* sending edits back: everything as one block of text, ready to paste into a chat or save as a file */
 function edShareText() {
-  return `/* =========================================================\n   MAP EDITS (exported from the map editor)\n   Maps changed in the map editor (40b-editor). Each entry replaces that map's objects and lights at one world width.\n   ========================================================= */\nconst MAP_OVERRIDES = ${JSON.stringify({ ...MAP_OVERRIDES, ...localMapEdits() })};\nconst PROP_OVERRIDES = ${JSON.stringify(propDefs())}; // per kind: { color, breakable, hideBase, shapes }\nconst mapEditKey = name => name + '@' + W;\nfunction localMapEdits() { try { return JSON.parse(localStorage.getItem('snakeCarnageMapEdits')) || {}; } catch (e) { return {}; } }\nfunction mapOverride(name) { const k = mapEditKey(name); return localMapEdits()[k] || MAP_OVERRIDES[k] || null; }\nfunction propDefs() { let loc = {}; try { loc = JSON.parse(localStorage.getItem('snakeCarnagePropDefs')) || {}; } catch (e) {} return { ...PROP_OVERRIDES, ...loc }; }\n`;
+  return `/* =========================================================\n   MAP EDITS (exported from the map editor)\n   Maps changed in the map editor (40b-editor). Each entry replaces that map's objects and lights at one world width.\n   ========================================================= */\nconst MAP_OVERRIDES = ${JSON.stringify({ ...MAP_OVERRIDES, ...localMapEdits(), ...edDrafts() })};\nconst PROP_OVERRIDES = ${JSON.stringify(propDefs())}; // per kind: { color, breakable, hideBase, shapes }\nconst mapEditKey = name => name + '@' + W;\nfunction localMapEdits() { try { return JSON.parse(localStorage.getItem('snakeCarnageMapEdits')) || {}; } catch (e) { return {}; } }\nfunction mapOverride(name) { const k = mapEditKey(name); return localMapEdits()[k] || MAP_OVERRIDES[k] || null; }\nfunction propDefs() { let loc = {}; try { loc = JSON.parse(localStorage.getItem('snakeCarnagePropDefs')) || {}; } catch (e) {} return { ...PROP_OVERRIDES, ...loc }; }\n`;
 }
 function edShare() {
-  edSave(); const text = edShareText(), maps = Object.keys({ ...MAP_OVERRIDES, ...localMapEdits() }), props = Object.keys(propDefs());
+  edSave(); const text = edShareText(), maps = Object.keys({ ...MAP_OVERRIDES, ...localMapEdits(), ...edDrafts() }), props = Object.keys(propDefs());
   const box = document.createElement('div'); box.id = 'propEd';
   box.innerHTML = `<div class="pewin" style="height:auto;max-height:90vh;width:min(760px,94vw)"><div class="pehead"><b>Share your edits</b><button class="peclose">Close</button></div>
     <div style="padding:14px;display:flex;flex-direction:column;gap:10px;overflow:auto">
@@ -899,16 +901,22 @@ function edModal(title, body, buttons) { // a small dialog; buttons: [label, fn,
 }
 const _edClose = closeEditor;
 closeEditor = function (play) {
-  if (play || !ED.unshared) return _edClose(play);
+  if (play) { const k = mapEditKey(MAPS[ED.map].name), all = {}; const keep = edDrafts; // build the test copy from the editor as it is now
+    const clean = list => list.map(o => { const c = {}; for (const q in o) if (!ED_RUNTIME.has(q)) c[q] = o[q]; return c; });
+    edTestData = { k, d: edClone({ obs: clean(ED.obs), lights: clean(ED.lights), trails: ED.trails, areas: ED.areas.map(a => ({ poly: a.poly, tex: a.tex, sharp: a.sharp, edge: a.edge })), base: ED.base || undefined }) };
+    return _edClose(true); }
+  if (ED.dirtySave) return edModal('Save your changes?', `<p>You have unsaved changes to ${MAPS[ED.map].name}.</p>`, [['Cancel', null, ''], ["Don't save", () => { ED.dirtySave = false; closeEditor(); }, 'warn'], ['Save', () => { edSave(); closeEditor(); }, 'edprimary']]);
+  clearInterval(ED.autoT);
+  if (!ED.unshared) return _edClose(play);
   edModal('Leave the map editor?', `<p>Your changes are saved in this browser, but you haven't shared them yet. Share them so they can be added to the game for everyone.</p>`,
     [['Stay', null, ''], ['Leave without sharing', () => { ED.unshared = false; _edClose(); }, 'warn'], ['Share first', () => edShare(), 'edprimary']]);
 };
 /* ---- sharing: everything you edited, or just one thing ---- */
 function edLocalProps() { try { return JSON.parse(localStorage.getItem('snakeCarnagePropDefs')) || {}; } catch (e) { return {}; } }
-function edShareItems() { const maps = localMapEdits(), props = edLocalProps();
+function edShareItems() { const maps = { ...localMapEdits(), ...edDrafts() }, props = edLocalProps();
   return [...Object.keys(maps).map(k => ({ id: 'm:' + k, label: `Map: ${k.split('@')[0]}`, sub: `${k.split('@')[1]} wide · ${maps[k].obs.length} objects, ${(maps[k].lights || []).length} lights, ${(maps[k].trails || []).length} paths` })),
     ...Object.keys(props).map(k => ({ id: 'p:' + k, label: `Prop: ${k}`, sub: Object.keys(props[k]).join(', ') || 'reset to default' }))]; }
-function edSharePayload(ids) { const maps = localMapEdits(), props = edLocalProps(), out = { maps: {}, props: {} };
+function edSharePayload(ids) { const maps = { ...localMapEdits(), ...edDrafts() }, props = edLocalProps(), out = { maps: {}, props: {} };
   for (const id of ids) { const [t, k] = [id.slice(0, 1), id.slice(2)]; if (t === 'm') out.maps[k] = maps[k]; else out.props[k] = props[k]; }
   return `SNAKE CARNAGE EDITS v1 (paste this to Claude to add it to the game)\n${JSON.stringify(out)}`; }
 edShare = function (only) {
@@ -967,7 +975,7 @@ function recordProp(kind) {
    (there are no online accounts in the game, so a file is how a map goes to another computer) */
 const LIB_KEY = 'snakeCarnageMapLib';
 function edLib() { try { return JSON.parse(localStorage.getItem(LIB_KEY)) || {}; } catch (e) { return {}; } }
-function edSnapshot() { edSave(); return { map: MAPS[ED.map].name, w: W, date: Date.now(), data: localMapEdits()[mapEditKey(MAPS[ED.map].name)] }; }
+function edSnapshot() { edSave(); return { map: MAPS[ED.map].name, w: W, date: Date.now(), data: edDrafts()[mapEditKey(MAPS[ED.map].name)] }; }
 function edSaveAs() {
   const def = `${MAPS[ED.map].name} ${new Date().toLocaleDateString()}`;
   const m = edModal('Save a copy', `<p>Keeps this version of ${MAPS[ED.map].name} under a name, in this browser. You can load it again from <b>File → My saved maps</b>.</p><input type="text" class="libname" value="${def}" maxlength="60">`,
@@ -978,7 +986,7 @@ function edSaveAs() {
 function edLoadSnap(sn) {
   const i = MAPS.findIndex(q => q.name === sn.map); if (i < 0) return edStatus('That map no longer exists');
   if (sn.w !== W) edStatus(`Made on a ${sn.w}-wide world; this screen's world is ${W} wide, so the sides may differ`);
-  const all = localMapEdits(); all[mapEditKey(sn.map)] = sn.data; localStorage.setItem('snakeCarnageMapEdits', JSON.stringify(all));
+  const all = edDrafts(); all[mapEditKey(sn.map)] = sn.data; localStorage.setItem('snakeCarnageEdDrafts', JSON.stringify(all));
   cancelAnimationFrame(ED.raf); ED.root.remove(); removeEventListener('keydown', edKey, true); removeEventListener('keyup', edKey, true); openEditor(i); ED.unshared = true;
 }
 function edLibrary() {
@@ -997,3 +1005,12 @@ function edOpenFile() {
   inp.onchange = () => inp.files[0] && inp.files[0].text().then(t => { try { const d = JSON.parse(t); if (d.snakeCarnageMap) { document.querySelectorAll('.edmodal').forEach(x => x.remove()); return edLoadSnap(d); } } catch (e) {} edImport(inp.files[0]); });
   inp.click();
 }
+
+/* ---- editor saves stay in the editor until you choose to play them in the game ---- */
+function edApply() {
+  if (ED.dirtySave) edSave(); const k = mapEditKey(MAPS[ED.map].name), d = edDrafts()[k]; if (!d) return edStatus('Nothing saved to apply yet');
+  const all = localMapEdits(); all[k] = d; localStorage.setItem('snakeCarnageMapEdits', JSON.stringify(all));
+  edModal('Using your version', `<p>Normal runs on ${MAPS[ED.map].name} now use your edited map (in this browser). <b>File → Go back to the original in my game</b> undoes it.</p>`, [['OK', null, 'edprimary']]);
+}
+function edUnapply() { const all = localMapEdits(); delete all[mapEditKey(MAPS[ED.map].name)]; localStorage.setItem('snakeCarnageMapEdits', JSON.stringify(all)); edStatus(`Normal runs on ${MAPS[ED.map].name} use the original map again (your editor copy is kept)`); }
+try { if (!localStorage.getItem('snakeCarnageEdDrafts') && localStorage.getItem('snakeCarnageMapEdits')) localStorage.setItem('snakeCarnageEdDrafts', localStorage.getItem('snakeCarnageMapEdits')); } catch (e) {} // edits from before drafts existed

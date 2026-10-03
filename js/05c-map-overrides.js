@@ -8,7 +8,14 @@ const MAP_OVERRIDES = {};
 const PROP_OVERRIDES = {}; // per kind: { color, breakable, hideBase, shapes } (see the prop editor in 40b)
 const mapEditKey = name => name + '@' + W;
 function localMapEdits() { try { return JSON.parse(localStorage.getItem('snakeCarnageMapEdits')) || {}; } catch (e) { return {}; } }
-function mapOverride(name) { const k = mapEditKey(name); return localMapEdits()[k] || MAP_OVERRIDES[k] || null; }
+function edDrafts() { try { return JSON.parse(localStorage.getItem('snakeCarnageEdDrafts')) || {}; } catch (e) { return {}; } }
+let edTestData = null; // a play test from the editor runs on exactly what's in the editor, saved or not
+function mapOverride(name) { // editor drafts stay in the editor; the game uses only what you applied to it (or what shipped)
+  const k = mapEditKey(name);
+  if (edTestData && edTestData.k === k) return edTestData.d;
+  if (typeof state !== 'undefined' && state === 'editor') { const d = edDrafts()[k]; if (d) return d; }
+  return localMapEdits()[k] || MAP_OVERRIDES[k] || null;
+}
 let propCache = {}; // the prop editor's per-kind settings, kept current by propApply (40b)
 const obsFlag = (o, k) => !!(o[k] || (propCache[o.kind] && propCache[o.kind][k])); // per object, or for the whole kind
 function obsCorners(o) { // a rotated rectangle's corners (o.rot in degrees, about its centre)
@@ -23,3 +30,9 @@ function fillObs(x, o, dx = 0, dy = 0, grow = 0) { // the footprint, for masks a
   else circ(x, o.x + dx, o.y + dy, o.r + grow);
 }
 function propDefs() { let loc = {}; try { loc = JSON.parse(localStorage.getItem('snakeCarnagePropDefs')) || {}; } catch (e) {} return { ...PROP_OVERRIDES, ...loc }; }
+function polyHit(P, x, y, r) { // a circle touching a polygon: inside it, or within r of an edge
+  if (pointInPoly(P, x, y)) return true;
+  for (let i = 0, j = P.length - 1; i < P.length; j = i++) { const [ax, ay] = P[j], [bx, by] = P[i], dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / L)), qx = ax + t * dx - x, qy = ay + t * dy - y; if (qx * qx + qy * qy < r * r) return true; }
+  return false;
+}
+const shapeOf = o => o.poly ? polyShape(o) : isRot(o) ? obsCorners(o) : null; // the true outline of a non-box shape

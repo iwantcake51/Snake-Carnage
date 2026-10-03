@@ -113,8 +113,9 @@ function modHud() { // live state of the active scoring modifiers
 }
 const modMult = ids => Math.max(.5, 1 + ids.reduce((a, id) => a + ((MODS.find(m => m.id === id) || {}).mult || 0), 0));
 function obstacleAt(px, py) {
-  for (const o of obstacles)
-    if (o.t === 'r' ? px >= o.x - 3 && px <= o.x + o.w + 3 && py >= o.y - 3 && py <= o.y + o.h + 3 : dist2(px, py, o.x, o.y) <= (o.r + 3) ** 2) return o;
+  for (const o of obstacles) {
+    const sp = shapeOf(o); if (sp) { if (polyHit(sp, px, py, 3)) return o; continue; }
+    if (o.t === 'r' ? px >= o.x - 3 && px <= o.x + o.w + 3 && py >= o.y - 3 && py <= o.y + o.h + 3 : dist2(px, py, o.x, o.y) <= (o.r + 3) ** 2) return o; }
   return null;
 }
 function wallSplat(px, py, vx, vy, r, c) { // clipped to the object that was hit
