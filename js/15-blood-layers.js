@@ -202,8 +202,8 @@ function drawGloss(x) { // fresh pools are little mirrors: the sky, nearby lamps
     if (L && q >= 1) for (const l of lights) {
       if (l.kind === 'window' && q < 3) continue; const k = lightK(l); if (k < .05) continue;
       const dx = l.x - g.x, dy = l.y - g.y, d = Math.hypot(dx, dy); if (d > l.r + R) continue;
-      const near = 1 - d / (l.r + R), hx = g.x + dx / (d || 1) * R * .5, hy = g.y + dy / (d || 1) * R * .5, rr = R * (.25 + .25 * near);
-      const hg = x.createRadialGradient(hx, hy, 0, hx, hy, rr); hg.addColorStop(0, `rgba(${l.c},${(.75 * k * near + .1) * fresh})`); hg.addColorStop(1, `rgba(${l.c},0)`);
+      const near = 1 - d / (l.r + R), hx = g.x + dx / (d || 1) * R * .5, hy = g.y + dy / (d || 1) * R * .5, rr = R * (.18 + .16 * near);
+      const hg = x.createRadialGradient(hx, hy, 0, hx, hy, rr); hg.addColorStop(0, `rgba(${l.c},${(.42 * k * near + .06) * fresh})`); hg.addColorStop(.35, `rgba(${l.c},${(.16 * k * near) * fresh})`); hg.addColorStop(1, `rgba(${l.c},0)`);
       x.globalCompositeOperation = 'lighter'; x.fillStyle = hg; circ(x, hx, hy, rr); x.globalCompositeOperation = 'source-over';
     }
     // 4. the sun (or the moon) as a sharp sliver of light that slides as you move, plus a slow ripple
