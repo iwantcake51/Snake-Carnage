@@ -35,7 +35,7 @@ function openEditor(idx = mapIdx) {
 function closeEditor(play) {
   ED.open = false; cancelAnimationFrame(ED.raf); ED.root.remove(); removeEventListener('keydown', edKey, true);
   overlay.style.display = '';
-  if (play) { mapIdx = ED.map; showMenu(); startGame(); } else { mapIdx = ED.map; loadMap(ED.map); showMenu(); }
+  if (play) { mapIdx = ED.map; edTesting = ED.map; showMenu(); startGame({ test: true }); } else { mapIdx = ED.map; loadMap(ED.map); showMenu(); }
 }
 /* ---- edits: undo history, saving ---- */
 function edPush() { ED.undo.push(edClone({ o: ED.obs, l: ED.lights })); if (ED.undo.length > 200) ED.undo.shift(); ED.redo = []; edDirty(); }
@@ -55,9 +55,8 @@ function edReset() {
   loadMap(ED.map); ED.obs = edClone(curPre); ED.lights = edClone(curMapLights); ED.undo = []; ED.redo = []; ED.sel = []; edPanel(); edStatus('Back to the original');
 }
 function edExport() {
-  edSave(); const all = { ...MAP_OVERRIDES, ...localMapEdits() };
-  const src = document.getElementById('editorSrc') ? '' : '';
-  const text = `/* =========================================================\n   MAP EDITS (exported from the map editor)\n   ========================================================= */\nconst MAP_OVERRIDES = ${JSON.stringify(all)};\nconst PROP_OVERRIDES = ${JSON.stringify(propDefs())}; // per kind: { color, breakable, hideBase, shapes }\nconst mapEditKey = name => name + '@' + W;\nfunction localMapEdits() { try { return JSON.parse(localStorage.getItem('snakeCarnageMapEdits')) || {}; } catch (e) { return {}; } }\nfunction mapOverride(name) { const k = mapEditKey(name); return localMapEdits()[k] || MAP_OVERRIDES[k] || null; }\nfunction propDefs() { let loc = {}; try { loc = JSON.parse(localStorage.getItem('snakeCarnagePropDefs')) || {}; } catch (e) {} return { ...PROP_OVERRIDES, ...loc }; }\n` + src;
+  edSave();
+  const text = edShareText();
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'text/javascript' })); a.download = '05c-map-overrides.js'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   edStatus('Exported 05c-map-overrides.js: put it in the js folder to ship these edits');
 }
@@ -249,7 +248,7 @@ function edBuildUI() {
       <span class="edgrp">${[['select', 'Select / move', 'V'], ['wall', 'Draw wall', 'W'], ['rect', 'Draw block', 'B'], ['light', 'Add light', 'L'], ['pan', 'Pan', 'Space']].map(([t, n, k]) => `<button data-tool="${t}" title="${n} (${k})">${n}<kbd>${k}</kbd></button>`).join('')}</span>
       <span class="edgrp">${[['showGrid', 'Grid', 'G'], ['snap', 'Snap', 'S'], ['lit', 'Night preview', 'N'], ['lightsLayer', 'Light reach', 'O'], ['help', 'Controls', 'H']].map(([t, n, k]) => `<button data-tg="${t}" class="${ED[t] ? 'on' : ''}" title="${n} (${k})">${n}<kbd>${k}</kbd></button>`).join('')}
         <label class="edgs">grid <select class="edgridsz">${[2, 4, 8, 16, 32].map(g => `<option ${g === ED.grid ? 'selected' : ''}>${g}</option>`).join('')}</select></label></span>
-      <span class="edgrp"><button class="edpe" title="Change how a kind of prop looks and breaks, everywhere">Prop editor</button></span><span class="edgrp edright"><button class="edundo" title="Undo (Ctrl+Z)">↶</button><button class="edredo" title="Redo (Ctrl+Y)">↷</button><button class="edsave">Save</button><button class="edexp" title="Download 05c-map-overrides.js">Export</button><label class="edimp">Import<input type="file" accept=".js,.json" hidden></label><button class="edreset">Reset map</button><button class="edplay">Play test <kbd>P</kbd></button><button class="edclose">Exit <kbd>Esc</kbd></button></span></div>
+      <span class="edgrp"><button class="edpe" title="Change how a kind of prop looks and breaks, everywhere">Prop editor</button></span><span class="edgrp edright"><button class="edundo" title="Undo (Ctrl+Z)">↶</button><button class="edredo" title="Redo (Ctrl+Y)">↷</button><button class="edsave">Save</button><button class="edshare" title="Copy your map and prop edits so you can send them to Claude">Send to Claude</button><button class="edexp" title="Download 05c-map-overrides.js">Export</button><label class="edimp">Import<input type="file" accept=".js,.json" hidden></label><button class="edreset">Reset map</button><button class="edplay">Play test <kbd>P</kbd></button><button class="edclose">Exit <kbd>Esc</kbd></button></span></div>
     <div class="edbody"><div class="edleft"><h4>Props <small>click, then click the map · Shift keeps placing</small></h4><div class="edprops">${ED_PROPS.map((p, i) => `<button class="edprop" data-p="${i}"><canvas width="68" height="68"></canvas><span>${p[0]}</span></button>`).join('')}</div>
         <h4>Walls</h4><div class="edrow"><label>Wall kind <select class="edwk">${['wall', 'fence', 'hedge', 'glass', 'building'].map(k => `<option ${k === ED.wallKind ? 'selected' : ''}>${k}</option>`).join('')}</select></label>
         <label>Thickness <input type="number" class="edwt" value="${ED.wallT}" min="2" max="80"></label><label>Color <input type="color" class="edwc" value="${edHex(ED.wallCol)}"></label></div></div>
@@ -275,7 +274,7 @@ function edBuildUI() {
   root.querySelector('.edwt').onchange = e => { ED.wallT = clamp(+e.target.value || 14, 2, 80); };
   root.querySelector('.edwc').oninput = e => { ED.wallCol = e.target.value; };
   root.querySelector('.edundo').onclick = () => edUndo(-1); root.querySelector('.edredo').onclick = () => edUndo(1);
-  root.querySelector('.edsave').onclick = edSave; root.querySelector('.edexp').onclick = edExport; root.querySelector('.edreset').onclick = edReset;
+  root.querySelector('.edsave').onclick = edSave; root.querySelector('.edshare').onclick = edShare; root.querySelector('.edexp').onclick = edExport; root.querySelector('.edreset').onclick = edReset;
   root.querySelector('.edimp input').onchange = e => e.target.files[0] && edImport(e.target.files[0]);
   root.querySelector('.edplay').onclick = () => closeEditor(true); root.querySelector('.edclose').onclick = () => closeEditor();
   root.querySelector('.edmap').onchange = e => { edSave(); const i = +e.target.value; cancelAnimationFrame(ED.raf); root.remove(); removeEventListener('keydown', edKey, true); removeEventListener('keyup', edKey, true); openEditor(i); };
@@ -329,9 +328,11 @@ function edPanelVals(keepSize) { // refresh the numbers while dragging, without 
   ED.root.querySelectorAll('.edpanel input[data-k]').forEach(inp => { if (document.activeElement !== inp) inp.value = Math.round((o[inp.dataset.k] ?? 0) * 10) / 10; });
 }
 /* the menu entry */
+let edTesting = null; // the map being play-tested from the editor: quitting goes back to the editor
 const _edShowMenu = showMenu;
 showMenu = function () {
   _edShowMenu.apply(this, arguments);
+  if (edTesting !== null && state === 'menu' && !ED.open && ED.leaving) { const i = edTesting; edTesting = null; ED.leaving = false; openEditor(i); return; }
   const row = document.getElementById('setBtn'); if (!row || document.getElementById('edBtn')) return;
   const b = document.createElement('button'); b.className = 'ghost'; b.id = 'edBtn'; b.dataset.sfx = 'open'; b.textContent = 'Map editor';
   b.onclick = () => openEditor(mapIdx); row.parentElement.appendChild(b);
@@ -465,3 +466,31 @@ function peSide() {
     peSet(q); peSide(); });
 }
 function peSideVals() { const s = (peGet().shapes || [])[PE.selShape]; if (!s) return; PE.box.querySelectorAll('[data-sk]').forEach(r => { r.value = s[r.dataset.sk] ?? 0; r.nextElementSibling.textContent = r.value; }); }
+
+/* play test: Quit and Menu go back to the editor, Retry stays a play test */
+const _edStart = startGame;
+startGame = function (opts = {}) { if (edTesting !== null && !opts.test && !opts.mystery) opts = { ...opts, test: true }; return _edStart.call(this, opts); };
+const _edToMenu = returnToMenu;
+returnToMenu = function () { if (edTesting !== null) ED.leaving = true; return _edToMenu.apply(this, arguments); };
+for (const [fn, id, label] of [['showPause', 'pMenuBtn', 'Back to editor'], ['showDead', 'menuBtn2', 'Editor']]) {
+  const orig = window[fn];
+  window[fn] = function () { const r = orig.apply(this, arguments); if (edTesting !== null) { const b = document.getElementById(id); if (b) b.textContent = label; } return r; };
+}
+/* sending edits back: everything as one block of text, ready to paste into a chat or save as a file */
+function edShareText() {
+  return `/* =========================================================\n   MAP EDITS (exported from the map editor)\n   Maps changed in the map editor (40b-editor). Each entry replaces that map's objects and lights at one world width.\n   ========================================================= */\nconst MAP_OVERRIDES = ${JSON.stringify({ ...MAP_OVERRIDES, ...localMapEdits() })};\nconst PROP_OVERRIDES = ${JSON.stringify(propDefs())}; // per kind: { color, breakable, hideBase, shapes }\nconst mapEditKey = name => name + '@' + W;\nfunction localMapEdits() { try { return JSON.parse(localStorage.getItem('snakeCarnageMapEdits')) || {}; } catch (e) { return {}; } }\nfunction mapOverride(name) { const k = mapEditKey(name); return localMapEdits()[k] || MAP_OVERRIDES[k] || null; }\nfunction propDefs() { let loc = {}; try { loc = JSON.parse(localStorage.getItem('snakeCarnagePropDefs')) || {}; } catch (e) {} return { ...PROP_OVERRIDES, ...loc }; }\n`;
+}
+function edShare() {
+  edSave(); const text = edShareText(), maps = Object.keys({ ...MAP_OVERRIDES, ...localMapEdits() }), props = Object.keys(propDefs());
+  const box = document.createElement('div'); box.id = 'propEd';
+  box.innerHTML = `<div class="pewin" style="height:auto;max-height:90vh;width:min(760px,94vw)"><div class="pehead"><b>Send your edits to Claude</b><button class="peclose">Close</button></div>
+    <div style="padding:14px;display:flex;flex-direction:column;gap:10px;overflow:auto">
+      <p>${maps.length} map edit${maps.length === 1 ? '' : 's'}${maps.length ? ` (${maps.join(', ')})` : ''} and ${props.length} prop change${props.length === 1 ? '' : 's'}${props.length ? ` (${props.join(', ')})` : ''}.</p>
+      <p class="edmuted">Copy this and paste it into your chat with Claude (or attach the downloaded file) and ask for it to be added to the game. It becomes <code>js/05c-map-overrides.js</code>, so everyone gets your maps in the next update.</p>
+      <textarea readonly style="width:100%;height:240px;background:#0e0c10;color:#cfc6c0;border:1px solid #3a3035;border-radius:8px;font:11px/1.4 ui-monospace,monospace;padding:8px">${text.replace(/</g, '&lt;')}</textarea>
+      <div class="edbtns"><button class="sh-copy">Copy to clipboard</button><button class="sh-dl">Download file</button><span class="sh-msg edmuted"></span></div></div></div>`;
+  document.body.appendChild(box);
+  const msg = box.querySelector('.sh-msg'); box.querySelector('.peclose').onclick = () => box.remove();
+  box.querySelector('.sh-copy').onclick = () => { const ta = box.querySelector('textarea'); (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).catch(() => { ta.select(); document.execCommand('copy'); }).finally(() => { msg.textContent = 'Copied. Paste it into the chat.'; }); };
+  box.querySelector('.sh-dl').onclick = edExport;
+}

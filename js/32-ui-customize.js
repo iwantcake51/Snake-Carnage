@@ -79,7 +79,7 @@ function startGame(opts = {}) {
   setTimeout(() => overlay.querySelectorAll('.casebox').forEach(b => b.remove()), 600);
   introTimers.forEach(clearTimeout); introTimers = [];
   stage.classList.add('bars');
-  if (myst) { intro.innerHTML = ''; intro.className = 'run ghost'; }
+  if (myst || opts.test) { intro.innerHTML = ''; intro.className = 'run ghost'; } // play tests from the editor skip the intro
   else { intro.innerHTML = introHtml(sz); intro.className = 'run'; } // up on screen straight away; the map loads behind it
   requestAnimationFrame(() => requestAnimationFrame(() => { if (startGame.gen === gen) finishStart(opts, sz); }));
 }
@@ -94,6 +94,7 @@ function finishStart(opts, sz) {
   updateTime(0);
   state = 'intro';
   cam = { t: 0, dur: SETTINGS.reduceMotion ? .01 : 1.5, z0: 5, hold: true };
+  if (opts.test) { cam.dur = .01; cam.hold = false; endIntro(true); stage.classList.remove('bars'); return; } // editor play test: straight in
   if (opts.mystery) { // random map: no picture or name, the world itself is the reveal
     intro.innerHTML = `<div class="iname mys">${timeBadge()}${seasonBadge()}</div>`;
     introTimers = [setTimeout(endIntro, SETTINGS.reduceMotion ? 200 : 650)];
