@@ -131,6 +131,7 @@ function drawObstacleBase(x, o) {
   switch (k) {
     case 'border': x.fillStyle = c; x.fillRect(X, Y, w, h); return;
     case 'bwall': drawBreakWall(x, o); return;
+    case 'detail': return drawDetail(x, o);
     case 'building': roof(x, o); if (o.shop) { // striped awning over the front door, on whichever side faces the street or lot (part of the building, so it moves with it)
         const f = o.front || 's', hz = f === 's' || f === 'n', L = hz ? o.w : o.h;
         for (let k = 10; k < L - 10; k += 10) { x.fillStyle = (k / 10) % 2 ? '#f4efe6' : o.shop; f === 's' ? x.fillRect(o.x + k, o.y + o.h - 6, 10, 9) : f === 'n' ? x.fillRect(o.x + k, o.y - 3, 10, 9) : f === 'e' ? x.fillRect(o.x + o.w - 6, o.y + k, 9, 10) : x.fillRect(o.x - 3, o.y + k, 9, 10); }
@@ -210,5 +211,25 @@ function drawObstacleBase(x, o) {
       x.fillStyle = c; x.fillRect(X, Y, w, h); x.fillStyle = shade(c, .12); x.fillRect(X + 3, Y + 3, w - 6, h - 6); x.fillStyle = shade(c, -.3); for (let p = X + 14; p < X + w - 8; p += 26) { circ(x, p, Y - 6, 5); circ(x, p, Y + h + 6, 5); } return edge(x, o); // chairs along both sides
     default: // plain walls: a lit top edge so they read as height
       x.fillStyle = c; x.fillRect(X, Y, w, h); x.fillStyle = shade(c, .16); x.fillRect(X, Y, w, Math.min(4, h * .3)); x.fillStyle = shade(c, -.2); x.fillRect(X, Y + h - Math.min(3, h * .2), w, Math.min(3, h * .2));
+  }
+}
+
+function drawDetail(x, o) { // street furniture and markings, drawn to fit their box
+  const { x: X, y: Y, w, h } = o, cx = X + w / 2, cy = Y + h / 2, m = Math.min(w, h);
+  switch (o.d) {
+    case 'zebra': x.fillStyle = '#e6e6e6'; if (w > h) for (let k = X + 4; k < X + w - 4; k += 9) x.fillRect(k, Y + 2, 5, h - 4); else for (let k = Y + 4; k < Y + h - 4; k += 9) x.fillRect(X + 2, k, w - 4, 5); return;
+    case 'manhole': x.fillStyle = '#2f2f34'; circ(x, cx, cy, m / 2); x.fillStyle = '#3b3b41'; circ(x, cx, cy, m / 3); return;
+    case 'drain': x.fillStyle = '#26262b'; x.fillRect(X, Y, w, h); return;
+    case 'mailbox': x.fillStyle = '#d0453a'; x.fillRect(X, Y, w, h * .57); x.fillStyle = '#3a3a3a'; x.fillRect(cx - .5, Y + h * .57, 1, h * .43); return;
+    case 'hydrant': x.fillStyle = '#c0392b'; circ(x, cx, cy, m / 2); x.fillStyle = '#e8b326'; circ(x, cx, cy, m / 4.4); return;
+    case 'pole': x.fillStyle = '#5a4a3a'; circ(x, cx, cy, m / 2); return;
+    case 'stopsign': x.fillStyle = '#c0392b'; x.beginPath(); for (let k = 0; k < 8; k++) { const a = k * TAU / 8 + TAU / 16; x.lineTo(cx + Math.cos(a) * w / 2, cy + Math.sin(a) * h / 2); } x.fill(); return;
+    case 'busstop': x.fillStyle = '#2b2b30'; x.fillRect(cx - 1, Y + h * .2, 2, h * .8); x.fillStyle = '#2f6fb0'; x.fillRect(X, Y, w, h * .36); return;
+    case 'priceboard': x.fillStyle = '#c0392b'; x.fillRect(X, Y, w, h); x.fillStyle = '#ffe9a0'; x.font = `bold ${m / 3}px sans-serif`; x.textAlign = 'center'; x.fillText('3.49', cx, cy + m / 9); return;
+    case 'icechest': x.fillStyle = '#5a7fa8'; x.fillRect(X, Y, w, h); x.fillStyle = '#e8eef2'; x.fillRect(X + 1, Y + 1, w - 2, h * .3); return;
+    case 'carts': x.strokeStyle = '#8a9098'; x.lineWidth = 1.2; for (let k = 0; k < 3; k++) x.strokeRect(X + k * w * .3, Y, w * .39, h); return;
+    case 'cross': x.strokeStyle = '#f4efe6'; x.lineWidth = 2; x.beginPath(); x.moveTo(cx, Y); x.lineTo(cx, Y + h); x.moveTo(X, Y + h * .36); x.lineTo(X + w, Y + h * .36); x.stroke(); return;
+    case 'grave': x.fillStyle = '#8f9196'; rrect(x, X, Y, w, h, Math.min(1.5, m / 2)); x.fill(); return;
+    default: x.fillStyle = o.color; x.fillRect(X, Y, w, h);
   }
 }

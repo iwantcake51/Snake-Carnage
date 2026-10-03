@@ -110,6 +110,7 @@ function fixture(x, l) {
   else if (k === 'spot') { x.fillStyle = '#1a1a1e'; circ(x, l.x, l.y, 7); x.fillStyle = '#4a4a52'; circ(x, l.x, l.y, 4.5); x.fillStyle = '#fff'; circ(x, l.x, l.y, 2.4); }
   else if (k === 'pool') { x.fillStyle = '#e9fbff'; circ(x, l.x, l.y, 3.2); x.strokeStyle = '#7fb6c6'; x.lineWidth = 1; x.beginPath(); x.arc(l.x, l.y, 4.2, 0, TAU); x.stroke(); }
 }
+const DETAIL = (d, x, y, w, h) => R(x, y, w, h, '#888888', 'detail', { d, noCollide: true, noOutline: true, noShadow: true }); // flat street details, not obstacles
 const LAMP = (x, y, ex) => C(x, y, 5, '#3a3a3a', 'lamp', ex);
 const MAST = (x, y) => C(x, y, 6, '#5a6068', 'lamp', { mast: true, lr: 175 }); // floodlight mast (moon/mars, sports)
 const TREE = (x, y, r, col = '#3d7a2a') => C(x, y, r, col);
@@ -274,7 +275,17 @@ const MAPS = [
         // streetlights at the curb: every ~120 downtown, much sparser on the quiet streets; parking lights on the islands
         ...[80, 190, 330, 470, 560, 720, 820].map(x => LAMP(x, 283)), ...[60, 180, 300, 530, 700, 810].map(x => LAMP(x, 357)),
         LAMP(130, 111), LAMP(520, 111), LAMP(760, 111), LAMP(605, 200), LAMP(605, 440), LAMP(855, 200), LAMP(855, 440), LAMP(415, 470), LAMP(720, 549),
-        LAMP(MKT_ROW.x - 10, MKT_ROW.y + MKT_ROW.d / 2), LAMP(MKT_ROW.x + MKT_ROW.n * MKT_ROW.w + 10, MKT_ROW.y + MKT_ROW.d / 2)
+        LAMP(MKT_ROW.x - 10, MKT_ROW.y + MKT_ROW.d / 2), LAMP(MKT_ROW.x + MKT_ROW.n * MKT_ROW.w + 10, MKT_ROW.y + MKT_ROW.d / 2),
+        // street details: flat or tiny things you can walk over (movable in the editor)
+        ...CROSS.map(([cx, cy, cw, ch]) => DETAIL('zebra', cx, cy, cw, ch)),
+        ...[[150, 320], [760, 320], [636, 200], [636, 460], [380, 84], [444, 560]].map(([px, py]) => DETAIL('manhole', px - 6, py - 6, 12, 12)),
+        ...[[180, 290], [500, 350], [360, 104], [780, 542], [612, 400, 1], [862, 250, 1], [470, 590, 1]].map(([px, py, v]) => v ? DETAIL('drain', px - 2, py - 6, 4, 12) : DETAIL('drain', px - 6, py - 2, 12, 4)),
+        ...[[700, 548], [830, 548]].map(([mx, my]) => DETAIL('mailbox', mx - 3, my - 2, 6, 7)),
+        ...[[296, 284], [582, 284], [486, 356], [676, 356], [846, 284]].map(([hx, hy]) => DETAIL('hydrant', hx - 2.6, hy - 2.6, 5.2, 5.2)),
+        ...[110, 380, 560, 760].map(px => DETAIL('pole', px - 2.4, 55.6, 4.8, 4.8)),
+        ...[[226, 284], [416, 356], [856, 284], [856, 356], [856, 110], [666, 540]].map(([sx, sy]) => DETAIL('stopsign', sx - 3.2, sy - 3.2, 6.4, 6.4)),
+        DETAIL('busstop', 786, 261, 8, 11), DETAIL('priceboard', 682, 370, 12, 12), DETAIL('icechest', 780, 444, 8, 10), DETAIL('carts', 196, 503, 23, 6), DETAIL('cross', 730, 237, 12, 14),
+        ...(() => { const g = seeded(77), out = []; for (let gx = 800; gx <= 836; gx += 12) for (let gy = 150; gy <= 222; gy += 18) if (g() < .8) out.push(DETAIL('grave', gx + g() * 3, gy + g() * 3, 6, 4)); return out; })()
       ];
       const ring = []; for (let k = 0; k <= 16; k++) ring.push([SQC[0] + Math.cos(k / 16 * TAU) * 38, SQC[1] + Math.sin(k / 16 * TAU) * 38]);
       return {
@@ -289,16 +300,6 @@ const MAPS = [
           [[40, 392], [396, 392]], [[176, 392], [176, 512]], [[736, 256], [736, 272]]],
         obs: OBS,
         decor(x) {
-          x.strokeStyle = '#f4efe6'; x.lineWidth = 2; x.beginPath(); x.moveTo(736, 237); x.lineTo(736, 251); x.moveTo(730, 242); x.lineTo(742, 242); x.stroke(); // the cross on the tower
-          const g = seeded(77); x.fillStyle = '#8f9196'; for (let gx = 800; gx <= 836; gx += 12) for (let gy = 150; gy <= 222; gy += 18) if (g() < .8) { rrect(x, gx + g() * 3, gy + g() * 3, 6, 4, 1.5); x.fill(); } // the old graves
-          x.strokeStyle = '#8a9098'; x.lineWidth = 1.2; for (let k = 0; k < 3; k++) x.strokeRect(196 + k * 7, 503, 9, 6); // carts by the market door
-          x.fillStyle = '#d0453a'; for (const [mx, my] of [[700, 548], [830, 548]]) { x.fillRect(mx - 3, my - 2, 6, 4); x.fillStyle = '#3a3a3a'; x.fillRect(mx - .5, my + 2, 1, 3); x.fillStyle = '#d0453a'; } // mailboxes at the curb
-          x.fillStyle = '#c0392b'; for (const [hx, hy] of [[296, 284], [582, 284], [486, 356], [676, 356], [846, 284]]) { circ(x, hx, hy, 2.6); x.fillStyle = '#e8b326'; circ(x, hx, hy, 1.2); x.fillStyle = '#c0392b'; } // hydrants at the curb
-          x.fillStyle = '#5a4a3a'; for (const px of [110, 380, 560, 760]) circ(x, px, 58, 2.4); // utility poles along Hill St
-          x.fillStyle = '#c0392b'; for (const [sx, sy] of [[226, 284], [416, 356], [856, 284], [856, 356], [856, 110], [666, 540]]) { x.beginPath(); for (let k = 0; k < 8; k++) { const a = k * TAU / 8 + TAU / 16; x.lineTo(sx + Math.cos(a) * 3.2, sy + Math.sin(a) * 3.2); } x.fill(); } // stop signs where side streets meet
-          x.fillStyle = '#2b2b30'; x.fillRect(789, 263, 2, 9); x.fillStyle = '#2f6fb0'; x.fillRect(786, 261, 8, 4); // bus stop sign
-          x.fillStyle = '#c0392b'; x.fillRect(682, 370, 12, 12); x.fillStyle = '#ffe9a0'; x.font = 'bold 4px sans-serif'; x.textAlign = 'center'; x.fillText('3.49', 688, 377); // price board on the corner
-          x.fillStyle = '#5a7fa8'; x.fillRect(780, 444, 8, 10); x.fillStyle = '#e8eef2'; x.fillRect(781, 445, 6, 3); // ice chest by the kiosk
         },
         floor(x) {
           const paveA = '#b9b3a7', paveB = '#c6c0b3';
@@ -331,10 +332,7 @@ const MAPS = [
           // markings
           x.fillStyle = '#e8d06a'; for (let i = 20; i < W - 20; i += 40) if (![[214, 294], [404, 484], [594, 678], [844, 920]].some(([a, b]) => i + 22 > a && i < b)) x.fillRect(i, 318.5, 22, 3); // Main's centre line
           for (let j = 20; j < H - 20; j += 40) if (![[46, 122], [272, 368], [484, 560]].some(([a, b]) => j + 22 > a && j < b)) x.fillRect(634.5, j, 3, 22); // Elm's
-          x.fillStyle = '#e6e6e6'; for (const [cx, cy, cw, ch] of CROSS) if (cw > ch) for (let k = cx + 4; k < cx + cw - 4; k += 9) x.fillRect(k, cy + 2, 5, ch - 4); else for (let k = cy + 4; k < cy + ch - 4; k += 9) x.fillRect(cx + 2, k, cw - 4, 5); // zebras
           for (const [sx, sy, sw, sh] of [[232, 266, 44, 2], [422, 370, 44, 2], [862, 266, 40, 2], [862, 370, 40, 2], [862, 124, 40, 2], [680, 502, 2, 40], [842, 502, 2, 40], [232, 124, 44, 2]]) x.fillRect(sx, sy, sw, sh); // stop lines
-          x.fillStyle = '#2f2f34'; for (const [px, py] of [[150, 320], [760, 320], [636, 200], [636, 460], [380, 84], [444, 560]]) { circ(x, px, py, 6); x.fillStyle = '#3b3b41'; circ(x, px, py, 4); x.fillStyle = '#2f2f34'; } // manholes, in the middle of the road
-          x.fillStyle = '#26262b'; for (const [px, py, v] of [[180, 290], [500, 350], [360, 104], [780, 542], [612, 400, 1], [862, 250, 1], [470, 590, 1]]) v ? x.fillRect(px - 2, py - 6, 4, 12) : x.fillRect(px - 6, py - 2, 12, 4); // storm drains set into the curb
           x.strokeStyle = 'rgba(30,30,34,.5)'; x.lineWidth = 1; for (const pts of [[[120, 296], [138, 304], [146, 300], [160, 312]], [[700, 326], [712, 318], [730, 322]], [[300, 76], [314, 86], [326, 82]], [[880, 470], [888, 486], [884, 498]]]) { x.beginPath(); pts.forEach(([a, b], k) => k ? x.lineTo(a, b) : x.moveTo(a, b)); x.stroke(); } // cracks
           x.fillStyle = 'rgba(0,0,0,.08)'; x.fillRect(380, 296, 40, 24); x.fillRect(872, 600, 24, 20); // patched asphalt
           x.fillStyle = 'rgba(0,0,0,.18)'; for (const [cx, cy] of [[90, 160], [180, 446], [310, 446], [506, 440], [720, 470], [126, 316]]) ell(x, cx, cy, 12, 8); // oil stains

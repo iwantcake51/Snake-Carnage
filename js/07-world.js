@@ -77,7 +77,7 @@ function bakeOutline() {
 let curBuild = null, curPre = [], curMapLights = [];
 const [plainC, plainX] = makeLayer();
 function drawObstacleLayer(x = octx, b = curBuild, list = obstacles, ls = (b && b.lights) || MAPS[mapIdx].lights || []) { // walls and objects, then the details on top of them
-  x.clearRect(0, 0, W, H); list.forEach(o => drawObstacle(x, o));
+  x.clearRect(0, 0, W, H); list.forEach(o => { if (o.kind !== 'detail') drawObstacle(x, o); }); // street details are painted into the ground (see loadMap)
   if (b && b.decor) b.decor(x);
   if (x === octx) snowCaps(x, list);
   for (const l of ls) fixture(x, l);
@@ -126,7 +126,7 @@ function tidyPlacement(list, roads) {
 const GAP_MIN = 40;
 const HUG_KINDS = new Set(['bed', 'shelf', 'console', 'crate', 'bar', 'cryo', 'generator', 'speaker', 'booth', 'couch', 'desk', 'dj', 'barrier', 'solar']);
 const FREE_KINDS = new Set(['tree', 'bush', 'rock', 'plant', 'hay', 'table', 'bench', 'pod', 'chess', 'tent', 'holo', 'pillar']);
-const POLE_KINDS = new Set(['lamp', 'bin']);
+const POLE_KINDS = new Set(['lamp', 'bin', 'detail']);
 const obox = o => o.t === 'r' ? [o.x, o.y, o.x + o.w, o.y + o.h] : [o.x - o.r, o.y - o.r, o.x + o.r, o.y + o.r];
 function gapAndDir(a, b) { // shortest gap between two shapes and the unit direction pushing a away from b
   if (a.t === 'c' && b.t === 'c') { const dx = a.x - b.x, dy = a.y - b.y, d = Math.hypot(dx, dy) || 1; return [d - a.r - b.r, dx / d, dy / d]; }
@@ -179,7 +179,7 @@ function loadMap(idx, sz) {
   curPre = pre.filter(o => o.kind !== 'border'); curMapLights = b.lights || m.lights || []; // spacing works on whole objects, before long ones are split into breakable sections
   obstacles = splitBreakables(addBreakWalls(pre, m.name));
   buildSolid();
-  b.obs = b.obs.filter(o => !o.dropped); bctx.clearRect(0, 0, W, H); if (ov) { trailMute = !!ov.trails; try { if (ov.base) paintBase(bctx, ov.base); else b.floor(bctx); } finally { trailMute = false; } if (ov.areas) paintAreas(bctx, ov.areas); if (ov.trails) paintTrails(bctx, ov.trails); } else b.floor(bctx); /* edited paths replace the map's painted trails */ bakeContactShadows(bctx, b.obs); resetBuckets(); gctx.clearRect(0, 0, W, H); groundParts = []; trail = []; floaters = [];
+  b.obs = b.obs.filter(o => !o.dropped); bctx.clearRect(0, 0, W, H); if (ov) { trailMute = !!ov.trails; try { if (ov.base) paintBase(bctx, ov.base); else b.floor(bctx); } finally { trailMute = false; } if (ov.areas) paintAreas(bctx, ov.areas); if (ov.trails) paintTrails(bctx, ov.trails); } else b.floor(bctx); /* edited paths replace the map's painted trails */ for (const o of b.obs) if (o.kind === 'detail' && !o.dropped) drawObstacle(bctx, o); bakeContactShadows(bctx, b.obs); resetBuckets(); gctx.clearRect(0, 0, W, H); groundParts = []; trail = []; floaters = [];
   buildGrassMask(); gradeGround(); seasonDetails(bctx);
   curBuild = b; drawObstacleLayer(); buildTrees();
   bakeOutline();

@@ -20,7 +20,7 @@ function buildSnow() {
   const blk = new Uint8Array(GW * GH), dist = new Float32Array(GW * GH).fill(99), q = [];
   const fill = (o, rr) => { if (o.t === 'r') { for (let j = Math.floor(o.y / SG); j < Math.ceil((o.y + o.h) / SG); j++) for (let i = Math.floor(o.x / SG); i < Math.ceil((o.x + o.w) / SG); i++) if (i >= 0 && j >= 0 && i < GW && j < GH) blk[j * GW + i] = 1; }
     else for (let j = Math.floor((o.y - rr) / SG); j <= (o.y + rr) / SG; j++) for (let i = Math.floor((o.x - rr) / SG); i <= (o.x + rr) / SG; i++) if (i >= 0 && j >= 0 && i < GW && j < GH && dist2(i * SG + 2, j * SG + 2, o.x, o.y) <= rr * rr) blk[j * GW + i] = 1; };
-  for (const o of obstacles) { if (o.kind === 'lamp') { fill(o, 3); continue; } fill(o, o.kind === 'tree' ? o.r * .2 : o.kind === 'bush' ? 0 : o.r); }
+  for (const o of obstacles) { if (o.kind === 'detail') continue; if (o.kind === 'lamp') { fill(o, 3); continue; } fill(o, o.kind === 'tree' ? o.r * .2 : o.kind === 'bush' ? 0 : o.r); }
   for (let k = 0; k < GW * GH; k++) if (blk[k]) { dist[k] = 0; q.push(k); }
   for (let h = 0; h < q.length; h++) { const k = q[h], i = k % GW, j = k / GW | 0, d = dist[k] + SG; if (d > 40) continue;
     for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const ii = i + di, jj = j + dj; if (ii < 0 || jj < 0 || ii >= GW || jj >= GH) continue; const kk = jj * GW + ii; if (dist[kk] > d) { dist[kk] = d; q.push(kk); } } }

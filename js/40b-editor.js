@@ -13,7 +13,8 @@ const ED_PROPS = [ // palette: [label, kind, shape, size..., color, extra]
   ['Shelf', 'shelf', 'r', 30, 100, '#5c3d22'], ['Crate', 'crate', 'r', 30, 30, '#6a5a3a'], ['Car', 'car', 'r', 24, 44, '#c0392b'], ['Plant', 'plant', 'c', 12, 0, '#3d7a2a'],
   ['Bed', 'bed', 'r', 90, 24, '#4e5a42'], ['Console', 'console', 'r', 100, 22, '#28343a'], ['Counter / bar', 'bar', 'r', 160, 30, '#8a8f99'], ['Pillar', 'pillar', 'c', 14, 0, '#2e2a36'],
   ['Barrier', 'barrier', 'r', 8, 24, '#c9a227'], ['Tent', 'tent', 'r', 44, 30, '#c9763a'], ['Generator', 'generator', 'r', 80, 70, '#3c4044'], ['Speaker', 'speaker', 'r', 60, 64, '#141218'],
-  ['Booth', 'booth', 'r', 40, 100, '#5a1a3a'], ['Campfire', 'campfire', 'c', 14, 0, '#6d6a63'], ['Pod', 'pod', 'c', 20, 0, '#7fffc8'], ['Cryo tube', 'cryo', 'r', 36, 70, '#a9c4cc'], ['Silo', 'silo', 'c', 36, 0, '#b8b8c0'],
+  ['Booth', 'booth', 'r', 40, 100, '#5a1a3a'], ['Campfire', 'campfire', 'c', 14, 0, '#6d6a63'],
+  ['Mailbox', 'detail', 'r', 6, 7, '#888888', { d: 'mailbox', noCollide: true, noOutline: true, noShadow: true }], ['Hydrant', 'detail', 'r', 5.2, 5.2, '#888888', { d: 'hydrant', noCollide: true, noOutline: true, noShadow: true }], ['Stop sign', 'detail', 'r', 6.4, 6.4, '#888888', { d: 'stopsign', noCollide: true, noOutline: true, noShadow: true }], ['Bus stop sign', 'detail', 'r', 8, 11, '#888888', { d: 'busstop', noCollide: true, noOutline: true, noShadow: true }], ['Crosswalk', 'detail', 'r', 16, 64, '#888888', { d: 'zebra', noCollide: true, noOutline: true, noShadow: true }], ['Manhole', 'detail', 'r', 12, 12, '#888888', { d: 'manhole', noCollide: true, noOutline: true, noShadow: true }], ['Storm drain', 'detail', 'r', 12, 4, '#888888', { d: 'drain', noCollide: true, noOutline: true, noShadow: true }], ['Utility pole', 'detail', 'r', 4.8, 4.8, '#888888', { d: 'pole', noCollide: true, noOutline: true, noShadow: true }], ['Price board', 'detail', 'r', 12, 12, '#888888', { d: 'priceboard', noCollide: true, noOutline: true, noShadow: true }], ['Ice chest', 'detail', 'r', 8, 10, '#888888', { d: 'icechest', noCollide: true, noOutline: true, noShadow: true }], ['Shopping carts', 'detail', 'r', 23, 6, '#888888', { d: 'carts', noCollide: true, noOutline: true, noShadow: true }], ['Cross', 'detail', 'r', 12, 14, '#888888', { d: 'cross', noCollide: true, noOutline: true, noShadow: true }], ['Grave', 'detail', 'r', 6, 4, '#888888', { d: 'grave', noCollide: true, noOutline: true, noShadow: true }], ['Pod', 'pod', 'c', 20, 0, '#7fffc8'], ['Cryo tube', 'cryo', 'r', 36, 70, '#a9c4cc'], ['Silo', 'silo', 'c', 36, 0, '#b8b8c0'],
 ];
 const ED_KINDS = [...new Set(ED_PROPS.map(p => p[1]).concat(['barn', 'module', 'tube', 'solar', 'dome', 'lander', 'gazebo', 'slide', 'chess', 'dj', 'holo', 'saucer', 'reactor']))].sort();
 const ED_VARIANTS = { // looks a kind can take: [flag, name]; '' is the plain one
@@ -25,7 +26,8 @@ const ED_VARIANTS = { // looks a kind can take: [flag, name]; '' is the plain on
   water: [['', 'Pond / pool'], ['fountain', 'Fountain'], ['tank', 'Specimen tank']], building: [['', 'Building'], ['market', 'Supermarket'], ['diner', 'Diner']],
   dome: [['', 'Dome'], ['green', 'Greenhouse']], lander: [['', 'Lander'], ['rocket', 'Rocket']], module: [['', 'Module'], ['command', 'Command module']],
 };
-const edVariant = o => { const v = ED_VARIANTS[o.kind]; if (!v) return null; return v.find(([f]) => f && o[f]) || v[0]; };
+const ED_DETAILS = {'mailbox': 'Mailbox', 'hydrant': 'Hydrant', 'stopsign': 'Stop sign', 'busstop': 'Bus stop sign', 'zebra': 'Crosswalk', 'manhole': 'Manhole', 'drain': 'Storm drain', 'pole': 'Utility pole', 'priceboard': 'Price board', 'icechest': 'Ice chest', 'carts': 'Shopping carts', 'cross': 'Cross', 'grave': 'Grave'};
+const edVariant = o => { if (o.kind === 'detail') return [o.d, ED_DETAILS[o.d] || 'Detail']; const v = ED_VARIANTS[o.kind]; if (!v) return null; return v.find(([f]) => f && o[f]) || v[0]; };
 const ED_FIX = ['panel', 'strip', 'cage', 'spot', 'pool', 'exit', 'none'];
 const ED = { open: false };
 const ED_RUNTIME = new Set(['tinfo', 'wb', 'iceC', 'iceK', 'group', 'cracked', 'src', 'snk', 'z', 'cx', 'cy', 'br', 'dropped', 'ext', 'mask', 'tint', 'size', 'cur', 'fl', 'dead', 'dynNow', 'enc', 'o', 'c0']);
@@ -464,8 +466,8 @@ function edPanel() {
       <div class="edbtns"><button data-a="dup">Duplicate</button><button data-a="del">Delete</button><button data-a="clr">Use type's color</button></div>`;
   } else {
     const lamp = o.kind === 'lamp';
-    const vr = edVariant(o), vlist = ED_VARIANTS[o.kind];
-    p.innerHTML = `<h4>${vr ? vr[1] : o.kind}${vr && vr[0] ? ` <small>(a ${o.kind})</small>` : ''}</h4><label>Kind <button class="edpick okind"></button></label>${vlist ? `<label>Type <select class="ovar">${vlist.map(([f, n]) => `<option value="${f}" ${vr && vr[0] === f ? 'selected' : ''}>${n}</option>`).join('')}</select></label>` : ''}
+    const vr = edVariant(o), vlist = o.kind === 'detail' ? Object.entries(ED_DETAILS) : ED_VARIANTS[o.kind];
+    p.innerHTML = `<h4>${vr ? vr[1] : o.kind}${vr && vr[0] && o.kind !== 'detail' ? ` <small>(a ${o.kind})</small>` : o.kind === 'detail' ? ' <small>(street detail · walk-over)</small>' : ''}</h4><label>Kind <button class="edpick okind"></button></label>${vlist ? `<label>Type <select class="ovar">${vlist.map(([f, n]) => `<option value="${f}" ${vr && vr[0] === f ? 'selected' : ''}>${n}</option>`).join('')}</select></label>` : ''}
       <div class="edgrid2">${num('x', 'X')}${num('y', 'Y')}${o.t === 'r' ? num('w', 'Width', 2) + num('h', 'Height', 2) : num('r', 'Radius', 2)}</div>
       <label>Size <input type="range" min="25" max="400" value="100" class="edsz"><output>100%</output></label>
       <label>Color <input type="color" data-c value="${edHex(o.color)}"></label>
@@ -482,7 +484,7 @@ function edPanel() {
     sz.onchange = () => { sz._p = false; edDirty(); };
   }
   const lk = p.querySelector('.lkind'); if (lk) { edPickBtn(lk, 'light', o.kind); lk.onclick = () => edPicker(lk, 'light', o.kind, v => { edPush(); o.kind = v; delete o.c; edPanel(); }); }
-  const ov = p.querySelector('.ovar'); if (ov) ov.onchange = () => { edPush(); for (const [f] of ED_VARIANTS[o.kind]) if (f) delete o[f]; if (ov.value) o[ov.value] = o.kind === 'chess' ? ov.value : true; edPanel(); };
+  const ov = p.querySelector('.ovar'); if (ov && o.kind === 'detail') ov.onchange = () => { edPush(); o.d = ov.value; edPanel(); }; else if (ov) ov.onchange = () => { edPush(); for (const [f] of ED_VARIANTS[o.kind]) if (f) delete o[f]; if (ov.value) o[ov.value] = o.kind === 'chess' ? ov.value : true; edPanel(); };
   const ok = p.querySelector('.okind'); if (ok) { edPickBtn(ok, 'kind', o.kind); ok.onclick = () => edPicker(ok, 'kind', o.kind, v => { edPush(); o.kind = v; const pp = ED_PROPS.find(q => q[1] === v); if (pp && pp[2] === o.t) o.color = pp[5]; edPanel(); }); }
   p.querySelectorAll('input[data-k]').forEach(inp => inp.onchange = () => { edPush(); o[inp.dataset.k] = +inp.value; });
   p.querySelectorAll('select[data-ks]').forEach(sel => sel.onchange = () => { edPush(); o[sel.dataset.ks] = sel.value; if (s.t === 'l' && sel.dataset.ks === 'kind') delete o.c; edPanel(); });
@@ -573,7 +575,7 @@ function drawPreview(cv, o) { // fits one object into a small canvas
   try { drawObstacle(x, o); if (o.kind === 'tree' || o.kind === 'bush') { x.globalAlpha = .7; x.fillStyle = (propCache[o.kind] && propCache[o.kind].color) || o.color; circ(x, o.x, o.y, o.r); x.globalAlpha = 1; } } catch (e) { x.fillStyle = o.color; o.t === 'r' ? x.fillRect(o.x, o.y, o.w, o.h) : circ(x, o.x, o.y, o.r); }
 }
 function edPreviews() { if (!ED.root) return; ED.root.querySelectorAll('.edprop').forEach(b => { const p = ED_PROPS[+b.dataset.p]; drawPreview(b.querySelector('canvas'), edSample(p, 0, 0)); }); }
-const kindSample = kind => { const p = ED_PROPS.find(p => p[1] === kind); if (p) return p; const o = (ED.obs || []).find(o => o.kind === kind); return o ? (o.t === 'r' ? ['', kind, 'r', o.w, o.h, o.color] : ['', kind, 'c', o.r, 0, o.color]) : ['', kind, 'r', 60, 40, '#888888']; };
+const kindSample = kind => { const p = ED_PROPS.find(p => p[1] === kind && (kind !== 'detail' || p[6].d === 'mailbox')); if (p) return p; const o = (ED.obs || []).find(o => o.kind === kind); return o ? (o.t === 'r' ? ['', kind, 'r', o.w, o.h, o.color] : ['', kind, 'c', o.r, 0, o.color]) : ['', kind, 'r', 60, 40, '#888888']; };
 /* ---- the window ---- */
 function openPropEditor(kind) {
   const old = document.getElementById('propEd'); if (old) old.remove();
