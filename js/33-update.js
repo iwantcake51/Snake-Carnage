@@ -10,7 +10,7 @@ function update(dt) {
   if (state === 'dead') { // the world is frozen; only the camera settles and the death screen arrives
     shake *= Math.exp(-dt * 8); if (shake < .2) shake = 0;
     killV *= Math.exp(-dt * 1.4); killFlash *= Math.exp(-dt * 7);
-    if (deadT > 0) { deadT -= dt; if (deadT <= 0) showDead(); }
+    if (deadT > 0) { deadT -= dt; if (deadT <= 0 || performance.now() - deadAt > 900) { deadT = 0; showDead(); } } // real time, not frame time: a slow frame can't hold the crash screen back
     return;
   }
   if (hitStop > 0) { hitStop -= dt; return; } // hit-stop: the world holds its breath for a few frames

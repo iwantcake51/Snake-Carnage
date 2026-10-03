@@ -223,7 +223,7 @@ function eat(c) {
 }
 let crashHit = null; // what you ran into: it flashes as the run ends
 function die() {
-  snake.alive = false; state = 'dead'; deadT = .9; shake = 10;
+  snake.alive = false; state = 'dead'; deadT = .9; deadAt = performance.now(); shake = 10;
   Sfx.crash(snake.x);
   const m = MAPS[mapIdx].name;
   PROG.best[m] = Math.max(PROG.best[m] || 0, score); PROG.runs++; PROG.kills += kills.h + kills.a;

@@ -5,7 +5,7 @@ const SG = 4, GW = W / SG, GH = H / SG;   // solid grid
 const WS = 16, WW = W / WS, WH = H / WS;  // wetness (blood on floor) grid
 let solidGrid, wet, fresh, obstacles, creatures = [], parts = [], pools = [], respawnQ = [];
 let snake, mapIdx = 0, selSpeed = 'Normal', state = 'menu', score = 0, kills = { h: 0, a: 0 };
-let shake = 0, T = 0, deadT = 0;
+let shake = 0, T = 0, deadT = 0, deadAt = 0; // deadAt: wall-clock time of the crash, so the summary shows on time even if frames are slow
 
 function solid(x, y) {
   if (x < 0 || y < 0 || x >= W || y >= H) return 1;
