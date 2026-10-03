@@ -119,7 +119,7 @@ function fogLayer(col, day) {
   const x = vctx; if (!FOG.n1) { FOG.n1 = fogNoise(71); FOG.n2 = fogNoise(133, 256, 4); FOG.tmp = document.createElement('canvas'); FOG.tmp.width = visC.width; FOG.tmp.height = visC.height; FOG.tx = FOG.tmp.getContext('2d'); }
   const fc = FOG.c || (FOG.c = { x: snake.x, y: snake.y, t: T }), dt = clamp(T - fc.t, 0, .1); fc.t = T; // the clearing lags a touch behind the snake
   if (Math.hypot(snake.x - fc.x, snake.y - fc.y) > 300) { fc.x = snake.x; fc.y = snake.y; } const k = 1 - Math.exp(-dt * 4); fc.x += (snake.x - fc.x) * k; fc.y += (snake.y - fc.y) * k;
-  const cx = fc.x, cy = fc.y, R = 175, wind = [T * 9, T * 3.5], hi = !SETTINGS.simpleFx;
+  const cx = fc.x, cy = fc.y, R = 175, wind = [T * 9, T * 3.5], fq = SETTINGS.simpleFx ? 'Low' : SETTINGS.fogQ || 'High', hi = fq === 'High', mid = fq !== 'Low';
   const layer = (g, img, scale, ox, oy, alpha, op) => { g.save(); g.globalCompositeOperation = op; g.globalAlpha = alpha; const pat = g.createPattern(img, 'repeat'); g.translate(-(ox % (256 * scale)), -(oy % (256 * scale))); g.scale(scale, scale); g.fillStyle = pat; g.fillRect(-256, -256, (W + 1024) / scale, (H + 1024) / scale); g.restore(); };
   // 1. thick fog with uneven density: thin patches drift through it
   x.globalAlpha = 1; x.fillStyle = col; x.fillRect(-60, -60, W + 120, H + 120);
@@ -144,11 +144,11 @@ function fogLayer(col, day) {
   x.globalCompositeOperation = 'destination-out'; const sg = x.createRadialGradient(snake.x, snake.y, 0, snake.x, snake.y, 60); sg.addColorStop(0, 'rgba(0,0,0,1)'); sg.addColorStop(.6, 'rgba(0,0,0,.7)'); sg.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = sg; x.fillRect(snake.x - 60, snake.y - 60, 120, 120);
   // 5. light scattering in the fog: lamps and flashlights glow through it (stronger in the dark)
   x.globalCompositeOperation = 'source-atop'; const night = clamp(1 - day * 1.3, .15, 1);
-  for (const l of lights || []) { const kk = typeof lightK === 'function' ? lightK(l) : 0; if (kk < .05 || l.kind === 'window') continue; const rr = l.r * 1.1, gg = x.createRadialGradient(l.x, l.y, 0, l.x, l.y, rr);
+  if (hi) for (const l of lights || []) { const kk = typeof lightK === 'function' ? lightK(l) : 0; if (kk < .05 || l.kind === 'window') continue; const rr = l.r * 1.1, gg = x.createRadialGradient(l.x, l.y, 0, l.x, l.y, rr);
     gg.addColorStop(0, `rgba(${l.c},${(.45 * kk * night).toFixed(3)})`); gg.addColorStop(.35, `rgba(${l.c},${(.16 * kk * night).toFixed(3)})`); gg.addColorStop(1, `rgba(${l.c},0)`); x.fillStyle = gg; x.fillRect(l.x - rr, l.y - rr, rr * 2, rr * 2); }
-  for (const f of (typeof beams !== 'undefined' ? beams : [])) { const rr = (f.range || 200) * .7, bx = f.x + Math.cos(f.a || 0) * rr * .5, by = f.y + Math.sin(f.a || 0) * rr * .5, gg = x.createRadialGradient(bx, by, 0, bx, by, rr); gg.addColorStop(0, `rgba(255,240,210,${(.3 * (f.k || 1) * night).toFixed(3)})`); gg.addColorStop(1, 'rgba(255,240,210,0)'); x.fillStyle = gg; x.fillRect(bx - rr, by - rr, rr * 2, rr * 2); }
+  if (hi) for (const f of (typeof beams !== 'undefined' ? beams : [])) { const rr = (f.range || 200) * .7, bx = f.x + Math.cos(f.a || 0) * rr * .5, by = f.y + Math.sin(f.a || 0) * rr * .5, gg = x.createRadialGradient(bx, by, 0, bx, by, rr); gg.addColorStop(0, `rgba(255,240,210,${(.3 * (f.k || 1) * night).toFixed(3)})`); gg.addColorStop(1, 'rgba(255,240,210,0)'); x.fillStyle = gg; x.fillRect(bx - rr, by - rr, rr * 2, rr * 2); }
   // 6. a little shading so the fog has body: denser puffs a touch darker
-  if (hi) { // body: billows lit from above (lighter) and their undersides (darker), drifting at two heights
+  if (mid) { // body: billows lit from above (lighter) and their undersides (darker), drifting at two heights
     const lite = `rgba(255,255,255,${(.12 + .1 * day).toFixed(3)})`, dark = `rgba(0,0,10,${(.14 + .12 * (1 - day)).toFixed(3)})`, tint = (img, sc, ox, oy, c) => { const t = FOG.tx; t.setTransform(.5, 0, 0, .5, 0, 0); t.globalCompositeOperation = 'source-over'; t.clearRect(-10, -10, W + 20, H + 20); layer(t, img, sc, ox, oy, 1, 'source-over'); t.globalCompositeOperation = 'source-in'; t.fillStyle = c; t.fillRect(-10, -10, W + 20, H + 20); x.save(); x.setTransform(1, 0, 0, 1, 0, 0); x.globalCompositeOperation = 'source-atop'; x.drawImage(FOG.tmp, 0, 0); x.restore(); };
     tint(FOG.n2, 2.4, wind[0] * .5, -wind[1] * .5 + 200, dark); tint(FOG.n1, 3.2, wind[0] * 1.2 + 90, wind[1] * 1.2, lite); }
   x.globalCompositeOperation = 'source-over'; x.globalAlpha = 1;
