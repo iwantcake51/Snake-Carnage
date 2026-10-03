@@ -67,7 +67,7 @@ function bakeOutline() {
   nvx.clearRect(0, 0, W, H); nvx.drawImage(outlineC, 0, 0, W, H); // bright copy used by night vision
   nvx.globalCompositeOperation = 'source-in'; nvx.fillStyle = '#ffffff'; nvx.fillRect(0, 0, W, H); nvx.globalCompositeOperation = 'source-over';
 }
-let curBuild = null;
+let curBuild = null, curPre = [], curMapLights = [];
 const [plainC, plainX] = makeLayer();
 function drawObstacleLayer(x = octx, b = curBuild, list = obstacles, ls = (b && b.lights) || MAPS[mapIdx].lights || []) { // walls and objects, then the details on top of them
   x.clearRect(0, 0, W, H); list.forEach(o => drawObstacle(x, o));
@@ -160,8 +160,11 @@ function loadMap(idx, sz) {
   bunkerCache = null; if (MAPS[idx].name === 'Bunker') bunkerLock = Math.random() < .35; // some runs the bunker is in lockdown
   const m = MAPS[idx], b = m.build(); curBuild = b;
   Sfx.setMuffle(!!m.space && !m.indoor); // thin air on the surface; inside a pressurized station sound is normal
+  const ov = mapOverride(m.name); // edits made in the map editor replace the map's own objects and lights as they are
+  if (ov) { b.obs = JSON.parse(JSON.stringify(ov.obs)); b.lights = JSON.parse(JSON.stringify(ov.lights)); }
   let pre = [...borderWalls(m.border), ...b.obs];
-  nudgeLamps(pre, b.paths || [], b.roads || []); tidyPlacement(pre, b.roads || []); pre = settleGaps(pre, b.roads || [], b.paths || []); // spacing works on whole objects, before long ones are split into breakable sections
+  if (!ov) { nudgeLamps(pre, b.paths || [], b.roads || []); tidyPlacement(pre, b.roads || []); pre = settleGaps(pre, b.roads || [], b.paths || []); }
+  curPre = pre.filter(o => o.kind !== 'border'); curMapLights = b.lights || m.lights || []; // spacing works on whole objects, before long ones are split into breakable sections
   obstacles = splitBreakables(addBreakWalls(pre, m.name));
   buildSolid();
   b.obs = b.obs.filter(o => !o.dropped); bctx.clearRect(0, 0, W, H); b.floor(bctx); bakeContactShadows(bctx, b.obs); resetBuckets(); gctx.clearRect(0, 0, W, H); groundParts = []; trail = []; floaters = [];
@@ -169,7 +172,7 @@ function loadMap(idx, sz) {
   curBuild = b; drawObstacleLayer(); buildTrees();
   bakeOutline();
   buildSnow();
-  buildLights(b.lights || m.lights || []); setupSpeakers();
+  buildLights(curMapLights); setupSpeakers();
   wet = new Float32Array(WW * WH); fresh = new Float32Array(WW * WH); wetC = new Float32Array(WW * WH * 3);
   creatures = []; parts = []; pools = []; respawnQ = []; gibs = []; splashes = []; groups = []; mist = []; smoke = []; wisps = []; gloss = []; crashHit = null; ringPops = []; hitGhosts = []; hitStop = 0; puke = []; convos = []; lastDead = null;
   score = 0; kills = { h: 0, a: 0 }; shake = 0;

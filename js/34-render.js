@@ -169,6 +169,7 @@ function frame(now) {
   else if (lowFx && frameMs < 15) { if ((fastT += raw) > 8000) lowFx = false; } else fastT = 0; // only back to full quality after 8s of clearly fast frames
   const dt = Math.min(.033, raw / 1000); last = now;
   requestAnimationFrame(frame); // scheduled first: nothing below can ever stop the loop
+  if (state === 'editor') return; // the map editor draws itself
   const menu = state === 'menu'; // menus show a CSS backdrop instead of the map: the game costs nothing there
   if (menu !== !!frame.cov) { frame.cov = menu; stage.classList.toggle('menuBg', menu); }
   if (menu) { UT += dt; return; }

@@ -79,7 +79,7 @@ function buildLights(extra) {
     lights.push({ x, y, r: 48, c: LCOL.window, kind: 'window', h: 0, flick: Math.random() < .08 }); windows.push({ x: wx, y: wy, w: ww, h: wh });
   };
   for (const o of obstacles) {
-    if (o.kind === 'lamp') lights.push({ x: o.x, y: o.y, r: o.lr || (o.lantern ? 105 : 130), c: o.mast ? LCOL.flood : o.lantern ? LCOL.fire : LCOL.street, kind: 'street', h: o.mast ? LIGHT_H.flood : LIGHT_H.street, flick: Math.random() < .12, thr: rand(.3, .62), o });
+    if (o.kind === 'lamp') lights.push({ x: o.x, y: o.y, r: o.lr || (o.lantern ? 105 : 130), c: o.lc || (o.mast ? LCOL.flood : o.lantern ? LCOL.fire : LCOL.street), kind: 'street', h: o.mast ? LIGHT_H.flood : LIGHT_H.street, flick: Math.random() < .12, thr: rand(.3, .62), o });
     if ((o.kind !== 'building' && o.kind !== 'barn') || m.indoor) continue; // light spilling out of windows
     for (let xx = o.x + 18; xx < o.x + o.w - 10; xx += 40) { add(xx, o.y - 8, xx - 5, o.y + 1, 10, 3); add(xx, o.y + o.h + 8, xx - 5, o.y + o.h - 4, 10, 3); }
     for (let yy = o.y + 18; yy < o.y + o.h - 10; yy += 40) { add(o.x - 8, yy, o.x + 1, yy - 5, 3, 10); add(o.x + o.w + 8, yy, o.x + o.w - 4, yy - 5, 3, 10); }
