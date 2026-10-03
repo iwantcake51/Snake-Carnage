@@ -18,6 +18,7 @@ const ED_PROPS = [ // palette: [label, kind, shape, size..., color, extra]
 const ED_KINDS = [...new Set(ED_PROPS.map(p => p[1]).concat(['barn', 'module', 'tube', 'solar', 'dome', 'lander', 'gazebo', 'slide', 'chess', 'dj', 'holo', 'saucer', 'reactor']))].sort();
 const ED_FIX = ['panel', 'strip', 'cage', 'spot', 'pool', 'exit', 'none'];
 const ED = { open: false };
+const ED_RUNTIME = new Set(['tinfo', 'wb', 'iceC', 'iceK', 'group', 'cracked', 'src', 'snk', 'z', 'cx', 'cy', 'br', 'dropped', 'ext', 'mask', 'tint', 'size', 'cur', 'fl', 'dead', 'dynNow', 'enc', 'o', 'c0']);
 const edHex = c => { if (!c) return '#ffffff'; if (c[0] === '#') return c.length === 4 ? '#' + [...c.slice(1)].map(h => h + h).join('') : c.slice(0, 7); const m = c.match(/\d+/g) || [255, 255, 255]; return '#' + m.slice(0, 3).map(v => (+v).toString(16).padStart(2, '0')).join(''); };
 const edRgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)).join(',');
 const edClone = v => JSON.parse(JSON.stringify(v));
@@ -46,9 +47,10 @@ function edUndo(dir) {
   const from = dir < 0 ? ED.undo : ED.redo, to = dir < 0 ? ED.redo : ED.undo; if (!from.length) return;
   to.push(edClone({ o: ED.obs, l: ED.lights, t: ED.trails })); const s = from.pop(); ED.obs = s.o; ED.lights = s.l; ED.trails = s.t || ED.trails; ED.sel = []; edFloor(true); edDirty(); edPanel();
 }
-function edDirty() { clearTimeout(ED.saveT); ED.saveT = setTimeout(edSave, 400); edStatus('Unsaved changes…'); }
+function edDirty() { ED.unshared = true; clearTimeout(ED.saveT); ED.saveT = setTimeout(edSave, 400); edStatus('Unsaved changes…'); }
 function edSave() {
-  const all = localMapEdits(); all[mapEditKey(MAPS[ED.map].name)] = { obs: ED.obs, lights: ED.lights, trails: ED.trails };
+  const all = localMapEdits(); const clean = list => list.map(o => { const c = {}; for (const k in o) if (!ED_RUNTIME.has(k)) c[k] = o[k]; return c; }); // only what was authored, not what the game worked out at runtime
+  all[mapEditKey(MAPS[ED.map].name)] = { obs: clean(ED.obs), lights: clean(ED.lights), trails: ED.trails };
   try { localStorage.setItem('snakeCarnageMapEdits', JSON.stringify(all)); edStatus('Saved in this browser'); } catch (e) { edStatus('Could not save (storage full?)'); }
 }
 function edReset() {
@@ -64,7 +66,9 @@ function edExport() {
   edStatus('Exported 05c-map-overrides.js: put it in the js folder to ship these edits');
 }
 function edImport(file) {
-  file.text().then(t => { const m = t.match(/MAP_OVERRIDES = (\{[\s\S]*?\});\n/), pm = t.match(/PROP_OVERRIDES = (\{[\s\S]*?\});/); const data = JSON.parse(m ? m[1] : t);
+  file.text().then(t => {
+    if (/^SNAKE CARNAGE EDITS/.test(t)) { const d = JSON.parse(t.slice(t.indexOf('{'))); localStorage.setItem('snakeCarnageMapEdits', JSON.stringify({ ...localMapEdits(), ...(d.maps || {}) })); localStorage.setItem('snakeCarnagePropDefs', JSON.stringify({ ...edLocalProps(), ...(d.props || {}) })); propApply();
+      const ov = mapOverride(MAPS[ED.map].name); if (ov) { edPush(); ED.obs = edClone(ov.obs); ED.lights = edClone(ov.lights); if (ov.trails) ED.trails = edClone(ov.trails); edFloor(true); } edPreviews(); edPanel(); return edStatus(`Imported ${Object.keys(d.maps || {}).length} map(s) and ${Object.keys(d.props || {}).length} prop(s)`); } const m = t.match(/MAP_OVERRIDES = (\{[\s\S]*?\});\n/), pm = t.match(/PROP_OVERRIDES = (\{[\s\S]*?\});/); const data = JSON.parse(m ? m[1] : t);
     if (pm) { try { localStorage.setItem('snakeCarnagePropDefs', JSON.stringify({ ...propDefs(), ...JSON.parse(pm[1]) })); propApply(); } catch (e) {} }
     const all = { ...localMapEdits(), ...data }; localStorage.setItem('snakeCarnageMapEdits', JSON.stringify(all));
     const ov = mapOverride(MAPS[ED.map].name); if (ov) { edPush(); ED.obs = edClone(ov.obs); ED.lights = edClone(ov.lights); if (ov.trails) ED.trails = edClone(ov.trails); edFloor(true); } edStatus('Imported ' + Object.keys(data).length + ' map(s)'); edPanel(); })
@@ -80,12 +84,12 @@ const edSnap = (v, force) => edSnapOn('move') || force ? Math.round(v / ED.snaps
 const edBox = o => { if (isRot(o)) { const P = obsCorners(o), xs = P.map(p => p[0]), ys = P.map(p => p[1]); return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]; } return o.t === 'r' ? [o.x, o.y, o.x + o.w, o.y + o.h] : [o.x - o.r, o.y - o.r, o.x + o.r, o.y + o.r]; };
 function edHit(wx, wy) {
   const pad = 4 / ED.z;
-  for (let i = ED.lights.length - 1; i >= 0; i--) { const l = ED.lights[i]; if (Math.hypot(wx - l.x, wy - l.y) < 9 / ED.z + 3) return { t: 'l', i }; }
-  for (let i = ED.obs.length - 1; i >= 0; i--) { const o = ED.obs[i];
+  for (let i = ED.lights.length - 1; i >= 0; i--) { const l = ED.lights[i]; if (l._hide || l._lock) continue; if (Math.hypot(wx - l.x, wy - l.y) < 9 / ED.z + 3) return { t: 'l', i }; }
+  for (let i = ED.obs.length - 1; i >= 0; i--) { const o = ED.obs[i]; if (o._hide || o._lock) continue;
     if (o.poly) { if (pointInPoly(polyShape(o), wx, wy)) return { t: 'o', i }; continue; }
     if (isRot(o)) { if (pointInPoly(obsCorners({ ...o, x: o.x - pad, y: o.y - pad, w: o.w + pad * 2, h: o.h + pad * 2 }), wx, wy)) return { t: 'o', i }; continue; }
     if (o.t === 'r' ? wx >= o.x - pad && wx <= o.x + o.w + pad && wy >= o.y - pad && wy <= o.y + o.h + pad : Math.hypot(wx - o.x, wy - o.y) <= o.r + pad) return { t: 'o', i }; }
-  if (ED.layerPaths !== false) for (let i = ED.trails.length - 1; i >= 0; i--) { const t = ED.trails[i]; if (trailPoints(t.pts).some(([a, b]) => Math.hypot(wx - a, wy - b) < t.w / 2 + 3 / ED.z)) return { t: 'p', i }; }
+  if (ED.layerPaths !== false) for (let i = ED.trails.length - 1; i >= 0; i--) { const t = ED.trails[i]; if (t._hide || t._lock) continue; if (trailPoints(t.pts).some(([a, b]) => Math.hypot(wx - a, wy - b) < t.w / 2 + 3 / ED.z)) return { t: 'p', i }; }
   return null;
 }
 const edItem = s => s.t === 'o' ? ED.obs[s.i] : s.t === 'p' ? ED.trails[s.i] : ED.lights[s.i];
@@ -113,9 +117,9 @@ function edLoop() {
   if (ED.floorDirty && performance.now() - (ED.floorT || 0) > 90) edFloor(true);
   x.drawImage(ED.floor, 0, 0, W, H);
   x.fillStyle = ED.border; x.fillRect(0, 0, W, B); x.fillRect(0, H - B, W, B); x.fillRect(0, 0, B, H); x.fillRect(W - B, 0, B, H);
-  for (const o of ED.obs) { try { drawObstacle(x, o); } catch (e) { x.fillStyle = o.color || '#888'; o.t === 'r' ? x.fillRect(o.x, o.y, o.w, o.h) : circ(x, o.x, o.y, o.r); }
+  for (const o of ED.obs) { if (o._hide) continue; try { drawObstacle(x, o); } catch (e) { x.fillStyle = o.color || '#888'; o.t === 'r' ? x.fillRect(o.x, o.y, o.w, o.h) : circ(x, o.x, o.y, o.r); }
     if (o.kind === 'tree' || o.kind === 'bush') { x.globalAlpha = .55; x.fillStyle = o.color; circ(x, o.x, o.y, o.r); x.globalAlpha = 1; } }
-  for (const l of ED.lights) try { fixture(x, l); } catch (e) {}
+  for (const l of ED.lights) if (!l._hide) try { fixture(x, l); } catch (e) {}
   if (ED.lit) { // night preview: darkness with every light's pool cut out in its own color
     x.save(); x.globalAlpha = .78; x.fillStyle = '#05060c'; x.fillRect(0, 0, W, H); x.globalAlpha = 1; x.globalCompositeOperation = 'lighter';
     const all = [...ED.lights, ...ED.obs.filter(o => o.kind === 'lamp').map(o => ({ x: o.x, y: o.y, r: o.lr || 130, c: o.lc || (o.mast ? LCOL.flood : o.lantern ? LCOL.fire : LCOL.street) }))];
@@ -130,7 +134,7 @@ function edLoop() {
   }
   if (XO > 0) { x.setLineDash([6 * px, 6 * px]); x.strokeStyle = 'rgba(255,90,200,.35)'; x.lineWidth = px; for (const sx of [XO, XO + MW]) { x.beginPath(); x.moveTo(sx, 0); x.lineTo(sx, H); x.stroke(); } x.setLineDash([]); }
   // lights: a dot, and the reach of the selected ones
-  for (const [i, l] of ED.lights.entries()) { const on = ED.sel.some(s => s.t === 'l' && s.i === i), c2 = edLightCol(l);
+  for (const [i, l] of ED.lights.entries()) { if (l._hide) continue; const on = ED.sel.some(s => s.t === 'l' && s.i === i), c2 = edLightCol(l);
     if (on || ED.lightsLayer) { x.strokeStyle = `rgba(${c2},.7)`; x.lineWidth = px * 1.5; x.setLineDash([5 * px, 4 * px]); x.beginPath(); x.arc(l.x, l.y, l.r, 0, TAU); x.stroke(); x.setLineDash([]); }
     x.fillStyle = `rgb(${c2})`; x.strokeStyle = on ? '#fff' : '#000'; x.lineWidth = px * 2; x.beginPath(); x.arc(l.x, l.y, 7 * px, 0, TAU); x.fill(); x.stroke();
     x.fillStyle = '#000'; x.font = `${9 * px}px sans-serif`; x.textAlign = 'center'; x.fillText('✹', l.x, l.y + 3 * px); }
@@ -153,14 +157,15 @@ function edLoop() {
     x.fillStyle = dr.k === 'box' ? 'rgba(120,170,255,.12)' : 'rgba(255,77,106,.25)'; x.fillRect(ax, ay, bx - ax, by - ay); x.strokeStyle = dr.k === 'box' ? '#7aaaff' : '#ff4d6a'; x.lineWidth = px; x.strokeRect(ax, ay, bx - ax, by - ay);
     x.fillStyle = '#fff'; x.font = `${11 * px}px sans-serif`; x.textAlign = 'left'; x.fillText(`${Math.round(bx - ax)} × ${Math.round(by - ay)}`, bx + 6 * px, by + 12 * px); }
   if (ED.ghost && ED.mouse) { const [mx, my] = edW(...ED.mouse), p = ED.ghost; x.globalAlpha = .6; try { drawObstacle(x, edSample(p, p[2] === 'r' ? edSnap(mx - p[3] / 2) : edSnap(mx), p[2] === 'r' ? edSnap(my - p[4] / 2) : edSnap(my))); } catch (e) {} x.globalAlpha = 1; }
-  if (ED.mouse) { const [mx, my] = edW(...ED.mouse); ED.coords.textContent = `x ${Math.round(mx)}  y ${Math.round(my)}  ·  zoom ${(ED.z * 100 / (Math.min(r.width / W, r.height / H) * .95)).toFixed(0)}%  ·  ${ED.obs.length} objects, ${ED.lights.length} lights`; }
+  edStatusBar(r);
+  if (ED.mini && ED.mm) edMinimap(r);
 }
 /* ---- mouse ---- */
 function edDown(e) {
   const r = ED.cv.getBoundingClientRect(), sx = e.clientX - r.left, sy = e.clientY - r.top, [wx, wy] = edW(sx, sy);
   ED.cv.setPointerCapture(e.pointerId); ED.noSnap = e.altKey;
   const now = performance.now(), dbl = ED.lastDown && now - ED.lastDown[0] < 350 && Math.hypot(sx - ED.lastDown[1], sy - ED.lastDown[2]) < 6; ED.lastDown = dbl ? null : [now, sx, sy]; // pointer events don't count clicks
-  if (e.button === 1 || e.button === 2 || ED.space || ED.tool === 'pan') { ED.drag = { k: 'pan', sx, sy, px: ED.px, py: ED.py }; return; }
+  if (e.button === 1 || e.button === 2 || ED.space || ED.tool === 'pan') { ED.drag = { k: 'pan', sx, sy, px: ED.px, py: ED.py, btn: e.button, cx: e.clientX, cy: e.clientY, wx, wy }; return; }
   if (ED.tool === 'wall' || ED.tool === 'rect') { ED.drag = { k: ED.tool, x0: edSnap(wx), y0: edSnap(wy), x1: edSnap(wx), y1: edSnap(wy) }; return; }
   if (ED.tool === 'path' || ED.tool === 'water') { const pt = [edSnap(wx), edSnap(wy)];
     if (!ED.draft) { ED.draft = { kind: ED.tool, pts: [], w: ED.pathW, style: ED.pathStyle };
@@ -223,8 +228,9 @@ function edMove(e) {
     edPanelVals();
   }
 }
-function edUp() {
+function edUp(e) {
   const d = ED.drag; ED.drag = null; if (!d) return;
+  if (d.k === 'pan' && d.btn === 2 && e && Math.hypot(e.clientX - d.cx, e.clientY - d.cy) < 4) return edContext(d.cx, d.cy, d.wx, d.wy); // a right-click that didn't pan
   if (d.k === 'box') { const [ax, ay, bx, by] = [Math.min(d.x0, d.x1), Math.min(d.y0, d.y1), Math.max(d.x0, d.x1), Math.max(d.y0, d.y1)]; if (bx - ax < 2 && by - ay < 2) return;
     const got = []; ED.obs.forEach((o, i) => { const q = edBox(o); if (q[0] < bx && q[2] > ax && q[1] < by && q[3] > ay) got.push({ t: 'o', i }); });
     ED.lights.forEach((l, i) => { if (l.x > ax && l.x < bx && l.y > ay && l.y < by) got.push({ t: 'l', i }); });
@@ -270,14 +276,15 @@ function edKey(e) {
   if (e.code === 'Space') { ED.space = true; e.preventDefault(); return; }
   if (mod && k === 'z') { e.preventDefault(); edUndo(e.shiftKey ? 1 : -1); return; } if (mod && k === 'y') { e.preventDefault(); edUndo(1); return; }
   if (mod && k === 'd') { e.preventDefault(); edDuplicate(); return; } if (mod && k === 'c') { edCopy(); return; } if (mod && k === 'v') { edPaste(); return; }
-  if (mod && k === 's') { e.preventDefault(); edSave(); return; } if (mod && k === 'a') { e.preventDefault(); ED.sel = ED.obs.map((_, i) => ({ t: 'o', i })); edPanel(); return; }
+  if (mod && k === 's') { e.preventDefault(); edSave(); return; }
+  if (mod && k === 'l') { e.preventDefault(); edFlagSel('_lock'); return; } if (mod && k === 'h') { e.preventDefault(); edFlagSel('_hide'); return; } if (mod && k === 'a') { e.preventDefault(); ED.sel = ED.obs.map((_, i) => ({ t: 'o', i })); edPanel(); return; }
   if (k === 'delete' || k === 'backspace') { e.preventDefault(); edDelete(); return; }
   if (k === 'escape' && document.querySelector('.edpop')) { document.querySelectorAll('.edpop').forEach(p => p.remove()); return; }
   if (k === 'enter' && ED.draft) { edFinishDraft(); return; }
   if (k === 'escape' && ED.draft) { ED.draft = null; return; }
   if (k === 'escape') { if (ED.sel.length || ED.tool !== 'select') { ED.sel = []; edTool('select'); edPanel(); } else closeEditor(); return; }
   if (k.startsWith('arrow')) { e.preventDefault(); const st = ED.snaps.move.on ? ED.snaps.move.step * (e.shiftKey ? 4 : 1) : step; edNudge(k === 'arrowleft' ? -st : k === 'arrowright' ? st : 0, k === 'arrowup' ? -st : k === 'arrowdown' ? st : 0); return; }
-  const map = { v: () => edTool('select'), w: () => edTool('wall'), b: () => edTool('rect'), l: () => edTool('light'), h: () => edToggle('help'), g: () => edToggle('showGrid'), s: () => { ED.snaps.move.on = !ED.snaps.move.on; edSaveSnaps(); const c = ED.root.querySelector('[data-sn="move"]'); c.checked = ED.snaps.move.on; c.parentElement.classList.toggle('on', ED.snaps.move.on); }, n: () => edToggle('lit'), o: () => edToggle('lightsLayer'),
+  const map = { v: () => edTool('select'), w: () => edTool('wall'), b: () => edTool('rect'), l: () => edTool('light'), h: () => edToggle('help'), m: () => edToggle('mini'), g: () => edToggle('showGrid'), s: () => { ED.snaps.move.on = !ED.snaps.move.on; edSaveSnaps(); const c = ED.root.querySelector('[data-sn="move"]'); c.checked = ED.snaps.move.on; c.parentElement.classList.toggle('on', ED.snaps.move.on); }, n: () => edToggle('lit'), o: () => edToggle('lightsLayer'),
     q: () => edRotateBy(e.shiftKey ? -ED.snaps.rot.step : ED.snaps.rot.step), a: edAddPointKey, e: edEndPathKey, ']': () => edScale(1 + ED.snaps.scale.step / 100 * (e.shiftKey ? 2.5 : 1), e.shiftKey), '[': () => edScale(1 / (1 + ED.snaps.scale.step / 100 * (e.shiftKey ? 2.5 : 1)), e.shiftKey), '{': () => edScale(.8, true), '}': () => edScale(1.25, true), t: () => edTool('path'), y: () => edTool('water'), '=': () => edZoomC(1.25), '+': () => edZoomC(1.25), '-': () => edZoomC(.8), '0': edFit, f: edFocus, p: () => closeEditor(true) };
   if (map[k]) { e.preventDefault(); map[k](); }
 }
@@ -285,41 +292,84 @@ function edZoomC(f) { const r = ED.cv.getBoundingClientRect(); edZoom(f, r.width
 function edFocus() { if (!ED.sel.length) return edFit(); const bx = ED.sel.map(s => s.t === 'l' ? [edItem(s).x - edItem(s).r, edItem(s).y - edItem(s).r, edItem(s).x + edItem(s).r, edItem(s).y + edItem(s).r] : edBox(edItem(s)));
   const x0 = Math.min(...bx.map(b => b[0])), y0 = Math.min(...bx.map(b => b[1])), x1 = Math.max(...bx.map(b => b[2])), y1 = Math.max(...bx.map(b => b[3])), r = ED.cv.getBoundingClientRect();
   ED.z = clamp(Math.min(r.width / (x1 - x0 + 80), r.height / (y1 - y0 + 80)), .15, 24); ED.px = r.width / 2 - (x0 + x1) / 2 * ED.z; ED.py = r.height / 2 - (y0 + y1) / 2 * ED.z; }
-function edToggle(k) { ED[k] = !ED[k]; if (k === 'help') { try { localStorage.setItem('snakeEdHelp', ED.help ? '1' : '0'); } catch (e) {} ED.root.querySelector('.edhelpbtn').style.display = ED.help ? 'none' : ''; } ED.root.querySelectorAll(`[data-tg="${k}"]`).forEach(b => b.classList.toggle('on', !!ED[k])); if (k === 'help') ED.root.querySelector('.edhelp').style.display = ED.help ? '' : 'none'; }
+function edToggle(k) { ED[k] = !ED[k]; if (k === 'mini' && ED.mm) ED.mm.style.display = ED.mini ? '' : 'none';
+  if (k === 'help') { try { localStorage.setItem('snakeEdHelp', ED.help ? '1' : '0'); } catch (e) {} ED.root.querySelector('.edhelpbtn').style.display = ED.help ? 'none' : ''; } ED.root.querySelectorAll(`[data-tg="${k}"]`).forEach(b => b.classList.toggle('on', !!ED[k])); if (k === 'help') ED.root.querySelector('.edhelp').style.display = ED.help ? '' : 'none'; }
 function edStatus(t) { if (ED.stat) ED.stat.textContent = t; }
 /* ---- UI ---- */
+const ED_ICON = { // small line icons for the toolbar and menus
+  select: 'M5 3l13 8-6 1.5L9 19z', wall: 'M3 9h18v6H3z', rect: 'M4 5h16v14H4z', path: 'M4 19c3-9 6-2 8-8s5-5 8-6', water: 'M12 3c4 5 7 8 7 12a7 7 0 01-14 0c0-4 3-7 7-12z', light: 'M9 18h6M10 21h4M12 3a6 6 0 00-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0012 3z', pan: 'M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3',
+  grid: 'M4 4h16v16H4zM4 10h16M4 16h16M10 4v16M16 4v16', night: 'M20 14A8 8 0 0110 4a8 8 0 1010 10z', reach: 'M12 12m-8 0a8 8 0 1016 0 8 8 0 10-16 0M12 12m-3 0a3 3 0 106 0 3 3 0 10-6 0', help: 'M12 21a9 9 0 110-18 9 9 0 010 18zM9.5 9a2.5 2.5 0 115 .5c0 1.5-2.5 2-2.5 3.5M12 17h.01',
+  undo: 'M9 14L4 9l5-5M4 9h11a5 5 0 010 10h-3', redo: 'M15 14l5-5-5-5M20 9H9a5 5 0 000 10h3', play: 'M7 4l13 8-13 8z', share: 'M4 12v7a1 1 0 001 1h14a1 1 0 001-1v-7M16 6l-4-4-4 4M12 2v13', exit: 'M15 4h4a1 1 0 011 1v14a1 1 0 01-1 1h-4M10 17l-5-5 5-5M5 12h11',
+  props: 'M4 7l8-4 8 4-8 4zM4 7v10l8 4 8-4V7', layers: 'M12 3l9 5-9 5-9-5zM3 13l9 5 9-5', eye: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 12m-3 0a3 3 0 106 0 3 3 0 10-6 0', lock: 'M6 11h12v9H6zM8 11V8a4 4 0 018 0v3', map: 'M9 4L3 6v14l6-2 6 2 6-2V4l-6 2zM9 4v14M15 6v14', mini: 'M3 5h18v14H3zM13 11h6v6h-6z',
+};
+const edSvg = (k, s = 16) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="${ED_ICON[k]}"/></svg>`;
+const ED_TOOLS = [['select', 'Select / move', 'V'], ['wall', 'Draw wall', 'W'], ['rect', 'Draw block', 'B'], ['path', 'Draw path', 'T'], ['water', 'Draw water', 'Y'], ['light', 'Add light', 'L'], ['pan', 'Pan', 'Space']];
+const ED_MENUS = {
+  File: [['save', 'Save', 'Ctrl+S'], ['share', 'Share…'], ['export', 'Download edits file'], ['import', 'Import…'], '-', ['reset', 'Reset this map…'], '-', ['play', 'Play test', 'P'], ['exit', 'Exit editor', 'Esc']],
+  Edit: [['undo', 'Undo', 'Ctrl+Z'], ['redo', 'Redo', 'Ctrl+Y'], '-', ['copy', 'Copy', 'Ctrl+C'], ['paste', 'Paste', 'Ctrl+V'], ['dup', 'Duplicate', 'Ctrl+D'], ['del', 'Delete', 'Del'], '-', ['all', 'Select all', 'Ctrl+A'], ['none', 'Select none', 'Esc'], '-', ['lock', 'Lock / unlock selection', 'Ctrl+L'], ['hide', 'Hide / show selection', 'Ctrl+H'], ['unhideall', 'Show everything']],
+  View: [['fit', 'Fit map', '0'], ['focus', 'Focus selection', 'F'], ['zin', 'Zoom in', '+'], ['zout', 'Zoom out', '-'], '-', ['tg:showGrid', 'Grid', 'G'], ['tg:lit', 'Night preview', 'N'], ['tg:lightsLayer', 'Light reach', 'O'], ['tg:mini', 'Minimap', 'M'], ['tg:help', 'Controls', 'H']],
+  Tools: [...[['select', 'Select / move', 'V'], ['wall', 'Draw wall', 'W'], ['rect', 'Draw block', 'B'], ['path', 'Draw path', 'T'], ['water', 'Draw water', 'Y'], ['light', 'Add light', 'L']].map(([t, n, k]) => ['tool:' + t, n, k]), '-', ['propEd', 'Prop editor…']],
+};
+function edCmd(c) {
+  if (c.startsWith('tool:')) return edTool(c.slice(5)); if (c.startsWith('tg:')) return edToggle(c.slice(3));
+  const A = { save: edSave, share: () => edShare(), export: edExport, import: () => ED.root.querySelector('.edimp input').click(), reset: edReset, play: () => closeEditor(true), exit: () => closeEditor(),
+    undo: () => edUndo(-1), redo: () => edUndo(1), copy: edCopy, paste: edPaste, dup: () => edDuplicate(), del: edDelete, all: () => { ED.sel = [...ED.obs.map((o, i) => ({ t: 'o', i })), ...ED.lights.map((l, i) => ({ t: 'l', i })), ...ED.trails.map((t, i) => ({ t: 'p', i }))].filter(s => !edItem(s)._lock && !edItem(s)._hide); edPanel(); }, none: () => { ED.sel = []; edPanel(); },
+    lock: () => edFlagSel('_lock'), hide: () => edFlagSel('_hide'), unhideall: () => { edPush(); for (const o of [...ED.obs, ...ED.lights, ...ED.trails]) delete o._hide; edFloor(true); edLayers(); },
+    fit: edFit, focus: edFocus, zin: () => edZoomC(1.25), zout: () => edZoomC(.8), propEd: () => openPropEditor(ED.sel.length === 1 && ED.sel[0].t === 'o' ? edItem(ED.sel[0]).kind : 'tree') };
+  if (A[c]) A[c]();
+}
+function edFlagSel(f) { if (!ED.sel.length) return; edPush(); const on = !ED.sel.every(s => edItem(s)[f]); for (const s of ED.sel) { const o = edItem(s); if (on) o[f] = true; else delete o[f]; } if (f === '_hide' && ED.sel.some(s => s.t === 'p')) edFloor(true); if (on) ED.sel = []; edPanel(); edStatus(on ? (f === '_lock' ? 'Locked: it can no longer be clicked on the map (unlock it in Layers)' : 'Hidden in the editor (it is still in the game)') : 'Done'); }
 function edBuildUI() {
   const m = MAPS[ED.map], walls = curPre.filter(o => o.kind === 'wall'); ED.wallCol = walls.length ? walls[0].color : m.indoor ? '#6d6875' : '#8b6b45'; ED.wallKind = m.indoor || walls.length ? 'wall' : 'fence'; ED.wallT = ED.wallKind === 'wall' ? 14 : 6;
+  if (ED.mini === undefined) ED.mini = true; ED.rtab = ED.rtab || 'props'; ED.ltab = ED.ltab || 'props';
   const root = ED.root = document.createElement('div'); root.id = 'editor';
-  root.innerHTML = `<div class="edtop"><b>Map editor</b><select class="edmap">${MAPS.map((mm, i) => `<option value="${i}" ${i === ED.map ? 'selected' : ''}>${mm.name}</option>`).join('')}</select>
-      <span class="edgrp">${[['select', 'Select / move', 'V'], ['wall', 'Draw wall', 'W'], ['rect', 'Draw block', 'B'], ['path', 'Draw path', 'T'], ['water', 'Draw water', 'Y'], ['light', 'Add light', 'L'], ['pan', 'Pan', 'Space']].map(([t, n, k]) => `<button data-tool="${t}" title="${n} (${k})">${n}<kbd>${k}</kbd></button>`).join('')}</span>
-      <span class="edgrp">${[['showGrid', 'Grid', 'G'], ['lit', 'Night preview', 'N'], ['lightsLayer', 'Light reach', 'O'], ['help', 'Controls', 'H']].map(([t, n, k]) => `<button data-tg="${t}" class="${ED[t] ? 'on' : ''}" title="${n} (${k})">${n}<kbd>${k}</kbd></button>`).join('')}
-</span><span class="edgrp edsnaps"><b>Snap</b>${[['move', 'Move', 'px'], ['rot', 'Rotate', '°'], ['scale', 'Scale', '%']].map(([k, n, u]) => `<label class="edsn ${ED.snaps[k].on ? 'on' : ''}" title="${n} snapping: tick to turn on, set the step. Hold Ctrl to flip it while dragging"><input type="checkbox" data-sn="${k}" ${ED.snaps[k].on ? 'checked' : ''}>${n}<input type="number" data-snv="${k}" value="${ED.snaps[k].step}" min="${k === 'move' ? 1 : .5}" max="${k === 'rot' ? 180 : 200}" step="${k === 'move' ? 1 : .5}"><i>${u}</i></label>`).join('')}</span>
-      <span class="edgrp"><button class="edpe" title="Change how a kind of prop looks and breaks, everywhere">Prop editor</button></span><span class="edgrp edright"><button class="edundo" title="Undo (Ctrl+Z)">↶</button><button class="edredo" title="Redo (Ctrl+Y)">↷</button><button class="edsave">Save</button><button class="edshare" title="Copy or download your map and prop edits to send them in">Share</button><button class="edexp" title="Download 05c-map-overrides.js">Export</button><label class="edimp">Import<input type="file" accept=".js,.json" hidden></label><button class="edreset">Reset map</button><button class="edplay">Play test <kbd>P</kbd></button><button class="edclose">Exit <kbd>Esc</kbd></button></span></div>
-    <div class="edbody"><div class="edleft"><h4>Props <small>click, then click the map · Shift keeps placing</small></h4><div class="edprops">${ED_PROPS.map((p, i) => `<button class="edprop" data-p="${i}"><canvas width="68" height="68"></canvas><span>${p[0]}</span></button>`).join('')}</div>
-        <h4>Paths <small>T: click points, double-click or Enter to finish · start on a path's end to extend it</small></h4><div class="edrow"><label>Style <button class="edpick edps-btn" data-pick="style"></button></label><label>Width <input type="number" class="edpw" value="${ED.pathW}" min="4" max="200"></label></div>
-        <h4>Water <small>Y: click points round the shape, click the first point (or Enter) to fill it</small></h4>
-        <h4>Walls</h4><div class="edrow"><label>Wall kind <select class="edwk">${['wall', 'fence', 'hedge', 'glass', 'building'].map(k => `<option ${k === ED.wallKind ? 'selected' : ''}>${k}</option>`).join('')}</select></label>
-        <label>Thickness <input type="number" class="edwt" value="${ED.wallT}" min="2" max="80"></label><label>Color <input type="color" class="edwc" value="${edHex(ED.wallCol)}"></label></div></div>
-      <div class="edview"><canvas></canvas><div class="edcoords"></div><div class="edstat">Edits save in this browser automatically</div>
-        <button class="edhelpbtn" title="Show controls (H)">? Controls</button><div class="edhelp"><button class="edhelpx" title="Hide (H)">×</button><b>Controls</b>
-          <p><kbd>Wheel</kbd> zoom at cursor · <kbd>Space</kbd>/<kbd>Right</kbd>/<kbd>Middle</kbd> drag pan · <kbd>0</kbd> fit · <kbd>F</kbd> focus selection · <kbd>+</kbd><kbd>-</kbd> zoom</p>
-          <p><kbd>Click</kbd> select · <kbd>Shift</kbd>/<kbd>Ctrl</kbd>+click add · drag empty space to box-select · <kbd>Ctrl+A</kbd> all</p>
-          <p>Drag to move (<kbd>Shift</kbd> locks axis, <kbd>Ctrl</kbd> no snap) · <kbd>Alt</kbd>+drag duplicates · handles resize</p>
-          <p><kbd>Arrows</kbd> nudge 1 (<kbd>Shift</kbd> 10) · <kbd>[</kbd> <kbd>]</kbd> size (<kbd>Shift</kbd> bigger steps) · <kbd>Q</kbd> rotate</p>
-          <p><kbd>Del</kbd> delete · <kbd>Ctrl+D</kbd> duplicate · <kbd>Ctrl+C</kbd>/<kbd>V</kbd> copy/paste at cursor · <kbd>Ctrl+Z</kbd>/<kbd>Y</kbd> undo/redo</p>
-          <p>Gizmo: drag the <b style="color:#ff5a5a">red</b>/<b style="color:#5aff7a">green</b> arrows to move along an axis, the yellow square to move freely, the cubes to scale (white: all ways), the ring to rotate · <kbd>Q</kbd> rotate by the snap step (<kbd>Shift</kbd> the other way) · <kbd>Ctrl</kbd> while dragging flips snapping</p>
-          <p><kbd>A</kbd> add a point at the cursor · <kbd>E</kbd> end the path at the cursor</p>
-          <p><kbd>T</kbd> draw path · <kbd>Y</kbd> draw water · drag points · <kbd>Alt</kbd>+click a point removes it · double-click a line adds one · <kbd>[</kbd><kbd>]</kbd> path width, <kbd>Shift</kbd> resizes the shape</p>
-          <p><kbd>W</kbd> draw wall · <kbd>B</kbd> draw block · <kbd>L</kbd> add light · <kbd>N</kbd> night preview · <kbd>P</kbd> play test · <kbd>Esc</kbd> deselect / exit</p></div></div>
-      <div class="edright2"><div class="edpanel"></div></div></div>`;
+  root.innerHTML = `<div class="edbar"><div class="edbrand">${edSvg('map', 18)}<b>Map Editor</b></div>
+      <nav class="edmenus">${Object.keys(ED_MENUS).map(n => `<div class="edmenu"><button class="edmb">${n}</button><div class="edmlist">${ED_MENUS[n].map(it => it === '-' ? '<hr>' : `<button data-cmd="${it[0]}"><span>${it[1]}</span>${it[2] ? `<kbd>${it[2]}</kbd>` : ''}</button>`).join('')}</div></div>`).join('')}</nav>
+      <label class="edmapsel">${edSvg('map', 14)}<select class="edmap">${MAPS.map((mm, i) => `<option value="${i}" ${i === ED.map ? 'selected' : ''}>${mm.name}</option>`).join('')}</select></label>
+      <span class="edsp"></span>
+      <button class="edib edundo" title="Undo (Ctrl+Z)">${edSvg('undo')}</button><button class="edib edredo" title="Redo (Ctrl+Y)">${edSvg('redo')}</button>
+      <button class="edsave edghost" title="Save (Ctrl+S)">Save</button><label class="edimp" hidden><input type="file" accept=".js,.json,.txt" hidden></label>
+      <button class="edshare edghost" title="Share your edits">${edSvg('share', 14)} Share</button><button class="edexp" hidden></button><button class="edreset" hidden></button>
+      <button class="edplay edprimary" title="Play test (P)">${edSvg('play', 14)} Play test</button><button class="edclose edib" title="Exit (Esc)">${edSvg('exit')}</button></div>
+    <div class="edtools"><div class="edtgrp">${ED_TOOLS.map(([t, n, k]) => `<button data-tool="${t}" class="edtool" title="${n} (${k})">${edSvg(t)}<span>${n}</span></button>`).join('')}</div>
+      <div class="edtgrp">${[['showGrid', 'grid', 'Grid (G)'], ['lit', 'night', 'Night preview (N)'], ['lightsLayer', 'reach', 'Light reach (O)'], ['mini', 'mini', 'Minimap (M)'], ['help', 'help', 'Controls (H)']].map(([t, ic, n]) => `<button data-tg="${t}" class="edtool icon ${ED[t] ? 'on' : ''}" title="${n}">${edSvg(ic)}</button>`).join('')}</div>
+      <div class="edtgrp edsnaps"><span class="edlbl">Snap</span>${[['move', 'Move', 'px'], ['rot', 'Rotate', '°'], ['scale', 'Scale', '%']].map(([k, n, u]) => `<label class="edsn ${ED.snaps[k].on ? 'on' : ''}" title="${n} snapping: tick to turn it on and set the step. Ctrl flips it while dragging"><input type="checkbox" data-sn="${k}" ${ED.snaps[k].on ? 'checked' : ''}>${n}<input type="number" data-snv="${k}" value="${ED.snaps[k].step}" min="${k === 'move' ? 1 : .5}" max="${k === 'rot' ? 180 : 200}" step="${k === 'move' ? 1 : .5}"><i>${u}</i></label>`).join('')}</div>
+      <div class="edtgrp"><button class="edpe edghost" title="Change a whole kind of prop">${edSvg('props', 14)} Prop editor</button></div></div>
+    <div class="edbody"><aside class="edleft"><div class="edtabs">${[['props', 'Props'], ['paths', 'Paths'], ['walls', 'Walls'], ['water', 'Water']].map(([k, n]) => `<button data-lt="${k}" class="${ED.ltab === k ? 'on' : ''}">${n}</button>`).join('')}</div>
+        <div class="edlt" data-lt="props"><input class="edsearch edpsearch" placeholder="Search props…"><div class="edprops">${ED_PROPS.map((p, i) => `<button class="edprop" data-p="${i}" title="${p[0]}: click, then click the map (Shift keeps placing)"><canvas width="68" height="68"></canvas><span>${p[0]}</span></button>`).join('')}</div></div>
+        <div class="edlt" data-lt="paths"><p class="edhint">Press <kbd>T</kbd> (or pick a style), then click points. <kbd>A</kbd> adds a point at the cursor, <kbd>E</kbd> or Enter ends it. Start on a path's end to extend it. Paths of one style merge where they meet.</p><div class="edrow"><label>Style <button class="edpick edps-btn"></button></label><label>Width <input type="number" class="edpw" value="${ED.pathW}" min="4" max="200"></label></div><button class="edghost edwide" data-tool="path">${edSvg('path', 14)} Draw a path</button></div>
+        <div class="edlt" data-lt="walls"><p class="edhint">Press <kbd>W</kbd> and drag along the wall's length. Thickness stays fixed. <kbd>B</kbd> draws a free-size block.</p><div class="edrow"><label>Kind <select class="edwk">${['wall', 'fence', 'hedge', 'glass', 'building'].map(k => `<option ${k === ED.wallKind ? 'selected' : ''}>${k}</option>`).join('')}</select></label>
+          <label>Thickness <input type="number" class="edwt" value="${ED.wallT}" min="2" max="80"></label><label>Color <input type="color" class="edwc" value="${edHex(ED.wallCol)}"></label></div><button class="edghost edwide" data-tool="wall">${edSvg('wall', 14)} Draw a wall</button></div>
+        <div class="edlt" data-lt="water"><p class="edhint">Press <kbd>Y</kbd> and click points round the shape. Click the first point (or press Enter) to fill it. Drag points later to reshape; double-click an edge to add one.</p><button class="edghost edwide" data-tool="water">${edSvg('water', 14)} Draw water</button></div></aside>
+      <main class="edview"><canvas class="edmain"></canvas><canvas class="edminimap" width="220" height="120" title="Click or drag to move the view"></canvas>
+        <button class="edhelpbtn edghost" title="Show controls (H)">${edSvg('help', 14)} Controls</button><div class="edhelp"><button class="edhelpx" title="Hide (H)">×</button><b>Controls</b>
+          <p><kbd>Wheel</kbd> zoom · <kbd>Space</kbd>/<kbd>Middle</kbd>/<kbd>Right</kbd>-drag pan · <kbd>0</kbd> fit · <kbd>F</kbd> focus · right-click for actions</p>
+          <p><kbd>Click</kbd> select · <kbd>Shift</kbd>+click add · drag empty space to box-select · <kbd>Ctrl+A</kbd> all</p>
+          <p>Gizmo: <b style="color:#ff5a5a">red</b>/<b style="color:#5aff7a">green</b> arrows move on an axis, yellow square moves freely, cubes scale (white: evenly), ring rotates · <kbd>Ctrl</kbd> flips snapping</p>
+          <p><kbd>Arrows</kbd> nudge · <kbd>[</kbd><kbd>]</kbd> size · <kbd>Q</kbd> rotate · <kbd>Alt</kbd>+drag duplicates</p>
+          <p><kbd>Del</kbd> delete · <kbd>Ctrl+D</kbd> duplicate · <kbd>Ctrl+C</kbd>/<kbd>V</kbd> copy/paste · <kbd>Ctrl+Z</kbd>/<kbd>Y</kbd> undo/redo · <kbd>Ctrl+L</kbd> lock · <kbd>Ctrl+H</kbd> hide</p>
+          <p><kbd>T</kbd> path · <kbd>Y</kbd> water · <kbd>A</kbd> add point · <kbd>E</kbd> end path · <kbd>Alt</kbd>+click a point removes it · double-click a line adds one</p>
+          <p><kbd>W</kbd> wall · <kbd>B</kbd> block · <kbd>L</kbd> light · <kbd>N</kbd> night · <kbd>M</kbd> minimap · <kbd>P</kbd> play test · <kbd>Esc</kbd> deselect / exit</p></div></main>
+      <aside class="edright2"><div class="edtabs">${[['props', 'Properties'], ['layers', 'Layers']].map(([k, n]) => `<button data-rt="${k}" class="${ED.rtab === k ? 'on' : ''}">${n}</button>`).join('')}</div><div class="edpanel"></div><div class="edlayers"></div></aside></div>
+    <footer class="edstatus"><span class="edst-tool"></span><span class="edst-sel"></span><span class="edcoords"></span><span class="edsp"></span><span class="edstat">Edits save in this browser automatically</span>
+      <span class="edzoom"><button data-cmd="zout">−</button><span class="edzv">100%</span><button data-cmd="zin">+</button><button data-cmd="fit" title="Fit (0)">Fit</button></span></footer>`;
   document.body.appendChild(root);
-  ED.cv = root.querySelector('.edview canvas'); ED.x = ED.cv.getContext('2d'); ED.coords = root.querySelector('.edcoords'); ED.stat = root.querySelector('.edstat');
+  ED.cv = root.querySelector('.edmain'); ED.x = ED.cv.getContext('2d'); ED.coords = root.querySelector('.edcoords'); ED.stat = root.querySelector('.edstat'); ED.mm = root.querySelector('.edminimap'); ED.mm.getContext('2d', { willReadFrequently: true });
   ED.cv.addEventListener('pointerdown', edDown); ED.cv.addEventListener('pointermove', edMove); ED.cv.addEventListener('pointerup', edUp); ED.cv.addEventListener('pointercancel', edUp);
   ED.cv.addEventListener('pointerleave', () => { ED.mouse = null; }); ED.cv.addEventListener('contextmenu', e => e.preventDefault());
   ED.cv.addEventListener('wheel', e => { e.preventDefault(); const r = ED.cv.getBoundingClientRect(); if (e.ctrlKey || !e.shiftKey && Math.abs(e.deltaX) < 1) edZoom(Math.exp(-e.deltaY * (e.ctrlKey ? .01 : .0018)), e.clientX - r.left, e.clientY - r.top); else { ED.px -= e.deltaX || e.deltaY; } }, { passive: false });
+  const mmGo = e => { const r = ED.mm.getBoundingClientRect(), s = Math.min(r.width / W, r.height / H), vr = ED.cv.getBoundingClientRect(), wx = (e.clientX - r.left) / s, wy = (e.clientY - r.top) / s; ED.px = vr.width / 2 - wx * ED.z; ED.py = vr.height / 2 - wy * ED.z; };
+  ED.mm.onpointerdown = e => { ED.mm.setPointerCapture(e.pointerId); mmGo(e); ED.mm.onpointermove = mmGo; }; ED.mm.onpointerup = () => { ED.mm.onpointermove = null; };
   root.querySelectorAll('[data-tool]').forEach(b => b.onclick = () => edTool(b.dataset.tool));
   root.querySelectorAll('[data-tg]').forEach(b => b.onclick = () => edToggle(b.dataset.tg));
+  root.querySelectorAll('[data-cmd]').forEach(b => b.onclick = () => { root.querySelectorAll('.edmenu.open').forEach(m => m.classList.remove('open')); edCmd(b.dataset.cmd); });
+  root.querySelectorAll('.edmb').forEach(b => { b.onclick = () => { const m = b.parentElement, was = m.classList.contains('open'); root.querySelectorAll('.edmenu.open').forEach(x => x.classList.remove('open')); if (!was) m.classList.add('open'); }; b.onpointerenter = () => { if (root.querySelector('.edmenu.open') && !b.parentElement.classList.contains('open')) { root.querySelectorAll('.edmenu.open').forEach(x => x.classList.remove('open')); b.parentElement.classList.add('open'); } }; });
+  root.addEventListener('pointerdown', e => { if (!e.target.closest('.edmenu')) root.querySelectorAll('.edmenu.open').forEach(m => m.classList.remove('open')); }, true);
+  const setL = k => { ED.ltab = k; root.querySelectorAll('[data-lt]').forEach(b => b.classList.toggle('on', b.dataset.lt === k)); root.querySelectorAll('.edlt').forEach(d => d.style.display = d.dataset.lt === k ? '' : 'none'); };
+  root.querySelectorAll('.edtabs [data-lt]').forEach(b => b.onclick = () => setL(b.dataset.lt)); setL(ED.ltab);
+  const setR = k => { ED.rtab = k; root.querySelectorAll('[data-rt]').forEach(b => b.classList.toggle('on', b.dataset.rt === k)); root.querySelector('.edpanel').style.display = k === 'props' ? '' : 'none'; root.querySelector('.edlayers').style.display = k === 'layers' ? '' : 'none'; if (k === 'layers') edLayers(); };
+  root.querySelectorAll('[data-rt]').forEach(b => b.onclick = () => setR(b.dataset.rt)); ED.setR = setR; setR(ED.rtab);
+  root.querySelector('.edpsearch').oninput = e => { const q = e.target.value.toLowerCase(); root.querySelectorAll('.edprop').forEach(b => { const p = ED_PROPS[+b.dataset.p]; b.style.display = (p[0] + ' ' + p[1]).toLowerCase().includes(q) ? '' : 'none'; }); };
   root.querySelectorAll('.edprop').forEach(b => b.onclick = () => edTool('prop', ED_PROPS[+b.dataset.p]));
   const psb = root.querySelector('.edps-btn'); const psSet = () => edPickBtn(psb, 'style', ED.pathStyle); psSet(); psb.onclick = () => edPicker(psb, 'style', ED.pathStyle, v => { ED.pathStyle = v; psSet(); edTool('path'); }); root.querySelector('.edpw').onchange = e => { ED.pathW = clamp(+e.target.value || 20, 4, 200); };
   root.querySelectorAll('[data-sn]').forEach(c => c.onchange = () => { ED.snaps[c.dataset.sn].on = c.checked; c.parentElement.classList.toggle('on', c.checked); edSaveSnaps(); });
@@ -328,18 +378,19 @@ function edBuildUI() {
   root.querySelector('.edwt').onchange = e => { ED.wallT = clamp(+e.target.value || 14, 2, 80); };
   root.querySelector('.edwc').oninput = e => { ED.wallCol = e.target.value; };
   root.querySelector('.edundo').onclick = () => edUndo(-1); root.querySelector('.edredo').onclick = () => edUndo(1);
-  root.querySelector('.edsave').onclick = edSave; root.querySelector('.edshare').onclick = edShare; root.querySelector('.edexp').onclick = edExport; root.querySelector('.edreset').onclick = edReset;
+  root.querySelector('.edsave').onclick = edSave; root.querySelector('.edshare').onclick = () => edShare();
   root.querySelector('.edimp input').onchange = e => e.target.files[0] && edImport(e.target.files[0]);
   root.querySelector('.edplay').onclick = () => closeEditor(true); root.querySelector('.edclose').onclick = () => closeEditor();
   root.querySelector('.edmap').onchange = e => { edSave(); const i = +e.target.value; cancelAnimationFrame(ED.raf); root.remove(); removeEventListener('keydown', edKey, true); removeEventListener('keyup', edKey, true); openEditor(i); };
   addEventListener('keydown', edKey, true); addEventListener('keyup', edKey, true);
-  root.querySelector('.edpe').onclick = () => openPropEditor(ED.sel.length === 1 && ED.sel[0].t === 'o' ? edItem(ED.sel[0]).kind : 'tree');
+  root.querySelector('.edpe').onclick = () => edCmd('propEd');
   root.querySelector('.edhelpx').onclick = () => edToggle('help'); root.querySelector('.edhelpbtn').onclick = () => edToggle('help');
   try { if (localStorage.getItem('snakeEdHelp') === '0') { ED.help = true; edToggle('help'); } else root.querySelector('.edhelpbtn').style.display = 'none'; } catch (e) {}
   edPreviews(); edTool('select'); edPanel();
 }
 /* properties of the selection */
 function edPanel() {
+  if (ED.rtab === 'layers') edLayers();
   const p = ED.root && ED.root.querySelector('.edpanel'); if (!p) return;
   if (!ED.sel.length) { p.innerHTML = `<h4>Nothing selected</h4><p class="edmuted">Click an object or a light (✹) to edit it. Drag on empty space to select many.</p><h4>Map</h4><p class="edmuted">${MAPS[ED.map].name} · world ${W} × ${H}${XO ? ` · the dashed pink lines mark the original map's edges` : ''}</p>`; return; }
   if (ED.sel.length > 1) { p.innerHTML = `<h4>${ED.sel.length} selected</h4><div class="edbtns"><button data-a="dup">Duplicate</button><button data-a="del">Delete</button><button data-a="rot">Rotate 90°</button><button data-a="up">Bigger</button><button data-a="dn">Smaller</button></div>
@@ -480,19 +531,28 @@ const kindSample = kind => { const p = ED_PROPS.find(p => p[1] === kind); if (p)
 /* ---- the window ---- */
 function openPropEditor(kind) {
   const old = document.getElementById('propEd'); if (old) old.remove();
-  const kinds = [...new Set([...ED_KINDS, ...(ED.obs || []).map(o => o.kind)])].filter(k => k !== 'border').sort();
+  const kinds = [...new Set([...ED_PROPS.map(p => p[1]), ...ED_KINDS, ...(ED.obs || []).map(o => o.kind)])].filter(k => k !== 'border' && k !== 'water').sort();
   const box = document.createElement('div'); box.id = 'propEd';
-  box.innerHTML = `<div class="pewin"><div class="pehead"><b>Prop editor</b><span class="edmuted">Changes apply to every prop of that kind, on every map</span><button class="peclose">Done</button></div>
-    <div class="pebody"><div class="pelist">${kinds.map(k => `<button data-k="${k}"><canvas width="44" height="44"></canvas><span>${k}</span>${propCache[k] ? '<i>●</i>' : ''}</button>`).join('')}</div>
-      <div class="pemain"><canvas class="pebig" width="520" height="360"></canvas><div class="pebgs">Background <button data-bg="#2a2a30">Dark</button><button data-bg="#93bf55">Grass</button><button data-bg="#b9b3a7">Pavement</button><button data-bg="#d9d4c8">Tiles</button></div></div>
+  box.innerHTML = `<div class="pewin"><div class="pehead">${edSvg('props', 18)}<b>Prop editor</b><span class="edmuted">Pick a kind of prop on the left. Changes apply to every one of them, on every map.</span>
+      <button class="peshareall edghost">${edSvg('share', 14)} Share…</button><button class="peclose edprimary">Done</button></div>
+    <div class="pebody"><div class="pelistw"><input class="edsearch pesearch" placeholder="Search props…"><div class="edchips"><button data-pf="all" class="on">All</button><button data-pf="edited">Edited</button></div>
+        <div class="pelist">${kinds.map(k => `<button data-k="${k}"><canvas width="44" height="44"></canvas><span>${(ED_PROPS.find(p => p[1] === k) || [k])[0]}</span><i class="ped">●</i></button>`).join('')}</div></div>
+      <div class="pemain"><div class="pestage"><canvas class="pebig" width="560" height="380"></canvas><div class="pecmp"><span>Before</span><canvas class="pebefore" width="120" height="90"></canvas></div></div>
+        <div class="pebgs"><span>Preview on</span><button data-bg="#2a2a30" class="on">Dark</button><button data-bg="#93bf55">Grass</button><button data-bg="#b9b3a7">Pavement</button><button data-bg="#d9d4c8">Tiles</button><button data-bg="#3a3532">Concrete</button></div>
+        <p class="edhint">Tip: drag a shape in the preview to move it. Everything here can be undone with Reset.</p></div>
       <div class="peside"></div></div></div>`;
   document.body.appendChild(box);
-  PE.kind = kind; PE.bg = '#2a2a30'; PE.box = box; PE.selShape = -1;
-  box.querySelector('.peclose').onclick = () => { box.remove(); edPreviews(); };
-  box.querySelectorAll('.pelist button').forEach(b => { drawPreview(b.querySelector('canvas'), edSample(kindSample(b.dataset.k), 0, 0)); b.onclick = () => { PE.kind = b.dataset.k; PE.selShape = -1; peSide(); peDraw(); peList(); }; });
-  box.querySelectorAll('[data-bg]').forEach(b => b.onclick = () => { PE.bg = b.dataset.bg; peDraw(); });
+  PE.kind = kinds.includes(kind) ? kind : kinds[0]; PE.bg = '#2a2a30'; PE.box = box; PE.selShape = -1; PE.filter = 'all';
+  box.querySelector('.peclose').onclick = () => { box.remove(); edPreviews(); if (ED.open) { edFloor(true); edPanel(); } };
+  box.querySelector('.peshareall').onclick = () => edShare('p:' + PE.kind);
+  const filt = () => { const q = box.querySelector('.pesearch').value.toLowerCase(), loc = edLocalProps(); box.querySelectorAll('.pelist button').forEach(b => { b.style.display = (b.textContent.toLowerCase().includes(q) || b.dataset.k.includes(q)) && (PE.filter === 'all' || loc[b.dataset.k]) ? '' : 'none'; }); };
+  box.querySelector('.pesearch').oninput = filt;
+  box.querySelectorAll('[data-pf]').forEach(b => b.onclick = () => { PE.filter = b.dataset.pf; box.querySelectorAll('[data-pf]').forEach(c => c.classList.toggle('on', c === b)); filt(); });
+  box.querySelectorAll('.pelist button').forEach(b => { b.onclick = () => { PE.kind = b.dataset.k; PE.selShape = -1; peSide(); peDraw(); peList(); }; });
+  box.querySelectorAll('[data-bg]').forEach(b => b.onclick = () => { PE.bg = b.dataset.bg; box.querySelectorAll('[data-bg]').forEach(c => c.classList.toggle('on', c === b)); peDraw(); });
   const big = box.querySelector('.pebig'); big.onpointerdown = peDown; big.onpointermove = peMove; big.onpointerup = () => { PE.drag = null; };
-  peSide(); peDraw(); peList();
+  box.onkeydown = e => e.stopPropagation();
+  peSide(); peDraw(); peList(); const cur = box.querySelector(`.pelist [data-k="${PE.kind}"]`); if (cur) cur.scrollIntoView({ block: 'center' });
 }
 const PE = {};
 const peGet = () => edClone(propDefs()[PE.kind] || {});
@@ -500,11 +560,12 @@ function peSet(p) { let loc = {}; try { loc = JSON.parse(localStorage.getItem('s
   const empty = !p.color && (!p.breakable || p.breakable === 'default') && !p.hideBase && !p.noCollide && !p.noOutline && !p.noShadow && !(p.shapes && p.shapes.length);
   if (empty) { delete loc[PE.kind]; if (PROP_OVERRIDES[PE.kind]) loc[PE.kind] = {}; } else loc[PE.kind] = p;
   try { localStorage.setItem('snakeCarnagePropDefs', JSON.stringify(loc)); } catch (e) {} propApply(); peDraw(); peList(); }
-function peList() { PE.box.querySelectorAll('.pelist button').forEach(b => { b.classList.toggle('on', b.dataset.k === PE.kind); drawPreview(b.querySelector('canvas'), edSample(kindSample(b.dataset.k), 0, 0)); }); }
+function peList() { const loc = edLocalProps(); PE.box.querySelectorAll('.pelist button').forEach(b => { b.classList.toggle('on', b.dataset.k === PE.kind); b.classList.toggle('edited', !!loc[b.dataset.k]); drawPreview(b.querySelector('canvas'), edSample(kindSample(b.dataset.k), 0, 0)); }); }
 function peObj() { const p = kindSample(PE.kind); return edSample(p, p[2] === 'r' ? -p[3] / 2 : 0, p[2] === 'r' ? -p[4] / 2 : 0); }
 function peView() { const c = PE.box.querySelector('.pebig'), o = peObj(), [x0, y0, x1, y1] = o.t === 'r' ? [o.x, o.y, o.x + o.w, o.y + o.h] : [o.x - o.r, o.y - o.r, o.x + o.r, o.y + o.r];
   const s = Math.min((c.width - 80) / (x1 - x0), (c.height - 80) / (y1 - y0), 12); return { c, o, s, ox: c.width / 2, oy: c.height / 2, x0, y0, bw: x1 - x0, bh: y1 - y0 }; }
 function peDraw() {
+  const bc = PE.box.querySelector('.pebefore'); if (bc) { const keep = propCache[PE.kind]; delete propCache[PE.kind]; const x0 = bc.getContext('2d'); x0.fillStyle = PE.bg; x0.fillRect(0, 0, bc.width, bc.height); const tmp = document.createElement('canvas'); tmp.width = bc.width; tmp.height = bc.height; drawPreview(tmp, peObj()); x0.drawImage(tmp, 0, 0); if (keep) propCache[PE.kind] = keep; }
   const v = peView(), x = v.c.getContext('2d'); x.setTransform(1, 0, 0, 1, 0, 0); x.fillStyle = PE.bg; x.fillRect(0, 0, v.c.width, v.c.height);
   x.setTransform(v.s, 0, 0, v.s, v.ox, v.oy);
   try { drawObstacle(x, v.o); if ((v.o.kind === 'tree' || v.o.kind === 'bush') && !(propCache[v.o.kind] || {}).hideBase) { x.globalAlpha = .7; x.fillStyle = (propCache[v.o.kind] || {}).color || v.o.color; circ(x, v.o.x, v.o.y, v.o.r); x.globalAlpha = 1; } } catch (e) {}
@@ -520,23 +581,28 @@ function peMove(e) { if (!PE.drag) return; const p = peGet(), s = p.shapes[PE.se
 function peSide() {
   const p = peGet(), el = PE.box.querySelector('.peside'), def = breakClass(PE.kind), sh = p.shapes || [];
   const bn = { default: `Default (${def === 'never' ? "can't break" : def})`, never: "Can't break", small: 'Breakable: small (Ram I)', large: 'Breakable: large (Ram II)', heavy: 'Breakable: heavy (Ram III)' };
-  el.innerHTML = `<h4>${PE.kind}</h4>
-    <label class="edck"><input type="checkbox" class="pecol" ${p.color ? 'checked' : ''}> Recolor every ${PE.kind}</label><input type="color" class="pecolv" value="${edHex(p.color || kindSample(PE.kind)[5])}" ${p.color ? '' : 'disabled'}>
-    <h4>Behaviour</h4><label class="edck"><input type="checkbox" class="pef" data-f="noCollide" ${p.noCollide ? '' : 'checked'}> Solid: blocks the snake and people</label>
-    <label class="edck"><input type="checkbox" class="pef" data-f="noOutline" ${p.noOutline ? '' : 'checked'}> Dark outline around it</label>
-    <label class="edck"><input type="checkbox" class="pef" data-f="noShadow" ${p.noShadow ? '' : 'checked'}> Casts sun and lamp shadows</label>
-    <h4>Breaking</h4><select class="pebrk">${Object.entries(bn).map(([k, n]) => `<option value="${k}" ${k === (p.breakable || 'default') ? 'selected' : ''}>${n}</option>`).join('')}</select>
-    <p class="edmuted">Which Battering Ram level can smash through it. Very large trees and boulders still hold.</p>
-    <h4>Shapes on top</h4><div class="edbtns">${ED_SHAPES.map(t => `<button data-add="${t}">+ ${t}</button>`).join('')}</div>
-    <label class="edck"><input type="checkbox" class="pehide" ${p.hideBase ? 'checked' : ''}> Hide the original drawing (shapes only)</label>
-    <div class="peshapes">${sh.map((s, i) => `<button data-s="${i}" class="${i === PE.selShape ? 'on' : ''}">${i + 1}. ${s.type}</button>`).join('')}</div>
+  const name = (ED_PROPS.find(q => q[1] === PE.kind) || [PE.kind])[0], base = edHex(kindSample(PE.kind)[5]), edited = !!edLocalProps()[PE.kind];
+  const SW = ['#ffffff', '#1d1d22', '#c0392b', '#e67e22', '#f1c40f', '#27ae60', '#2f6fb0', '#8e44ad', '#7a5a38', '#95a5a6'];
+  const sw = (cls, cur) => `<div class="peswatch">${SW.map(c => `<button class="${cls}" data-c="${c}" style="background:${c}" ${edHex(cur) === c ? 'aria-pressed="true"' : ''}></button>`).join('')}</div>`;
+  const tog = (f, on, t, d) => `<label class="petog"><span><b>${t}</b><small>${d}</small></span><input type="checkbox" class="pef" data-f="${f}" ${on ? 'checked' : ''}><i></i></label>`;
+  const SHI = { rect: '<rect x="5" y="7" width="14" height="10" rx="1"/>', circle: '<circle cx="12" cy="12" r="6"/>', ellipse: '<ellipse cx="12" cy="12" rx="8" ry="5"/>', triangle: '<path d="M12 5l7 13H5z"/>', line: '<path d="M5 12h14"/>', ring: '<circle cx="12" cy="12" r="6" fill="none"/>', cross: '<path d="M12 5v14M5 12h14"/>' };
+  el.innerHTML = `<div class="pettl"><h3>${name}</h3>${edited ? '<span class="pebadge">Edited</span>' : '<span class="pebadge off">Default</span>'}</div>
+    <section><h4>Color</h4><div class="pecolrow"><label class="petog sm"><span><b>Recolor every ${name.toLowerCase()}</b></span><input type="checkbox" class="pecol" ${p.color ? 'checked' : ''}><i></i></label><input type="color" class="pecolv" value="${edHex(p.color || base)}" ${p.color ? '' : 'disabled'}></div>${p.color ? sw('pecs', p.color) : ''}</section>
+    <section><h4>Behaviour</h4>${tog('noCollide', !p.noCollide, 'Solid', 'Blocks the snake and people. Off: walk right through it.')}${tog('noOutline', !p.noOutline, 'Outline', 'The dark edge drawn around things you can crash into.')}${tog('noShadow', !p.noShadow, 'Shadows', 'Casts sun and lamp shadows.')}</section>
+    <section><h4>Battering Ram</h4><div class="peseg">${[['default', 'Default'], ['never', 'Never'], ['small', 'Ram I'], ['large', 'Ram II'], ['heavy', 'Ram III']].map(([k, n]) => `<button data-brk="${k}" class="${k === (p.breakable || 'default') ? 'on' : ''}">${n}</button>`).join('')}</div>
+      <p class="edhint">${(p.breakable || 'default') === 'default' ? `Default for this prop: ${def === 'never' ? "can't be broken" : `breaks from ${{ small: 'Ram I', large: 'Ram II', heavy: 'Ram III' }[def]}`}.` : (p.breakable === 'never' ? "Nothing can break it." : `Breaks once you have ${{ small: 'Ram I', large: 'Ram II', heavy: 'Ram III' }[p.breakable]}.`)} Very large trees and boulders always hold.</p></section>
+    <section><h4>Extra shapes <small>painted on top of the prop</small></h4><div class="peadd">${ED_SHAPES.map(t => `<button data-add="${t}" title="Add a ${t}"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round">${SHI[t]}</svg><span>${t}</span></button>`).join('')}</div>
+      ${tog('hideBase', !!p.hideBase, 'Replace the drawing', 'Hide the original look so only your shapes show.').replace('class="pef"', 'class="pehide"')}
+    <div class="peshapes">${sh.map((s, i) => `<button data-s="${i}" class="${i === PE.selShape ? 'on' : ''}"><i style="background:${s.c}"></i>${i + 1}. ${s.type}</button>`).join('')}</div>
     <div class="peshape"></div>
-    <div class="edbtns" style="margin-top:12px"><button class="pereset">Reset ${PE.kind}</button></div>`;
+    </section><div class="pefoot"><button class="pereset edghost">Reset to default</button><button class="peshare1 edghost">${edSvg('share', 14)} Share this prop</button></div>`;
   el.querySelector('.pecol').onchange = e => { const q = peGet(); if (e.target.checked) q.color = el.querySelector('.pecolv').value; else delete q.color; peSet(q); peSide(); };
   el.querySelector('.pecolv').oninput = e => { const q = peGet(); q.color = e.target.value; peSet(q); };
-  el.querySelectorAll('.pef').forEach(c => c.onchange = () => { const q = peGet(); if (c.checked) delete q[c.dataset.f]; else q[c.dataset.f] = true; peSet(q); });
-  el.querySelector('.pebrk').onchange = e => { const q = peGet(); q.breakable = e.target.value; peSet(q); };
-  el.querySelector('.pehide').onchange = e => { const q = peGet(); q.hideBase = e.target.checked; peSet(q); };
+  el.querySelectorAll('.pef').forEach(c => c.onchange = () => { const q = peGet(); if (c.checked) delete q[c.dataset.f]; else q[c.dataset.f] = true; peSet(q); peSide(); });
+  el.querySelectorAll('[data-brk]').forEach(b => b.onclick = () => { const q = peGet(); q.breakable = b.dataset.brk; peSet(q); peSide(); });
+  el.querySelectorAll('.pecs').forEach(b => b.onclick = () => { const q = peGet(); q.color = b.dataset.c; peSet(q); peSide(); });
+  el.querySelector('.peshare1').onclick = () => edLocalProps()[PE.kind] ? edShare('p:' + PE.kind) : edModal('Nothing to share', `<p>You haven't changed the ${PE.kind} yet.</p>`, [['OK', null, 'edprimary']]);
+  el.querySelector('.pehide').onchange = e => { const q = peGet(); q.hideBase = e.target.checked; peSet(q); peSide(); };
   el.querySelectorAll('[data-add]').forEach(b => b.onclick = () => { const q = peGet(); (q.shapes = q.shapes || []).push({ type: b.dataset.add, x: .5, y: .5, w: .4, h: .4, rot: 0, c: '#ffffff', a: 1, lw: .08 }); PE.selShape = q.shapes.length - 1; peSet(q); peSide(); });
   el.querySelectorAll('[data-s]').forEach(b => b.onclick = () => { PE.selShape = +b.dataset.s; peSide(); peDraw(); });
   el.querySelector('.pereset').onclick = () => { PE.selShape = -1; peSet({}); peSide(); };
@@ -591,7 +657,7 @@ function edFloor(now) { // the ground with every path painted, rebuilt at most ~
   if (!now) { ED.floorDirty = true; return; }
   ED.floorDirty = false; ED.floorT = performance.now();
   const x = ED.floor.getContext('2d'); x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, ED.floor.width, ED.floor.height); x.drawImage(ED.floorBase, 0, 0);
-  x.setTransform(DPR, 0, 0, DPR, 0, 0); try { paintTrails(x, ED.trails); } catch (e) { console.warn(e); }
+  x.setTransform(DPR, 0, 0, DPR, 0, 0); try { paintTrails(x, ED.trails.filter(t => !t._hide)); } catch (e) { console.warn(e); }
 }
 function edFinishDraft() {
   const d = ED.draft; ED.draft = null; if (!d) return;
@@ -700,3 +766,89 @@ function edPicker(anchor, set, cur, onPick) {
   const q = pop.querySelector('.edpops'); if (q) { q.focus(); q.oninput = () => pop.querySelectorAll('button').forEach(b => { b.style.display = b.textContent.toLowerCase().includes(q.value.toLowerCase()) || b.dataset.v.includes(q.value.toLowerCase()) ? '' : 'none'; }); }
   setTimeout(() => { const off = ev => { if (!pop.contains(ev.target)) { pop.remove(); removeEventListener('pointerdown', off, true); } }; addEventListener('pointerdown', off, true); }, 0);
 }
+
+/* ---- status bar, minimap ---- */
+function edStatusBar(r) {
+  const R = ED.root; if (!R) return; const t = ED_TOOLS.find(q => q[0] === ED.tool);
+  R.querySelector('.edst-tool').textContent = ED.draft ? (ED.draft.kind === 'path' ? `Drawing a path · ${ED.draft.pts.length} points · A add point · E/Enter end · Esc cancel` : `Drawing water · ${ED.draft.pts.length} points · click the first point or Enter to fill`) : ED.tool === 'prop' && ED.ghost ? `Placing: ${ED.ghost[0]} (Shift keeps placing)` : (t ? t[1] : '');
+  R.querySelector('.edst-sel').textContent = ED.sel.length ? `${ED.sel.length} selected` : `${ED.obs.length} objects · ${ED.lights.length} lights · ${ED.trails.length} paths`;
+  if (ED.mouse) { const [mx, my] = edW(...ED.mouse); ED.coords.textContent = `x ${Math.round(mx)}  y ${Math.round(my)}`; }
+  R.querySelector('.edzv').textContent = Math.round(ED.z * 100 / (Math.min(r.width / W, r.height / H) * .95)) + '%';
+}
+function edMinimap(r) {
+  const c = ED.mm, x = c.getContext('2d'), s = Math.min(c.width / W, c.height / H);
+  if (!ED.mmT || performance.now() - ED.mmT > 400) { ED.mmT = performance.now(); // the map itself is redrawn twice a second
+    x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, c.width, c.height); x.setTransform(s, 0, 0, s, 0, 0); x.drawImage(ED.floor, 0, 0, W, H);
+    for (const o of ED.obs) if (!o._hide) { x.fillStyle = o.kind === 'water' ? '#4aa3df' : o.color || '#888'; fillObs(x, o); } ED.mmImg = x.getImageData(0, 0, c.width, c.height); }
+  else if (ED.mmImg) x.putImageData(ED.mmImg, 0, 0);
+  x.setTransform(1, 0, 0, 1, 0, 0); const [a0, b0] = edW(0, 0), [a1, b1] = edW(r.width, r.height);
+  x.strokeStyle = '#fff'; x.lineWidth = 1.5; x.strokeRect(a0 * s, b0 * s, (a1 - a0) * s, (b1 - b0) * s);
+}
+/* ---- layers ---- */
+function edLayerName(t, o) { return t === 'l' ? `Light · ${o.kind || 'fixed'}` : t === 'p' ? `Path · ${PATH_STYLES[o.style || 'dirt']}` : o.poly ? 'Water (shape)' : ((ED_PROPS.find(p => p[1] === o.kind) || [o.kind])[0]); }
+function edLayers() {
+  const el = ED.root && ED.root.querySelector('.edlayers'); if (!el || el.style.display === 'none') return;
+  const q = (ED.layQ || '').toLowerCase(), f = ED.layF || 'all';
+  const rows = [...ED.obs.map((o, i) => ['o', i, o]), ...ED.lights.map((o, i) => ['l', i, o]), ...ED.trails.map((o, i) => ['p', i, o])]
+    .filter(([t, i, o]) => (f === 'all' || (f === 'props' && t === 'o' && !o.poly) || (f === 'lights' && t === 'l') || (f === 'paths' && t === 'p') || (f === 'water' && t === 'o' && o.poly)) && edLayerName(t, o).toLowerCase().includes(q)).reverse();
+  el.innerHTML = `<input class="edsearch edlq" placeholder="Search layers…" value="${q}"><div class="edchips">${['all', 'props', 'lights', 'paths', 'water'].map(k => `<button data-lf="${k}" class="${f === k ? 'on' : ''}">${k}</button>`).join('')}</div>
+    <div class="edlrows">${rows.slice(0, 400).map(([t, i, o]) => { const on = ED.sel.some(s => s.t === t && s.i === i); return `<div class="edlrow ${on ? 'on' : ''} ${o._hide ? 'hid' : ''}" data-t="${t}" data-i="${i}"><i class="sw" style="background:${t === 'l' ? `rgb(${edLightCol(o)})` : t === 'p' ? (EDGE_COL[o.style] || '#b79a68') : o.poly ? '#4aa3df' : o.color}"></i><span>${edLayerName(t, o)}</span>
+      <button class="lv ${o._hide ? '' : 'on'}" title="Show / hide in the editor">${edSvg('eye', 13)}</button><button class="lk ${o._lock ? 'on' : ''}" title="Lock: can't be clicked on the map">${edSvg('lock', 13)}</button></div>`; }).join('')}${rows.length > 400 ? `<p class="edhint">${rows.length - 400} more… search to narrow it down</p>` : ''}${rows.length ? '' : '<p class="edhint">Nothing here.</p>'}</div>`;
+  const lq = el.querySelector('.edlq'); lq.oninput = () => { ED.layQ = lq.value; edLayers(); const n = ED.root.querySelector('.edlq'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); };
+  el.querySelectorAll('[data-lf]').forEach(b => b.onclick = () => { ED.layF = b.dataset.lf; edLayers(); });
+  el.querySelectorAll('.edlrow').forEach(r => { const t = r.dataset.t, i = +r.dataset.i, o = edItem({ t, i });
+    r.onclick = e => { if (e.target.closest('button')) return; const it = { t, i }; ED.sel = e.shiftKey || e.ctrlKey ? (ED.sel.some(s => edSame(s, it)) ? ED.sel.filter(s => !edSame(s, it)) : [...ED.sel, it]) : [it]; edPanel(); };
+    r.ondblclick = () => { ED.sel = [{ t, i }]; edFocus(); edPanel(); };
+    r.querySelector('.lv').onclick = () => { edPush(); if (o._hide) delete o._hide; else o._hide = true; if (t === 'p') edFloor(true); edLayers(); };
+    r.querySelector('.lk').onclick = () => { edPush(); if (o._lock) delete o._lock; else o._lock = true; edLayers(); }; });
+}
+/* ---- right-click menu ---- */
+function edContext(cx, cy, wx, wy) {
+  document.querySelectorAll('.edctx').forEach(m => m.remove());
+  const hit = edHit(wx, wy); if (hit && !ED.sel.some(s => edSame(s, hit))) { ED.sel = [hit]; edPanel(); }
+  const has = ED.sel.length > 0, items = has ? [['dup', 'Duplicate', 'Ctrl+D'], ['copy', 'Copy', 'Ctrl+C'], ['paste', 'Paste here', 'Ctrl+V'], ['del', 'Delete', 'Del'], '-', ['rotL', `Rotate −${ED.snaps.rot.step}°`, 'Shift+Q'], ['rotR', `Rotate +${ED.snaps.rot.step}°`, 'Q'], ['front', 'Bring to front'], ['back', 'Send to back'], '-', ['focus', 'Focus', 'F'], ['lock', 'Lock', 'Ctrl+L'], ['hide', 'Hide', 'Ctrl+H'], ...(ED.sel.length === 1 && ED.sel[0].t === 'o' ? [['propEd', `Edit every ${edItem(ED.sel[0]).kind}…`]] : [])]
+    : [['paste', 'Paste here', 'Ctrl+V'], ['all', 'Select all', 'Ctrl+A'], '-', ['tool:wall', 'Draw wall', 'W'], ['tool:path', 'Draw path', 'T'], ['tool:water', 'Draw water', 'Y'], ['tool:light', 'Add light', 'L'], '-', ['fit', 'Fit map', '0']];
+  const m = document.createElement('div'); m.className = 'edctx edmlist';
+  m.innerHTML = items.map(it => it === '-' ? '<hr>' : `<button data-c="${it[0]}"><span>${it[1]}</span>${it[2] ? `<kbd>${it[2]}</kbd>` : ''}</button>`).join('');
+  document.body.appendChild(m); m.style.left = Math.min(cx, innerWidth - 230) + 'px'; m.style.top = Math.min(cy, innerHeight - m.offsetHeight - 8) + 'px';
+  const extra = { rotL: () => edRotateBy(-ED.snaps.rot.step), rotR: () => edRotateBy(ED.snaps.rot.step), front: () => edOrder(true), back: () => edOrder(false) };
+  m.querySelectorAll('[data-c]').forEach(b => b.onclick = () => { m.remove(); const c = b.dataset.c; if (extra[c]) extra[c](); else edCmd(c); });
+  setTimeout(() => { const off = ev => { if (!m.contains(ev.target)) { m.remove(); removeEventListener('pointerdown', off, true); } }; addEventListener('pointerdown', off, true); }, 0);
+}
+/* ---- leaving: offer to share first ---- */
+function edModal(title, body, buttons) { // a small dialog; buttons: [label, fn, style]
+  document.querySelectorAll('.edmodal').forEach(m => m.remove());
+  const m = document.createElement('div'); m.className = 'edmodal';
+  m.innerHTML = `<div class="edmwin"><h3>${title}</h3><div class="edmbody">${body}</div><div class="edmbtns">${buttons.map(([l, , st], i) => `<button data-b="${i}" class="${st || ''}">${l}</button>`).join('')}</div></div>`;
+  document.body.appendChild(m); m.querySelectorAll('[data-b]').forEach(b => b.onclick = () => { const f = buttons[+b.dataset.b][1]; if (f !== 'keep') m.remove(); if (typeof f === 'function') f(m); });
+  m.onpointerdown = e => { if (e.target === m) m.remove(); };
+  return m;
+}
+const _edClose = closeEditor;
+closeEditor = function (play) {
+  if (play || !ED.unshared) return _edClose(play);
+  edModal('Leave the map editor?', `<p>Your changes are saved in this browser, but you haven't shared them yet. Share them so they can be added to the game for everyone.</p>`,
+    [['Stay', null, ''], ['Leave without sharing', () => { ED.unshared = false; _edClose(); }, 'warn'], ['Share first', () => edShare(), 'edprimary']]);
+};
+/* ---- sharing: everything you edited, or just one thing ---- */
+function edLocalProps() { try { return JSON.parse(localStorage.getItem('snakeCarnagePropDefs')) || {}; } catch (e) { return {}; } }
+function edShareItems() { const maps = localMapEdits(), props = edLocalProps();
+  return [...Object.keys(maps).map(k => ({ id: 'm:' + k, label: `Map: ${k.split('@')[0]}`, sub: `${k.split('@')[1]} wide · ${maps[k].obs.length} objects, ${(maps[k].lights || []).length} lights, ${(maps[k].trails || []).length} paths` })),
+    ...Object.keys(props).map(k => ({ id: 'p:' + k, label: `Prop: ${k}`, sub: Object.keys(props[k]).join(', ') || 'reset to default' }))]; }
+function edSharePayload(ids) { const maps = localMapEdits(), props = edLocalProps(), out = { maps: {}, props: {} };
+  for (const id of ids) { const [t, k] = [id.slice(0, 1), id.slice(2)]; if (t === 'm') out.maps[k] = maps[k]; else out.props[k] = props[k]; }
+  return `SNAKE CARNAGE EDITS v1 (paste this to Claude to add it to the game)\n${JSON.stringify(out)}`; }
+edShare = function (only) {
+  if (ED.open) edSave(); const items = edShareItems();
+  if (!items.length) return edModal('Nothing to share yet', '<p>Edit a map or a prop first. Only things you changed are shared.</p>', [['OK', null, 'edprimary']]);
+  const m = edModal('Share your edits', `<div class="edshopt"><label class="edrad"><input type="radio" name="shs" value="all" ${only ? '' : 'checked'}><span><b>Everything I've edited</b><small>${items.map(i => i.label).join(' · ')}</small></span></label>
+      <label class="edrad"><input type="radio" name="shs" value="one" ${only ? 'checked' : ''}><span><b>Just one</b><select class="edsh1">${items.map(i => `<option value="${i.id}" ${i.id === only ? 'selected' : ''}>${i.label} (${i.sub})</option>`).join('')}</select></span></label></div>
+    <textarea readonly class="edshtxt"></textarea><p class="edhint edshmsg">Copy this and paste it into your chat with Claude, or download it as a file and attach that.</p>`,
+    [['Close', null, ''], ['Download file', mm => { const t = mm.querySelector('.edshtxt').value, a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([t], { type: 'text/plain' })); a.download = 'snake-carnage-edits.txt'; a.click(); ED.unshared = false; mm.querySelector('.edshmsg').textContent = 'Downloaded snake-carnage-edits.txt: attach it in the chat.'; }, 'keepopen'],
+     ['Copy to clipboard', mm => { const ta = mm.querySelector('.edshtxt'); (navigator.clipboard ? navigator.clipboard.writeText(ta.value) : Promise.reject()).catch(() => { ta.select(); document.execCommand('copy'); }).finally(() => { ED.unshared = false; mm.querySelector('.edshmsg').textContent = 'Copied. Paste it into the chat.'; }); }, 'edprimary keepopen']]);
+  const upd = () => { const all = m.querySelector('input[value="all"]').checked; m.querySelector('.edsh1').disabled = all; m.querySelector('.edshtxt').value = edSharePayload(all ? items.map(i => i.id) : [m.querySelector('.edsh1').value]); };
+  m.querySelectorAll('input[name="shs"],.edsh1').forEach(el => el.onchange = upd); upd();
+  // the two action buttons stay open (they report what happened)
+  const btns = m.querySelectorAll('[data-b]'); btns[1].onclick = () => { const t = m.querySelector('.edshtxt').value, a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([t], { type: 'text/plain' })); a.download = 'snake-carnage-edits.txt'; a.click(); ED.unshared = false; m.querySelector('.edshmsg').textContent = 'Downloaded snake-carnage-edits.txt: attach it in the chat.'; };
+  btns[2].onclick = () => { const ta = m.querySelector('.edshtxt'); (navigator.clipboard ? navigator.clipboard.writeText(ta.value) : Promise.reject()).catch(() => { ta.select(); document.execCommand('copy'); }).finally(() => { ED.unshared = false; m.querySelector('.edshmsg').textContent = 'Copied. Paste it into the chat.'; }); };
+};

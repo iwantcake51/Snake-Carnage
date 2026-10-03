@@ -99,10 +99,15 @@ const OLC = document.createElement('canvas'), OLX = OLC.getContext('2d');
 OLC.width = OLC.height = 80;
 const fogR = a => 1 + .11 * Math.sin(3 * a + T * .23) + .07 * Math.sin(5 * a - T * .37 + 1.3) + .04 * Math.sin(9 * a + T * .61 + 4); // the fog's edge billows: lobes that slowly drift and change shape
 function fogBlob(x, cx, cy, r, ph) { x.beginPath(); for (let k = 0; k <= 48; k++) { const a = k / 48 * TAU, rr = r * fogR(a + ph); k ? x.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr) : x.moveTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); } x.closePath(); x.fill(); }
+function fogTex() { // soft cloud tile: light and dark puffs, tiled seamlessly
+  if (fogTex.c) return fogTex.c; const s = 256, c = document.createElement('canvas'); c.width = c.height = s; const x = c.getContext('2d'), r = seeded(91);
+  for (let i = 0; i < 70; i++) { const px = r() * s, py = r() * s, rad = 18 + r() * 46, light = r() < .5; for (const ox of [-s, 0, s]) for (const oy of [-s, 0, s]) { const g = x.createRadialGradient(px + ox, py + oy, 0, px + ox, py + oy, rad); g.addColorStop(0, light ? 'rgba(255,255,255,.35)' : 'rgba(0,0,0,.28)'); g.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = g; x.fillRect(px + ox - rad, py + oy - rad, rad * 2, rad * 2); } }
+  return fogTex.c = c;
+}
 function playerSees(x, y) { // 0..1 how visible a point is through heavy fog / tunnel vision
   if (!snake || (!MOD.fog && !MOD.fow)) return 1;
   const dx = x - snake.x, dy = y - snake.y, d = Math.hypot(dx, dy);
-  if (MOD.fog) { const R = fogR(Math.atan2(dy, dx)); return clamp(1 - (d - 105 * R) / 70, 0, 1); }
+  if (MOD.fog) { const R = fogR(Math.atan2(dy, dx)); return clamp(1 - (d - 100 * R) / 120, 0, 1); }
   const near = clamp(1 - (d - 52) / 22, 0, 1), ang = Math.abs(angDiff(snake.angle, Math.atan2(dy, dx)));
   const cone = clamp((.85 - ang) / .18, 0, 1) * clamp((285 - d) / 60, 0, 1);
   return Math.max(near, cone);
@@ -114,11 +119,21 @@ function drawVisionMask(x) { // opaque haze everywhere you can't see
   vctx.globalCompositeOperation = 'source-over'; vctx.clearRect(-60, -60, W + 120, H + 120);
   vctx.fillStyle = col; vctx.fillRect(-60, -60, W + 120, H + 120);
   vctx.globalCompositeOperation = 'destination-out';
-  if ('filter' in vctx) vctx.filter = 'blur(10px)';
+  if ('filter' in vctx && !MOD.fog) vctx.filter = 'blur(10px)'; // fog fades with gradients instead
   vctx.fillStyle = '#000';
-  if (MOD.fog) { // layered, irregular clearing: a clear core, then two thinner rings, each with its own drifting lobes
-    for (const [r, al, ph] of [[178, .28, 2.1], [140, .5, 1.1], [100, 1, 0]]) { vctx.globalAlpha = al; fogBlob(vctx, snake.x, snake.y, r, ph); }
-    vctx.globalAlpha = 1;
+  if (MOD.fog) { // a soft, lobed clearing that trails a little behind you: each ring fades out over its whole width, so the edge never just stops
+    const fc = drawVisionMask.fc || (drawVisionMask.fc = { x: snake.x, y: snake.y, t: T }), dt = clamp(T - fc.t, 0, .1); fc.t = T;
+    if (Math.hypot(snake.x - fc.x, snake.y - fc.y) > 300) { fc.x = snake.x; fc.y = snake.y; } const k = 1 - Math.exp(-dt * 5); fc.x += (snake.x - fc.x) * k; fc.y += (snake.y - fc.y) * k;
+    for (const [r, al, ph] of [[250, .22, 2.1], [195, .45, 1.1], [150, .8, 0], [105, 1, .6]]) {
+      const g = vctx.createRadialGradient(fc.x, fc.y, r * .25, fc.x, fc.y, r * 1.12); g.addColorStop(0, `rgba(0,0,0,${al})`); g.addColorStop(.55, `rgba(0,0,0,${al * .8})`); g.addColorStop(1, 'rgba(0,0,0,0)');
+      vctx.fillStyle = g; fogBlob(vctx, fc.x, fc.y, r, ph); }
+    vctx.fillStyle = '#000'; circ(vctx, snake.x, snake.y, 46); // you can always see yourself
+    if (!SETTINGS.simpleFx) { // drifting cloud texture inside the fog (world-anchored, so moving shows it sliding past)
+      vctx.filter = 'none'; vctx.globalCompositeOperation = 'source-atop';
+      const pt = fogTex(), pat = vctx.createPattern(pt, 'repeat');
+      for (const [sp, al, sc] of [[6, .22, 1], [-4, .16, 1.7]]) { vctx.save(); vctx.globalAlpha = al; vctx.translate(T * sp, T * sp * .4); vctx.scale(sc, sc); vctx.fillStyle = pat; vctx.fillRect(-T * sp / sc - 300, -T * sp * .4 / sc - 300, (W + 600) / sc, (H + 600) / sc); vctx.restore(); }
+      vctx.globalCompositeOperation = 'destination-out';
+    }
   }
   else {
     circ(vctx, snake.x, snake.y, 60);
