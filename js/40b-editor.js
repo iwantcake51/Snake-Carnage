@@ -384,6 +384,17 @@ function edBuildUI() {
   root.querySelector('.edmap').onchange = e => { edSave(); const i = +e.target.value; cancelAnimationFrame(ED.raf); root.remove(); removeEventListener('keydown', edKey, true); removeEventListener('keyup', edKey, true); openEditor(i); };
   addEventListener('keydown', edKey, true); addEventListener('keyup', edKey, true);
   root.querySelector('.edpe').onclick = () => edCmd('propEd');
+  { // the controls panel: drag it by its title, resize it from the corner; both remembered
+    const h = root.querySelector('.edhelp'), t = h.querySelector('b'); t.classList.add('edhdrag'); t.title = 'Drag to move';
+    try { const g = JSON.parse(localStorage.getItem('snakeEdHelpBox')); if (g) { h.style.left = g.l + 'px'; h.style.setProperty('top', g.t + 'px', 'important'); h.style.width = g.w + 'px'; if (g.h) h.style.height = g.h + 'px'; } } catch (e) {}
+    const keep = () => { const v = root.querySelector('.edview').getBoundingClientRect(), r = h.getBoundingClientRect();
+      const l = clamp(r.left - v.left, 0, Math.max(0, v.width - 80)), tp = clamp(r.top - v.top, 0, Math.max(0, v.height - 40)); h.style.left = l + 'px'; h.style.setProperty('top', tp + 'px', 'important');
+      try { localStorage.setItem('snakeEdHelpBox', JSON.stringify({ l, t: tp, w: r.width, h: h.style.height ? r.height : 0 })); } catch (e) {} };
+    t.onpointerdown = e => { e.preventDefault(); t.setPointerCapture(e.pointerId); const v = root.querySelector('.edview').getBoundingClientRect(), r = h.getBoundingClientRect(), ox = e.clientX - r.left, oy = e.clientY - r.top;
+      t.onpointermove = ev => { h.style.left = clamp(ev.clientX - v.left - ox, 0, v.width - 80) + 'px'; h.style.setProperty('top', clamp(ev.clientY - v.top - oy, 0, v.height - 40) + 'px', 'important'); h.style.right = 'auto'; };
+      t.onpointerup = () => { t.onpointermove = null; keep(); }; };
+    new ResizeObserver(() => { if (h.offsetWidth) { clearTimeout(h._t); h._t = setTimeout(keep, 200); } }).observe(h);
+  }
   root.querySelector('.edhelpx').onclick = () => edToggle('help'); root.querySelector('.edhelpbtn').onclick = () => edToggle('help');
   try { if (localStorage.getItem('snakeEdHelp') === '0') { ED.help = true; edToggle('help'); } else root.querySelector('.edhelpbtn').style.display = 'none'; } catch (e) {}
   edPreviews(); edTool('select'); edPanel();

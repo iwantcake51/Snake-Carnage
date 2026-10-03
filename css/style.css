@@ -1700,3 +1700,6 @@ body.compact .menu .mlevel{position:relative;z-index:2}
 .pelist span{text-transform:capitalize}
 /* once hidden for the run, the modifier strip stays hidden: the "near the snake" fade must not bring it back */
 #stage.started #modbar,#stage.started #modbar.near{opacity:0!important;visibility:hidden;pointer-events:none}
+.edhelp{resize:both;overflow:auto;min-width:220px;min-height:90px;max-width:none!important}
+.edhelp .edhdrag{display:block;cursor:move;user-select:none;margin:-10px -12px 4px;padding:10px 40px 6px 12px}
+.edhelp::-webkit-resizer{background:linear-gradient(135deg,transparent 50%,#6a6070 50%,#6a6070 60%,transparent 60%,transparent 70%,#6a6070 70%,#6a6070 80%,transparent 80%)}
