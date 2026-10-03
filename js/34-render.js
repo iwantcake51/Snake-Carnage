@@ -162,6 +162,8 @@ function bakeBlurBg() { // blur the frozen frame into its own pixels once, so th
     ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.filter = `blur(${Math.round(6 * DPR)}px) saturate(.35) brightness(.8)`; ctx.drawImage(blurTmp, 0, 0); ctx.restore(); ctx.filter = 'none'; } catch (e) {}
 }
 function frame(now) {
+  const cap = +SETTINGS.fpsCap; // VSync -> NaN: draw every refresh
+  if (cap && now - last < 1000 / cap - 2) { requestAnimationFrame(frame); return; }
   const raw = now - last; if (raw < 200) frameMs += (raw - frameMs) * .03;
   if (!lowFx && frameMs > 24) { lowFx = true; fastT = 0; }
   else if (lowFx && frameMs < 15) { if ((fastT += raw) > 8000) lowFx = false; } else fastT = 0; // only back to full quality after 8s of clearly fast frames
@@ -193,7 +195,7 @@ function drawDanceFloor(x) {
   for (let j = 0; j < 6; j++) for (let i = 0; i < 9; i++) {
     const h = (i * 7 + j * 13 + bar * 5) % 11, on = (h + Math.floor(beat)) % 3 === 0;
     x.fillStyle = cols[(i + j + bar) % cols.length]; x.globalAlpha = on ? .32 + .38 * pulse : .08;
-    x.fillRect(302 + i * 40, 222 + j * 43.3, 36, 39);
+    x.fillRect(XO + 302 + i * 40, 222 + j * 43.3, 36, 39);
   }
   x.globalAlpha = 1;
 }

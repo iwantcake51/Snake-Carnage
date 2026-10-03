@@ -142,7 +142,7 @@ document.getElementById('menuBtn').onclick = () => { if (['play', 'ready', 'intr
 let boardScale = 1;
 function fit() {
   const small = innerHeight < 560 || innerWidth < 760; document.body.classList.toggle('phone', small); // phones: thin bar, no margins
-  const barH = small ? 34 : 70, pad = small ? 4 : 24;
+  const barH = (small ? 0 : 30) + (bar.offsetHeight || 40), pad = small ? 4 : 24; // the real bar height: the board never runs off the bottom
   const s = boardScale = Math.min((innerWidth - pad) / W, (innerHeight - barH) / H, 2.2); // render the game larger when there's room
   cv.style.width = W * s + 'px'; cv.style.height = H * s + 'px'; bar.style.width = W * s + 'px';
   applyUiScale();

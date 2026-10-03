@@ -69,7 +69,7 @@ function bakeOutline() {
 }
 let curBuild = null;
 const [plainC, plainX] = makeLayer();
-function drawObstacleLayer(x = octx, b = curBuild, list = obstacles, ls = MAPS[mapIdx].lights || (b && b.lights) || []) { // walls and objects, then the details on top of them
+function drawObstacleLayer(x = octx, b = curBuild, list = obstacles, ls = (b && b.lights) || MAPS[mapIdx].lights || []) { // walls and objects, then the details on top of them
   x.clearRect(0, 0, W, H); list.forEach(o => drawObstacle(x, o));
   if (b && b.decor) b.decor(x);
   if (x === octx) snowCaps(x, list);
@@ -93,7 +93,7 @@ function nudgeLamps(list, paths, roads = []) { // a lamp post standing in the mi
     if (l < .5) { nx = 0; ny = 1; } else { nx /= l; ny /= l; }
     for (const sg of [1, -1]) { const x = best[0] + nx * need * sg, y = best[1] + ny * need * sg;
       if (inRoadRect(x, y, o.r, roads) || hitsSolid(list, o, x, y, o.r)) continue; // never into the traffic or a wall
-      o.x = x; o.y = y; for (const l2 of (MAPS[mapIdx].lights || [])) if (l2.o === o) { l2.x = o.x; l2.y = o.y; } break; }
+      o.x = x; o.y = y; for (const l2 of ((curBuild && curBuild.lights) || MAPS[mapIdx].lights || [])) if (l2.o === o) { l2.x = o.x; l2.y = o.y; } break; }
   }
 }
 function tidyPlacement(list, roads) {
@@ -115,7 +115,7 @@ function tidyPlacement(list, roads) {
 function loadMap(idx, sz) {
   mapIdx = idx; season = sz || null; // a season only for runs on outdoor maps; menus show the plain map
   bunkerCache = null; if (MAPS[idx].name === 'Bunker') bunkerLock = Math.random() < .35; // some runs the bunker is in lockdown
-  const m = MAPS[idx], b = m.build();
+  const m = MAPS[idx], b = m.build(); curBuild = b;
   Sfx.setMuffle(!!m.space && !m.indoor); // thin air on the surface; inside a pressurized station sound is normal
   obstacles = splitBreakables(addBreakWalls([...borderWalls(m.border), ...b.obs], m.name));
   nudgeLamps(obstacles, b.paths || [], b.roads || []); tidyPlacement(obstacles, b.roads || []);

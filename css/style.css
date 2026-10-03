@@ -1463,3 +1463,22 @@ input[type=range]{accent-color:var(--acc)}
 #stage.menuBg::after{inset:0;background:repeating-linear-gradient(115deg,transparent 0 46px,rgba(255,255,255,.018) 46px 48px),radial-gradient(100% 80% at 50% 50%,transparent 55%,rgba(0,0,0,.65));animation:none}
 @keyframes mbgDrift{0%{transform:scale(1) rotate(0deg)}100%{transform:scale(1.12) rotate(6deg)}}
 @media (prefers-reduced-motion:reduce){#stage.menuBg::before{animation:none}}
+/* small screens: nothing gets clipped, everything that can't fit scrolls */
+.menu{align-items:safe center;align-content:safe center}
+body.compact .menu{align-items:start}
+body.compact .panel.set,body.compact .panel.shop2{grid-template-columns:max-content minmax(0,1fr)!important}
+body.compact .snav{overflow-y:auto;overflow-x:hidden;padding:12px 8px 10px;min-width:0}
+body.compact .snav h1{font-size:20px!important;margin:0 8px 8px!important;white-space:nowrap}
+body.compact .snav .tab{white-space:nowrap}
+body.compact .snav .btn{margin-top:10px}
+body.compact .panel.set>:not(.snav),body.compact .panel.shop2>:not(.snav){min-width:0;overflow-y:auto}
+body.compact .srow2{gap:12px;flex-wrap:wrap}
+body.compact .srow2>div:first-child{flex:1 1 220px;min-width:0}
+body.compact .sseg{flex-wrap:wrap;max-width:100%}
+body.compact .menu .mright{min-height:auto}
+body.compact .menu .logo .l2{font-size:64px}
+body.compact .mlevel{margin-top:6px}
+body.phone .menu{padding:10px 14px 18px;gap:14px}
+body.phone #overlay .panel:not(.set):not(.shop2){overflow-y:auto}
+body.compact .menu .logo .l2{font-size:64px!important}
+body.compact .menu .mlevel{position:relative;z-index:2}

@@ -19,9 +19,9 @@ const stage = document.getElementById('stage'), intro = document.getElementById(
 function makeThumbs() { // rendered preview of every map (used by the cards, the roll and the intro)
   return MAPS.map(m => {
     const [c, x] = makeLayer(), b = m.build();
-    b.floor(x); const [oc, ox] = makeLayer(); drawObstacleLayer(ox, b, [...borderWalls(m.border), ...b.obs], m.lights || b.lights || []); x.drawImage(oc, 0, 0, W, H);
+    b.floor(x); const [oc, ox] = makeLayer(); drawObstacleLayer(ox, b, [...borderWalls(m.border), ...b.obs], b.lights || m.lights || []); x.drawImage(oc, 0, 0, W, H);
     const t = document.createElement('canvas'); t.width = 480; t.height = 320;
-    t.getContext('2d').drawImage(c, 0, 0, 480, 320);
+    t.getContext('2d').drawImage(c, XO * DPR, 0, MW * DPR, H * DPR, 0, 0, 480, 320); // the card shows the original middle of the map
     return t.toDataURL ? t.toDataURL() : '';
   });
 }
@@ -290,6 +290,9 @@ const SETTING_TABS = {
     ['seg', 'bloodFade', 'Blood fades', 'How long blood stays on the ground and walls.', ['Never', 'Slow', 'Normal', 'Fast']],
     ['seg', 'season', 'Season', 'Outdoor maps only. Random picks one each run.', ['Random', 'Spring', 'Summer', 'Autumn', 'Winter']]] },
   Graphics: { icon: 'graphics', lead: 'Look and feel of the picture.', rows: [
+    ['toggle', 'fullscreen', 'Fullscreen', 'Fill the whole screen. Esc or F11 leaves it.'],
+    ['seg', 'renderRes', 'Render resolution', 'How many pixels the game draws. Lower is much faster and a bit softer. Changing it reloads the game.', ['50%', '75%', '100%', '125%', 'Auto']],
+    ['seg', 'fpsCap', 'Frame rate', 'VSync matches your screen. A cap saves battery and heat.', ['30', '60', '120', 'VSync']],
     ['slider', 'darkness', 'Darkness', 'Overall dimness of the scene.', 0, .7, .05],
     ['slider', 'pixel', 'Pixelation', 'Chunky pixel look. Off shows full detail.', 1, 8, 1],
     ['seg', 'lightQ', 'Lighting', 'High: full dynamic lighting. Medium: fewer moving shadows. Low: baked shadows only, cheapest.', ['Low', 'Medium', 'High']],
@@ -339,6 +342,8 @@ function applySetting(k) { // side effects of a setting change
   if (k === 'uiScale') { applyUiScale(); requestAnimationFrame(() => overlay.querySelectorAll('.seg,.sseg').forEach(sg => placeThumb(sg, true))); }
   if (k === 'mapOutlines') { drawObstacleLayer(); bakeOutline(); }
   if (k === 'lightQ') resizeLights();
+  if (k === 'fullscreen') setFullscreen(SETTINGS.fullscreen);
+  if (k === 'renderRes') setTimeout(() => location.reload(), 150); // every layer is sized from it at startup
   if (k === 'bloodQ' || k === 'bloodFade') bloodQualityChanged();
   if (k === 'timeMode') { const t = SETTING_TABS.Gameplay.rows; overlay.querySelectorAll('[data-row]').forEach(r => { const row = t.find(x => x[1] === r.dataset.row); if (row && row[7]) r.classList.toggle('dim', !row[7]()); }); }
 }
@@ -373,3 +378,13 @@ function showSettings(tab = settingsTab) {
   });
   document.getElementById('backBtn').onclick = () => transitionTo(settingsFrom === 'pause' ? showPause : showMenu);
 }
+
+function setFullscreen(on) {
+  try { if (on && !document.fullscreenElement) (document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen).call(document.documentElement, { navigationUI: 'hide' }).catch(() => {});
+    else if (!on && document.fullscreenElement) document.exitFullscreen(); } catch (e) {}
+}
+document.addEventListener('fullscreenchange', () => { // Esc/F11 leave it too: keep the switch honest
+  SETTINGS.fullscreen = !!document.fullscreenElement; saveSettings();
+  const t = overlay.querySelector('.tgl[data-k="fullscreen"]'); if (t) { t.classList.toggle('on', SETTINGS.fullscreen); t.setAttribute('aria-checked', SETTINGS.fullscreen); }
+});
+if (SETTINGS.fullscreen) { SETTINGS.fullscreen = false; const go = () => { removeEventListener('pointerdown', go, true); removeEventListener('keydown', go, true); setFullscreen(true); }; addEventListener('pointerdown', go, true); addEventListener('keydown', go, true); } // browsers need a click first: go back to fullscreen on it

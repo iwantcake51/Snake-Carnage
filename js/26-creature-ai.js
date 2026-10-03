@@ -114,12 +114,15 @@ function updateCreature(c, dt) {
     const nx = c.x + Math.cos(c.a) * mv * dt, ny = c.y + Math.sin(c.a) * mv * dt;
     if (mv <= 0) { /* sitting between hops */ }
     else if (free(nx, ny, d.r * .8)) { moved = mv * dt; c.x = nx; c.y = ny; }
+    else if (slideMove(c, a, mv * dt)) moved = mv * dt * .8; // brush along the wall/tree/post instead of stopping dead against it
     else { c.steerT = 0; if (d.hop) c.hopT = 0; if (T - (c.sideT || -9) > .8) { c.side = -c.side; c.sideT = T; } } // re-steer, but don't flip sides every frame
     if (mv > 0) c.stuck = moved < mv * dt * .3 ? (c.stuck || 0) + dt : 0;
     if (c.state === 'wander' && c.stuck > .4) { // notice it isn't getting anywhere: remember where it was headed, turn to open ground, go
       noteSpot(c); (c.failed = c.failed || []).push({ x: c.x + Math.cos(c.wa) * 80, y: c.y + Math.sin(c.wa) * 80, t: T }); if (c.failed.length > 4) c.failed.shift();
       c.detour = { a: openDir(c), t: rand(1.2, 2.4) }; c.wa = c.detour.a; c.steerA = undefined; c.stuck = 0; }
   }
+  if (!free(c.x, c.y, d.r * .6)) unstick(c, dt); // ended up inside something (shoved, spawned, a door shut): walk out of it
+  else if ((c.stuck || 0) > 1.4) { const a = escapeDir(c); if (a !== null) { c.a = a; c.steerA = a; c.steerT = .5; c.detour = { a, t: .8 }; } c.stuck = .5; } // long stuck: pick the clearest way out and commit
   if (c.kb && c.kb.t > 0) { c.kb.t -= dt; const nx = c.x + c.kb.vx * dt, ny = c.y + c.kb.vy * dt; if (free(nx, ny, d.r * .8)) { c.x = nx; c.y = ny; } c.kb.vx *= .9; c.kb.vy *= .9; } // thrown back by a Hiss shockwave
   c.spd = dt > 0 ? moved / dt : 0;
   c.moveAmt += ((moved > 0 ? 1 : 0) - c.moveAmt) * Math.min(1, dt * 8);
@@ -128,6 +131,24 @@ function updateCreature(c, dt) {
   updateFlash(c, dt);
 }
 
+function slideMove(c, a, step) { // blocked head-on: try the two directions along the obstacle's surface, then each axis on its own
+  const r = c.def.r * .8;
+  for (const off of [.6, -.6, 1.2, -1.2]) { const b = a + off * (c.side || 1), x = c.x + Math.cos(b) * step, y = c.y + Math.sin(b) * step; if (free(x, y, r)) { c.x = x; c.y = y; return true; } }
+  const dx = Math.cos(a) * step, dy = Math.sin(a) * step;
+  if (Math.abs(dx) > .05 && free(c.x + dx, c.y, r)) { c.x += dx; return true; }
+  if (Math.abs(dy) > .05 && free(c.x, c.y + dy, r)) { c.y += dy; return true; }
+  return false;
+}
+function escapeDir(c) { // the direction with the longest clear run, leaning toward where it wants to go
+  let best = null, bs = -1e9; const want = c.wantA ?? c.a;
+  for (let k = 0; k < 16; k++) { const a = k * TAU / 16; let L = 0; for (let d = 8; d <= 96; d += 8) { if (!free(c.x + Math.cos(a) * d, c.y + Math.sin(a) * d, c.def.r * .7)) break; L = d; }
+    const sc = L + Math.cos(angDiff(want, a)) * 20; if (L >= 16 && sc > bs) { bs = sc; best = a; } }
+  return best;
+}
+function unstick(c, dt) { // nearest free spot on growing rings, then slide there
+  for (let d = 4; d <= 48; d += 4) for (let k = 0; k < 12; k++) { const a = k * TAU / 12, x = c.x + Math.cos(a) * d, y = c.y + Math.sin(a) * d;
+    if (free(x, y, c.def.r * .7)) { const s = Math.min(d, 120 * dt + 1); c.x += Math.cos(a) * s; c.y += Math.sin(a) * s; return; } }
+}
 function hopSpeed(c, dt, spd) { // returns this frame's speed: fast while airborne, zero while sitting
   const scared = c.state === 'panic' || c.state === 'flee';
   if (c.hopT > 0) { // in the air
