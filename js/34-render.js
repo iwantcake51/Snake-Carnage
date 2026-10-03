@@ -24,7 +24,7 @@ function render() {
   if (MAPS[mapIdx].club) drawDanceFloor(x);
   drawGrass(x);
   for (const b of bucketList) { if (!b.fd) continue; x.globalAlpha = bucketAlpha(b); x.drawImage(b.f, 0, 0, W, H); }
-  x.globalAlpha = 1; drawGloss(x); drawSnow(x);
+  x.globalAlpha = 1; drawSnow(x); // (no fake pool reflections: the pools are just blood)
   x.globalAlpha = L.salpha; x.drawImage(shadowC, 0, 0, W, H); x.globalAlpha = 1;
   x.fillStyle = `rgba(0,0,0,${L.salpha})`; x.beginPath(); // creature + snake shadows as one shape
   for (const c of creatures) if (c.alive) { const r = c.def.r * .85, sx = c.x + L.sdx * 5, sy = c.y + L.sdy * 5; x.moveTo(sx + r, sy); x.arc(sx, sy, r, 0, TAU); }
@@ -160,6 +160,9 @@ function frame(now) {
   else if (lowFx && frameMs < 15) { if ((fastT += raw) > 8000) lowFx = false; } else fastT = 0; // only back to full quality after 8s of clearly fast frames
   const dt = Math.min(.033, raw / 1000); last = now;
   requestAnimationFrame(frame); // scheduled first: nothing below can ever stop the loop
+  const covered = state === 'menu' && overlay.firstElementChild && overlay.firstElementChild.classList.contains('panel') && overlay.style.display !== 'none'; // a full menu panel (shop, settings...) hides the game: stop drawing it so the menu scrolls smoothly
+  if (covered !== !!frame.cov) { frame.cov = covered; cv.style.visibility = covered ? 'hidden' : ''; }
+  if (covered) { UT += dt; return; }
   try { update(dt); } catch (e) { loopError(e, 'update'); }
   try { render(); } catch (e) { loopError(e, 'render'); }
 }

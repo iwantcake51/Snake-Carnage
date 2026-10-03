@@ -220,6 +220,12 @@ function buildCanopy(o) { // two sprite layers: an under layer and a lighter top
   return { lo, hi, S, amp: o.kind === 'bush' ? .35 : 1 };
 }
 let treeSprites = []; const CANOPY = new Map(); // sprites per tree and season, kept so a retry or a map you've played loads instantly
+function warmCanopies() { // while you browse the menu, quietly pre-build every map's trees so picking a map doesn't stall on them
+  if (warmCanopies.done || typeof requestIdleCallback === 'undefined') return; warmCanopies.done = true;
+  const todo = []; for (const m of MAPS) { try { for (const o of m.build().obs) if (o.kind === 'tree' || o.kind === 'bush') todo.push(o); } catch (e) {} }
+  const step = dl => { while (todo.length && dl.timeRemaining() > 4) { if (state !== 'menu' || season) return requestIdleCallback(step); const o = todo.pop(); treeInfo(o); const key = `${o.kind}${o.x},${o.y},${o.r}:${seasonId()}`; if (!CANOPY.has(key) && CANOPY.size < 250) CANOPY.set(key, buildCanopy(o)); } if (todo.length) requestIdleCallback(step); };
+  requestIdleCallback(step);
+}
 function buildTrees() { // called on map load; obstacles keep their collision circles, only the look changes
   treeSprites = [];
   for (const o of obstacles) if (o.kind === 'tree' || o.kind === 'bush') { treeInfo(o); const key = `${o.kind}${o.x},${o.y},${o.r}:${seasonId()}${season && season.late ? 'L' : ''}`; if (!CANOPY.has(key)) { if (CANOPY.size > 260) CANOPY.clear(); CANOPY.set(key, buildCanopy(o)); } treeSprites.push({ o, ...CANOPY.get(key) }); }

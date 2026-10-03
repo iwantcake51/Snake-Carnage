@@ -76,9 +76,34 @@ function showCustomize() {
     <div class="sgrid tabIn">${shopBody(shopTab)}</div></div></div>`;
   shopMsg = '';
   wireShop();
-  overlay.querySelectorAll('.tab').forEach(b => b.onclick = () => { shopTab = b.dataset.tab; showCustomize(); });
+  const nav = overlay.querySelector('.snav'), bar = document.createElement('i'); bar.className = 'tabbar'; nav.prepend(bar); placeTabBar(true);
+  overlay.querySelectorAll('.tab').forEach(b => b.onclick = () => setShopTab(b.dataset.tab));
   document.getElementById('backBtn').onclick = () => { applyCosmetics(); transitionTo(showMenu); };
   startPreview();
+}
+function placeTabBar(instant) { // the highlight behind the selected tab slides to the new one instead of the whole shop redrawing
+  const bar = overlay.querySelector('.snav .tabbar'), on = overlay.querySelector(`.snav .tab[data-tab="${shopTab}"]`); if (!bar || !on) return;
+  if (instant) bar.style.transition = 'none';
+  bar.style.transform = `translateY(${on.offsetTop}px)`; bar.style.height = on.offsetHeight + 'px';
+  if (instant) { void bar.offsetWidth; bar.style.transition = ''; }
+}
+function setShopTab(t) { // swap only the item grid; the nav, preview and chip count stay put
+  if (t === shopTab) return; shopTab = t;
+  overlay.querySelectorAll('.snav .tab').forEach(b => b.classList.toggle('on', b.dataset.tab === t)); placeTabBar();
+  const grid = overlay.querySelector('.sgrid'); if (!grid) return showCustomize();
+  grid.innerHTML = shopBody(t); grid.scrollTop = 0; grid.classList.remove('tabIn'); void grid.offsetWidth; grid.classList.add('tabIn');
+  wireShop();
+}
+function refreshShop(msg) { // after buying or equipping: update the cards, chips and message in place (previews are kept, nothing flickers)
+  overlay.querySelectorAll('.sgrid .sc').forEach((b, i) => {
+    const cat = b.dataset.cat, v = b.dataset.v, it = findItem(cat, v); if (!it) return;
+    const t = document.createElement('div'); t.innerHTML = shopCard(cat, it, i); const nb = t.firstElementChild, keep = b.querySelector('.pvw'), slot = nb.querySelector('.pvw');
+    if (keep && slot) slot.replaceWith(keep);
+    nb.style.animation = 'none'; b.replaceWith(nb);
+  });
+  wireShop.noDraw = true; wireShop(); wireShop.noDraw = false;
+  const cp = overlay.querySelector('.shophead .coinpill'); if (cp) cp.innerHTML = `<i class="pc"></i> ${PROG.coins}`;
+  const m = overlay.querySelector('.shopmsg'); if (m && msg) m.textContent = msg;
 }
 function shopBody(tab) {
   if (tab === 'custom') return customBody();
@@ -91,21 +116,24 @@ function wireShop() {
     b.onmouseenter = () => { shopPrev = { cat: b.dataset.cat, v: b.dataset.v }; }; // live preview on hover, even before buying
     b.onmouseleave = () => { shopPrev = null; };
   });
-  drawPreviews(overlay);
-  if (shopTab === 'custom') wirePicker();
+  if (!wireShop.noDraw) drawPreviews(overlay);
+  if (shopTab === 'custom' && !wireShop.noDraw) wirePicker();
 }
 function chooseItem(cat, v) {
+  let bought = false;
   const cfg = SETTINGS.snake;
   if (!owns(cat, v)) {
     const ach = achOf(cat, v);
-    if (ach) { shopMsg = `Earn “${ach.name}” in Challenges to unlock this: ${ach.what.toLowerCase()}.`; Sfx.deny(); return showCustomize(); }
+    if (ach) { shopMsg = `Earn “${ach.name}” in Challenges to unlock this: ${ach.what.toLowerCase()}.`; Sfx.deny(); refreshShop(shopMsg); shopMsg = ""; return; }
     const p = priceOf(cat, v);
-    if (PROG.coins < p) { shopMsg = `You need ${p - PROG.coins} more chips for that.`; Sfx.deny(); return showCustomize(); }
-    PROG.coins -= p; PROG.owned.push(ownKey(cat, v)); saveProg(); updateHud(); Sfx.buy();
+    if (PROG.coins < p) { shopMsg = `You need ${p - PROG.coins} more chips for that.`; Sfx.deny(); refreshShop(shopMsg); shopMsg = ""; return; }
+    PROG.coins -= p; PROG.owned.push(ownKey(cat, v)); saveProg(); updateHud(); Sfx.buy(); bought = true;
     shopMsg = `Bought for ${p} chips. Looking good.`;
-    setTimeout(() => { const c = overlay.querySelector(`.sc[data-cat="${cat}"][data-v="${CSS.escape(v)}"]`); if (c) c.classList.add('bought'); }, 0);
   }
-  cfg[cat] = v; saveSettings(); applyCosmetics(); showCustomize();
+  cfg[cat] = v; saveSettings(); applyCosmetics();
+  if (cat === 'custom' || !overlay.querySelector('.sgrid .sc')) return showCustomize();
+  refreshShop(shopMsg || 'Equipped.'); shopMsg = '';
+  const c = overlay.querySelector(`.sc[data-cat="${cat}"][data-v="${CSS.escape(v)}"]`); if (c && bought) { c.classList.add('bought'); }
 }
 function miniSnake(cv2, cfg) {
   const x = cv2.getContext('2d'), segs = [];

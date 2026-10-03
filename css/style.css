@@ -1428,3 +1428,15 @@ input[type=range]{accent-color:var(--acc)}
 @keyframes upFlash{0%{box-shadow:inset 0 0 0 1px var(--acc-hi),inset 0 0 26px color-mix(in srgb,var(--acc-hi) 30%,transparent)}100%{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--acc-hi) 40%,transparent),inset 0 0 0 transparent}}
 .upc.leveled .pips i.last{animation:none!important}
 .xpt{z-index:3}
+/* shop nav: one highlight that slides to the selected tab */
+.snav{position:relative}
+.snav .tabbar{position:absolute;left:12px;right:12px;top:0;height:36px;border-radius:2px;background:rgba(255,255,255,.05);box-shadow:inset 3px 0 0 var(--acc);pointer-events:none;
+  transition:transform .2s cubic-bezier(.3,.8,.25,1),height .2s cubic-bezier(.3,.8,.25,1);z-index:0}
+.snav .tab{position:relative;z-index:1}
+.panel.shop2 .tab.on{background:none!important;box-shadow:none!important}
+/* scrolling performance: no blurring the live game under a full-screen menu, no per-card compositor layers, off-screen cards skip painting */
+#overlay.menuMode{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+#overlay.menuMode{background:radial-gradient(ellipse at 50% 40%,rgba(10,8,9,.72),rgba(6,5,6,.94) 75%),var(--grain)!important}
+.sc,.card,.mtile,.ach,.upc,.mc,.pmc{will-change:auto!important}
+.sgrid .sc,.achg .ach,.modgrid .mtile{content-visibility:auto;contain-intrinsic-size:auto 130px}
+.sgrid{contain:content}

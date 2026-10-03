@@ -52,7 +52,7 @@ function transitionTo(fn) { // animate the current screen out, then show the nex
   cur.classList.add('leaving'); setTimeout(fn, 170);
 }
 function showMenu() {
-  state = 'menu'; endIntro(true);
+  state = 'menu'; endIntro(true); setTimeout(warmCanopies, 1500);
   if (!thumbs) thumbs = makeThumbs();
   MOD = {}; rewardMult = 1; document.body.classList.remove('minimal');
   stage.classList.remove('bars', 'paused'); cv.style.scale = '1.05';
@@ -209,8 +209,9 @@ function mapChallengesHtml() { // the selected map's current challenges: name, p
       return `<div class="mc ${done[ch.id] ? 'done' : ''} ${fit ? 'fit-' + fit[0] : ''}" style="--i:${i}" data-tip="${ch.t}. Reward: ${rewardText(ch).replace(/<[^>]+>/g, '')} chips${fit ? '. ' + fit[1] : ''}"><em class="tier ${ch.tier}">${TIERS[ch.tier].label}</em><b>${done[ch.id] ? '✔ ' : ''}${ch.name}</b><small>${ch.t}</small>
         <span class="pbar"><span style="width:${(v / ch.n * 100).toFixed(0)}%"></span></span><span class="mcf"><span>${v}${chUnit(ch)}/${ch.n}${chUnit(ch)}</span><span class="rw3">+${TIERS[ch.tier].chips} <i class="pc"></i></span></span></div>`; }).join('') + '</div>';
 }
-function selectMap(i) { // updates the menu in place, so nothing else resets
-  loadMap(i);
+let selT = 0;
+function selectMap(i) { // updates the menu in place, so nothing else resets. The heavy map load runs a beat later, and only for the map you land on
+  mapIdx = i; clearTimeout(selT); selT = setTimeout(() => { if (state === 'menu' && mapIdx === i) loadMap(i); }, 60);
   overlay.querySelectorAll('.card[data-map]').forEach(c => c.classList.toggle('on', c.dataset.map === String(i)));
   const card = overlay.querySelector(`.card[data-map="${i}"]`);
   if (card) { card.classList.remove('picked'); void card.offsetWidth; card.classList.add('picked'); }

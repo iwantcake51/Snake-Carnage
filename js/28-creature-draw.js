@@ -342,6 +342,7 @@ function segColor(i, n, cfg) { // every skin is built from your primary (P) and 
 }
 const NATURAL = new Set(['Coral', 'Kingsnake', 'Diamondback', 'Python', 'Garter', 'Emerald']);
 function patternStripes(x, pts, n, cfg) { // patterns that run the length of the body
+  if (cfg.pattern === 'Neon') { x.save(); x.strokeStyle = cfg.color2; x.globalAlpha = .55 + .25 * Math.sin(T * 4); x.lineWidth = 2.4; tubePath(x, pts, n, -1.2); x.stroke(); x.globalAlpha = .25; x.lineWidth = 5; x.stroke(); x.restore(); return; } // a glowing tube edge in your second color
   if (cfg.pattern !== 'Garter') return;
   const run = (off, w, col) => { x.strokeStyle = col; x.lineWidth = w; x.beginPath(); for (let i = 0; i < n; i++) { const g = pts[i], r = segR(i, n), px = g.x - Math.sin(g.a) * r * off, py = g.y + Math.cos(g.a) * r * off; i ? x.lineTo(px, py) : x.moveTo(px, py); } x.stroke(); };
   x.lineCap = 'round'; x.lineJoin = 'round'; run(0, CONFIG.snakeR * .38, cfg.color2); run(-.72, CONFIG.snakeR * .2, shade(cfg.color2, -.12)); run(.72, CONFIG.snakeR * .2, shade(cfg.color2, -.12)); // the yellow dorsal stripe and two side stripes
@@ -349,9 +350,9 @@ function patternStripes(x, pts, n, cfg) { // patterns that run the length of the
 function patternOverlay(x, g, r, i, cfg) {
   switch (cfg.pattern) {
     case 'Spots':
-      if (i % 3 === 1) { const sa = g.a + (i % 2 ? 1.6 : -1.6); x.fillStyle = cfg.color2; circ(x, g.x + Math.cos(sa) * r * .4, g.y + Math.sin(sa) * r * .4, r * .35); }
+      if (i % 2 === 1) { const h = (i * 7919) % 101, sa = g.a + (h % 2 ? 1.57 : -1.57) * (.3 + (h % 7) / 10); x.save(); x.translate(g.x + Math.cos(sa) * r * .45, g.y + Math.sin(sa) * r * .45); x.rotate(g.a + h * .03); x.fillStyle = cfg.color2; ell(x, 0, 0, r * (.48 + (h % 5) * .05), r * .34); x.restore(); } // irregular oval spots, like a real spotted skin
       break;
-    case 'Checker': { const a0 = g.a + (i % 2 ? 0 : Math.PI); x.fillStyle = cfg.color2; x.beginPath(); x.moveTo(g.x, g.y); x.arc(g.x, g.y, r, a0, a0 + Math.PI); x.fill(); break; }
+    case 'Checker': { const nx = -Math.sin(g.a), ny = Math.cos(g.a), dx = Math.cos(g.a) * r * .62, dy = Math.sin(g.a) * r * .62, sd = i % 2 ? 1 : -1; x.fillStyle = cfg.color2; x.beginPath(); x.moveTo(g.x + dx, g.y + dy); x.lineTo(g.x - dx, g.y - dy); x.lineTo(g.x - dx + nx * r * 1.6 * sd, g.y - dy + ny * r * 1.6 * sd); x.lineTo(g.x + dx + nx * r * 1.6 * sd, g.y + dy + ny * r * 1.6 * sd); x.fill(); break; } // half the band, alternating sides of the spine
     case 'Diamond':
       if (i % 2 === 0) { x.save(); x.translate(g.x, g.y); x.rotate(g.a + Math.PI / 4); x.fillStyle = cfg.color2; x.fillRect(-r * .35, -r * .35, r * .7, r * .7); x.restore(); }
       break;

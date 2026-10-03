@@ -30,3 +30,11 @@
     b.appendChild(rp); setTimeout(() => rp.remove(), 600);
   });
 })();
+/* the grain texture used on panels: baked once into a small PNG (an SVG noise filter gets re-rendered on every repaint, which made scrolling heavy) */
+(() => {
+  try {
+    const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'), img = x.createImageData(128, 128);
+    for (let i = 0; i < img.data.length; i += 4) { const v = Math.random() * 255 | 0; img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = 16; }
+    x.putImageData(img, 0, 0); document.documentElement.style.setProperty('--grain', `url(${c.toDataURL()})`);
+  } catch (e) {}
+})();

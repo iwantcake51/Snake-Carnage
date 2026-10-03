@@ -53,9 +53,9 @@ function drawSnake(x, s = snake, cfg = SETTINGS.snake) {
   if (!SETTINGS.simpleFx) { // round it off: a lit ridge along the spine, darker flanks, a few scale rows
     x.lineJoin = 'round'; x.lineCap = 'round';
     const line = (ox, oy) => { x.beginPath(); for (let i = 0; i < n; i++) { const g = pts[i]; i ? x.lineTo(g.x + ox, g.y + oy) : x.moveTo(g.x + ox, g.y + oy); } };
-    x.strokeStyle = 'rgba(0,0,0,.22)'; x.lineWidth = 3.2; tubePath(x, pts, n, -.6); x.stroke();
-    x.strokeStyle = 'rgba(255,255,255,.13)'; x.lineWidth = CONFIG.snakeR * .7; line(-CONFIG.snakeR * .22, -CONFIG.snakeR * .26); x.stroke();
-    x.strokeStyle = 'rgba(255,255,255,.12)'; x.lineWidth = CONFIG.snakeR * .22; line(-CONFIG.snakeR * .3, -CONFIG.snakeR * .34); x.stroke();
+    const R0 = CONFIG.snakeR;
+    for (let k = 0; k < 5; k++) { x.strokeStyle = `rgba(0,0,0,${.07})`; x.lineWidth = 1 + k * 1.3; tubePath(x, pts, n, -.4); x.stroke(); } // flanks darken smoothly toward the edges
+    for (let k = 0; k < 7; k++) { const t = k / 6; x.strokeStyle = `rgba(255,255,255,${.035 + t * .03})`; x.lineWidth = R0 * (1.5 - t * 1.25); line(-R0 * (.12 + t * .16), -R0 * (.14 + t * .18)); x.stroke(); } // a soft sheen: layered, widest and faintest outside, brightest on the ridge
     if (NATURAL.has(cfg.pattern) || cfg.pattern === 'Solid') { x.strokeStyle = 'rgba(0,0,0,.09)'; x.lineWidth = .7; // overlapping scale rows
       for (let i = 1; i < n - 2; i++) { const g = pts[i], r = segR(i, n), c = Math.cos(g.a), sn = Math.sin(g.a); for (const off of [-.5, 0, .5]) { const px = g.x - sn * r * off * 1.3, py = g.y + c * r * off * 1.3; x.beginPath(); x.arc(px, py, r * .34, g.a + 2.2, g.a + 4.1); x.stroke(); } } }
   }
