@@ -249,8 +249,8 @@ const MAPS = [
         // the shop row: bakery, hardware store and the 24/7 on the corner, their backs on a service yard that opens onto Hill St and Church St
         R(16, 220, 76, 52, '#9a5038', 'building', { roof: 'gable', shop: '#c0392b' }), R(92, 220, 70, 52, '#5d6670', 'building', { roof: 'flat', shop: '#2f6fb0' }),
         R(162, 220, 52, 52, '#a5553a', 'building', { roof: 'flat', shop: '#d63a2a' }),
-        R(40, 204, 28, 14, '#4f6b3a', 'crate', { dumpster: true }), R(176, 204, 28, 14, '#4f6b3a', 'crate', { dumpster: true }), // against the back walls
-        car(114, 170, 24, 48, '#f2f2f2', { van: true }), // a delivery van backed up to the hardware store
+        R(22, 206, 28, 14, '#4f6b3a', 'crate', { dumpster: true }), // against the bakery's back wall
+        car(114, 130, 24, 48, '#f2f2f2', { van: true }), // a delivery van backed up to the hardware store
         // the town square: fountain on a round plaza, two benches facing the cross path, a tree in each lawn
         Object.assign(C(SQC[0], SQC[1], 26, '#4aa3df', 'water'), { fountain: true }),
         R(320, 180, 40, 8, '#7a5a38', 'bench'), R(528, 180, 40, 8, '#7a5a38', 'bench'), // mirrored about the fountain
@@ -267,7 +267,7 @@ const MAPS = [
         dinCar(0, '#8e44ad'), dinCar(2, '#2f5fa8'),
         // the gas station on the corner: kiosk at the back, two pump islands under the canopy
         R(792, 382, 52, 54, '#d8cfbf', 'building', { roof: 'flat', shop: '#c0392b', front: 'w' }),
-        R(692, 398, 12, 48, '#d9d9d9', 'crate', { pump: true }), R(744, 398, 12, 48, '#d9d9d9', 'crate', { pump: true }),
+        R(688, 398, 12, 48, '#d9d9d9', 'crate', { pump: true }), R(740, 398, 12, 48, '#d9d9d9', 'crate', { pump: true }),
         // two houses and a garage on Birch Ln, front lawns to the sidewalk, backs to the edge of town
         R(684, 572, 72, 52, '#7d6b58', 'building', { roof: 'hip' }), R(756, 570, 30, 54, '#8a7a66', 'building', { roof: 'flat' }), R(786, 568, 58, 56, '#8a4a3a', 'building', { roof: 'gable' }),
         // the tree line past Hill St and down the east side: trunks just beyond the edge, crowns hanging over
@@ -611,7 +611,7 @@ const MAPS = [
           // COMMS: the radio desk along the back wall, a side console, the map table in the middle
           R(404, 600, 230, 24, '#2c3034', 'console'), R(404, 398, 16, 76, '#2c3034', 'console'), C(560, 470, 18, '#4a4a40', 'table'),
           // MED BAY: two cots and the supply cabinet
-          R(864, 424, 80, 30, '#c9c9c4', 'bed', { med: true }), R(864, 494, 80, 30, '#c9c9c4', 'bed', { med: true }), R(880, 574, 64, 50, '#c9c9c4', 'shelf')
+          R(820, 424, 80, 30, '#c9c9c4', 'bed', { med: true }), R(820, 494, 80, 30, '#c9c9c4', 'bed', { med: true }), R(880, 574, 64, 50, '#c9c9c4', 'shelf')
         ],
         floor(x) {
           x.fillStyle = '#3a3532'; x.fillRect(0, 0, W, H); speckle(x, 1600, ['#332e2b', '#423c38', '#2c2826'], 6, 2);

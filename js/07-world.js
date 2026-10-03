@@ -131,7 +131,7 @@ function gapAndDir(a, b) { // shortest gap between two shapes and the unit direc
 }
 function settleGaps(list, roads, paths) {
   const P = paths.flatMap(p => trailPoints(p).filter((_, k) => k % 3 === 0)), S = list.filter(o => !POLE_KINDS.has(o.kind));
-  const role = o => o.kind === 'border' || o.pump || o.dumpster ? 'fixed' : HUG_KINDS.has(o.kind) ? 'hug' : FREE_KINDS.has(o.kind) ? 'free' : o.ext ? 'extfixed' : 'fixed';
+  const role = o => o.kind === 'border' || o.pump || o.dumpster || (o.ext && (o.kind === 'building' || EXT_WALLS.has(o.kind))) ? 'fixed' : HUG_KINDS.has(o.kind) ? 'hug' : FREE_KINDS.has(o.kind) ? 'free' : o.ext ? 'extfixed' : 'fixed';
   const pinches = (o, nx, ny) => { // how many pinched gaps o would have at (nx, ny); Infinity if it can't stand there at all
     const t = { ...o, x: nx, y: ny }, bx = obox(t);
     if (bx[0] < B - .5 || bx[1] < B - .5 || bx[2] > W - B + .5 || bx[3] > H - B + .5) return Infinity;
@@ -145,12 +145,13 @@ function settleGaps(list, roads, paths) {
     const [g, ux, uy] = gapAndDir(a, b); if (!(g > (a.kind === 'border' || b.kind === 'border' ? 8 : 3) && g < GAP_MIN)) continue; // within a few px of the edge counts as against it
     if (a.kind === 'car' && b.kind === 'car') continue;
     const ra = role(a), rb = role(b), rank = { free: 0, hug: 1, extfixed: 2, fixed: 3 };
+    if (ra === 'fixed') continue; // walls, buildings, the border and anchored fixtures never move
     if (rank[ra] > rank[rb] || (ra === rb && (!!a.ext === !!b.ext ? (a.t === 'r' ? a.w * a.h : a.r * a.r * 3) > (b.t === 'r' ? b.w * b.h : b.r * b.r * 3) : !a.ext))) continue; // the lighter one moves (a reflected copy gives way to the original)
     const away = [a.x + ux * (GAP_MIN - g + 1), a.y + uy * (GAP_MIN - g + 1)], flush = [a.x - ux * g, a.y - uy * g];
     const tries = ra === 'hug' || ra === 'extfixed' ? [flush, away] : [away, flush];
     const now = pinches(a, a.x, a.y); let done = false;
     for (const [nx, ny] of tries) if (pinches(a, nx, ny) < now) { a.x = nx; a.y = ny; done = true; break; }
-    if (!done && a.ext) { dropped.add(a); a.dropped = true; } // a reflected copy that can't be made to fit just isn't there
+    if (!done && a.ext && role(a) !== 'fixed') { dropped.add(a); a.dropped = true; } // a reflected copy that can't be made to fit just isn't there
   }
   return list.filter(o => !dropped.has(o));
 }
@@ -159,8 +160,9 @@ function loadMap(idx, sz) {
   bunkerCache = null; if (MAPS[idx].name === 'Bunker') bunkerLock = Math.random() < .35; // some runs the bunker is in lockdown
   const m = MAPS[idx], b = m.build(); curBuild = b;
   Sfx.setMuffle(!!m.space && !m.indoor); // thin air on the surface; inside a pressurized station sound is normal
-  obstacles = splitBreakables(addBreakWalls([...borderWalls(m.border), ...b.obs], m.name));
-  nudgeLamps(obstacles, b.paths || [], b.roads || []); tidyPlacement(obstacles, b.roads || []); obstacles = settleGaps(obstacles, b.roads || [], b.paths || []);
+  let pre = [...borderWalls(m.border), ...b.obs];
+  nudgeLamps(pre, b.paths || [], b.roads || []); tidyPlacement(pre, b.roads || []); pre = settleGaps(pre, b.roads || [], b.paths || []); // spacing works on whole objects, before long ones are split into breakable sections
+  obstacles = splitBreakables(addBreakWalls(pre, m.name));
   buildSolid();
   b.obs = b.obs.filter(o => !o.dropped); bctx.clearRect(0, 0, W, H); b.floor(bctx); bakeContactShadows(bctx, b.obs); resetBuckets(); gctx.clearRect(0, 0, W, H); groundParts = []; trail = []; floaters = [];
   buildGrassMask(); gradeGround(); seasonDetails(bctx);
