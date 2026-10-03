@@ -40,7 +40,11 @@ function wetAt(x, y) {
 function buildSolid() {
   solidGrid = new Uint8Array(GW * GH);
   for (const o of obstacles) {
-    if (o.poly) { const P = polyShape(o); // custom water: the real shape
+    if (obsFlag(o, 'noCollide')) continue; // walk-through props
+    if (isRot(o)) { const P = obsCorners(o), xs = P.map(p => p[0]), ys = P.map(p => p[1]);
+      for (let j = Math.floor(Math.min(...ys) / SG); j < Math.ceil(Math.max(...ys) / SG); j++) for (let i = Math.floor(Math.min(...xs) / SG); i < Math.ceil(Math.max(...xs) / SG); i++)
+        if (i >= 0 && j >= 0 && i < GW && j < GH && pointInPoly(P, i * SG + 2, j * SG + 2)) solidGrid[j * GW + i] = 1;
+    } else if (o.poly) { const P = polyShape(o); // custom water: the real shape
       for (let j = Math.floor(o.y / SG); j < Math.ceil((o.y + o.h) / SG); j++) for (let i = Math.floor(o.x / SG); i < Math.ceil((o.x + o.w) / SG); i++)
         if (i >= 0 && j >= 0 && i < GW && j < GH && pointInPoly(P, i * SG + 2, j * SG + 2)) solidGrid[j * GW + i] = 1;
     } else if (o.t === 'r') {
@@ -57,7 +61,7 @@ function buildSolid() {
 
 function bakeOutline() {
   mkx.clearRect(0, 0, W, H); mkx.fillStyle = '#000';
-  for (const o of obstacles) { if (o.poly) { polyPath(mkx, o); mkx.fill(); } else if (o.t === 'r') mkx.fillRect(o.x, o.y, o.w, o.h); else circ(mkx, o.x, o.y, o.r); }
+  for (const o of obstacles) { if (obsFlag(o, 'noOutline')) continue; fillObs(mkx, o); }
   olx.clearRect(0, 0, W, H);
   const mo = SETTINGS.mapOutlines; if (mo === 'Off') { olx.clearRect(0, 0, W, H); nvx.clearRect(0, 0, W, H); return; }
   const strong = mo === 'Strong', ow = strong ? 2.7 : 1.6;

@@ -203,17 +203,16 @@ const MAPS = [
           TREE(910, 600, 34), TREE(930, 500, 26), TREE(780, 612, 22),
           TREE(640, 520, 18, '#46802f'),
           C(690, 230, 78, '#4aa3df', 'water'),
-          R(470, 150, 44, 30, '#c9763a', 'tent'), R(440, 214, 12, 30, '#7a5a38', 'bench'),
+          R(470, 150, 44, 30, '#c9763a', 'tent'), C(520, 222, 14, '#6d6a63', 'campfire'), R(440, 214, 12, 30, '#7a5a38', 'bench'),
         ],
         paths: [main, south, camp],
-        lights: [FIRE(520, 222)],
+
         floor(x) {
           checker(x, ...GRASS, 32);
           { const g = x.createRadialGradient(690, 230, 60, 690, 230, 150); g.addColorStop(0, 'rgba(60,100,35,.2)'); g.addColorStop(.6, 'rgba(60,100,35,.1)'); g.addColorStop(1, 'rgba(60,100,35,0)'); x.fillStyle = g; x.fillRect(530, 70, 320, 320); } // the lake sits in a dip, fading out into the grass
           dirtTrails(x, [[main, 18, 12], [south, 16, 13], [camp, 14, 14]]);
           x.fillStyle = '#c8b27a'; x.beginPath(); x.ellipse(510, 212, 56, 46, 0, 0, TAU); x.fill(); // trampled campsite ground on the lake shore
           flowers(x, 140, ['#ffffff', '#ffe066', '#ff9ecb', '#c9b6ff'], 5, 9);
-          firePit(x, 520, 222);
           x.fillStyle = '#8b6a44'; x.save(); x.translate(500, 248); x.rotate(.5); x.fillRect(-13, -4, 26, 8); x.restore(); x.save(); x.translate(552, 250); x.rotate(-.4); x.fillRect(-13, -4, 26, 8); x.restore(); // log seats
         },
         decor(x) { x.strokeStyle = '#4c7a2a'; x.lineWidth = 1.4; const r = seeded(3); for (let k = 0; k < 34; k++) { const a = r() * TAU, d = 78 + r() * 6, px = 690 + Math.cos(a) * d, py = 230 + Math.sin(a) * d; x.beginPath(); x.moveTo(px, py); x.lineTo(px + (r() - .5) * 3, py - 6 - r() * 4); x.stroke(); if (r() < .4) { x.fillStyle = '#6b4a2b'; ell(x, px, py - 8, 1.2, 2.4); } } // reeds

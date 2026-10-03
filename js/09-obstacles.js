@@ -76,6 +76,7 @@ function drawObstacleBase(x, o) {
   if (o.t === 'c') {
     switch (k) {
       case 'chess': drawChess(x, o, c); return;
+      case 'campfire': { x.save(); x.translate(o.x, o.y); const k = o.r / 14; x.scale(k, k); firePit(x, 0, 0); x.restore(); return; }
       case 'tree': case 'bush': {
         if (x === octx) return drawTrunk(x, o); // in game the leaves are separate swaying sprites (09-seasons)
         const r = seeded(Math.round(o.x * 13 + o.y * 7)), lobes = k === 'tree' ? 7 : 5;

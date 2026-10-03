@@ -32,7 +32,7 @@ function shadowShape(q, L, o, ox, oy) {
   if (o.t === 'r') {
     if (L.x > o.x && L.x < o.x + o.w && L.y > o.y && L.y < o.y + o.h) return false;
     if (dist2(L.x, L.y, clamp(L.x, o.x, o.x + o.w), clamp(L.y, o.y, o.y + o.h)) > L.r * L.r) return false;
-    const P = [reach(o.x, o.y), reach(o.x + o.w, o.y), reach(o.x + o.w, o.y + o.h), reach(o.x, o.y + o.h)];
+    const C = isRot(o) ? obsCorners(o) : [[o.x, o.y], [o.x + o.w, o.y], [o.x + o.w, o.y + o.h], [o.x, o.y + o.h]], P = C.map(([a, b]) => reach(a, b));
     for (let i = 0; i < 4; i++) { const a = P[i], b = P[(i + 1) & 3]; q.beginPath(); q.moveTo(a[0], a[1]); q.lineTo(b[0], b[1]); q.lineTo(b[2], b[3]); q.lineTo(a[2], a[3]); q.fill(); }
     return true;
   }
@@ -66,7 +66,7 @@ function shadeInto(dst, L, list, ox, oy, size, str, skip, soft) { // removes lig
 }
 function bakeLightMasks(near) { // static shadows per light, baked once; after a lamp breaks or furniture is smashed only the lights that reach it
   lightVer++;
-  scast = obstacles.filter(o => o.kind !== 'lamp' && (HEIGHTS[o.kind] ?? 10) > 0).map(o => ({ ...o, z: HEIGHTS[o.kind] ?? 10,
+  scast = obstacles.filter(o => o.kind !== 'lamp' && !o.poly && !obsFlag(o, 'noShadow') && (HEIGHTS[o.kind] ?? 10) > 0).map(o => ({ ...o, z: HEIGHTS[o.kind] ?? 10,
     cx: o.t === 'r' ? o.x + o.w / 2 : o.x, cy: o.t === 'r' ? o.y + o.h / 2 : o.y, br: o.t === 'r' ? Math.hypot(o.w, o.h) / 2 : o.r })); // bounding circle, for culling
   for (const l of lights) {
     if (l.kind === 'window') continue;

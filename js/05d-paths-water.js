@@ -21,7 +21,8 @@ function captureTrails(b) { // the map's own painted trails, in world coordinate
   trailCap = []; trailMute = true; try { b.floor(x); } catch (e) {} finally { trailMute = false; }
   const all = trailCap; trailCap = null;
   const ext = all.filter(t => t.ext), near = (p, q) => Math.abs(p[0] - q[0]) < 1.5 && Math.abs(p[1] - q[1]) < 1.5;
-  return all.filter(t => t.ext || !ext.some(e => t.pts.every(p => e.pts.some(q => near(p, q))))).map(({ ext, ...t }) => t);
+  const seen = new Set(); // each strip repaints the carried-on trails: keep one copy of each
+  return all.filter(t => t.ext || !ext.some(e => t.pts.every(p => e.pts.some(q => near(p, q))))).filter(t => { const k = JSON.stringify(t.pts); if (seen.has(k)) return false; seen.add(k); return true; }).map(({ ext, ...t }) => t);
 }
 /* ---- painting ---- */
 const tileCache = {};

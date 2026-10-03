@@ -1,7 +1,7 @@
 /* =========================================================
    TIME OF DAY, SHADOWS, LIGHTS
    ========================================================= */
-const HEIGHTS = { bwall: 18, bin: 7, block: 22, border: 14, wall: 18, building: 28, barn: 32, silo: 40, tree: 22, bush: 8, rock: 8, car: 9, fence: 6,
+const HEIGHTS = { campfire: 2, bwall: 18, bin: 7, block: 22, border: 14, wall: 18, building: 28, barn: 32, silo: 40, tree: 22, bush: 8, rock: 8, car: 9, fence: 6,
                   desk: 5, chair: 4, couch: 6, bench: 4, table: 5, hay: 9, lamp: 34, water: 0, hedge: 16, glass: 18, plant: 8, shelf: 14, crate: 9,
                   pod: 14, holo: 4, cryo: 14, saucer: 10, reactor: 12, console: 6, dome: 20, tube: 8, module: 14, lander: 16, solar: 4, chess: 24,
                   generator: 10, tent: 12, dj: 6, speaker: 14, bar: 7, booth: 7, pillar: 30, barrier: 5, gazebo: 18, slide: 7, bed: 5 };
@@ -52,7 +52,8 @@ function bakeShadows() { // sun shadows: sharp at the base, softer the further t
     const ox = L.sdx * h, oy = L.sdy * h, n = Math.max(1, Math.ceil(Math.hypot(ox, oy) / 2.5));
     for (let k = 1; k <= n; k++) {
       const t = k / n;
-      if (o.t === 'r') tsx.fillRect(o.x + ox * t, o.y + oy * t, o.w, o.h);
+      if (obsFlag(o, 'noShadow')) break;
+      if (isRot(o) || o.poly) fillObs(tsx, o, ox * t, oy * t); else if (o.t === 'r') tsx.fillRect(o.x + ox * t, o.y + oy * t, o.w, o.h);
       else circ(tsx, o.x + ox * t, o.y + oy * t, o.kind === 'lamp' && k < n ? 2 : (o.kind === 'tree' || o.kind === 'bush') && o.tinfo && !o.tinfo.pine ? o.r * (.4 + .6 * seasonFull(o, o.tinfo)) : o.r); // bare trees cast thinner shadows
     }
   }
@@ -64,7 +65,7 @@ const contactC = document.createElement('canvas'); contactC.width = W / 2; conta
 function bakeContactShadows(x, list) { // a soft dark rim where every object meets the floor, day or night (blurred at half size: it's soft anyway, and full-res blur stalled map loads)
   if (!('filter' in ccx)) return;
   ccx.setTransform(1, 0, 0, 1, 0, 0); ccx.clearRect(0, 0, W / 2, H / 2); ccx.setTransform(.5, 0, 0, .5, 0, 0); ccx.filter = 'blur(1.5px)'; ccx.fillStyle = '#000';
-  for (const o of list) { const h = HEIGHTS[o.kind] ?? 10; if (!h || o.kind === 'border') continue; const g = Math.min(4, 1 + h * .1); if (o.poly) continue; if (o.t === 'r') ccx.fillRect(o.x - g, o.y - g, o.w + g * 2, o.h + g * 2); else circ(ccx, o.x, o.y, o.r + g); }
+  for (const o of list) { const h = HEIGHTS[o.kind] ?? 10; if (!h || o.kind === 'border') continue; const g = Math.min(4, 1 + h * .1); if (o.poly || obsFlag(o, 'noShadow')) continue; fillObs(ccx, o, 0, 0, g); }
   ccx.filter = 'none';
   x.save(); x.globalAlpha = SETTINGS.lightQ === 'High' ? .5 : .35; x.imageSmoothingEnabled = true; x.drawImage(contactC, 0, 0, W, H); if (SETTINGS.lightQ === 'High') { x.globalAlpha = .18; x.filter = 'blur(6px)'; x.drawImage(contactC, 0, 0, W, H); x.filter = 'none'; } x.restore(); // High: a wider second ring of occlusion around walls and props
 }
@@ -79,6 +80,7 @@ function buildLights(extra) {
     lights.push({ x, y, r: 48, c: LCOL.window, kind: 'window', h: 0, flick: Math.random() < .08 }); windows.push({ x: wx, y: wy, w: ww, h: wh });
   };
   for (const o of obstacles) {
+    if (o.kind === 'campfire') lights.push({ x: o.x, y: o.y, r: o.lr || 150, c: o.lc || LCOL.fire, kind: 'fire', h: LIGHT_H.fire, flick: true, fix: 'none', o });
     if (o.kind === 'lamp') lights.push({ x: o.x, y: o.y, r: o.lr || (o.lantern ? 105 : 130), c: o.lc || (o.mast ? LCOL.flood : o.lantern ? LCOL.fire : LCOL.street), kind: 'street', h: o.mast ? LIGHT_H.flood : LIGHT_H.street, flick: Math.random() < .12, thr: rand(.3, .62), o });
     if ((o.kind !== 'building' && o.kind !== 'barn') || m.indoor) continue; // light spilling out of windows
     for (let xx = o.x + 18; xx < o.x + o.w - 10; xx += 40) { add(xx, o.y - 8, xx - 5, o.y + 1, 10, 3); add(xx, o.y + o.h + 8, xx - 5, o.y + o.h - 4, 10, 3); }

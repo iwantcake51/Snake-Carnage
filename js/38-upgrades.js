@@ -101,6 +101,7 @@ RAM_KINDS.push(RAM_KINDS[3]); // tier 4: same targets, softer landings
 const ramClass = o => RAM_HEAVY.includes(o.kind) ? 3 : RAM_LARGE.includes(o.kind) ? 2 : 1;
 function obstacleHitBy(x, y, r) {
   for (const o of obstacles) {
+    if (obsFlag(o, 'noCollide')) continue;
     if (o.t === 'r') { const nx = clamp(x, o.x, o.x + o.w), ny = clamp(y, o.y, o.y + o.h); if (dist2(x, y, nx, ny) < r * r) return o; }
     else if (dist2(x, y, o.x, o.y) < (r + o.r) ** 2) return o;
   }
