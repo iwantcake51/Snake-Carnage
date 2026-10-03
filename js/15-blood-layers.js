@@ -1,15 +1,22 @@
 /* BLOOD BUCKETS: blood is drawn into time-slice layers. A layer stays fully opaque for a long hold time,
    then fades smoothly via globalAlpha (no 8-bit leftovers). Old layers are recycled. */
 const FADE = { Never: null, Slow: { hold: 90, fade: 60 }, Normal: { hold: 40, fade: 35 }, Fast: { hold: 15, fade: 20 } }; // seconds
-const fadeCfg = () => SETTINGS.bloodQ === 'Extreme' ? { hold: 18, fade: 10 } : FADE[SETTINGS.bloodFade]; // Extreme draws a lot more blood, so it always clears after half a minute or so
+const fadeCfg = () => SETTINGS.bloodQ === 'Extreme' ? { hold: 9, fade: 6 } : FADE[SETTINGS.bloodFade]; // Extreme draws a lot more blood, so it always clears quickly // Extreme draws a lot more blood, so it always clears after half a minute or so
 const BLOOD_BUCKETS = 4; // each layer is two full-screen canvases drawn every frame, so keep this small
 let bucketList = [], bucketPool = [], curBucket = null;
 const markF = () => { if (curBucket) curBucket.fd = true; }, markW = () => { if (curBucket) curBucket.wd = true; };
 function makeBucket() {
   const f = document.createElement('canvas'), w = document.createElement('canvas');
-  const k = Math.min(DPR, 2); f.width = w.width = W * k; f.height = w.height = H * k; // crisp blood
+  const k = bloodRes(); f.width = w.width = W * k; f.height = w.height = H * k; // resolution follows blood quality: each layer is drawn every frame, so pixels cost
   const fx = f.getContext('2d'), wx = w.getContext('2d'); fx.setTransform(k, 0, 0, k, 0, 0); wx.setTransform(k, 0, 0, k, 0, 0);
-  return { f, fx, w, wx, born: 0 };
+  return { f, fx, w, wx, born: 0, k };
+}
+function bloodRes() { const q = SETTINGS.bloodQ; return q === 'Extreme' ? Math.min(DPR, 2) : q === 'High' ? Math.min(DPR, 1.5) : 1; }
+function bloodQualityChanged() { // switching quality: what's on the ground fades out within a second, new blood uses layers at the new resolution
+  const k = bloodRes(); bucketPool = bucketPool.filter(b => b.k === k);
+  for (const b of bucketList) if (b.ff === undefined || b.ff > T - (BLOOD_FF - 1.1)) b.ff = T - (BLOOD_FF - 1.1);
+  newBucket(); bucketList[bucketList.length - 1].ff = undefined;
+  parts.length = Math.min(parts.length, CONFIG.maxParticles * BQ().n | 0);
 }
 const BLOOD_LIMIT = 14, BLOOD_FF = 6; // ~14 big kills on screen at once; past that, the oldest blood fades out over 6s
 function bucketAlpha(b) {
@@ -29,8 +36,8 @@ function mergeOldest() { // out of layers: fold the oldest into the next one so 
   bucketPool.push(a);
 }
 function newBucket() {
-  let b = bucketPool.pop();
-  if (!b) { if (bucketList.length < BLOOD_BUCKETS) b = makeBucket(); else { mergeOldest(); b = bucketPool.pop(); } }
+  const k = bloodRes(); let b = bucketPool.pop(); if (b && b.k !== k) b = null;
+  if (!b) { if (bucketList.length < BLOOD_BUCKETS) b = makeBucket(); else { mergeOldest(); b = bucketPool.pop(); if (b && b.k !== k) b = makeBucket(); } }
   b.fx.clearRect(0, 0, W, H); b.wx.clearRect(0, 0, W, H); b.born = T; b.amt = 0; b.ff = undefined; b.fd = b.wd = false; // fd/wd: has ground/wall blood
   curBucket = b;
   bucketList.push(b); fctx = b.fx; wctx = b.wx;
@@ -39,7 +46,7 @@ function resetBuckets() { bucketPool.push(...bucketList); bucketList = []; newBu
 function updateBuckets() {
   const p = fadeCfg(), span = p ? (p.hold + p.fade) / (BLOOD_BUCKETS - 2) : Infinity; // blood that never fades needs one layer
   if (T - bucketList[bucketList.length - 1].born > span) newBucket();
-  while (bucketList.length > 1 && bucketAlpha(bucketList[0]) <= 0) bucketPool.push(bucketList.shift());
+  while (bucketList.length > 1 && bucketAlpha(bucketList[0]) <= 0) { const o = bucketList.shift(); if (o.k === bloodRes()) bucketPool.push(o); }
 }
 function fadeBlood() { // every 2s: rotate layers and let old ground wetness dry out (stains on bodies stay)
   updateBuckets();

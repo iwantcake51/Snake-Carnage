@@ -4,12 +4,14 @@
 (() => {
   const scroller = el => { for (let n = el; n && n !== document.body; n = n.parentElement) { const st = getComputedStyle(n); if (/(auto|scroll)/.test(st.overflowY) && n.scrollHeight > n.clientHeight + 1) return n; } return null; };
   const anim = new Map(); // element -> target scrollTop
+  let lastT = 0;
   const step = () => {
+    const now = performance.now(), dt = Math.min(.1, lastT ? (now - lastT) / 1000 : .016); lastT = now; const ease = 1 - Math.exp(-dt / .045); // frame-rate independent: lands in ~0.12s either way
     for (const [el, t] of anim) {
       const d = t - el.scrollTop; if (Math.abs(d) < .5 || !el.isConnected) { if (el.isConnected) el.scrollTop = t; anim.delete(el); continue; }
-      el.scrollTop += d * .18; // ease toward where the wheel wants to go
+      el.scrollTop += Math.abs(d) < 2 ? d : d * ease; // ease toward where the wheel wants to go: quick, but not a jump
     }
-    if (anim.size) requestAnimationFrame(step);
+    if (anim.size) requestAnimationFrame(step); else lastT = 0;
   };
   addEventListener('wheel', e => {
     if (e.ctrlKey || SETTINGS.reduceMotion) return;

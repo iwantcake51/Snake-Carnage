@@ -49,10 +49,13 @@ function placeThumb(seg, instant) { // sliding pill behind the selected option
 function transitionTo(fn) { // animate the current screen out, then show the next one
   const cur = overlay.firstElementChild;
   if (!cur || SETTINGS.reduceMotion || overlay.style.display === 'none') return fn();
-  cur.classList.add('leaving'); setTimeout(fn, 170);
+  cur.classList.add('leaving');
+  let done = false; const go = () => { if (done) return; done = true; fn(); };
+  requestAnimationFrame(() => { const an = cur.getAnimations ? cur.getAnimations().find(x => x.animationName === 'panelOut') : null; if (an) an.finished.then(go, go); }); // swap when the close has actually played, even if the click was busy
+  setTimeout(go, 450); // fallback
 }
 function showMenu() {
-  state = 'menu'; endIntro(true); setTimeout(warmCanopies, 1500);
+  state = 'menu'; endIntro(true); creatures = []; /* nobody in the background behind the menus */ setTimeout(warmCanopies, 1500);
   if (!thumbs) thumbs = makeThumbs();
   MOD = {}; rewardMult = 1; document.body.classList.remove('minimal');
   stage.classList.remove('bars', 'paused'); cv.style.scale = '1.05';
@@ -336,6 +339,7 @@ function applySetting(k) { // side effects of a setting change
   if (k === 'uiScale') { applyUiScale(); requestAnimationFrame(() => overlay.querySelectorAll('.seg,.sseg').forEach(sg => placeThumb(sg, true))); }
   if (k === 'mapOutlines') { drawObstacleLayer(); bakeOutline(); }
   if (k === 'lightQ') resizeLights();
+  if (k === 'bloodQ' || k === 'bloodFade') bloodQualityChanged();
   if (k === 'timeMode') { const t = SETTING_TABS.Gameplay.rows; overlay.querySelectorAll('[data-row]').forEach(r => { const row = t.find(x => x[1] === r.dataset.row); if (row && row[7]) r.classList.toggle('dim', !row[7]()); }); }
 }
 function wireSettings(body) {

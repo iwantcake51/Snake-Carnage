@@ -78,7 +78,7 @@ function showCustomize() {
   wireShop();
   const nav = overlay.querySelector('.snav'), bar = document.createElement('i'); bar.className = 'tabbar'; nav.prepend(bar); placeTabBar(true);
   overlay.querySelectorAll('.tab').forEach(b => b.onclick = () => setShopTab(b.dataset.tab));
-  document.getElementById('backBtn').onclick = () => { applyCosmetics(); transitionTo(showMenu); };
+  document.getElementById('backBtn').onclick = () => transitionTo(() => { applyCosmetics(); showMenu(); }); // the heavy restyle happens after the close animation, not before it
   startPreview();
 }
 function placeTabBar(instant) { // the highlight behind the selected tab slides to the new one instead of the whole shop redrawing
@@ -158,7 +158,7 @@ function startPreview() { // live wiggling preview: shows what you're hovering, 
     const keep = T; T = UT; // animate cosmetics even while the world is paused
     drawSnake(px, { x: segs[0].x, y: segs[0].y, angle: segs[0].a, segs, stains: segs.map(() => []) }, cfg);
     T = keep;
-    requestAnimationFrame(draw);
+    setTimeout(() => requestAnimationFrame(draw), 28); // ~30fps is plenty for a preview wiggle
   };
   draw();
 }

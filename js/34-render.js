@@ -154,6 +154,11 @@ function drawNightVision(x) {
 }
 let last = performance.now();
 let frameMs = 16, lowFx = false, fastT = 0; // adaptive quality: if frames run slow, lighting gets cheaper (with hysteresis)
+const blurTmp = document.createElement('canvas');
+function bakeBlurBg() { // blur the frozen frame into its own pixels once, so the menu on top can scroll without anything re-blurring
+  try { blurTmp.width = cv.width; blurTmp.height = cv.height; const t = blurTmp.getContext('2d'); t.drawImage(cv, 0, 0);
+    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.filter = `blur(${Math.round(6 * DPR)}px) saturate(.35) brightness(.8)`; ctx.drawImage(blurTmp, 0, 0); ctx.restore(); ctx.filter = 'none'; } catch (e) {}
+}
 function frame(now) {
   const raw = now - last; if (raw < 200) frameMs += (raw - frameMs) * .03;
   if (!lowFx && frameMs > 24) { lowFx = true; fastT = 0; }
@@ -161,8 +166,8 @@ function frame(now) {
   const dt = Math.min(.033, raw / 1000); last = now;
   requestAnimationFrame(frame); // scheduled first: nothing below can ever stop the loop
   const covered = state === 'menu' && overlay.firstElementChild && overlay.firstElementChild.classList.contains('panel') && overlay.style.display !== 'none'; // a full menu panel (shop, settings...) hides the game: stop drawing it so the menu scrolls smoothly
-  if (covered !== !!frame.cov) { frame.cov = covered; cv.style.visibility = covered ? 'hidden' : ''; }
-  if (covered) { UT += dt; return; }
+  if (covered !== !!frame.cov) { frame.cov = covered; frame.still = 0; stage.classList.toggle('frozenBg', covered); }
+  if (covered) { UT += dt; if (frame.still < 2) { try { render(); } catch (e) { loopError(e, 'render'); } if (++frame.still === 2) bakeBlurBg(); } return; } // drawn once, then frozen: the blur over a still picture costs almost nothing
   try { update(dt); } catch (e) { loopError(e, 'update'); }
   try { render(); } catch (e) { loopError(e, 'render'); }
 }
