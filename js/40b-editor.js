@@ -347,7 +347,7 @@ function edBuildUI() {
       <button class="edib edundo" title="Undo (Ctrl+Z)">${edSvg('undo')}</button><button class="edib edredo" title="Redo (Ctrl+Y)">${edSvg('redo')}</button>
       <button class="edsave edghost" title="Save (Ctrl+S)">Save</button><label class="edimp" hidden><input type="file" accept=".js,.json,.txt" hidden></label>
       <button class="edshare edghost" title="Share your edits">${edSvg('share', 14)} Share</button><button class="edexp" hidden></button><button class="edreset" hidden></button>
-      <button class="edplay edprimary" title="Play test (P)">${edSvg('play', 14)} Play test</button><button class="edclose edib" title="Exit (Esc)">${edSvg('exit')}</button></div>
+      <button class="edplay edprimary" title="Play test (P)">${edSvg('play', 14)} Play test</button><button class="edskills edghost" title="Skills to try out in play tests">Test skills</button><button class="edclose edib" title="Exit (Esc)">${edSvg('exit')}</button></div>
     <div class="edtools"><div class="edtgrp">${ED_TOOLS.map(([t, n, k]) => `<button data-tool="${t}" class="edtool" title="${n} (${k})">${edSvg(t)}<span>${n}</span></button>`).join('')}</div>
       <div class="edtgrp">${[['showGrid', 'grid', 'Grid (G)'], ['lit', 'night', 'Night preview (N)'], ['lightsLayer', 'reach', 'Light reach (O)'], ['mini', 'mini', 'Minimap (M)'], ['help', 'help', 'Controls (H)']].map(([t, ic, n]) => `<button data-tg="${t}" class="edtool icon ${ED[t] ? 'on' : ''}" title="${n}">${edSvg(ic)}</button>`).join('')}</div>
       <div class="edtgrp edsnaps"><span class="edlbl">Snap</span>${[['move', 'Move', 'px'], ['rot', 'Rotate', '°'], ['scale', 'Scale', '%']].map(([k, n, u]) => `<label class="edsn ${ED.snaps[k].on ? 'on' : ''}" title="${n} snapping: tick to turn it on and set the step. Ctrl flips it while dragging"><input type="checkbox" data-sn="${k}" ${ED.snaps[k].on ? 'checked' : ''}>${n}<input type="number" data-snv="${k}" value="${ED.snaps[k].step}" min="${k === 'move' ? 1 : .5}" max="${k === 'rot' ? 180 : 200}" step="${k === 'move' ? 1 : .5}"><i>${u}</i></label>`).join('')}</div>
@@ -371,7 +371,7 @@ function edBuildUI() {
           <p><kbd>T</kbd> path · <kbd>Y</kbd> water · <kbd>A</kbd> add point · <kbd>E</kbd> end path · <kbd>Alt</kbd>+click a point removes it · double-click a line adds one</p>
           <p><kbd>U</kbd> floor area · <kbd>W</kbd> wall · <kbd>B</kbd> block · <kbd>L</kbd> light · <kbd>N</kbd> night · <kbd>M</kbd> minimap · <kbd>P</kbd> play test · <kbd>Esc</kbd> deselect / exit</p></div></main>
       <aside class="edright2"><div class="edtabs">${[['props', 'Properties'], ['layers', 'Layers']].map(([k, n]) => `<button data-rt="${k}" class="${ED.rtab === k ? 'on' : ''}">${n}</button>`).join('')}</div><div class="edpanel"></div><div class="edlayers"></div></aside></div>
-    <footer class="edstatus"><span class="edst-tool"></span><span class="edst-sel"></span><span class="edcoords"></span><span class="edsp"></span><span class="edstat">Edits save in this browser automatically</span>
+    <footer class="edstatus"><span class="edst-tool"></span><span class="edst-sel"></span><span class="edcoords"></span><span class="edsp"></span><span class="edstat">Ctrl+S saves (also every 5 minutes)</span>
       <span class="edzoom"><button data-cmd="zout">−</button><span class="edzv">100%</span><button data-cmd="zin">+</button><button data-cmd="fit" title="Fit (0)">Fit</button></span></footer>`;
   document.body.appendChild(root);
   ED.cv = root.querySelector('.edmain'); ED.x = ED.cv.getContext('2d'); ED.coords = root.querySelector('.edcoords'); ED.stat = root.querySelector('.edstat'); ED.mm = root.querySelector('.edminimap'); ED.mm.getContext('2d', { willReadFrequently: true });
@@ -402,7 +402,7 @@ function edBuildUI() {
   root.querySelector('.edundo').onclick = () => edUndo(-1); root.querySelector('.edredo').onclick = () => edUndo(1);
   root.querySelector('.edsave').onclick = edSave; root.querySelector('.edshare').onclick = () => edShare();
   root.querySelector('.edimp input').onchange = e => e.target.files[0] && edImport(e.target.files[0]);
-  root.querySelector('.edplay').onclick = () => closeEditor(true); root.querySelector('.edclose').onclick = () => closeEditor();
+  root.querySelector('.edplay').onclick = () => closeEditor(true); root.querySelector('.edskills').onclick = edSkillsDlg; root.querySelector('.edclose').onclick = () => closeEditor();
   root.querySelector('.edmap').onchange = e => { if (ED.dirtySave) edSave(); const i = +e.target.value; cancelAnimationFrame(ED.raf); root.remove(); removeEventListener('keydown', edKey, true); removeEventListener('keyup', edKey, true); openEditor(i); };
   addEventListener('keydown', edKey, true); addEventListener('keyup', edKey, true);
   root.querySelector('.edpe').onclick = () => edCmd('propEd');
@@ -502,7 +502,7 @@ function edPanelVals(keepSize) { // refresh the numbers while dragging, without 
   ED.root.querySelectorAll('.edpanel input[data-k]').forEach(inp => { if (document.activeElement !== inp) inp.value = Math.round((o[inp.dataset.k] ?? 0) * 10) / 10; });
 }
 /* the menu entry */
-let edTesting = null; // the map being play-tested from the editor: quitting goes back to the editor
+// edTesting (declared in 05c): the map being play-tested from the editor: quitting goes back to the editor
 const _edShowMenu = showMenu;
 showMenu = function () {
   _edShowMenu.apply(this, arguments);
@@ -901,7 +901,8 @@ function edModal(title, body, buttons) { // a small dialog; buttons: [label, fn,
 }
 const _edClose = closeEditor;
 closeEditor = function (play) {
-  if (play) { const k = mapEditKey(MAPS[ED.map].name), all = {}; const keep = edDrafts; // build the test copy from the editor as it is now
+  if (play) { edTestSkills = edSkillsGet();
+    const k = mapEditKey(MAPS[ED.map].name), all = {}; const keep = edDrafts; // build the test copy from the editor as it is now
     const clean = list => list.map(o => { const c = {}; for (const q in o) if (!ED_RUNTIME.has(q)) c[q] = o[q]; return c; });
     edTestData = { k, d: edClone({ obs: clean(ED.obs), lights: clean(ED.lights), trails: ED.trails, areas: ED.areas.map(a => ({ poly: a.poly, tex: a.tex, sharp: a.sharp, edge: a.edge })), base: ED.base || undefined }) };
     return _edClose(true); }
@@ -1014,3 +1015,12 @@ function edApply() {
 }
 function edUnapply() { const all = localMapEdits(); delete all[mapEditKey(MAPS[ED.map].name)]; localStorage.setItem('snakeCarnageMapEdits', JSON.stringify(all)); edStatus(`Normal runs on ${MAPS[ED.map].name} use the original map again (your editor copy is kept)`); }
 try { if (!localStorage.getItem('snakeCarnageEdDrafts') && localStorage.getItem('snakeCarnageMapEdits')) localStorage.setItem('snakeCarnageEdDrafts', localStorage.getItem('snakeCarnageMapEdits')); } catch (e) {} // edits from before drafts existed
+
+/* ---- skills for play tests: any upgrade at any level, only while testing; your real upgrades are untouched ---- */
+function edSkillsGet() { try { const s = JSON.parse(localStorage.getItem('snakeEdSkills')); if (s) return s; } catch (e) {} const o = {}; for (const u of UPGRADES) o[u.id] = PROG.upgOff[u.id] ? 0 : PROG.upg[u.id] || 0; return o; }
+function edSkillsDlg() {
+  const cur = edSkillsGet(), row = u => `<div class="edskr"><span><b>${u.name}</b>${u.key ? ` <kbd>${u.key}</kbd>` : ''}<small>${(u.desc || '').replace(/<[^>]+>/g, '')}</small></span><div class="peseg">${Array.from({ length: u.max + 1 }, (_, l) => `<button data-u="${u.id}" data-l="${l}" class="${(cur[u.id] || 0) === l ? 'on' : ''}">${l ? ['I', 'II', 'III', 'IV', 'V'][l - 1] : 'Off'}</button>`).join('')}</div></div>`;
+  const m = edModal('Test skills', `<p>Pick any upgrade levels to try in <b>play tests</b>. Your real upgrades and coins aren't touched.</p><div class="edsklist">${UPGRADES.map(row).join('')}</div>`,
+    [['Use my upgrades', mm => { localStorage.removeItem('snakeEdSkills'); edStatus('Play tests use your own upgrades'); }, ''], ['Everything maxed', mm => { const o = {}; for (const u of UPGRADES) o[u.id] = u.max; localStorage.setItem('snakeEdSkills', JSON.stringify(o)); edStatus('Play tests: every skill maxed'); }, ''], ['Done', null, 'edprimary']]);
+  m.querySelectorAll('[data-u]').forEach(b => b.onclick = () => { const s = edSkillsGet(); s[b.dataset.u] = +b.dataset.l; localStorage.setItem('snakeEdSkills', JSON.stringify(s)); m.querySelectorAll(`[data-u="${b.dataset.u}"]`).forEach(c => c.classList.toggle('on', c === b)); });
+}

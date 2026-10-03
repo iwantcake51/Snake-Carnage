@@ -36,3 +36,4 @@ function polyHit(P, x, y, r) { // a circle touching a polygon: inside it, or wit
   return false;
 }
 const shapeOf = o => o.poly ? polyShape(o) : isRot(o) ? obsCorners(o) : null; // the true outline of a non-box shape
+let edTestSkills = null, edTesting = null; // play tests from the editor can borrow any upgrade levels (see 40b)
