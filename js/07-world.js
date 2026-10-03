@@ -174,7 +174,7 @@ function loadMap(idx, sz) {
   curPre = pre.filter(o => o.kind !== 'border'); curMapLights = b.lights || m.lights || []; // spacing works on whole objects, before long ones are split into breakable sections
   obstacles = splitBreakables(addBreakWalls(pre, m.name));
   buildSolid();
-  b.obs = b.obs.filter(o => !o.dropped); bctx.clearRect(0, 0, W, H); if (ov && ov.trails) { trailMute = true; try { b.floor(bctx); } finally { trailMute = false; } paintTrails(bctx, ov.trails); } else b.floor(bctx); // edited paths replace the map's painted trails bakeContactShadows(bctx, b.obs); resetBuckets(); gctx.clearRect(0, 0, W, H); groundParts = []; trail = []; floaters = [];
+  b.obs = b.obs.filter(o => !o.dropped); bctx.clearRect(0, 0, W, H); if (ov && ov.trails) { trailMute = true; try { b.floor(bctx); } finally { trailMute = false; } paintTrails(bctx, ov.trails); } else b.floor(bctx); /* edited paths replace the map's painted trails */ bakeContactShadows(bctx, b.obs); resetBuckets(); gctx.clearRect(0, 0, W, H); groundParts = []; trail = []; floaters = [];
   buildGrassMask(); gradeGround(); seasonDetails(bctx);
   curBuild = b; drawObstacleLayer(); buildTrees();
   bakeOutline();
