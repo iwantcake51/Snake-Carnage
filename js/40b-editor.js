@@ -359,7 +359,7 @@ function edBuildUI() {
         <div class="edlt" data-lt="floor"><p class="edhint">Floor areas repaint the ground in any shape: press <kbd>U</kbd>, click points round it, click the first point (or Enter) to fill. Draw one over a road, lawn or floor to change its texture. Edit the points later like water.</p>
           <div class="edrow"><label>Texture <button class="edpick edat-btn"></button></label></div><button class="edghost edwide" data-tool="area">${edSvg('area', 14)} Draw a floor area</button>
           <h4>Whole map ground</h4><p class="edhint">Replace the map's entire painted ground (roads, lawns, markings and all) with one texture. Your floor areas and paths go on top.</p><div class="edrow"><label>Ground <button class="edpick edbase-btn"></button></label></div></div></aside>
-      <main class="edview"><canvas class="edmain"></canvas><canvas class="edminimap" width="220" height="120" title="Click or drag to move the view"></canvas>
+      <main class="edview"><canvas class="edmain"></canvas><div class="edkeys"></div><canvas class="edminimap" width="220" height="120" title="Click or drag to move the view"></canvas>
         <button class="edhelpbtn edghost" title="Show controls (H)">${edSvg('help', 14)} Controls</button><div class="edhelp"><button class="edhelpx" title="Hide (H)">×</button><b>Controls</b>
           <p><kbd>Wheel</kbd> zoom · <kbd>Space</kbd>/<kbd>Middle</kbd>/<kbd>Right</kbd>-drag pan · <kbd>0</kbd> fit · <kbd>F</kbd> focus · right-click for actions</p>
           <p><kbd>Click</kbd> select · <kbd>Shift</kbd>+click add · drag empty space to box-select · <kbd>Ctrl+A</kbd> all</p>
@@ -819,7 +819,28 @@ function edPicker(anchor, set, cur, onPick) {
 }
 
 /* ---- status bar, minimap ---- */
+const ED_KEYS = { // the keys that matter for each tool, shown in the corner of the map view
+  select: [['Click', 'select'], ['Shift+click', 'add to selection'], ['Drag', 'move / box-select'], ['Alt+drag', 'duplicate'], ['Arrows', 'nudge'], ['Q', 'rotate'], ['[ ]', 'size'], ['Del', 'delete'], ['Ctrl+D', 'duplicate'], ['F', 'focus']],
+  selPath: [['Drag point', 'bend'], ['Dbl-click line', 'add point'], ['A', 'add point at cursor'], ['Alt+click point', 'remove point'], ['[ ]', 'width'], ['Shift+[ ]', 'resize shape'], ['Q', 'rotate'], ['Del', 'delete']],
+  selPoly: [['Drag point', 'reshape'], ['Dbl-click edge', 'add point'], ['A', 'add point at cursor'], ['Alt+click point', 'remove point'], ['Shift+[ ]', 'resize'], ['Q', 'rotate'], ['Del', 'delete']],
+  wall: [['Drag', 'draw along its length'], ['Alt', 'no snap'], ['V', 'back to select'], ['Esc', 'cancel']],
+  rect: [['Drag', 'draw a block'], ['Alt', 'no snap'], ['V', 'back to select'], ['Esc', 'cancel']],
+  path: [['Click', 'place point'], ['A', 'point at cursor'], ['E', 'end at cursor'], ['Enter / dbl-click', 'finish'], ['Click a path end', 'extend it'], ['Esc', 'cancel']],
+  water: [['Click', 'place point'], ['A', 'point at cursor'], ['Click first point', 'fill'], ['Enter', 'fill'], ['Esc', 'cancel']],
+  area: [['Click', 'place point'], ['A', 'point at cursor'], ['Click first point', 'fill'], ['Enter', 'fill'], ['Esc', 'cancel']],
+  light: [['Click', 'add a light'], ['V', 'back to select'], ['Esc', 'cancel']],
+  prop: [['Click', 'place'], ['Shift+click', 'keep placing'], ['Alt', 'no snap'], ['Esc', 'cancel']],
+  pan: [['Drag', 'pan'], ['Wheel', 'zoom'], ['0', 'fit'], ['V', 'back to select']],
+  view: [['Wheel', 'zoom'], ['Space+drag', 'pan'], ['Right-click', 'actions'], ['Ctrl+Z', 'undo']],
+};
+function edKeyTips() {
+  const el = ED.root && ED.root.querySelector('.edkeys'); if (!el) return;
+  let k = ED.tool; if (k === 'select' && ED.sel.length === 1) { const s0 = ED.sel[0], o = edItem(s0); if (s0.t === 'p') k = 'selPath'; else if (o && o.poly) k = 'selPoly'; }
+  const list = [...(ED_KEYS[k] || []), ...ED_KEYS.view], key = k + ':' + ED.sel.length; if (el._k === key) return; el._k = key;
+  el.innerHTML = list.map(([a, b]) => `<span><kbd>${a}</kbd>${b}</span>`).join('');
+}
 function edStatusBar(r) {
+  edKeyTips();
   const R = ED.root; if (!R) return; const t = ED_TOOLS.find(q => q[0] === ED.tool);
   R.querySelector('.edst-tool').textContent = ED.draft ? (ED.draft.kind === 'path' ? `Drawing a path · ${ED.draft.pts.length} points · A add point · E/Enter end · Esc cancel` : `Drawing ${ED.draft.kind === 'area' ? 'a floor area' : 'water'} · ${ED.draft.pts.length} points · click the first point or Enter to fill`) : ED.tool === 'prop' && ED.ghost ? `Placing: ${ED.ghost[0]} (Shift keeps placing)` : (t ? t[1] : '');
   R.querySelector('.edst-sel').textContent = ED.sel.length ? `${ED.sel.length} selected` : `${ED.obs.length} objects · ${ED.lights.length} lights · ${ED.trails.length} paths`;
