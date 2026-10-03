@@ -32,7 +32,7 @@ function shadowShape(q, L, o, ox, oy) {
   if (o.t === 'r') {
     if (L.x > o.x && L.x < o.x + o.w && L.y > o.y && L.y < o.y + o.h) return false;
     if (dist2(L.x, L.y, clamp(L.x, o.x, o.x + o.w), clamp(L.y, o.y, o.y + o.h)) > L.r * L.r) return false;
-    const P = [reach(o.x, o.y), reach(o.x + o.w, o.y), reach(o.x + o.w, o.y + o.h), reach(o.x, o.y + o.h)];
+    const C = isRot(o) ? obsCorners(o) : [[o.x, o.y], [o.x + o.w, o.y], [o.x + o.w, o.y + o.h], [o.x, o.y + o.h]], P = C.map(([a, b]) => reach(a, b));
     for (let i = 0; i < 4; i++) { const a = P[i], b = P[(i + 1) & 3]; q.beginPath(); q.moveTo(a[0], a[1]); q.lineTo(b[0], b[1]); q.lineTo(b[2], b[3]); q.lineTo(a[2], a[3]); q.fill(); }
     return true;
   }
@@ -50,6 +50,11 @@ function shadeInto(dst, L, list, ox, oy, size, str, skip, soft) { // removes lig
   qx.beginPath(); let round = false; // all round shadows in one fill: same winding, so they merge into one shape
   for (const o of list) if (o.t !== 'r' && (!skip || o.src !== skip)) round = shadowShape(qx, L, o, ox, oy) || round;
   if (round) { qx.fill(); any = true; }
+  if (any && snake && list.some(o => o.snk)) { // the body never shades itself: a light overhead lights the top of every segment, shadows only fall on the ground around it
+    qx.globalCompositeOperation = 'destination-out'; qx.beginPath(); const n = snake.segs.length;
+    for (let i = 0; i < n; i++) { const g = snake.segs[i], r = segR(i, n) * 1.12, px = g.x - ox, py = g.y - oy; if (px < -r || py < -r || px > size + r || py > size + r) continue; qx.moveTo(px + r, py); qx.arc(px, py, r, 0, TAU); }
+    qx.fill(); qx.globalCompositeOperation = 'source-over';
+  }
   if (any) {
     qx.globalCompositeOperation = 'source-in';
     const g = qx.createRadialGradient(L.x - ox, L.y - oy, 0, L.x - ox, L.y - oy, L.r);
@@ -61,7 +66,7 @@ function shadeInto(dst, L, list, ox, oy, size, str, skip, soft) { // removes lig
 }
 function bakeLightMasks(near) { // static shadows per light, baked once; after a lamp breaks or furniture is smashed only the lights that reach it
   lightVer++;
-  scast = obstacles.filter(o => o.kind !== 'lamp' && (HEIGHTS[o.kind] ?? 10) > 0).map(o => ({ ...o, z: HEIGHTS[o.kind] ?? 10,
+  scast = obstacles.filter(o => o.kind !== 'lamp' && !o.poly && !obsFlag(o, 'noShadow') && (HEIGHTS[o.kind] ?? 10) > 0).map(o => ({ ...o, z: HEIGHTS[o.kind] ?? 10,
     cx: o.t === 'r' ? o.x + o.w / 2 : o.x, cy: o.t === 'r' ? o.y + o.h / 2 : o.y, br: o.t === 'r' ? Math.hypot(o.w, o.h) / 2 : o.r })); // bounding circle, for culling
   for (const l of lights) {
     if (l.kind === 'window') continue;
@@ -78,7 +83,7 @@ const dyn = [], NEAR = [];
 function gatherDyn() { // things that move and cast shadows: people, animals, the snake
   dyn.length = 0;
   for (const c of creatures) if (c.alive) dyn.push({ t: 'c', x: c.x, y: c.y, r: c.def.r * .85, z: c.def.human ? 16 : c.def.r * 1.2, src: c });
-  if (snake) { const n = snake.segs.length; for (let i = 0; i < n; i++) { const g = snake.segs[i]; dyn.push({ t: 'c', x: g.x, y: g.y, r: segR(i, n) * 1.08, z: 6 }); } }
+  if (snake) { const n = snake.segs.length; for (let i = 0; i < n; i++) { const g = snake.segs[i]; dyn.push({ t: 'c', x: g.x, y: g.y, r: segR(i, n) * 1.08, z: 6, snk: 1 }); } }
 }
 function nearDyn(x, y, r, skip) { NEAR.length = 0; for (const d of dyn) if (d.src !== skip || !skip) if (dist2(d.x, d.y, x, y) < (r + d.r) ** 2) NEAR.push(d); return NEAR; }
 const CONE = [];
@@ -134,9 +139,10 @@ const [statC, stx] = mkLight(), [veilC, vtx] = mkLight();
 function resizeLights() { // lighting quality changed: rebuild the light buffers at the new resolution
   LDPR = lightRes();
   for (const [c, x] of [[lightC, lgx], [statC, stx], [veilC, vtx]]) { c.width = W * LDPR; c.height = H * LDPR; x.setTransform(LDPR, 0, 0, LDPR, 0, 0); }
-  desC.width = lightC.width / 2; desC.height = lightC.height / 2; statKey = '';
+  desC.width = lightC.width / 2; desC.height = lightC.height / 2; statKey = ''; veilKey = '';
 }
-let statKey = '', lightVer = 0;
+let statKey = '', veilKey = '', lightVer = 0;
+const isStaticTint = l => !l.enc && !(l.ign > 0) && !(l.fT > 0) && l.kind !== 'emerg' && l.kind !== 'disco'; // live shadows don't change a light's color veil, so it stays cached
 const isStaticLight = l => !l.enc && !l.dynNow && !(l.ign > 0) && !(l.fT > 0) && l.kind !== 'emerg' && l.kind !== 'disco';
 function drawLighting(x) {
   const L = light, nv = nightVision, Q = lq();
@@ -163,15 +169,24 @@ function drawLighting(x) {
     if (key !== statKey) {
       statKey = key;
       stx.setTransform(1, 0, 0, 1, 0, 0); stx.clearRect(0, 0, statC.width, statC.height); stx.setTransform(LDPR, 0, 0, LDPR, 0, 0);
-      vtx.setTransform(1, 0, 0, 1, 0, 0); vtx.clearRect(0, 0, veilC.width, veilC.height); vtx.setTransform(LDPR, 0, 0, LDPR, 0, 0);
       for (const l of lights) {
         if (!isStaticLight(l)) continue; const k = lightK(l); if (k < .01) continue;
         stx.globalAlpha = k; // source-over of alpha masks = their union, exactly what punching them out one by one gives
         if (l.kind === 'window') { stx.drawImage(MASK_SPR, l.x - l.r, l.y - l.r, l.r * 2, l.r * 2); continue; }
         const s = l.size, bs = Math.ceil(s * LS); stx.drawImage(l.mask, 0, 0, bs, bs, l.x - l.r, l.y - l.r, s, s);
-        vtx.globalAlpha = k * (VEIL[l.kind] ?? .12); vtx.drawImage(l.tint, 0, 0, bs, bs, l.x - l.r, l.y - l.r, s, s);
       }
-      stx.globalAlpha = 1; vtx.globalAlpha = 1;
+      stx.globalAlpha = 1;
+    }
+    let vkey = lightVer + '|' + nv;
+    for (const l of lights) if (l.kind !== 'window' && isStaticTint(l)) vkey += ',' + Math.round(lightK(l) * 40);
+    if (vkey !== veilKey) {
+      veilKey = vkey;
+      vtx.setTransform(1, 0, 0, 1, 0, 0); vtx.clearRect(0, 0, veilC.width, veilC.height); vtx.setTransform(LDPR, 0, 0, LDPR, 0, 0);
+      for (const l of lights) {
+        if (l.kind === 'window' || !isStaticTint(l)) continue; const k = lightK(l); if (k < .01) continue;
+        const s = l.size, bs = Math.ceil(s * LS); vtx.globalAlpha = k * (VEIL[l.kind] ?? .12); vtx.drawImage(l.tint, 0, 0, bs, bs, l.x - l.r, l.y - l.r, s, s);
+      }
+      vtx.globalAlpha = 1;
     }
     lgx.globalCompositeOperation = 'source-over'; lgx.globalAlpha = 1; lgx.clearRect(0, 0, W, H);
     lgx.fillStyle = `rgba(${L.dc},${dark})`; lgx.fillRect(0, 0, W, H);
@@ -192,7 +207,7 @@ function drawLighting(x) {
     if (desat) { dsx.globalCompositeOperation = 'copy'; dsx.globalAlpha = 1; dsx.drawImage(lightC, 0, 0, desC.width, desC.height); } // snapshot (half res: it's a soft mask) before colored veils go in
     if (!nv && Q.veil) { // colored veil inside each light pool: sodium orange, fluorescent white, pool cyan, emergency red
       lgx.globalCompositeOperation = 'source-over'; lgx.globalAlpha = 1; lgx.drawImage(veilC, 0, 0, W, H);
-      for (const l of lights) { if (l.kind === 'window' || isStaticLight(l)) continue; const k = lightK(l); if (k < .01) continue; const s = l.size, bs = Math.ceil(s * LS); lgx.globalAlpha = k * (VEIL[l.kind] ?? .12); if (l.enc) encClip(lgx, l); lgx.drawImage(l.tint, 0, 0, bs, bs, l.x - l.r, l.y - l.r, s, s); if (l.enc) lgx.restore(); }
+      for (const l of lights) { if (l.kind === 'window' || isStaticTint(l)) continue; const k = lightK(l); if (k < .01) continue; const s = l.size, bs = Math.ceil(s * LS); lgx.globalAlpha = k * (VEIL[l.kind] ?? .12); if (l.enc) encClip(lgx, l); lgx.drawImage(l.tint, 0, 0, bs, bs, l.x - l.r, l.y - l.r, s, s); if (l.enc) lgx.restore(); }
     }
     beams.forEach((f, i) => {
       const s = composeBeam(f, i < Q.beamSh), bs = Math.ceil(s * LS);

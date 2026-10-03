@@ -11,9 +11,9 @@ const NET = { // multiplayer hook: nothing listens yet, but every ability use an
 };
 const UPGRADES = [
   { id: 'speed', name: 'Speed Demon', icon: 'speed', max: 5, cost: [150, 380, 750, 1300, 2100], lvl: [2, 5, 9, 14, 20],
-    desc: 'Faster, and quicker to recover. You trail speed lines from level III.', tiers: ['+5% speed', '+10% speed, snappier turns', '+15% speed, shake off dazes a third faster, speed lines (until max level)', '+20% speed, even sharper turns', '+25% speed, sharper turns. Smashing through things keeps your momentum, and pressing the opposite way whips you round in a tight U-turn'] },
+    desc: 'Faster, and quicker to recover.', tiers: ['+5% speed', '+10% speed, snappier turns', '+15% speed, shake off dazes a third faster', '+20% speed, even sharper turns', '+25% speed, sharper turns. Smashing through things keeps your momentum, and pressing the opposite way whips you round in a tight U-turn'] },
   { id: 'ram', name: 'Battering Ram', icon: 'ram', max: 4, cost: [300, 850, 1900, 3200], lvl: [4, 10, 16, 22],
-    desc: 'Smash through furniture instead of crashing into it. You stagger for a moment after each hit.', tiers: ['Desks, tables, benches, chairs, couches, fences, hay, bushes, crates', 'Also cars, consoles, rocks, speakers and bars', 'Also the cracked wall sections on some maps: shortcuts, but the hit leaves you seeing stars', 'Thick skull: every concussion is 25% shorter and gentler'] },
+    desc: 'Smash through things instead of crashing into them. Each level takes on heavier things; the heavier it is, the harder the knock.', tiers: ['Small things: chairs, plants, bushes, crates, hay, fences, bins. Barely slows you', 'Big furniture and small trees: desks, tables, benches, couches, shelves, beds, bars, consoles, speakers, saplings. A harder knock', 'Cars, rocks and the cracked wall sections on some maps: shortcuts, but the hit leaves you seeing stars', 'Thick skull: every concussion is 25% shorter and gentler'] },
   { id: 'gut', name: 'Iron Stomach', icon: 'gut', max: 3, cost: [350, 900, 1700], lvl: [7, 13, 19], desc: 'Combos last longer.', tiers: ['+10% combo time', '+20% combo time', '+30% combo time'] },
   { id: 'dash', name: 'Lunge', icon: 'dash', max: 3, cost: [250, 900, 1800], lvl: [3, 12, 18], ability: true, key: 'Shift',
     desc: 'A short burst of speed. Great for catching runners.', tiers: ['0.6 s at 1.8x speed, 7 s cooldown', '0.8 s at 1.9x speed, 5 s cooldown, a cleaner wake', 'Pounce: eat something mid-lunge and the cooldown almost resets, and you keep going'] },
@@ -21,16 +21,16 @@ const UPGRADES = [
     desc: 'Always tasting the air (E switches it off and on). Wisps drift toward the best meal: big animals close by, golden animals, golden people, and crowds over lone targets. Easy, unaware prey smells strongest. Wisps bump off walls, so you still have to find the way.',
     tiers: ['One trail', 'Wisps are colored by what is at the end, and you see who can spot you', 'Bloodhound: three trails at once, and golden targets always get one'] },
   { id: 'camo', name: 'Camouflage', icon: 'camo', max: 3, cost: [600, 1400, 2400], lvl: [8, 17, 23], ability: true, key: 'Q',
-    desc: 'Your scales take on the ground under you. People only notice you up close.', tiers: ['5 s, 20 s cooldown', '8 s, 16 s cooldown, better blending', 'Stillness: hold a straight line and you fade almost completely. Turning breaks it'] },
+    desc: 'Your scales take on the ground under you. People only notice you up close.', tiers: ['5 s, 20 s cooldown', '8 s, 16 s cooldown, better blending', 'Ambush: 10 s, 14 s cooldown. Hold a straight line to fade almost completely; turns only dim it a little. Every kill while hidden adds 2 s, and people right next to you don\'t notice you'] },
   { id: 'hiss', name: 'Hiss', icon: 'hiss', max: 3, cost: [700, 1600, 2600], lvl: [11, 18, 24], ability: true, key: 'R',
     desc: 'A blood-curdling hiss you can see rippling out: everything nearby panics and scatters.', tiers: ['190 px radius, 15 s cooldown', 'Wider, and it rattles them: slowed for 4 s, half-deaf and slurring for 10 s', 'Shockwave: the blast knocks people off their feet and blows groups apart'] },
 ];
 PROG.upg = PROG.upg || {}; PROG.upgOff = PROG.upgOff || {};
-const upg = id => PROG.upgOff[id] ? 0 : Math.min(PROG.upg[id] || 0, (UPGRADES.find(u => u.id === id) || { max: 9 }).max); // owned and switched on
+const upg = id => edTestSkills && edTesting !== null ? Math.min(edTestSkills[id] || 0, (UPGRADES.find(u => u.id === id) || { max: 9 }).max) : PROG.upgOff[id] ? 0 : Math.min(PROG.upg[id] || 0, (UPGRADES.find(u => u.id === id) || { max: 9 }).max); // owned and switched on
 const ABIL = { // cd/dur read the owned level each time
   dash: { get cd() { return upg('dash') > 1 ? 5 : 7; }, get dur() { return upg('dash') > 1 ? .8 : .6; }, go(s) { s.dashT = this.dur; s.dashK = upg('dash') > 1 ? 1.9 : 1.8; s.lk = Math.max(s.lk || 0, .25); Sfx.dash(); camF.kv.x += Math.cos(s.angle) * 160; camF.kv.y += Math.sin(s.angle) * 160; } },
   scent: { cd: 1, dur: 1, go(s) { s.scentOn = !s.scentOn; if (s.scentOn) Sfx.sniff(); else Sfx.ui && Sfx.ui('off'); } }, // always on; the key switches it off and on again
-  camo: { get cd() { return upg('camo') > 1 ? 16 : 20; }, get dur() { return upg('camo') > 1 ? 8 : 5; }, go(s) { s.camoT = this.dur; Sfx.camo(); } },
+  camo: { get cd() { const l = upg('camo'); return l > 2 ? 14 : l > 1 ? 16 : 20; }, get dur() { const l = upg('camo'); return l > 2 ? 10 : l > 1 ? 8 : 5; }, go(s) { s.camoT = this.dur; Sfx.camo(); } },
   hiss: { cd: 15, dur: .8, go(s) {
     const lv = upg('hiss'), R = lv > 2 ? 270 : lv > 1 ? 240 : 190; s.hissLv = lv;
     Sfx.hiss(); shake = Math.max(shake, lv > 1 ? 8 : 5); s.hissT = this.dur; s.hissR = R;
@@ -70,6 +70,12 @@ function abilityHud(rebuild) {
     }
   }
 }
+function abilityTick() { // every frame: just slide the cooldown rings, so they sweep smoothly instead of ticking ten times a second
+  for (const host of [document.getElementById('abil'), document.querySelector('#touch .tabil')]) {
+    if (!host) continue;
+    for (const b of host.children) { const id = b.dataset.a, A = ABIL[id]; if (!A) continue; const k = Math.max(0, (abilCD[id] || 0) - T) / A.cd; b.style.setProperty('--cd', (k * 360).toFixed(2) + 'deg'); }
+  }
+}
 function refreshTouchAbilities() {
   const host = document.querySelector('#touch .tabil'); if (!host) return;
   host.innerHTML = UPGRADES.filter(u => u.ability && upg(u.id)).map(u => `<button class="tb ab" data-a="${u.id}" data-sfx="none" aria-label="${u.name}">${upIcon(u.icon)}<i class="cd"></i></button>`).join('');
@@ -89,18 +95,20 @@ function upIcon(k) { // small hand-drawn SVG glyphs, so the upgrades don't lean 
 }
 
 /* ---- breaking through furniture (Battering Ram) ---- */
-const RAM_KINDS = [null, new Set(['desk', 'table', 'bench', 'chair', 'couch', 'fence', 'hay', 'bush', 'crate', 'plant', 'shelf', 'bed', 'barrier']),
-  new Set(['desk', 'table', 'bench', 'chair', 'couch', 'fence', 'hay', 'bush', 'crate', 'plant', 'shelf', 'bed', 'barrier', 'car', 'console', 'rock', 'speaker', 'bar', 'booth'])];
-RAM_KINDS.push(new Set([...RAM_KINDS[2], 'bwall'])); // tier 3: the marked wall sections
+const RAM_SMALL = ['chair', 'plant', 'bush', 'crate', 'hay', 'barrier', 'bin', 'fence'], RAM_LARGE = ['tree', 'desk', 'table', 'bench', 'couch', 'shelf', 'bed', 'bar', 'booth', 'console', 'speaker'], RAM_HEAVY = ['car', 'rock', 'bwall'];
+const RAM_KINDS = [null, new Set(RAM_SMALL), new Set([...RAM_SMALL, ...RAM_LARGE]), new Set([...RAM_SMALL, ...RAM_LARGE, ...RAM_HEAVY])];
 RAM_KINDS.push(RAM_KINDS[3]); // tier 4: same targets, softer landings
+const ramClass = o => RAM_HEAVY.includes(o.kind) ? 3 : RAM_LARGE.includes(o.kind) ? 2 : 1;
 function obstacleHitBy(x, y, r) {
   for (const o of obstacles) {
+    if (obsFlag(o, 'noCollide')) continue;
+    const sp = shapeOf(o); if (sp) { if (x > o.x - r - 40 && x < o.x + o.w + r + 40 && y > o.y - r - 40 && y < o.y + o.h + r + 40 && polyHit(sp, x, y, r)) return o; continue; }
     if (o.t === 'r') { const nx = clamp(x, o.x, o.x + o.w), ny = clamp(y, o.y, o.y + o.h); if (dist2(x, y, nx, ny) < r * r) return o; }
     else if (dist2(x, y, o.x, o.y) < (r + o.r) ** 2) return o;
   }
   return null;
 }
-const canRam = o => { const lv = upg('ram'); return lv > 0 && o && o.kind !== 'border' && RAM_KINDS[lv].has(o.kind) && !(o.kind === 'rock' && o.r > 26); };
+const canRam = o => { const lv = upg('ram'); return lv > 0 && o && o.kind !== 'border' && RAM_KINDS[lv].has(o.kind) && !(o.kind === 'rock' && o.r > 26) && !(o.kind === 'tree' && (o.r > 20 || o.tinfo && o.tinfo.pine && o.r > 16)); }; // only saplings and small trees snap; big trunks still stop you
 function smashObstacle(o, ang) {
   const i = obstacles.indexOf(o); if (i < 0) return;
   obstacles.splice(i, 1);
@@ -111,14 +119,14 @@ function smashObstacle(o, ang) {
   for (let k = 0; k < 18 + size / 3; k++) { const a = ang + rand(-1.2, 1.2), sp = rand(60, 230); debris.push({ x: cx + rand(-size / 3, size / 3), y: cy + rand(-size / 3, size / 3), z: rand(4, 16), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(60, 170), t: 0, s: rand(1.6, 3.6), c: pick([o.color, shade(o.color, -.2), shade(o.color, .15)]) }); }
   drawObstacleLayer();
   bakeOutline(); buildSolid(); shadowKey = ''; bakeShadows(); bakeLightMasks({ x: cx, y: cy, r: size });
-  const wall = o.kind === 'bwall';
-  Sfx.smash(cx, wall ? size * 2.5 : size); shake = Math.max(shake, wall ? 16 : 6);
-  const lng = (snake.dashV || 1) > 1.25, dur = (wall ? 4 : 1.3) + (lng ? 1 : 0); // lunging in: it hits harder on screen and lasts longer, but you keep more of your speed
+  const wall = o.kind === 'bwall', hard = wall || o.kind === 'rock'; // rocks knock you silly just like walls
+  Sfx.smash(cx, wall ? size * 2.5 : size); shake = Math.max(shake, hard ? 16 : 6);
+  const lng = (snake.dashV || 1) > 1.25, cls = ramClass(o), dur = (hard ? 4 : cls === 3 ? 2.2 : cls === 2 ? 1.6 : 1.3) + (lng ? 1 : 0); // big furniture knocks you a bit longer // lunging in: it hits harder on screen and lasts longer, but you keep more of your speed
   const res = upg('ram') >= 4 ? .75 : 1; // thick skull
   const keepMo = upg('speed') >= 5 ? .5 : 1; // Speed Demon V: momentum survives the hit
-  if (!wall && snake.wallStun > 0) snake.ramT = Math.max(snake.ramT, Math.min(snake.ramMax, dur * res)); // already seeing stars from a wall: furniture doesn't reset it
-  else { snake.ramT = snake.ramMax = dur * res; snake.ramDeep = (wall ? .62 : .38) * (lng ? .6 : 1) * res * keepMo; snake.wallStun = snake.wallMax = wall ? dur * res : 0; snake.stunFx = (lng ? 1.5 : 1) * res; }
-  if (wall) { snake.dashT = 0; snake.dashV = 1; snake.lk = 0; } // a wall stops a lunge dead // dazed: slower, colours drain, edges blur, all easing back as speed returns
+  if (!hard && snake.wallStun > 0) snake.ramT = Math.max(snake.ramT, Math.min(snake.ramMax, dur * res)); // already seeing stars from a wall: furniture doesn't reset it
+  else { snake.ramT = snake.ramMax = dur * res; snake.ramDeep = (hard ? .62 : cls === 3 ? .45 : cls === 2 ? .38 : .18) * (lng ? .6 : 1) * res * keepMo; /* small things barely slow you, same daze */ snake.wallStun = snake.wallMax = hard ? dur * res : 0; snake.stunFx = (lng ? 1.5 : 1) * res; }
+  if (hard) { snake.dashT = 0; snake.dashV = 1; snake.lk = 0; } // a wall stops a lunge dead // dazed: slower, colours drain, edges blur, all easing back as speed returns
   if (wall) { // a wall: bricks and plaster everywhere, a cloud of dust, and the snake sees stars
     for (let k = 0; k < 40; k++) { const a = ang + rand(-.9, .9), sp = rand(80, 300); debris.push({ x: cx + rand(-o.w / 2, o.w / 2), y: cy + rand(-o.h / 2, o.h / 2), z: rand(6, 20), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(80, 220), t: 0, s: rand(2.4, 5), c: pick([o.color, shade(o.color, -.25), shade(o.color, .2), '#8a7f74']) }); }
     for (let k = 0; k < 14; k++) mist.push({ x: cx + rand(-10, 10), y: cy + rand(-10, 10), vx: Math.cos(ang + rand(-1.4, 1.4)) * rand(20, 90), vy: Math.sin(ang + rand(-1.4, 1.4)) * rand(20, 90), r: rand(6, 14), g: rand(10, 24), t: 0, life: rand(1, 1.8), c: '#aaa096', a: rand(.25, .4) });
@@ -137,6 +145,7 @@ function smashObstacle(o, ang) {
 function drawWreck(x, o, ang) { // a flattened, broken version of the object instead of it vanishing
   if (o.kind === 'speaker') return brokenSpeaker(x, o, ang);
   if (o.kind === 'bwall') return brokenWall(x, o, ang);
+  if (o.kind === 'tree') return brokenTree(x, o, ang);
   x.save();
   if (o.t === 'r') { x.beginPath(); const r = seeded(Math.round(o.x * 3 + o.y)); x.moveTo(o.x, o.y); for (let k = 1; k <= 8; k++) x.lineTo(o.x + o.w * k / 8, o.y + r() * o.h * .35); x.lineTo(o.x + o.w, o.y + o.h); for (let k = 7; k >= 0; k--) x.lineTo(o.x + o.w * k / 8, o.y + o.h - r() * o.h * .35); x.closePath(); x.clip(); }
   x.globalAlpha = .7; drawObstacle(x, { ...o, cracked: true });
@@ -145,6 +154,19 @@ function drawWreck(x, o, ang) { // a flattened, broken version of the object ins
   const cx = o.t === 'r' ? o.x + o.w / 2 : o.x, cy = o.t === 'r' ? o.y + o.h / 2 : o.y, size = o.t === 'r' ? Math.sqrt(o.w * o.h) : o.r * 1.6;
   x.save(); x.globalAlpha = .6; x.fillStyle = shade(o.color, -.35);
   for (let k = 0; k < 6 + size / 6; k++) { const a = ang + rand(-1.4, 1.4), d = rand(0, size * .9); x.save(); x.translate(cx + Math.cos(a) * d, cy + Math.sin(a) * d); x.rotate(rand(0, TAU)); x.fillRect(-rand(2, 6), -1.2, rand(4, 12), rand(1.6, 3)); x.restore(); }
+  x.restore();
+}
+function brokenTree(x, o, ang) { // snapped at the base: a splintered stump, the trunk and crown lying where it fell, leaves everywhere
+  const r = seeded(Math.round(o.x * 5 + o.y * 3)), ca = Math.cos(ang), sa = Math.sin(ang), L = o.r * 2.2;
+  x.save();
+  x.fillStyle = 'rgba(0,0,0,.22)'; x.save(); x.translate(o.x + ca * L * .6 + 2, o.y + sa * L * .6 + 3); x.rotate(ang); ell(x, 0, 0, L * .6, o.r * .55); x.restore(); // shadow of the fallen crown
+  x.save(); x.translate(o.x, o.y); x.rotate(ang); // the trunk, lying along the hit
+  x.fillStyle = '#5a3d24'; x.fillRect(0, -o.r * .16, L * .55, o.r * .32); x.fillStyle = '#7a5434'; x.fillRect(0, -o.r * .16, L * .55, o.r * .09);
+  for (let k = 0; k < 9; k++) { const t = .45 + r() * .9; x.fillStyle = r() < .5 ? o.color : shade(o.color, r() < .5 ? .15 : -.2); circ(x, L * t, (r() - .5) * o.r * 1.1, o.r * (.28 + r() * .3)); } // the crown, flattened and spread
+  x.restore();
+  x.fillStyle = '#4a3220'; circ(x, o.x, o.y, o.r * .26); x.fillStyle = '#c9a473'; circ(x, o.x, o.y, o.r * .19); x.strokeStyle = '#9a7a4f'; x.lineWidth = .6; x.beginPath(); x.arc(o.x, o.y, o.r * .11, 0, TAU); x.stroke(); // stump with its rings
+  x.strokeStyle = '#e2c79a'; x.lineWidth = 1; for (let k = 0; k < 5; k++) { const a = r() * TAU, d = o.r * .2; x.beginPath(); x.moveTo(o.x + Math.cos(a) * d, o.y + Math.sin(a) * d); x.lineTo(o.x + Math.cos(a) * (d + 2 + r() * 3), o.y + Math.sin(a) * (d + 2 + r() * 3)); x.stroke(); } // splinters
+  for (let k = 0; k < 18; k++) { const a = ang + (r() - .5) * 2.6, d = r() * L * 1.2; x.fillStyle = shade(o.color, (r() - .5) * .4); ell(x, o.x + Math.cos(a) * d, o.y + Math.sin(a) * d, 1.4, .9); } // loose leaves
   x.restore();
 }
 function splitBreakables(list) { // long furniture breaks a section at a time, not all at once
@@ -173,7 +195,7 @@ function showUpgrades() {
     <div class="upgrid">${UPGRADES.map((u, i) => upCard(u, i)).join('')}</div>
     <div class="mbtns"><span class="upmsg" id="upmsg"></span><button class="btn" id="backBtn" data-sfx="close">Done</button></div></div>`;
   overlay.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => buyUpgrade(b.dataset.buy));
-  overlay.querySelectorAll('[data-off]').forEach(b => b.onclick = () => { const id = b.dataset.off; PROG.upgOff[id] = !PROG.upgOff[id]; Sfx.ui(PROG.upgOff[id] ? 'off' : 'on'); saveProg(); showUpgrades(); });
+  wireUpCards();
   document.getElementById('backBtn').onclick = () => transitionTo(showMenu);
 }
 function upCard(u, i) {
@@ -185,25 +207,33 @@ function upCard(u, i) {
     <div class="upf"><span class="pips">${pips}</span>${lv ? `<button class="tgl sm ${off ? '' : 'on'}" data-off="${u.id}" data-sfx="none" role="switch" aria-checked="${!off}" data-tip="${off ? 'Switched off' : 'Switched on'}"></button>` : ''}
     ${next >= 0 ? `<button class="btn ${lockedLv || poor ? 'alt' : ''}" data-buy="${u.id}" data-sfx="none" ${lockedLv ? 'disabled' : ''}>${lockedLv ? `Level ${need}` : `<i class="pc"></i> ${cost}`}</button>` : '<span class="maxed">Maxed</span>'}</div></div>`;
 }
+function refreshUpCards(leveled) { // update the upgrade cards in place: no rebuild, no entrance animations replaying
+  overlay.querySelectorAll('.upgrid .upc').forEach((el, i) => {
+    const q = UPGRADES[i], t = document.createElement('div'); t.innerHTML = upCard(q, i); const nc = t.firstElementChild;
+    if (q.id === leveled) { nc.classList.add('leveled'); el.replaceWith(nc); return; }
+    if (el.innerHTML === nc.innerHTML && el.className === nc.className) return; // nothing changed on this one
+    nc.classList.add('still'); nc.style.animation = 'none'; el.replaceWith(nc); // e.g. a buy button that's now too expensive
+  });
+  wireUpCards();
+}
+function wireUpCards() {
+  overlay.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => buyUpgrade(b.dataset.buy));
+  overlay.querySelectorAll('[data-off]').forEach(b => b.onclick = () => { const q = b.dataset.off; PROG.upgOff[q] = !PROG.upgOff[q]; Sfx.ui(PROG.upgOff[q] ? 'off' : 'on'); saveProg(); refreshUpCards(); });
+}
 function buyUpgrade(id) {
   const u = UPGRADES.find(q => q.id === id), lv = PROG.upg[id] || 0; if (lv >= u.max) return;
   const msg = document.getElementById('upmsg');
   if (PROG.level < u.lvl[lv]) { Sfx.deny(); msg.textContent = `Reach level ${u.lvl[lv]} first.`; return; }
   if (PROG.coins < u.cost[lv]) { Sfx.deny(); msg.textContent = `You need ${u.cost[lv] - PROG.coins} more chips.`; return; }
   PROG.coins -= u.cost[lv]; PROG.upg[id] = lv + 1; PROG.upgOff[id] = false; saveProg(); updateHud(); Sfx.buy(); setTimeout(() => Sfx.levelUp && Sfx.levelUp(), 120);
-  overlay.querySelectorAll('.upgrid .upc').forEach((el, i) => { // redraw the cards in place: only the one you bought celebrates
-    const q = UPGRADES[i], t = document.createElement('div'); t.innerHTML = upCard(q, i); const nc = t.firstElementChild;
-    nc.classList.add(q.id === id ? 'leveled' : 'still'); el.replaceWith(nc);
-  });
-  overlay.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => buyUpgrade(b.dataset.buy));
-  overlay.querySelectorAll('[data-off]').forEach(b => b.onclick = () => { const q = b.dataset.off; PROG.upgOff[q] = !PROG.upgOff[q]; Sfx.ui(PROG.upgOff[q] ? 'off' : 'on'); saveProg(); showUpgrades(); });
+  refreshUpCards(id); // only the card you bought changes (and celebrates); the rest just update their buy buttons in place
   const cp = overlay.querySelector('.coinpill'); if (cp) { cp.innerHTML = `<i class="pc"></i> ${PROG.coins}`; cp.classList.remove('spent'); void cp.offsetWidth; cp.classList.add('spent'); }
   const m = document.getElementById('upmsg'); if (m) m.textContent = `${u.name} ${u.max > 1 ? ['I', 'II', 'III', 'IV', 'V'][lv] + ' ' : ''}unlocked: ${u.tiers[lv]}`;
 }
 const upgradeReady = () => UPGRADES.some(u => { const lv = PROG.upg[u.id] || 0; return lv < u.max && PROG.level >= u.lvl[lv] && PROG.coins >= u.cost[lv]; }); // something you can buy right now
 
 function canSeeSnake(c) {
-  const s = snake, d = Math.hypot(c.x - s.x, c.y - s.y), sight = c.def.sight * (MOD.skittish ? 1.5 : MOD.oblivious ? .6 : 1) * (s.camoT > 0 ? .25 - (upg('camo') > 2 ? .15 * (s.still || 0) : 0) : 1);
+  const s = snake, d = Math.hypot(c.x - s.x, c.y - s.y), sight = c.def.sight * (MOD.skittish ? 1.5 : MOD.oblivious ? .6 : 1) * (MOD.fog ? .55 : 1) * (s.camoT > 0 ? .25 - (upg('camo') > 2 ? .15 * (s.still || 0) : 0) : 1);
   return d < 40 || (d < sight && lightAt(s.x, s.y) > VISIBLE && los(c.x, c.y, s.x, s.y));
 }
 /* ---- Scent: wisps drift from your head toward the best meals; brighter and thicker the closer you get ---- */
@@ -256,7 +286,8 @@ function drawScent(x) {
     x.lineWidth = 1.6; x.setLineDash([3, 5]); x.lineDashOffset = -T * 30;
     for (const c of creatures) { if (!c.alive || !c.golden) continue;
       const age = T - (c.goldAt ?? 0), pop = age < .6 ? 1 + (1 - age / .6) * 1.5 : 1; // a brighter, thicker line right when it shows up
-      x.strokeStyle = `rgba(255,214,70,${Math.min(1, .7 * pop)})`; x.lineWidth = 1.6 * pop; x.beginPath(); x.moveTo(s.x, s.y); x.lineTo(c.x, c.y); x.stroke(); }
+      x.beginPath(); x.moveTo(s.x, s.y); x.lineTo(c.x, c.y); x.strokeStyle = `rgba(0,0,0,${Math.min(.9, .6 * pop)})`; x.lineWidth = 1.6 * pop + 2.4; x.stroke(); // a dark edge so it reads on any ground
+      x.strokeStyle = `rgba(255,214,70,${Math.min(1, .8 * pop)})`; x.lineWidth = 1.6 * pop; x.stroke(); }
     x.setLineDash([]);
   }
   if (s.scentOn && upg('scent') > 1) { // who can see you right now
@@ -311,7 +342,7 @@ const BREAK_WALLS = {
   Office: [[560, 326, 60, 14], [706, 362, 14, 52], [690, 236, 52, 14]],
   'Alien Facility': [[316, 110, 14, 60], [520, 384, 60, 14], [470, 480, 14, 60]],
   'Space Station': [[250, 46, 14, 54], [840, 436, 60, 14], [80, 190, 56, 14]],
-  Bunker: [[330, 120, 14, 60], [330, 370, 60, 14], [700, 470, 14, 60]],
+  Bunker: [[330, 130, 14, 60], [640, 130, 14, 60], [390, 510, 14, 60], [700, 470, 14, 60]], // one in every wall between neighbouring rooms: break through and the rooms loop into each other
 };
 function addBreakWalls(list, mapName) { // cut each marked section out of the wall it sits in, as its own breakable piece
   let secs = BREAK_WALLS[mapName] || [];

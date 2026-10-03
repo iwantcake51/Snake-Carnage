@@ -240,3 +240,40 @@ const DOING = {
   summer: ["It's so hot.", 'I\'m melting.', 'Need some shade.'],
   night: ["It's so dark out here.", 'Should\'ve brought a flashlight.', 'Streetlight\'s out again.'],
 };
+/* ---- weather small talk: picked by season, and by how cold it actually is right now (time of day counts) ---- */
+const WEATHER_TALK = {
+  freezing: [ // winter, night or early morning
+    { id: 'wx-freeze', q: [['say', "It's freezing. I can't feel my fingers."], ['yn', 'Is it just me or is it colder than yesterday?'], ['say', 'My breath is literally smoking.']],
+      a: { say: ['Same. My ears are gone.', 'Should\'ve worn gloves.', 'Stop complaining, walk faster.', 'At least it\'s not windy.'], yn: ['Way colder.', 'It\'s just you.', 'They said minus eight tonight.', 'Feels like it.'] },
+      n: [['I\'m going home after this, I swear.', ['You say that every time.', 'Take me with you.', 'Coward.']], ['The pond\'s probably frozen solid.', ['Don\'t even think about walking on it.', 'Good. Skating.', 'Ducks must hate this.']]], back: ['Still freezing, by the way.'] },
+    { id: 'wx-ice', q: [['say', 'Watch it, the ground\'s all ice.'], ['yn', 'Did you slip earlier? I heard something.']],
+      a: { say: ['I almost ate it back there.', 'Thanks, mom.', 'They never salt this bit.'], yn: ['Maybe.', 'Don\'t tell anyone.', 'That was my dignity hitting the floor.'] } }],
+  winter: [
+    { id: 'wx-snow', q: [['yn', 'Think it\'s going to snow again?'], ['say', 'I love it when it snows like this.'], ['when', 'When\'s this snow supposed to melt?']],
+      a: { yn: ['Looks like it.', 'Hope not.', 'The forecast said tonight.', 'More? Seriously?'], say: ['It\'s pretty for about a day.', 'Wait till it turns to slush.', 'You would.'], when: ['Next week, maybe.', 'March.', 'Never, apparently.'] },
+      n: [['We should build a snowman.', ['We\'re adults.', 'I\'m in.', 'Last one got kicked over.']], ['Somebody made snow angels over there.', ['Probably kids.', 'That was me.', 'Cute.']]], back: ['Still snowing?'] }],
+  autumn: [
+    { id: 'wx-leaves', q: [['say', 'Leaves are everywhere already.'], ['yn', 'Is it getting dark earlier or is it just me?']],
+      a: { say: ['Best time of year.', 'Somebody\'s got to rake that.', 'Love the crunch, though.'], yn: ['Clocks change soon.', 'It\'s autumn, genius.', 'Way earlier.'] },
+      n: [['I need a proper coat.', ['Told you.', 'Borrow mine.', 'Just layer up.']], ['Smells like rain.', ['Great.', 'Smells like bonfires to me.', 'I like it.']]] },
+    { id: 'wx-chilly', q: [['say', 'It\'s getting chilly.'], ['yn', 'Did you bring a jacket?']],
+      a: { say: ['Sweater weather.', 'Yeah, it turned fast.', 'I\'m fine. I\'m not fine.'], yn: ['No, and I regret it.', 'Obviously.', 'It was warm this morning!'] } }],
+  spring: [
+    { id: 'wx-spring', q: [['say', 'Finally a bit of sun.'], ['yn', 'Is it going to rain again today?']],
+      a: { say: ['About time.', 'Don\'t jinx it.', 'My allergies disagree.'], yn: ['Probably. It\'s spring.', 'Looks clear.', 'Bring an umbrella.'] },
+      n: [['Everything\'s blooming.', ['I\'m sneezing just looking at it.', 'It\'s nice.', 'Bees, though.']]] }],
+  summer: [
+    { id: 'wx-heat', q: [['say', 'It\'s way too hot today.'], ['yn', 'Did you put sunscreen on?'], ['say', 'I\'m melting.']],
+      a: { say: ['I\'ve sweated through my shirt.', 'At least it\'s not raining.', 'Find some shade, then.'], yn: ['Forgot.', 'Twice.', 'I tan, I don\'t burn.'] },
+      n: [['I could kill for an ice cream.', ['Same.', 'The van went past earlier.', 'You and every kid here.']], ['It\'s going to be a warm night.', ['Can\'t sleep in this.', 'Good. Windows open.', 'Ugh.']]] }],
+  warmNight: [
+    { id: 'wx-night', q: [['say', 'Nice night, at least.'], ['yn', 'Still warm, huh?']], a: { say: ['Yeah, it\'s actually pleasant.', 'Too quiet, though.', 'Bit too dark round here.'], yn: ['Barely cooled down.', 'Perfect weather.', 'Mosquitoes love it.'] } }],
+};
+function weatherTalk() { // which of the above fits right now: season, then how cold this hour actually is
+  const m = MAPS[mapIdx]; if (!m || m.indoor || m.space || !season) return [];
+  const h = (typeof tod === 'number' ? tod : 12) % 24, night = h < 6.5 || h > 20, id = season.id;
+  if (id === 'winter') return [...WEATHER_TALK.winter, ...(night || h < 9 ? WEATHER_TALK.freezing : [])];
+  if (id === 'autumn') return WEATHER_TALK.autumn.concat(night ? WEATHER_TALK.freezing.slice(0, 1) : []);
+  if (id === 'summer') return night ? WEATHER_TALK.warmNight : WEATHER_TALK.summer;
+  return WEATHER_TALK.spring;
+}

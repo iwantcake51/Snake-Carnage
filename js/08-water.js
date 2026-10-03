@@ -2,14 +2,16 @@
    fountains and rectangular pools. Blood that lands in it diffuses as clouds and slowly tints the whole body. */
 const wHash = n => { const v = Math.sin(n * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
 function wShape(o) {
+  if (o.poly) return { cx: o.x + o.w / 2, cy: o.y + o.h / 2, hw: o.w / 2 - 6, hh: o.h / 2 - 6, rim: 5, round: true, poly: o };
   if (o.t === 'c') { const rim = o.fountain ? Math.max(5, o.r * .18) : Math.max(3, o.r * .07); return { cx: o.x, cy: o.y, hw: o.r - rim, hh: o.r - rim, rim, round: true }; }
   const rim = 8; return { cx: o.x + o.w / 2, cy: o.y + o.h / 2, hw: o.w / 2 - rim, hh: o.h / 2 - rim, rim, round: false };
 }
 function wPath(x, S, inset = 0) {
+  if (S.poly) return polyPath(x, S.poly);
   if (S.round) { x.beginPath(); x.arc(S.cx, S.cy, S.hw - inset, 0, TAU); }
   else rrect(x, S.cx - S.hw + inset, S.cy - S.hh + inset, (S.hw - inset) * 2, (S.hh - inset) * 2, Math.max(1, 7 - inset));
 }
-function inWater(o, px, py) { const S = wShape(o); return S.round ? dist2(px, py, S.cx, S.cy) < S.hw * S.hw : Math.abs(px - S.cx) < S.hw && Math.abs(py - S.cy) < S.hh; }
+function inWater(o, px, py) { if (o.poly) return pointInPoly(polyShape(o), px, py); const S = wShape(o); return S.round ? dist2(px, py, S.cx, S.cy) < S.hw * S.hw : Math.abs(px - S.cx) < S.hw && Math.abs(py - S.cy) < S.hh; }
 function waterBlood(o, px, py, q, vx = 0, vy = 0, col = BLOOD) { // q ~ drop size; clouds are what you see spread, tint is the long-term stain
   const b = o.wb || (o.wb = { tint: 0, shown: 0, clouds: [], rings: [] });
   const c = rgbOf2(col), w = q / (b.tint + q + .001); b.mix = b.mix ? b.mix.map((v, n) => v + (c[n] - v) * w) : c; // the water takes on the mix of what bled into it
@@ -59,6 +61,7 @@ function drawWater(x, o, t) {
   } else if (o.tank) { // specimen tank: steel ring, bolts
     x.fillStyle = '#5b6b72'; circ(x, cx, cy, o.r); x.strokeStyle = '#8fa1a8'; x.lineWidth = 1.5; x.beginPath(); x.arc(cx, cy, o.r - 1, 0, TAU); x.stroke();
     x.fillStyle = '#2c363a'; for (let k = 0; k < 8; k++) { const a = k * TAU / 8; circ(x, cx + Math.cos(a) * (o.r - rim * .5), cy + Math.sin(a) * (o.r - rim * .5), 1.2); }
+  } else if (S.poly) { x.lineJoin = 'round'; polyPath(x, o); x.lineWidth = 10; x.strokeStyle = '#5d7f3a'; x.stroke(); x.lineWidth = 5; x.strokeStyle = '#c9b68a'; x.stroke(); // a shore all the way round
   } else if (S.round) { x.fillStyle = '#5d7f3a'; circ(x, cx, cy, o.r); x.fillStyle = '#c9b68a'; circ(x, cx, cy, o.r - rim * .45); }
   else {
     x.fillStyle = '#efeadf'; x.fillRect(o.x, o.y, o.w, o.h);

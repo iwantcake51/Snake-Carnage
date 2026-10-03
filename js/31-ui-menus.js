@@ -6,7 +6,7 @@ function getBest() { try { return +localStorage.getItem('snakeCarnageBest_' + MA
 function updateHud() {
   document.getElementById('score').textContent = score;
   document.getElementById('best').textContent = Math.max(getBest(), score);
-  document.getElementById('mapName').textContent = MAPS[mapIdx].icon + ' ' + MAPS[mapIdx].name;
+  document.getElementById('mapName').textContent = MAPS[mapIdx].name;
   document.getElementById('coins').textContent = PROG.coins;
   if (!lvlAnim) { // the level-up animation drives these while it plays
     document.getElementById('lvl').textContent = PROG.level;
@@ -19,9 +19,9 @@ const stage = document.getElementById('stage'), intro = document.getElementById(
 function makeThumbs() { // rendered preview of every map (used by the cards, the roll and the intro)
   return MAPS.map(m => {
     const [c, x] = makeLayer(), b = m.build();
-    b.floor(x); const [oc, ox] = makeLayer(); drawObstacleLayer(ox, b, [...borderWalls(m.border), ...b.obs], m.lights || b.lights || []); x.drawImage(oc, 0, 0, W, H);
+    b.floor(x); const [oc, ox] = makeLayer(); drawObstacleLayer(ox, b, [...borderWalls(m.border), ...b.obs], b.lights || m.lights || []); x.drawImage(oc, 0, 0, W, H);
     const t = document.createElement('canvas'); t.width = 480; t.height = 320;
-    t.getContext('2d').drawImage(c, 0, 0, 480, 320);
+    t.getContext('2d').drawImage(c, XO * DPR, 0, MW * DPR, H * DPR, 0, 0, 480, 320); // the card shows the original middle of the map
     return t.toDataURL ? t.toDataURL() : '';
   });
 }
@@ -49,10 +49,13 @@ function placeThumb(seg, instant) { // sliding pill behind the selected option
 function transitionTo(fn) { // animate the current screen out, then show the next one
   const cur = overlay.firstElementChild;
   if (!cur || SETTINGS.reduceMotion || overlay.style.display === 'none') return fn();
-  cur.classList.add('leaving'); setTimeout(fn, 170);
+  cur.classList.add('leaving');
+  let done = false; const go = () => { if (done) return; done = true; fn(); };
+  requestAnimationFrame(() => { const an = cur.getAnimations ? cur.getAnimations().find(x => x.animationName === 'panelOut') : null; if (an) an.finished.then(go, go); }); // swap when the close has actually played, even if the click was busy
+  setTimeout(go, 450); // fallback
 }
 function showMenu() {
-  state = 'menu'; endIntro(true);
+  state = 'menu'; endIntro(true); creatures = []; /* nobody in the background behind the menus */ setTimeout(warmCanopies, 1500);
   if (!thumbs) thumbs = makeThumbs();
   MOD = {}; rewardMult = 1; document.body.classList.remove('minimal');
   stage.classList.remove('bars', 'paused'); cv.style.scale = '1.05';
@@ -70,15 +73,15 @@ function showMenu() {
       <div class="mrow"><button class="ghost" id="setBtn" data-sfx="open">Settings</button></div>
       <div class="ver">v${GAME_VERSION}</div>
     </div>
-    <div class="mright"><h2>Choose a map</h2><div class="mapch" id="mapch">${mapChallengesHtml()}</div><div class="cards">${MAPS.map((m, i) => `<button class="card ${i === mapIdx ? 'on' : ''}" data-sfx="select" data-map="${i}" style="--i:${i}"><img src="${thumbs[i]}" alt=""><span class="cn">${m.icon} ${m.name}</span><span class="cb">Best ${PROG.best[m.name] || 0}, ${chDoneCount(m.name)}/4 challenges</span></button>`).join('')}<button class="card rnd" data-sfx="none" data-map="rand" style="--i:${MAPS.length}">🎲<span class="cn">Random</span></button></div></div>
+    <div class="mright"><h2>Choose a map</h2><div class="mapch" id="mapch">${mapChallengesHtml()}</div><div class="cards">${MAPS.map((m, i) => `<button class="card ${i === mapIdx ? 'on' : ''}" data-sfx="select" data-map="${i}" style="--i:${i}"><img src="${thumbs[i]}" alt=""><span class="cn">${m.name}</span><span class="cb">Best ${PROG.best[m.name] || 0} · ${chDoneCount(m.name)}/${activeChallenges(m.name).length} ✓</span></button>`).join('')}<button class="card rnd" data-sfx="none" data-map="rand" style="--i:${MAPS.length}">🎲<span class="cn">Random</span></button></div></div>
   </div>`;
   overlay.style.display = 'flex';
   overlay.querySelectorAll('.card').forEach(card => {
     card.onpointermove = e => { // tilt toward the cursor
       const r = card.getBoundingClientRect(), px = (e.clientX - r.left) / r.width - .5, py = (e.clientY - r.top) / r.height - .5;
-      card.style.setProperty('--ry', (px * 16).toFixed(1) + 'deg'); card.style.setProperty('--rx', (-py * 14).toFixed(1) + 'deg');
+      card.style.setProperty('--ry', (px * 11).toFixed(1) + 'deg'); card.style.setProperty('--rx', (-py * 9).toFixed(1) + 'deg'); card.style.setProperty('--px', px.toFixed(3)); card.style.setProperty('--py', py.toFixed(3)); // gentle: a few degrees, the picture shifts a little against it
     };
-    card.onpointerleave = () => { card.style.setProperty('--rx', '0deg'); card.style.setProperty('--ry', '0deg'); };
+    card.onpointerleave = () => { for (const [k, v] of [['--rx', '0deg'], ['--ry', '0deg'], ['--px', 0], ['--py', 0]]) card.style.setProperty(k, v); };
     card.onclick = () => card.dataset.map === 'rand' ? randomRoll() : selectMap(+card.dataset.map);
   });
   const seg = overlay.querySelector('.seg');
@@ -111,16 +114,17 @@ function showModifiers(focus) {
     <p class="lead">Change how the next run plays. Hover any modifier for exactly what it does. Harder ones pay more XP, chips and score.</p>
     <div class="modgrid">${MODS.map((m, i) => { const head = m.g !== lastG ? `<h3 class="mg">${(lastG = m.g)}</h3>` : '';
       return `${head}<button class="mtile ${ids.has(m.id) ? 'on' : ''}" data-sfx="none" data-m="${m.id}" role="switch" aria-checked="${ids.has(m.id)}" style="--i:${i}" data-tiph="${attr(modTip(m))}">
-        <i class="mic">${MOD_ICON[m.id] || ''}</i><span class="mtx"><b>${m.name}</b><small>${m.desc}</small></span><em class="mpct ${m.mult > 0 ? 'up' : m.mult < 0 ? 'down' : ''}">${m.mult ? (m.mult > 0 ? '+' : '') + Math.round(m.mult * 100) + '%' : ''}</em><span class="mck"></span></button>`; }).join('')}</div>
+        <span class="mtx"><b>${m.name}</b><small>${m.desc}</small></span><em class="mpct ${m.mult > 0 ? 'up' : m.mult < 0 ? 'down' : ''}">${m.mult ? (m.mult > 0 ? '+' : '') + Math.round(m.mult * 100) + '%' : ''}</em><span class="mck"></span></button>`; }).join('')}</div>
     <div class="mbtns"><label class="mfollow ${ids.has('freeMove') ? '' : 'dim'}" data-tip="Free movement only: the snake heads toward your mouse cursor while it's over the game."><button class="tgl ${SETTINGS.mouseFollow ? 'on' : ''}" id="mfTgl" data-sfx="none" role="switch" aria-checked="${!!SETTINGS.mouseFollow}"></button>Mouse steering</label>
       <span class="sp"></span><button class="btn alt" id="shufBtn" data-sfx="select">Shuffle</button><button class="btn alt" id="clrBtn" data-sfx="off">Clear</button><button class="btn" id="backBtn" data-sfx="confirm">Done</button></div></div>`;
-  const blocker = id => { const m = MODS.find(q => q.id === id); return [...ids].find(o => o !== id && ((m.not || []).includes(o) || ((MODS.find(q => q.id === o) || {}).not || []).includes(id))); };
+  const blocker = id => modBlockReason(id, ids);
   const sync = () => {
+    for (const id of [...ids]) if (modBlockReason(id, ids) && !(MODS.find(q => q.id === id).not || []).some(o => ids.has(o))) ids.delete(id); // a newer pick made this one pointless: it switches itself off
     SETTINGS.mods = [...ids]; saveSettings();
     overlay.querySelectorAll('.mtile').forEach(t => {
       const id = t.dataset.m, on = ids.has(id), by = on ? null : blocker(id), m = MODS.find(q => q.id === id);
       t.classList.toggle('on', on); t.setAttribute('aria-checked', on); t.classList.toggle('blocked', !!by); // conflicts are greyed out with the reason
-      t.querySelector('small').textContent = by ? `Can't use with ${MODS.find(q => q.id === by).name}` : m.desc;
+      t.querySelector('small').textContent = by || m.desc; t.querySelector('b').textContent = modName(id, ids);
     });
     document.getElementById('mm').textContent = multLabel([...ids]);
     document.getElementById('mcount').textContent = ids.size ? ids.size + ' active' : '';
@@ -155,7 +159,7 @@ function showChallenges(keepAnim) { // profile-wide goals (cosmetics, chips, sec
       <div class="ctabs"><button class="${chTab === 'profile' ? 'on' : ''}" data-ct="profile" data-sfx="tab">Profile <em>${doneN}/${ACH.length}</em></button><button class="${chTab === 'maps' ? 'on' : ''}" data-ct="maps" data-sfx="tab">Maps <em>${pmN}/${pmTot}</em></button></div></div>
     <div class="chbody">${chTab === 'profile' ? profileChallenges() : mapPermChallenges()}</div>
     <div class="chfoot"><span class="rot">${chTab === 'profile' ? 'Sorted easiest to hardest. Unlocked cosmetics show up in the Shop, free to equip. Secret ones only give you a clue.' : 'Permanent goals that never reset. Each pays XP and chips once.'}</span><button class="btn" id="backBtn" data-sfx="close">Done</button></div></div>`;
-  drawPreviews(overlay);
+  drawPreviews(overlay); runCarousels(overlay);
   overlay.querySelectorAll('[data-ct]').forEach(b => b.onclick = () => { chTab = b.dataset.ct; showChallenges(true); });
   overlay.querySelectorAll('[data-cm]').forEach(b => b.onclick = () => { chMap = b.dataset.cm; showChallenges(true); });
   document.getElementById('backBtn').onclick = () => transitionTo(showMenu);
@@ -163,16 +167,26 @@ function showChallenges(keepAnim) { // profile-wide goals (cosmetics, chips, sec
 function profileChallenges() {
   const list = ACH.map((a, i) => ({ a, i })).sort((p, q) => TIER_ORDER[p.a.tier] - TIER_ORDER[q.a.tier] || (!!p.a.secret - !!q.a.secret) || p.i - q.i).map(o => o.a);
   return `<div class="achg">${list.map((a, i) => {
-    const got = !!PROG.ach[a.id], hide = a.secret && !got, p = hide ? 0 : achProgress(a), rw = achRewards(a.id).filter(([c]) => c !== 'color2');
-    const reward = [...rw.map(([cat, v]) => `${CAT_LABEL[cat]}${cat.startsWith('color') ? ': ' + colorName(v) : ': ' + v}`), a.chips ? `${a.chips} chips` : ''].filter(Boolean).join(' · ');
-    const tip = got ? `<span class="thead">${a.name}</span>${a.what}<span class="tdim">Earned ${fmtDate(PROG.ach[a.id])}</span>` : hide ? `<span class="thead">Secret challenge</span>Clue: ${a.clue}` : `<span class="thead">${a.name}</span>${a.what}<span class="tdim">Reward: ${reward}</span>`;
-    return `<div class="ach ${got ? 'done' : ''} ${hide ? 'secret' : ''} t-${a.tier}" style="--i:${i}" data-tiph="${attr(tip)}"><div class="ap">${hide ? '<div class="prv sil q">?</div>' : rw.length ? achPreview(rw[0][0], rw[0][1], got || (a.tier !== 'rare' && p >= .5)) : `<div class="prv chipr"><i class="pc"></i><b>${a.chips}</b></div>`}</div>
+    const got = !!PROG.ach[a.id], hide = a.secret && !got, p = achProgress(a), rw = achRewards(a.id).filter(([c]) => c !== 'color2'), xp = ACH_XP[a.tier] || 0;
+    const reward = [...rw.map(([cat, v]) => `${CAT_LABEL[cat]}${cat.startsWith('color') ? ': ' + colorName(v) : ': ' + v}`), `${xp} XP`, a.chips ? `${a.chips} chips` : ''].filter(Boolean).join(' · ');
+    const tip = got ? `<span class="thead">${a.name}</span>${a.what}<span class="tdim">Earned ${fmtDate(PROG.ach[a.id])}</span>` : hide ? `<span class="thead">Secret challenge</span>Clue: ${a.clue}<span class="tdim">Progress ${Math.min(a.stat(), a.n)}/${a.n}</span>` : `<span class="thead">${a.name}</span>${a.what}<span class="tdim">Reward: ${reward}</span>`;
+    const clear = got || (a.tier !== 'rare' && p >= .5);
+    const slides = hide ? ['<div class="prv sil q">?</div>'] : [...rw.map(([c, v]) => achPreview(c, v, clear)), ...(a.chips ? [`<div class="prv chipr"><i class="pc"></i><b>${a.chips}</b></div>`] : []), `<div class="prv xpr"><b>${xp}</b><small>XP</small></div>`];
+    const car = slides.length > 1 ? `<div class="ap car" data-n="${slides.length}"><div class="track">${slides.join('')}</div><div class="dots">${slides.map((_, k) => `<i class="${k ? '' : 'on'}"></i>`).join('')}</div></div>` : `<div class="ap">${slides[0]}</div>`;
+    return `<div class="ach ${got ? 'done' : ''} ${hide ? 'secret' : ''} t-${a.tier}" style="--i:${i}" data-tiph="${attr(tip)}">${car}
       <div class="ab"><em class="tier ${hide ? 'secret' : a.tier}">${hide ? 'Secret' : TIERS[a.tier].label}</em><b>${got ? '✔ ' : ''}${hide ? '???' : a.name}</b><small>${hide ? '<i class="clue">' + a.clue + '</i>' : a.what}</small>
-      ${hide ? '' : `<span class="pbar"><span style="width:${(p * 100).toFixed(0)}%"></span></span><span class="af"><span>${Math.min(a.stat(), a.n)}/${a.n}</span><span>${reward}</span></span>`}</div></div>`; }).join('')}</div>`;
+      <span class="pbar"><span style="width:${(p * 100).toFixed(0)}%"></span></span><span class="af"><span>${Math.min(a.stat(), a.n)}/${a.n}</span><span>${hide ? 'Reward: ???' : reward}</span></span></div></div>`; }).join('')}</div>`;
+}
+function runCarousels(root) { // multi-reward previews slide sideways, one at a time, pausing while hovered
+  const cars = [...root.querySelectorAll('.ap.car')]; if (!cars.length) return;
+  const tick = () => { if (!cars[0].isConnected) return clearInterval(iv);
+    for (const c of cars) { if (c.matches(':hover')) continue; const n = +c.dataset.n, k = ((+c.dataset.k || 0) + 1) % n; c.dataset.k = k;
+      c.querySelector('.track').style.translate = `${-k * 64}px 0`; c.querySelectorAll('.dots i').forEach((d, q) => d.classList.toggle('on', q === k)); } };
+  const iv = setInterval(tick, 2400);
 }
 function mapPermChallenges() {
   const list = permChallenges(chMap), best = (PROG.pmBest || {})[chMap] || {};
-  return `<div class="pmwrap"><div class="pmmaps">${MAPS.map(m => `<button class="${m.name === chMap ? 'on' : ''}" data-cm="${attr(m.name)}" data-sfx="tab"><span>${m.icon} ${m.name}</span><em>${pmDoneCount(m.name)}/${permChallenges(m.name).length}</em></button>`).join('')}</div>
+  return `<div class="pmwrap"><div class="pmmaps">${MAPS.map(m => `<button class="${m.name === chMap ? 'on' : ''}" data-cm="${attr(m.name)}" data-sfx="tab"><span>${m.name}</span><em>${pmDoneCount(m.name)}/${permChallenges(m.name).length}</em></button>`).join('')}</div>
     <div class="pmlist">${list.map((c, i) => { const when = (PROG.pmc[chMap] || {})[c.id], v = when ? c.n : Math.min(best[c.id] || 0, c.n), rw = TIERS[c.tier];
       return `<div class="pmc ${when ? 'done' : ''}" style="--i:${i}" ${when ? `data-tip="Completed ${fmtDate(when)}"` : ''}><em class="tier ${c.tier}">${rw.label}</em><b>${when ? '✔ ' : ''}${c.name}</b><small>${c.t}</small>
         <span class="pbar"><span style="width:${(v / c.n * 100).toFixed(0)}%"></span></span><span class="af"><span>${v}${c.unit || ''}/${c.n}${c.unit || ''} best</span><span>+${Math.round(rw.xp * 1.5)} XP · +${Math.round(rw.chips * 1.5)} chips</span></span></div>`; }).join('')}</div></div>`;
@@ -192,14 +206,15 @@ function chFit(ch) { // does this challenge suit how the next run is set up? A g
 }
 function mapChallengesHtml() { // the selected map's current challenges: name, progress, reward, difficulty, rotation timer
   const m = MAPS[mapIdx].name, done = PROG.chDone[m] || {}, best = PROG.chBest[m] || {};
-  return `<div class="mch"><b>${MAPS[mapIdx].icon} ${m} challenges</b><span>New set in <b data-rot>${fmtClock(rotLeft())}</b></span></div><div class="mcg">` +
+  return `<div class="mch"><b>${m} challenges</b><span>New set in <b data-rot>${fmtClock(rotLeft())}</b></span></div><div class="mcg">` +
     [...activeChallenges(m)].sort((p, q) => TIER_ORDER[p.tier] - TIER_ORDER[q.tier]).map((ch, i) => { const v = done[ch.id] ? ch.n : (best[ch.id] || 0);
       const fit = !done[ch.id] && chFit(ch);
       return `<div class="mc ${done[ch.id] ? 'done' : ''} ${fit ? 'fit-' + fit[0] : ''}" style="--i:${i}" data-tip="${ch.t}. Reward: ${rewardText(ch).replace(/<[^>]+>/g, '')} chips${fit ? '. ' + fit[1] : ''}"><em class="tier ${ch.tier}">${TIERS[ch.tier].label}</em><b>${done[ch.id] ? '✔ ' : ''}${ch.name}</b><small>${ch.t}</small>
         <span class="pbar"><span style="width:${(v / ch.n * 100).toFixed(0)}%"></span></span><span class="mcf"><span>${v}${chUnit(ch)}/${ch.n}${chUnit(ch)}</span><span class="rw3">+${TIERS[ch.tier].chips} <i class="pc"></i></span></span></div>`; }).join('') + '</div>';
 }
-function selectMap(i) { // updates the menu in place, so nothing else resets
-  loadMap(i);
+let selT = 0;
+function selectMap(i) { // updates the menu in place, so nothing else resets. The heavy map load runs a beat later, and only for the map you land on
+  mapIdx = i; clearTimeout(selT); selT = setTimeout(() => { if (state === 'menu' && mapIdx === i) loadMap(i); }, 60);
   overlay.querySelectorAll('.card[data-map]').forEach(c => c.classList.toggle('on', c.dataset.map === String(i)));
   const card = overlay.querySelector(`.card[data-map="${i}"]`);
   if (card) { card.classList.remove('picked'); void card.offsetWidth; card.classList.add('picked'); }
@@ -242,7 +257,7 @@ function randomRoll() { // case-opening roll; the pick stays secret until the ga
   };
   requestAnimationFrame(roll);
   const finish = () => {
-    Sfx.ui('stop'); win.classList.add('done'); label.innerHTML = rolled.length ? 'Modifiers: ' + rolled.map(id => (MOD_ICON[id] || '') + ' ' + MODS.find(m => m.id === id).name).join(', ') : 'No modifiers this time'; label.classList.add('big');
+    Sfx.ui('stop'); win.classList.add('done'); label.innerHTML = rolled.length ? 'Modifiers: ' + rolled.map(id => ' ' + MODS.find(m => m.id === id).name).join(', ') : 'No modifiers this time'; label.classList.add('big');
     setTimeout(() => { // lift the card out of the window and knock it off with real momentum
       const r = wc.getBoundingClientRect(), sr = stage.getBoundingClientRect(), fc = wc.cloneNode(true);
       fc.className = 'case fallcard'; fc.style.transform = ''; fc.style.filter = '';
@@ -275,13 +290,18 @@ const SETTING_TABS = {
     ['seg', 'bloodFade', 'Blood fades', 'How long blood stays on the ground and walls.', ['Never', 'Slow', 'Normal', 'Fast']],
     ['seg', 'season', 'Season', 'Outdoor maps only. Random picks one each run.', ['Random', 'Spring', 'Summer', 'Autumn', 'Winter']]] },
   Graphics: { icon: 'graphics', lead: 'Look and feel of the picture.', rows: [
+    ['toggle', 'fullscreen', 'Fullscreen', 'Fill the whole screen. Esc or F11 leaves it.'],
+    ['seg', 'renderRes', 'Render resolution', 'How many pixels the game draws. Lower is much faster and a bit softer. Changing it reloads the game.', ['50%', '75%', '100%', '125%', 'Auto']],
+    ['seg', 'fpsCap', 'Frame rate', 'VSync matches your screen. A cap saves battery and heat.', ['30', '60', '120', 'VSync']],
     ['slider', 'darkness', 'Darkness', 'Overall dimness of the scene.', 0, .7, .05],
     ['slider', 'pixel', 'Pixelation', 'Chunky pixel look. Off shows full detail.', 1, 8, 1],
     ['seg', 'lightQ', 'Lighting', 'High: full dynamic lighting. Medium: fewer moving shadows. Low: baked shadows only, cheapest.', ['Low', 'Medium', 'High']],
+    ['seg', 'treeQ', 'Tree detail', 'High: every branch sways on its own. Medium: whole trees lean in the wind (cheaper). Low: no sway, all trees drawn as one picture (cheapest).', ['Low', 'Medium', 'High']],
+    ['seg', 'fogQ', 'Fog detail', 'Heavy fog modifier. High: drifting billows, torn edges, lamps glowing through it. Medium: billows only. Low: plain soft fog, cheapest.', ['Low', 'Medium', 'High']],
     ['toggle', 'dynShadows', 'Moving shadows', 'People, animals and the snake cast shadows from lamps and flashlights.'],
     ['seg', 'fxLevel', 'Particles', 'How many particles are simulated: blood mist, smoke, sparks, snow powder, scent wisps, insects. Low simulates far fewer.', ['Low', 'Normal', 'High']],
     ['toggle', 'bloodBlur', 'Blood motion blur', 'Fast drops stretch and smear along their path. Off: plain round drops.'],
-    ['seg', 'bloodQ', 'Blood quality', 'How fast-flying blood is drawn. Extreme: smoothest motion blur. Low: plain drops, cheapest.', ['Low', 'Normal', 'High', 'Extreme']],
+    ['seg', 'bloodQ', 'Blood quality', 'How much blood is simulated and how finely it is drawn. Low: fewer, chunkier drops updated at half rate, short trails, no mist (fastest). Extreme: the most drops, smooth motion blur, mist and long-lasting trails.', ['Low', 'Medium', 'High', 'Extreme']],
     ['toggle', 'vignette', 'Kill vignette', 'A red pulse at the screen edges when you eat.'],
     ['toggle', 'desaturate', 'Color drain', 'Briefly drains color after a kill.'],
     ['toggle', 'shake', 'Screen shake', 'Shake the camera on kills and crashes.']] },
@@ -324,6 +344,9 @@ function applySetting(k) { // side effects of a setting change
   if (k === 'uiScale') { applyUiScale(); requestAnimationFrame(() => overlay.querySelectorAll('.seg,.sseg').forEach(sg => placeThumb(sg, true))); }
   if (k === 'mapOutlines') { drawObstacleLayer(); bakeOutline(); }
   if (k === 'lightQ') resizeLights();
+  if (k === 'fullscreen') setFullscreen(SETTINGS.fullscreen);
+  if (k === 'renderRes') setTimeout(() => location.reload(), 150); // every layer is sized from it at startup
+  if (k === 'bloodQ' || k === 'bloodFade') bloodQualityChanged();
   if (k === 'timeMode') { const t = SETTING_TABS.Gameplay.rows; overlay.querySelectorAll('[data-row]').forEach(r => { const row = t.find(x => x[1] === r.dataset.row); if (row && row[7]) r.classList.toggle('dim', !row[7]()); }); }
 }
 function wireSettings(body) {
@@ -357,3 +380,13 @@ function showSettings(tab = settingsTab) {
   });
   document.getElementById('backBtn').onclick = () => transitionTo(settingsFrom === 'pause' ? showPause : showMenu);
 }
+
+function setFullscreen(on) {
+  try { if (on && !document.fullscreenElement) (document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen).call(document.documentElement, { navigationUI: 'hide' }).catch(() => {});
+    else if (!on && document.fullscreenElement) document.exitFullscreen(); } catch (e) {}
+}
+document.addEventListener('fullscreenchange', () => { // Esc/F11 leave it too: keep the switch honest
+  SETTINGS.fullscreen = !!document.fullscreenElement; saveSettings();
+  const t = overlay.querySelector('.tgl[data-k="fullscreen"]'); if (t) { t.classList.toggle('on', SETTINGS.fullscreen); t.setAttribute('aria-checked', SETTINGS.fullscreen); }
+});
+if (SETTINGS.fullscreen) { SETTINGS.fullscreen = false; const go = () => { removeEventListener('pointerdown', go, true); removeEventListener('keydown', go, true); setFullscreen(true); }; addEventListener('pointerdown', go, true); addEventListener('keydown', go, true); } // browsers need a click first: go back to fullscreen on it

@@ -2,6 +2,39 @@
    OBSTACLE DRAWING (top-down, flat shading, a darker rim on everything)
    ========================================================= */
 function edge(x, o, a = .3) { x.strokeStyle = `rgba(0,0,0,${a})`; x.lineWidth = 1.2; if (o.t === 'r') x.strokeRect(o.x + .6, o.y + .6, o.w - 1.2, o.h - 1.2); else { x.beginPath(); x.arc(o.x, o.y, o.r - .6, 0, TAU); x.stroke(); } }
+function drawChess(x, o, c) { // a giant turned-wood piece seen from above: stepped base rings, a lacquered body lit from the top-left, and the head that names it // a giant turned-wood piece seen from above: stepped base rings, a lacquered body lit from the top-left, and the head that names it
+      const cx = o.x, cy = o.y, R0 = o.r, dark = c === '#2c2c33';
+      const hi = dark ? '#6a6a78' : '#ffffff', mid = dark ? '#33333b' : '#ece5d6', lo = dark ? '#0b0b0e' : '#8f846f', line = dark ? 'rgba(0,0,0,.55)' : 'rgba(90,75,55,.4)';
+      const disc = (r, k = 0) => { const g = x.createRadialGradient(cx - r * .45, cy - r * .5, r * .05, cx, cy, r); g.addColorStop(0, hi); g.addColorStop(.55 + k, mid); g.addColorStop(1, lo); x.fillStyle = g; circ(x, cx, cy, r); x.strokeStyle = line; x.lineWidth = 1; x.beginPath(); x.arc(cx, cy, r - .5, 0, TAU); x.stroke(); };
+      const shine = (px, py, r, a = .55) => { const g = x.createRadialGradient(px, py, 0, px, py, r); g.addColorStop(0, `rgba(255,255,255,${dark ? a * .45 : a})`); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; circ(x, px, py, r); };
+      x.fillStyle = 'rgba(0,0,0,.28)'; circ(x, cx + 1.5, cy + 2, R0); // felt pad under the base
+      disc(R0, -.1); disc(R0 * .84); // the base: a wide foot and a step up
+      x.strokeStyle = dark ? 'rgba(255,255,255,.08)' : 'rgba(255,255,255,.6)'; x.lineWidth = 1.2; x.beginPath(); x.arc(cx, cy, R0 * .76, Math.PI * 1.05, Math.PI * 1.65); x.stroke(); // turned groove catching the light
+      disc(R0 * .66, .05); // the body
+      if (o.piece === 'rook') { // flat tower top with four square notches cut into the battlement ring
+        disc(R0 * .54); x.fillStyle = dark ? '#000' : '#6f6552'; for (let a = 0; a < 4; a++) { x.save(); x.translate(cx, cy); x.rotate(a * TAU / 4 + TAU / 8); x.fillRect(R0 * .3, -R0 * .1, R0 * .26, R0 * .2); x.restore(); }
+        const g = x.createRadialGradient(cx + 2, cy + 2, 0, cx, cy, R0 * .34); g.addColorStop(0, lo); g.addColorStop(1, mid); x.fillStyle = g; circ(x, cx, cy, R0 * .32); // hollow top
+        shine(cx - R0 * .3, cy - R0 * .32, R0 * .18);
+      } else if (o.piece === 'knight') { // the horse's head from above: long tapering muzzle, a tufted mane down the neck, two pointed ears
+        x.save(); x.translate(cx, cy); x.rotate(-.55);
+        const L = R0, g = x.createLinearGradient(0, -L * .4, 0, L * .4); g.addColorStop(0, dark ? '#70707e' : '#ffffff'); g.addColorStop(.45, mid); g.addColorStop(1, lo); x.fillStyle = g;
+        x.beginPath(); x.moveTo(-L * .55, -L * .24); x.bezierCurveTo(-L * .1, -L * .36, L * .3, -L * .26, L * .68, -L * .11); x.quadraticCurveTo(L * .8, 0, L * .68, L * .11);
+        x.bezierCurveTo(L * .3, L * .26, -L * .1, L * .36, -L * .55, L * .24); x.quadraticCurveTo(-L * .66, 0, -L * .55, -L * .24); x.fill(); x.strokeStyle = dark ? '#000' : '#7d7260'; x.lineWidth = 1.2; x.stroke();
+        x.fillStyle = dark ? '#000' : '#6f6552'; for (let k = 0; k < 6; k++) { const t = k / 5, px = -L * .52 + t * L * .62; x.beginPath(); x.ellipse(px, (k % 2 ? 1 : -1) * L * .02, L * .07, L * .045, .4, 0, TAU); x.fill(); } // mane tufts along the crest
+        for (const sy of [-1, 1]) { x.fillStyle = mid; x.beginPath(); x.moveTo(L * .02, sy * L * .1); x.lineTo(L * .24, sy * L * .22); x.lineTo(L * .2, sy * L * .06); x.closePath(); x.fill(); x.strokeStyle = lo; x.lineWidth = .8; x.stroke(); } // ears
+        x.fillStyle = dark ? '#000' : '#5f5646'; x.beginPath(); x.ellipse(L * .3, -L * .17, L * .045, L * .03, 0, 0, TAU); x.ellipse(L * .3, L * .17, L * .045, L * .03, 0, 0, TAU); x.fill(); // eyes
+        circ(x, L * .7, -L * .05, 1.3); circ(x, L * .7, L * .05, 1.3); // nostrils
+        x.restore(); shine(cx - R0 * .2, cy - R0 * .25, R0 * .18, .45);
+      } else if (o.piece === 'bishop') { // the mitre: a smooth dome with its diagonal slit and a small ball on top
+        disc(R0 * .48, .1);
+        x.save(); x.beginPath(); x.arc(cx, cy, R0 * .48, 0, TAU); x.clip(); x.strokeStyle = lo; x.lineWidth = R0 * .09; x.beginPath(); x.moveTo(cx - R0 * .1, cy - R0 * .5); x.lineTo(cx + R0 * .5, cy + R0 * .1); x.stroke(); x.restore();
+        disc(R0 * .14); shine(cx - R0 * .22, cy - R0 * .24, R0 * .2);
+      } else { // queen: a coronet of eight balls round a raised crown, the finial in the middle
+        disc(R0 * .54);
+        for (let a = 0; a < 8; a++) { const px = cx + Math.cos(a * TAU / 8) * R0 * .42, py = cy + Math.sin(a * TAU / 8) * R0 * .42, r = R0 * .1, g = x.createRadialGradient(px - r * .4, py - r * .4, 0, px, py, r); g.addColorStop(0, hi); g.addColorStop(1, lo); x.fillStyle = g; circ(x, px, py, r); }
+        disc(R0 * .26, .1); disc(R0 * .11); shine(cx - R0 * .1, cy - R0 * .12, R0 * .14);
+      }
+      }
 function roof(x, o) { // pitched roofs read as a ridge with two shaded slopes; flat roofs get vents and an AC unit
   const c = o.rc || o.color, hz = o.w >= o.h, type = o.roof || 'gable';
   if (type === 'flat') {
@@ -42,6 +75,8 @@ function drawObstacleBase(x, o) {
   if (k === 'water') return drawWater(x, o, 0); // static version (thumbnails); the animated copy is drawn every frame
   if (o.t === 'c') {
     switch (k) {
+      case 'chess': drawChess(x, o, c); return;
+      case 'campfire': { x.save(); x.translate(o.x, o.y); const k = o.r / 14; x.scale(k, k); firePit(x, 0, 0); x.restore(); return; }
       case 'tree': case 'bush': {
         if (x === octx) return drawTrunk(x, o); // in game the leaves are separate swaying sprites (09-seasons)
         const r = seeded(Math.round(o.x * 13 + o.y * 7)), lobes = k === 'tree' ? 7 : 5;
@@ -96,7 +131,11 @@ function drawObstacleBase(x, o) {
   switch (k) {
     case 'border': x.fillStyle = c; x.fillRect(X, Y, w, h); return;
     case 'bwall': drawBreakWall(x, o); return;
-    case 'building': roof(x, o); return edge(x, o, .35);
+    case 'detail': return drawDetail(x, o);
+    case 'building': roof(x, o); if (o.shop) { // striped awning over the front door, on whichever side faces the street or lot (part of the building, so it moves with it)
+        const f = o.front || 's', hz = f === 's' || f === 'n', L = hz ? o.w : o.h;
+        for (let k = 10; k < L - 10; k += 10) { x.fillStyle = (k / 10) % 2 ? '#f4efe6' : o.shop; f === 's' ? x.fillRect(o.x + k, o.y + o.h - 6, 10, 9) : f === 'n' ? x.fillRect(o.x + k, o.y - 3, 10, 9) : f === 'e' ? x.fillRect(o.x + o.w - 6, o.y + k, 9, 10) : x.fillRect(o.x - 3, o.y + k, 9, 10); }
+      } return edge(x, o, .35);
     case 'barn': {
       x.fillStyle = '#7a2a20'; x.fillRect(X, Y, w, h); roof(x, { ...o, rc: '#8c2f24', roof: 'gable' });
       x.strokeStyle = '#f2efe6'; x.lineWidth = 3; const dx = X + w / 2 - 22, dy = Y + h - 2; x.strokeRect(dx, dy - 4, 44, 6); // hay door trim on the eave
@@ -136,6 +175,7 @@ function drawObstacleBase(x, o) {
     case 'crate':
       if (o.printer) { x.fillStyle = c; x.fillRect(X, Y, w, h); x.fillStyle = '#5a5a62'; x.fillRect(X + 6, Y + 6, w - 12, 8); x.fillStyle = '#fff'; x.fillRect(X + 14, Y + h - 10, w - 28, 6); return edge(x, o); }
       if (o.dumpster) { x.fillStyle = shade(c, -.2); x.fillRect(X, Y, w, h); x.fillStyle = c; x.fillRect(X + 1.5, Y + 1.5, w - 3, h / 2 - 2); x.fillStyle = shade(c, .08); x.fillRect(X + 1.5, Y + h / 2, w - 3, h / 2 - 1.5); x.fillStyle = '#d9d9d9'; x.fillRect(X + w / 2 - 4, Y + 2, 8, 2); return edge(x, o, .4); } // two lids, a hinge bar
+      if (o.pump) { x.fillStyle = '#7d7a72'; x.fillRect(X - 2, Y - 2, w + 4, h + 4); x.fillStyle = c; x.fillRect(X, Y + 6, w, h - 12); x.fillStyle = '#c0392b'; x.fillRect(X + 1, Y + 8, w - 2, 6); x.fillRect(X + 1, Y + h - 14, w - 2, 6); x.fillStyle = '#1d1d22'; x.fillRect(X + 3, Y + 16, w - 6, 4); return edge(x, o); } // pump island: kerb, two pumps
       if (o.trough) { x.fillStyle = c; x.fillRect(X, Y, w, h); x.fillStyle = '#6fb0d0'; x.fillRect(X + 3, Y + 3, w - 6, h - 6); return edge(x, o); }
       x.fillStyle = c; x.fillRect(X, Y, w, h); x.strokeStyle = shade(c, -.3); x.lineWidth = 3; x.strokeRect(X + 2.5, Y + 2.5, w - 5, h - 5); x.lineWidth = 2.5; x.beginPath(); x.moveTo(X + 4, Y + 4); x.lineTo(X + w - 4, Y + h - 4); x.moveTo(X + w - 4, Y + 4); x.lineTo(X + 4, Y + h - 4); x.stroke(); return edge(x, o);
     case 'shelf':
@@ -153,15 +193,6 @@ function drawObstacleBase(x, o) {
       if (o.command) { x.fillStyle = '#2b3240'; rrect(x, X + 40, Y + 40, w - 80, h - 80, 10); x.fill(); x.fillStyle = '#5fbfff'; for (let p = X + 50; p < X + w - 50; p += 18) x.fillRect(p, Y + 48, 12, 6); }
       x.fillStyle = '#4a6b8a'; for (const f of [.25, .5, .75]) x.fillRect(X + w * f - 6, Y + 1, 12, 3); return edge(x, o, .35); // windows
     case 'solar': x.fillStyle = '#9aa1aa'; x.fillRect(X, Y, w, h); x.fillStyle = c; x.fillRect(X + 2, Y + 2, w - 4, h - 4); x.strokeStyle = 'rgba(160,190,255,.35)'; x.lineWidth = 1; for (let p = X + 2; p < X + w; p += 10) { x.beginPath(); x.moveTo(p, Y + 2); x.lineTo(p, Y + h - 2); x.stroke(); } x.beginPath(); x.moveTo(X + 2, Y + h / 2); x.lineTo(X + w - 2, Y + h / 2); x.stroke(); return;
-    case 'chess': { // a giant piece seen from above: base ring, body, a crown that tells you which piece it is
-      const cx = X + w / 2, cy = Y + h / 2, dark = c === '#2c2c33', fg = dark ? '#4a4a55' : '#ffffff', ln = dark ? '#18181c' : '#b8b0a2';
-      x.fillStyle = dark ? '#18181c' : '#cfc7b8'; circ(x, cx, cy, w / 2 - 1); x.fillStyle = c; circ(x, cx, cy, w / 2 - 6); x.fillStyle = fg;
-      if (o.piece === 'rook') { for (let a = 0; a < 6; a++) { x.save(); x.translate(cx, cy); x.rotate(a * TAU / 6); x.fillRect(12, -5, 9, 10); x.restore(); } circ(x, cx, cy, 10); }
-      else if (o.piece === 'knight') { x.beginPath(); x.ellipse(cx + 4, cy, 18, 9, -.4, 0, TAU); x.fill(); x.fillStyle = ln; circ(x, cx + 12, cy - 6, 2.5); x.fillStyle = fg; circ(x, cx - 10, cy + 5, 7); }
-      else if (o.piece === 'bishop') { circ(x, cx, cy, 14); x.strokeStyle = ln; x.lineWidth = 3; x.beginPath(); x.moveTo(cx - 8, cy - 8); x.lineTo(cx + 8, cy + 8); x.stroke(); x.fillStyle = ln; circ(x, cx, cy, 3); }
-      else { for (let a = 0; a < 8; a++) circ(x, cx + Math.cos(a * TAU / 8) * 16, cy + Math.sin(a * TAU / 8) * 16, 4); circ(x, cx, cy, 11); x.fillStyle = ln; circ(x, cx, cy, 4); }
-      return;
-    }
     case 'tent': { // ridge tent: two fly panels, guy lines, the door flap
       x.strokeStyle = 'rgba(60,40,20,.5)'; x.lineWidth = .8; x.beginPath(); for (const [dx, dy] of [[-8, -6], [w + 8, -6], [-8, h + 6], [w + 8, h + 6]]) { x.moveTo(X + clamp(dx, 0, w), Y + clamp(dy, 0, h)); x.lineTo(X + dx, Y + dy); } x.stroke();
       x.fillStyle = shade(c, .12); x.fillRect(X, Y, w, h / 2); x.fillStyle = shade(c, -.12); x.fillRect(X, Y + h / 2, w, h / 2);
@@ -180,5 +211,25 @@ function drawObstacleBase(x, o) {
       x.fillStyle = c; x.fillRect(X, Y, w, h); x.fillStyle = shade(c, .12); x.fillRect(X + 3, Y + 3, w - 6, h - 6); x.fillStyle = shade(c, -.3); for (let p = X + 14; p < X + w - 8; p += 26) { circ(x, p, Y - 6, 5); circ(x, p, Y + h + 6, 5); } return edge(x, o); // chairs along both sides
     default: // plain walls: a lit top edge so they read as height
       x.fillStyle = c; x.fillRect(X, Y, w, h); x.fillStyle = shade(c, .16); x.fillRect(X, Y, w, Math.min(4, h * .3)); x.fillStyle = shade(c, -.2); x.fillRect(X, Y + h - Math.min(3, h * .2), w, Math.min(3, h * .2));
+  }
+}
+
+function drawDetail(x, o) { // street furniture and markings, drawn to fit their box
+  const { x: X, y: Y, w, h } = o, cx = X + w / 2, cy = Y + h / 2, m = Math.min(w, h);
+  switch (o.d) {
+    case 'zebra': x.fillStyle = '#e6e6e6'; if (w > h) for (let k = X + 4; k < X + w - 4; k += 9) x.fillRect(k, Y + 2, 5, h - 4); else for (let k = Y + 4; k < Y + h - 4; k += 9) x.fillRect(X + 2, k, w - 4, 5); return;
+    case 'manhole': x.fillStyle = '#2f2f34'; circ(x, cx, cy, m / 2); x.fillStyle = '#3b3b41'; circ(x, cx, cy, m / 3); return;
+    case 'drain': x.fillStyle = '#26262b'; x.fillRect(X, Y, w, h); return;
+    case 'mailbox': x.fillStyle = '#d0453a'; x.fillRect(X, Y, w, h * .57); x.fillStyle = '#3a3a3a'; x.fillRect(cx - .5, Y + h * .57, 1, h * .43); return;
+    case 'hydrant': x.fillStyle = '#c0392b'; circ(x, cx, cy, m / 2); x.fillStyle = '#e8b326'; circ(x, cx, cy, m / 4.4); return;
+    case 'pole': x.fillStyle = '#5a4a3a'; circ(x, cx, cy, m / 2); return;
+    case 'stopsign': x.fillStyle = '#c0392b'; x.beginPath(); for (let k = 0; k < 8; k++) { const a = k * TAU / 8 + TAU / 16; x.lineTo(cx + Math.cos(a) * w / 2, cy + Math.sin(a) * h / 2); } x.fill(); return;
+    case 'busstop': x.fillStyle = '#2b2b30'; x.fillRect(cx - 1, Y + h * .2, 2, h * .8); x.fillStyle = '#2f6fb0'; x.fillRect(X, Y, w, h * .36); return;
+    case 'priceboard': x.fillStyle = '#c0392b'; x.fillRect(X, Y, w, h); x.fillStyle = '#ffe9a0'; x.font = `bold ${m / 3}px sans-serif`; x.textAlign = 'center'; x.fillText('3.49', cx, cy + m / 9); return;
+    case 'icechest': x.fillStyle = '#5a7fa8'; x.fillRect(X, Y, w, h); x.fillStyle = '#e8eef2'; x.fillRect(X + 1, Y + 1, w - 2, h * .3); return;
+    case 'carts': x.strokeStyle = '#8a9098'; x.lineWidth = 1.2; for (let k = 0; k < 3; k++) x.strokeRect(X + k * w * .3, Y, w * .39, h); return;
+    case 'cross': x.strokeStyle = '#f4efe6'; x.lineWidth = 2; x.beginPath(); x.moveTo(cx, Y); x.lineTo(cx, Y + h); x.moveTo(X, Y + h * .36); x.lineTo(X + w, Y + h * .36); x.stroke(); return;
+    case 'grave': x.fillStyle = '#8f9196'; rrect(x, X, Y, w, h, Math.min(1.5, m / 2)); x.fill(); return;
+    default: x.fillStyle = o.color; x.fillRect(X, Y, w, h);
   }
 }

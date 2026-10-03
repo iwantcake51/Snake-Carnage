@@ -20,7 +20,7 @@ function buildSnow() {
   const blk = new Uint8Array(GW * GH), dist = new Float32Array(GW * GH).fill(99), q = [];
   const fill = (o, rr) => { if (o.t === 'r') { for (let j = Math.floor(o.y / SG); j < Math.ceil((o.y + o.h) / SG); j++) for (let i = Math.floor(o.x / SG); i < Math.ceil((o.x + o.w) / SG); i++) if (i >= 0 && j >= 0 && i < GW && j < GH) blk[j * GW + i] = 1; }
     else for (let j = Math.floor((o.y - rr) / SG); j <= (o.y + rr) / SG; j++) for (let i = Math.floor((o.x - rr) / SG); i <= (o.x + rr) / SG; i++) if (i >= 0 && j >= 0 && i < GW && j < GH && dist2(i * SG + 2, j * SG + 2, o.x, o.y) <= rr * rr) blk[j * GW + i] = 1; };
-  for (const o of obstacles) { if (o.kind === 'lamp') { fill(o, 3); continue; } fill(o, o.kind === 'tree' ? o.r * .2 : o.kind === 'bush' ? 0 : o.r); }
+  for (const o of obstacles) { if (o.kind === 'detail') continue; if (o.kind === 'lamp') { fill(o, 3); continue; } fill(o, o.kind === 'tree' ? o.r * .2 : o.kind === 'bush' ? 0 : o.r); }
   for (let k = 0; k < GW * GH; k++) if (blk[k]) { dist[k] = 0; q.push(k); }
   for (let h = 0; h < q.length; h++) { const k = q[h], i = k % GW, j = k / GW | 0, d = dist[k] + SG; if (d > 40) continue;
     for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const ii = i + di, jj = j + dj; if (ii < 0 || jj < 0 || ii >= GW || jj >= GH) continue; const kk = jj * GW + ii; if (dist[kk] > d) { dist[kk] = d; q.push(kk); } } }
@@ -30,8 +30,10 @@ function buildSnow() {
   const up = (A, i, j) => { const fx = i / NC, fy = j / NC, i0 = fx | 0, j0 = fy | 0, tx = fx - i0, ty = fy - j0, q = j0 * nw + i0; return (A[q] * (1 - tx) + A[q + 1] * tx) * (1 - ty) + (A[q + nw] * (1 - tx) + A[q + nw + 1] * tx) * ty; };
   const nAt = (i, j) => up(NZ, i, j);
   for (let j = 0; j < SNH; j++) for (let i = 0; i < SNW; i++) {
-    const x = i * SN + 1, y = j * SN + 1, k = j * SNW + i, gk = (y / SG | 0) * GW + (x / SG | 0), dd = dist[gk];
-    if (dd === 0) continue;
+    const x = i * SN + 1, y = j * SN + 1, k = j * SNW + i, gk = (y / SG | 0) * GW + (x / SG | 0);
+    if (dist[gk] === 0) continue;
+    const gx = clamp(x / SG - .5, 0, GW - 1.001), gy = clamp(y / SG - .5, 0, GH - 1.001), gi = gx | 0, gj = gy | 0, tx = gx - gi, ty = gy - gj, g0 = gj * GW + gi; // sampled smoothly, so the snow's edge round objects isn't stair-stepped
+    const dd = (dist[g0] * (1 - tx) + dist[g0 + 1] * tx) * (1 - ty) + (dist[g0 + GW] * (1 - tx) + dist[g0 + GW + 1] * tx) * ty;
     const n = nAt(i, j);
     let cov = late ? sstep(.16, .36, n) : sstep(-.38, -.04, n);
     let d = cov * up(LZ, i, j); // lumpy, not flat
@@ -177,7 +179,7 @@ function updateSnow(dt) {
 function stainedNear(x, y) { const k = (y / SN | 0) * SNW + (x / SN | 0); return snowS && snowS[k] > .3 ? [snowC3[k * 3], snowC3[k * 3 + 1], snowC3[k * 3 + 2]] : null; }
 function drawSnow(x) {
   if (!snowOn) return;
-  x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'low';
+  x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'medium'; // smoother upscale on high-DPI screens, still cheap
   x.drawImage(snowCv, 0, 0, W, H);
 }
 function drawSnowFx(x) {

@@ -17,29 +17,30 @@ const COLOR_NAMES = { '#4e7cf6': 'Cobalt', '#3fa34d': 'Moss', '#d63c3c': 'Brick'
 const colorName = hex => COLOR_NAMES[hex.toLowerCase()] || hex.toUpperCase();
 const CUSTOM_PRICE = { primary: 2500, full: 6000 }; // the luxury tier: any color you want
 const SHOP = {
-  pattern: [['Solid', 0], ['Stripes', 0], ['Spots', 25], ['Gradient', 35], ['Zebra', 45], ['Checker', 45], ['Diamond', 70], ['Neon', 120], ['Rainbow', 160], ['Lava', 160], ['Galaxy', 220],
+  pattern: [['Solid', 0], ['Stripes', 0], ['Spots', 25], ['Gradient', 35], ['Zebra', 45], ['Checker', 45], ['Diamond', 70], ['Neon', 120], ['Rainbow', 160], ['Lava', 160], ['Galaxy', 220], ['Garter', 70], ['Kingsnake', 85], ['Coral', 95], ['Emerald', 110], ['Python', 120], ['Diamondback', 140],
     ['Rat Fur', 0, 'ratProblem'], ['Gold Plated', 0, 'goldDigger'], ['Blood Soaked', 0, 'cleanup'], ['Hazard', 0, 'masochist'], ['Lunar', 0, 'lunar'], ['Martian', 0, 'martian']],
   hat: [['None', 0], ['Party hat', 20], ['Flower', 20], ['Beanie', 25], ['Bow', 25], ['Top hat', 30], ['Cone', 30], ['Chef', 40], ['Antenna', 40], ['Cowboy', 50],
     ['Headphones', 50], ['Graduation', 50], ['Santa', 60], ['Sombrero', 60], ['Mohawk', 60], ['Pirate', 70], ['Propeller', 70], ['Viking', 80], ['Horns', 90],
     ['Wizard', 100], ['Halo', 120], ['Crown', 0, 'midas'], ['Cracked Halo', 0, 'karma']],
   eyes: [['Normal', 0], ['Angry', 10], ['Sleepy', 10], ['Googly', 30], ['Dead', 40], ['Shades', 50], ['Cyclops', 60], ['Hearts', 70], ['Stars', 70], ['Visor', 90], ['Laser', 0, 'starving']],
   trail: [['None', 0], ['Smoke', 60], ['Bubbles', 70], ['Sparkles', 80], ['Hearts', 90], ['Petals', 90], ['Confetti', 110], ['Embers', 120],
-    ['Cheese Crumbs', 0, 'ratKing'], ['Gold Dust', 0, 'goldenOpp'], ['Blood Drip', 0, 'paintRed'], ['Alarm', 0, 'badHood'], ['Stardust', 0, 'worldEater']],
-  theme: [['Default', 0], ['Midnight', 180], ['Toxic', 220], ['Panic', 0, 'wrongPlace'], ['Gold', 0, 'midas'], ['Blood', 0, 'paintRed']],
+    ['Cheese Crumbs', 0, 'ratKing'], ['Gold Dust', 0, 'goldenOpp'], ['Blood Drip', 0, 'paintRed'], ['Alarm', 0, 'badHood'], ['Stardust', 0, 'worldEater'], ['Afterglow', 0, 'toolkit'], ['Nuggets', 0, 'goldRush'], ['Shrapnel', 0, 'smasher']],
+  combo: [['Default', 0], ['Minimal', 60], ['Typewriter', 80], ['Arcade', 90], ['Brutal', 120], ['Neon', 150], ['Gilded', 0, 'midas'], ['Manhunt', 0, 'allHumans'], ['Overdrive', 0, 'bottomless'], ['Hollow', 0, 'notHungry'], ['Splatter', 0, 'spitTake'], ['Marquee', 0, 'veteran']],
+  theme: [['Default', 0], ['Midnight', 180], ['Toxic', 220], ['Panic', 0, 'wrongPlace'], ['Gold', 0, 'midas'], ['Blood', 0, 'paintRed'], ['Nocturne', 0, 'lightsOut'], ['Dusk', 0, 'goldenHour'], ['Bone', 0, 'apex']],
   card: [['Default', 0], ['Neon', 150], ['Gold Frame', 0, 'goldenOpp'], ['Bloody', 0, 'cleanup'], ['Hazard', 0, 'overachiever'], ['Chip Stack', 0, 'highRoller']],
-  effect: [['None', 0], ['Embers', 160], ['Snow', 160], ['Gold Dust', 0, 'midas'], ['Blood Rain', 0, 'paintRed'], ['Alarm Lights', 0, 'wrongPlace'], ['Stars', 0, 'worldEater']],
+  effect: [['None', 0], ['Embers', 160], ['Snow', 160], ['Gold Dust', 0, 'midas'], ['Blood Rain', 0, 'paintRed'], ['Alarm Lights', 0, 'wrongPlace'], ['Stars', 0, 'worldEater'], ['Ash', 0, 'marathon'], ['Moths', 0, 'lightsOut'], ['Fireflies', 0, 'charmer']],
   title: [['None', 0], ['Rat King', 0, 'ratKing'], ['People Person', 0, 'peoplePerson'], ['Public Menace', 0, 'publicMenace'], ['Roadkill', 0, 'roadkill'],
     ['Gold Digger', 0, 'goldDigger'], ["Don't Mind Me", 0, 'dontMind'], ['Starving', 0, 'starving'], ['To-Do List', 0, 'checklist'],
     ['Thrill Seeker', 0, 'thrill'], ['Tourist', 0, 'tourist'], ['Veteran', 0, 'veteran'], ['High Roller', 0, 'highRoller'], ['Humans Only', 0, 'allHumans'],
-    ['Cartographer', 0, 'cartographer'], ['Wrecking Ball', 0, 'smasher'], ['Apex Predator', 0, 'apex'], ['Snake Charmer', 0, 'charmer'], ['Ouroboros', 0, 'ouroboros'], ['Dog Walker', 0, 'glowWorm'], ['Last Call', 0, 'lastCall'], ['Had It Coming', 0, 'karma'], ['Not Fast Enough', 0, 'notFast']],
+    ['Cartographer', 0, 'cartographer'], ['Wrecking Ball', 0, 'smasher'], ['Apex Predator', 0, 'apex'], ['Snake Charmer', 0, 'charmer'], ['Ouroboros', 0, 'ouroboros'], ['Dog Walker', 0, 'glowWorm'], ['Last Call', 0, 'lastCall'], ['Swiss Army', 0, 'toolkit'], ['Iron Lungs', 0, 'marathon'], ['Prospector', 0, 'goldRush'], ['Lights Out', 0, 'lightsOut'], ['Fasting', 0, 'notHungry'], ['Spit Take', 0, 'spitTake'], ['Golden Hour', 0, 'goldenHour'], ['Had It Coming', 0, 'karma'], ['Not Fast Enough', 0, 'notFast']],
 };
 { // renamed titles: keep what people already earned and wore
   const RN = { 'Roadkill Enthusiast': 'Roadkill', "Cleanup Is Someone Else's Problem": 'Body Count', 'Absolutely Starving': 'Starving', 'Oops, All Humans': 'Humans Only', 'Checklist Enjoyer': 'To-Do List', 'Bull in a China Shop': 'Wrecking Ball' };
   PROG.owned = PROG.owned.map(k => k.startsWith('title:') && RN[k.slice(6)] ? 'title:' + RN[k.slice(6)] : k);
   if (SETTINGS.snake && RN[SETTINGS.snake.title]) SETTINGS.snake.title = RN[SETTINGS.snake.title];
 }
-const CAT_LABEL = { color: 'Primary color', color2: 'Secondary color', pattern: 'Skin', hat: 'Hat', eyes: 'Eyes', trail: 'Trail', theme: 'UI theme', card: 'Card style', effect: 'Menu effect', title: 'Title' };
-SETTINGS.snake = Object.assign({ theme: 'Default', card: 'Default', effect: 'None', title: 'None' }, SETTINGS.snake);
+const CAT_LABEL = { color: 'Primary color', color2: 'Secondary color', pattern: 'Skin', hat: 'Hat', eyes: 'Eyes', trail: 'Trail', theme: 'UI theme', card: 'Card style', combo: 'Combo style', effect: 'Menu effect', title: 'Title' };
+SETTINGS.snake = Object.assign({ theme: 'Default', combo: 'Default', card: 'Default', effect: 'None', title: 'None' }, SETTINGS.snake);
 const itemsOf = cat => cat.startsWith('color') ? COLOR_ITEMS : SHOP[cat];
 const findItem = (cat, v) => itemsOf(cat).find(i => i[0] === v);
 const ownKey = (cat, v) => cat + ':' + v; // Primary and Secondary colors are owned separately
@@ -123,6 +124,7 @@ const ACH = [
   ['goldenHour', 'Golden Hour', 'Eat a golden target at dawn or dusk', () => PROG.goldenHour || 0, 1, 'hard', { secret: 1, clue: 'Gold at sunrise or sunset.', chips: 250 }],
   ['lastCall', 'Last Call', 'Eat {n} people in one run at the club', () => PROG.clubMax || 0, 25, 'rare', { secret: 1, clue: 'Empty the dance floor.', chips: 400 }],
 ].map(([id, name, what, stat, n, tier, ex = {}]) => { const goal = typeof n === 'function' ? n : () => n; return { id, name, get n() { return goal(); }, get what() { return what.replace('{n}', goal()); }, stat, tier, ...ex }; });
+const ACH_XP = { easy: 150, medium: 400, hard: 900, rare: 1800 };
 const achRewards = id => [['color', COLOR_ITEMS], ['color2', COLOR_ITEMS], ...Object.entries(SHOP)].flatMap(([cat, l]) => l.filter(i => i[2] === id).map(i => [cat, i[0]]));
 function checkAch() {
   for (const a of ACH) {
@@ -130,6 +132,7 @@ function checkAch() {
     PROG.ach[a.id] = Date.now();
     const got = achRewards(a.id); got.forEach(([cat, v]) => { if (!PROG.owned.includes(ownKey(cat, v))) PROG.owned.push(ownKey(cat, v)); });
     if (a.chips) { PROG.coins += a.chips; PROG.earned = (PROG.earned || 0) + a.chips; }
+    if (typeof gainXP === 'function') gainXP(ACH_XP[a.tier] || 0, 0); // the harder it was, the more it pays
     if (run && state !== 'menu') (run.unlocks = run.unlocks || []).push({ kind: 'ach', id: a.id });
     unlockFx(a, got);
   }
@@ -147,6 +150,7 @@ function applyCosmetics() {
   document.body.className = document.body.className.replace(/\b(theme|cs|fx)-\S+/g, '').trim();
   if (c.theme !== 'Default') document.body.classList.add('theme-' + c.theme.toLowerCase());
   if (c.card !== 'Default') document.body.classList.add('cs-' + c.card.toLowerCase().replace(/\s+/g, '-'));
+  document.body.className = document.body.className.replace(/\bcb-\S+/g, '').trim(); if (c.combo && c.combo !== 'Default') document.body.classList.add('cb-' + c.combo.toLowerCase());
 }
 function menuFx() { // background particles behind the main menu
   const e = SETTINGS.snake.effect; if (!e || e === 'None') return '';

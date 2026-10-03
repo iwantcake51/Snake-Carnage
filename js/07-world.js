@@ -5,7 +5,7 @@ const SG = 4, GW = W / SG, GH = H / SG;   // solid grid
 const WS = 16, WW = W / WS, WH = H / WS;  // wetness (blood on floor) grid
 let solidGrid, wet, fresh, obstacles, creatures = [], parts = [], pools = [], respawnQ = [];
 let snake, mapIdx = 0, selSpeed = 'Normal', state = 'menu', score = 0, kills = { h: 0, a: 0 };
-let shake = 0, T = 0, deadT = 0;
+let shake = 0, T = 0, deadT = 0, deadAt = 0; // deadAt: wall-clock time of the crash, so the summary shows on time even if frames are slow
 
 function solid(x, y) {
   if (x < 0 || y < 0 || x >= W || y >= H) return 1;
@@ -40,7 +40,14 @@ function wetAt(x, y) {
 function buildSolid() {
   solidGrid = new Uint8Array(GW * GH);
   for (const o of obstacles) {
-    if (o.t === 'r') {
+    if (obsFlag(o, 'noCollide')) continue; // walk-through props
+    if (isRot(o)) { const P = obsCorners(o), xs = P.map(p => p[0]), ys = P.map(p => p[1]);
+      for (let j = Math.floor(Math.min(...ys) / SG); j < Math.ceil(Math.max(...ys) / SG); j++) for (let i = Math.floor(Math.min(...xs) / SG); i < Math.ceil(Math.max(...xs) / SG); i++)
+        if (i >= 0 && j >= 0 && i < GW && j < GH && pointInPoly(P, i * SG + 2, j * SG + 2)) solidGrid[j * GW + i] = 1;
+    } else if (o.poly) { const P = polyShape(o); // custom water: the real shape
+      for (let j = Math.floor(o.y / SG); j < Math.ceil((o.y + o.h) / SG); j++) for (let i = Math.floor(o.x / SG); i < Math.ceil((o.x + o.w) / SG); i++)
+        if (i >= 0 && j >= 0 && i < GW && j < GH && pointInPoly(P, i * SG + 2, j * SG + 2)) solidGrid[j * GW + i] = 1;
+    } else if (o.t === 'r') {
       for (let j = Math.floor(o.y / SG); j < Math.ceil((o.y + o.h) / SG); j++)
         for (let i = Math.floor(o.x / SG); i < Math.ceil((o.x + o.w) / SG); i++)
           if (i >= 0 && j >= 0 && i < GW && j < GH) solidGrid[j * GW + i] = 1;
@@ -54,7 +61,7 @@ function buildSolid() {
 
 function bakeOutline() {
   mkx.clearRect(0, 0, W, H); mkx.fillStyle = '#000';
-  for (const o of obstacles) { if (o.t === 'r') mkx.fillRect(o.x, o.y, o.w, o.h); else circ(mkx, o.x, o.y, o.r); }
+  for (const o of obstacles) { if (obsFlag(o, 'noOutline')) continue; fillObs(mkx, o); }
   olx.clearRect(0, 0, W, H);
   const mo = SETTINGS.mapOutlines; if (mo === 'Off') { olx.clearRect(0, 0, W, H); nvx.clearRect(0, 0, W, H); return; }
   const strong = mo === 'Strong', ow = strong ? 2.7 : 1.6;
@@ -67,43 +74,119 @@ function bakeOutline() {
   nvx.clearRect(0, 0, W, H); nvx.drawImage(outlineC, 0, 0, W, H); // bright copy used by night vision
   nvx.globalCompositeOperation = 'source-in'; nvx.fillStyle = '#ffffff'; nvx.fillRect(0, 0, W, H); nvx.globalCompositeOperation = 'source-over';
 }
-let curBuild = null;
+let curBuild = null, curPre = [], curMapLights = [];
 const [plainC, plainX] = makeLayer();
-function drawObstacleLayer(x = octx, b = curBuild, list = obstacles, ls = MAPS[mapIdx].lights || (b && b.lights) || []) { // walls and objects, then the details on top of them
-  x.clearRect(0, 0, W, H); list.forEach(o => drawObstacle(x, o));
+function drawObstacleLayer(x = octx, b = curBuild, list = obstacles, ls = (b && b.lights) || MAPS[mapIdx].lights || []) { // walls and objects, then the details on top of them
+  x.clearRect(0, 0, W, H); list.forEach(o => { if (o.kind !== 'detail') drawObstacle(x, o); }); // street details are painted into the ground (see loadMap)
   if (b && b.decor) b.decor(x);
   if (x === octx) snowCaps(x, list);
   for (const l of ls) fixture(x, l);
   if (x === octx) outlineBreakables(x);
 }
-function nudgeLamps(list, paths) { // a lamp post standing in the middle of a path gets moved to its edge
+/* ---- placement rules, applied to every map as it loads ----
+   street furniture never stands in a road (it's pushed back to the curb), a lamp is only moved off a walkway when it is really in it
+   (and never into a road or a wall), and anything left with a pinched, snake-sized gap to its neighbour is reported */
+const PROP_KINDS = new Set(['lamp', 'bench', 'bin', 'tree', 'bush', 'table', 'plant', 'barrier']);
+const inRoadRect = (x, y, r, roads) => roads.some(q => x + r > q[0] && x - r < q[0] + q[2] && y + r > q[1] && y - r < q[1] + q[3]);
+function hitsSolid(list, o, x, y, r) { return list.some(q => q !== o && q.kind !== 'border' && (q.t === 'r' ? x + r > q.x && x - r < q.x + q.w && y + r > q.y && y - r < q.y + q.h : Math.hypot(x - q.x, y - q.y) < r + q.r)); }
+function nudgeLamps(list, paths, roads = []) { // a lamp post standing in the middle of a path gets moved to its edge
   if (!paths.length) return;
   const P = paths.map(p => trailPoints(p));
   for (const o of list) {
     if (o.kind !== 'lamp' || o.mast || o.lantern) continue;
     let best = null, bd = 1e9; for (const pts of P) for (const q of pts) { const d = Math.hypot(o.x - q[0], o.y - q[1]); if (d < bd) { bd = d; best = q; } }
-    const need = 16; if (!best || bd >= need) continue;
+    const need = 12; if (!best || bd >= 6) continue; // a pole beside the walkway is fine; only one standing in it moves
     let nx = o.x - best[0], ny = o.y - best[1]; const l = Math.hypot(nx, ny);
-    if (l < .5) { const i = P.flat().indexOf(best); nx = 0; ny = 1; } else { nx /= l; ny /= l; }
-    o.x = best[0] + nx * need; o.y = best[1] + ny * need;
-    for (const l2 of (MAPS[mapIdx].lights || [])) if (l2.o === o) { l2.x = o.x; l2.y = o.y; }
+    if (l < .5) { nx = 0; ny = 1; } else { nx /= l; ny /= l; }
+    for (const sg of [1, -1]) { const x = best[0] + nx * need * sg, y = best[1] + ny * need * sg;
+      if (inRoadRect(x, y, o.r, roads) || hitsSolid(list, o, x, y, o.r)) continue; // never into the traffic or a wall
+      o.x = x; o.y = y; for (const l2 of ((curBuild && curBuild.lights) || MAPS[mapIdx].lights || [])) if (l2.o === o) { l2.x = o.x; l2.y = o.y; } break; }
   }
+}
+function tidyPlacement(list, roads) {
+  for (const o of list) {
+    if (!PROP_KINDS.has(o.kind) || o.mast) continue;
+    for (const q of roads) { // out of the road, back to the nearest curb
+      const [x0, y0, w, h] = q, cx = o.t === 'r' ? o.x + o.w / 2 : o.x, cy = o.t === 'r' ? o.y + o.h / 2 : o.y, hw = o.t === 'r' ? o.w / 2 : o.r, hh = o.t === 'r' ? o.h / 2 : o.r;
+      if (!(cx + hw > x0 && cx - hw < x0 + w && cy + hh > y0 && cy - hh < y0 + h)) continue;
+      const opts = [[x0 - hw - 2 - cx, 0], [x0 + w + hw + 2 - cx, 0], [0, y0 - hh - 2 - cy], [0, y0 + h + hh + 2 - cy]].sort((a, b) => Math.abs(a[0]) + Math.abs(a[1]) - Math.abs(b[0]) - Math.abs(b[1]));
+      const [dx, dy] = opts[0]; o.x += dx; o.y += dy; console.debug('[map] moved', o.kind, 'out of the road');
+    }
+  }
+  if (typeof location !== 'undefined' && /mapcheck/.test(location.search)) { // ?mapcheck: list pinched gaps a snake would scrape through
+    const S = list.filter(o => o.kind !== 'border' && o.kind !== 'lamp'), box = o => o.t === 'r' ? [o.x, o.y, o.x + o.w, o.y + o.h] : [o.x - o.r, o.y - o.r, o.x + o.r, o.y + o.r];
+    for (let i = 0; i < S.length; i++) for (let j = i + 1; j < S.length; j++) { const a = box(S[i]), b = box(S[j]), gx = Math.max(a[0] - b[2], b[0] - a[2]), gy = Math.max(a[1] - b[3], b[1] - a[3]), g = Math.max(gx, gy);
+      if (Math.min(gx, gy) <= 0 && g > 2 && g < 26 && !(S[i].kind === 'car' && S[j].kind === 'car')) console.warn('[mapcheck] tight gap', Math.round(g), S[i].kind, Math.round(a[0]), Math.round(a[1]), '<->', S[j].kind, Math.round(b[0]), Math.round(b[1])); }
+  }
+}
+/* ---- spacing: two things either touch or leave a real gap (2 actor widths), never a pinch you scrape through ----
+   Furniture that belongs against a wall is pushed flush; free-standing props (trees, rocks, plants, benches...) move out to
+   a real gap if there's room, otherwise up against the wall/edge. Reflected copies at the map's sides may also be nudged
+   flush or dropped. Small poles (lamps, bins) are ignored: they stand on sidewalks next to things by design. */
+const GAP_MIN = 40;
+const HUG_KINDS = new Set(['bed', 'shelf', 'console', 'crate', 'bar', 'cryo', 'generator', 'speaker', 'booth', 'couch', 'desk', 'dj', 'barrier', 'solar']);
+const FREE_KINDS = new Set(['tree', 'bush', 'rock', 'plant', 'hay', 'table', 'bench', 'pod', 'chess', 'tent', 'holo', 'pillar']);
+const POLE_KINDS = new Set(['lamp', 'bin', 'detail']);
+const obox = o => o.t === 'r' ? [o.x, o.y, o.x + o.w, o.y + o.h] : [o.x - o.r, o.y - o.r, o.x + o.r, o.y + o.r];
+function gapAndDir(a, b) { // shortest gap between two shapes and the unit direction pushing a away from b
+  if (a.t === 'c' && b.t === 'c') { const dx = a.x - b.x, dy = a.y - b.y, d = Math.hypot(dx, dy) || 1; return [d - a.r - b.r, dx / d, dy / d]; }
+  if (a.t === 'c' || b.t === 'c') { const c = a.t === 'c' ? a : b, R = obox(a.t === 'c' ? b : a), px = clamp(c.x, R[0], R[2]), py = clamp(c.y, R[1], R[3]), dx = c.x - px, dy = c.y - py, d = Math.hypot(dx, dy);
+    const ux = d ? dx / d : (c.x < (R[0] + R[2]) / 2 ? -1 : 1), uy = d ? dy / d : 0, sg = a.t === 'c' ? 1 : -1; return [(d || 0) - c.r, ux * sg, uy * sg]; }
+  const A = obox(a), Bx = obox(b), gx = Math.max(A[0] - Bx[2], Bx[0] - A[2]), gy = Math.max(A[1] - Bx[3], Bx[1] - A[3]);
+  if (gx >= gy) return [gx, (A[0] + A[2]) / 2 < (Bx[0] + Bx[2]) / 2 ? -1 : 1, 0];
+  return [gy, 0, (A[1] + A[3]) / 2 < (Bx[1] + Bx[3]) / 2 ? -1 : 1];
+}
+function settleGaps(list, roads, paths) {
+  const P = paths.flatMap(p => trailPoints(p).filter((_, k) => k % 3 === 0)), S = list.filter(o => !POLE_KINDS.has(o.kind));
+  const role = o => o.kind === 'border' || o.pump || o.dumpster || (o.ext && (o.kind === 'building' || EXT_WALLS.has(o.kind))) ? 'fixed' : HUG_KINDS.has(o.kind) ? 'hug' : FREE_KINDS.has(o.kind) ? 'free' : o.ext ? 'extfixed' : 'fixed';
+  const pinches = (o, nx, ny) => { // how many pinched gaps o would have at (nx, ny); Infinity if it can't stand there at all
+    const t = { ...o, x: nx, y: ny }, bx = obox(t);
+    if (bx[0] < B - .5 || bx[1] < B - .5 || bx[2] > W - B + .5 || bx[3] > H - B + .5) return Infinity;
+    if ((nx !== o.x || ny !== o.y) && roads.some(r => bx[2] > r[0] && bx[0] < r[0] + r[2] && bx[3] > r[1] && bx[1] < r[1] + r[3])) return Infinity;
+    if ((nx !== o.x || ny !== o.y) && P.some(([px, py]) => px > bx[0] - 12 && px < bx[2] + 12 && py > bx[1] - 12 && py < bx[3] + 12)) return Infinity;
+    let n = 0; for (const q of S) { if (q === o || q.dropped) continue; const g = gapAndDir(t, q)[0]; if (g < -.5 && !(o.kind === 'border' || q.kind === 'border')) return Infinity; if (g > (q.kind === 'border' ? 8 : 3) && g < GAP_MIN && !(o.kind === 'car' && q.kind === 'car')) n++; }
+    return n; };
+  const dropped = new Set();
+  for (let pass = 0; pass < 3; pass++) for (const a of S) for (const b of S) {
+    if (a === b || dropped.has(a) || dropped.has(b)) continue;
+    const [g, ux, uy] = gapAndDir(a, b); if (!(g > (a.kind === 'border' || b.kind === 'border' ? 8 : 3) && g < GAP_MIN)) continue; // within a few px of the edge counts as against it
+    if (a.kind === 'car' && b.kind === 'car') continue;
+    const ra = role(a), rb = role(b), rank = { free: 0, hug: 1, extfixed: 2, fixed: 3 };
+    if (ra === 'fixed') continue; // walls, buildings, the border and anchored fixtures never move
+    if (rank[ra] > rank[rb] || (ra === rb && (!!a.ext === !!b.ext ? (a.t === 'r' ? a.w * a.h : a.r * a.r * 3) > (b.t === 'r' ? b.w * b.h : b.r * b.r * 3) : !a.ext))) continue; // the lighter one moves (a reflected copy gives way to the original)
+    const away = [a.x + ux * (GAP_MIN - g + 1), a.y + uy * (GAP_MIN - g + 1)], flush = [a.x - ux * g, a.y - uy * g];
+    const tries = ra === 'hug' || ra === 'extfixed' ? [flush, away] : [away, flush];
+    const now = pinches(a, a.x, a.y); let done = false;
+    for (const [nx, ny] of tries) if (pinches(a, nx, ny) < now) { a.x = nx; a.y = ny; done = true; break; }
+    if (!done && a.ext && role(a) !== 'fixed') { dropped.add(a); a.dropped = true; } // a reflected copy that can't be made to fit just isn't there
+  }
+  return list.filter(o => !dropped.has(o));
 }
 function loadMap(idx, sz) {
   mapIdx = idx; season = sz || null; // a season only for runs on outdoor maps; menus show the plain map
-  const m = MAPS[idx], b = m.build();
+  bunkerCache = null; if (MAPS[idx].name === 'Bunker') bunkerLock = Math.random() < .35; // some runs the bunker is in lockdown
+  const m = MAPS[idx], b = m.build(); curBuild = b;
   Sfx.setMuffle(!!m.space && !m.indoor); // thin air on the surface; inside a pressurized station sound is normal
-  obstacles = splitBreakables(addBreakWalls([...borderWalls(m.border), ...b.obs], m.name));
-  nudgeLamps(obstacles, b.paths || []);
+  const ov = mapOverride(m.name); // edits made in the map editor replace the map's own objects and lights as they are
+  if (ov) { b.obs = JSON.parse(JSON.stringify(ov.obs)); b.lights = JSON.parse(JSON.stringify(ov.lights)); }
+  if (ov && ov.trails) { // walkers follow the edited paths (and keep any sidewalk routes that weren't painted trails)
+    const old = captureTrails(m.build()), near = (p, q) => Math.abs(p[0] - q[0]) < 2 && Math.abs(p[1] - q[1]) < 2;
+    b.paths = [...(b.paths || []).filter(p => !old.some(t => t.pts.some(q => near(p[0], q)))), ...ov.trails.map(t => t.pts)];
+  }
+  if (state !== 'editor') b.obs = b.obs.filter(o => o.chance == null || Math.random() * 100 < o.chance); // props with a spawn chance only sometimes show up
+  let pre = [...borderWalls(m.border), ...b.obs];
+  if (!ov) { nudgeLamps(pre, b.paths || [], b.roads || []); tidyPlacement(pre, b.roads || []); pre = settleGaps(pre, b.roads || [], b.paths || []); }
+  curPre = pre.filter(o => o.kind !== 'border'); curMapLights = b.lights || m.lights || []; // spacing works on whole objects, before long ones are split into breakable sections
+  obstacles = splitBreakables(addBreakWalls(pre, m.name));
   buildSolid();
-  bctx.clearRect(0, 0, W, H); b.floor(bctx); bakeContactShadows(bctx, b.obs); resetBuckets(); gctx.clearRect(0, 0, W, H); groundParts = []; trail = []; floaters = [];
+  b.obs = b.obs.filter(o => !o.dropped); bctx.clearRect(0, 0, W, H); if (ov) { trailMute = !!ov.trails; try { if (ov.base) paintBase(bctx, ov.base); else b.floor(bctx); } finally { trailMute = false; } if (ov.areas) paintAreas(bctx, ov.areas); if (ov.trails) paintTrails(bctx, ov.trails); } else b.floor(bctx); /* edited paths replace the map's painted trails */ for (const o of b.obs) if (o.kind === 'detail' && !o.dropped) drawObstacle(bctx, o); bakeContactShadows(bctx, b.obs); resetBuckets(); gctx.clearRect(0, 0, W, H); groundParts = []; trail = []; floaters = [];
   buildGrassMask(); gradeGround(); seasonDetails(bctx);
   curBuild = b; drawObstacleLayer(); buildTrees();
   bakeOutline();
   buildSnow();
-  buildLights(b.lights || m.lights || []); setupSpeakers();
+  buildLights(curMapLights); setupSpeakers();
   wet = new Float32Array(WW * WH); fresh = new Float32Array(WW * WH); wetC = new Float32Array(WW * WH * 3);
-  creatures = []; parts = []; pools = []; respawnQ = []; gibs = []; splashes = []; groups = []; mist = []; smoke = []; wisps = []; gloss = []; ringPops = []; hitGhosts = []; hitStop = 0; puke = []; convos = []; lastDead = null;
+  creatures = []; parts = []; pools = []; respawnQ = []; gibs = []; splashes = []; groups = []; mist = []; smoke = []; wisps = []; gloss = []; crashHit = null; ringPops = []; hitGhosts = []; hitStop = 0; puke = []; convos = []; lastDead = null;
   score = 0; kills = { h: 0, a: 0 }; shake = 0;
   killV = killFlash = desatHold = 0;
   light = computeLight(); shadowKey = ''; bakeShadows();
@@ -114,7 +197,7 @@ function loadMap(idx, sz) {
     for (let i = 0; i < Math.round(n * k); i++) spawn(type, zone);
   }
   makeFlies(m.fireflies || 0);
-  curPaths = b.paths || []; curRoads = b.roads || []; curCross = b.crossings || []; spawnWalkers(m.walkers || 0); makeGrass(m.grass || 0); makeWeather();
+  curPaths = b.paths || []; curRoads = b.roads || []; curCross = b.crossings || []; spawnWalkers(m.walkers || 0); if (state === 'menu') creatures = []; /* the map behind the menus is empty: nobody milling about */ makeGrass(m.grass || 0); makeWeather();
   deaths = []; if (typeof run === 'object') run.startPop = creatures.length;
   updateHud();
 }
