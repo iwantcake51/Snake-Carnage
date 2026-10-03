@@ -45,6 +45,11 @@ function drawSnake(x, s = snake, cfg = SETTINGS.snake) {
     if (a > .01) { base = mixColor(base, groundColAt(g.x, g.y), (.42 + .14 * cam.lv) * a); x.globalAlpha = 1 - (.56 + .06 * cam.lv + .2 * (cam.still || 0)) * a; } // takes on the colors around it
     const A = mid(i - 1), B = mid(i), W2 = r * 1.8, na = (o) => [-Math.sin(o.a) * W2, Math.cos(o.a) * W2], [ax, ay] = na(A), [bx, by] = na(B);
     x.fillStyle = base; x.beginPath(); x.moveTo(A.x + ax + Math.cos(A.a) * .4, A.y + ay + Math.sin(A.a) * .4); x.lineTo(B.x + bx, B.y + by); x.lineTo(B.x - bx, B.y - by); x.lineTo(A.x - ax + Math.cos(A.a) * .4, A.y - ay + Math.sin(A.a) * .4); x.closePath(); x.fill(); // a band of skin, overlapping the next a hair so no seam shows
+    x.globalAlpha = 1;
+  }
+  for (let i = n - 1; i >= 0; i--) { // markings and stains go on after all the skin, so a spot or diamond can run across into the next band instead of being cut off
+    const g = pts[i], r = segR(i, n), a = cam ? cam.a[i] : 0, sts = s.stains[i] || [];
+    if (a > .01) x.globalAlpha = 1 - (.56 + .06 * cam.lv + .2 * (cam.still || 0)) * a;
     patternOverlay(x, g, r, i, cfg);
     if (sts.length) { x.save(); x.translate(g.x, g.y); x.rotate(g.a); x.drawImage(stainSprite(sts), -r, -r, r * 2, r * 2); x.restore(); }
     x.globalAlpha = 1;
