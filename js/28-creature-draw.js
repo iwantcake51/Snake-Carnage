@@ -314,36 +314,37 @@ function hsl2hex(h, s, l) {
   const k = n => (n + h / 30) % 12, a = s * Math.min(l, 1 - l), f = n => Math.round(255 * (l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1))));
   return '#' + [f(0), f(8), f(4)].map(v => v.toString(16).padStart(2, '0')).join('');
 }
-function segColor(i, n, cfg) {
+function segColor(i, n, cfg) { // every skin is built from your primary (P) and secondary (S) colors, plus shades of them
+  const P = cfg.color, S = cfg.color2, D = shade(P, -.55);
   switch (cfg.pattern) {
-    case 'Stripes': return Math.floor(i / 2) % 2 ? cfg.color2 : cfg.color;
-    case 'Zebra': return i % 2 ? cfg.color2 : cfg.color;
-    case 'Gradient': return mixColor(cfg.color, cfg.color2, i / Math.max(1, n - 1));
-    case 'Rainbow': return hsl2hex(((i * 22 - T * 90) % 360 + 360) % 360, 85, 56);
-    case 'Neon': return mixColor(cfg.color, '#ffffff', (Math.sin(T * 6 - i * .5) + 1) * .22);
-    case 'Lava': return mixColor('#ff3b00', '#ffc400', (Math.sin(T * 3 + i * .6) + 1) / 2);
-    case 'Galaxy': return mixColor('#1a1033', cfg.color, (Math.sin(i * .7 + T) + 1) * .18);
-    case 'Rat Fur': return i >= n - 3 ? '#d99a9a' : i % 2 ? '#7a7a82' : '#8a8a92';                       // grey fur, pink tail tip
-    case 'Gold Plated': return mixColor('#a87a12', '#ffe680', (Math.sin(i * .5 - T * 2.5) + 1) * .5 * .8); // a highlight sweeping down the body
-    case 'Blood Soaked': return mixColor(cfg.color, '#5a0606', .45 + .25 * ((i * 7919 % 13) / 13));
-    case 'Hazard': return Math.floor(i / 2) % 2 ? '#1d1d1f' : '#f2c230';
-    case 'Lunar': return mixColor('#b9c0c8', '#8a9099', (i * 37 % 10) / 22);
-    case 'Martian': return mixColor('#c1440e', '#e2763a', (Math.sin(i * .8) + 1) * .4);
-    // real snakes
-    case 'Coral': return ['#c8201c', '#c8201c', '#f2c230', '#141214', '#141214', '#f2c230'][i % 6]; // red touches yellow
-    case 'Kingsnake': return i % 4 === 0 ? '#eee6d4' : '#1a1718';
-    case 'Diamondback': return mixColor('#8a6a44', '#a58358', (i % 2) * .5);
-    case 'Python': return mixColor('#b89a62', '#a5874f', ((i * 31) % 7) / 7);
-    case 'Garter': return mixColor('#2f3a24', '#3a4630', (i % 2) * .5);
-    case 'Emerald': return mixColor('#1f8a3a', '#28a046', (Math.sin(i * .4) + 1) * .3);
-    default: return i % 2 ? mixColor(cfg.color, '#000000', .06) : cfg.color;
+    case 'Stripes': return Math.floor(i / 2) % 2 ? S : P;
+    case 'Zebra': return i % 2 ? S : P;
+    case 'Gradient': return mixColor(P, S, i / Math.max(1, n - 1));
+    case 'Rainbow': return mixColor(P, S, (Math.sin(i * .35 - T * 4) + 1) / 2); // the two colors chase each other down the body
+    case 'Neon': return mixColor(P, '#ffffff', (Math.sin(T * 6 - i * .5) + 1) * .22);
+    case 'Lava': return mixColor(P, S, (Math.sin(T * 3 + i * .6) + 1) / 2);
+    case 'Galaxy': return mixColor(shade(P, -.75), P, (Math.sin(i * .7 + T) + 1) * .18);
+    case 'Rat Fur': return i >= n - 3 ? S : i % 2 ? shade(P, -.08) : P; // fur, with the tail tip in your second color
+    case 'Gold Plated': return mixColor(shade(P, -.3), S, (Math.sin(i * .5 - T * 2.5) + 1) * .5 * .8); // a highlight sweeping down the body
+    case 'Blood Soaked': return mixColor(P, shade(S, -.6), .45 + .25 * ((i * 7919 % 13) / 13));
+    case 'Hazard': return Math.floor(i / 2) % 2 ? S : P;
+    case 'Lunar': return mixColor(P, shade(P, -.25), (i * 37 % 10) / 22);
+    case 'Martian': return mixColor(P, S, (Math.sin(i * .8) + 1) * .4);
+    // real snakes, in your colors
+    case 'Coral': return [P, P, S, D, D, S][i % 6];
+    case 'Kingsnake': return i % 4 === 0 ? S : D;
+    case 'Diamondback': return mixColor(P, shade(P, .12), (i % 2) * .5);
+    case 'Python': return mixColor(P, shade(P, -.08), ((i * 31) % 7) / 7);
+    case 'Garter': return mixColor(D, shade(D, .15), (i % 2) * .5);
+    case 'Emerald': return mixColor(P, shade(P, .12), (Math.sin(i * .4) + 1) * .3);
+    default: return i % 2 ? mixColor(P, '#000000', .06) : P;
   }
 }
 const NATURAL = new Set(['Coral', 'Kingsnake', 'Diamondback', 'Python', 'Garter', 'Emerald']);
 function patternStripes(x, pts, n, cfg) { // patterns that run the length of the body
   if (cfg.pattern !== 'Garter') return;
   const run = (off, w, col) => { x.strokeStyle = col; x.lineWidth = w; x.beginPath(); for (let i = 0; i < n; i++) { const g = pts[i], r = segR(i, n), px = g.x - Math.sin(g.a) * r * off, py = g.y + Math.cos(g.a) * r * off; i ? x.lineTo(px, py) : x.moveTo(px, py); } x.stroke(); };
-  x.lineCap = 'round'; x.lineJoin = 'round'; run(0, CONFIG.snakeR * .38, '#e8c94a'); run(-.72, CONFIG.snakeR * .2, '#cdb860'); run(.72, CONFIG.snakeR * .2, '#cdb860'); // the yellow dorsal stripe and two side stripes
+  x.lineCap = 'round'; x.lineJoin = 'round'; run(0, CONFIG.snakeR * .38, cfg.color2); run(-.72, CONFIG.snakeR * .2, shade(cfg.color2, -.12)); run(.72, CONFIG.snakeR * .2, shade(cfg.color2, -.12)); // the yellow dorsal stripe and two side stripes
 }
 function patternOverlay(x, g, r, i, cfg) {
   switch (cfg.pattern) {
@@ -355,17 +356,17 @@ function patternOverlay(x, g, r, i, cfg) {
       if (i % 2 === 0) { x.save(); x.translate(g.x, g.y); x.rotate(g.a + Math.PI / 4); x.fillStyle = cfg.color2; x.fillRect(-r * .35, -r * .35, r * .7, r * .7); x.restore(); }
       break;
     case 'Rat Fur':
-      x.strokeStyle = 'rgba(40,40,46,.35)'; x.lineWidth = .7;
+      x.strokeStyle = shade(cfg.color, -.5); x.globalAlpha *= .5; x.lineWidth = .7;
       for (let k = -1; k <= 1; k++) { const a = g.a + Math.PI + k * .5; x.beginPath(); x.moveTo(g.x + Math.cos(a) * r * .2, g.y + Math.sin(a) * r * .2); x.lineTo(g.x + Math.cos(a) * r * .8, g.y + Math.sin(a) * r * .8); x.stroke(); }
       break;
-    case 'Diamondback': if (i % 2 === 0) { x.save(); x.translate(g.x, g.y); x.rotate(g.a + Math.PI / 4); const d = r * .74; x.fillStyle = '#e6d2a6'; x.fillRect(-d - 1.1, -d - 1.1, d * 2 + 2.2, d * 2 + 2.2); x.fillStyle = '#4a3420'; x.fillRect(-d, -d, d * 2, d * 2); x.fillStyle = '#6e5232'; x.fillRect(-d * .5, -d * .5, d, d); x.restore(); } break; // dark diamonds with a pale border
-    case 'Python': { const h = (i * 7919) % 97; if (i % 2 === 0) { x.save(); x.translate(g.x, g.y); x.rotate(g.a + (h % 9 - 4) * .08); x.fillStyle = '#4a3418'; ell(x, 0, (h % 5 - 2) * r * .14, r * 1.05, r * .78); x.fillStyle = '#c9ad74'; ell(x, 0, (h % 5 - 2) * r * .14, r * .42, r * .26); x.restore(); } break; } // blotches with pale hearts
-    case 'Emerald': if (i % 4 === 1) { x.fillStyle = '#f2f6ee'; const c = Math.cos(g.a), sn = Math.sin(g.a); ell(x, g.x - sn * r * .05, g.y + c * r * .05, r * .26, r * .14); } break; // white flecks down the back
+    case 'Diamondback': if (i % 2 === 0) { x.save(); x.translate(g.x, g.y); x.rotate(g.a + Math.PI / 4); const d = r * .74; x.fillStyle = cfg.color2; x.fillRect(-d - 1.1, -d - 1.1, d * 2 + 2.2, d * 2 + 2.2); x.fillStyle = shade(cfg.color, -.55); x.fillRect(-d, -d, d * 2, d * 2); x.fillStyle = shade(cfg.color, -.3); x.fillRect(-d * .5, -d * .5, d, d); x.restore(); } break; // dark diamonds with a pale border
+    case 'Python': { const h = (i * 7919) % 97; if (i % 2 === 0) { x.save(); x.translate(g.x, g.y); x.rotate(g.a + (h % 9 - 4) * .08); x.fillStyle = shade(cfg.color, -.6); ell(x, 0, (h % 5 - 2) * r * .14, r * 1.05, r * .78); x.fillStyle = cfg.color2; ell(x, 0, (h % 5 - 2) * r * .14, r * .42, r * .26); x.restore(); } break; } // blotches with pale hearts
+    case 'Emerald': if (i % 4 === 1) { x.fillStyle = cfg.color2; const c = Math.cos(g.a), sn = Math.sin(g.a); ell(x, g.x - sn * r * .05, g.y + c * r * .05, r * .26, r * .14); } break; // white flecks down the back
     case 'Kingsnake': if (i % 4 === 0) { x.fillStyle = 'rgba(0,0,0,.18)'; circ(x, g.x, g.y, r * .2); } break;
     case 'Gold Plated': x.fillStyle = 'rgba(255,250,220,.35)'; ell(x, g.x - r * .3, g.y - r * .35, r * .45, r * .22); break; // metal sheen
-    case 'Blood Soaked': if (i % 3 === 0) { x.fillStyle = '#4a0505'; circ(x, g.x + Math.cos(i * 2.3) * r * .4, g.y + Math.sin(i * 2.3) * r * .4, r * .35); } break;
-    case 'Lunar': if (i % 2 === 0) { x.fillStyle = 'rgba(70,76,86,.45)'; circ(x, g.x + Math.cos(i * 1.7) * r * .35, g.y + Math.sin(i * 1.7) * r * .35, r * .28); } break;
-    case 'Martian': x.fillStyle = 'rgba(255,200,150,.5)'; for (let k = 0; k < 2; k++) circ(x, g.x + Math.cos(i * 3 + k * 2) * r * .5, g.y + Math.sin(i * 3 + k * 2) * r * .5, .7); break;
+    case 'Blood Soaked': if (i % 3 === 0) { x.fillStyle = shade(cfg.color2, -.7); circ(x, g.x + Math.cos(i * 2.3) * r * .4, g.y + Math.sin(i * 2.3) * r * .4, r * .35); } break;
+    case 'Lunar': if (i % 2 === 0) { x.fillStyle = shade(cfg.color, -.4); circ(x, g.x + Math.cos(i * 1.7) * r * .35, g.y + Math.sin(i * 1.7) * r * .35, r * .28); } break;
+    case 'Martian': x.fillStyle = mixColor(cfg.color2, '#ffffff', .4); for (let k = 0; k < 2; k++) circ(x, g.x + Math.cos(i * 3 + k * 2) * r * .5, g.y + Math.sin(i * 3 + k * 2) * r * .5, .7); break;
     case 'Galaxy':
       x.fillStyle = '#fff';
       for (let k = 0; k < 2; k++) {

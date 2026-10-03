@@ -191,11 +191,11 @@ function drawGloss(x) { // fresh pools are little mirrors: the sky, nearby lamps
     // 1. the sky: a soft gradient across the surface, brighter toward the far edge (as seen from the snake)
     const ax = g.x - vx, ay = g.y - vy, ad = Math.hypot(ax, ay) || 1, ux = ax / ad, uy = ay / ad;
     const sg = x.createLinearGradient(g.x - ux * R, g.y - uy * R, g.x + ux * R, g.y + uy * R);
-    const sa = (indoor ? .08 : .1 + .14 * day) * wetK;
+    const sa = (indoor ? .04 : .05 + .06 * day) * wetK; // a hint of sky, not a sheet of it
     sg.addColorStop(0, `rgba(${sky},0)`); sg.addColorStop(.65, `rgba(${sky},${sa * .6})`); sg.addColorStop(1, `rgba(${sky},${sa})`);
     x.fillStyle = sg; x.fillRect(g.x - R * 1.6, g.y - R * 1.6, R * 3.2, R * 3.2);
     // 2. things standing over the pool show as dark, slightly offset reflections
-    x.fillStyle = `rgba(0,0,0,${.28 * wetK})`;
+    x.fillStyle = `rgba(0,0,0,${.14 * wetK})`;
     if (snake) { const n = snake.segs.length; for (let k = 0; k < n; k += 2) { const sgm = snake.segs[k]; if (dist2(sgm.x, sgm.y, g.x, g.y) < (R + 14) ** 2) circ(x, sgm.x + 2, sgm.y + 4, segR(k, n) * .9); } }
     for (const c of creatures) if (c.alive && dist2(c.x, c.y, g.x, g.y) < (R + 12) ** 2) circ(x, c.x + 1.5, c.y + 4, c.def.r * .8);
     // 3. lamps nearby: a bright highlight on the side of the pool facing each one, in the light's own color
@@ -203,16 +203,15 @@ function drawGloss(x) { // fresh pools are little mirrors: the sky, nearby lamps
       if (l.kind === 'window' && q < 3) continue; const k = lightK(l); if (k < .05) continue;
       const dx = l.x - g.x, dy = l.y - g.y, d = Math.hypot(dx, dy); if (d > l.r + R) continue;
       const near = 1 - d / (l.r + R), hx = g.x + dx / (d || 1) * R * .5, hy = g.y + dy / (d || 1) * R * .5, rr = R * (.18 + .16 * near);
-      const hg = x.createRadialGradient(hx, hy, 0, hx, hy, rr); hg.addColorStop(0, `rgba(${l.c},${(.42 * k * near + .06) * fresh})`); hg.addColorStop(.35, `rgba(${l.c},${(.16 * k * near) * fresh})`); hg.addColorStop(1, `rgba(${l.c},0)`);
+      const hg = x.createRadialGradient(hx, hy, 0, hx, hy, rr); hg.addColorStop(0, `rgba(${l.c},${(.26 * k * near + .03) * fresh})`); hg.addColorStop(.35, `rgba(${l.c},${(.09 * k * near) * fresh})`); hg.addColorStop(1, `rgba(${l.c},0)`);
       x.globalCompositeOperation = 'lighter'; x.fillStyle = hg; circ(x, hx, hy, rr); x.globalCompositeOperation = 'source-over';
     }
     // 4. the sun (or the moon) as a sharp sliver of light that slides as you move, plus a slow ripple
     const lit = L ? Math.min(1, .25 + .75 * (day + .3)) : 1, hc = mixColor(g.c.startsWith('#') ? g.c : '#8a0a0a', '#ffffff', .62);
     const sx = g.x + clamp((vx - g.x) * .03, -3, 3) - (L ? L.sdx * 2 : 0) - R * .18, sy = g.y + clamp((vy - g.y) * .03, -3, 3) - (L ? L.sdy * 2 : 0) - R * .22;
-    x.save(); x.translate(sx, sy); x.rotate(-.5); x.globalAlpha = .45 * wetK * lit; x.fillStyle = hc; ell(x, 0, 0, R * .34, R * .08); x.globalAlpha *= .7; ell(x, R * .3, R * .15, R * .06, R * .04); x.restore();
-    if (q >= 2) { const ph = T * 1.3 + g.x * .1; x.strokeStyle = `rgba(255,255,255,${.12 * wetK})`; x.lineWidth = .8; for (let k = 0; k < 2; k++) { const rr = R * ((ph * .25 + k * .5) % 1); x.globalAlpha = 1 - rr / R; x.beginPath(); x.arc(g.x + R * .1, g.y + R * .1, rr, 0, TAU); x.stroke(); } x.globalAlpha = 1; }
-    x.strokeStyle = `rgba(255,255,255,${.18 * wetK * lit})`; x.lineWidth = 1; x.beginPath(); x.arc(g.x, g.y, R * .82, Math.PI * 1.1, Math.PI * 1.55); x.stroke(); // the meniscus catching light on the near edge
-    x.restore();
+    x.save(); x.translate(sx, sy); x.rotate(-.5); x.globalAlpha = .26 * wetK * lit; x.fillStyle = hc; ell(x, 0, 0, R * .34, R * .08); x.globalAlpha *= .7; ell(x, R * .3, R * .15, R * .06, R * .04); x.restore();
+    if (q >= 3) { const ph = T * 1.3 + g.x * .1; x.strokeStyle = `rgba(255,255,255,${.05 * wetK})`; x.lineWidth = .7; for (let k = 0; k < 2; k++) { const rr = R * ((ph * .25 + k * .5) % 1); x.globalAlpha = 1 - rr / R; x.beginPath(); x.arc(g.x + R * .1, g.y + R * .1, rr, 0, TAU); x.stroke(); } x.globalAlpha = 1; }
+        x.restore();
   }
   x.globalAlpha = 1;
 }
