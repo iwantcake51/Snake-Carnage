@@ -1698,3 +1698,5 @@ body.compact .menu .mlevel{position:relative;z-index:2}
 .peshapes i{width:10px;height:10px;border-radius:3px;border:1px solid rgba(0,0,0,.5)}
 .pefoot{display:flex;justify-content:space-between;gap:8px;padding-top:12px}
 .pelist span{text-transform:capitalize}
+/* once hidden for the run, the modifier strip stays hidden: the "near the snake" fade must not bring it back */
+#stage.started #modbar,#stage.started #modbar.near{opacity:0!important;visibility:hidden;pointer-events:none}

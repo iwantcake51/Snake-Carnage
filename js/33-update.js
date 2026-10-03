@@ -99,15 +99,64 @@ const OLC = document.createElement('canvas'), OLX = OLC.getContext('2d');
 OLC.width = OLC.height = 80;
 const fogR = a => 1 + .11 * Math.sin(3 * a + T * .23) + .07 * Math.sin(5 * a - T * .37 + 1.3) + .04 * Math.sin(9 * a + T * .61 + 4); // the fog's edge billows: lobes that slowly drift and change shape
 function fogBlob(x, cx, cy, r, ph) { x.beginPath(); for (let k = 0; k <= 48; k++) { const a = k / 48 * TAU, rr = r * fogR(a + ph); k ? x.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr) : x.moveTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); } x.closePath(); x.fill(); }
-function fogTex() { // soft cloud tile: light and dark puffs, tiled seamlessly
-  if (fogTex.c) return fogTex.c; const s = 256, c = document.createElement('canvas'); c.width = c.height = s; const x = c.getContext('2d'), r = seeded(91);
-  for (let i = 0; i < 70; i++) { const px = r() * s, py = r() * s, rad = 18 + r() * 46, light = r() < .5; for (const ox of [-s, 0, s]) for (const oy of [-s, 0, s]) { const g = x.createRadialGradient(px + ox, py + oy, 0, px + ox, py + oy, rad); g.addColorStop(0, light ? 'rgba(255,255,255,.35)' : 'rgba(0,0,0,.28)'); g.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = g; x.fillRect(px + ox - rad, py + oy - rad, rad * 2, rad * 2); } }
-  return fogTex.c = c;
+/* ---- heavy fog: a volumetric-looking layer ----
+   Thick haze with drifting density (two noise layers at different heights and speeds, world-anchored so moving shows
+   parallax), a clearing round the snake with a soft falloff and torn, wispy edges, and light from lamps and flashlights
+   scattering into it as a glow. Drawn at half resolution: it's all soft. */
+function fogNoise(seed, size = 256, oct = 5) { // seamless fractal value noise, 0..1
+  const c = document.createElement('canvas'); c.width = c.height = size; const x = c.getContext('2d'), img = x.createImageData(size, size), r = seeded(seed), acc = new Float32Array(size * size);
+  let amp = 1, tot = 0;
+  for (let o = 0; o < oct; o++) { const g = 4 << o, v = new Float32Array(g * g); for (let i = 0; i < v.length; i++) v[i] = r();
+    for (let py = 0; py < size; py++) { const fy = py / size * g, y0 = Math.floor(fy), ty = fy - y0, sy = ty * ty * (3 - 2 * ty);
+      for (let px = 0; px < size; px++) { const fx = px / size * g, x0 = Math.floor(fx), tx = fx - x0, sx = tx * tx * (3 - 2 * tx), x1 = (x0 + 1) % g, y1 = (y0 + 1) % g;
+        const a = v[y0 * g + x0] + (v[y0 * g + x1] - v[y0 * g + x0]) * sx, b = v[y1 * g + x0] + (v[y1 * g + x1] - v[y1 * g + x0]) * sx; acc[py * size + px] += (a + (b - a) * sy) * amp; } }
+    tot += amp; amp *= .5; }
+  for (let i = 0; i < acc.length; i++) { const n = acc[i] / tot, k = clamp((n - .32) / .45, 0, 1); img.data[i * 4 + 3] = Math.round(k * k * (3 - 2 * k) * 255); } // contrast: puffs and gaps
+  x.putImageData(img, 0, 0); return c;
+}
+const FOG = { };
+function fogLayer(col, day) {
+  const x = vctx; if (!FOG.n1) { FOG.n1 = fogNoise(71); FOG.n2 = fogNoise(133, 256, 4); FOG.tmp = document.createElement('canvas'); FOG.tmp.width = visC.width; FOG.tmp.height = visC.height; FOG.tx = FOG.tmp.getContext('2d'); }
+  const fc = FOG.c || (FOG.c = { x: snake.x, y: snake.y, t: T }), dt = clamp(T - fc.t, 0, .1); fc.t = T; // the clearing lags a touch behind the snake
+  if (Math.hypot(snake.x - fc.x, snake.y - fc.y) > 300) { fc.x = snake.x; fc.y = snake.y; } const k = 1 - Math.exp(-dt * 4); fc.x += (snake.x - fc.x) * k; fc.y += (snake.y - fc.y) * k;
+  const cx = fc.x, cy = fc.y, R = 175, wind = [T * 9, T * 3.5], hi = !SETTINGS.simpleFx;
+  const layer = (g, img, scale, ox, oy, alpha, op) => { g.save(); g.globalCompositeOperation = op; g.globalAlpha = alpha; const pat = g.createPattern(img, 'repeat'); g.translate(-(ox % (256 * scale)), -(oy % (256 * scale))); g.scale(scale, scale); g.fillStyle = pat; g.fillRect(-256, -256, (W + 1024) / scale, (H + 1024) / scale); g.restore(); };
+  // 1. thick fog with uneven density: thin patches drift through it
+  x.globalAlpha = 1; x.fillStyle = col; x.fillRect(-60, -60, W + 120, H + 120);
+
+  // 2. the clearing: a smooth, deep falloff (no hard rim)
+  x.globalCompositeOperation = 'destination-out';
+  const g = x.createRadialGradient(cx, cy, 0, cx, cy, R * 1.4);
+  for (const [t, a] of [[0, 1], [.25, .98], [.42, .9], [.56, .72], [.68, .48], [.8, .25], [.9, .1], [1, 0]]) g.addColorStop(t, `rgba(0,0,0,${a})`);
+  x.fillStyle = g; x.beginPath(); x.arc(cx, cy, R * 1.4, 0, TAU); x.fill();
+  // 3. torn edge: noise cut into a ring round the clearing, so wisps reach in and gaps reach out
+  if (hi) { const t = FOG.tx; t.setTransform(.5, 0, 0, .5, 0, 0); t.globalCompositeOperation = 'source-over'; t.clearRect(0, 0, W, H);
+    const rg = t.createRadialGradient(cx, cy, R * .55, cx, cy, R * 1.65); rg.addColorStop(0, 'rgba(0,0,0,0)'); rg.addColorStop(.3, 'rgba(0,0,0,.8)'); rg.addColorStop(.6, 'rgba(0,0,0,.3)'); rg.addColorStop(1, 'rgba(0,0,0,0)');
+    t.fillStyle = rg; t.fillRect(cx - R * 2, cy - R * 2, R * 4, R * 4); layer(t, FOG.n1, 1.1, wind[0] * 1.6, wind[1] * 1.6, 1, 'destination-in');
+    x.save(); x.setTransform(1, 0, 0, 1, 0, 0); x.globalAlpha = .6; x.drawImage(FOG.tmp, 0, 0); x.restore();
+    x.globalCompositeOperation = 'source-over'; x.fillStyle = col; // and a few fog tendrils drifting over the clear patch
+    t.clearRect(0, 0, W, H); const ig = t.createRadialGradient(cx, cy, 0, cx, cy, R * 1.1); ig.addColorStop(0, 'rgba(0,0,0,.0)'); ig.addColorStop(.45, 'rgba(0,0,0,.35)'); ig.addColorStop(1, 'rgba(0,0,0,0)');
+    t.globalCompositeOperation = 'source-over'; t.fillStyle = ig; t.fillRect(cx - R * 1.2, cy - R * 1.2, R * 2.4, R * 2.4); layer(t, FOG.n2, .9, -wind[0] * 1.3, wind[1] * .8, 1, 'source-in');
+    t.globalCompositeOperation = 'source-in'; t.fillStyle = col; t.fillRect(0, 0, W, H);
+    x.save(); x.setTransform(1, 0, 0, 1, 0, 0); x.globalAlpha = .55; x.drawImage(FOG.tmp, 0, 0); x.restore(); }
+  x.globalCompositeOperation = 'source-over'; x.globalAlpha = 1;
+  // 4. you can always make out your own body
+  x.globalCompositeOperation = 'destination-out'; const sg = x.createRadialGradient(snake.x, snake.y, 0, snake.x, snake.y, 60); sg.addColorStop(0, 'rgba(0,0,0,1)'); sg.addColorStop(.6, 'rgba(0,0,0,.7)'); sg.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = sg; x.fillRect(snake.x - 60, snake.y - 60, 120, 120);
+  // 5. light scattering in the fog: lamps and flashlights glow through it (stronger in the dark)
+  x.globalCompositeOperation = 'source-atop'; const night = clamp(1 - day * 1.3, .15, 1);
+  for (const l of lights || []) { const kk = typeof lightK === 'function' ? lightK(l) : 0; if (kk < .05 || l.kind === 'window') continue; const rr = l.r * 1.1, gg = x.createRadialGradient(l.x, l.y, 0, l.x, l.y, rr);
+    gg.addColorStop(0, `rgba(${l.c},${(.45 * kk * night).toFixed(3)})`); gg.addColorStop(.35, `rgba(${l.c},${(.16 * kk * night).toFixed(3)})`); gg.addColorStop(1, `rgba(${l.c},0)`); x.fillStyle = gg; x.fillRect(l.x - rr, l.y - rr, rr * 2, rr * 2); }
+  for (const f of (typeof beams !== 'undefined' ? beams : [])) { const rr = (f.range || 200) * .7, bx = f.x + Math.cos(f.a || 0) * rr * .5, by = f.y + Math.sin(f.a || 0) * rr * .5, gg = x.createRadialGradient(bx, by, 0, bx, by, rr); gg.addColorStop(0, `rgba(255,240,210,${(.3 * (f.k || 1) * night).toFixed(3)})`); gg.addColorStop(1, 'rgba(255,240,210,0)'); x.fillStyle = gg; x.fillRect(bx - rr, by - rr, rr * 2, rr * 2); }
+  // 6. a little shading so the fog has body: denser puffs a touch darker
+  if (hi) { // body: billows lit from above (lighter) and their undersides (darker), drifting at two heights
+    const lite = `rgba(255,255,255,${(.12 + .1 * day).toFixed(3)})`, dark = `rgba(0,0,10,${(.14 + .12 * (1 - day)).toFixed(3)})`, tint = (img, sc, ox, oy, c) => { const t = FOG.tx; t.setTransform(.5, 0, 0, .5, 0, 0); t.globalCompositeOperation = 'source-over'; t.clearRect(-10, -10, W + 20, H + 20); layer(t, img, sc, ox, oy, 1, 'source-over'); t.globalCompositeOperation = 'source-in'; t.fillStyle = c; t.fillRect(-10, -10, W + 20, H + 20); x.save(); x.setTransform(1, 0, 0, 1, 0, 0); x.globalCompositeOperation = 'source-atop'; x.drawImage(FOG.tmp, 0, 0); x.restore(); };
+    tint(FOG.n2, 2.4, wind[0] * .5, -wind[1] * .5 + 200, dark); tint(FOG.n1, 3.2, wind[0] * 1.2 + 90, wind[1] * 1.2, lite); }
+  x.globalCompositeOperation = 'source-over'; x.globalAlpha = 1;
 }
 function playerSees(x, y) { // 0..1 how visible a point is through heavy fog / tunnel vision
   if (!snake || (!MOD.fog && !MOD.fow)) return 1;
   const dx = x - snake.x, dy = y - snake.y, d = Math.hypot(dx, dy);
-  if (MOD.fog) { const R = fogR(Math.atan2(dy, dx)); return clamp(1 - (d - 100 * R) / 120, 0, 1); }
+  if (MOD.fog) { const c = FOG.c || snake, dd = Math.hypot(x - c.x, y - c.y); return clamp(1 - (dd - 150) / 110, 0, 1); }
   const near = clamp(1 - (d - 52) / 22, 0, 1), ang = Math.abs(angDiff(snake.angle, Math.atan2(dy, dx)));
   const cone = clamp((.85 - ang) / .18, 0, 1) * clamp((285 - d) / 60, 0, 1);
   return Math.max(near, cone);
@@ -121,20 +170,7 @@ function drawVisionMask(x) { // opaque haze everywhere you can't see
   vctx.globalCompositeOperation = 'destination-out';
   if ('filter' in vctx && !MOD.fog) vctx.filter = 'blur(10px)'; // fog fades with gradients instead
   vctx.fillStyle = '#000';
-  if (MOD.fog) { // a soft, lobed clearing that trails a little behind you: each ring fades out over its whole width, so the edge never just stops
-    const fc = drawVisionMask.fc || (drawVisionMask.fc = { x: snake.x, y: snake.y, t: T }), dt = clamp(T - fc.t, 0, .1); fc.t = T;
-    if (Math.hypot(snake.x - fc.x, snake.y - fc.y) > 300) { fc.x = snake.x; fc.y = snake.y; } const k = 1 - Math.exp(-dt * 5); fc.x += (snake.x - fc.x) * k; fc.y += (snake.y - fc.y) * k;
-    for (const [r, al, ph] of [[250, .22, 2.1], [195, .45, 1.1], [150, .8, 0], [105, 1, .6]]) {
-      const g = vctx.createRadialGradient(fc.x, fc.y, r * .25, fc.x, fc.y, r * 1.12); g.addColorStop(0, `rgba(0,0,0,${al})`); g.addColorStop(.55, `rgba(0,0,0,${al * .8})`); g.addColorStop(1, 'rgba(0,0,0,0)');
-      vctx.fillStyle = g; fogBlob(vctx, fc.x, fc.y, r, ph); }
-    vctx.fillStyle = '#000'; circ(vctx, snake.x, snake.y, 46); // you can always see yourself
-    if (!SETTINGS.simpleFx) { // drifting cloud texture inside the fog (world-anchored, so moving shows it sliding past)
-      vctx.filter = 'none'; vctx.globalCompositeOperation = 'source-atop';
-      const pt = fogTex(), pat = vctx.createPattern(pt, 'repeat');
-      for (const [sp, al, sc] of [[6, .22, 1], [-4, .16, 1.7]]) { vctx.save(); vctx.globalAlpha = al; vctx.translate(T * sp, T * sp * .4); vctx.scale(sc, sc); vctx.fillStyle = pat; vctx.fillRect(-T * sp / sc - 300, -T * sp * .4 / sc - 300, (W + 600) / sc, (H + 600) / sc); vctx.restore(); }
-      vctx.globalCompositeOperation = 'destination-out';
-    }
-  }
+  if (MOD.fog) { vctx.globalCompositeOperation = 'source-over'; vctx.filter = 'none'; fogLayer(col, day); vctx.globalCompositeOperation = 'source-over'; x.drawImage(visC, 0, 0, W, H); fillOutside(x, col); return; }
   else {
     circ(vctx, snake.x, snake.y, 60);
     const g = vctx.createRadialGradient(snake.x, snake.y, 200, snake.x, snake.y, 290); g.addColorStop(0, '#000'); g.addColorStop(1, 'rgba(0,0,0,0)');
