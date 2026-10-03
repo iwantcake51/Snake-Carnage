@@ -1451,3 +1451,15 @@ input[type=range]{accent-color:var(--acc)}
 .play:hover::before,.btn:not(.alt):hover::before{animation-play-state:running!important} /* the halftone drifts while you hover; idle menus don't pay for it */
 #prev,canvas.pv{will-change:transform;transform:translateZ(0)} /* the live preview repaints on its own layer, not the whole shop panel */
 #overlay *{scroll-behavior:auto!important} /* our wheel easing does the smoothing; the native smooth-scroll fought it and made lists crawl */
+.stxt{z-index:4}.sbar{height:16px!important} /* end-of-run XP text sits above the fill and its glow */
+.xp,.sbar{animation:none!important} /* static stripes: an endless background-position animation repainted the bar every frame */
+/* menu backdrop: no map behind menus, just composited layers (no repaints) */
+#stage.menuBg{background:radial-gradient(120% 90% at 50% 110%,#2a0608 0%,#120406 45%,#060203 100%)}
+#stage.menuBg #c{visibility:hidden}
+#stage.menuBg #overlay{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+#stage.menuBg::before,#stage.menuBg::after{content:'';position:absolute;inset:-12%;pointer-events:none;z-index:0;will-change:transform}
+#stage.menuBg::before{background:radial-gradient(40% 35% at 25% 30%,rgba(190,20,30,.32),transparent 70%),radial-gradient(35% 30% at 78% 70%,rgba(120,10,40,.28),transparent 70%),radial-gradient(30% 25% at 60% 20%,rgba(255,90,40,.12),transparent 70%);
+  translate:var(--bx,0) var(--by,0);animation:mbgDrift 26s ease-in-out infinite alternate}
+#stage.menuBg::after{inset:0;background:repeating-linear-gradient(115deg,transparent 0 46px,rgba(255,255,255,.018) 46px 48px),radial-gradient(100% 80% at 50% 50%,transparent 55%,rgba(0,0,0,.65));animation:none}
+@keyframes mbgDrift{0%{transform:scale(1) rotate(0deg)}100%{transform:scale(1.12) rotate(6deg)}}
+@media (prefers-reduced-motion:reduce){#stage.menuBg::before{animation:none}}

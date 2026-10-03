@@ -165,9 +165,9 @@ function frame(now) {
   else if (lowFx && frameMs < 15) { if ((fastT += raw) > 8000) lowFx = false; } else fastT = 0; // only back to full quality after 8s of clearly fast frames
   const dt = Math.min(.033, raw / 1000); last = now;
   requestAnimationFrame(frame); // scheduled first: nothing below can ever stop the loop
-  const covered = state === 'menu' && overlay.firstElementChild && overlay.firstElementChild.classList.contains('panel') && overlay.style.display !== 'none'; // a full menu panel (shop, settings...) hides the game: stop drawing it so the menu scrolls smoothly
-  if (covered !== !!frame.cov) { frame.cov = covered; frame.still = 0; stage.classList.toggle('frozenBg', covered); }
-  if (covered) { UT += dt; if (frame.still < 2) { try { render(); } catch (e) { loopError(e, 'render'); } if (++frame.still === 2) bakeBlurBg(); } return; } // drawn once, then frozen: the blur over a still picture costs almost nothing
+  const menu = state === 'menu'; // menus show a CSS backdrop instead of the map: the game costs nothing there
+  if (menu !== !!frame.cov) { frame.cov = menu; stage.classList.toggle('menuBg', menu); }
+  if (menu) { UT += dt; return; }
   try { update(dt); } catch (e) { loopError(e, 'update'); }
   try { render(); } catch (e) { loopError(e, 'render'); }
 }
@@ -180,7 +180,7 @@ document.addEventListener('pointermove', e => { // on the document: during play 
     const r = overlay.getBoundingClientRect(), mx = (plxQ[0] - r.left) / r.width * 2 - 1, my = (plxQ[1] - r.top) / r.height * 2 - 1; plxQ = null;
     overlay.style.setProperty('--mx', mx.toFixed(2)); overlay.style.setProperty('--my', my.toFixed(2));
     if (state !== 'menu') return; // over a paused or finished game only the panel drifts; moving the game under the blur is what made it lag
-    cv.style.translate = `${(-mx * 2.5).toFixed(1)}px ${(-my * 1.6).toFixed(1)}px`; // deepest layer, moves least
+    stage.style.setProperty('--bx', (-mx * 14).toFixed(1) + 'px'); stage.style.setProperty('--by', (-my * 10).toFixed(1) + 'px'); // backdrop drifts with the mouse
   });
 });
 /* ---- club: the dance floor lights up in time with the beat ---- */
