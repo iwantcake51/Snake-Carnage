@@ -252,7 +252,25 @@ function drawTrunk(x, o) { // baked: trunk and the main limbs, which show throug
 function windAt(px, py, ph) { // a slow gust rolls across the map; each tree also has its own wobble
   return Math.sin(T * .9 - px * .006 - py * .003) * .6 + Math.sin(T * 1.7 + ph) * .25 + Math.sin(T * .43 + ph * 2.3) * .2;
 }
+let treeBake = null; // Low tree quality: every canopy painted once into one layer
+function drawTreeStatic(x, t) { const o = t.o, s = t.S;
+  if (t.limbs) for (const l of t.limbs) x.drawImage(l.c, o.x - s / 2, o.y - s / 2, s, s); else x.drawImage(t.lo, o.x - s / 2, o.y - s / 2, s, s);
+  x.drawImage(t.hi, o.x - s / 2, o.y - s / 2, s, s); }
 function drawTrees(x) {
+  const q = SETTINGS.treeQ || 'High';
+  if (q === 'Low') { // no sway: one image for all trees
+    const key = treeSprites.length + ':' + obstacles.length + ':' + DPR;
+    if (!treeBake || treeBake.key !== key || treeBake.src !== treeSprites) { const [c, g] = treeBake && treeBake.c ? [treeBake.c, treeBake.c.getContext('2d')] : makeLayer(); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, c.width, c.height); g.setTransform(DPR, 0, 0, DPR, 0, 0);
+      const live = new Set(obstacles); for (const t of treeSprites) if (live.has(t.o)) drawTreeStatic(g, t); treeBake = { c, key, src: treeSprites }; }
+    x.drawImage(treeBake.c, 0, 0, W, H); drawWeather(x); return;
+  }
+  if (q === 'Medium') { // trees lean together in the wind as one piece: two draws a tree instead of one per limb
+    for (const t of treeSprites) { const o = t.o, s = t.S;
+      if (!t.base) { const c = document.createElement('canvas'); c.width = c.height = Math.ceil(s * DPR); const g = c.getContext('2d'); g.setTransform(DPR, 0, 0, DPR, s / 2 * DPR, s / 2 * DPR); drawTreeStatic(g, { ...t, o: { ...o, x: 0, y: 0 }, hi: document.createElement('canvas') }); t.base = c; }
+      const w = windAt(o.x, o.y, o.tinfo.ph), A = (1 + o.r * .025) * t.amp;
+      x.drawImage(t.base, o.x + w * A * .3 - s / 2, o.y - s / 2, s, s); x.drawImage(t.hi, o.x + w * A * .7 - s / 2, o.y + w * A * .2 - s / 2, s, s); }
+    drawWeather(x); return;
+  }
   for (const t of treeSprites) {
     const o = t.o, w = windAt(o.x, o.y, t.o.tinfo.ph), w2 = windAt(o.x + 40, o.y + 30, t.o.tinfo.ph + 1.3), A = (1 + o.r * .025) * t.amp, s = t.S;
     if (t.limbs) { // each limb swings about the trunk on its own beat, carrying its leaves with it
