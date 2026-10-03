@@ -193,7 +193,7 @@ function showUpgrades() {
     <div class="upgrid">${UPGRADES.map((u, i) => upCard(u, i)).join('')}</div>
     <div class="mbtns"><span class="upmsg" id="upmsg"></span><button class="btn" id="backBtn" data-sfx="close">Done</button></div></div>`;
   overlay.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => buyUpgrade(b.dataset.buy));
-  overlay.querySelectorAll('[data-off]').forEach(b => b.onclick = () => { const id = b.dataset.off; PROG.upgOff[id] = !PROG.upgOff[id]; Sfx.ui(PROG.upgOff[id] ? 'off' : 'on'); saveProg(); showUpgrades(); });
+  wireUpCards();
   document.getElementById('backBtn').onclick = () => transitionTo(showMenu);
 }
 function upCard(u, i) {
@@ -205,18 +205,26 @@ function upCard(u, i) {
     <div class="upf"><span class="pips">${pips}</span>${lv ? `<button class="tgl sm ${off ? '' : 'on'}" data-off="${u.id}" data-sfx="none" role="switch" aria-checked="${!off}" data-tip="${off ? 'Switched off' : 'Switched on'}"></button>` : ''}
     ${next >= 0 ? `<button class="btn ${lockedLv || poor ? 'alt' : ''}" data-buy="${u.id}" data-sfx="none" ${lockedLv ? 'disabled' : ''}>${lockedLv ? `Level ${need}` : `<i class="pc"></i> ${cost}`}</button>` : '<span class="maxed">Maxed</span>'}</div></div>`;
 }
+function refreshUpCards(leveled) { // update the upgrade cards in place: no rebuild, no entrance animations replaying
+  overlay.querySelectorAll('.upgrid .upc').forEach((el, i) => {
+    const q = UPGRADES[i], t = document.createElement('div'); t.innerHTML = upCard(q, i); const nc = t.firstElementChild;
+    if (q.id === leveled) { nc.classList.add('leveled'); el.replaceWith(nc); return; }
+    if (el.innerHTML === nc.innerHTML && el.className === nc.className) return; // nothing changed on this one
+    nc.classList.add('still'); nc.style.animation = 'none'; el.replaceWith(nc); // e.g. a buy button that's now too expensive
+  });
+  wireUpCards();
+}
+function wireUpCards() {
+  overlay.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => buyUpgrade(b.dataset.buy));
+  overlay.querySelectorAll('[data-off]').forEach(b => b.onclick = () => { const q = b.dataset.off; PROG.upgOff[q] = !PROG.upgOff[q]; Sfx.ui(PROG.upgOff[q] ? 'off' : 'on'); saveProg(); refreshUpCards(); });
+}
 function buyUpgrade(id) {
   const u = UPGRADES.find(q => q.id === id), lv = PROG.upg[id] || 0; if (lv >= u.max) return;
   const msg = document.getElementById('upmsg');
   if (PROG.level < u.lvl[lv]) { Sfx.deny(); msg.textContent = `Reach level ${u.lvl[lv]} first.`; return; }
   if (PROG.coins < u.cost[lv]) { Sfx.deny(); msg.textContent = `You need ${u.cost[lv] - PROG.coins} more chips.`; return; }
   PROG.coins -= u.cost[lv]; PROG.upg[id] = lv + 1; PROG.upgOff[id] = false; saveProg(); updateHud(); Sfx.buy(); setTimeout(() => Sfx.levelUp && Sfx.levelUp(), 120);
-  overlay.querySelectorAll('.upgrid .upc').forEach((el, i) => { // redraw the cards in place: only the one you bought celebrates
-    const q = UPGRADES[i], t = document.createElement('div'); t.innerHTML = upCard(q, i); const nc = t.firstElementChild;
-    nc.classList.add(q.id === id ? 'leveled' : 'still'); el.replaceWith(nc);
-  });
-  overlay.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => buyUpgrade(b.dataset.buy));
-  overlay.querySelectorAll('[data-off]').forEach(b => b.onclick = () => { const q = b.dataset.off; PROG.upgOff[q] = !PROG.upgOff[q]; Sfx.ui(PROG.upgOff[q] ? 'off' : 'on'); saveProg(); showUpgrades(); });
+  refreshUpCards(id); // only the card you bought changes (and celebrates); the rest just update their buy buttons in place
   const cp = overlay.querySelector('.coinpill'); if (cp) { cp.innerHTML = `<i class="pc"></i> ${PROG.coins}`; cp.classList.remove('spent'); void cp.offsetWidth; cp.classList.add('spent'); }
   const m = document.getElementById('upmsg'); if (m) m.textContent = `${u.name} ${u.max > 1 ? ['I', 'II', 'III', 'IV', 'V'][lv] + ' ' : ''}unlocked: ${u.tiers[lv]}`;
 }
