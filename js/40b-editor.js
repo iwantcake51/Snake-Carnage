@@ -290,7 +290,8 @@ function edKey(e) {
   if (e.code === 'Space') { ED.space = true; e.preventDefault(); return; }
   if (mod && k === 'z') { e.preventDefault(); edUndo(e.shiftKey ? 1 : -1); return; } if (mod && k === 'y') { e.preventDefault(); edUndo(1); return; }
   if (mod && k === 'd') { e.preventDefault(); edDuplicate(); return; } if (mod && k === 'c') { edCopy(); return; } if (mod && k === 'v') { edPaste(); return; }
-  if (mod && k === 's') { e.preventDefault(); edSave(); return; }
+  if (mod && k === 's') { e.preventDefault(); e.shiftKey ? edSaveAs() : edSave(); return; }
+  if (mod && k === 'o') { e.preventDefault(); edLibrary(); return; }
   if (mod && k === 'l') { e.preventDefault(); edFlagSel('_lock'); return; } if (mod && k === 'h') { e.preventDefault(); edFlagSel('_hide'); return; } if (mod && k === 'a') { e.preventDefault(); ED.sel = ED.obs.map((_, i) => ({ t: 'o', i })); edPanel(); return; }
   if (k === 'delete' || k === 'backspace') { e.preventDefault(); edDelete(); return; }
   if (k === 'escape' && document.querySelector('.edpop')) { document.querySelectorAll('.edpop').forEach(p => p.remove()); return; }
@@ -320,14 +321,14 @@ const ED_ICON = { // small line icons for the toolbar and menus
 const edSvg = (k, s = 16) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="${ED_ICON[k]}"/></svg>`;
 const ED_TOOLS = [['select', 'Select / move', 'V'], ['wall', 'Draw wall', 'W'], ['rect', 'Draw block', 'B'], ['path', 'Draw path', 'T'], ['water', 'Draw water', 'Y'], ['area', 'Floor area', 'U'], ['light', 'Add light', 'L'], ['pan', 'Pan', 'Space']];
 const ED_MENUS = {
-  File: [['save', 'Save', 'Ctrl+S'], ['share', 'Share…'], ['export', 'Download edits file'], ['import', 'Import…'], '-', ['reset', 'Reset this map…'], '-', ['play', 'Play test', 'P'], ['exit', 'Exit editor', 'Esc']],
+  File: [['save', 'Save', 'Ctrl+S'], ['saveas', 'Save a copy as…', 'Ctrl+Shift+S'], ['library', 'My saved maps…', 'Ctrl+O'], '-', ['dlmap', 'Download this map as a file'], ['openfile', 'Open a map file…'], '-', ['share', 'Share…'], ['export', 'Download edits file'], ['import', 'Import…'], '-', ['reset', 'Reset this map…'], '-', ['play', 'Play test', 'P'], ['exit', 'Exit editor', 'Esc']],
   Edit: [['undo', 'Undo', 'Ctrl+Z'], ['redo', 'Redo', 'Ctrl+Y'], '-', ['copy', 'Copy', 'Ctrl+C'], ['paste', 'Paste', 'Ctrl+V'], ['dup', 'Duplicate', 'Ctrl+D'], ['del', 'Delete', 'Del'], '-', ['all', 'Select all', 'Ctrl+A'], ['none', 'Select none', 'Esc'], '-', ['lock', 'Lock / unlock selection', 'Ctrl+L'], ['hide', 'Hide / show selection', 'Ctrl+H'], ['unhideall', 'Show everything']],
   View: [['fit', 'Fit map', '0'], ['focus', 'Focus selection', 'F'], ['zin', 'Zoom in', '+'], ['zout', 'Zoom out', '-'], '-', ['tg:showGrid', 'Grid', 'G'], ['tg:lit', 'Night preview', 'N'], ['tg:lightsLayer', 'Light reach', 'O'], ['tg:mini', 'Minimap', 'M'], ['tg:help', 'Controls', 'H']],
   Tools: [...[['select', 'Select / move', 'V'], ['wall', 'Draw wall', 'W'], ['rect', 'Draw block', 'B'], ['path', 'Draw path', 'T'], ['water', 'Draw water', 'Y'], ['light', 'Add light', 'L']].map(([t, n, k]) => ['tool:' + t, n, k]), '-', ['propEd', 'Prop editor…']],
 };
 function edCmd(c) {
   if (c.startsWith('tool:')) return edTool(c.slice(5)); if (c.startsWith('tg:')) return edToggle(c.slice(3));
-  const A = { save: edSave, share: () => edShare(), export: edExport, import: () => ED.root.querySelector('.edimp input').click(), reset: edReset, play: () => closeEditor(true), exit: () => closeEditor(),
+  const A = { saveas: edSaveAs, library: edLibrary, dlmap: edDownloadMap, openfile: () => edOpenFile(), save: edSave, share: () => edShare(), export: edExport, import: () => ED.root.querySelector('.edimp input').click(), reset: edReset, play: () => closeEditor(true), exit: () => closeEditor(),
     undo: () => edUndo(-1), redo: () => edUndo(1), copy: edCopy, paste: edPaste, dup: () => edDuplicate(), del: edDelete, all: () => { ED.sel = [...ED.obs.map((o, i) => ({ t: 'o', i })), ...ED.lights.map((l, i) => ({ t: 'l', i })), ...ED.trails.map((t, i) => ({ t: 'p', i }))].filter(s => !edItem(s)._lock && !edItem(s)._hide); edPanel(); }, none: () => { ED.sel = []; edPanel(); },
     lock: () => edFlagSel('_lock'), hide: () => edFlagSel('_hide'), unhideall: () => { edPush(); for (const o of [...ED.obs, ...ED.lights, ...ED.trails]) delete o._hide; edFloor(true); edLayers(); },
     fit: edFit, focus: edFocus, zin: () => edZoomC(1.25), zout: () => edZoomC(.8), propEd: () => openPropEditor(ED.sel.length === 1 && ED.sel[0].t === 'o' ? edItem(ED.sel[0]).kind : 'tree') };
@@ -960,4 +961,39 @@ function recordProp(kind) {
   const keep = propCache[kind]; delete propCache[kind];
   try { _drawObstacle(rec, o); if (kind === 'tree' || kind === 'bush') { S.fillStyle = o.color; S.globalAlpha = .9; rec.beginPath(); rec.arc(o.x, o.y, o.r, 0, TAU); rec.fill(); } } finally { if (keep) propCache[kind] = keep; }
   return out.filter(s => s.w * s.h > 1e-5 || s.stroke).slice(0, 300);
+}
+
+/* ---- your own saved maps: named copies in this browser, plus map files you can keep anywhere ----
+   (there are no online accounts in the game, so a file is how a map goes to another computer) */
+const LIB_KEY = 'snakeCarnageMapLib';
+function edLib() { try { return JSON.parse(localStorage.getItem(LIB_KEY)) || {}; } catch (e) { return {}; } }
+function edSnapshot() { edSave(); return { map: MAPS[ED.map].name, w: W, date: Date.now(), data: localMapEdits()[mapEditKey(MAPS[ED.map].name)] }; }
+function edSaveAs() {
+  const def = `${MAPS[ED.map].name} ${new Date().toLocaleDateString()}`;
+  const m = edModal('Save a copy', `<p>Keeps this version of ${MAPS[ED.map].name} under a name, in this browser. You can load it again from <b>File → My saved maps</b>.</p><input type="text" class="libname" value="${def}" maxlength="60">`,
+    [['Cancel', null, ''], ['Save', mm => { const n = mm.querySelector('.libname').value.trim() || def, lib = edLib(); const go = () => { lib[n] = edSnapshot(); try { localStorage.setItem(LIB_KEY, JSON.stringify(lib)); edStatus(`Saved as "${n}"`); } catch (e) { edStatus('Could not save (browser storage full?): download it as a file instead'); } };
+      if (lib[n]) edModal('Replace it?', `<p>You already have a map saved as "${n}".</p>`, [['Cancel', null, ''], ['Replace', go, 'edprimary']]); else go(); }, 'edprimary']]);
+  const inp = m.querySelector('.libname'); inp.focus(); inp.select(); inp.onkeydown = e => { e.stopPropagation(); if (e.key === 'Enter') m.querySelector('.edprimary').click(); };
+}
+function edLoadSnap(sn) {
+  const i = MAPS.findIndex(q => q.name === sn.map); if (i < 0) return edStatus('That map no longer exists');
+  if (sn.w !== W) edStatus(`Made on a ${sn.w}-wide world; this screen's world is ${W} wide, so the sides may differ`);
+  const all = localMapEdits(); all[mapEditKey(sn.map)] = sn.data; localStorage.setItem('snakeCarnageMapEdits', JSON.stringify(all));
+  cancelAnimationFrame(ED.raf); ED.root.remove(); removeEventListener('keydown', edKey, true); removeEventListener('keyup', edKey, true); openEditor(i); ED.unshared = true;
+}
+function edLibrary() {
+  const lib = edLib(), names = Object.keys(lib).sort((a, b) => lib[b].date - lib[a].date);
+  const m = edModal('My saved maps', names.length ? `<div class="edlib">${names.map(n => `<div class="edlibrow" data-n="${encodeURIComponent(n)}"><div><b>${n.replace(/</g, '&lt;')}</b><small>${lib[n].map} · ${new Date(lib[n].date).toLocaleString()}</small></div><button class="ld edprimary">Open</button><button class="dl">Download</button><button class="rm warn">Delete</button></div>`).join('')}</div><p class="edhint">Opening one replaces the current edits of that map (save a copy first if you want to keep them).</p>`
+    : '<p>Nothing saved yet. Use <b>File → Save a copy as…</b> (Ctrl+Shift+S).</p>', [['Close', null, ''], ['Open a map file…', () => edOpenFile(), '']]);
+  m.querySelectorAll('.edlibrow').forEach(r => { const n = decodeURIComponent(r.dataset.n);
+    r.querySelector('.ld').onclick = () => { m.remove(); edLoadSnap(edLib()[n]); };
+    r.querySelector('.dl').onclick = () => edDownloadSnap(edLib()[n], n);
+    r.querySelector('.rm').onclick = () => { const l = edLib(); delete l[n]; localStorage.setItem(LIB_KEY, JSON.stringify(l)); r.remove(); }; });
+}
+function edDownloadSnap(sn, name) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify({ snakeCarnageMap: 1, ...sn })], { type: 'application/json' })); a.download = (name || sn.map).replace(/[^\w\- ]+/g, '') + '.scmap.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); }
+function edDownloadMap() { edDownloadSnap(edSnapshot(), MAPS[ED.map].name); edStatus('Downloaded: keep the file anywhere, open it again with File → Open a map file'); }
+function edOpenFile() {
+  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.json,.txt,.js';
+  inp.onchange = () => inp.files[0] && inp.files[0].text().then(t => { try { const d = JSON.parse(t); if (d.snakeCarnageMap) { document.querySelectorAll('.edmodal').forEach(x => x.remove()); return edLoadSnap(d); } } catch (e) {} edImport(inp.files[0]); });
+  inp.click();
 }
