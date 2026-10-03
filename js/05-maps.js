@@ -122,7 +122,7 @@ function firePit(x, px, py) {
 }
 
 function buildMaze() {
-  const cols = 8, rows = 5, cw = (W - 2 * B) / cols, ch = (H - 2 * B) / rows, t = 14;
+  const cols = 2 * Math.round((W - 2 * B) / 232), mid = cols / 2, rows = 5, cw = (W - 2 * B) / cols, ch = (H - 2 * B) / rows, t = 14;
   const v = [], h = [];
   for (let r = 0; r < rows; r++) v.push(Array(cols + 1).fill(true));
   for (let r = 0; r <= rows; r++) h.push(Array(cols).fill(true));
@@ -138,12 +138,12 @@ function buildMaze() {
     if (nr !== r) h[Math.max(r, nr)][c] = false; else v[r][Math.max(c, nc)] = false;
     seen[nr * cols + nc] = 1; stack.push([nr, nc]);
   }
-  for (let k = 0; k < 16; k++) { // extra openings = loops, so you're never stuck in a dead end chase
+  for (let k = 0; k < cols * 2; k++) { // extra openings = loops, so you're never stuck in a dead end chase
     if (Math.random() < .5) v[randi(0, rows - 1)][randi(1, cols - 1)] = false;
     else h[randi(1, rows - 1)][randi(0, cols - 1)] = false;
   }
-  for (let r = 1; r <= 3; r++) v[r][4] = false;            // open 2x3 garden in the center
-  for (let c = 3; c <= 4; c++) { h[2][c] = false; h[3][c] = false; }
+  for (let r = 1; r <= 3; r++) v[r][mid] = false;            // open 2x3 garden in the center
+  for (let c = mid - 1; c <= mid; c++) { h[2][c] = false; h[3][c] = false; }
   const obs = [], col = '#3a6b28';
   for (let r = 0; r < rows; r++) for (let c = 1; c < cols; c++)
     if (v[r][c]) obs.push(R(B + c * cw - t / 2, B + r * ch - t / 2, t, ch + t, col, 'hedge'));
@@ -152,8 +152,8 @@ function buildMaze() {
   // lanterns on posts at hedge corners that are actually there; the garden in the middle gets a fountain and four lamps
   const posts = [];
   for (let r = 1; r < rows; r++) for (let c = 1; c < cols; c++) {
-    const x0 = B + c * cw, y0 = B + r * ch; if (Math.abs(c - 4) <= 1 && r >= 2 && r <= 3) continue;
-    if ((v[r - 1][c] || v[r][c] || h[r][c - 1] || h[r][c]) && Math.random() < .3 && posts.length < 7) posts.push(LAMP(x0, y0, { lantern: true }));
+    const x0 = B + c * cw, y0 = B + r * ch; if (Math.abs(c - mid) <= 1 && r >= 2 && r <= 3) continue;
+    if ((v[r - 1][c] || v[r][c] || h[r][c - 1] || h[r][c]) && Math.random() < .3 && posts.length < Math.round(cols * .9)) posts.push(LAMP(x0, y0, { lantern: true }));
   }
   obs.push(...posts, Object.assign(C(W / 2, H / 2, 34, '#4aa3df', 'water'), { fountain: true }), LAMP(W / 2 - 70, H / 2 - 60), LAMP(W / 2 + 70, H / 2 - 60), LAMP(W / 2 - 70, H / 2 + 60), LAMP(W / 2 + 70, H / 2 + 60));
   return { obs, floor(x) { checker(x, ...GRASS, 32); x.fillStyle = '#d6c9a8'; x.beginPath(); x.arc(W / 2, H / 2, 105, 0, TAU); x.fill(); x.strokeStyle = '#bfb08c'; x.lineWidth = 2; for (let k = 1; k < 4; k++) { x.beginPath(); x.arc(W / 2, H / 2, 46 + k * 18, 0, TAU); x.stroke(); } },
@@ -199,8 +199,8 @@ const MAPS = [
       const main = [[-10, 470], [150, 470], [300, 430], [430, 370], [520, 330], [575, 292], [606, 276]], south = [[300, 430], [330, 540], [420, 660]], camp = [[430, 370], [470, 300], [500, 255]];
       return {
         obs: [ // a wood along the north and west edges (touching the border, so no gaps to get caught in), a few lone trees in the open
-          TREE(60, 70, 40), TREE(130, 40, 30), TREE(200, 60, 24), TREE(40, 150, 30), TREE(36, 230, 22),
-          TREE(880, 600, 34), TREE(930, 520, 26), TREE(820, 610, 22),
+          TREE(60, 56, 40), TREE(124, 40, 30), TREE(176, 52, 24), TREE(46, 126, 30), TREE(40, 176, 22),
+          TREE(910, 600, 34), TREE(930, 500, 26), TREE(780, 612, 22),
           TREE(640, 520, 18, '#46802f'),
           C(690, 230, 78, '#4aa3df', 'water'),
           R(470, 150, 44, 30, '#c9763a', 'tent'), R(440, 214, 12, 30, '#7a5a38', 'bench'),
@@ -255,9 +255,9 @@ const MAPS = [
         Object.assign(C(SQC[0], SQC[1], 26, '#4aa3df', 'water'), { fountain: true }),
         R(320, 180, 40, 8, '#7a5a38', 'bench'), R(528, 180, 40, 8, '#7a5a38', 'bench'), // mirrored about the fountain
         TREE(396, 152, 13), TREE(492, 152, 13), TREE(360, 242, 13), TREE(528, 242, 13),
-        R(782, 263, 40, 8, '#7a5a38', 'bench'), C(774, 266, 4, '#3a3a40', 'bin'), // the bus stop: set back on the lawn edge, the sidewalk left clear
+        R(804, 263, 40, 8, '#7a5a38', 'bench'), C(796, 266, 4, '#3a3a40', 'bin'), // the bus stop: set back on the lawn edge, the sidewalk left clear
         // the church: nave, a tower facing Main, a big tree by the graves
-        R(704, 140, 80, 92, '#b8ad9a', 'building', { roof: 'gable', rc: '#5a5048' }), R(728, 232, 32, 24, '#a89c88', 'building', { roof: 'hip', rc: '#4a423c' }),
+        R(696, 140, 80, 92, '#b8ad9a', 'building', { roof: 'gable', rc: '#5a5048' }), R(720, 232, 32, 24, '#a89c88', 'building', { roof: 'hip', rc: '#4a423c' }),
         TREE(828, 136, 12),
         // the supermarket at the back of its lot, the lot's single parking row with a planted island at each end, the loading side
         R(16, 520, 250, 104, '#6b7a5a', 'building', { roof: 'flat', shop: '#2e5a3a', front: 'n', market: true }), R(268, 532, 16, 30, '#4f6b3a', 'crate', { dumpster: true }),
@@ -266,12 +266,12 @@ const MAPS = [
         R(490, 548, 98, 76, '#b8463a', 'building', { roof: 'flat', shop: '#f1c40f', front: 'n', diner: true }),
         dinCar(0, '#8e44ad'), dinCar(2, '#2f5fa8'),
         // the gas station on the corner: kiosk at the back, two pump islands under the canopy
-        R(788, 382, 56, 54, '#d8cfbf', 'building', { roof: 'flat', shop: '#c0392b', front: 'w' }),
-        R(696, 398, 12, 48, '#d9d9d9', 'crate', { pump: true }), R(740, 398, 12, 48, '#d9d9d9', 'crate', { pump: true }),
+        R(792, 382, 52, 54, '#d8cfbf', 'building', { roof: 'flat', shop: '#c0392b', front: 'w' }),
+        R(692, 398, 12, 48, '#d9d9d9', 'crate', { pump: true }), R(744, 398, 12, 48, '#d9d9d9', 'crate', { pump: true }),
         // two houses and a garage on Birch Ln, front lawns to the sidewalk, backs to the edge of town
-        R(684, 572, 72, 52, '#7d6b58', 'building', { roof: 'hip' }), R(756, 588, 30, 36, '#8a7a66', 'building', { roof: 'flat' }), R(786, 568, 58, 56, '#8a4a3a', 'building', { roof: 'gable' }),
+        R(684, 572, 72, 52, '#7d6b58', 'building', { roof: 'hip' }), R(756, 570, 30, 54, '#8a7a66', 'building', { roof: 'flat' }), R(786, 568, 58, 56, '#8a4a3a', 'building', { roof: 'gable' }),
         // the tree line past Hill St and down the east side: trunks just beyond the edge, crowns hanging over
-        ...[60, 140, 330, 410, 530, 700, 790, 880].map((x, i) => TREE(x, 17, 13 + (i % 3))), ...[170, 240, 400, 490, 590].map((y, i) => TREE(943, y, 13 + (i % 2) * 2)),
+        ...[29, 140, 330, 410, 530, 700, 790, 880].map((x, i) => TREE(x, 17, 13 + (i % 3))), ...[170, 240, 400, 490, 611].map((y, i) => TREE(943, y, 13 + (i % 2) * 2)),
         // streetlights at the curb: every ~120 downtown, much sparser on the quiet streets; parking lights on the islands
         ...[80, 190, 330, 470, 560, 720, 820].map(x => LAMP(x, 283)), ...[60, 180, 300, 530, 700, 810].map(x => LAMP(x, 357)),
         LAMP(130, 111), LAMP(520, 111), LAMP(760, 111), LAMP(605, 200), LAMP(605, 440), LAMP(855, 200), LAMP(855, 440), LAMP(415, 470), LAMP(720, 549),
@@ -287,21 +287,21 @@ const MAPS = [
           [[222, 122], [222, 272]], [[286, 122], [286, 272]], [[599, 122], [599, 272]], [[670, 122], [670, 272]], [[849, 122], [849, 272]],
           [[409, 368], [409, 616]], [[476, 368], [476, 616]], [[599, 368], [599, 616]], [[670, 368], [670, 552]], [[849, 368], [849, 552]],
           [[294, 197], [406, 197]], [[482, 197], [594, 197]], [[444, 122], [444, 159]], [[444, 235], [444, 272]], ring,
-          [[40, 392], [396, 392]], [[140, 392], [140, 512]], [[744, 256], [744, 272]]],
+          [[40, 392], [396, 392]], [[176, 392], [176, 512]], [[736, 256], [736, 272]]],
         obs: OBS,
         decor(x) {
           for (const o of OBS) if (o.shop && o.kind === 'building') { // striped awning over the front door, on whichever side faces the street or lot
             const f = o.front || 's', hz = f === 's' || f === 'n', L = hz ? o.w : o.h;
             for (let k = 10; k < L - 10; k += 10) { x.fillStyle = (k / 10) % 2 ? '#f4efe6' : o.shop; f === 's' ? x.fillRect(o.x + k, o.y + o.h - 6, 10, 9) : f === 'n' ? x.fillRect(o.x + k, o.y - 3, 10, 9) : x.fillRect(o.x - 3, o.y + k, 9, 10); }
           }
-          x.strokeStyle = '#f4efe6'; x.lineWidth = 2; x.beginPath(); x.moveTo(744, 237); x.lineTo(744, 251); x.moveTo(738, 242); x.lineTo(750, 242); x.stroke(); // the cross on the tower
+          x.strokeStyle = '#f4efe6'; x.lineWidth = 2; x.beginPath(); x.moveTo(736, 237); x.lineTo(736, 251); x.moveTo(730, 242); x.lineTo(742, 242); x.stroke(); // the cross on the tower
           const g = seeded(77); x.fillStyle = '#8f9196'; for (let gx = 800; gx <= 836; gx += 12) for (let gy = 150; gy <= 222; gy += 18) if (g() < .8) { rrect(x, gx + g() * 3, gy + g() * 3, 6, 4, 1.5); x.fill(); } // the old graves
           x.strokeStyle = '#8a9098'; x.lineWidth = 1.2; for (let k = 0; k < 3; k++) x.strokeRect(196 + k * 7, 503, 9, 6); // carts by the market door
           x.fillStyle = '#d0453a'; for (const [mx, my] of [[700, 548], [830, 548]]) { x.fillRect(mx - 3, my - 2, 6, 4); x.fillStyle = '#3a3a3a'; x.fillRect(mx - .5, my + 2, 1, 3); x.fillStyle = '#d0453a'; } // mailboxes at the curb
           x.fillStyle = '#c0392b'; for (const [hx, hy] of [[296, 284], [582, 284], [486, 356], [676, 356], [846, 284]]) { circ(x, hx, hy, 2.6); x.fillStyle = '#e8b326'; circ(x, hx, hy, 1.2); x.fillStyle = '#c0392b'; } // hydrants at the curb
           x.fillStyle = '#5a4a3a'; for (const px of [110, 380, 560, 760]) circ(x, px, 58, 2.4); // utility poles along Hill St
           x.fillStyle = '#c0392b'; for (const [sx, sy] of [[226, 284], [416, 356], [856, 284], [856, 356], [856, 110], [666, 540]]) { x.beginPath(); for (let k = 0; k < 8; k++) { const a = k * TAU / 8 + TAU / 16; x.lineTo(sx + Math.cos(a) * 3.2, sy + Math.sin(a) * 3.2); } x.fill(); } // stop signs where side streets meet
-          x.fillStyle = '#2b2b30'; x.fillRect(828, 263, 2, 9); x.fillStyle = '#2f6fb0'; x.fillRect(825, 261, 8, 4); // bus stop sign
+          x.fillStyle = '#2b2b30'; x.fillRect(789, 263, 2, 9); x.fillStyle = '#2f6fb0'; x.fillRect(786, 261, 8, 4); // bus stop sign
           x.fillStyle = '#c0392b'; x.fillRect(682, 370, 12, 12); x.fillStyle = '#ffe9a0'; x.font = 'bold 4px sans-serif'; x.textAlign = 'center'; x.fillText('3.49', 688, 377); // price board on the corner
           x.fillStyle = '#5a7fa8'; x.fillRect(780, 444, 8, 10); x.fillStyle = '#e8eef2'; x.fillRect(781, 445, 6, 3); // ice chest by the kiosk
         },
@@ -316,7 +316,7 @@ const MAPS = [
           x.fillStyle = '#8f8c86'; x.fillRect(678, 368, 166, 116); x.fillStyle = '#9a978f'; for (let i = 678; i < 844; i += 28) x.fillRect(i, 368, 1, 116); // forecourt concrete
           x.fillStyle = '#cfc6b4'; x.fillRect(SQ[0], SQC[1] - 8, SQ[2], 16); x.fillRect(SQC[0] - 8, SQ[1], 16, SQ[3]); circ(x, SQC[0], SQC[1], 48); // the square's paths and plaza
           x.strokeStyle = '#bfb5a1'; x.lineWidth = 1; x.beginPath(); x.arc(SQC[0], SQC[1], 48, 0, TAU); x.stroke();
-          x.fillStyle = '#cfc6b4'; x.fillRect(736, 256, 16, 16); x.fillRect(712, 560, 12, 12); x.fillRect(808, 560, 12, 8); x.fillRect(758, 560, 26, 28); // church path, garden paths, the driveway
+          x.fillStyle = '#cfc6b4'; x.fillRect(728, 256, 16, 16); x.fillRect(712, 560, 12, 12); x.fillRect(808, 560, 12, 8); x.fillRect(758, 560, 26, 10); // church path, garden paths, the driveway
           for (const r of ROADS) asph(r, QUIET.includes(r) ? '#3f3f45' : '#45454c');
           speckle(x, 1300, ['#3e3e44', '#53535a', '#4a4a50'], 7, 1.2);
           // curbs: along every road edge, then opened up wherever two roads meet
@@ -356,14 +356,14 @@ const MAPS = [
     build: () => ({
       paths: [[[300, 240], [500, 240], [751, 240], [751, 140]], [[751, 240], [751, 332]]], // the yard road: pig pen gate -> farmhouse door, with a branch to the paddock gate // red barn and silo, the farmhouse, a coop, the sheep paddock, pig pen and the crop field
       obs: [
-        R(16, 16, 210, 150, '#a83a2c', 'barn'), C(262, 52, 36, '#b8b8c0', 'silo'),
+        R(16, 16, 210, 124, '#a83a2c', 'barn'), C(262, 52, 36, '#b8b8c0', 'silo'),
         R(760, 16, 184, 120, '#c9b18a', 'building', { roof: 'gable', rc: '#5a3d2a' }), R(420, 20, 76, 52, '#b56a3a', 'building', { roof: 'gable', rc: '#7a3a22' }),
         R(486, 178, 54, 30, '#c0392b', 'car', { tractor: true }),
         R(560, 330, 140, 6, '#8b6b45', 'fence'), R(800, 330, 144, 6, '#8b6b45', 'fence'),
         R(560, 330, 6, 100, '#8b6b45', 'fence'), R(560, 520, 6, 104, '#8b6b45', 'fence'),
-        R(40, 180, 6, 110, '#8b6b45', 'fence'), R(40, 180, 260, 6, '#8b6b45', 'fence'), R(294, 180, 6, 40, '#8b6b45', 'fence'), R(294, 260, 6, 30, '#8b6b45', 'fence'), R(40, 284, 100, 6, '#8b6b45', 'fence'), R(200, 284, 100, 6, '#8b6b45', 'fence'),
+        R(16, 180, 6, 110, '#8b6b45', 'fence'), R(16, 180, 284, 6, '#8b6b45', 'fence'), R(294, 180, 6, 40, '#8b6b45', 'fence'), R(294, 260, 6, 30, '#8b6b45', 'fence'), R(16, 284, 124, 6, '#8b6b45', 'fence'), R(200, 284, 100, 6, '#8b6b45', 'fence'),
         C(736, 482, 24, '#e3c565', 'hay'), C(690, 560, 18, '#e3c565', 'hay'), R(640, 410, 40, 16, '#7d8a90', 'crate', { trough: true }),
-        TREE(930, 250, 30), TREE(900, 300, 18),
+        TREE(916, 256, 32),
         LAMP(250, 190), LAMP(712, 150), LAMP(545, 320)
       ],
       floor(x) {
@@ -372,7 +372,7 @@ const MAPS = [
         speckle(x, 400, ['#b18c58', '#d6b47e'], 3);
         x.fillStyle = '#8b5e34'; x.fillRect(40, 320, 440, 290); // the crop field
         x.fillStyle = '#6f9a35'; for (let y = 332; y < 600; y += 18) { x.fillRect(48, y, 424, 6); for (let i = 52; i < 470; i += 9) circ(x, i, y + 3, 2.6); }
-        x.fillStyle = '#9b7a52'; x.fillRect(46, 186, 248, 98); x.fillStyle = 'rgba(90,60,30,.45)'; for (let k = 0; k < 9; k++) { ell(x, 70 + k * 26, 200 + (k % 3) * 28, 14, 7); } // pig pen mud
+        x.fillStyle = '#9b7a52'; x.fillRect(22, 186, 272, 98); x.fillStyle = 'rgba(90,60,30,.45)'; for (let k = 0; k < 9; k++) { ell(x, 70 + k * 26, 200 + (k % 3) * 28, 14, 7); } // pig pen mud
       }
     })
   },
@@ -381,13 +381,13 @@ const MAPS = [
     pop: [['human', 9], ['dog', 1], ['duck', 4, { x: 500, y: 200, w: 220, h: 200 }], ['rabbit', 3]], walkers: 5, grass: 90,
     build: () => { // a city park: a loop path round the duck pond, paths in from three gates, a playground, a bandstand. Trees stay at the edges.
       const loop = []; for (let k = 0; k <= 24; k++) { const a = k / 24 * TAU; loop.push([600 + Math.cos(a) * 140, 300 + Math.sin(a) * 120]); }
-      const play = [[200, 330], [186, 380], [172, 420]], west = [[-10, 330], [180, 330], [330, 310], [460, 300]], south = [[600, 420], [570, 540], [540, 660]], east = [[740, 300], [860, 300], [970, 330]], band = [[330, 310], [270, 220], [250, 170]];
+      const play = [[200, 330], [186, 380], [172, 420]], west = [[-10, 330], [180, 330], [330, 310], [460, 300]], south = [[600, 420], [570, 540], [540, 660]], east = [[740, 300], [860, 300], [970, 330]], band = [[330, 310], [270, 220], [254, 186]];
       return {
         obs: [
           C(600, 300, 84, '#4aa3df', 'water'),
           C(250, 150, 30, '#e9e2d0', 'gazebo'),
-          TREE(70, 80, 40), TREE(150, 50, 26), TREE(40, 170, 26), TREE(880, 70, 40), TREE(930, 160, 24), TREE(900, 580, 36), TREE(820, 610, 24), TREE(60, 590, 34), TREE(140, 610, 22),
-          R(368, 280, 40, 12, '#7a5a38', 'bench'), R(560, 452, 40, 12, '#7a5a38', 'bench'), R(722, 180, 12, 40, '#7a5a38', 'bench'),
+          TREE(56, 56, 40), TREE(120, 42, 26), TREE(40, 170, 26), TREE(904, 56, 40), TREE(930, 160, 24), TREE(904, 584, 36), TREE(800, 612, 24), TREE(60, 590, 34), TREE(160, 612, 22),
+          R(368, 280, 40, 12, '#7a5a38', 'bench'), R(616, 452, 40, 12, '#7a5a38', 'bench'), R(722, 180, 12, 40, '#7a5a38', 'bench'),
           R(150, 468, 44, 12, '#c0392b', 'slide'),
           LAMP(232, 356), LAMP(470, 330), LAMP(740, 420), LAMP(600, 160), LAMP(590, 560)
         ],
@@ -452,10 +452,10 @@ const MAPS = [
           R(60, 70, 110, 34, '#7a5a48', 'desk', { reception: true }), C(250, 60, 14, '#3d7a2a', 'plant'), C(40, 210, 12, '#3d7a2a', 'plant'),
           R(205, 150, 90, 34, '#6a7fa6', 'couch'),
           R(396, 80, 160, 70, '#6d4a2e', 'table'),
-          R(740, 50, 140, 40, desk, 'desk'), R(900, 30, 30, 150, '#5c3d22', 'shelf'),
-          ...pod(70, 370), ...pod(250, 370), ...pod(430, 370), ...pod(70, 510), ...pod(250, 510), ...pod(430, 510),
-          R(620, 580, 70, 30, '#cfcfd4', 'crate', { printer: true }),
-          R(860, 350, 70, 40, '#d8d8de', 'shelf', { fridge: true }), R(740, 590, 190, 30, '#8a8f99', 'bar'), C(830, 480, 30, '#9a6c3e', 'table')
+          R(740, 50, 130, 40, desk, 'desk'), R(914, 16, 30, 150, '#5c3d22', 'shelf'),
+          ...pod(70, 380), ...pod(250, 380), ...pod(430, 380), ...pod(70, 510), ...pod(250, 510), ...pod(430, 510),
+          R(600, 594, 70, 30, '#cfcfd4', 'crate', { printer: true }),
+          R(860, 350, 70, 40, '#d8d8de', 'shelf', { fridge: true }), R(720, 594, 224, 30, '#8a8f99', 'bar'), C(830, 480, 30, '#9a6c3e', 'table')
         ],
         floor(x) {
           tiles(x, '#d9d4c8', '#d2ccbf', 40); // reception and meeting room: stone tiles
@@ -519,8 +519,8 @@ const MAPS = [
         x.fillStyle = '#b0532c'; x.fillRect(0, 0, W, H); speckle(x, 1200, ['#c86a3a', '#8e3a1a', '#a84a24'], 5);
         craters(x, 10, '#ad4f28', 11);
         const r = seeded(17); x.globalAlpha = .2; x.fillStyle = '#e9a06a'; for (let i = 0; i < 16; i++) { x.beginPath(); x.ellipse(r() * W, r() * H, 60 + r() * 120, 8 + r() * 14, -.3, 0, TAU); x.fill(); } x.globalAlpha = 1; // dunes
-        x.strokeStyle = 'rgba(90,30,10,.35)'; x.lineWidth = 3; x.setLineDash([3, 4]); for (const o of [-6, 6]) { x.beginPath(); x.moveTo(176, 514 + o); x.bezierCurveTo(300, 560 + o, 520, 470 + o, 820, 160 + o); x.stroke(); } x.setLineDash([]);
-        x.fillStyle = '#9a4524'; x.beginPath(); x.arc(820, 130, 58, 0, TAU); x.fill(); x.strokeStyle = 'rgba(30,10,5,.4)'; x.lineWidth = 2; x.beginPath(); x.arc(820, 130, 52, 0, TAU); x.stroke(); // scorched launch pad
+        const ox = (W - 960) / 2; x.strokeStyle = 'rgba(90,30,10,.35)'; x.lineWidth = 3; x.setLineDash([3, 4]); for (const o of [-6, 6]) { x.beginPath(); x.moveTo(ox + 176, 514 + o); x.bezierCurveTo(ox + 300, 560 + o, ox + 520, 470 + o, ox + 820, 160 + o); x.stroke(); } x.setLineDash([]); // rover tracks (ox: drawn across a wider world)
+        x.fillStyle = '#9a4524'; x.beginPath(); x.arc(ox + 820, 130, 58, 0, TAU); x.fill(); x.strokeStyle = 'rgba(30,10,5,.4)'; x.lineWidth = 2; x.beginPath(); x.arc(ox + 820, 130, 52, 0, TAU); x.stroke(); // scorched launch pad
       }
     })
   },
@@ -540,8 +540,8 @@ const MAPS = [
           R(16, 384, 134, 14, wc), R(330, 384, 320, 14, wc), R(780, 384, 164, 14, wc),
           R(470, 398, 14, 226, wc),
           C(80, 80, 20, '#7fffc8', 'pod'), C(160, 70, 20, '#7fffc8', 'pod'), C(240, 80, 20, '#7fffc8', 'pod'), R(80, 150, 160, 30, '#8a989e', 'table', { lab: true }),
-          R(360, 30, 250, 26, '#28343a', 'console'), C(480, 150, 26, '#2b3a40', 'holo'),
-          R(672, 36, 36, 70, '#a9c4cc', 'cryo'), R(744, 36, 36, 70, '#a9c4cc', 'cryo'), R(816, 36, 36, 70, '#a9c4cc', 'cryo'), R(888, 36, 36, 70, '#a9c4cc', 'cryo'),
+          R(330, 16, 300, 26, '#28343a', 'console'), C(480, 150, 26, '#2b3a40', 'holo'),
+          R(644, 16, 36, 70, '#a9c4cc', 'cryo'), R(724, 16, 36, 70, '#a9c4cc', 'cryo'), R(804, 16, 36, 70, '#a9c4cc', 'cryo'), R(908, 16, 36, 70, '#a9c4cc', 'cryo'),
           C(240, 510, 62, '#9aa8b0', 'saucer'),
           C(714, 510, 40, '#3a4a50', 'reactor'), R(560, 590, 100, 22, '#28343a', 'console'), R(820, 590, 100, 22, '#28343a', 'console')
         ],
@@ -570,10 +570,10 @@ const MAPS = [
           R(340, 230, 280, 180, '#4a525e', 'module', { command: true }),
           R(16, 190, 150, 14, wc), R(16, 436, 150, 14, wc), R(794, 190, 150, 14, wc), R(794, 436, 150, 14, wc),
           R(250, 16, 14, 110, wc), R(696, 16, 14, 110, wc), R(250, 514, 14, 110, wc), R(696, 514, 14, 110, wc),
-          R(40, 40, 30, 120, '#3c6a3a', 'shelf', { plants: true }), R(110, 40, 30, 120, '#3c6a3a', 'shelf', { plants: true }), R(180, 40, 30, 120, '#3c6a3a', 'shelf', { plants: true }),
-          R(760, 30, 160, 26, '#5a6170', 'bed'), R(760, 90, 160, 26, '#5a6170', 'bed'),
-          R(60, 520, 120, 40, '#7a8494', 'table'), R(40, 590, 160, 22, '#6a7280', 'bar'),
-          R(790, 560, 140, 50, '#3a4250', 'shelf', { suits: true }),
+          R(16, 16, 30, 130, '#3c6a3a', 'shelf', { plants: true }), R(86, 16, 30, 130, '#3c6a3a', 'shelf', { plants: true }), R(156, 16, 30, 130, '#3c6a3a', 'shelf', { plants: true }),
+          R(784, 16, 160, 26, '#5a6170', 'bed'), R(784, 82, 160, 26, '#5a6170', 'bed'),
+          R(60, 520, 120, 40, '#7a8494', 'table'), R(16, 602, 160, 22, '#6a7280', 'bar'),
+          R(804, 574, 140, 50, '#3a4250', 'shelf', { suits: true }),
           C(480, 150, 16, '#7a8494', 'table'), C(480, 490, 16, '#7a8494', 'table')
         ],
         floor(x) {
@@ -600,18 +600,18 @@ const MAPS = [
           R(16, 370, 140, 14, wc), R(246, 370, 230, 14, wc), R(566, 370, 160, 14, wc), R(816, 370, 128, 14, wc),
           R(390, 384, 14, 240, wc), R(700, 384, 14, 240, wc),
           // BARRACKS: bunks in two rows, a footlocker at the end of each
-          R(36, 36, 90, 24, '#4e5a42', 'bed'), R(36, 96, 90, 24, '#4e5a42', 'bed'), R(36, 156, 90, 24, '#4e5a42', 'bed'), R(210, 36, 90, 24, '#4e5a42', 'bed'), R(210, 96, 90, 24, '#4e5a42', 'bed'),
-          R(127, 40, 14, 16, '#5a4a32', 'crate'), R(127, 100, 14, 16, '#5a4a32', 'crate'), R(127, 160, 14, 16, '#5a4a32', 'crate'), R(301, 40, 14, 16, '#5a4a32', 'crate'), R(301, 100, 14, 16, '#5a4a32', 'crate'),
+          R(16, 16, 90, 24, '#4e5a42', 'bed'), R(16, 80, 90, 24, '#4e5a42', 'bed'), R(16, 144, 90, 24, '#4e5a42', 'bed'), R(240, 16, 90, 24, '#4e5a42', 'bed'), R(240, 80, 90, 24, '#4e5a42', 'bed'),
+          R(106, 20, 14, 16, '#5a4a32', 'crate'), R(106, 84, 14, 16, '#5a4a32', 'crate'), R(106, 148, 14, 16, '#5a4a32', 'crate'), R(226, 20, 14, 16, '#5a4a32', 'crate'), R(226, 84, 14, 16, '#5a4a32', 'crate'),
           // MESS HALL: two long tables with benches on their outer sides
           R(400, 80, 170, 34, '#5a4a3a', 'table'), R(400, 170, 170, 34, '#5a4a3a', 'table'), R(400, 68, 170, 9, '#4a3c30', 'bench'), R(400, 207, 170, 9, '#4a3c30', 'bench'),
           // STORES: stacked supply crates and a shelving unit
-          R(680, 30, 60, 60, '#6a5a3a', 'crate'), R(742, 30, 60, 60, '#6a5a3a', 'crate'), R(860, 120, 60, 60, '#6a5a3a', 'crate'), R(690, 170, 40, 70, '#4a4a40', 'shelf'),
+          R(654, 16, 60, 60, '#6a5a3a', 'crate'), R(714, 16, 60, 60, '#6a5a3a', 'crate'), R(884, 120, 60, 60, '#6a5a3a', 'crate'), R(654, 200, 40, 70, '#4a4a40', 'shelf'),
           // GENERATORS: two sets humming away, fuel drums in the corner
-          R(60, 440, 120, 70, '#3c4044', 'generator'), R(220, 500, 80, 90, '#3c4044', 'generator'), C(36, 600, 10, '#6a5a2a', 'bin'), C(58, 604, 10, '#7a3a22', 'bin'), C(36, 578, 9, '#6a5a2a', 'bin'),
+          R(60, 440, 120, 70, '#3c4044', 'generator'), R(220, 534, 80, 90, '#3c4044', 'generator'), C(36, 600, 10, '#6a5a2a', 'bin'), C(58, 604, 10, '#7a3a22', 'bin'), C(36, 578, 9, '#6a5a2a', 'bin'),
           // COMMS: the radio desk along the back wall, a side console, the map table in the middle
-          R(430, 590, 230, 24, '#2c3034', 'console'), R(404, 398, 16, 76, '#2c3034', 'console'), C(560, 470, 18, '#4a4a40', 'table'),
+          R(404, 600, 230, 24, '#2c3034', 'console'), R(404, 398, 16, 76, '#2c3034', 'console'), C(560, 470, 18, '#4a4a40', 'table'),
           // MED BAY: two cots and the supply cabinet
-          R(740, 410, 80, 30, '#c9c9c4', 'bed', { med: true }), R(740, 480, 80, 30, '#c9c9c4', 'bed', { med: true }), R(860, 560, 64, 50, '#c9c9c4', 'shelf')
+          R(864, 424, 80, 30, '#c9c9c4', 'bed', { med: true }), R(864, 494, 80, 30, '#c9c9c4', 'bed', { med: true }), R(880, 574, 64, 50, '#c9c9c4', 'shelf')
         ],
         floor(x) {
           x.fillStyle = '#3a3532'; x.fillRect(0, 0, W, H); speckle(x, 1600, ['#332e2b', '#423c38', '#2c2826'], 6, 2);

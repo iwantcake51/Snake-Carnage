@@ -112,15 +112,57 @@ function tidyPlacement(list, roads) {
       if (Math.min(gx, gy) <= 0 && g > 2 && g < 26 && !(S[i].kind === 'car' && S[j].kind === 'car')) console.warn('[mapcheck] tight gap', Math.round(g), S[i].kind, Math.round(a[0]), Math.round(a[1]), '<->', S[j].kind, Math.round(b[0]), Math.round(b[1])); }
   }
 }
+/* ---- spacing: two things either touch or leave a real gap (2 actor widths), never a pinch you scrape through ----
+   Furniture that belongs against a wall is pushed flush; free-standing props (trees, rocks, plants, benches...) move out to
+   a real gap if there's room, otherwise up against the wall/edge. Reflected copies at the map's sides may also be nudged
+   flush or dropped. Small poles (lamps, bins) are ignored: they stand on sidewalks next to things by design. */
+const GAP_MIN = 40;
+const HUG_KINDS = new Set(['bed', 'shelf', 'console', 'crate', 'bar', 'cryo', 'generator', 'speaker', 'booth', 'couch', 'desk', 'dj', 'barrier', 'solar']);
+const FREE_KINDS = new Set(['tree', 'bush', 'rock', 'plant', 'hay', 'table', 'bench', 'pod', 'chess', 'tent', 'holo', 'pillar']);
+const POLE_KINDS = new Set(['lamp', 'bin']);
+const obox = o => o.t === 'r' ? [o.x, o.y, o.x + o.w, o.y + o.h] : [o.x - o.r, o.y - o.r, o.x + o.r, o.y + o.r];
+function gapAndDir(a, b) { // shortest gap between two shapes and the unit direction pushing a away from b
+  if (a.t === 'c' && b.t === 'c') { const dx = a.x - b.x, dy = a.y - b.y, d = Math.hypot(dx, dy) || 1; return [d - a.r - b.r, dx / d, dy / d]; }
+  if (a.t === 'c' || b.t === 'c') { const c = a.t === 'c' ? a : b, R = obox(a.t === 'c' ? b : a), px = clamp(c.x, R[0], R[2]), py = clamp(c.y, R[1], R[3]), dx = c.x - px, dy = c.y - py, d = Math.hypot(dx, dy);
+    const ux = d ? dx / d : (c.x < (R[0] + R[2]) / 2 ? -1 : 1), uy = d ? dy / d : 0, sg = a.t === 'c' ? 1 : -1; return [(d || 0) - c.r, ux * sg, uy * sg]; }
+  const A = obox(a), Bx = obox(b), gx = Math.max(A[0] - Bx[2], Bx[0] - A[2]), gy = Math.max(A[1] - Bx[3], Bx[1] - A[3]);
+  if (gx >= gy) return [gx, (A[0] + A[2]) / 2 < (Bx[0] + Bx[2]) / 2 ? -1 : 1, 0];
+  return [gy, 0, (A[1] + A[3]) / 2 < (Bx[1] + Bx[3]) / 2 ? -1 : 1];
+}
+function settleGaps(list, roads, paths) {
+  const P = paths.flatMap(p => trailPoints(p).filter((_, k) => k % 3 === 0)), S = list.filter(o => !POLE_KINDS.has(o.kind));
+  const role = o => o.kind === 'border' || o.pump || o.dumpster ? 'fixed' : HUG_KINDS.has(o.kind) ? 'hug' : FREE_KINDS.has(o.kind) ? 'free' : o.ext ? 'extfixed' : 'fixed';
+  const pinches = (o, nx, ny) => { // how many pinched gaps o would have at (nx, ny); Infinity if it can't stand there at all
+    const t = { ...o, x: nx, y: ny }, bx = obox(t);
+    if (bx[0] < B - .5 || bx[1] < B - .5 || bx[2] > W - B + .5 || bx[3] > H - B + .5) return Infinity;
+    if ((nx !== o.x || ny !== o.y) && roads.some(r => bx[2] > r[0] && bx[0] < r[0] + r[2] && bx[3] > r[1] && bx[1] < r[1] + r[3])) return Infinity;
+    if ((nx !== o.x || ny !== o.y) && P.some(([px, py]) => px > bx[0] - 12 && px < bx[2] + 12 && py > bx[1] - 12 && py < bx[3] + 12)) return Infinity;
+    let n = 0; for (const q of S) { if (q === o || q.dropped) continue; const g = gapAndDir(t, q)[0]; if (g < -.5 && !(o.kind === 'border' || q.kind === 'border')) return Infinity; if (g > (q.kind === 'border' ? 8 : 3) && g < GAP_MIN && !(o.kind === 'car' && q.kind === 'car')) n++; }
+    return n; };
+  const dropped = new Set();
+  for (let pass = 0; pass < 3; pass++) for (const a of S) for (const b of S) {
+    if (a === b || dropped.has(a) || dropped.has(b)) continue;
+    const [g, ux, uy] = gapAndDir(a, b); if (!(g > (a.kind === 'border' || b.kind === 'border' ? 8 : 3) && g < GAP_MIN)) continue; // within a few px of the edge counts as against it
+    if (a.kind === 'car' && b.kind === 'car') continue;
+    const ra = role(a), rb = role(b), rank = { free: 0, hug: 1, extfixed: 2, fixed: 3 };
+    if (rank[ra] > rank[rb] || (ra === rb && (!!a.ext === !!b.ext ? (a.t === 'r' ? a.w * a.h : a.r * a.r * 3) > (b.t === 'r' ? b.w * b.h : b.r * b.r * 3) : !a.ext))) continue; // the lighter one moves (a reflected copy gives way to the original)
+    const away = [a.x + ux * (GAP_MIN - g + 1), a.y + uy * (GAP_MIN - g + 1)], flush = [a.x - ux * g, a.y - uy * g];
+    const tries = ra === 'hug' || ra === 'extfixed' ? [flush, away] : [away, flush];
+    const now = pinches(a, a.x, a.y); let done = false;
+    for (const [nx, ny] of tries) if (pinches(a, nx, ny) < now) { a.x = nx; a.y = ny; done = true; break; }
+    if (!done && a.ext) { dropped.add(a); a.dropped = true; } // a reflected copy that can't be made to fit just isn't there
+  }
+  return list.filter(o => !dropped.has(o));
+}
 function loadMap(idx, sz) {
   mapIdx = idx; season = sz || null; // a season only for runs on outdoor maps; menus show the plain map
   bunkerCache = null; if (MAPS[idx].name === 'Bunker') bunkerLock = Math.random() < .35; // some runs the bunker is in lockdown
   const m = MAPS[idx], b = m.build(); curBuild = b;
   Sfx.setMuffle(!!m.space && !m.indoor); // thin air on the surface; inside a pressurized station sound is normal
   obstacles = splitBreakables(addBreakWalls([...borderWalls(m.border), ...b.obs], m.name));
-  nudgeLamps(obstacles, b.paths || [], b.roads || []); tidyPlacement(obstacles, b.roads || []);
+  nudgeLamps(obstacles, b.paths || [], b.roads || []); tidyPlacement(obstacles, b.roads || []); obstacles = settleGaps(obstacles, b.roads || [], b.paths || []);
   buildSolid();
-  bctx.clearRect(0, 0, W, H); b.floor(bctx); bakeContactShadows(bctx, b.obs); resetBuckets(); gctx.clearRect(0, 0, W, H); groundParts = []; trail = []; floaters = [];
+  b.obs = b.obs.filter(o => !o.dropped); bctx.clearRect(0, 0, W, H); b.floor(bctx); bakeContactShadows(bctx, b.obs); resetBuckets(); gctx.clearRect(0, 0, W, H); groundParts = []; trail = []; floaters = [];
   buildGrassMask(); gradeGround(); seasonDetails(bctx);
   curBuild = b; drawObstacleLayer(); buildTrees();
   bakeOutline();
