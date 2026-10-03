@@ -488,13 +488,15 @@ function drawPropShapes(x, o, shapes) { // shapes live in the object's box: 0..1
   const [x0, y0, x1, y1] = o.t === 'r' ? [o.x, o.y, o.x + o.w, o.y + o.h] : [o.x - o.r, o.y - o.r, o.x + o.r, o.y + o.r], bw = x1 - x0, bh = y1 - y0;
   for (const s of shapes) {
     const cx = x0 + s.x * bw, cy = y0 + s.y * bh, w = Math.max(.5, s.w * bw), h = Math.max(.5, s.h * bh);
-    x.save(); x.globalAlpha *= s.a ?? 1; x.translate(cx, cy); x.rotate((s.rot || 0) * Math.PI / 180); x.fillStyle = x.strokeStyle = s.c || '#ffffff'; x.lineWidth = Math.max(.5, (s.lw ?? .08) * Math.min(bw, bh)); x.lineCap = 'round';
+    x.save(); x.globalAlpha *= s.a ?? 1; x.translate(cx, cy); x.rotate((s.rot || 0) * Math.PI / 180); x.fillStyle = x.strokeStyle = (s.base && propCache[o.kind] && propCache[o.kind].color) || s.c || '#ffffff'; x.lineWidth = Math.max(.5, (s.lw ?? .08) * Math.min(bw, bh)); x.lineCap = 'round';
     x.beginPath();
     if (s.type === 'rect') x.rect(-w / 2, -h / 2, w, h);
     else if (s.type === 'circle') x.arc(0, 0, Math.min(w, h) / 2, 0, TAU);
     else if (s.type === 'ellipse') x.ellipse(0, 0, w / 2, h / 2, 0, 0, TAU);
+    else if (s.type === 'poly' && s.pts) { s.pts.forEach(([u, v], k) => { const px = (u - .5) * w, py = (v - .5) * h; k ? x.lineTo(px, py) : x.moveTo(px, py); }); if (s.closed !== false) x.closePath(); }
     else if (s.type === 'triangle') { x.moveTo(0, -h / 2); x.lineTo(w / 2, h / 2); x.lineTo(-w / 2, h / 2); x.closePath(); }
-    if (s.type === 'line') { x.moveTo(-w / 2, 0); x.lineTo(w / 2, 0); x.stroke(); }
+    if (s.type === 'poly' && s.stroke) { x.lineJoin = 'round'; x.stroke(); }
+    else if (s.type === 'line') { x.moveTo(-w / 2, 0); x.lineTo(w / 2, 0); x.stroke(); }
     else if (s.type === 'ring') { x.arc(0, 0, Math.min(w, h) / 2, 0, TAU); x.stroke(); }
     else if (s.type === 'cross') { x.moveTo(-w / 2, 0); x.lineTo(w / 2, 0); x.moveTo(0, -h / 2); x.lineTo(0, h / 2); x.stroke(); }
     else x.fill();
@@ -592,6 +594,8 @@ function peSide() {
     <section><h4>Battering Ram</h4><div class="peseg">${[['default', 'Default'], ['never', 'Never'], ['small', 'Ram I'], ['large', 'Ram II'], ['heavy', 'Ram III']].map(([k, n]) => `<button data-brk="${k}" class="${k === (p.breakable || 'default') ? 'on' : ''}">${n}</button>`).join('')}</div>
       <p class="edhint">${(p.breakable || 'default') === 'default' ? `Default for this prop: ${def === 'never' ? "can't be broken" : `breaks from ${{ small: 'Ram I', large: 'Ram II', heavy: 'Ram III' }[def]}`}.` : (p.breakable === 'never' ? "Nothing can break it." : `Breaks once you have ${{ small: 'Ram I', large: 'Ram II', heavy: 'Ram III' }[p.breakable]}.`)} Very large trees and boulders always hold.</p></section>
     <section><h4>Extra shapes <small>painted on top of the prop</small></h4><div class="peadd">${ED_SHAPES.map(t => `<button data-add="${t}" title="Add a ${t}"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round">${SHI[t]}</svg><span>${t}</span></button>`).join('')}</div>
+      <button class="pebreak edghost edwide" title="Turns the prop's own drawing into shapes you can move, recolor, resize or delete">${edSvg('layers', 14)} ${p.hideBase && sh.length ? 'Shapes are the drawing now' : 'Edit the original drawing'}</button>
+      <p class="edhint">${p.hideBase && sh.length ? `The original drawing was split into ${sh.length} shapes. Click one in the list (or in the preview) to change it.` : 'Splits the prop\'s own look into its pieces, so you can change the original shapes instead of adding on top.'}</p>
       ${tog('hideBase', !!p.hideBase, 'Replace the drawing', 'Hide the original look so only your shapes show.').replace('class="pef"', 'class="pehide"')}
     <div class="peshapes">${sh.map((s, i) => `<button data-s="${i}" class="${i === PE.selShape ? 'on' : ''}"><i style="background:${s.c}"></i>${i + 1}. ${s.type}</button>`).join('')}</div>
     <div class="peshape"></div>
@@ -599,6 +603,9 @@ function peSide() {
   el.querySelector('.pecol').onchange = e => { const q = peGet(); if (e.target.checked) q.color = el.querySelector('.pecolv').value; else delete q.color; peSet(q); peSide(); };
   el.querySelector('.pecolv').oninput = e => { const q = peGet(); q.color = e.target.value; peSet(q); };
   el.querySelectorAll('.pef').forEach(c => c.onchange = () => { const q = peGet(); if (c.checked) delete q[c.dataset.f]; else q[c.dataset.f] = true; peSet(q); peSide(); });
+  el.querySelector('.pebreak').onclick = () => { const q = peGet(); if (q.hideBase && (q.shapes || []).length) return; const parts = recordProp(PE.kind); if (!parts.length) return edModal('Nothing to split', '<p>This prop has no drawing I can split up.</p>', [['OK', null, 'edprimary']]);
+    const baseC = edHex(kindSample(PE.kind)[5]); for (const sh of parts) if (sh.c === baseC) sh.base = true; // pieces in the prop's main color follow 'Recolor every…'
+    q.shapes = [...parts, ...(q.shapes || [])]; q.hideBase = true; PE.selShape = -1; peSet(q); peSide(); };
   el.querySelectorAll('[data-brk]').forEach(b => b.onclick = () => { const q = peGet(); q.breakable = b.dataset.brk; peSet(q); peSide(); });
   el.querySelectorAll('.pecs').forEach(b => b.onclick = () => { const q = peGet(); q.color = b.dataset.c; peSet(q); peSide(); });
   el.querySelector('.peshare1').onclick = () => edLocalProps()[PE.kind] ? edShare('p:' + PE.kind) : edModal('Nothing to share', `<p>You haven't changed the ${PE.kind} yet.</p>`, [['OK', null, 'edprimary']]);
@@ -852,3 +859,40 @@ edShare = function (only) {
   const btns = m.querySelectorAll('[data-b]'); btns[1].onclick = () => { const t = m.querySelector('.edshtxt').value, a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([t], { type: 'text/plain' })); a.download = 'snake-carnage-edits.txt'; a.click(); ED.unshared = false; m.querySelector('.edshmsg').textContent = 'Downloaded snake-carnage-edits.txt: attach it in the chat.'; };
   btns[2].onclick = () => { const ta = m.querySelector('.edshtxt'); (navigator.clipboard ? navigator.clipboard.writeText(ta.value) : Promise.reject()).catch(() => { ta.select(); document.execCommand('copy'); }).finally(() => { ED.unshared = false; m.querySelector('.edshmsg').textContent = 'Copied. Paste it into the chat.'; }); };
 };
+
+/* ---- turning a prop's original drawing into editable shapes ----
+   The game's drawing code runs against a recording context: every filled or stroked rect, circle, ellipse and path
+   becomes a shape in the prop's box (0..1), keeping its color. Gradients become their middle color. */
+function recordProp(kind) {
+  const smp = kindSample(kind), o = edSample(smp, 0, 0), [x0, y0, x1, y1] = o.t === 'r' ? [o.x, o.y, o.x + o.w, o.y + o.h] : [o.x - o.r, o.y - o.r, o.x + o.r, o.y + o.r], bw = x1 - x0, bh = y1 - y0;
+  const out = [], col = v => typeof v === 'string' ? v : (v && v._mid) || '#888888';
+  let M = new DOMMatrix(), st = [], path = [], sub = null, S = { fillStyle: '#000', strokeStyle: '#000', lineWidth: 1, globalAlpha: 1 };
+  const P = (x, y) => { const q = M.transformPoint({ x, y }); return [(q.x - x0) / bw, (q.y - y0) / bh]; };
+  const sc = () => Math.hypot(M.a, M.b);
+  const shapeOf = (pts, closed) => { const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]), mx = Math.min(...xs), Mx = Math.max(...xs), my = Math.min(...ys), My = Math.max(...ys), w = Math.max(.001, Mx - mx), h = Math.max(.001, My - my);
+    return { type: 'poly', x: (mx + Mx) / 2, y: (my + My) / 2, w, h, rot: 0, pts: pts.map(([u, v]) => [Math.round((u - mx) / w * 1000) / 1000, Math.round((v - my) / h * 1000) / 1000]), closed }; };
+  const push = (sh, c, stroke) => { sh.c = edHex(col(c)); sh.a = Math.round(S.globalAlpha * 100) / 100; if (stroke) { sh.stroke = true; sh.lw = Math.max(.005, S.lineWidth * sc() / Math.min(bw, bh)); } out.push(sh); };
+  const arcPts = (cx, cy, r, a0, a1, ccw) => { const n = 24, pts = []; let d = a1 - a0; if (ccw && d > 0) d -= TAU; if (!ccw && d < 0) d += TAU; for (let k = 0; k <= n; k++) { const a = a0 + d * k / n; pts.push(P(cx + Math.cos(a) * r, cy + Math.sin(a) * r)); } return pts; };
+  const grad = (stops) => { const g = { _mid: '#888888', addColorStop(t, c) { if (!g._s || Math.abs(t - .5) < Math.abs(g._s - .5)) { g._s = t; g._mid = c; } } }; return g; };
+  const rec = new Proxy({}, { get(_, k) {
+    if (k in S) return S[k];
+    const f = {
+      save() { st.push([M, { ...S }]); }, restore() { const t = st.pop(); if (t) { M = t[0]; S = t[1]; } },
+      translate(x, y) { M = M.translate(x, y); }, rotate(a) { M = M.rotate(a * 180 / Math.PI); }, scale(a, b) { M = M.scale(a, b); }, setTransform() {}, transform() {},
+      beginPath() { path = []; sub = null; }, moveTo(x, y) { sub = [P(x, y)]; path.push(sub); }, lineTo(x, y) { if (!sub) { sub = []; path.push(sub); } sub.push(P(x, y)); },
+      quadraticCurveTo(cx, cy, x, y) { f.lineTo(x, y); }, bezierCurveTo(a, b, c, d, x, y) { f.lineTo(x, y); }, closePath() { if (sub) sub.closed = true; },
+      arc(cx, cy, r, a0, a1, ccw) { const pts = arcPts(cx, cy, r, a0, a1, ccw); if (sub && sub.length) sub.push(...pts); else { sub = pts; path.push(sub); } },
+      ellipse(cx, cy, rx, ry, rot, a0, a1) { const pts = []; for (let k = 0; k <= 24; k++) { const a = a0 + (a1 - a0) * k / 24; pts.push(P(cx + Math.cos(a) * rx, cy + Math.sin(a) * ry)); } sub = pts; path.push(sub); },
+      rect(x, y, w, h) { sub = [P(x, y), P(x + w, y), P(x + w, y + h), P(x, y + h)]; sub.closed = true; path.push(sub); },
+      fill() { for (const p of path) if (p.length > 2) push(shapeOf(p, true), S.fillStyle); },
+      stroke() { for (const p of path) if (p.length > 1) push(shapeOf(p, !!p.closed), S.strokeStyle, true); },
+      fillRect(x, y, w, h) { push(shapeOf([P(x, y), P(x + w, y), P(x + w, y + h), P(x, y + h)], true), S.fillStyle); },
+      strokeRect(x, y, w, h) { push(shapeOf([P(x, y), P(x + w, y), P(x + w, y + h), P(x, y + h)], true), S.strokeStyle, true); },
+      createLinearGradient: grad, createRadialGradient: grad, createPattern: () => '#888888', clip() {}, fillText() {}, strokeText() {}, measureText: () => ({ width: 0 }), setLineDash() {}, drawImage() {}, getTransform: () => M,
+    };
+    return f[k] || (() => {});
+  }, set(_, k, v) { S[k] = v; return true; } });
+  const keep = propCache[kind]; delete propCache[kind];
+  try { _drawObstacle(rec, o); if (kind === 'tree' || kind === 'bush') { S.fillStyle = o.color; S.globalAlpha = .9; rec.beginPath(); rec.arc(o.x, o.y, o.r, 0, TAU); rec.fill(); } } finally { if (keep) propCache[kind] = keep; }
+  return out.filter(s => s.w * s.h > 1e-5 || s.stroke).slice(0, 300);
+}
