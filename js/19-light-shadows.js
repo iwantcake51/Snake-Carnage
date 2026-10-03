@@ -139,9 +139,10 @@ const [statC, stx] = mkLight(), [veilC, vtx] = mkLight();
 function resizeLights() { // lighting quality changed: rebuild the light buffers at the new resolution
   LDPR = lightRes();
   for (const [c, x] of [[lightC, lgx], [statC, stx], [veilC, vtx]]) { c.width = W * LDPR; c.height = H * LDPR; x.setTransform(LDPR, 0, 0, LDPR, 0, 0); }
-  desC.width = lightC.width / 2; desC.height = lightC.height / 2; statKey = '';
+  desC.width = lightC.width / 2; desC.height = lightC.height / 2; statKey = ''; veilKey = '';
 }
-let statKey = '', lightVer = 0;
+let statKey = '', veilKey = '', lightVer = 0;
+const isStaticTint = l => !l.enc && !(l.ign > 0) && !(l.fT > 0) && l.kind !== 'emerg' && l.kind !== 'disco'; // live shadows don't change a light's color veil, so it stays cached
 const isStaticLight = l => !l.enc && !l.dynNow && !(l.ign > 0) && !(l.fT > 0) && l.kind !== 'emerg' && l.kind !== 'disco';
 function drawLighting(x) {
   const L = light, nv = nightVision, Q = lq();
@@ -168,15 +169,24 @@ function drawLighting(x) {
     if (key !== statKey) {
       statKey = key;
       stx.setTransform(1, 0, 0, 1, 0, 0); stx.clearRect(0, 0, statC.width, statC.height); stx.setTransform(LDPR, 0, 0, LDPR, 0, 0);
-      vtx.setTransform(1, 0, 0, 1, 0, 0); vtx.clearRect(0, 0, veilC.width, veilC.height); vtx.setTransform(LDPR, 0, 0, LDPR, 0, 0);
       for (const l of lights) {
         if (!isStaticLight(l)) continue; const k = lightK(l); if (k < .01) continue;
         stx.globalAlpha = k; // source-over of alpha masks = their union, exactly what punching them out one by one gives
         if (l.kind === 'window') { stx.drawImage(MASK_SPR, l.x - l.r, l.y - l.r, l.r * 2, l.r * 2); continue; }
         const s = l.size, bs = Math.ceil(s * LS); stx.drawImage(l.mask, 0, 0, bs, bs, l.x - l.r, l.y - l.r, s, s);
-        vtx.globalAlpha = k * (VEIL[l.kind] ?? .12); vtx.drawImage(l.tint, 0, 0, bs, bs, l.x - l.r, l.y - l.r, s, s);
       }
-      stx.globalAlpha = 1; vtx.globalAlpha = 1;
+      stx.globalAlpha = 1;
+    }
+    let vkey = lightVer + '|' + nv;
+    for (const l of lights) if (l.kind !== 'window' && isStaticTint(l)) vkey += ',' + Math.round(lightK(l) * 40);
+    if (vkey !== veilKey) {
+      veilKey = vkey;
+      vtx.setTransform(1, 0, 0, 1, 0, 0); vtx.clearRect(0, 0, veilC.width, veilC.height); vtx.setTransform(LDPR, 0, 0, LDPR, 0, 0);
+      for (const l of lights) {
+        if (l.kind === 'window' || !isStaticTint(l)) continue; const k = lightK(l); if (k < .01) continue;
+        const s = l.size, bs = Math.ceil(s * LS); vtx.globalAlpha = k * (VEIL[l.kind] ?? .12); vtx.drawImage(l.tint, 0, 0, bs, bs, l.x - l.r, l.y - l.r, s, s);
+      }
+      vtx.globalAlpha = 1;
     }
     lgx.globalCompositeOperation = 'source-over'; lgx.globalAlpha = 1; lgx.clearRect(0, 0, W, H);
     lgx.fillStyle = `rgba(${L.dc},${dark})`; lgx.fillRect(0, 0, W, H);
@@ -197,7 +207,7 @@ function drawLighting(x) {
     if (desat) { dsx.globalCompositeOperation = 'copy'; dsx.globalAlpha = 1; dsx.drawImage(lightC, 0, 0, desC.width, desC.height); } // snapshot (half res: it's a soft mask) before colored veils go in
     if (!nv && Q.veil) { // colored veil inside each light pool: sodium orange, fluorescent white, pool cyan, emergency red
       lgx.globalCompositeOperation = 'source-over'; lgx.globalAlpha = 1; lgx.drawImage(veilC, 0, 0, W, H);
-      for (const l of lights) { if (l.kind === 'window' || isStaticLight(l)) continue; const k = lightK(l); if (k < .01) continue; const s = l.size, bs = Math.ceil(s * LS); lgx.globalAlpha = k * (VEIL[l.kind] ?? .12); if (l.enc) encClip(lgx, l); lgx.drawImage(l.tint, 0, 0, bs, bs, l.x - l.r, l.y - l.r, s, s); if (l.enc) lgx.restore(); }
+      for (const l of lights) { if (l.kind === 'window' || isStaticTint(l)) continue; const k = lightK(l); if (k < .01) continue; const s = l.size, bs = Math.ceil(s * LS); lgx.globalAlpha = k * (VEIL[l.kind] ?? .12); if (l.enc) encClip(lgx, l); lgx.drawImage(l.tint, 0, 0, bs, bs, l.x - l.r, l.y - l.r, s, s); if (l.enc) lgx.restore(); }
     }
     beams.forEach((f, i) => {
       const s = composeBeam(f, i < Q.beamSh), bs = Math.ceil(s * LS);

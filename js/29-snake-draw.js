@@ -135,10 +135,10 @@ function camoField(s, n) {
 }
 const grabC = document.createElement('canvas'), grx = grabC.getContext('2d');
 function grabScene(A, B) { // copy just this patch of the frame once (drawing the scene onto itself forces a full copy every call)
-  const sx = Math.max(0, Math.floor(A.x)), sy = Math.max(0, Math.floor(A.y)), sw = Math.min(sceneC.width, Math.ceil(B.x)) - sx, sh = Math.min(sceneC.height, Math.ceil(B.y)) - sy;
+  const sx = Math.max(0, Math.floor(A.x)), sy = Math.max(0, Math.floor(A.y)), sw = Math.min(render.src.width, Math.ceil(B.x)) - sx, sh = Math.min(render.src.height, Math.ceil(B.y)) - sy;
   if (sw <= 0 || sh <= 0) return null;
   if (grabC.width < sw || grabC.height < sh) { grabC.width = Math.max(grabC.width, sw); grabC.height = Math.max(grabC.height, sh); }
-  grx.clearRect(0, 0, sw, sh); grx.drawImage(sceneC, sx, sy, sw, sh, 0, 0, sw, sh);
+  grx.clearRect(0, 0, sw, sh); grx.drawImage(render.src, sx, sy, sw, sh, 0, 0, sw, sh);
   return { sx, sy, sw, sh };
 }
 function refractBody(x, s, pts, n, cam) { // the background seen through the body, swirled and split slightly

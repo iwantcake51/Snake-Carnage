@@ -7,7 +7,7 @@ const DPR = (() => { // render at the real on-screen size: device pixel ratio x 
   const sw = Math.max(innerWidth, screen.width || 0), sh = Math.max(innerHeight, screen.height || 0);
   const fitS = Math.max(1, Math.min((sw - 24) / 960, (sh - 70) / 640, 2.2)); // the board can grow big on large screens and stays crisp
   const coarse = (() => { try { return matchMedia('(pointer: coarse)').matches; } catch (e) { return false; } })();
-  return Math.min(coarse ? 2 : 2.5, Math.max(1, (window.devicePixelRatio || 1) * fitS)); // past this the extra pixels cost far more than they show
+  return Math.min(2, Math.max(1, (window.devicePixelRatio || 1) * fitS)); // past this the extra pixels cost far more than they show
 })();
 function makeLayer(c) {
   c = c || document.createElement('canvas');

@@ -3,7 +3,9 @@ function snakeShadowPath(x, ox, oy) { // round, soft-edged discs per segment, li
   for (let i = 0; i < n; i++) { const g = sg[i], r = segR(i, n) * .95, sx = g.x + ox, sy = g.y + oy; x.moveTo(sx + r, sy); x.arc(sx, sy, r, 0, TAU); }
 }
 function render() {
-  const x = sctx, L = light, sh = shake && SETTINGS.shake ? shake * (SETTINGS.shakeK ?? 1) : 0;
+  const pxS = Math.max(1, SETTINGS.pixel | 0), wob = snake && ((snake.wallStun > 0 && !SETTINGS.simpleFx) || (snake.ramT > 0 && !SETTINGS.reduceFlash));
+  const direct = pxS <= 1 && !wob; render.src = direct ? cv : sceneC; // no post effect this frame: draw straight to the screen and skip a full-frame copy
+  const x = direct ? ctx : sctx, L = light, sh = shake && SETTINGS.shake ? shake * (SETTINGS.shakeK ?? 1) : 0;
   V.sx = sh ? rand(-sh, sh) : 0; V.sy = sh ? rand(-sh, sh) : 0; V.z = 0;
   if (cam) { // spawn camera: starts tight on the snake, eases out to the full map
     const q = cam.hold ? 0 : Math.min(1, cam.t / cam.dur), p = q < .5 ? 4 * q * q * q : 1 - Math.pow(-2 * q + 2, 3) / 2, fp = Math.pow(p, 2.5);
@@ -56,7 +58,7 @@ function render() {
     if (lowC.width !== lw || lowC.height !== lh) { lowC.width = lw; lowC.height = lh; }
     lctx.drawImage(sceneC, 0, 0, lw, lh);
     ctx.imageSmoothingEnabled = false; ctx.drawImage(lowC, 0, 0, cv.width, cv.height); ctx.imageSmoothingEnabled = true;
-  } else ctx.drawImage(sceneC, 0, 0);
+  } else if (!direct) ctx.drawImage(sceneC, 0, 0);
   const ws = snake && snake.wallStun > 0 ? Math.min(1.5, Math.pow(snake.wallStun / (snake.wallMax || 3.4), .6) * (snake.stunFx || 1)) : 0;
   if (ws > .02 && px <= 1 && !SETTINGS.simpleFx) { // seeing stars after a wall: the picture wobbles in slow waves, fading with the daze
     const bh = Math.ceil(cv.height / 48), amp = 7 * ws * DPR;
