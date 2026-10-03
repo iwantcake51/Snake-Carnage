@@ -329,8 +329,21 @@ function segColor(i, n, cfg) {
     case 'Hazard': return Math.floor(i / 2) % 2 ? '#1d1d1f' : '#f2c230';
     case 'Lunar': return mixColor('#b9c0c8', '#8a9099', (i * 37 % 10) / 22);
     case 'Martian': return mixColor('#c1440e', '#e2763a', (Math.sin(i * .8) + 1) * .4);
+    // real snakes
+    case 'Coral': return ['#c8201c', '#c8201c', '#f2c230', '#141214', '#141214', '#f2c230'][i % 6]; // red touches yellow
+    case 'Kingsnake': return i % 4 === 0 ? '#eee6d4' : '#1a1718';
+    case 'Diamondback': return mixColor('#8a6a44', '#a58358', (i % 2) * .5);
+    case 'Python': return mixColor('#b89a62', '#a5874f', ((i * 31) % 7) / 7);
+    case 'Garter': return mixColor('#2f3a24', '#3a4630', (i % 2) * .5);
+    case 'Emerald': return mixColor('#1f8a3a', '#28a046', (Math.sin(i * .4) + 1) * .3);
     default: return i % 2 ? mixColor(cfg.color, '#000000', .06) : cfg.color;
   }
+}
+const NATURAL = new Set(['Coral', 'Kingsnake', 'Diamondback', 'Python', 'Garter', 'Emerald']);
+function patternStripes(x, pts, n, cfg) { // patterns that run the length of the body
+  if (cfg.pattern !== 'Garter') return;
+  const run = (off, w, col) => { x.strokeStyle = col; x.lineWidth = w; x.beginPath(); for (let i = 0; i < n; i++) { const g = pts[i], r = segR(i, n), px = g.x - Math.sin(g.a) * r * off, py = g.y + Math.cos(g.a) * r * off; i ? x.lineTo(px, py) : x.moveTo(px, py); } x.stroke(); };
+  x.lineCap = 'round'; x.lineJoin = 'round'; run(0, CONFIG.snakeR * .38, '#e8c94a'); run(-.72, CONFIG.snakeR * .2, '#cdb860'); run(.72, CONFIG.snakeR * .2, '#cdb860'); // the yellow dorsal stripe and two side stripes
 }
 function patternOverlay(x, g, r, i, cfg) {
   switch (cfg.pattern) {
@@ -345,6 +358,10 @@ function patternOverlay(x, g, r, i, cfg) {
       x.strokeStyle = 'rgba(40,40,46,.35)'; x.lineWidth = .7;
       for (let k = -1; k <= 1; k++) { const a = g.a + Math.PI + k * .5; x.beginPath(); x.moveTo(g.x + Math.cos(a) * r * .2, g.y + Math.sin(a) * r * .2); x.lineTo(g.x + Math.cos(a) * r * .8, g.y + Math.sin(a) * r * .8); x.stroke(); }
       break;
+    case 'Diamondback': if (i % 2 === 0) { x.save(); x.translate(g.x, g.y); x.rotate(g.a + Math.PI / 4); const d = r * .74; x.fillStyle = '#e6d2a6'; x.fillRect(-d - 1.1, -d - 1.1, d * 2 + 2.2, d * 2 + 2.2); x.fillStyle = '#4a3420'; x.fillRect(-d, -d, d * 2, d * 2); x.fillStyle = '#6e5232'; x.fillRect(-d * .5, -d * .5, d, d); x.restore(); } break; // dark diamonds with a pale border
+    case 'Python': { const h = (i * 7919) % 97; if (i % 2 === 0) { x.save(); x.translate(g.x, g.y); x.rotate(g.a + (h % 9 - 4) * .08); x.fillStyle = '#4a3418'; ell(x, 0, (h % 5 - 2) * r * .14, r * 1.05, r * .78); x.fillStyle = '#c9ad74'; ell(x, 0, (h % 5 - 2) * r * .14, r * .42, r * .26); x.restore(); } break; } // blotches with pale hearts
+    case 'Emerald': if (i % 4 === 1) { x.fillStyle = '#f2f6ee'; const c = Math.cos(g.a), sn = Math.sin(g.a); ell(x, g.x - sn * r * .05, g.y + c * r * .05, r * .26, r * .14); } break; // white flecks down the back
+    case 'Kingsnake': if (i % 4 === 0) { x.fillStyle = 'rgba(0,0,0,.18)'; circ(x, g.x, g.y, r * .2); } break;
     case 'Gold Plated': x.fillStyle = 'rgba(255,250,220,.35)'; ell(x, g.x - r * .3, g.y - r * .35, r * .45, r * .22); break; // metal sheen
     case 'Blood Soaked': if (i % 3 === 0) { x.fillStyle = '#4a0505'; circ(x, g.x + Math.cos(i * 2.3) * r * .4, g.y + Math.sin(i * 2.3) * r * .4, r * .35); } break;
     case 'Lunar': if (i % 2 === 0) { x.fillStyle = 'rgba(70,76,86,.45)'; circ(x, g.x + Math.cos(i * 1.7) * r * .35, g.y + Math.sin(i * 1.7) * r * .35, r * .28); } break;
