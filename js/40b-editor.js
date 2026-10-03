@@ -24,7 +24,7 @@ const edClone = v => JSON.parse(JSON.stringify(v));
 const edLightCol = l => l.c || LCOL[l.kind || (MAPS[ED.map].indoor ? 'fluor' : 'fixed')] || '255,214,150';
 
 function openEditor(idx = mapIdx) {
-  ED.map = idx; ED.open = true; ED.tool = 'select'; ED.sel = []; ED.undo = []; ED.redo = []; ED.grid = 8; ED.snap = true; ED.showGrid = true; ED.lit = false; ED.help = true; ED.pal = null;
+  ED.map = idx; ED.open = true; ED.tool = 'select'; ED.sel = []; ED.undo = []; ED.redo = []; ED.grid = 8; ED.snap = true; ED.showGrid = true; ED.lit = false; ED.help = true; ED.pal = null; ED.fitted = false;
   state = 'editor'; overlay.style.display = 'none'; season = null;
   loadMap(idx); creatures = [];
   ED.obs = edClone(curPre); ED.lights = edClone(curMapLights);
@@ -57,12 +57,13 @@ function edReset() {
 function edExport() {
   edSave(); const all = { ...MAP_OVERRIDES, ...localMapEdits() };
   const src = document.getElementById('editorSrc') ? '' : '';
-  const text = `/* =========================================================\n   MAP EDITS (exported from the map editor)\n   ========================================================= */\nconst MAP_OVERRIDES = ${JSON.stringify(all)};\nconst mapEditKey = name => name + '@' + W;\nfunction localMapEdits() { try { return JSON.parse(localStorage.getItem('snakeCarnageMapEdits')) || {}; } catch (e) { return {}; } }\nfunction mapOverride(name) { const k = mapEditKey(name); return localMapEdits()[k] || MAP_OVERRIDES[k] || null; }\n` + src;
+  const text = `/* =========================================================\n   MAP EDITS (exported from the map editor)\n   ========================================================= */\nconst MAP_OVERRIDES = ${JSON.stringify(all)};\nconst PROP_OVERRIDES = ${JSON.stringify(propDefs())}; // per kind: { color, breakable, hideBase, shapes }\nconst mapEditKey = name => name + '@' + W;\nfunction localMapEdits() { try { return JSON.parse(localStorage.getItem('snakeCarnageMapEdits')) || {}; } catch (e) { return {}; } }\nfunction mapOverride(name) { const k = mapEditKey(name); return localMapEdits()[k] || MAP_OVERRIDES[k] || null; }\nfunction propDefs() { let loc = {}; try { loc = JSON.parse(localStorage.getItem('snakeCarnagePropDefs')) || {}; } catch (e) {} return { ...PROP_OVERRIDES, ...loc }; }\n` + src;
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'text/javascript' })); a.download = '05c-map-overrides.js'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   edStatus('Exported 05c-map-overrides.js: put it in the js folder to ship these edits');
 }
 function edImport(file) {
-  file.text().then(t => { const m = t.match(/MAP_OVERRIDES = (\{[\s\S]*?\});\n/); const data = JSON.parse(m ? m[1] : t);
+  file.text().then(t => { const m = t.match(/MAP_OVERRIDES = (\{[\s\S]*?\});\n/), pm = t.match(/PROP_OVERRIDES = (\{[\s\S]*?\});/); const data = JSON.parse(m ? m[1] : t);
+    if (pm) { try { localStorage.setItem('snakeCarnagePropDefs', JSON.stringify({ ...propDefs(), ...JSON.parse(pm[1]) })); propApply(); } catch (e) {} }
     const all = { ...localMapEdits(), ...data }; localStorage.setItem('snakeCarnageMapEdits', JSON.stringify(all));
     const ov = mapOverride(MAPS[ED.map].name); if (ov) { edPush(); ED.obs = edClone(ov.obs); ED.lights = edClone(ov.lights); } edStatus('Imported ' + Object.keys(data).length + ' map(s)'); edPanel(); })
     .catch(() => edStatus('That file is not a map export'));
@@ -95,6 +96,7 @@ function edLoop() {
   ED.raf = requestAnimationFrame(edLoop);
   const c = ED.cv, x = ED.x, d = devicePixelRatio || 1, r = c.getBoundingClientRect();
   if (c.width !== Math.round(r.width * d) || c.height !== Math.round(r.height * d)) { c.width = Math.round(r.width * d); c.height = Math.round(r.height * d); }
+  if (!(ED.z > 0) || !ED.fitted) { if (r.width < 10) return; edFit(); ED.fitted = true; } // first frame with a real size: fit the map
   x.setTransform(1, 0, 0, 1, 0, 0); x.fillStyle = '#121014'; x.fillRect(0, 0, c.width, c.height);
   x.setTransform(d * ED.z, 0, 0, d * ED.z, d * ED.px, d * ED.py);
   x.imageSmoothingEnabled = ED.z < 3;
@@ -129,7 +131,7 @@ function edLoop() {
   if (dr && (dr.k === 'box' || dr.k === 'wall' || dr.k === 'rect')) { const [ax, ay, bx, by] = [Math.min(dr.x0, dr.x1), Math.min(dr.y0, dr.y1), Math.max(dr.x0, dr.x1), Math.max(dr.y0, dr.y1)];
     x.fillStyle = dr.k === 'box' ? 'rgba(120,170,255,.12)' : 'rgba(255,77,106,.25)'; x.fillRect(ax, ay, bx - ax, by - ay); x.strokeStyle = dr.k === 'box' ? '#7aaaff' : '#ff4d6a'; x.lineWidth = px; x.strokeRect(ax, ay, bx - ax, by - ay);
     x.fillStyle = '#fff'; x.font = `${11 * px}px sans-serif`; x.textAlign = 'left'; x.fillText(`${Math.round(bx - ax)} × ${Math.round(by - ay)}`, bx + 6 * px, by + 12 * px); }
-  if (ED.ghost && ED.mouse) { const [mx, my] = edW(...ED.mouse), p = ED.ghost; x.globalAlpha = .5; x.fillStyle = p[5]; if (p[2] === 'r') x.fillRect(edSnap(mx - p[3] / 2), edSnap(my - p[4] / 2), p[3], p[4]); else circ(x, edSnap(mx), edSnap(my), p[3]); x.globalAlpha = 1; }
+  if (ED.ghost && ED.mouse) { const [mx, my] = edW(...ED.mouse), p = ED.ghost; x.globalAlpha = .6; try { drawObstacle(x, edSample(p, p[2] === 'r' ? edSnap(mx - p[3] / 2) : edSnap(mx), p[2] === 'r' ? edSnap(my - p[4] / 2) : edSnap(my))); } catch (e) {} x.globalAlpha = 1; }
   if (ED.mouse) { const [mx, my] = edW(...ED.mouse); ED.coords.textContent = `x ${Math.round(mx)}  y ${Math.round(my)}  ·  zoom ${(ED.z * 100 / (Math.min(r.width / W, r.height / H) * .95)).toFixed(0)}%  ·  ${ED.obs.length} objects, ${ED.lights.length} lights`; }
 }
 /* ---- mouse ---- */
@@ -247,8 +249,8 @@ function edBuildUI() {
       <span class="edgrp">${[['select', 'Select / move', 'V'], ['wall', 'Draw wall', 'W'], ['rect', 'Draw block', 'B'], ['light', 'Add light', 'L'], ['pan', 'Pan', 'Space']].map(([t, n, k]) => `<button data-tool="${t}" title="${n} (${k})">${n}<kbd>${k}</kbd></button>`).join('')}</span>
       <span class="edgrp">${[['showGrid', 'Grid', 'G'], ['snap', 'Snap', 'S'], ['lit', 'Night preview', 'N'], ['lightsLayer', 'Light reach', 'O'], ['help', 'Controls', 'H']].map(([t, n, k]) => `<button data-tg="${t}" class="${ED[t] ? 'on' : ''}" title="${n} (${k})">${n}<kbd>${k}</kbd></button>`).join('')}
         <label class="edgs">grid <select class="edgridsz">${[2, 4, 8, 16, 32].map(g => `<option ${g === ED.grid ? 'selected' : ''}>${g}</option>`).join('')}</select></label></span>
-      <span class="edgrp edright"><button class="edundo" title="Undo (Ctrl+Z)">↶</button><button class="edredo" title="Redo (Ctrl+Y)">↷</button><button class="edsave">Save</button><button class="edexp" title="Download 05c-map-overrides.js">Export</button><label class="edimp">Import<input type="file" accept=".js,.json" hidden></label><button class="edreset">Reset map</button><button class="edplay">Play test <kbd>P</kbd></button><button class="edclose">Exit <kbd>Esc</kbd></button></span></div>
-    <div class="edbody"><div class="edleft"><h4>Props <small>click, then click the map · Shift keeps placing</small></h4><div class="edprops">${ED_PROPS.map((p, i) => `<button class="edprop" data-p="${i}"><i style="background:${p[5]};border-radius:${p[2] === 'c' ? '50%' : '2px'}"></i>${p[0]}</button>`).join('')}</div>
+      <span class="edgrp"><button class="edpe" title="Change how a kind of prop looks and breaks, everywhere">Prop editor</button></span><span class="edgrp edright"><button class="edundo" title="Undo (Ctrl+Z)">↶</button><button class="edredo" title="Redo (Ctrl+Y)">↷</button><button class="edsave">Save</button><button class="edexp" title="Download 05c-map-overrides.js">Export</button><label class="edimp">Import<input type="file" accept=".js,.json" hidden></label><button class="edreset">Reset map</button><button class="edplay">Play test <kbd>P</kbd></button><button class="edclose">Exit <kbd>Esc</kbd></button></span></div>
+    <div class="edbody"><div class="edleft"><h4>Props <small>click, then click the map · Shift keeps placing</small></h4><div class="edprops">${ED_PROPS.map((p, i) => `<button class="edprop" data-p="${i}"><canvas width="68" height="68"></canvas><span>${p[0]}</span></button>`).join('')}</div>
         <h4>Walls</h4><div class="edrow"><label>Wall kind <select class="edwk">${['wall', 'fence', 'hedge', 'glass', 'building'].map(k => `<option ${k === ED.wallKind ? 'selected' : ''}>${k}</option>`).join('')}</select></label>
         <label>Thickness <input type="number" class="edwt" value="${ED.wallT}" min="2" max="80"></label><label>Color <input type="color" class="edwc" value="${edHex(ED.wallCol)}"></label></div></div>
       <div class="edview"><canvas></canvas><div class="edcoords"></div><div class="edstat">Edits save in this browser automatically</div>
@@ -261,7 +263,7 @@ function edBuildUI() {
           <p><kbd>W</kbd> draw wall · <kbd>B</kbd> draw block · <kbd>L</kbd> add light · <kbd>N</kbd> night preview · <kbd>P</kbd> play test · <kbd>Esc</kbd> deselect / exit</p></div></div>
       <div class="edright2"><div class="edpanel"></div></div></div>`;
   document.body.appendChild(root);
-  ED.cv = root.querySelector('canvas'); ED.x = ED.cv.getContext('2d'); ED.coords = root.querySelector('.edcoords'); ED.stat = root.querySelector('.edstat');
+  ED.cv = root.querySelector('.edview canvas'); ED.x = ED.cv.getContext('2d'); ED.coords = root.querySelector('.edcoords'); ED.stat = root.querySelector('.edstat');
   ED.cv.addEventListener('pointerdown', edDown); ED.cv.addEventListener('pointermove', edMove); ED.cv.addEventListener('pointerup', edUp); ED.cv.addEventListener('pointercancel', edUp);
   ED.cv.addEventListener('pointerleave', () => { ED.mouse = null; }); ED.cv.addEventListener('contextmenu', e => e.preventDefault());
   ED.cv.addEventListener('wheel', e => { e.preventDefault(); const r = ED.cv.getBoundingClientRect(); if (e.ctrlKey || !e.shiftKey && Math.abs(e.deltaX) < 1) edZoom(Math.exp(-e.deltaY * (e.ctrlKey ? .01 : .0018)), e.clientX - r.left, e.clientY - r.top); else { ED.px -= e.deltaX || e.deltaY; } }, { passive: false });
@@ -278,7 +280,8 @@ function edBuildUI() {
   root.querySelector('.edplay').onclick = () => closeEditor(true); root.querySelector('.edclose').onclick = () => closeEditor();
   root.querySelector('.edmap').onchange = e => { edSave(); const i = +e.target.value; cancelAnimationFrame(ED.raf); root.remove(); removeEventListener('keydown', edKey, true); removeEventListener('keyup', edKey, true); openEditor(i); };
   addEventListener('keydown', edKey, true); addEventListener('keyup', edKey, true);
-  edTool('select'); edPanel();
+  root.querySelector('.edpe').onclick = () => openPropEditor(ED.sel.length === 1 && ED.sel[0].t === 'o' ? edItem(ED.sel[0]).kind : 'tree');
+  edPreviews(); edTool('select'); edPanel();
 }
 /* properties of the selection */
 function edPanel() {
@@ -333,3 +336,132 @@ showMenu = function () {
   const b = document.createElement('button'); b.className = 'ghost'; b.id = 'edBtn'; b.dataset.sfx = 'open'; b.textContent = 'Map editor';
   b.onclick = () => openEditor(mapIdx); row.parentElement.appendChild(b);
 };
+
+/* =========================================================
+   PROP EDITOR
+   Changes a whole kind of prop everywhere: its color, whether (and how hard) the Battering Ram breaks it, extra
+   shapes painted on top, or replacing its drawing entirely. Saved in this browser; Export ships it in 05c.
+   ========================================================= */
+const RAM_DEFAULT = { small: [...RAM_SMALL], large: [...RAM_LARGE], heavy: [...RAM_HEAVY] };
+const ED_SHAPES = ['rect', 'circle', 'ellipse', 'triangle', 'line', 'ring', 'cross'];
+function propApply() { // rebuild the Battering Ram's lists from the defaults plus every kind's setting
+  const d = propDefs(), lists = { small: RAM_SMALL, large: RAM_LARGE, heavy: RAM_HEAVY };
+  for (const [k, arr] of Object.entries(lists)) { arr.length = 0; arr.push(...RAM_DEFAULT[k]); }
+  for (const [kind, p] of Object.entries(d)) if (p.breakable && p.breakable !== 'default') { for (const arr of Object.values(lists)) { const i = arr.indexOf(kind); if (i >= 0) arr.splice(i, 1); } if (lists[p.breakable]) lists[p.breakable].push(kind); }
+  RAM_KINDS[1] = new Set(RAM_SMALL); RAM_KINDS[2] = new Set([...RAM_SMALL, ...RAM_LARGE]); RAM_KINDS[3] = RAM_KINDS[4] = new Set([...RAM_SMALL, ...RAM_LARGE, ...RAM_HEAVY]);
+  propCache = d;
+}
+let propCache = {};
+const breakClass = kind => RAM_DEFAULT.heavy.includes(kind) ? 'heavy' : RAM_DEFAULT.large.includes(kind) ? 'large' : RAM_DEFAULT.small.includes(kind) ? 'small' : 'never';
+function drawPropShapes(x, o, shapes) { // shapes live in the object's box: 0..1 across and down
+  const [x0, y0, x1, y1] = o.t === 'r' ? [o.x, o.y, o.x + o.w, o.y + o.h] : [o.x - o.r, o.y - o.r, o.x + o.r, o.y + o.r], bw = x1 - x0, bh = y1 - y0;
+  for (const s of shapes) {
+    const cx = x0 + s.x * bw, cy = y0 + s.y * bh, w = Math.max(.5, s.w * bw), h = Math.max(.5, s.h * bh);
+    x.save(); x.globalAlpha *= s.a ?? 1; x.translate(cx, cy); x.rotate((s.rot || 0) * Math.PI / 180); x.fillStyle = x.strokeStyle = s.c || '#ffffff'; x.lineWidth = Math.max(.5, (s.lw ?? .08) * Math.min(bw, bh)); x.lineCap = 'round';
+    x.beginPath();
+    if (s.type === 'rect') x.rect(-w / 2, -h / 2, w, h);
+    else if (s.type === 'circle') x.arc(0, 0, Math.min(w, h) / 2, 0, TAU);
+    else if (s.type === 'ellipse') x.ellipse(0, 0, w / 2, h / 2, 0, 0, TAU);
+    else if (s.type === 'triangle') { x.moveTo(0, -h / 2); x.lineTo(w / 2, h / 2); x.lineTo(-w / 2, h / 2); x.closePath(); }
+    if (s.type === 'line') { x.moveTo(-w / 2, 0); x.lineTo(w / 2, 0); x.stroke(); }
+    else if (s.type === 'ring') { x.arc(0, 0, Math.min(w, h) / 2, 0, TAU); x.stroke(); }
+    else if (s.type === 'cross') { x.moveTo(-w / 2, 0); x.lineTo(w / 2, 0); x.moveTo(0, -h / 2); x.lineTo(0, h / 2); x.stroke(); }
+    else x.fill();
+    x.restore();
+  }
+}
+const _drawObstacle = drawObstacle;
+drawObstacle = function (x, o) { // every obstacle drawing goes through here, so a kind's changes show everywhere
+  const p = o && propCache[o.kind];
+  if (!p) return _drawObstacle(x, o);
+  const q = p.color ? { ...o, color: p.color } : o;
+  if (!p.hideBase) _drawObstacle(x, q);
+  else if (p.shapes && p.shapes.length === 0) { x.fillStyle = q.color; o.t === 'r' ? x.fillRect(o.x, o.y, o.w, o.h) : circ(x, o.x, o.y, o.r); }
+  if (p.shapes && p.shapes.length) drawPropShapes(x, o, p.shapes);
+};
+propApply();
+/* ---- previews ---- */
+function edSample(p, X, Y) { return p[2] === 'r' ? R(X, Y, p[3], p[4], p[5], p[1], p[6] && edClone(p[6])) : C(X, Y, p[3], p[5], p[1], p[6] && edClone(p[6])); }
+function drawPreview(cv, o) { // fits one object into a small canvas
+  const x = cv.getContext('2d'), w = cv.width, h = cv.height, [x0, y0, x1, y1] = o.t === 'r' ? [o.x, o.y, o.x + o.w, o.y + o.h] : [o.x - o.r, o.y - o.r, o.x + o.r, o.y + o.r];
+  const s = Math.min((w - 8) / (x1 - x0), (h - 8) / (y1 - y0), 6);
+  x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, w, h); x.setTransform(s, 0, 0, s, w / 2 - (x0 + x1) / 2 * s, h / 2 - (y0 + y1) / 2 * s);
+  try { drawObstacle(x, o); if (o.kind === 'tree' || o.kind === 'bush') { x.globalAlpha = .7; x.fillStyle = (propCache[o.kind] && propCache[o.kind].color) || o.color; circ(x, o.x, o.y, o.r); x.globalAlpha = 1; } } catch (e) { x.fillStyle = o.color; o.t === 'r' ? x.fillRect(o.x, o.y, o.w, o.h) : circ(x, o.x, o.y, o.r); }
+}
+function edPreviews() { if (!ED.root) return; ED.root.querySelectorAll('.edprop').forEach(b => { const p = ED_PROPS[+b.dataset.p]; drawPreview(b.querySelector('canvas'), edSample(p, 0, 0)); }); }
+const kindSample = kind => { const p = ED_PROPS.find(p => p[1] === kind); if (p) return p; const o = (ED.obs || []).find(o => o.kind === kind); return o ? (o.t === 'r' ? ['', kind, 'r', o.w, o.h, o.color] : ['', kind, 'c', o.r, 0, o.color]) : ['', kind, 'r', 60, 40, '#888888']; };
+/* ---- the window ---- */
+function openPropEditor(kind) {
+  const old = document.getElementById('propEd'); if (old) old.remove();
+  const kinds = [...new Set([...ED_KINDS, ...(ED.obs || []).map(o => o.kind)])].filter(k => k !== 'border').sort();
+  const box = document.createElement('div'); box.id = 'propEd';
+  box.innerHTML = `<div class="pewin"><div class="pehead"><b>Prop editor</b><span class="edmuted">Changes apply to every prop of that kind, on every map</span><button class="peclose">Done</button></div>
+    <div class="pebody"><div class="pelist">${kinds.map(k => `<button data-k="${k}"><canvas width="44" height="44"></canvas><span>${k}</span>${propCache[k] ? '<i>●</i>' : ''}</button>`).join('')}</div>
+      <div class="pemain"><canvas class="pebig" width="520" height="360"></canvas><div class="pebgs">Background <button data-bg="#2a2a30">Dark</button><button data-bg="#93bf55">Grass</button><button data-bg="#b9b3a7">Pavement</button><button data-bg="#d9d4c8">Tiles</button></div></div>
+      <div class="peside"></div></div></div>`;
+  document.body.appendChild(box);
+  PE.kind = kind; PE.bg = '#2a2a30'; PE.box = box; PE.selShape = -1;
+  box.querySelector('.peclose').onclick = () => { box.remove(); edPreviews(); };
+  box.querySelectorAll('.pelist button').forEach(b => { drawPreview(b.querySelector('canvas'), edSample(kindSample(b.dataset.k), 0, 0)); b.onclick = () => { PE.kind = b.dataset.k; PE.selShape = -1; peSide(); peDraw(); peList(); }; });
+  box.querySelectorAll('[data-bg]').forEach(b => b.onclick = () => { PE.bg = b.dataset.bg; peDraw(); });
+  const big = box.querySelector('.pebig'); big.onpointerdown = peDown; big.onpointermove = peMove; big.onpointerup = () => { PE.drag = null; };
+  peSide(); peDraw(); peList();
+}
+const PE = {};
+const peGet = () => edClone(propDefs()[PE.kind] || {});
+function peSet(p) { let loc = {}; try { loc = JSON.parse(localStorage.getItem('snakeCarnagePropDefs')) || {}; } catch (e) {}
+  const empty = !p.color && (!p.breakable || p.breakable === 'default') && !p.hideBase && !(p.shapes && p.shapes.length);
+  if (empty) { delete loc[PE.kind]; if (PROP_OVERRIDES[PE.kind]) loc[PE.kind] = {}; } else loc[PE.kind] = p;
+  try { localStorage.setItem('snakeCarnagePropDefs', JSON.stringify(loc)); } catch (e) {} propApply(); peDraw(); peList(); }
+function peList() { PE.box.querySelectorAll('.pelist button').forEach(b => { b.classList.toggle('on', b.dataset.k === PE.kind); drawPreview(b.querySelector('canvas'), edSample(kindSample(b.dataset.k), 0, 0)); }); }
+function peObj() { const p = kindSample(PE.kind); return edSample(p, p[2] === 'r' ? -p[3] / 2 : 0, p[2] === 'r' ? -p[4] / 2 : 0); }
+function peView() { const c = PE.box.querySelector('.pebig'), o = peObj(), [x0, y0, x1, y1] = o.t === 'r' ? [o.x, o.y, o.x + o.w, o.y + o.h] : [o.x - o.r, o.y - o.r, o.x + o.r, o.y + o.r];
+  const s = Math.min((c.width - 80) / (x1 - x0), (c.height - 80) / (y1 - y0), 12); return { c, o, s, ox: c.width / 2, oy: c.height / 2, x0, y0, bw: x1 - x0, bh: y1 - y0 }; }
+function peDraw() {
+  const v = peView(), x = v.c.getContext('2d'); x.setTransform(1, 0, 0, 1, 0, 0); x.fillStyle = PE.bg; x.fillRect(0, 0, v.c.width, v.c.height);
+  x.setTransform(v.s, 0, 0, v.s, v.ox, v.oy);
+  try { drawObstacle(x, v.o); if ((v.o.kind === 'tree' || v.o.kind === 'bush') && !(propCache[v.o.kind] || {}).hideBase) { x.globalAlpha = .7; x.fillStyle = (propCache[v.o.kind] || {}).color || v.o.color; circ(x, v.o.x, v.o.y, v.o.r); x.globalAlpha = 1; } } catch (e) {}
+  x.setTransform(1, 0, 0, 1, 0, 0); x.strokeStyle = 'rgba(255,255,255,.25)'; x.setLineDash([4, 4]); x.strokeRect(v.ox + v.x0 * v.s, v.oy + v.y0 * v.s, v.bw * v.s, v.bh * v.s); x.setLineDash([]);
+  const sh = (peGet().shapes || [])[PE.selShape]; if (sh) { const cx = v.ox + (v.x0 + sh.x * v.bw) * v.s, cy = v.oy + (v.y0 + sh.y * v.bh) * v.s; x.strokeStyle = '#ff4d6a'; x.lineWidth = 2; x.strokeRect(cx - sh.w * v.bw * v.s / 2, cy - sh.h * v.bh * v.s / 2, sh.w * v.bw * v.s, sh.h * v.bh * v.s); }
+}
+function peDown(e) { const p = peGet(), sh = p.shapes || []; if (!sh.length) return; const v = peView(), r = v.c.getBoundingClientRect(), mx = (e.clientX - r.left) * v.c.width / r.width, my = (e.clientY - r.top) * v.c.height / r.height;
+  const ux = ((mx - v.ox) / v.s - v.x0) / v.bw, uy = ((my - v.oy) / v.s - v.y0) / v.bh;
+  let best = -1; sh.forEach((s, i) => { if (Math.abs(ux - s.x) <= s.w / 2 + .03 && Math.abs(uy - s.y) <= s.h / 2 + .03) best = i; });
+  if (best >= 0) { PE.selShape = best; PE.drag = { ux, uy, x: sh[best].x, y: sh[best].y }; v.c.setPointerCapture(e.pointerId); peSide(); peDraw(); } }
+function peMove(e) { if (!PE.drag) return; const p = peGet(), s = p.shapes[PE.selShape], v = peView(), r = v.c.getBoundingClientRect(), mx = (e.clientX - r.left) * v.c.width / r.width, my = (e.clientY - r.top) * v.c.height / r.height;
+  const ux = ((mx - v.ox) / v.s - v.x0) / v.bw, uy = ((my - v.oy) / v.s - v.y0) / v.bh; s.x = Math.round((PE.drag.x + ux - PE.drag.ux) * 100) / 100; s.y = Math.round((PE.drag.y + uy - PE.drag.uy) * 100) / 100; peSet(p); peSideVals(); }
+function peSide() {
+  const p = peGet(), el = PE.box.querySelector('.peside'), def = breakClass(PE.kind), sh = p.shapes || [];
+  const bn = { default: `Default (${def === 'never' ? "can't break" : def})`, never: "Can't break", small: 'Breakable: small (Ram I)', large: 'Breakable: large (Ram II)', heavy: 'Breakable: heavy (Ram III)' };
+  el.innerHTML = `<h4>${PE.kind}</h4>
+    <label class="edck"><input type="checkbox" class="pecol" ${p.color ? 'checked' : ''}> Recolor every ${PE.kind}</label><input type="color" class="pecolv" value="${edHex(p.color || kindSample(PE.kind)[5])}" ${p.color ? '' : 'disabled'}>
+    <h4>Breaking</h4><select class="pebrk">${Object.entries(bn).map(([k, n]) => `<option value="${k}" ${k === (p.breakable || 'default') ? 'selected' : ''}>${n}</option>`).join('')}</select>
+    <p class="edmuted">Which Battering Ram level can smash through it. Very large trees and boulders still hold.</p>
+    <h4>Shapes on top</h4><div class="edbtns">${ED_SHAPES.map(t => `<button data-add="${t}">+ ${t}</button>`).join('')}</div>
+    <label class="edck"><input type="checkbox" class="pehide" ${p.hideBase ? 'checked' : ''}> Hide the original drawing (shapes only)</label>
+    <div class="peshapes">${sh.map((s, i) => `<button data-s="${i}" class="${i === PE.selShape ? 'on' : ''}">${i + 1}. ${s.type}</button>`).join('')}</div>
+    <div class="peshape"></div>
+    <div class="edbtns" style="margin-top:12px"><button class="pereset">Reset ${PE.kind}</button></div>`;
+  el.querySelector('.pecol').onchange = e => { const q = peGet(); if (e.target.checked) q.color = el.querySelector('.pecolv').value; else delete q.color; peSet(q); peSide(); };
+  el.querySelector('.pecolv').oninput = e => { const q = peGet(); q.color = e.target.value; peSet(q); };
+  el.querySelector('.pebrk').onchange = e => { const q = peGet(); q.breakable = e.target.value; peSet(q); };
+  el.querySelector('.pehide').onchange = e => { const q = peGet(); q.hideBase = e.target.checked; peSet(q); };
+  el.querySelectorAll('[data-add]').forEach(b => b.onclick = () => { const q = peGet(); (q.shapes = q.shapes || []).push({ type: b.dataset.add, x: .5, y: .5, w: .4, h: .4, rot: 0, c: '#ffffff', a: 1, lw: .08 }); PE.selShape = q.shapes.length - 1; peSet(q); peSide(); });
+  el.querySelectorAll('[data-s]').forEach(b => b.onclick = () => { PE.selShape = +b.dataset.s; peSide(); peDraw(); });
+  el.querySelector('.pereset').onclick = () => { PE.selShape = -1; peSet({}); peSide(); };
+  const s = sh[PE.selShape], box = el.querySelector('.peshape'); if (!s) return;
+  const sl = (k, lab, min, max, st) => `<label>${lab}<input type="range" data-sk="${k}" min="${min}" max="${max}" step="${st}" value="${s[k] ?? 0}"><output>${s[k] ?? 0}</output></label>`;
+  box.innerHTML = `<h4>Shape ${PE.selShape + 1}: ${s.type} <small>drag it in the preview to move</small></h4>
+    <label>Type <select data-st>${ED_SHAPES.map(t => `<option ${t === s.type ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+    ${sl('x', 'Across', -.5, 1.5, .01)}${sl('y', 'Down', -.5, 1.5, .01)}${sl('w', 'Width', .02, 2, .01)}${sl('h', 'Height', .02, 2, .01)}${sl('rot', 'Rotation', -180, 180, 1)}${sl('a', 'Opacity', 0, 1, .05)}${sl('lw', 'Line width', .01, .4, .01)}
+    <label>Color <input type="color" data-sc value="${edHex(s.c)}"></label>
+    <div class="edbtns"><button data-sa="up">Move up</button><button data-sa="down">Move down</button><button data-sa="dup">Duplicate</button><button data-sa="del">Delete</button></div>`;
+  box.querySelectorAll('[data-sk]').forEach(r => r.oninput = () => { const q = peGet(); q.shapes[PE.selShape][r.dataset.sk] = +r.value; r.nextElementSibling.textContent = r.value; peSet(q); });
+  box.querySelector('[data-st]').onchange = e => { const q = peGet(); q.shapes[PE.selShape].type = e.target.value; peSet(q); peSide(); };
+  box.querySelector('[data-sc]').oninput = e => { const q = peGet(); q.shapes[PE.selShape].c = e.target.value; peSet(q); };
+  box.querySelectorAll('[data-sa]').forEach(b => b.onclick = () => { const q = peGet(), a = q.shapes, i = PE.selShape;
+    if (b.dataset.sa === 'del') { a.splice(i, 1); PE.selShape = -1; } if (b.dataset.sa === 'dup') { a.splice(i + 1, 0, edClone(a[i])); PE.selShape = i + 1; }
+    if (b.dataset.sa === 'up' && i < a.length - 1) { [a[i], a[i + 1]] = [a[i + 1], a[i]]; PE.selShape = i + 1; } if (b.dataset.sa === 'down' && i > 0) { [a[i], a[i - 1]] = [a[i - 1], a[i]]; PE.selShape = i - 1; }
+    peSet(q); peSide(); });
+}
+function peSideVals() { const s = (peGet().shapes || [])[PE.selShape]; if (!s) return; PE.box.querySelectorAll('[data-sk]').forEach(r => { r.value = s[r.dataset.sk] ?? 0; r.nextElementSibling.textContent = r.value; }); }
