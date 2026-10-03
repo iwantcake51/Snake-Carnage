@@ -34,6 +34,7 @@ function update(dt) {
   if (cam && !cam.hold) { cam.t += dt; if (state === 'intro' && cam.t > cam.dur * .8) state = 'ready'; if (cam.t >= cam.dur) cam = null; }
   updateCamFollow(dt); updateCombo(dt); updateEvents(dt);
   if ((abilT -= dt) <= 0) { abilT = .1; abilityHud(); hudNear(); }
+  abilityTick();
   if (state === 'play' && (chT -= dt) <= 0) {
     chT = .5;
     const pan = creatures.filter(c => c.alive && c.def.human && c.state === 'panic').length;

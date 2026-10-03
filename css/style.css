@@ -1362,7 +1362,7 @@ input[type=range]{accent-color:var(--acc)}
 #rewards .rw{border-radius:2px!important;font-family:var(--f-num)!important}
 #combo .cbox{border-radius:3px}
 .hc{background:rgba(12,10,11,.55)!important}
-#abil .ab,#touch .ab{border-radius:3px!important}
+#abil .ab,#touch .ab,#abil .ab .cd,#touch .ab .cd{border-radius:50%!important} /* skills are round */
 #resume>*{border-radius:3px!important}
 /* menu */
 .menu .mlevel span:first-child{font-family:var(--f-head)!important;text-transform:uppercase;letter-spacing:.05em}

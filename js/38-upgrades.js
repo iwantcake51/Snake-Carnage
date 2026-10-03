@@ -70,6 +70,12 @@ function abilityHud(rebuild) {
     }
   }
 }
+function abilityTick() { // every frame: just slide the cooldown rings, so they sweep smoothly instead of ticking ten times a second
+  for (const host of [document.getElementById('abil'), document.querySelector('#touch .tabil')]) {
+    if (!host) continue;
+    for (const b of host.children) { const id = b.dataset.a, A = ABIL[id]; if (!A) continue; const k = Math.max(0, (abilCD[id] || 0) - T) / A.cd; b.style.setProperty('--cd', (k * 360).toFixed(2) + 'deg'); }
+  }
+}
 function refreshTouchAbilities() {
   const host = document.querySelector('#touch .tabil'); if (!host) return;
   host.innerHTML = UPGRADES.filter(u => u.ability && upg(u.id)).map(u => `<button class="tb ab" data-a="${u.id}" data-sfx="none" aria-label="${u.name}">${upIcon(u.icon)}<i class="cd"></i></button>`).join('');
