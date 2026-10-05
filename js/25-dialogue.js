@@ -147,7 +147,7 @@ const CUT = [[.6, .95], [.6, .95], [.3, .8], [.1, .6], [0, .5]]; // how far into
 function bub(c, o) {
   const b = c.bubbles || (c.bubbles = []), len = o.text.length;
   const cps = o.act ? 0 : (o.yell ? rand(30, 42) : rand(16, 24)) * ((c.talkK || 1) > 1.4 ? 1.2 : 1) * (o.fast ? 1.3 : 1);
-  const nb = { text: o.text, yell: !!o.yell, act: !!o.act, t: 0, delay: o.delay || 0, cps, urg: o.urg || 0, full: o.full, topic: o.topic,
+  const nb = { text: o.text, yell: !!o.yell, act: !!o.act, t: 0, delay: o.delay || 0, cps, urg: o.urg || 0, convo: o.convo, li: o.li,
     life: (cps ? len / cps : 0) + clamp(.8 + len * .028, 1, 2.1) };
   b.push(nb); if (b.length > 4) b.splice(0, b.length - 4);
   return nb;
@@ -171,7 +171,7 @@ function interrupt(c, urg) { // cut whatever they're saying; returns how long un
     at = sp;
   }
   const kept = b.text.slice(0, at).replace(/[\s,.…—-]+$/, '');
-  if (b.full && b.topic !== undefined) c.lost = { full: b.full, topic: b.topic, tier: tierOf(c), T, partner: c.convo && (c.convo.a === c ? c.convo.b : c.convo.a) };
+  if (b.convo) b.convo.cut = b.li; // a conversation line cut short: the talk remembers which one, to pick it up again later (see resumeConvos)
   b.text = kept + '—'; b.life = b.text.length / b.cps + rand(.7, 1.1);
   return Math.max(0, (b.text.length - now) / b.cps) + pauseFor(urg);
 }
@@ -181,95 +181,163 @@ const NAMES_RE = /\{name\}/g;
 const heard = new Map(); // line -> when anyone last said it: nobody repeats what someone nearby just said
 const recentTopics = []; // [{id, T}]: different pairs don't all talk about the same thing
 const freshLine = l => T - (heard.get(l) ?? -99) > 40;
-function talkPool() { const k = mapKey(); return (TALK[k] || []).concat(MAPS[mapIdx].club ? [] : TALK.generic.map(t => ({ ...t, generic: true }))).concat(weatherTalk().map(t => ({ ...t, generic: true }))); } // people talk about the weather they're actually standing in
+const pickFresh = (c, arr) => { const f = arr.filter(freshLine); return fromPool(c, f.length ? f : arr); };
+const lc = t => t[0].toLowerCase() + t.slice(1);
+/* ---- conversations: each one is a walk through one topic's thread graph (see 25-talk.js) ----
+   The engine keeps the state of the talk: which topic, who asked, which question (key + type), what the answer
+   established (tags), which follow-ups were used, and every line said so far. A follow-up is only possible when it
+   names this question and this answer; a reply that is itself a question is only used when something answers it. */
+const SPOKEN = ['twelve', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven'];
+function spokenTime() { // the clock the way people say it: "quarter past nine", "almost ten"
+  const h = ((tod % 24) + 24) % 24, q = Math.round((h % 1) * 4) % 4, hr = Math.floor(h) + (Math.round((h % 1) * 4) === 4 ? 1 : 0);
+  return q === 0 ? SPOKEN[hr % 12] : q === 1 ? 'quarter past ' + SPOKEN[hr % 12] : q === 2 ? 'half past ' + SPOKEN[hr % 12] : 'quarter to ' + SPOKEN[(hr + 1) % 12];
+}
+const darkOut = () => { const m = MAPS[mapIdx]; return m.indoor ? (tod % 24 >= 19 || tod % 24 < 6) : !!(light && light.day < .25); };
+function fillTalk(t) {
+  if (t.indexOf('{') < 0) return t;
+  const st = spokenTime();
+  return t.replace('{time}', st).replace('{Time}', st[0].toUpperCase() + st.slice(1)).replace('{nexthour}', SPOKEN[(Math.floor(tod % 24) + 1) % 12])
+    .replace('{today}', darkOut() ? 'tonight' : 'today').replace('{here}', MAPS[mapIdx].indoor ? 'in here' : 'out here');
+}
+function topicFits(tp) { // can this topic be talked about here, now?
+  const m = MAPS[mapIdx];
+  if (tp.out && (m.indoor || m.space)) return false;
+  if (tp.dark && !darkOut()) return false;
+  if (tp.light && darkOut()) return false;
+  if (tp.not && season && tp.not.split(' ').includes(season.id)) return false;
+  return true;
+}
+function talkPool() { const k = mapKey(); return (TALK[k] || []).concat(MAPS[mapIdx].club ? [] : TALK.generic.map(t => (t.generic = true, t))).concat(weatherTalk().map(t => (t.generic = true, t))).filter(topicFits); } // people talk about the weather they're actually standing in
 function pickTopic(a, b) {
-  const used = new Set(recentTopics.filter(r => T - r.T < 70).map(r => r.id));
-  let pool = talkPool().filter(t => !a.topics.includes(t.id) && !b.topics.includes(t.id) && !used.has(t.id));
-  if (!pool.length) pool = talkPool().filter(t => !a.topics.includes(t.id));
+  const used = new Set(recentTopics.filter(r => T - r.T < 70).map(r => r.id)), ok = tp => tp.needs !== 'dog' || (a.dog && a.dog.alive) || (b.dog && b.dog.alive);
+  let pool = talkPool().filter(t => ok(t) && !a.topics.includes(t.id) && !b.topics.includes(t.id) && !used.has(t.id));
+  if (!pool.length) pool = talkPool().filter(t => ok(t) && !a.topics.includes(t.id));
   if (!pool.length) return null;
   const local = pool.filter(t => !t.generic); if (local.length && Math.random() < .7) pool = local; // mostly about where they are
   const tp = pick(pool); recentTopics.push({ id: tp.id, T }); if (recentTopics.length > 12) recentTopics.shift();
   for (const c of [a, b]) { c.topics.push(tp.id); if (c.topics.length > 6) c.topics.shift(); }
   return tp;
 }
-const pickFresh = (c, arr) => { const f = arr.filter(freshLine); return fromPool(c, f.length ? f : arr); };
-const FACT_RE = { pizza: { open: /open|Probably|Eleven|ten\?|noon/i, closed: /closed|Doubt|No idea|phone/i } }; // shared world facts: everyone agrees on them
-function factOf(id) { if (id === 'pizza') { const h = tod % 24; return h >= 11 && h < 22 ? 'open' : 'closed'; } return null; }
-const lc = t => t[0].toLowerCase() + t.slice(1);
-function answerFor(c, tp, type) { // an answer to what was actually asked, in this person's voice
-  const key = tp.id + ':' + type; c.said = c.said || {}; c.overheard = c.overheard || {};
-  if (c.said[key]) return pick(['Like I said, ', 'I told you, ', 'Still ']) + lc(c.said[key]); // they remember what they said
-  if (c.overheard[key] && Math.random() < .7) return pick(['Someone said ', 'I heard ', 'Apparently ']) + lc(c.overheard[key]); // they caught it from another conversation
-  const f = factOf(tp.id), re = f && FACT_RE[tp.id] && FACT_RE[tp.id][f];
-  if (re) { const ok = ((tp.a || {})[type] || []).filter(a => re.test(a)); if (ok.length) { const a = pickFresh(c, ok); c.said[key] = a; return a; } }
-  for (const [tr, k] of [['rude', .3], ['quiet', .4], ['distracted', .22], ['funny', .15]]) if (hasTrait(c, tr) && PERSONA_ANS[tr][type] && Math.random() < k) return pick(PERSONA_ANS[tr][type]);
-  return pickFresh(c, (tp.a || {})[type] || (tp.a || {}).say || ['Huh.']);
+const FACT_TAGS = new Set(['open', 'closed']);
+const keyOk = (n, key) => !n.k || n.k.includes(key), tagOk = (n, tags) => !n.t || n.t.some(t => tags.includes(t));
+const hasFollow = (list, key, tags) => list.some(n => keyOk(n, key) && tagOk(n, tags));
+function pickFreshT(c, list, v) { // tagged lines: not said in this talk, preferably not heard nearby lately, not in this person's recent lines
+  let L = list.filter(l => !v.texts.has(l.text)); if (!L.length) L = list;
+  const f = L.filter(l => freshLine(l.text) && !(c.recent || []).includes(l.text)); if (f.length) L = f;
+  if (c.voice && !c.voice.swears) { const clean = L.filter(l => !SWEAR.test(l.text)); if (clean.length) L = clean; }
+  const l = pick(L); if (c.recent) { c.recent.push(l.text); if (c.recent.length > 10) c.recent.shift(); }
+  return l;
 }
-function topicLines(tp, A, B, out, first) { // one topic: opener, answer, then maybe a few follow-ups
-  const [type, open] = pickFresh(A, tp.q.map(q => q[1])) && tp.q.find(q => q[1] === A.recent[A.recent.length - 1]) || pick(tp.q);
-  const ai = out.length ? (out[out.length - 1][0] ^ 1) : 0, bi = ai ^ 1; // whoever didn't just speak starts a new topic
-  out.push([ai, (first ? '' : Math.random() < .5 ? pick(SWITCH) + ' ' : '') + open, tp.id]);
+function answerFor(B, tp, q, v) { // an answer to what was actually asked, in this person's voice, consistent with what they said before
+  const key = tp.id + ':' + q.key; B.said = B.said || {}; B.overheard = B.overheard || {};
+  if (B.said[key]) return { text: pick(['Like I said, ', 'I told you, ']) + lc(B.said[key].text), tags: B.said[key].tags, repeat: true }; // they remember what they said, and stick to it
+  if (B.overheard[key] && Math.random() < .7) return { text: pick(['Someone said ', 'I heard ', 'Apparently ']) + lc(B.overheard[key].text), tags: B.overheard[key].tags, repeat: true }; // caught it from another conversation
+  for (const [tr, k] of PERSONA_K) if (hasTrait(B, tr) && PERSONA_ANS[tr][q.type] && Math.random() < k) { const l = pickFreshT(B, PERSONA_ANS[tr][q.type], v); return { text: l.text, tags: ['unsure'], persona: tr }; }
+  let pool = tp.A[q.key] || tp.A[q.type] || [{ text: 'Huh.', tags: ['unsure'] }];
+  const f = tp.fact && tp.fact(); if (f) { const ok = pool.filter(a => !a.tags.some(t => FACT_TAGS.has(t) && t !== f)); if (ok.length) pool = ok; } // the world decides: everyone agrees the shop is shut
+  const ans = pool.filter(a => !a.tags.includes('ask') || hasFollow(tp.N, q.key, a.tags)); if (ans.length) pool = ans; // a question back only if something answers it
+  return pickFreshT(B, pool, v);
+}
+const PERSONA_RE = ['Okay then.', 'Forget I asked.', 'Wow. Okay.', 'Never mind.'];
+function topicLines(tp, P, out, v, first) { // one topic: opener, the answer to it, then follow-ups that fit, deeper only along the graph
+  const ai = out.length ? out[out.length - 1][0] ^ 1 : v.ask0, bi = ai ^ 1, A = P[ai], B = P[bi]; // whoever didn't just speak starts a new topic
+  const known = A.known || (A.known = {});
+  const qs = tp.q.filter(q => !known[tp.id + ':' + q.key] && !v.asked.has(tp.id + ':' + q.key)); // never ask what they already know
+  if (!qs.length) return false;
+  const q = pickFreshT(A, qs, v), open = fillTalk(q.text), qkey = tp.id + ':' + q.key; v.asked.add(qkey);
+  const push = (who, text, meta) => { out.push([who, text, tp.id, meta]); v.texts.add(text); };
+  push(ai, (first || MAPS[mapIdx].club ? '' : Math.random() < .5 ? pickFresh(A, SWITCH[q.type === 'say' ? 'say' : 'q']) + ' ' : '') + open, { q: q.key, type: q.type, ask: ai });
   if (Math.random() < (MAPS[mapIdx].club ? .3 : .05)) { // didn't catch it
-    out.push([bi, MAPS[mapIdx].club ? 'WHAT?' : pick(MISHEAR)]);
-    if (Math.random() < .2 && type === 'say') { out.push([ai, pick(NEVERMIND)]); return; }
-    out.push([ai, MAPS[mapIdx].club ? open.toUpperCase() : open, tp.id]); // says it again
+    push(bi, MAPS[mapIdx].club ? 'WHAT?' : pickFresh(B, MISHEAR), { mishear: 1 });
+    if (Math.random() < .2 && q.type === 'say') { push(ai, pickFresh(A, NEVERMIND), { end: 1 }); return true; }
+    push(ai, MAPS[mapIdx].club ? open.toUpperCase() : open, { q: q.key, repeat: 1 }); // says it again
   }
-  const ans = answerFor(B, tp, type); out.push([bi, ans]);
-  if (!/^(Like I said|I told you|Still |Someone said|I heard|Apparently)/.test(ans)) { B.said = B.said || {}; B.said[tp.id + ':' + type] = ans;
-    for (const o of nearbyHumans(B.x, B.y, 130)) if (o !== A && o !== B && o.topics) { o.overheard = o.overheard || {}; o.overheard[tp.id + ':' + type] = ans; } } // people nearby hear it too
-  if (factOf(tp.id) === 'closed' && Math.random() < .7) { out.push([ai, pick(['Ugh. Of course it is.', 'Seriously? Again?', 'Great. Guess I\'m starving.', 'Who closes a pizza place this early?'])]); return; } // reacts to it being shut
-  const ns = (tp.n || []).slice().sort(() => Math.random() - .5);
-  let k = 0;
-  while (ns.length && Math.random() < (k ? .4 : .62) * Math.min(1.4, (A.talkK + B.talkK) / 2)) { // keep going, sometimes
-    const [line, replies] = ns.pop(), who = Math.random() < .65 ? ai : bi;
-    out.push([who, line, tp.id], [who ^ 1, pickFresh(who ? A : B, replies)]); k++;
+  const ans = answerFor(B, tp, q, v), atext = fillTalk(ans.text);
+  push(bi, atext, { a: q.key, tags: ans.tags });
+  for (const t of ans.tags) v.facts.add(t);
+  known[qkey] = ans.tags; // the asker now knows; they won't ask again
+  if (!ans.repeat) { B.said[qkey] = { text: atext, tags: ans.tags };
+    for (const o of nearbyHumans(B.x, B.y, 130)) if (o !== A && o !== B && o.topics) (o.overheard = o.overheard || {})[qkey] = { text: atext, tags: ans.tags }; } // people nearby hear it too
+  if (ans.persona) { if ((ans.persona === 'rude' || ans.persona === 'distracted') && Math.random() < .5) push(ai, pickFresh(A, PERSONA_RE), { end: 1 }); v.dead = true; return true; } // a non-answer: nowhere for the thread to go, and the talk fizzles
+  let list = tp.N.filter(n => keyOk(n, q.key)), tags = ans.tags, last = bi, k = 0;
+  const talky = Math.min(1.4, ((A.talkK || 1) + (B.talkK || 1)) / 2);
+  for (let depth = 0; depth < 4; depth++) {
+    const opts = list.filter(n => !v.used.has(n) && tagOk(n, tags));
+    if (!opts.length) break;
+    if (!tags.includes('ask') && Math.random() > (k ? .45 : .66) * talky) break; // an open question always gets picked up; otherwise, sometimes it just ends
+    const n = pick(opts); v.used.add(n);
+    const who = n.by === 'a' ? ai : n.by === 'b' ? bi : last ^ 1;
+    const say = n.say.filter(l => !v.texts.has(l)); if (!say.length) break;
+    push(who, fillTalk(pickFresh(P[who], say)), { n: 1 });
+    let rs = n.re.filter(r => !r.tags.includes('ask') || hasFollow(n.then, null, r.tags)); if (!rs.length) { last = who; break; }
+    const r = pickFreshT(P[who ^ 1], rs, v); push(who ^ 1, fillTalk(r.text), { tags: r.tags }); for (const t of r.tags) v.facts.add(t);
+    last = who ^ 1; tags = r.tags; list = n.then; k++;
+    if (!list.length) break; // the thread only goes deeper where the graph says it can
   }
+  return true;
 }
-function buildTalk(a, b, surv) { // -> [[speaker 0|1, text, topic id?], ...]
-  const out = [];
+function buildTalk(a, b, surv) { // -> [[speaker 0|1, text, topic id?, meta], ...] plus the talk's state
+  const out = [], v = { asked: new Set(), used: new Set(), texts: new Set(), facts: new Set(), ask0: 0 };
   if (surv) {
-    if (a.pendingTopic && a.pendingTopic.back && Math.random() < .35) { // back to what they were talking about before it all happened
-      const tp = a.pendingTopic; a.pendingTopic = b.pendingTopic = null;
-      out.push([0, pick(tp.back), tp.id], [1, pick(BACK_RE)]); if (Math.random() < .5) out.push([0, pick(['Yeah. Fair.', 'Sorry. Coping.', 'Just saying.', '...right.'])]);
-      return out;
+    const pt = a.pendingTopic;
+    if (pt && pt.tp.B.length && Math.random() < .35) { // back to what they were talking about before it all happened
+      const backs = pt.tp.B.filter(l => !l.req || pt.facts.has(l.req)); a.pendingTopic = b.pendingTopic = null;
+      if (backs.length) {
+        out.push([0, pick(backs).text, pt.tp.id], [1, pick(BACK_RE)]); if (Math.random() < .5) out.push([0, pick(['Yeah. Fair.', 'Sorry. Coping.', 'Just saying.', '...right.'])]);
+        return { out, v };
+      }
     }
     const pool = SURVIVE.filter(s => lastDead || !s.ask[0].includes('{dead}')), s = pick(pool);
     out.push([0, pick(s.ask)], [1, pickFresh(b, s.ans)]);
     if (s.more && Math.random() < .6) { out.push([0, pick(s.more[0])]); if (s.more[1]) out.push([1, pick(s.more[1])]); }
-    return out;
+    return { out, v };
   }
-  const tp = pickTopic(a, b); if (!tp) return out;
-  topicLines(tp, a, b, out, true);
-  if (Math.random() < .35 * Math.min(1.5, (a.talkK + b.talkK) / 2)) { const t2 = pickTopic(a, b); if (t2) topicLines(t2, a, b, out, false); } // drifts onto something else
-  if (!/\?$/.test(out[out.length - 1][1]) && Math.random() < .3) out.push([out[out.length - 1][0] ^ 1, pick(ACKS)]);
-  return out.map(l => [l[0], l[1].replace(NAMES_RE, () => pick(NAMES)), l[2]]);
+  const tp = pickTopic(a, b); if (!tp) return { out, v };
+  if (tp.needs === 'dog') v.ask0 = b.dog && b.dog.alive ? 0 : 1; // the dog's owner is the one asked about it
+  v.tp = tp;
+  if (!topicLines(tp, [a, b], out, v, true)) return { out: [], v };
+  if (!v.dead && !MAPS[mapIdx].club && Math.random() < .22 * Math.min(1.5, (a.talkK + b.talkK) / 2)) { const t2 = pickTopic(a, b); if (t2 && t2.needs !== 'dog') topicLines(t2, [a, b], out, v, false); } // drifts onto something else
+  const lastL = out[out.length - 1];
+  if (lastL && !/\?$/.test(lastL[1]) && !(lastL[3] && lastL[3].end) && Math.random() < .3) out.push([lastL[0] ^ 1, pickFresh(lastL[0] ? a : b, ACKS)]);
+  return { out: out.map(l => [l[0], l[1].replace(NAMES_RE, () => pick(NAMES)), l[2], l[3]]), v };
 }
-let convos = [], convoT = 3, mutterT = 4;
+let convos = [], convoT = 3, mutterT = 4, resumeT = 1, resumeCD = 0;
 function speakIn(v, who, text, ctx, topicId) {
   const [t0, tag] = expand(text).split('#');
   if (tag && THREADS[tag]) who.mem = { tag, t: T };
   heard.set(text, T);
-  const r = finishLine(t0, who, ctx), nb = bub(who, { ...r, urg: 0, full: r.text, topic: topicId ? v.topic : undefined });
+  const r = finishLine(t0, who, ctx), nb = bub(who, { ...r, urg: 0, convo: v, li: v.i });
   v.topic && (who.lastTopic = v.topic);
   return nb;
 }
 const pregame = () => state !== 'play' || !snake || !snake.started;
+const startled = p => p.state === 'panic' || p.state === 'flee' || p.state === 'uneasy';
+function suspendConvo(v) { // something cut the talk short: remember where it was, so it can pick up again (or be forgotten)
+  for (const p of [v.a, v.b]) { const b = typing(p); if (b && b.convo === v) interrupt(p, 2); } // whoever was mid-sentence is cut off, naturally
+  const at = v.cut ?? v.i; // the line that got cut (said again on resuming), or else the next one
+  const rest = v.lines.slice(at), tier = Math.max(tierOf(v.a), tierOf(v.b));
+  if (v.topic) for (const p of [v.a, v.b]) p.pendingTopic = { tp: v.topic, facts: v.state.facts };
+  const meaty = rest.length >= 2 || (rest.length === 1 && v.cut !== undefined && !((rest[0][3] || {}).tags || []).includes('unsure')); // something real was left unsaid
+  if (!meaty || v.survivor) return; // the talk was basically over: nothing to come back to
+  const susp = { a: v.a, b: v.b, rest, T, tier, resumable: true };
+  v.a.susp = v.b.susp = susp;
+}
 function updateConvos(dt) {
   if (MOD.mute) return;
   for (let i = convos.length - 1; i >= 0; i--) {
     const v = convos[i];
-    const panicky = !v.survivor && (v.a.state === 'panic' || v.b.state === 'panic');
-    const broke = !v.a.alive || !v.b.alive || dist2(v.a.x, v.a.y, v.b.x, v.b.y) > 150 * 150 || panicky;
+    const scared = !v.survivor && (startled(v.a) || startled(v.b)); // a scream, a death, the snake, a crash: whatever made either of them flinch
+    const broke = !v.a.alive || !v.b.alive || dist2(v.a.x, v.a.y, v.b.x, v.b.y) > 150 * 150 || scared;
     if (broke) {
-      if (panicky && v.a.alive && v.b.alive) {
-        const calm = v.a.state === 'panic' ? v.b : v.a;
-        for (const p of [v.a, v.b]) if (v.topic) p.pendingTopic = v.topic; // they might come back to it later
-        if (calm.state !== 'panic' && Math.random() < .6) { const d = interrupt(calm, 1); bub(calm, { ...finishLine(fromPool(calm, LINES.convoBreak), calm, 'idle'), delay: d, urg: 1 }); }
+      if (scared && v.a.alive && v.b.alive) {
+        suspendConvo(v);
+        const calm = v.a.state === 'panic' ? v.b : v.b.state === 'panic' ? v.a : null; // one of them bolted mid-talk
+        if (calm && calm.state !== 'panic' && Math.random() < .6) { const d = interrupt(calm, 1); bub(calm, { ...finishLine(pickFresh(calm, LINES.convoBreak), calm, 'idle'), delay: d, urg: 1 }); }
       }
       v.a.convo = v.b.convo = null; convos.splice(i, 1); continue;
     }
     if ((v.t -= dt) > 0) continue;
-    if (v.i >= v.lines.length) { v.a.convo = v.b.convo = null; convos.splice(i, 1); continue; }
+    if (v.i >= v.lines.length) { v.a.convo = v.b.convo = null; v.a.susp = v.b.susp = null; convos.splice(i, 1); continue; }
     const [sp, text, tid] = v.lines[v.i], who = sp ? v.b : v.a, other = sp ? v.a : v.b;
     if (v.lines[v.i].cutIn) interrupt(other, 1); // talks over the end of their sentence
     v.topic = tid ? talkPool().find(t => t.id === tid) || v.topic : v.topic;
@@ -284,20 +352,39 @@ function updateConvos(dt) {
       v.t = typeT * rand(.7, .9); next.cutIn = true;
     } else v.t = typeT + rand(.45, 1.15) / Math.max(.6, other.talkK || 1);
   }
-  recoverThoughts(dt);
+  if ((resumeT -= dt) <= 0) { resumeT = rand(.8, 1.4); resumeConvos(); }
   if ((mutterT -= dt) <= 0) { mutterT = rand(3.5, 7); mutter(); }
   if ((convoT -= dt) > 0) return; convoT = rand(5, 10);
   if (convos.length >= (pregame() ? 3 : 2)) return;
   for (const c of creatures.slice().sort(() => Math.random() - .5)) { // two people standing close, both calm (or both just survived), start talking
-    if (!c.alive || !c.def.human || c.def.alien || c.convo || !c.topics || busyUntil(c) > 0 || Math.random() > .1 * (c.talkK || 1) * (c.state === 'wander' && c.alert > .3 ? 3 : 1)) continue; // rarer, unless something just happened worth talking about
+    if (!c.alive || !c.def.human || c.def.alien || c.convo || c.susp || !c.topics || busyUntil(c) > 0 || Math.random() > .1 * (c.talkK || 1) * (c.state === 'wander' && c.alert > .3 ? 3 : 1)) continue; // rarer, unless something just happened worth talking about
     const surv = c.state === 'wander' && c.alert > .3 && (!snake || dist2(c.x, c.y, snake.x, snake.y) > 220 * 220);
     if (!surv && (c.state !== 'wander' && c.state !== 'idle' || c.alert > .3)) continue;
-    const o = nearbyHumans(c.x, c.y, 70).find(o => o !== c && !o.def.alien && o.topics && !o.convo && busyUntil(o) <= 0 && (o.state === 'wander' || o.state === 'idle') && los(c.x, c.y, o.x, o.y));
+    const o = nearbyHumans(c.x, c.y, 70).find(o => o !== c && !o.def.alien && o.topics && !o.convo && !o.susp && busyUntil(o) <= 0 && (o.state === 'wander' || o.state === 'idle') && (MOD.blind || los(c.x, c.y, o.x, o.y)));
     if (!o) continue;
     const [A, B] = (o.talkK || 1) > (c.talkK || 1) ? [o, c] : [c, o]; // the chattier one starts
-    const lines = buildTalk(A, B, surv); if (!lines.length) continue;
-    const v = { a: A, b: B, lines, i: 0, t: rand(.2, .8), survivor: surv, topic: null }; A.convo = B.convo = v; convos.push(v);
+    const { out: lines, v: st } = buildTalk(A, B, surv); if (!lines.length) continue;
+    const v = { a: A, b: B, lines, i: 0, t: rand(.2, .8), survivor: surv, topic: st.tp || null, state: st }; A.convo = B.convo = v; convos.push(v);
     break;
+  }
+}
+function resumeConvos() { // after the danger: pick the talk back up, admit it's gone, or just let it go. Sparingly.
+  for (const c of creatures) {
+    const s = c.susp; if (!s || s.a !== c) continue;
+    const a = s.a, b = s.b, age = T - s.T;
+    if (!a.alive || !b.alive || age > 60) { a.susp = b.susp = null; continue; }
+    if (age < 5 || a.convo || b.convo || startled(a) || startled(b) || busyUntil(a) > 0 || busyUntil(b) > 0) continue;
+    if (snake && snake.started && !MOD.blind && (dist2(a.x, a.y, snake.x, snake.y) < 220 * 220 || dist2(b.x, b.y, snake.x, snake.y) < 220 * 220)) continue; // not while it's still right there
+    a.susp = b.susp = null;
+    if (dist2(a.x, a.y, b.x, b.y) > 110 * 110 || T < resumeCD) continue; // they got separated (or someone just did this): it's simply dropped
+    const keep = [.55, .4, .2, .05][s.tier] ?? .1, r = Math.random();
+    let lines = null;
+    if (s.resumable && r < keep) { const first = s.rest[0]; lines = [[first[0], pick(CONVO_RESUME), first[2]], ...s.rest.map(l => [l[0], l[1], l[2], l[3]])]; } // "Anyway, what I was saying—" and the cut line again, then the rest
+    else if (r < keep + .3) { const w = s.rest[0][0]; lines = [[w, pick(CONVO_LOST)], [w ^ 1, pick(CONVO_LOST_RE)]]; } // the one who was talking can't remember
+    if (!lines) continue;
+    resumeCD = T + rand(12, 20);
+    const v = { a, b, lines, i: 0, t: rand(.3, .9), survivor: false, topic: a.pendingTopic ? a.pendingTopic.tp : null, state: { facts: new Set() } }; a.convo = b.convo = v; convos.push(v);
+    a.pendingTopic = b.pendingTopic = null;
   }
 }
 function mutter() { // someone alone says something to nobody in particular, often about what they're doing
@@ -316,26 +403,6 @@ function mutter() { // someone alone says something to nobody in particular, oft
   const [t0, tag] = expand(raw).split('#'); if (tag && THREADS[tag]) c.mem = { tag, t: T }; heard.set(raw, T);
   bub(c, { ...finishLine(t0, c, 'idle') });
 }
-function recoverThoughts(dt) { // back to what they were saying before the snake cut them off, or not
-  for (const c of creatures) {
-    const L = c.lost; if (!L || !c.alive) continue;
-    if (T - L.T > 40) { c.lost = null; continue; }
-    if (c.state === 'panic' || c.state === 'flee' || T - L.T < 4 || busyUntil(c) > 0 || Math.random() > dt * .4) continue;
-    c.lost = null;
-    const keep = [.6, .45, .22, .08][L.tier] ?? .1; // calm cut-offs often come back; real terror wipes them
-    if (Math.random() > keep) continue; // forgotten
-    const p = L.partner && L.partner.alive && dist2(p0x(L.partner), p0y(L.partner), c.x, c.y) < 150 * 150 && L.partner.state !== 'panic' ? L.partner : null;
-    const full = L.full.replace(/[—]+$/, ''), lower = full[0].toLowerCase() + full.slice(1), r = Math.random();
-    if (p && r < .3) { // the other one remembers
-      bub(p, { ...finishLine(pick(LOST_PARTNER), p, 'idle') });
-      if (Math.random() < .6) bub(c, { ...finishLine(pick(RESUME).replace('{full}', lower), c, 'idle'), delay: rand(1.4, 2) });
-      else bub(c, { ...finishLine(pick(LOST_SHRUG), c, 'idle'), delay: rand(1.3, 1.9) });
-    } else if (r < .55) bub(c, { ...finishLine(pick(RESUME).replace('{full}', lower), c, 'idle') });
-    else if (r < .8) { bub(c, { ...finishLine(pick(LOST_SELF), c, 'idle') }); bub(c, { ...finishLine(pick(LOST_SHRUG), c, 'idle'), delay: rand(1.6, 2.4) }); }
-    else bub(c, { ...finishLine(pick(LOST_SHRUG), c, 'idle') });
-  }
-}
-const p0x = c => c.x, p0y = c => c.y;
 /* aliens: the same panic, in their own language */
 const ALIEN_SYL = ['zh', 'kra', 'vesh', 'tol', 'qua', 'xi', 'ro', 'mek', 'thul', 'gra', 'nak', 'vo', 'ree', 'yth', 'kk', 'oth', 'sil', 'brr', 'eek', 'za', 'qor', 'lix'];
 function gibberish(yell) {
