@@ -10,7 +10,7 @@ function update(dt) {
   if (state === 'dead') { // the world is frozen; only the camera settles and the death screen arrives
     shake *= Math.exp(-dt * 8); if (shake < .2) shake = 0;
     killV *= Math.exp(-dt * 1.4); killFlash *= Math.exp(-dt * 7);
-    if (deadT > 0) { deadT -= dt; if (deadT <= 0 || performance.now() - deadAt > 900) { deadT = 0; showDead(); } } // real time, not frame time: a slow frame can't hold the crash screen back
+    if (deadT > 0) { deadT -= dt; if (deadT <= 0 || performance.now() - deadAt > deathDelay() * 1000) { deadT = 0; showDead(); } } // real time, not frame time: a slow frame can't hold the crash screen back
     return;
   }
   if (hitStop > 0) { hitStop -= dt; return; } // hit-stop: the world holds its breath for a few frames
@@ -261,27 +261,27 @@ function drawTargetOutlines(x) { // clean silhouette rim around everything edibl
 function drawBubbles(x) {
   const fs = { Small: 8.5, Normal: 10, Large: 12.5 }[SETTINGS.bubbleSize] || 10, bh = fs + 5;
   x.textAlign = 'center'; x.textBaseline = 'middle';
+  const segC = []; if (snake) for (let i = 0; i < Math.min(snake.segs.length, 24); i += 2) segC.push(worldToCanvas(snake.segs[i].x, snake.segs[i].y)); // drawn in screen space: the same size at any zoom
   for (const c of creatures) { // stacked bubbles: newest next to the head, older ones pushed up
     if (!c.alive || !c.bubbles || !c.bubbles.length) continue;
     let seeA = playerSees(c.x, c.y); // hidden in fog, and fading out with distance so far-off chatter doesn't clutter the screen
     if (snake && !pregame()) { const d = Math.hypot(c.x - snake.x, c.y - snake.y), k = clamp(1 - (d - 130) / 220, 0, 1); seeA *= k * k * (3 - 2 * k); } // before the run starts, you can hear the whole map
     if (seeA <= .02) continue;
-    const vis = c.bubbles.filter(b => b.delay <= 0).slice(-3);
-    let cy = c.y - 14 - bh / 2;
+    const vis = c.bubbles.filter(b => b.delay <= 0).slice(-3), P = worldToCanvas(c.x, c.y - 12);
+    if (P.x < -60 || P.x > W + 60 || P.y < -20 || P.y > H + 60) continue; // zoomed in: off screen
+    let cy = P.y - 2 - bh / 2;
     for (let k = vis.length - 1; k >= 0; k--) {
       const b = vis[k];
       const txt = b.act ? `*${b.text}*` : b.cps ? b.text.slice(0, Math.max(1, shownLen(b))) : b.text;
       x.font = b.act ? `italic 600 ${fs * .92}px "Segoe UI", sans-serif` : `${b.yell ? 800 : 600} ${fs}px "Segoe UI", sans-serif`;
       const w = x.measureText(txt).width + 9, pop = Math.min(1, b.t / .14), sc = .6 + .4 * (1 - Math.pow(1 - pop, 3));
-      const bx = clamp(c.x + (vis.length - 1 - k) * 5, w / 2 + 2, W - w / 2 - 2), by = Math.max(bh, cy);
+      const bx = clamp(P.x + (vis.length - 1 - k) * 5, w / 2 + 2, W - w / 2 - 2), by = Math.max(bh, cy);
       let near = false; // fade bubbles the snake is under, so they never hide the action
-      if (snake) for (let i = 0; i < Math.min(snake.segs.length, 24) && !near; i += 2) {
-        const g = snake.segs[i]; near = Math.abs(g.x - bx) < w / 2 + 22 && Math.abs(g.y - by) < bh / 2 + 22;
-      }
+      for (let i = 0; i < segC.length && !near; i++) { const g = segC[i]; near = Math.abs(g.x - bx) < w / 2 + 22 && Math.abs(g.y - by) < bh / 2 + 22; }
       b.fa = (b.fa ?? 1) + ((near ? .18 : 1) - (b.fa ?? 1)) * .25;
       x.save(); x.globalAlpha = Math.min(1, (b.life - b.t) * 3) * b.fa * seeA; x.translate(bx + (b.yell ? Math.sin(T * 47 + k * 3 + c.x) * .7 : 0), by + (b.yell ? Math.cos(T * 53 + c.y) * .6 : 0)); x.scale(sc, sc); // shouting shakes
       x.fillStyle = b.act ? 'rgba(30,24,28,.82)' : b.yell ? '#fff' : 'rgba(244,244,244,.95)'; rrect(x, -w / 2, -bh / 2, w, bh, 5); x.fill();
-      if (k === vis.length - 1 && !b.act) { x.beginPath(); x.moveTo(c.x - bx - 4, bh / 2 - 1); x.lineTo(c.x - bx + 1, bh / 2 + 5); x.lineTo(c.x - bx + 4, bh / 2 - 1); x.fill(); }
+      if (k === vis.length - 1 && !b.act) { x.beginPath(); x.moveTo(P.x - bx - 4, bh / 2 - 1); x.lineTo(P.x - bx + 1, bh / 2 + 5); x.lineTo(P.x - bx + 4, bh / 2 - 1); x.fill(); }
       x.fillStyle = b.act ? '#e8dcd2' : b.yell ? '#a10000' : '#3a3236'; x.fillText(txt, 0, .5);
       x.restore();
       cy -= bh + 2;
@@ -289,7 +289,6 @@ function drawBubbles(x) {
   }
   x.globalAlpha = 1; x.textBaseline = 'alphabetic';
 }
-const V = { sx: 0, sy: 0, z: 0, fx: 0, fy: 0, ox: 0, oy: 0 };
 function applyView(x) { // shake, spawn zoom and look-ahead, shared by the scene and every overlay pass
   x.translate(V.sx, V.sy);
   if (V.z) { x.translate(W / 2, H / 2); x.scale(V.z, V.z); x.translate(-V.fx, -V.fy); }
@@ -308,7 +307,7 @@ function hudNear() { // corner UI turns half see-through while the snake is clos
   const pts = snake.segs.filter((g, i) => i % 3 === 0), pad = 30, ah = Math.cos(snake.angle), av = Math.sin(snake.angle); // the whole body, not just the head
   pts.push({ x: snake.x + ah * 90, y: snake.y + av * 90 }); // where the head is about to be: fade before it gets there
   for (const b of nearRects) {
-    const near = !b.empty && state !== 'menu' && pts.some(g => g.x - V.ox > b.x0 - pad && g.x - V.ox < b.x1 + pad && g.y - V.oy > b.y0 - pad && g.y - V.oy < b.y1 + pad);
+    const near = !b.empty && state !== 'menu' && pts.some(g => { const q = worldToCanvas(g.x, g.y); return q.x > b.x0 - pad && q.x < b.x1 + pad && q.y > b.y0 - pad && q.y < b.y1 + pad; });
     if (near) b.nearT = UT; const on = near || UT - (b.nearT ?? -9) < .7; // stays faded a moment after the body clears
     if (b.el.classList.contains('near') !== on) b.el.classList.toggle('near', on);
   }

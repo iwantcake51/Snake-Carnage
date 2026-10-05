@@ -28,8 +28,8 @@
     const r = b.getBoundingClientRect(), s = Math.max(r.width, r.height) * 2.2, rp = document.createElement('span');
     rp.className = 'ripple'; rp.style.cssText = `width:${s}px;height:${s}px;left:${e.clientX - r.left - s / 2}px;top:${e.clientY - r.top - s / 2}px`;
     if (getComputedStyle(b).position === 'static') b.style.position = 'relative';
-    if (getComputedStyle(b).overflow !== 'hidden') b.style.overflow = 'hidden';
-    b.appendChild(rp); setTimeout(() => rp.remove(), 600);
+    const clip = document.createElement('span'); clip.className = 'rip'; clip.appendChild(rp); // the ripple is clipped by its own box, so the button itself never gets overflow:hidden (that would also clip its enlarged hit area)
+    b.appendChild(clip); setTimeout(() => clip.remove(), 600);
   });
 })();
 /* the grain texture used on panels: baked once into a small PNG (an SVG noise filter gets re-rendered on every repaint, which made scrolling heavy) */

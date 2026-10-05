@@ -1728,3 +1728,20 @@ body.compact .menu .mlevel{position:relative;z-index:2}
 .edmodal .peseg{display:flex;border:1px solid #3a3035;border-radius:8px;overflow:hidden;flex:none}
 .edmodal .peseg button{border:0!important;border-radius:0!important;border-right:1px solid #3a3035!important;padding:5px 9px!important;background:#211c24}
 .edmodal .peseg button:last-child{border-right:0!important}.edmodal .peseg button.on{background:var(--acc,#d0191f);color:#fff}
+/* ---- PLAY / START buttons: top-right and bottom-left corners cut on the diagonal. clip-path also clips hit-testing,
+   so the clickable area is the shape you see; text stays centred because only the corners are cut, not the padding ---- */
+.play,#againBtn,#resBtn{--cut:14px;clip-path:polygon(0 0,calc(100% - var(--cut)) 0,100% var(--cut),100% 100%,var(--cut) 100%,0 calc(100% - var(--cut)));border-radius:0!important}
+body.phone .play,body.phone #againBtn,body.phone #resBtn{--cut:10px}
+/* ---- bigger hit areas, same look: an invisible pad around small controls. Pads are kept narrower than the gaps
+   between neighbours (segmented controls only grow up and down, never into the next segment) ---- */
+#bar button,.chip,.ctabs button,.ghost,.mb{position:relative}
+#bar button::after,.chip::after,.ghost::after,.mb::after{content:'';position:absolute;inset:-6px -4px}
+.seg button::after,.sseg button::after,.ctabs button::after,.tab::after{content:'';position:absolute;inset:-6px 0}
+.sw::before,.tgl::before{content:'';position:absolute;inset:-6px}
+body.touch #bar button::after,body.touch .chip::after,body.touch .ghost::after,body.touch .mb::after{inset:-10px -5px}
+body.touch .seg button::after,body.touch .sseg button::after,body.touch .ctabs button::after,body.touch .tab::after{inset:-9px 0}
+body.touch .sw::before,body.touch .tgl::before{inset:-9px}
+/* range sliders: a taller invisible track and a bigger thumb target, the drawn thumb unchanged */
+input[type=range]{padding-block:8px;background-clip:content-box}
+body.touch input[type=range]{padding-block:12px}
+.rip{position:absolute;inset:0;overflow:hidden;border-radius:inherit;pointer-events:none}

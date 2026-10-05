@@ -29,6 +29,7 @@ function chTip(c) { // everything about a finished challenge: what it asked, wha
     + (rw ? `<span class="ttr"><i>Reward</i>${rw}</span>` : '');
 }
 function showDead() {
+  if (showDead.for === deadAt) return; showDead.for = deadAt; // one summary per crash, however many taps or frames land on it
   stage.classList.remove('bars', 'paused');
   sumShownAt = performance.now();
   const m = MAPS[mapIdx].name, best = PROG.best[m] || 0, pb = score >= best && score > 0;

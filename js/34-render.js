@@ -12,6 +12,7 @@ function render() {
     V.z = Math.pow(cam.z0, 1 - p); V.fx = snake.x + (W / 2 - snake.x) * fp; V.fy = snake.y + (H / 2 - snake.y) * fp;
   }
   V.ox = camF.x + camF.k.x; V.oy = camF.y + camF.k.y;
+  const uc = !cam && userCam(); if (uc) { V.z = uc.z; V.fx = uc.fx; V.fy = uc.fy; } // the player's zoom/pan (the spawn zoom has priority)
   lookAround();
   const cw = snake && snake.wallStun > 0 ? Math.pow(snake.wallStun / (snake.wallMax || 3.4), .6) * (snake.stunFx || 1) : 0;
   if (cw > 0) { V.ox += (Math.sin(T * 1.25) * 7 + Math.sin(T * 2.9) * 2) * cw; V.oy += (Math.sin(T * .95 + 1.2) * 5 + Math.sin(T * 2.3) * 1.5) * cw; } // the room sways after a wall
@@ -76,8 +77,8 @@ function render() {
   if (px <= 1 && !render.dazed) { drawGoldenFX(ctx); ctx.globalAlpha = render.olk ?? 1; drawTargetOutlines(ctx); drawSnakeNightRim(ctx); ctx.globalAlpha = 1; }
   if (nightVision) drawNVHighlights(ctx);
   drawWinStars(ctx); drawScent(ctx); drawHissWave(ctx); drawCrashFlash(ctx);
-  if (!cam) drawBubbles(ctx);
   ctx.restore();
+  if (!cam) drawBubbles(ctx); // screen space (positions go through the camera), so text stays readable at any zoom
   if (nightVision) drawNightVision(ctx);
   if (toastT > 0) {
     toastT -= 1 / 60;
@@ -264,7 +265,7 @@ function lookAround() {
   let gx = clamp(px, half, W - half), gy = clamp(py, halfH, H - halfH);
   if (pre) { gx = clamp(gx, snake.x - half + 50, snake.x + half - 50); gy = clamp(gy, snake.y - halfH + 50, snake.y + halfH - 50); gx = clamp(gx, half, W - half); gy = clamp(gy, halfH, H - halfH); } // your snake never leaves the frame
   look.fx += (gx - look.fx) * k; look.fy += (gy - look.fy) * k;
-  if (V.z || look.z < 1.002) return; // the spawn zoom has the camera, or we're back to normal
+  if (V.z || look.z < 1.002) return; // the spawn zoom or the player's own zoom has the camera, or we're back to normal
   V.z = look.z; V.fx = look.fx; V.fy = look.fy;
 }
 

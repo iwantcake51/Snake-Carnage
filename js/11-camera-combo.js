@@ -7,6 +7,52 @@ function updateCamFollow(dt) {
   for (const a of ['x', 'y']) { camF.kv[a] += (-130 * camF.k[a] - 16 * camF.kv[a]) * dt; camF.k[a] += camF.kv[a] * dt; } // damped spring
 }
 
+/* =========================================================
+   VIEW TRANSFORM: one camera for drawing and for every pointer conversion.
+   world -> canvas: shake (sx, sy), then zoom z around the focus (fx, fy) into the middle of the board, then the small
+   look-ahead lean (ox, oy). applyView draws with it; worldToCanvas / canvasToWorld / boardPoint convert with the same numbers.
+   ========================================================= */
+const V = { sx: 0, sy: 0, z: 0, fx: 0, fy: 0, ox: 0, oy: 0 };
+function worldToCanvas(x, y) { let qx = x - V.ox, qy = y - V.oy; if (V.z) { qx = W / 2 + V.z * (qx - V.fx); qy = H / 2 + V.z * (qy - V.fy); } return { x: qx + V.sx, y: qy + V.sy }; }
+function canvasToWorld(x, y) { let qx = x - V.sx, qy = y - V.sy; if (V.z) { qx = (qx - W / 2) / V.z + V.fx; qy = (qy - H / 2) / V.z + V.fy; } return { x: qx + V.ox, y: qy + V.oy }; }
+const clientToCanvas = (cx, cy) => { const r = cv.getBoundingClientRect(); return { x: (cx - r.left) / (r.width || 1) * W, y: (cy - r.top) / (r.height || 1) * H }; };
+/* ---- the player's own zoom and pan (wheel / drag on desktop, pinch / two fingers on touch) ----
+   Smoothly eased toward its targets. While playing the camera stays on the snake (pan is a limited offset that can never
+   lose it off screen); before the run and while paused or dead you can look anywhere on the map. The view never shows
+   past the map edge (zoom >= 1), and a small snake is framed a little closer by default. */
+const UCAM = { z: 1, tz: 1, px: 0, py: 0, tpx: 0, tpy: 0, fx: W / 2, fy: H / 2, ax: W / 2, ay: H / 2, lt: 0, mode: 'free' };
+const UCAM_MAX = 2.6;
+const ucamFree = () => !snake || (state !== 'play' && state !== 'held'); // not steering right now: free look
+const baseZoom = () => { const s = snake && snake.scale || 1; return s < .95 ? 1 + (1 - s) * .45 : 1; };
+const ucamBase = () => UCAM.mode === 'follow' ? [snake.x, snake.y] : [UCAM.ax, UCAM.ay]; // what the pan offset is relative to
+function resetUserCam(instant) { UCAM.tz = 1; UCAM.tpx = UCAM.tpy = 0; if (instant) { UCAM.z = 1; UCAM.px = UCAM.py = 0; UCAM.ax = UCAM.fx = W / 2; UCAM.ay = UCAM.fy = H / 2; } }
+function userCam() { // -> { z, fx, fy } to draw with, or null when the camera is at its plain full-map view
+  const now = performance.now() / 1000, dt = Math.min(.05, Math.max(0, now - (UCAM.lt || now))); UCAM.lt = now;
+  const mode = ucamFree() ? 'free' : 'follow';
+  if (mode !== UCAM.mode) { // switching between free look and following: re-anchor so nothing jumps
+    if (mode === 'free') { UCAM.ax = UCAM.fx - UCAM.px; UCAM.ay = UCAM.fy - UCAM.py; } else { UCAM.tpx = UCAM.px = UCAM.fx - snake.x; UCAM.tpy = UCAM.py = UCAM.fy - snake.y; }
+    UCAM.mode = mode;
+  }
+  const k = 1 - Math.exp(-dt * 12), z0 = baseZoom();
+  UCAM.z += (UCAM.tz - UCAM.z) * k; UCAM.px += (UCAM.tpx - UCAM.px) * k; UCAM.py += (UCAM.tpy - UCAM.py) * k;
+  const z = clamp(UCAM.z * z0, 1, UCAM_MAX * z0);
+  if (z < 1.003) { UCAM.fx = W / 2; UCAM.fy = H / 2; return null; }
+  const hw = W / 2 / z, hh = H / 2 / z;
+  if (mode === 'follow') { const mx = Math.max(0, hw - 70), my = Math.max(0, hh - 70); UCAM.tpx = clamp(UCAM.tpx, -mx, mx); UCAM.tpy = clamp(UCAM.tpy, -my, my); } // the snake always stays in frame
+  const [bx, by] = ucamBase(), tx = clamp(bx + UCAM.px, hw, W - hw), ty = clamp(by + UCAM.py, hh, H - hh);
+  if (mode === 'free') { UCAM.tpx = clamp(UCAM.tpx, hw - bx, W - hw - bx); UCAM.tpy = clamp(UCAM.tpy, hh - by, H - hh - by); } // free look: no panning off the map
+  const fk = 1 - Math.exp(-dt * 16); UCAM.fx += (tx - UCAM.fx) * fk; UCAM.fy += (ty - UCAM.fy) * fk;
+  return { z, fx: UCAM.fx, fy: UCAM.fy };
+}
+function zoomAt(cx, cy, factor) { // zoom toward a canvas point: the world under it stays under it
+  const z0 = baseZoom(), before = canvasToWorld(cx, cy);
+  UCAM.tz = clamp(UCAM.tz * factor, 1 / z0, UCAM_MAX);
+  const z = clamp(UCAM.tz * z0, 1, UCAM_MAX * z0);
+  if (z < 1.003) { UCAM.tpx = UCAM.tpy = 0; return; }
+  const [bx, by] = ucamBase();
+  UCAM.tpx = before.x - V.ox - (cx - V.sx - W / 2) / z - bx; UCAM.tpy = before.y - V.oy - (cy - V.sy - H / 2) / z - by;
+}
+function panBy(dcx, dcy) { const z = Math.max(1, UCAM.z * baseZoom()); UCAM.tpx -= dcx / z; UCAM.tpy -= dcy / z; } // a drag in canvas units -> world offset
 /* COMBO STREAK */
 let combo = null;
 const COMBO_STYLES = { // how each bought combo style behaves (the look itself is in the CSS: body.cb-<name>)
