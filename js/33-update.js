@@ -23,7 +23,7 @@ function update(dt) {
   for (const c of creatures) if (c.alive) updateCreature(c, dt);
   updateBlood(dt); updateGiblets(dt); updateSplashes(dt); updateMist(dt); updateSmoke(dt); updateFlies(dt); updateVomit(dt);
   if ((fadeT -= dt) <= 0) { fadeT = 2; fadeBlood(); }
-  updateTrail(dt);
+  updateTrail(dt); updateHoovFx(dt);
   if (snake) { const dk = snake.ramT > 0 ? Math.pow(snake.ramT / (snake.ramMax || 1), .6) * (snake.stunFx || 1) : 0; Sfx.daze(dk, snake.wallStun > 0); }
   updateScent(dt);
   updateGround(dt); updateSnow(dt); updateWeather(dt);
@@ -202,7 +202,7 @@ function drawSnakeNightRim(x) { // white rim at night, readable over dark ground
   const strong = SETTINGS.snakeOutline === 'Strong', pts = snake._pts, n = pts.length;
   let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
   for (const g of pts) { if (g.x < x0) x0 = g.x; if (g.x > x1) x1 = g.x; if (g.y < y0) y0 = g.y; if (g.y > y1) y1 = g.y; }
-  const pad = CONFIG.snakeR + 6, prev = snake._rimBox; x0 -= pad; y0 -= pad; x1 += pad; y1 += pad;
+  const pad = snakeRadius() + 6, prev = snake._rimBox; x0 -= pad; y0 -= pad; x1 += pad; y1 += pad;
   if (prev) snx.clearRect(prev[0], prev[1], prev[2] - prev[0], prev[3] - prev[1]); else snx.clearRect(-60, -60, W + 120, H + 120);
   snake._rimBox = [x0, y0, x1, y1]; snx.beginPath();
   for (let i = 0; i < n; i++) { const g = pts[i], r = segR(i, n) + .4; snx.moveTo(g.x + r, g.y); snx.arc(g.x, g.y, r, 0, TAU); }

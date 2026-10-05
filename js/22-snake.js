@@ -5,8 +5,8 @@
    ========================================================= */
 function newSnake(st) {
   const s = { x: st.x, y: st.y, angle: st.a, dir: st.a, speed: CONFIG.snakeSpeeds.Normal * speedMult() * (MOD.fastSnake ? 1.25 : 1), hist: [], segs: [],
-              len: CONFIG.startLen, stains: [], started: false, alive: true, drip: 0, dripT: 0 };
-  for (let k = 1; k <= 40; k++) s.hist.push({ x: st.x - Math.cos(st.a) * k * 2, y: st.y - Math.sin(st.a) * k * 2 });
+              len: CONFIG.startLen, stains: [], started: false, alive: true, drip: 0, dripT: 0, scale: startScale(), meals: 0 };
+  for (let k = 1; k <= 40 * Math.max(1, s.scale); k++) s.hist.push({ x: st.x - Math.cos(st.a) * k * 2, y: st.y - Math.sin(st.a) * k * 2 });
   for (let i = 0; i < s.len; i++) s.stains.push([]);
   computeSegs(s);
   return s;
@@ -17,6 +17,18 @@ const snakeScale = () => (snake && snake.scale) || 1;
 const snakeRadius = () => CONFIG.snakeR * snakeScale();
 const snakeSegmentSpacing = () => CONFIG.segSpacing * snakeScale();
 const snakeEatRadius = () => snakeRadius() * .8;
+const snakeHitRadius = () => Math.max(snakeRadius(), CONFIG.snakeR * .9) * .72; // against walls and objects: a small snake never gets a thinner hitbox than ~90% of normal, so gaps that are solid stay solid
+/* size modifiers: Big / Small hold one size all run; Start Big shrinks back to normal over the first 90 s of play; Start Tiny
+   starts small and every meal grows it back toward full size. The size changes ease in, they never pop. */
+const SIZE_MODS = { big: 1.32, small: .75, startBig: 1.35, startTiny: .7 };
+function startScale() { for (const k in SIZE_MODS) if (MOD[k]) return SIZE_MODS[k]; return 1; }
+function sizeTarget(s) {
+  if (MOD.big) return SIZE_MODS.big; if (MOD.small) return SIZE_MODS.small;
+  if (MOD.startBig) return 1 + (SIZE_MODS.startBig - 1) * clamp(1 - (s.playT || 0) / 90, 0, 1);
+  if (MOD.startTiny) return Math.min(1, SIZE_MODS.startTiny + (s.meals || 0) * .025);
+  return 1;
+}
+function updateSize(s, dt) { s.playT = (s.playT || 0) + dt; const t = sizeTarget(s); s.scale += (t - s.scale) * Math.min(1, dt * 2.5); }
 const segR = (i, n) => snakeRadius() * (1 - .35 * Math.max(0, (i - (n - 6)) / 6));
 
 function hitObstacle(x, y, r) { // precise shape test, so thin things like lamp posts hit exactly where they're drawn
@@ -29,14 +41,14 @@ function hitObstacle(x, y, r) { // precise shape test, so thin things like lamp 
 function computeSegs(s) {
   const segs = s.segs, h = s.hist; segs.length = 0;
   segs.push({ x: s.x, y: s.y, a: s.angle });
-  let px = s.x, py = s.y, trav = 0, target = CONFIG.segSpacing, lastA = s.angle, i = 0;
+  const sp = CONFIG.segSpacing * (s.scale || 1); let px = s.x, py = s.y, trav = 0, target = sp, lastA = s.angle, i = 0;
   for (; i < h.length && segs.length < s.len; i++) {
     const q = h[i]; let L = Math.hypot(q.x - px, q.y - py);
     if (L < 1e-6) continue;
     const a = Math.atan2(py - q.y, px - q.x);
     while (trav + L >= target && segs.length < s.len) {
       const t = (target - trav) / L; px += (q.x - px) * t; py += (q.y - py) * t;
-      segs.push({ x: px, y: py, a }); trav = target; target += CONFIG.segSpacing; L = Math.hypot(q.x - px, q.y - py);
+      segs.push({ x: px, y: py, a }); trav = target; target += sp; L = Math.hypot(q.x - px, q.y - py);
     }
     trav += L; px = q.x; py = q.y; lastA = a;
   }
@@ -46,6 +58,7 @@ function computeSegs(s) {
 
 function updateSnake(dt) {
   const s = snake; if (!s.started || !s.alive) return;
+  updateSize(s, dt);
   if (MOD.freeMove) steerFree(dt);
   // ease toward the target heading: quick to start, settles softly, capped so it never snaps
   const sl = upg('speed'), d = angDiff(s.angle, s.dir), mx = CONFIG.turnRate * dt * (1 + (sl >= 2 ? .18 : 0) + (sl >= 4 ? .18 : 0) + (sl >= 5 ? .12 : 0)) * (s.uturnT > 0 ? s.uturnK || 2.4 : 1); // Speed Demon: snappier turns, and a fast whip round on a U-turn
@@ -63,14 +76,15 @@ function updateSnake(dt) {
   smearBlood(s, dt);
   groundFX(s, dt);
 
-  const r = CONFIG.snakeR * .8;
-  const hx = s.x + Math.cos(s.angle) * 2, hy = s.y + Math.sin(s.angle) * 2;
-  for (const o of obstacles) if (o.kind === 'lamp' && dist2(hx, hy, o.x, o.y) < (CONFIG.snakeR * .72 + o.r) ** 2) { breakLamp(o, s.angle); break; } // posts snap instead of stopping you
-  const hitO = obstacleHitBy(hx, hy, CONFIG.snakeR * .72);
+  const r = snakeEatRadius(), hr = snakeHitRadius();
+  const hx = s.x + Math.cos(s.angle) * 2 * s.scale, hy = s.y + Math.sin(s.angle) * 2 * s.scale;
+  for (const o of obstacles) if (o.kind === 'lamp' && dist2(hx, hy, o.x, o.y) < (hr + o.r) ** 2) { breakLamp(o, s.angle); break; } // posts snap instead of stopping you
+  const hitO = obstacleHitBy(hx, hy, hr);
   if (hitO && canRam(hitO)) smashObstacle(hitO, s.angle); // Battering Ram: furniture gives way
   else if (hitO) { crashHit = { o: hitO, t: T }; return die(); }
-  for (let i = 8; i < s.segs.length; i++) if (dist2(s.x, s.y, s.segs[i].x, s.segs[i].y) < (CONFIG.snakeR * 1.1) ** 2) { if (s.segs.length >= 60) { PROG.ouro = 1; checkAch(); } crashHit = { seg: i, t: T }; return die(); }
+  for (let i = 8; i < s.segs.length; i++) if (dist2(s.x, s.y, s.segs[i].x, s.segs[i].y) < (snakeRadius() * 1.1) ** 2) { if (s.segs.length >= 60) { PROG.ouro = 1; checkAch(); } crashHit = { seg: i, t: T }; return die(); }
 
+  hoover(s, dt);
   let ate = false;
   for (const c of nearbyCreatures(s.x, s.y, r + 16, EAT_NB)) if (c.alive && dist2(s.x, s.y, c.x, c.y) < (r + c.def.r) ** 2) { eat(c); ate = true; } // biggest body radius is ~14
   if (ate) creatures = creatures.filter(c => c.alive);
@@ -87,6 +101,42 @@ function updateSnake(dt) {
   }
 }
 
+/* ---- HOOVER MOUTH (modifier): edible things in front of the head get drawn in. Short range, never through walls,
+   barely noticeable at the edge and strong right at the mouth. It only adds a capped drift on top of how the creature
+   moves anyway (see c.hv in updateCreature), so they still collide, steer and flee normally: no teleporting, no map-wide vacuum. ---- */
+const HOOVER_R = 76, HOOVER_NB = []; let hoovFx = [];
+const hooverMouth = s => { const f = snakeRadius() * .7; return [s.x + Math.cos(s.angle) * f, s.y + Math.sin(s.angle) * f]; };
+function hoover(s, dt) {
+  if (!MOD.hoover) return;
+  const [hx, hy] = hooverMouth(s), R = HOOVER_R * Math.sqrt(s.scale || 1), ca = Math.cos(s.angle), sa = Math.sin(s.angle);
+  for (const c of nearbyCreatures(hx, hy, R, HOOVER_NB)) {
+    if (!c.alive || c.def.fly) continue;
+    const dx = hx - c.x, dy = hy - c.y, d = Math.hypot(dx, dy) || 1;
+    const front = clamp(.35 - (dx * ca + dy * sa) / d, 0, 1.35) / 1.35; if (front <= 0) continue; // mostly from in front of the mouth, nothing from behind
+    if (T - (c.hvT ?? -1) > .1) { c.hvT = T; c.hvLos = los(c.x, c.y, hx, hy); } // line of sight, re-checked ten times a second
+    if (!c.hvLos) continue;
+    const k = Math.pow(1 - d / R, 2.2) * front, acc = (30 + 620 * k) * (c.def.human ? .75 : 1); // a whisper at the edge, a real tug at the lips
+    const hv = c.hv || (c.hv = { vx: 0, vy: 0 }); hv.vx += dx / d * acc * dt; hv.vy += dy / d * acc * dt;
+    if (k > .05 && Math.random() < dt * 30 * k * Math.min(1, FX_K())) { // a few motes of dust (or blood, off a bloody one) streaming into the mouth
+      const a = rand(0, TAU), rr = c.def.r * rand(.4, 1.1);
+      hoovFx.push({ x: c.x + Math.cos(a) * rr, y: c.y + Math.sin(a) * rr, t: 0, life: rand(.25, .45), c: c.stains.length > 3 ? (c.stains[c.stains.length - 1].c || BLOOD) : null });
+      if (hoovFx.length > 90) hoovFx.shift();
+    }
+  }
+}
+function updateHoovFx(dt) {
+  if (!hoovFx.length) return;
+  const [hx, hy] = snake ? hooverMouth(snake) : [0, 0];
+  for (let i = hoovFx.length - 1; i >= 0; i--) { const p = hoovFx[i]; p.t += dt; if (p.t > p.life || !snake) { hoovFx.splice(i, 1); continue; }
+    const dx = hx - p.x, dy = hy - p.y, d = Math.hypot(dx, dy) || 1, v = 120 + 380 * (p.t / p.life); p.px = p.x; p.py = p.y;
+    if (d < 5) { hoovFx.splice(i, 1); continue; } p.x += dx / d * Math.min(d, v * dt); p.y += dy / d * Math.min(d, v * dt); }
+}
+function drawHoovFx(x) {
+  if (!hoovFx.length) return; x.lineCap = 'round'; x.lineWidth = 1.1;
+  for (const p of hoovFx) { const f = Math.sin(p.t / p.life * Math.PI); x.strokeStyle = p.c ? p.c : `rgba(225,215,195,${(.55 * f).toFixed(3)})`; x.globalAlpha = p.c ? .7 * f : 1;
+    x.beginPath(); x.moveTo(p.px ?? p.x, p.py ?? p.y); x.lineTo(p.x, p.y); x.stroke(); }
+  x.globalAlpha = 1;
+}
 const EAT_NB = []; // its own list: eating sets off screams that run their own neighbor queries
 let groundParts = [], regrowT = .4;
 function groundFX(s, dt) { // ruts in the grass and crumbs of dirt flicked out behind the snake
@@ -95,7 +145,7 @@ function groundFX(s, dt) { // ruts in the grass and crumbs of dirt flicked out b
     const nx = -Math.sin(s.angle), ny = Math.cos(s.angle), gc = grassColAt(s.x, s.y), seg = Math.hypot(s.x - s.gx, s.y - s.gy);
     const turn = Math.abs(angDiff(s.lastGA ?? s.angle, s.angle)) / Math.max(.001, dt); s.lastGA = s.angle;
     for (let t = 0; t < seg; t += 3) { // pressed every few pixels along the way
-      const px = s.gx + (s.x - s.gx) * (t / seg), py = s.gy + (s.y - s.gy) * (t / seg), wob = perlin(px * .08, py * .08) * 1.6, w = CONFIG.snakeR * (1 + perlin(px * .03, py * .05) * .2);
+      const px = s.gx + (s.x - s.gx) * (t / seg), py = s.gy + (s.y - s.gy) * (t / seg), wob = perlin(px * .08, py * .08) * 1.6, w = snakeRadius() * (1 + perlin(px * .03, py * .05) * .2);
       gctx.save(); gctx.translate(px + nx * wob * .5, py + ny * wob * .5); gctx.rotate(s.angle);
       gctx.globalAlpha = .07; gctx.fillStyle = `rgb(${gc[0] + 30 | 0},${gc[1] + 18 | 0},${gc[2] - 10 | 0})`; ell(gctx, 0, 0, 3.4, w); // grass pressed flat and pale
       gctx.globalAlpha = .1; gctx.fillStyle = '#6b5234'; ell(gctx, 0, wob * .4, 2.6, w * .42); // belly scrape: soil starts to show in the middle
@@ -114,7 +164,7 @@ function groundFX(s, dt) { // ruts in the grass and crumbs of dirt flicked out b
   } else if (snowAt(s.x, s.y) < .1 && dirtAt(s.x, s.y)) { // on a dirt path: a smooth drag groove, darker where it bites in, with the loose dirt pushed up along both sides
     const nx = -Math.sin(s.angle), ny = Math.cos(s.angle), seg = Math.hypot(s.x - s.gx, s.y - s.gy), fc = floorColAt(s.x, s.y);
     for (let t = 0; t < seg; t += 2.5) {
-      const px = s.gx + (s.x - s.gx) * (t / seg), py = s.gy + (s.y - s.gy) * (t / seg), w = CONFIG.snakeR * (.9 + perlin(px * .04, py * .04) * .15);
+      const px = s.gx + (s.x - s.gx) * (t / seg), py = s.gy + (s.y - s.gy) * (t / seg), w = snakeRadius() * (.9 + perlin(px * .04, py * .04) * .15);
       gctx.save(); gctx.translate(px, py); gctx.rotate(s.angle);
       gctx.globalAlpha = .2; gctx.fillStyle = `rgb(${fc[0] - 45 | 0},${fc[1] - 42 | 0},${fc[2] - 35 | 0})`; ell(gctx, 0, 0, 3, w * .75); // the groove
       gctx.globalAlpha = .16; gctx.fillStyle = `rgb(${Math.min(255, fc[0] + 25) | 0},${Math.min(255, fc[1] + 22) | 0},${Math.min(255, fc[2] + 16) | 0})`; ell(gctx, 0, -w * .95, 2.6, 1.6); ell(gctx, 0, w * .95, 2.6, 1.6); // ridges of loose dirt either side
@@ -149,14 +199,14 @@ function smearBlood(s, dt) {
   if (s.lastX === undefined) { s.lastX = s.x; s.lastY = s.y; s.smear = 0; }
   const fh = freshAt(s.x, s.y);
   if (fh > .6) { s.smear = Math.min(1, s.smear + fh * .25); const c = rgbOf2(wetColAt(s.x, s.y)); s.smC = s.smC ? s.smC.map((v, n) => v + (c[n] - v) * .35) : c; } // the belly picks up whatever it slides through
-  if (s.smear > .02 && snowAt(s.x, s.y) > .12) { stainDisk(s.x, s.y, CONFIG.snakeR * .7, s.smear * .25, s.smC || rgbOf2(BLOOD)); s.smear *= Math.exp(-s.speed * dt / 80); } // in snow the belly's blood soaks into the groove
+  if (s.smear > .02 && snowAt(s.x, s.y) > .12) { stainDisk(s.x, s.y, snakeRadius() * .7, s.smear * .25, s.smC || rgbOf2(BLOOD)); s.smear *= Math.exp(-s.speed * dt / 80); } // in snow the belly's blood soaks into the groove
   else if (s.smear > .02) { // belly drag marks on the ground
     const lx = s.lastX, ly = s.lastY, line = (ax, ay, bx, by) => { fctx.beginPath(); fctx.moveTo(ax, ay); fctx.lineTo(bx, by); fctx.stroke(); };
     const nx = -Math.sin(s.angle), ny = Math.cos(s.angle);
     s.smW = clamp((s.smW || 1.4) + rand(-.12, .12), 1, 1.8); s.smO = clamp((s.smO || 0) + rand(-.5, .5), -2.5, 2.5); // width and drift wander
     const sc = s.smC ? `rgb(${s.smC[0] | 0},${s.smC[1] | 0},${s.smC[2] | 0})` : BLOOD;
     markF(); fctx.save(); fctx.lineCap = 'round'; fctx.strokeStyle = sc; fctx.fillStyle = sc;
-    fctx.globalAlpha = s.smear * rand(.5, .64); fctx.lineWidth = CONFIG.snakeR * s.smW;
+    fctx.globalAlpha = s.smear * rand(.5, .64); fctx.lineWidth = snakeRadius() * s.smW;
     line(lx + nx * s.smO, ly + ny * s.smO, s.x + nx * s.smO, s.y + ny * s.smO);
     fctx.globalAlpha = s.smear * rand(.75, .95); fctx.lineWidth = rand(1, 2.2);
     for (const o of [-5, 0, 5]) if (Math.random() < .75) { const q = o + rand(-1, 1) + s.smO; line(lx + nx * q, ly + ny * q, s.x + nx * q, s.y + ny * q); }
@@ -199,10 +249,10 @@ function eat(c) {
   pools.push({ x: c.x, y: c.y, r: 2, c: pc, max: (3 + amount * 8.5) * rand(.85, 1.15) * ({ Minimal: .5, Reduced: .75 }[SETTINGS.bloodAmt] || 1), ang: s.angle,
                lobes: Array.from({ length: randi(7, 11) }, () => ({ dx: rand(-.6, .6), dy: rand(-.6, .6), s: rand(.35, 1) })) });
   for (let k = 0; k < 14 * amount; k++) {
-    const i = randi(0, Math.min(3, s.segs.length - 1)), g = s.segs[i];
-    stainSnake(i, g.x + rand(-10, 10), g.y + rand(-10, 10), rand(1.5, 4), pick(bloodOf(c)));
+    const i = randi(0, Math.min(3, s.segs.length - 1)), g = s.segs[i], R = snakeRadius();
+    stainSnake(i, g.x + rand(-R, R), g.y + rand(-R, R), rand(1.5, 4) * s.scale, pick(bloodOf(c)));
   }
-  for (let k = 0; k < c.def.grow; k++) s.stains.push([]);
+  for (let k = 0; k < c.def.grow; k++) s.stains.push([]); s.meals++; // Start Tiny grows back with every meal
   s.len += c.def.grow;
   const mb = modBonus(c);
   addCombo(c); combo.t = Math.max(.6, combo.t + mb.ct);

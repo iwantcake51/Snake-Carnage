@@ -58,14 +58,14 @@ function drawSnake(x, s = snake, cfg = SETTINGS.snake) {
   if (!SETTINGS.simpleFx) { // round it off: a lit ridge along the spine, darker flanks, a few scale rows
     x.lineJoin = 'round'; x.lineCap = 'round';
     const line = (ox, oy) => { x.beginPath(); for (let i = 0; i < n; i++) { const g = pts[i]; i ? x.lineTo(g.x + ox, g.y + oy) : x.moveTo(g.x + ox, g.y + oy); } };
-    const R0 = CONFIG.snakeR;
+    const R0 = CONFIG.snakeR * (s.scale || 1);
     tubePath(x, pts, n, -.4); for (const [w, a] of [[5.5, .1], [2, .14]]) { x.strokeStyle = `rgba(0,0,0,${a})`; x.lineWidth = w; x.stroke(); } // flanks darken toward the edges (one path, two soft strokes)
     for (const [w, a, o] of [[1.35, .05, .14], [.85, .06, .2], [.4, .08, .27]]) { x.strokeStyle = `rgba(255,255,255,${a})`; x.lineWidth = R0 * w; line(-R0 * o, -R0 * (o + .03)); x.stroke(); } // a soft sheen: three layers, widest and faintest outside, brightest on the ridge
     if ((NATURAL.has(cfg.pattern) || cfg.pattern === 'Solid') && n < 70) { x.strokeStyle = 'rgba(0,0,0,.09)'; x.lineWidth = .7; // overlapping scale rows
       for (let i = 1; i < n - 2; i++) { const g = pts[i], r = segR(i, n), c = Math.cos(g.a), sn = Math.sin(g.a); for (const off of [-.5, 0, .5]) { const px = g.x - sn * r * off * 1.3, py = g.y + c * r * off * 1.3; x.beginPath(); x.arc(px, py, r * .34, g.a + 2.2, g.a + 4.1); x.stroke(); } } }
   }
   x.restore();
-  x.save(); x.translate(s.x, s.y); x.rotate(s.angle);
+  x.save(); x.translate(s.x, s.y); x.rotate(s.angle); if (s.scale && s.scale !== 1) x.scale(s.scale, s.scale); // eyes and hat grow with the head
   if (cam) x.globalAlpha = 1 - .55 * cam.a[0];
   drawEyes(x, cfg, segColor(0, n, cfg));
   drawHat(x, cfg.hat);

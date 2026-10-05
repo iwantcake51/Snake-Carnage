@@ -277,7 +277,7 @@ function drawAO(x) { // soft contact darkness where bodies meet the ground
   if (!hiFx()) return;
   x.globalAlpha = .5;
   for (const c of creatures) if (c.alive && !c.def.fly) { const R = c.def.r * 1.9; x.drawImage(AO_SPR, c.x - R, c.y - R, R * 2, R * 2); }
-  if (snake && snake.alive) { const P = snake._pts || snake.segs; for (let i = 0; i < P.length; i += 3) { const R = CONFIG.snakeR * 1.8; x.drawImage(AO_SPR, P[i].x - R, P[i].y - R, R * 2, R * 2); } }
+  if (snake && snake.alive) { const P = snake._pts || snake.segs; for (let i = 0; i < P.length; i += 3) { const R = snakeRadius() * 1.8; x.drawImage(AO_SPR, P[i].x - R, P[i].y - R, R * 2, R * 2); } }
   x.globalAlpha = 1;
 }
 function drawCreature(x, c, portrait) {
@@ -348,7 +348,7 @@ function patternStripes(x, pts, n, cfg) { // patterns that run the length of the
   if (cfg.pattern === 'Neon') { x.save(); x.strokeStyle = cfg.color2; x.globalAlpha = .55 + .25 * Math.sin(T * 4); x.lineWidth = 2.4; tubePath(x, pts, n, -1.2); x.stroke(); x.globalAlpha = .25; x.lineWidth = 5; x.stroke(); x.restore(); return; } // a glowing tube edge in your second color
   if (cfg.pattern !== 'Garter') return;
   const run = (off, w, col) => { x.strokeStyle = col; x.lineWidth = w; x.beginPath(); for (let i = 0; i < n; i++) { const g = pts[i], r = segR(i, n), px = g.x - Math.sin(g.a) * r * off, py = g.y + Math.cos(g.a) * r * off; i ? x.lineTo(px, py) : x.moveTo(px, py); } x.stroke(); };
-  x.lineCap = 'round'; x.lineJoin = 'round'; run(0, CONFIG.snakeR * .38, cfg.color2); run(-.72, CONFIG.snakeR * .2, shade(cfg.color2, -.12)); run(.72, CONFIG.snakeR * .2, shade(cfg.color2, -.12)); // the yellow dorsal stripe and two side stripes
+  x.lineCap = 'round'; x.lineJoin = 'round'; const R0 = snakeRadius(); run(0, R0 * .38, cfg.color2); run(-.72, R0 * .2, shade(cfg.color2, -.12)); run(.72, R0 * .2, shade(cfg.color2, -.12)); // the yellow dorsal stripe and two side stripes
 }
 function patternOverlay(x, g, r, i, cfg) {
   switch (cfg.pattern) {

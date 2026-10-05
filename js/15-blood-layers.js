@@ -103,7 +103,8 @@ function stainCreature(c, px, py, r, col, va = 0, sp = 0) { // stretched along t
 function stainSnake(i, px, py, r, col) {
   const g = snake.segs[i]; if (!g) return;
   const rr = segR(i, snake.segs.length);
-  addStain(snake.stains[i], { a: Math.atan2(py - g.y, px - g.x) - g.a, d: Math.min(Math.hypot(px - g.x, py - g.y), rr - 1), r, c: col, e: rand(1, 2.2) }, 30);
+  const k = snake.scale || 1; // kept in the body's own (unscaled) units, so the stain sprite fits whatever size the snake is
+  addStain(snake.stains[i], { a: Math.atan2(py - g.y, px - g.x) - g.a, d: Math.min(Math.hypot(px - g.x, py - g.y), rr - 1) / k, r: r / k, c: col, e: rand(1, 2.2) }, 30);
 }
 
 const SEGC = 32, SGW = Math.ceil(W / SEGC), SGH = Math.ceil(H / SEGC);

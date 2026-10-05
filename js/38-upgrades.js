@@ -315,7 +315,7 @@ function drawHissWave(x) {
 }
 function drawRamCharge(x) {
   const s = snake; if (!s || !s.alive || !upg('ram') || state !== 'play') return;
-  const ca = Math.cos(s.angle), sa = Math.sin(s.angle), o = obstacleHitBy(s.x + ca * 22, s.y + sa * 22, CONFIG.snakeR * .8);
+  const ca = Math.cos(s.angle), sa = Math.sin(s.angle), o = obstacleHitBy(s.x + ca * 22 * s.scale, s.y + sa * 22 * s.scale, snakeHitRadius() * 1.1);
   s.ramGlow = (s.ramGlow || 0) + (((o && canRam(o)) ? 1 : 0) - (s.ramGlow || 0)) * .3;
   if (s.ramGlow < .03) return;
   const g = s.ramGlow, hx = s.x + ca * 9, hy = s.y + sa * 9; // a bow wave of force bunching up ahead of the head

@@ -135,6 +135,12 @@ function updateCreature(c, dt) {
   }
   if (!free(c.x, c.y, d.r * .6)) unstick(c, dt); // ended up inside something (shoved, spawned, a door shut): walk out of it
   else if ((c.stuck || 0) > 1.4) { const a = escapeDir(c); if (a !== null) { c.a = a; c.steerA = a; c.steerT = .5; c.detour = { a, t: .8 }; } c.stuck = .5; } // long stuck: pick the clearest way out and commit
+  if (c.hv) { // Hoover Mouth's drift: capped, damped, and blocked by walls like any other movement
+    const hv = c.hv, sp = Math.hypot(hv.vx, hv.vy), cap = 150; if (sp > cap) { hv.vx *= cap / sp; hv.vy *= cap / sp; }
+    const nx = c.x + hv.vx * dt, ny = c.y + hv.vy * dt, rr = d.r * .8;
+    if (free(nx, ny, rr)) { c.x = nx; c.y = ny; } else if (free(nx, c.y, rr)) { c.x = nx; hv.vy *= .3; } else if (free(c.x, ny, rr)) { c.y = ny; hv.vx *= .3; } else { hv.vx = hv.vy = 0; }
+    const damp = Math.exp(-dt * 5); hv.vx *= damp; hv.vy *= damp; if (Math.abs(hv.vx) + Math.abs(hv.vy) < 1) c.hv = null;
+  }
   if (c.kb && c.kb.t > 0) { c.kb.t -= dt; const nx = c.x + c.kb.vx * dt, ny = c.y + c.kb.vy * dt; if (free(nx, ny, d.r * .8)) { c.x = nx; c.y = ny; } c.kb.vx *= .9; c.kb.vy *= .9; } // thrown back by a Hiss shockwave
   c.spd = dt > 0 ? moved / dt : 0;
   c.moveAmt += ((moved > 0 ? 1 : 0) - c.moveAmt) * Math.min(1, dt * 8);

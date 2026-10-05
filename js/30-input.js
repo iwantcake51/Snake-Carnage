@@ -13,15 +13,15 @@ function keyAngle() {
   return dx || dy ? Math.atan2(dy, dx) : null;
 }
 function predictUTurn(side, final, boost) { // play the whole turn forward, plus the run back alongside the body: any wall or body contact?
-  const s = snake, R = CONFIG.snakeR, sl = upg('speed'), v = s.speed * (s.dashV || 1);
+  const s = snake, R = snakeRadius(), sl = upg('speed'), v = s.speed * (s.dashV || 1);
   let x = s.x, y = s.y, ang = s.angle, dir = side, bad = 0, after = -1; const path = [];
   for (let k = 0; k < 150; k++) { const dt = 1 / 60, mx = CONFIG.turnRate * dt * (1 + (sl >= 2 ? .18 : 0) + (sl >= 4 ? .18 : 0) + (sl >= 5 ? .12 : 0)) * boost, d = angDiff(ang, dir);
     ang += Math.abs(d) < .002 ? d : clamp(d * Math.min(1, dt * CONFIG.turnEase) + Math.sign(d) * mx * .18, -mx, mx);
     if (dir !== final && Math.abs(angDiff(ang, dir)) < .5) dir = final;
     x += Math.cos(ang) * v * dt; y += Math.sin(ang) * v * dt;
-    if (hitObstacle(x, y, R * .75) || x < B || y < B || x > W - B || y > H - B) bad += 10; // a wall
+    if (hitObstacle(x, y, snakeHitRadius()) || x < B || y < B || x > W - B || y > H - B) bad += 10; // a wall
     { // your own body, where it will be by then: it follows the head round the turn, so walk back along the path the head will have drawn
-      const sp = CONFIG.segSpacing, minD = sp * 8, maxD = sp * s.len; let px = x, py = y, acc = 0, hitB = false;
+      const sp = snakeSegmentSpacing(), minD = sp * 8, maxD = sp * s.len; let px = x, py = y, acc = 0, hitB = false;
       const step = (qx, qy) => { acc += Math.hypot(qx - px, qy - py); px = qx; py = qy; if (acc >= minD && acc <= maxD && dist2(x, y, qx, qy) < (R * 1.35) ** 2) hitB = true; return acc > maxD || hitB; };
       let done = false;
       for (let j = path.length - 1; j >= 0 && !done; j--) done = step(path[j][0], path[j][1]);

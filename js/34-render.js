@@ -36,7 +36,7 @@ function render() {
   for (const c of creatures) if (c.alive) drawCreature(x, c);
   drawFlashBodies(x); drawHitGhosts(x);
   drawGiblets(x); // chunks on the ground sit under the snake
-  drawTrail(x); drawGround(x); drawSnake(x); drawRamCharge(x); drawStreaks(x); drawSnowFx(x);
+  drawTrail(x); drawGround(x); drawHoovFx(x); drawSnake(x); drawRamCharge(x); drawStreaks(x); drawSnowFx(x);
   if ((render.olk ?? 1) > .995 || SETTINGS.mapOutlines === 'Off') x.drawImage(obsC, 0, 0, W, H); else { x.drawImage(plainC, 0, 0, W, H); if (render.olk > .01) { x.globalAlpha = render.olk; x.drawImage(outlineC, 0, 0, W, H); x.globalAlpha = 1; } } drawTrees(x); // outlines only cost extra while they're fading
   drawWaters(x);
   for (const b of bucketList) { if (!b.wd) continue; x.globalAlpha = bucketAlpha(b); x.drawImage(b.w, 0, 0, W, H); }
@@ -138,7 +138,7 @@ function drawNVHighlights(x) { // drawn after the green tint, so the rings stay 
     x.beginPath(); x.arc(c.x, c.y, r, 0, TAU); x.stroke(); x.setLineDash([]);
   }
   x.globalAlpha = 1;
-  if (snake) { x.strokeStyle = 'rgba(255,255,255,.9)'; x.lineWidth = 1.6; x.beginPath(); x.arc(snake.x, snake.y, CONFIG.snakeR + 4, 0, TAU); x.stroke(); }
+  if (snake) { x.strokeStyle = 'rgba(255,255,255,.9)'; x.lineWidth = 1.6; x.beginPath(); x.arc(snake.x, snake.y, snakeRadius() + 4, 0, TAU); x.stroke(); }
   x.restore();
 }
 function drawNightVision(x) {
@@ -276,7 +276,7 @@ function drawCrashFlash(x) { // whatever you hit pops out with a red and white f
   const o = crashHit.o, g = crashHit.seg != null && snake ? snake.segs[crashHit.seg] : null;
   const cx = o ? (o.t === 'r' ? o.x + o.w / 2 : o.x) : g ? g.x : 0, cy = o ? (o.t === 'r' ? o.y + o.h / 2 : o.y) : g ? g.y : 0;
   x.translate(cx, cy); x.scale(pop, pop);
-  const path = () => { x.beginPath(); if (o && o.t === 'r') x.rect(-o.w / 2, -o.h / 2, o.w, o.h); else x.arc(0, 0, o ? o.r : CONFIG.snakeR + 1, 0, TAU); };
+  const path = () => { x.beginPath(); if (o && o.t === 'r') x.rect(-o.w / 2, -o.h / 2, o.w, o.h); else x.arc(0, 0, o ? o.r : snakeRadius() + 1, 0, TAU); };
   path(); x.strokeStyle = 'rgba(0,0,0,.6)'; x.lineWidth = 6 / pop; x.stroke();
   path(); x.strokeStyle = col; x.lineWidth = 3 / pop; x.stroke();
   x.restore();
