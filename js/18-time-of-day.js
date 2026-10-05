@@ -10,8 +10,8 @@ const TIME_MODES = { Cycle: 'Dynamic', Day: 'Daytime', Dawn: 'Dawn', Dusk: 'Dusk
 const VISIBLE = .35;
 /* Light colors by source, and how high each source hangs (decides shadow length). */
 const LCOL = { street: '255,156,58', fluor: '226,238,255', pool: '80,215,255', emerg: '255,40,36', fire: '255,150,60', window: '255,196,110', fixed: '255,214,150', alien: '170,255,215',
-  red: '255,46,30', reactor: '120,255,200', bar: '255,170,90', booth: '255,80,170', dj: '120,90,255', disco: '255,60,200', flood: '235,240,255' };
-const LIGHT_H = { street: 55, fluor: 70, fixed: 50, fire: 6, pool: 0, emerg: 45, window: 0, alien: 70, red: 55, reactor: 30, bar: 40, booth: 40, dj: 30, disco: 0, flood: 90 };
+  red: '255,46,30', reactor: '120,255,200', bar: '255,170,90', booth: '255,80,170', dj: '120,90,255', disco: '255,60,200', flood: '235,240,255', skylight: '225,236,255' };
+const LIGHT_H = { skylight: 0, street: 55, fluor: 70, fixed: 50, fire: 6, pool: 0, emerg: 45, window: 0, alien: 70, red: 55, reactor: 30, bar: 40, booth: 40, dj: 30, disco: 0, flood: 90 };
 let tod = 16, light = null, shadowKey = '', lights = [], windows = [], beams = [], dropped = [], debris = [], scast = [];
 let lightFrame = 0; const lightCache = { x: NaN, y: NaN, f: -1, v: 0 };
 
@@ -94,6 +94,7 @@ function buildLights(extra) {
 function lightTarget(l) {
   if (l.dead) return 0;
   if (l.kind === 'emerg') return 1;
+  if (l.kind === 'skylight') return light ? clamp(light.day * 1.2, 0, 1) : 0; // a window in an indoor map: daylight comes in, nothing at night
   if (l.kind === 'street') return light && 1 - light.day > l.thr ? 1 : 0; // each streetlight has its own sensor
   return light ? light.lampsOn : 0;
 }

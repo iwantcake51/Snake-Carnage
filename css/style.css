@@ -1745,3 +1745,54 @@ body.touch .sw::before,body.touch .tgl::before{inset:-9px}
 input[type=range]{padding-block:8px;background-clip:content-box}
 body.touch input[type=range]{padding-block:12px}
 .rip{position:absolute;inset:0;overflow:hidden;border-radius:inherit;pointer-events:none}
+/* ---- editor: materials, custom maps, custom props ---- */
+#matEd{position:fixed;inset:0;z-index:10002;display:flex;align-items:center;justify-content:center;background:rgba(5,4,7,.62);font:13px/1.35 var(--f-body,system-ui),sans-serif;color:#ddd}
+#matEd button,#matEd select,#matEd input:not([type=range]){background:#241e22;color:#e6e0dc;border:1px solid #3a3035;border-radius:7px;padding:5px 9px;font-size:12.5px;cursor:pointer}
+#matEd button.on{background:var(--acc,#d0191f);border-color:var(--acc,#d0191f);color:#fff}
+#matEd h4{margin:12px 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#bbb}
+#matEd h4 small{text-transform:none;letter-spacing:0;color:#777;font-weight:400}
+#matEd h5{margin:10px 0 4px;font-size:11px;color:#8d8496;text-transform:uppercase;letter-spacing:.05em}
+.melist{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:2px;margin:6px 0}
+#matEd .melist button{display:flex;align-items:center;gap:8px;text-align:left;background:none;border-color:transparent}
+#matEd .melist button:hover{background:#221d26}
+#matEd .melist button.on{background:color-mix(in srgb,var(--acc,#d0191f) 25%,transparent);border-color:color-mix(in srgb,var(--acc,#d0191f) 60%,transparent)}
+.melist canvas{width:30px;height:30px;border-radius:5px;flex:none}.melist i{margin-left:auto;font-style:normal;color:#7fd0ff}
+.mebig{width:100%;display:block;border-radius:10px;box-shadow:inset 0 0 0 1px #2c2226}
+.merow{display:flex!important;justify-content:space-between;align-items:center;gap:8px;color:#bbb;padding:2px 0}
+.merow input[type=range]{flex:1;min-width:0}.merow output{width:38px;text-align:right;font-size:11.5px;color:#999}
+.merow input[type=color]{width:44px;height:28px;padding:1px!important}
+.mewide{flex-wrap:wrap}.mewide input{flex:1 1 100%}
+#matEd .mename{flex:1;font-size:15px;font-weight:600}
+.melayers{display:flex;flex-direction:column;gap:3px}
+.melay{display:flex;align-items:center;gap:8px;padding:5px 7px;border:1px solid #2c2630;border-radius:7px;cursor:pointer}
+.melay.on{border-color:var(--acc,#d0191f);background:color-mix(in srgb,var(--acc,#d0191f) 14%,transparent)}
+.melay.off span{opacity:.45}.melay i{width:14px;height:14px;border-radius:4px;flex:none;box-shadow:0 0 0 1px rgba(255,255,255,.2)}
+.melay span{flex:1}#matEd .melay button{padding:0 6px;background:none;border:0}
+#matEd .edbtns,#propEd .edbtns{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+#matEd .warn,#propEd .warn{color:#ffb3b3;border-color:#5a2a30}
+.pefoot{display:flex;flex-wrap:wrap;gap:6px;padding-top:12px}
+.ednewenv{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
+.edmodal .ednewenv button{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;padding:12px 14px;min-height:96px}
+.edmodal .ednewenv button b{font-size:15px}.edmodal .ednewenv button small{color:#9a92a3;font-size:12px;line-height:1.35}
+.edmodal .ednewenv button.on{border-color:var(--acc,#d0191f);background:color-mix(in srgb,var(--acc,#d0191f) 18%,#26212a)}
+.edfield{display:flex!important;justify-content:space-between;align-items:center;gap:10px;color:#bbb;margin:4px 0}
+.edfield input[type=text],.edfield input:not([type]),.edmodal .edfield input{flex:1;min-width:0}
+.edmodal .edfield input,.edmodal .peseg button{background:#26212a;color:#e7e2ea;border:1px solid #3a3340;border-radius:8px;padding:7px 10px}
+.edmodal .peseg{margin-top:8px}.edmodal .peseg button{flex:1;border-radius:0;border:0}.edmodal .peseg button.on{background:var(--acc,#d0191f);color:#fff}
+.edmapset{display:flex;flex-direction:column;gap:6px;margin-top:6px;padding-top:8px;border-top:1px solid #2b2530}
+.edmapset h4{margin:10px 0 2px}
+#editor .edmapset .peseg button{flex:1;border:0;border-radius:0}
+.cmrow{display:flex;gap:5px;align-items:center}.cmrow select{flex:1;min-width:0}#editor .cmrow input[type=number]{width:56px}
+#editor .cmrow button{padding:4px 9px}
+.pecustom .pegeo{display:flex;flex-direction:column;gap:3px}
+.pepiece{margin-top:8px;padding-top:8px;border-top:1px dashed #2c2630;display:flex;flex-direction:column;gap:3px}
+/* editor hit areas: bigger than they look, never overlapping neighbours */
+#editor .edtool,#editor .edmb,#editor .edzoom button{position:relative}
+#editor .edtool::after,#editor .edmb::after{content:'';position:absolute;inset:-3px -1px}
+#editor .edlrow button{position:relative}#editor .edlrow button::after{content:'';position:absolute;inset:-4px}
+/* the map editor is desktop-only: no entry point on touch screens */
+body.touch #edBtn{display:none!important}
+#edDesk{position:fixed;inset:0;z-index:10010;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(5,4,7,.78);color:#e7e2ea;font:15px/1.45 var(--f-body,system-ui),sans-serif}
+.edDeskBox{max-width:420px;text-align:center;background:#17141a;border:1px solid #352e3a;border-radius:16px;padding:26px 22px}
+.edDeskBox h2{margin:12px 0 8px;font-size:20px}.edDeskBox p{margin:0 0 18px;color:#b4acbd}
+.edDeskBox button{min-height:44px;padding:0 22px;border-radius:10px;border:0;background:var(--acc,#d0191f);color:#fff;font-weight:600;font-size:15px;cursor:pointer}

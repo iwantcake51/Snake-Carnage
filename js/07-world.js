@@ -41,6 +41,12 @@ function buildSolid() {
   solidGrid = new Uint8Array(GW * GH);
   for (const o of obstacles) {
     if (obsFlag(o, 'noCollide')) continue; // walk-through props
+    const hp = typeof propHitPoly === 'function' && propHitPoly(o); // a prop with its own collision shape (separate from its drawing)
+    if (hp === 'none') continue;
+    if (hp) { const xs = hp.map(p => p[0]), ys = hp.map(p => p[1]);
+      for (let j = Math.max(0, Math.floor(Math.min(...ys) / SG)); j < Math.min(GH, Math.ceil(Math.max(...ys) / SG)); j++) for (let i = Math.max(0, Math.floor(Math.min(...xs) / SG)); i < Math.min(GW, Math.ceil(Math.max(...xs) / SG)); i++)
+        if (pointInPoly(hp, i * SG + 2, j * SG + 2)) solidGrid[j * GW + i] = 1;
+      continue; }
     if (isRot(o)) { const P = obsCorners(o), xs = P.map(p => p[0]), ys = P.map(p => p[1]);
       for (let j = Math.floor(Math.min(...ys) / SG); j < Math.ceil(Math.max(...ys) / SG); j++) for (let i = Math.floor(Math.min(...xs) / SG); i < Math.ceil(Math.max(...xs) / SG); i++)
         if (i >= 0 && j >= 0 && i < GW && j < GH && pointInPoly(P, i * SG + 2, j * SG + 2)) solidGrid[j * GW + i] = 1;
@@ -166,6 +172,7 @@ function settleGaps(list, roads, paths) {
 function loadMap(idx, sz) {
   mapIdx = idx; season = sz || null; // a season only for runs on outdoor maps; menus show the plain map
   bunkerCache = null; if (MAPS[idx].name === 'Bunker') bunkerLock = Math.random() < .35; // some runs the bunker is in lockdown
+  if (!MAPS[idx].custom) { mapMaterials = {}; if (Object.keys(mapPropDefs).length) { mapPropDefs = {}; propApply(); } } // a built-in map: no custom map's materials or props hanging around
   const m = MAPS[idx], b = m.build(); curBuild = b;
   Sfx.setMuffle(!!m.space && !m.indoor); // thin air on the surface; inside a pressurized station sound is normal
   const ov = mapOverride(m.name); // edits made in the map editor replace the map's own objects and lights as they are
@@ -174,13 +181,17 @@ function loadMap(idx, sz) {
     const old = captureTrails(m.build()), near = (p, q) => Math.abs(p[0] - q[0]) < 2 && Math.abs(p[1] - q[1]) < 2;
     b.paths = [...(b.paths || []).filter(p => !old.some(t => t.pts.some(q => near(p[0], q)))), ...ov.trails.map(t => t.pts)];
   }
+  let ovShapes = null; // shapes drawn on a built-in map in the editor (see 09c)
+  if (ov && ov.materials) mapMaterials = { ...mapMaterials, ...ov.materials };
+  if (ov && ov.shapes && ov.shapes.length) { ovShapes = compileVecShapes(ov.shapes); b.obs = [...b.obs, ...ovShapes.obs]; if (ovShapes.top.length) { const d0 = b.decor; b.decor = x => { if (d0) d0(x); paintVecFloor(x, ovShapes.top); }; } }
+  customFx = (ovShapes && ovShapes.anim) || b.customFx || { floor: [], top: [] };
   if (state !== 'editor') b.obs = b.obs.filter(o => o.chance == null || Math.random() * 100 < o.chance); // props with a spawn chance only sometimes show up
   let pre = [...borderWalls(m.border), ...b.obs];
   if (!ov) { nudgeLamps(pre, b.paths || [], b.roads || []); tidyPlacement(pre, b.roads || []); pre = settleGaps(pre, b.roads || [], b.paths || []); }
   curPre = pre.filter(o => o.kind !== 'border'); curMapLights = b.lights || m.lights || []; // spacing works on whole objects, before long ones are split into breakable sections
   obstacles = splitBreakables(addBreakWalls(pre, m.name));
   buildSolid();
-  b.obs = b.obs.filter(o => !o.dropped); bctx.clearRect(0, 0, W, H); if (ov) { trailMute = !!ov.trails; try { if (ov.base) paintBase(bctx, ov.base); else b.floor(bctx); } finally { trailMute = false; } if (ov.areas) paintAreas(bctx, ov.areas); if (ov.trails) paintTrails(bctx, ov.trails); } else b.floor(bctx); /* edited paths replace the map's painted trails */ for (const o of b.obs) if (o.kind === 'detail' && !o.dropped) drawObstacle(bctx, o); bakeContactShadows(bctx, b.obs); resetBuckets(); gctx.clearRect(0, 0, W, H); groundParts = []; trail = []; floaters = [];
+  b.obs = b.obs.filter(o => !o.dropped); bctx.clearRect(0, 0, W, H); if (ov) { trailMute = !!ov.trails; try { if (ov.base) paintBase(bctx, ov.base); else b.floor(bctx); } finally { trailMute = false; } if (ov.areas) paintAreas(bctx, ov.areas); if (ov.trails) paintTrails(bctx, ov.trails); } else b.floor(bctx); if (ovShapes) paintVecFloor(bctx, ovShapes.floor); /* edited paths replace the map's painted trails */ for (const o of b.obs) if (o.kind === 'detail' && !o.dropped) drawObstacle(bctx, o); bakeContactShadows(bctx, b.obs); resetBuckets(); gctx.clearRect(0, 0, W, H); groundParts = []; trail = []; floaters = [];
   buildGrassMask(); gradeGround(); seasonDetails(bctx);
   curBuild = b; drawObstacleLayer(); buildTrees();
   bakeOutline();

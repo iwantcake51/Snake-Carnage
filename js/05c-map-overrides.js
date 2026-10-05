@@ -17,7 +17,7 @@ function mapOverride(name) { // editor drafts stay in the editor; the game uses 
   return localMapEdits()[k] || MAP_OVERRIDES[k] || null;
 }
 let propCache = {}; // the prop editor's per-kind settings, kept current by propApply (40b)
-const obsFlag = (o, k) => !!(o[k] || (propCache[o.kind] && propCache[o.kind][k])); // per object, or for the whole kind
+const obsFlag = (o, k) => !!(o[k] || (propCache[o.kind] && (propCache[o.kind][k] || (k === 'noCollide' && propCache[o.kind].hit && propCache[o.kind].hit.type === 'none')))); // per object, or for the whole kind
 function obsCorners(o) { // a rotated rectangle's corners (o.rot in degrees, about its centre)
   const cx = o.x + o.w / 2, cy = o.y + o.h / 2, a = (o.rot || 0) * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
   return [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([u, v]) => [cx + u * o.w / 2 * c - v * o.h / 2 * s, cy + u * o.w / 2 * s + v * o.h / 2 * c]);
@@ -29,11 +29,11 @@ function fillObs(x, o, dx = 0, dy = 0, grow = 0) { // the footprint, for masks a
   else if (o.t === 'r') x.fillRect(o.x - grow + dx, o.y - grow + dy, o.w + grow * 2, o.h + grow * 2);
   else circ(x, o.x + dx, o.y + dy, o.r + grow);
 }
-function propDefs() { let loc = {}; try { loc = JSON.parse(localStorage.getItem('snakeCarnagePropDefs')) || {}; } catch (e) {} return { ...PROP_OVERRIDES, ...loc }; }
+function propDefs() { let loc = {}; try { loc = JSON.parse(localStorage.getItem('snakeCarnagePropDefs')) || {}; } catch (e) {} return { ...PROP_OVERRIDES, ...(typeof mapPropDefs === 'object' ? mapPropDefs : {}), ...loc }; } // shipped, then a custom map's own props, then yours
 function polyHit(P, x, y, r) { // a circle touching a polygon: inside it, or within r of an edge
   if (pointInPoly(P, x, y)) return true;
   for (let i = 0, j = P.length - 1; i < P.length; j = i++) { const [ax, ay] = P[j], [bx, by] = P[i], dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / L)), qx = ax + t * dx - x, qy = ay + t * dy - y; if (qx * qx + qy * qy < r * r) return true; }
   return false;
 }
-const shapeOf = o => o.poly ? polyShape(o) : isRot(o) ? obsCorners(o) : null; // the true outline of a non-box shape
+const shapeOf = o => { const hp = typeof propHitPoly === 'function' && propHitPoly(o); if (hp && hp !== 'none') return hp; return o.poly ? polyShape(o) : isRot(o) ? obsCorners(o) : null; }; // the true outline of a non-box shape (a prop's own hit shape first)
 let edTestSkills = null, edTesting = null; // play tests from the editor can borrow any upgrade levels (see 40b)

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0c0a0b">
+<title>Snake: Carnage map editor</title>
+<!-- The map editor's own entry point. Desktops go on to the game with the editor open; phones and tablets get a
+     short explanation instead, and never load the game or the editor at all. -->
+<style>
+  :root{color-scheme:dark}
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;background:#0c0a0b;color:#e7e2ea;font:15px/1.45 system-ui,sans-serif}
+  .box{max-width:420px;text-align:center;background:#17141a;border:1px solid #352e3a;border-radius:16px;padding:26px 22px}
+  h1{margin:12px 0 8px;font-size:20px}
+  p{margin:0 0 18px;color:#b4acbd}
+  a{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 22px;border-radius:10px;background:#d0191f;color:#fff;font-weight:600;text-decoration:none}
+  .hide{display:none}
+</style>
+<script>
+  // same test as the game (editorAllowed in 40b-editor-runtime): a fine pointer, no touch screen and enough room
+  (function () {
+    var touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0, fine = window.matchMedia && matchMedia('(pointer: fine)').matches;
+    if (!touch && fine && window.innerWidth >= 900) location.replace('index.html#editor');
+  })();
+</script>
+</head>
+<body>
+<div class="box">
+  <svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="1.5"/><path d="M8 21h8M12 17v4"/></svg>
+  <h1>The map editor needs a computer</h1>
+  <p>It's built for a mouse, a keyboard and a big screen, so it isn't available on phones or tablets. Open this page on a desktop or laptop to make maps. Maps you make there can be played anywhere.</p>
+  <a href="index.html">Play the game</a>
+</div>
+</body>
+</html>

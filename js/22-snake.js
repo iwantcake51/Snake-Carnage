@@ -80,7 +80,7 @@ function updateSnake(dt) {
   const hx = s.x + Math.cos(s.angle) * 2 * s.scale, hy = s.y + Math.sin(s.angle) * 2 * s.scale;
   for (const o of obstacles) if (o.kind === 'lamp' && dist2(hx, hy, o.x, o.y) < (hr + o.r) ** 2) { breakLamp(o, s.angle); break; } // posts snap instead of stopping you
   const hitO = obstacleHitBy(hx, hy, hr);
-  if (hitO && canRam(hitO)) smashObstacle(hitO, s.angle); // Battering Ram: furniture gives way
+  if (hitO && canRam(hitO) && ramSpot(hitO, hx, hy)) smashObstacle(hitO, s.angle); // Battering Ram: furniture gives way
   else if (hitO) { crashHit = { o: hitO, t: T }; return die(); }
   for (let i = 8; i < s.segs.length; i++) if (dist2(s.x, s.y, s.segs[i].x, s.segs[i].y) < (snakeRadius() * 1.1) ** 2) { if (s.segs.length >= 60) { PROG.ouro = 1; checkAch(); } crashHit = { seg: i, t: T }; return die(); }
 
@@ -277,6 +277,10 @@ function eat(c) {
   respawnQ.push({ type: c.type, zone: c.zone, t: rand(2, 5) });
   checkChallenges();
   updateHud();
+}
+function ramSpot(o, x, y) { // a custom prop can say WHERE it breaks (its interaction shape); hitting it anywhere else is like hitting a wall
+  const ip = typeof propHitPoly === 'function' && propHitPoly(o, 'interact'); if (!ip || ip === 'none') return ip !== 'none';
+  return polyHit(ip, x, y, snakeHitRadius() + 2);
 }
 let crashHit = null; // what you ran into: it flashes as the run ends
 const deathDelay = () => IS_TOUCH ? .3 : .7; // a beat to feel the impact (the hit flashes, the screen shakes), then the crash screen. Phones get it fast.

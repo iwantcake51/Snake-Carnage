@@ -16,14 +16,22 @@ function updateHud() {
 }
 let thumbs = null;
 const stage = document.getElementById('stage'), intro = document.getElementById('intro');
+const thumbCache = new Map(); // map (and, for a custom map, its last save) -> preview
 function makeThumbs() { // rendered preview of every map (used by the cards, the roll and the intro)
   return MAPS.map(m => {
+    const key = m.custom ? `${m.custom}:${(m.data.meta || {}).modified || 0}:${W}` : `${m.name}:${W}`; if (thumbCache.has(key)) return thumbCache.get(key);
+    const url = mapThumb(m); thumbCache.set(key, url); return url;
+  });
+}
+function mapThumb(m) {
+  {
     const [c, x] = makeLayer(), b = m.build();
     b.floor(x); const [oc, ox] = makeLayer(); drawObstacleLayer(ox, b, [...borderWalls(m.border), ...b.obs], b.lights || m.lights || []); x.drawImage(oc, 0, 0, W, H);
     const t = document.createElement('canvas'); t.width = 480; t.height = 320;
-    t.getContext('2d').drawImage(c, XO * DPR, 0, MW * DPR, H * DPR, 0, 0, 480, 320); // the card shows the original middle of the map
+    if (m.custom) t.getContext('2d').drawImage(c, 0, 0, W * DPR, H * DPR, 0, (320 - 480 * H / W) / 2, 480, 480 * H / W); // a custom map is shown whole
+    else t.getContext('2d').drawImage(c, XO * DPR, 0, MW * DPR, H * DPR, 0, 0, 480, 320); // the card shows the original middle of the map
     return t.toDataURL ? t.toDataURL() : '';
-  });
+  }
 }
 function makeSplatSVG() { // flat blood splatter behind the title (seeded, so it looks the same every time)
   let sd = 11; const r = () => (sd = sd * 16807 % 2147483647) / 2147483647;
@@ -56,7 +64,7 @@ function transitionTo(fn) { // animate the current screen out, then show the nex
 }
 function showMenu() {
   state = 'menu'; endIntro(true); creatures = []; /* nobody in the background behind the menus */ setTimeout(warmCanopies, 1500);
-  if (!thumbs) thumbs = makeThumbs();
+  if (!thumbs || thumbs.length !== MAPS.length || MAPS.some(m => m.custom)) thumbs = makeThumbs(); // custom maps come and go (cached, so this is cheap)
   MOD = {}; rewardMult = 1; document.body.classList.remove('minimal');
   stage.classList.remove('bars', 'paused'); cv.style.scale = '1.05';
   overlay.className = 'menuMode';
