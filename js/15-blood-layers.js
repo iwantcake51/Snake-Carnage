@@ -1,5 +1,6 @@
 /* BLOOD BUCKETS: blood is drawn into time-slice layers. A layer stays fully opaque for a long hold time,
    then fades smoothly via globalAlpha (no 8-bit leftovers). Old layers are recycled. */
+const GLOSS_NB = []; // reused result array for the pool reflections
 const FADE = { Never: null, Slow: { hold: 90, fade: 60 }, Normal: { hold: 40, fade: 35 }, Fast: { hold: 15, fade: 20 } }; // seconds
 const fadeCfg = () => SETTINGS.bloodQ === 'Extreme' ? { hold: 9, fade: 6 } : FADE[SETTINGS.bloodFade]; // Extreme draws a lot more blood, so it always clears quickly // Extreme draws a lot more blood, so it always clears after half a minute or so
 const BLOOD_BUCKETS = 4; // each layer is two full-screen canvases drawn every frame, so keep this small
@@ -206,7 +207,7 @@ function drawGloss(x) { // fresh pools are little mirrors: the sky, nearby lamps
     // 2. things standing over the pool show as dark, slightly offset reflections
     x.fillStyle = `rgba(0,0,0,${.14 * wetK})`;
     if (snake) { const n = snake.segs.length; for (let k = 0; k < n; k += 2) { const sgm = snake.segs[k]; if (dist2(sgm.x, sgm.y, g.x, g.y) < (R + 14) ** 2) circ(x, sgm.x + 2, sgm.y + 4, segR(k, n) * .9); } }
-    for (const c of creatures) if (c.alive && dist2(c.x, c.y, g.x, g.y) < (R + 12) ** 2) circ(x, c.x + 1.5, c.y + 4, c.def.r * .8);
+    for (const c of nearbyCreatures(g.x, g.y, R + 12, GLOSS_NB)) if (c.alive) circ(x, c.x + 1.5, c.y + 4, c.def.r * .8); // the spatial grid, not every creature for every pool
     // 3. lamps nearby: a bright highlight on the side of the pool facing each one, in the light's own color
     if (L && q >= 1) for (const l of lights) {
       if (l.kind === 'window' && q < 3) continue; const k = lightK(l); if (k < .05) continue;

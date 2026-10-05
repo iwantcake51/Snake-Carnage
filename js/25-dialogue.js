@@ -411,6 +411,7 @@ function gibberish(yell) {
   if (yell) { t = t.toUpperCase(); if (Math.random() < .5) t = stretch(t); t += pick(['!', '!!', '?!']); } else t = t[0].toUpperCase() + t.slice(1) + pick(['.', '?', '...']);
   return t;
 }
+const talkCount = { t: -1, n: 0 };
 function say(c, ctxRaw) {
   if (!c.def.human || !c.alive || MOD.mute) return;
   const [ctx, name] = ctxRaw.split(':');
@@ -426,7 +427,8 @@ function say(c, ctxRaw) {
     else if (urg >= 2 && busyUntil(c) < 1.5) delay = busyUntil(c) + pauseFor(urg);
     else return;
   }
-  const talking = creatures.reduce((n, o) => n + (o !== c && o.bubbles && o.bubbles.length ? 1 : 0), 0);
+  if (talkCount.t !== T) { talkCount.t = T; talkCount.n = creatures.reduce((n, o) => n + (o.bubbles && o.bubbles.length ? 1 : 0), 0); } // counted once per tick, not once per line
+  const talking = talkCount.n - (c.bubbles && c.bubbles.length ? 1 : 0);
   if (talking >= 6 && urg < 3) { c.sayCD = rand(1.5, 3); return; }
   if (c.def.alien) { // gibberish, sometimes with a little action
     const yell = urg >= 2 || Math.random() < .4;

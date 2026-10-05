@@ -324,7 +324,9 @@ const SETTING_TABS = {
   Controls: { icon: 'controls', lead: 'Keys you can use while playing. On a phone or tablet, drag anywhere on the board to steer.', keys: [
     ['W A S D', 'Move. Hold two keys to go diagonal. Let go to keep going straight.'], ['Arrows', 'Also move'],
     ['F', 'Night vision'], ['Shift', 'Lunge (upgrade)'], ['Q', 'Camouflage (upgrade)'], ['E', 'Scent (upgrade)'], ['R', 'Hiss (upgrade)'],
-    ['Mouse', 'Steer with the cursor (Free movement modifier + Mouse steering)'], ['Space', 'Start, skip the intro, play again'], ['Esc', 'Pause, back']] },
+    ['Mouse', 'Steer with the cursor (Free movement modifier + Mouse steering)'], ['Space', 'Start, skip the intro, play again'], ['Esc', 'Pause, back'],
+    ['Wheel', 'Zoom the camera in or out, toward the cursor'], ['Drag', 'Pan the camera (middle mouse, or left mouse when not steering with it)'], ['Double-click', 'Camera back on the snake'],
+    ['Pinch', 'On a touch screen: two fingers zoom and pan; one finger still steers']] },
   Accessibility: { icon: 'access', lead: 'Make the game easier to see and use.', rows: [
     ['toggle', 'reduceMotion', 'Reduce motion', 'Turns off menu animations, floating buttons and the intro zoom.'],
     ['seg', 'uiScale', 'UI scale', 'Size of menus, HUD, notifications and buttons. Auto follows the size of the game.', ['Small', 'Medium', 'Large', 'Extra Large', 'Auto']],

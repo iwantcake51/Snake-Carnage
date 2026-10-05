@@ -211,5 +211,6 @@ function loadMap(idx, sz) {
   makeFlies(m.fireflies || 0);
   curPaths = b.paths || []; curRoads = b.roads || []; curCross = b.crossings || []; spawnWalkers(m.walkers || 0); if (state === 'menu') creatures = []; /* the map behind the menus is empty: nobody milling about */ makeGrass(m.grass || 0); makeWeather();
   deaths = []; if (typeof run === 'object') run.startPop = creatures.length;
+  buildNeighbors(); // neighbour queries never see the previous map's crowd, even before the first tick
   updateHud();
 }
