@@ -223,9 +223,15 @@ function indoorWing(st, k, e, o) {
     const r = Object.assign([y0, y1], { w: w - (o.noSeam ? 0 : 14) });
     if (!o.noSeam) { const door = 88, dy = i ? y0 : y1 - door; /* the door sits near the corridor, where people come from */ if (dy > y0) e.obs.push(k.R(w - 14, y0, 14, dy - y0, o.wall)); if (y1 > dy + door) e.obs.push(k.R(w - 14, dy + door, 14, y1 - dy - door, o.wall)); }
     o.rooms[i](k, r, e);
-    e.lights.push(o.light(k.X(r.w * .5), (y0 + y1) / 2));
+    const [lx, ly] = clearSpot(e.obs, k.X(r.w * .5), (y0 + y1) / 2, y0 + 20, y1 - 20); e.lights.push(o.light(lx, ly)); // a ceiling light over the floor, not over the furniture
   }
   e.lights.push(o.light(k.X(w * .5), cy + ch / 2));
+}
+function clearSpot(obs, x, y, ymin, ymax) { // nearest point (up/down/sideways) not over a piece of furniture
+  const over = (px, py) => obs.some(o => !EXT_WALLS.has(o.kind) && (o.t === 'r' ? px > o.x - 14 && px < o.x + o.w + 14 && py > o.y - 10 && py < o.y + o.h + 10 : Math.hypot(px - o.x, py - o.y) < o.r + 14));
+  if (!over(x, y)) return [x, y];
+  for (let d = 8; d < 120; d += 8) for (const [dx, dy] of [[0, d], [0, -d], [d, 0], [-d, 0], [d, d], [-d, -d], [d, -d], [-d, d]]) { const nx = x + dx, ny = y + dy; if (ny >= ymin && ny <= ymax && nx > B + 10 && nx < W - B - 10 && !over(nx, ny)) return [nx, ny]; }
+  return [x, y];
 }
 /* ---- carry-ons for anything that met the old edge ---- */
 function carryWalls(obs, sideOf, gateU) { // walls and fences that met the old edge run on to the new one, with a doorway partway

@@ -40,8 +40,10 @@ function roof(x, o) { // pitched roofs read as a ridge with two shaded slopes; f
   if (type === 'flat') {
     x.fillStyle = shade(c, -.05); x.fillRect(o.x, o.y, o.w, o.h);
     x.strokeStyle = shade(c, .18); x.lineWidth = 3; x.strokeRect(o.x + 2.5, o.y + 2.5, o.w - 5, o.h - 5); // parapet
-    const r = seeded(Math.round(o.x * 7 + o.y));
-    for (let k = 0; k < 2 + (o.w * o.h > 20000 ? 2 : 0); k++) { const ax = o.x + 14 + r() * (o.w - 46), ay = o.y + 14 + r() * (o.h - 40); x.fillStyle = '#9aa0a6'; x.fillRect(ax, ay, 22, 16); x.strokeStyle = '#6e737a'; x.lineWidth = 1; x.strokeRect(ax + .5, ay + .5, 21, 15); x.beginPath(); x.arc(ax + 11, ay + 8, 5, 0, TAU); x.stroke(); }
+    // AC units: one mounted row along the roof's long side, evenly spaced and inset from the parapet (never scattered or stacked)
+    const hz = o.w >= o.h, L = hz ? o.w : o.h, D = hz ? o.h : o.w, uw = hz ? 22 : 16, uh = hz ? 16 : 22, step = 34, n = D >= 34 ? clamp(Math.floor((L - 40) / step), 0, 4) : 0;
+    const span = (n - 1) * step, a0 = (hz ? o.x : o.y) + (L - span) / 2, b0 = hz ? (o.front === 'n' ? o.y + o.h - 12 - uh : o.y + 12) : (o.front === 'w' ? o.x + o.w - 12 - uw : o.x + 12); // at the back, away from a shop front
+    for (let k = 0; k < n; k++) { const ax = hz ? a0 + k * step - uw / 2 : b0, ay = hz ? b0 : a0 + k * step - uh / 2; x.fillStyle = 'rgba(0,0,0,.18)'; x.fillRect(ax + 1.5, ay + 2, uw, uh); x.fillStyle = '#9aa0a6'; x.fillRect(ax, ay, uw, uh); x.strokeStyle = '#6e737a'; x.lineWidth = 1; x.strokeRect(ax + .5, ay + .5, uw - 1, uh - 1); x.beginPath(); x.arc(ax + uw / 2, ay + uh / 2, 5, 0, TAU); x.stroke(); }
     x.fillStyle = '#5f646b'; circ(x, o.x + o.w - 16, o.y + o.h - 14, 4);
     return;
   }

@@ -345,10 +345,10 @@ function brokenSpeaker(x, o, ang) { // still standing, but gutted: cones blown o
 
 /* ---- tier 3 ram: authored wall sections that can be smashed open (shortcuts and escape routes) ---- */
 const BREAK_WALLS = {
-  Office: [[560, 326, 60, 14], [706, 362, 14, 52], [690, 236, 52, 14]],
-  'Alien Facility': [[316, 110, 14, 60], [520, 384, 60, 14], [470, 480, 14, 60]],
-  'Space Station': [[250, 46, 14, 54], [840, 436, 60, 14], [80, 190, 56, 14]],
-  Bunker: [[330, 130, 14, 60], [640, 130, 14, 60], [390, 510, 14, 60], [700, 470, 14, 60]], // one in every wall between neighbouring rooms: break through and the rooms loop into each other
+  Office: [[560, 326, 60, 14], [706, 560, 14, 52], [690, 236, 60, 14]], // each opens a second way in: open plan <-> corridor, open plan <-> kitchen, corridor <-> corner office
+  'Alien Facility': [[316, 110, 14, 60], [630, 110, 14, 60], [470, 480, 14, 60]], // lab | control | cryo, and hangar | reactor: break both top ones and the north rooms loop
+  'Space Station': [[100, 190, 60, 14], [800, 190, 60, 14], [100, 436, 60, 14], [800, 436, 60, 14]], // each bay's hall-side wall: a second way out of every bay
+  Bunker: [[330, 130, 14, 60], [640, 108, 14, 60], [390, 510, 14, 60], [700, 470, 14, 60]], // one in every wall between neighbouring rooms: break through and the rooms loop into each other
 };
 function addBreakWalls(list, mapName) { // cut each marked section out of the wall it sits in, as its own breakable piece
   let secs = BREAK_WALLS[mapName] || [];
