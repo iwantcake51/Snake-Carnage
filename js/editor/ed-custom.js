@@ -178,7 +178,7 @@ function edNewPropDlg(from) {
       const src = from && propDefs()[from], def = src ? { ...edClone(src), name, custom: true } : { custom: true, name, base, w: base === 'c' ? 16 : 40, h: base === 'c' ? 0 : 30, color: '#8a8f99', hideBase: true,
         shapes: [{ type: base === 'c' ? 'circle' : 'rect', x: .5, y: .5, w: 1, h: 1, rot: 0, c: '#8a8f99', a: 1, lw: .08 }, { type: base === 'c' ? 'circle' : 'rect', x: .5, y: .45, w: .7, h: .6, rot: 0, c: '#b4b9c2', a: 1, lw: .08 }] };
       let loc = {}; try { loc = JSON.parse(localStorage.getItem('snakeCarnagePropDefs')) || {}; } catch (e) {}
-      loc[kind] = def; try { localStorage.setItem('snakeCarnagePropDefs', JSON.stringify(loc)); } catch (e) {} propApply(); edSyncCustomProps(); openPropEditor(kind);
+      peHistNote(peRaw(), null); loc[kind] = def; try { localStorage.setItem('snakeCarnagePropDefs', JSON.stringify(loc)); } catch (e) {} propApply(); edSyncCustomProps(); openPropEditor(kind);
     }, 'edprimary']]);
   m.querySelectorAll('.npbase [data-b]').forEach(b => b.onclick = () => m.querySelectorAll('.npbase [data-b]').forEach(c => c.classList.toggle('on', c === b)));
   const inp = m.querySelector('.npname'); inp.focus(); inp.select(); inp.onkeydown = e => { e.stopPropagation(); if (e.key === 'Enter') m.querySelector('.edprimary').click(); };
@@ -186,7 +186,7 @@ function edNewPropDlg(from) {
 const _openPropEditorC = openPropEditor;
 openPropEditor = function (kind) {
   edSyncCustomProps(); _openPropEditorC(kind);
-  const head = PE.box.querySelector('.pehead .peclose'), b = document.createElement('button'); b.className = 'edghost penew'; b.textContent = '+ New prop'; b.onclick = () => edNewPropDlg(); head.before(b);
+  const head = PE.box.querySelector('.pehead .pedocks'), b = document.createElement('button'); b.className = 'edghost penew'; b.textContent = '+ New prop'; b.onclick = () => edNewPropDlg(); head.before(b);
   const mb = document.createElement('button'); mb.className = 'edghost'; mb.textContent = 'Materials…'; mb.onclick = () => openMaterialEditor(null, null); head.before(mb);
   const done = PE.box.querySelector('.peclose'), was = done.onclick; done.onclick = () => { was(); edSyncCustomProps(); };
 };
@@ -214,7 +214,7 @@ peSide = function () {
   sec.querySelectorAll('.pecs2').forEach(r => { r.oninput = () => { r.nextElementSibling.textContent = r.value; const q = peGet(); q[r.dataset.k] = +r.value; const e = ED_PROPS.find(z => z[1] === PE.kind); if (e) e[r.dataset.k === 'w' ? 3 : 4] = +r.value; save(q); }; r.onchange = () => edSyncCustomProps(); });
   const dup = sec.querySelector('.pecdup'); if (dup) dup.onclick = () => edNewPropDlg(PE.kind);
   const del = sec.querySelector('.pecdel'); if (del) del.onclick = () => edModal('Delete this prop?', `<p>Every ${(p.name || PE.kind).replace(/</g, '&lt;')} placed on your maps stops drawing until you remove them.</p>`, [['Cancel', null, ''], ['Delete', () => {
-    let loc = {}; try { loc = JSON.parse(localStorage.getItem('snakeCarnagePropDefs')) || {}; } catch (e) {} delete loc[PE.kind]; try { localStorage.setItem('snakeCarnagePropDefs', JSON.stringify(loc)); } catch (e) {} propApply(); edSyncCustomProps(); openPropEditor('tree'); }, 'warn']]);
+    let loc = {}; try { loc = JSON.parse(localStorage.getItem('snakeCarnagePropDefs')) || {}; } catch (e) {} peHistNote(peRaw(), null); delete loc[PE.kind]; try { localStorage.setItem('snakeCarnagePropDefs', JSON.stringify(loc)); } catch (e) {} propApply(); edSyncCustomProps(); openPropEditor('tree'); }, 'warn']]);
   sec.querySelectorAll('.pegeo').forEach(g => { const which = g.dataset.g;
     g.querySelector('.pegt').onchange = e => { const q = peGet(), t = e.target.value; if (!t) delete q[which]; else q[which] = { type: t, x: .5, y: .5, w: 1, h: 1, ...(t === 'poly' ? { pts: [[0, 0], [1, 0], [1, 1], [0, 1]] } : {}) }; side(q); };
     g.querySelectorAll('.pegk').forEach(r => r.oninput = () => { r.nextElementSibling.textContent = r.value; const q = peGet(); q[which][r.dataset.k] = +r.value; save(q); });

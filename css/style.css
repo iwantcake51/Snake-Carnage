@@ -1796,3 +1796,38 @@ body.touch #edBtn{display:none!important}
 .edDeskBox{max-width:420px;text-align:center;background:#17141a;border:1px solid #352e3a;border-radius:16px;padding:26px 22px}
 .edDeskBox h2{margin:12px 0 8px;font-size:20px}.edDeskBox p{margin:0 0 18px;color:#b4acbd}
 .edDeskBox button{min-height:44px;padding:0 22px;border-radius:10px;border:0;background:var(--acc,#d0191f);color:#fff;font-weight:600;font-size:15px;cursor:pointer}
+/* prop editor window: floats over the map or docks to a side (see peLayout in js/editor/ed-core.js) */
+#propEd.pewnd{inset:auto;display:block;background:none;pointer-events:none}
+.pewnd .pewin{position:fixed;pointer-events:auto;max-width:none;max-height:none;box-shadow:0 18px 50px rgba(0,0,0,.55);transition:border-color .15s}
+.pewnd .pewin.peactive{border-color:color-mix(in srgb,var(--acc,#d0191f) 70%,#352e3a)}
+.pewnd[data-mode=left] .pewin,.pewnd[data-mode=right] .pewin{border-radius:0;border-top:0;border-bottom:0;box-shadow:none}
+.pewnd[data-mode=left] .pewin{border-left:0}.pewnd[data-mode=right] .pewin{border-right:0}
+.pewnd .pehead{cursor:grab;user-select:none;flex-wrap:wrap;row-gap:6px}
+.pewnd .pewin.pemoving{opacity:.88}.pewnd .pewin.pemoving .pehead{cursor:grabbing}
+.pettlbar{display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+.pehist,.pedocks{display:inline-flex;gap:2px}
+#propEd .pehist button,#propEd .pedocks button{display:inline-flex;align-items:center;justify-content:center;width:30px;height:28px;padding:0;background:none;border-color:transparent}
+#propEd .pehist button:hover:not(:disabled),#propEd .pedocks button:hover{background:#262029;border-color:#3a3035}
+#propEd .pehist button:disabled{opacity:.3;cursor:default}
+#propEd .pedocks button.on{background:#2c2530;border-color:#4a4050;color:#fff}
+.pehint{position:fixed;top:0;bottom:0;display:none;pointer-events:none;background:color-mix(in srgb,var(--acc,#d0191f) 18%,transparent);border:2px dashed var(--acc,#d0191f)}
+.pehint.on{display:block}.pehint.left{left:0}.pehint.right{right:0}
+.pegrip,.peedge{position:absolute;display:none;z-index:2}
+.pegrip{right:0;bottom:0;width:16px;height:16px;cursor:nwse-resize;background:linear-gradient(135deg,transparent 50%,#4a4050 50%,#4a4050 60%,transparent 60%,transparent 72%,#4a4050 72%,#4a4050 82%,transparent 82%)}
+.peedge{top:0;bottom:0;width:6px;cursor:ew-resize}.peedge:hover{background:color-mix(in srgb,var(--acc,#d0191f) 45%,transparent)}
+.pewnd[data-mode=float] .pegrip{display:block}
+.pewnd[data-mode=left] .peedge{display:block;right:0}.pewnd[data-mode=right] .peedge{display:block;left:0}
+/* narrow (docked, or a small floating window): one scrolling column */
+.pewin.narrow .pehead .edmuted{display:none}
+.pewin.narrow .pettlbar{flex:1}
+.pewin.narrow .pebody{display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden}
+.pewin.narrow .pelistw{flex:none;border-right:0;border-bottom:1px solid #2c2226}
+.pewin.narrow .pelist{flex-direction:row;overflow-x:auto;overflow-y:hidden;gap:4px;padding-bottom:4px}
+.pewin.narrow .pelist button{position:relative;flex:none;flex-direction:column;width:74px;gap:3px;padding:5px 3px;text-align:center;font-size:11px}
+.pewin.narrow .pelist button span{max-width:66px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pewin.narrow .pelist .ped{position:absolute;top:3px;right:5px;margin:0}
+.pewin.narrow .pemain{flex:none;padding:10px}
+.pewin.narrow .pemain .edhint{display:none}
+.pewin.narrow .pebgs{flex-wrap:wrap;justify-content:center}
+.pewin.narrow .pecmp canvas{width:80px;height:60px}
+.pewin.narrow .peside{flex:none;overflow:visible;border-left:0;border-top:1px solid #2c2226}

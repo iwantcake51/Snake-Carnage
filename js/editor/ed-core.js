@@ -37,6 +37,7 @@ const edClone = v => JSON.parse(JSON.stringify(v));
 const edLightCol = l => l.c || LCOL[l.kind || (MAPS[ED.map].indoor ? 'fluor' : 'fixed')] || '255,214,150';
 
 function openEditor(idx = mapIdx) {
+  PE.hist = null; // prop undo history lasts one editor session
   ED.map = idx; ED.open = true; ED.tool = 'select'; ED.sel = []; ED.undo = []; ED.redo = []; ED.snaps = edLoadSnaps(); ED.grid = ED.snaps.move.step; ED.showGrid = true; ED.lit = false; ED.help = true; ED.pal = null; ED.pathW = 20; ED.pathStyle = 'dirt'; ED.draft = null; ED.fitted = false;
   state = 'editor'; overlay.style.display = 'none'; season = null;
   loadMap(idx); creatures = [];
@@ -88,7 +89,7 @@ function edExport() {
   edStatus('Exported 05c-map-overrides.js: put it in the js folder to ship these edits');
 }
 function edImport(file) {
-  file.text().then(t => {
+  file.text().then(t => { PE.hist = null; if (PE.box) peHistUI(); // imported props would be lost by undoing past them
     if (/^SNAKE CARNAGE EDITS/.test(t)) { const d = JSON.parse(t.slice(t.indexOf('{'))); localStorage.setItem('snakeCarnageEdDrafts', JSON.stringify({ ...edDrafts(), ...(d.maps || {}) })); localStorage.setItem('snakeCarnagePropDefs', JSON.stringify({ ...edLocalProps(), ...(d.props || {}) })); propApply();
       const ov = mapOverride(MAPS[ED.map].name); if (ov) { edPush(); ED.obs = edClone(ov.obs); ED.lights = edClone(ov.lights); if (ov.trails) ED.trails = edClone(ov.trails); edFloor(true); } edPreviews(); edPanel(); return edStatus(`Imported ${Object.keys(d.maps || {}).length} map(s) and ${Object.keys(d.props || {}).length} prop(s)`); } const m = t.match(/MAP_OVERRIDES = (\{[\s\S]*?\});\n/), pm = t.match(/PROP_OVERRIDES = (\{[\s\S]*?\});/); const data = JSON.parse(m ? m[1] : t);
     if (pm) { try { localStorage.setItem('snakeCarnagePropDefs', JSON.stringify({ ...propDefs(), ...JSON.parse(pm[1]) })); propApply(); } catch (e) {} }
@@ -303,6 +304,7 @@ function edTool(t, prop) { if (ED.draft && t !== ED.draft.kind) edFinishDraft();
 /* ---- keys ---- */
 function edKey(e) {
   if (!ED.open) return;
+  if (peKey(e)) return; // the prop editor has focus: its keys first, and the map's shortcuts stay off until the map is clicked
   const tag = (e.target.tagName || '').toLowerCase(); if (tag === 'input' || tag === 'select' || tag === 'textarea') { if (e.key === 'Escape') e.target.blur(); return; }
   e.stopPropagation(); const k = e.key.toLowerCase(), mod = e.ctrlKey || e.metaKey, step = e.shiftKey ? 10 : 1;
   if (e.type === 'keyup') { if (e.code === 'Space') ED.space = false; return; }
@@ -340,6 +342,7 @@ const ED_ICON = { // small line icons for the toolbar and menus
   grid: 'M4 4h16v16H4zM4 10h16M4 16h16M10 4v16M16 4v16', night: 'M20 14A8 8 0 0110 4a8 8 0 1010 10z', reach: 'M12 12m-8 0a8 8 0 1016 0 8 8 0 10-16 0M12 12m-3 0a3 3 0 106 0 3 3 0 10-6 0', help: 'M12 21a9 9 0 110-18 9 9 0 010 18zM9.5 9a2.5 2.5 0 115 .5c0 1.5-2.5 2-2.5 3.5M12 17h.01',
   undo: 'M9 14L4 9l5-5M4 9h11a5 5 0 010 10h-3', redo: 'M15 14l5-5-5-5M20 9H9a5 5 0 000 10h3', play: 'M7 4l13 8-13 8z', share: 'M4 12v7a1 1 0 001 1h14a1 1 0 001-1v-7M16 6l-4-4-4 4M12 2v13', exit: 'M15 4h4a1 1 0 011 1v14a1 1 0 01-1 1h-4M10 17l-5-5 5-5M5 12h11',
   props: 'M4 7l8-4 8 4-8 4zM4 7v10l8 4 8-4V7', layers: 'M12 3l9 5-9 5-9-5zM3 13l9 5 9-5', eye: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 12m-3 0a3 3 0 106 0 3 3 0 10-6 0', lock: 'M6 11h12v9H6zM8 11V8a4 4 0 018 0v3', map: 'M9 4L3 6v14l6-2 6 2 6-2V4l-6 2zM9 4v14M15 6v14', mini: 'M3 5h18v14H3zM13 11h6v6h-6z',
+  dockL: 'M4 4h16v16H4zM9 4v16M5.5 8h2M5.5 11h2', dockR: 'M4 4h16v16H4zM15 4v16M16.5 8h2M16.5 11h2', float: 'M3 9h12v11H3zM8 9V4h13v11h-6',
 };
 const edSvg = (k, s = 16) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="${ED_ICON[k]}"/></svg>`;
 const ED_TOOLS = [['select', 'Select / move', 'V'], ['wall', 'Draw wall', 'W'], ['rect', 'Draw block', 'B'], ['path', 'Draw path', 'T'], ['water', 'Draw water', 'Y'], ['area', 'Floor area', 'U'], ['light', 'Add light', 'L'], ['pan', 'Pan', 'Space']];
@@ -428,6 +431,7 @@ function edBuildUI() {
   root.querySelector('.edmap').onchange = e => { if (ED.dirtySave) edSave(); const i = +e.target.value; cancelAnimationFrame(ED.raf); root.remove(); removeEventListener('keydown', edKey, true); removeEventListener('keyup', edKey, true); openEditor(i); };
   addEventListener('keydown', edKey, true); addEventListener('keyup', edKey, true);
   root.querySelector('.edpe').onclick = () => edCmd('propEd');
+  PE.rootL = 0; if (PE.box && PE.box.isConnected) { peLayout(); peHistUI(); } // a prop editor left open while switching maps keeps its dock
   { // the controls panel: drag it by its title, resize it from the corner; both remembered
     const h = root.querySelector('.edhelp'), t = h.querySelector('b'); t.classList.add('edhdrag'); t.title = 'Drag to move';
     try { const g = JSON.parse(localStorage.getItem('snakeEdHelpBox')); if (g) { h.style.left = g.l + 'px'; h.style.setProperty('top', g.t + 'px', 'important'); h.style.width = g.w + 'px'; if (g.h) h.style.height = g.h + 'px'; } } catch (e) {}
@@ -534,22 +538,27 @@ function drawPreview(cv, o) { // fits one object into a small canvas
 }
 function edPreviews() { if (!ED.root) return; ED.root.querySelectorAll('.edprop').forEach(b => { const p = ED_PROPS[+b.dataset.p]; drawPreview(b.querySelector('canvas'), edSample(p, 0, 0)); }); }
 const kindSample = kind => { const p = ED_PROPS.find(p => p[1] === kind && (kind !== 'detail' || p[6].d === 'mailbox')); if (p) return p; const o = (ED.obs || []).find(o => o.kind === kind); return o ? (o.t === 'r' ? ['', kind, 'r', o.w, o.h, o.color] : ['', kind, 'c', o.r, 0, o.color]) : ['', kind, 'r', 60, 40, '#888888']; };
-/* ---- the window ---- */
+/* ---- the window: floats over the map, or docks to its left or right side (the map shrinks to make room), so every
+   change shows on the map as you make it. Drag the title bar to move it; drop it on a screen edge to dock it. ---- */
 function openPropEditor(kind) {
-  const old = document.getElementById('propEd'); if (old) old.remove();
+  const old = document.querySelector('#propEd.pewnd'); if (old) old.remove();
   const kinds = [...new Set([...ED_PROPS.map(p => p[1]), ...ED_KINDS, ...(ED.obs || []).map(o => o.kind)])].filter(k => k !== 'border' && k !== 'water').sort();
-  const box = document.createElement('div'); box.id = 'propEd';
-  box.innerHTML = `<div class="pewin"><div class="pehead">${edSvg('props', 18)}<b>Prop editor</b><span class="edmuted">Pick a kind of prop on the left. Changes apply to every one of them, on every map.</span>
-      <button class="peshareall edghost">${edSvg('share', 14)} Share…</button><button class="peclose edprimary">Done</button></div>
+  const box = document.createElement('div'); box.id = 'propEd'; box.className = 'pewnd';
+  box.innerHTML = `<div class="pehint"></div><div class="pewin"><div class="pehead" title="Drag to move. Drop on the left or right edge of the screen to dock it there. Double-click to dock or float"><span class="pettlbar">${edSvg('props', 18)}<b>Prop editor</b></span>
+      <span class="pehist"><button class="peundo" title="Undo prop change (Ctrl+Z)">${edSvg('undo', 15)}</button><button class="peredo" title="Redo prop change (Ctrl+Y or Ctrl+Shift+Z)">${edSvg('redo', 15)}</button></span>
+      <span class="edmuted">Pick a kind of prop. Changes apply to every one of them, on every map, and show on the map as you make them.</span>
+      <button class="peshareall edghost">${edSvg('share', 14)} Share…</button>
+      <span class="pedocks"><button data-dock="left" title="Dock to the left">${edSvg('dockL', 15)}</button><button data-dock="float" title="Float">${edSvg('float', 15)}</button><button data-dock="right" title="Dock to the right">${edSvg('dockR', 15)}</button></span>
+      <button class="peclose edprimary">Done</button></div>
     <div class="pebody"><div class="pelistw"><input class="edsearch pesearch" placeholder="Search props…"><div class="edchips"><button data-pf="all" class="on">All</button><button data-pf="edited">Edited</button></div>
         <div class="pelist">${kinds.map(k => `<button data-k="${k}"><canvas width="44" height="44"></canvas><span>${(ED_PROPS.find(p => p[1] === k) || [k])[0]}</span><i class="ped">●</i></button>`).join('')}</div></div>
       <div class="pemain"><div class="pestage"><canvas class="pebig" width="560" height="380"></canvas><div class="pecmp"><span>Before</span><canvas class="pebefore" width="120" height="90"></canvas></div></div>
         <div class="pebgs"><span>Preview on</span><button data-bg="#2a2a30" class="on">Dark</button><button data-bg="#93bf55">Grass</button><button data-bg="#b9b3a7">Pavement</button><button data-bg="#d9d4c8">Tiles</button><button data-bg="#3a3532">Concrete</button></div>
-        <p class="edhint">Tip: drag a shape in the preview to move it. Everything here can be undone with Reset.</p></div>
-      <div class="peside"></div></div></div>`;
+        <p class="edhint">Tip: drag a shape in the preview to move it. Ctrl+Z undoes, Ctrl+Y redoes; Reset goes back to the original.</p></div>
+      <div class="peside"></div></div><div class="peedge" title="Drag to resize"></div><div class="pegrip" title="Drag to resize"></div></div>`;
   document.body.appendChild(box);
-  PE.kind = kinds.includes(kind) ? kind : kinds[0]; PE.bg = '#2a2a30'; PE.box = box; PE.selShape = -1; PE.filter = 'all';
-  box.querySelector('.peclose').onclick = () => { box.remove(); edPreviews(); if (ED.open) { edFloor(true); edPanel(); } };
+  PE.kind = kinds.includes(kind) ? kind : kinds[0]; PE.bg = '#2a2a30'; PE.box = box; PE.selShape = -1; PE.filter = 'all'; PE.win = PE.win || peLoadWin();
+  box.querySelector('.peclose').onclick = peClose;
   box.querySelector('.peshareall').onclick = () => edShare('p:' + PE.kind);
   const filt = () => { const q = box.querySelector('.pesearch').value.toLowerCase(), loc = edLocalProps(); box.querySelectorAll('.pelist button').forEach(b => { b.style.display = (b.textContent.toLowerCase().includes(q) || b.dataset.k.includes(q)) && (PE.filter === 'all' || loc[b.dataset.k]) ? '' : 'none'; }); };
   box.querySelector('.pesearch').oninput = filt;
@@ -557,16 +566,101 @@ function openPropEditor(kind) {
   box.querySelectorAll('.pelist button').forEach(b => { b.onclick = () => { PE.kind = b.dataset.k; PE.selShape = -1; peSide(); peDraw(); peList(); }; });
   box.querySelectorAll('[data-bg]').forEach(b => b.onclick = () => { PE.bg = b.dataset.bg; box.querySelectorAll('[data-bg]').forEach(c => c.classList.toggle('on', c === b)); peDraw(); });
   const big = box.querySelector('.pebig'); big.onpointerdown = peDown; big.onpointermove = peMove; big.onpointerup = () => { PE.drag = null; };
-  box.onkeydown = e => e.stopPropagation();
-  peSide(); peDraw(); peList(); const cur = box.querySelector(`.pelist [data-k="${PE.kind}"]`); if (cur) cur.scrollIntoView({ block: 'center' });
+  box.querySelector('.peundo').onclick = () => peUndo(-1); box.querySelector('.peredo').onclick = () => peUndo(1);
+  const head = box.querySelector('.pehead'); head.onpointerdown = peHeadDown; head.ondblclick = e => { if (e.target.closest('button,input,select')) return; const L = PE.win; L.mode = L.mode === 'float' ? L.last || 'right' : (L.last = L.mode, 'float'); peLayout(); peSaveWin(); };
+  box.querySelectorAll('[data-dock]').forEach(b => b.onclick = () => { const L = PE.win; if (L.mode !== 'float') L.last = L.mode; L.mode = b.dataset.dock; peLayout(); peSaveWin(); });
+  box.querySelector('.pegrip').onpointerdown = e => peResizeDown(e, 'corner'); box.querySelector('.peedge').onpointerdown = e => peResizeDown(e, 'edge');
+  box.onkeydown = e => { peKey(e); e.stopPropagation(); };
+  if (!PE.listen) { PE.listen = true; // focus follows the last click: the prop editor or the map gets the keyboard
+    addEventListener('pointerdown', e => { if (!PE.box || !PE.box.isConnected || (e.target.closest && e.target.closest('.edmodal,#matEd'))) return; const inside = PE.box.contains(e.target); peFocus(inside); if (inside && PE.hist) PE.hist.src = null; }, true);
+    addEventListener('resize', () => { if (PE.box && PE.box.isConnected) peLayout(); }); }
+  peLayout(); peFocus(true); peHistUI();
+  peSide(); peDraw(); peList(true); const cur = box.querySelector(`.pelist [data-k="${PE.kind}"]`); if (cur) cur.scrollIntoView({ block: 'nearest', inline: 'center' });
 }
 const PE = {};
+function peClose() { const box = PE.box; if (box) box.remove(); PE.active = false; peLayout(); edPreviews(); if (ED.open) { edFloor(true); edPanel(); } }
+/* where the window sits, kept between sessions: docked left or right (dw wide), or floating at x, y (w by h) */
+function peLoadWin() { const d = { mode: 'right', last: 'right', dw: 400, w: Math.min(960, innerWidth - 80), h: Math.min(660, innerHeight - 80) }; d.x = (innerWidth - d.w) / 2; d.y = 40;
+  try { const s = JSON.parse(localStorage.getItem('snakeEdPropWin')); if (s) Object.assign(d, s); } catch (e) {} return d; }
+function peSaveWin() { try { localStorage.setItem('snakeEdPropWin', JSON.stringify(PE.win)); } catch (e) {} }
+function peLayout() {
+  const open = PE.box && PE.box.isConnected, L = PE.win, vw = innerWidth, vh = innerHeight;
+  let left = 0, right = 0;
+  if (open) {
+    const win = PE.box.querySelector('.pewin'); PE.box.dataset.mode = L.mode;
+    if (L.mode === 'float') { L.w = clamp(L.w, 360, vw); L.h = clamp(L.h, 280, vh); L.x = clamp(L.x, 120 - L.w, vw - 120); L.y = clamp(L.y, 0, vh - 44);
+      Object.assign(win.style, { left: L.x + 'px', top: L.y + 'px', right: '', width: L.w + 'px', height: L.h + 'px' }); }
+    else { L.dw = clamp(L.dw, 320, Math.max(320, vw * .7)); Object.assign(win.style, { top: '0', height: '100%', width: L.dw + 'px', left: L.mode === 'left' ? '0' : '', right: L.mode === 'right' ? '0' : '' });
+      if (L.mode === 'left') left = L.dw; else right = L.dw; }
+    win.classList.toggle('narrow', (L.mode === 'float' ? L.w : L.dw) < 820);
+    PE.box.querySelectorAll('[data-dock]').forEach(b => b.classList.toggle('on', b.dataset.dock === L.mode));
+  }
+  if (ED.open && ED.root) { // the map makes room for a docked window, and stays put on screen while it does
+    if (ED.px != null) ED.px -= left - (PE.rootL || 0); PE.rootL = left;
+    ED.root.style.left = left ? left + 'px' : ''; ED.root.style.right = right ? right + 'px' : ''; }
+}
+function peHeadDown(e) { // drag the window by its title bar; near a screen edge it docks there
+  if (e.button !== 0 || e.target.closest('button,input,select,label')) return;
+  const L = PE.win, win = PE.box.querySelector('.pewin'), hint = PE.box.querySelector('.pehint'), r = win.getBoundingClientRect(), fx = (e.clientX - r.left) / r.width, oy = Math.min(e.clientY - r.top, 24);
+  let moved = false, zone = null; e.preventDefault();
+  const move = ev => {
+    if (!moved) { if (Math.hypot(ev.clientX - e.clientX, ev.clientY - e.clientY) < 5) return; moved = true; if (L.mode !== 'float') { L.last = L.mode; L.mode = 'float'; } win.classList.add('pemoving'); }
+    L.x = ev.clientX - fx * L.w; L.y = ev.clientY - oy;
+    zone = ev.clientX < 40 ? 'left' : ev.clientX > innerWidth - 40 ? 'right' : null;
+    hint.className = 'pehint' + (zone ? ' on ' + zone : ''); hint.style.width = L.dw + 'px'; peLayout();
+  };
+  const up = () => { removeEventListener('pointermove', move); removeEventListener('pointerup', up); hint.className = 'pehint'; win.classList.remove('pemoving');
+    if (!moved) return; if (zone) L.mode = zone; peLayout(); peSaveWin(); peDraw(); };
+  addEventListener('pointermove', move); addEventListener('pointerup', up);
+}
+function peResizeDown(e, how) { // 'corner' resizes a floating window, 'edge' the inner side of a docked one
+  e.preventDefault(); e.stopPropagation(); const L = PE.win, x0 = e.clientX, y0 = e.clientY, w0 = L.w, h0 = L.h, d0 = L.dw;
+  const move = ev => { if (how === 'edge') L.dw = d0 + (L.mode === 'left' ? 1 : -1) * (ev.clientX - x0); else { L.w = w0 + ev.clientX - x0; L.h = h0 + ev.clientY - y0; } peLayout(); };
+  const up = () => { removeEventListener('pointermove', move); removeEventListener('pointerup', up); peSaveWin(); peDraw(); };
+  addEventListener('pointermove', move); addEventListener('pointerup', up);
+}
+function peFocus(on) { PE.active = on; if (PE.box) PE.box.querySelector('.pewin').classList.toggle('peactive', on); }
+function peKey(e) { // the prop editor's keys while it has focus; true when the map editor should leave the key alone
+  if (e.__pe || !PE.active || !PE.box || !PE.box.isConnected || document.querySelector('.edmodal,#matEd')) return false;
+  e.__pe = true; if (e.type !== 'keydown') return false;
+  const t = e.target, tag = (t.tagName || '').toLowerCase(), k = e.key.toLowerCase(), mod = e.ctrlKey || e.metaKey;
+  if (tag === 'textarea' || (tag === 'input' && /^(text|search|number)$/.test(t.type))) { if (k === 'escape') t.blur(); return true; } // typing: the field's own keys, its own undo included
+  if (mod && (k === 'z' || k === 'y')) { e.preventDefault(); peUndo(k === 'y' || e.shiftKey ? 1 : -1); return true; }
+  if ((k === 'delete' || k === 'backspace') && tag !== 'select') { e.preventDefault(); const q = peGet(); if (q.shapes && q.shapes[PE.selShape]) { q.shapes.splice(PE.selShape, 1); PE.selShape = -1; peSet(q); peSide(); } return true; }
+  if (k === 'escape') { if (PE.selShape >= 0) { PE.selShape = -1; peSide(); peDraw(); } else { if (t.blur) t.blur(); peFocus(false); } return true; }
+  if (mod && k === 's') return false; // saving the map still works from here
+  return true;
+}
+/* ---- undo / redo: every change to any prop is one step; one drag or one pull of a slider is one step ---- */
+const peRaw = () => { try { return localStorage.getItem('snakeCarnagePropDefs') || '{}'; } catch (e) { return '{}'; } };
+function peHistNote(before, src) { // call before a change, with how every prop was
+  const h = PE.hist || (PE.hist = { undo: [], redo: [] }), now = performance.now();
+  if (src && src === h.src && now - h.t < 1500) { h.t = now; return; }
+  h.undo.push({ s: before, kind: PE.kind, sel: PE.selShape }); if (h.undo.length > 200) h.undo.shift(); h.redo = []; h.src = src; h.t = now; peHistUI();
+}
+const peCustomSig = () => JSON.stringify(Object.entries(propDefs()).filter(([, p]) => p.custom).map(([k, p]) => [k, p.name]));
+function peUndo(dir) {
+  const h = PE.hist; if (!h) return; const from = dir < 0 ? h.undo : h.redo, to = dir < 0 ? h.redo : h.undo; if (!from.length) return;
+  const sig = peCustomSig(); to.push({ s: peRaw(), kind: PE.kind, sel: PE.selShape }); const st = from.pop(); h.src = null;
+  try { localStorage.setItem('snakeCarnagePropDefs', st.s); } catch (e) {}
+  propApply(); if (typeof edSyncCustomProps === 'function') edSyncCustomProps();
+  if (peCustomSig() !== sig) openPropEditor(st.kind); // a custom prop came or went (or was renamed): rebuild the list
+  else { if (PE.box.querySelector(`.pelist [data-k="${st.kind}"]`)) PE.kind = st.kind; PE.selShape = st.sel; peSide(); peDraw(); peList(true); }
+  edPreviews(); peHistUI(); edStatus(`${dir < 0 ? 'Undid' : 'Redid'} a prop change`);
+}
+function peHistUI() { if (!PE.box) return; const h = PE.hist || { undo: [], redo: [] }, u = PE.box.querySelector('.peundo'), r = PE.box.querySelector('.peredo'); if (u) u.disabled = !h.undo.length; if (r) r.disabled = !h.redo.length; }
+function peLive() { // the map behind already redraws every frame; the palette's thumbnails of this kind catch up once a frame
+  if (PE.liveQ || !ED.open || !ED.root) return;
+  PE.liveQ = requestAnimationFrame(() => { PE.liveQ = 0; ED.root.querySelectorAll('.edprop').forEach(b => { const p = ED_PROPS[+b.dataset.p]; if (p && p[1] === PE.kind) drawPreview(b.querySelector('canvas'), edSample(p, 0, 0)); }); });
+}
 const peGet = () => edClone(propDefs()[PE.kind] || {});
-function peSet(p) { let loc = {}; try { loc = JSON.parse(localStorage.getItem('snakeCarnagePropDefs')) || {}; } catch (e) {}
+function peSet(p) { const before = peRaw(); let loc = {}; try { loc = JSON.parse(before) || {}; } catch (e) {}
   const empty = !p.custom && !p.hit && !p.interact && !p.pivot && !p.color && (!p.breakable || p.breakable === 'default') && !p.hideBase && !p.noCollide && !p.noOutline && !p.noShadow && !(p.shapes && p.shapes.length);
   if (empty) { delete loc[PE.kind]; if (PROP_OVERRIDES[PE.kind]) loc[PE.kind] = {}; } else loc[PE.kind] = p;
-  try { localStorage.setItem('snakeCarnagePropDefs', JSON.stringify(loc)); } catch (e) {} propApply(); peDraw(); peList(); }
-function peList() { const loc = edLocalProps(); PE.box.querySelectorAll('.pelist button').forEach(b => { b.classList.toggle('on', b.dataset.k === PE.kind); b.classList.toggle('edited', !!loc[b.dataset.k]); drawPreview(b.querySelector('canvas'), edSample(kindSample(b.dataset.k), 0, 0)); }); }
+  const after = JSON.stringify(loc), a = (window.event && window.event.target) || document.activeElement; // the slider or color being pulled (it may not have focus yet)
+  if (after !== before) { peHistNote(before, PE.drag || (a && a.matches && a.matches('#propEd input:not([type=checkbox])') ? a : null)); try { localStorage.setItem('snakeCarnagePropDefs', after); } catch (e) {} }
+  propApply(); peDraw(); peList(); peLive(); }
+function peList(all) { const loc = edLocalProps(); PE.box.querySelectorAll('.pelist button').forEach(b => { b.classList.toggle('on', b.dataset.k === PE.kind); b.classList.toggle('edited', !!loc[b.dataset.k]); if (all || b.dataset.k === PE.kind) drawPreview(b.querySelector('canvas'), edSample(kindSample(b.dataset.k), 0, 0)); }); }
 function peObj() { const p = kindSample(PE.kind); return edSample(p, p[2] === 'r' ? -p[3] / 2 : 0, p[2] === 'r' ? -p[4] / 2 : 0); }
 function peView() { const c = PE.box.querySelector('.pebig'), o = peObj(), [x0, y0, x1, y1] = o.t === 'r' ? [o.x, o.y, o.x + o.w, o.y + o.h] : [o.x - o.r, o.y - o.r, o.x + o.r, o.y + o.r];
   const s = Math.min((c.width - 80) / (x1 - x0), (c.height - 80) / (y1 - y0), 12); return { c, o, s, ox: c.width / 2, oy: c.height / 2, x0, y0, bw: x1 - x0, bh: y1 - y0 }; }
@@ -640,7 +734,7 @@ function edShareText() {
 }
 function edShare() {
   edSave(); const text = edShareText(), maps = Object.keys({ ...MAP_OVERRIDES, ...localMapEdits(), ...edDrafts() }), props = Object.keys(propDefs());
-  const box = document.createElement('div'); box.id = 'propEd';
+  const box = document.createElement('div'); box.id = 'propEd'; box.style.zIndex = 10001; // over a docked prop editor
   box.innerHTML = `<div class="pewin" style="height:auto;max-height:90vh;width:min(760px,94vw)"><div class="pehead"><b>Share your edits</b><button class="peclose">Close</button></div>
     <div style="padding:14px;display:flex;flex-direction:column;gap:10px;overflow:auto">
       <p>${maps.length} map edit${maps.length === 1 ? '' : 's'}${maps.length ? ` (${maps.join(', ')})` : ''} and ${props.length} prop change${props.length === 1 ? '' : 's'}${props.length ? ` (${props.join(', ')})` : ''}.</p>
