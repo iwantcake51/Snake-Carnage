@@ -139,7 +139,7 @@ function crEat(c, pts, xp) {
   if (c.state === 'wander' || c.state === 'idle') cr.unaware++;
   if (nightVision) cr.nvKills++;
   if (snake.hardTurnT && T - snake.hardTurnT < .8) cr.sharp++;
-  if (creatures.filter(o => o.alive && o !== c && o.def.human && dist2(o.x, o.y, c.x, c.y) < 200 * 200).length >= 3) cr.watched++;
+  if (countNearby(c.x, c.y, 200, isHuman, c) >= 3) cr.watched++;
   cr.burst = cr.burst.filter(t => T - t < 3); cr.burst.push(T); cr.maxBurst = Math.max(cr.maxBurst, cr.burst.length);
   if (hum) { cr.hStreak++; cr.aStreak = 0; } else { cr.aStreak++; cr.hStreak = 0; }
   cr.maxH = Math.max(cr.maxH, cr.hStreak); cr.maxA = Math.max(cr.maxA, cr.aStreak);

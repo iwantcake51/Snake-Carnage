@@ -16,7 +16,7 @@ function bloodQualityChanged() { // switching quality: what's on the ground fade
   const k = bloodRes(); bucketPool = bucketPool.filter(b => b.k === k);
   for (const b of bucketList) if (b.ff === undefined || b.ff > T - (BLOOD_FF - 1.1)) b.ff = T - (BLOOD_FF - 1.1);
   newBucket(); bucketList[bucketList.length - 1].ff = undefined;
-  parts.length = Math.min(parts.length, CONFIG.maxParticles * BQ().n | 0);
+  parts.length = Math.min(parts.length, partCap());
 }
 const BLOOD_LIMIT = 14, BLOOD_FF = 6; // ~14 big kills on screen at once; past that, the oldest blood fades out over 6s
 function bucketAlpha(b) {
@@ -82,14 +82,16 @@ const grassColAt = (x, y) => grassCol[(y / GM | 0) * GMW + (x / GM | 0)] || [110
 
 function spawnBlood(x, y, dirA, amount, spread, backFrac, gold) { // gold: a golden target, mostly gold blood with some red mixed in
   const ba = { Minimal: .2, Reduced: .5 }[SETTINGS.bloodAmt] || 1, pq = SETTINGS.fxLevel === 'Low' ? .55 : 1;
-  const bq = BQ(), n = Math.round(95 * amount * (parts.length > 500 ? .5 : 1) * ba * pq * bq.n); // fewer drops simulated, not just hidden (lower quality: fewer, slightly bigger drops)
-  for (let i = 0; i < n && parts.length < CONFIG.maxParticles; i++) {
+  const bq = BQ(), cap = partCap(), n = Math.round(95 * amount * (parts.length > cap * .55 ? .5 : 1) * ba * pq * bq.n); // fewer drops simulated, not just hidden (lower quality: fewer, slightly bigger drops)
+  for (let i = 0; i < n && parts.length < cap; i++) {
     let a, sp; const r = Math.random();
     if (r < backFrac) { a = dirA + Math.PI + gauss() * .9; sp = rand(60, 220); }       // back-spray onto the snake
     else if (r < backFrac + .2) { a = rand(0, TAU); sp = rand(20, 140); }             // radial burst
     else { a = dirA + gauss() * spread; sp = rand(120, 480) * (.6 + amount * .4); }   // main forward jet
-    parts.push({ x: x + rand(-3, 3), y: y + rand(-3, 3), z: rand(4, 12), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
-                 vz: rand(20, 200), r: (Math.random() < .15 ? rand(3, 5) : rand(1.2, 3)) * bq.size, c: gold === true ? pick(GOLD_BLOOD) : gold ? pick(gold) : pick(CONFIG.bloodColors), ox: x, oy: y }); // gold: golden target; an array: that creature's own blood colors
+    const p = PART_POOL.pop() || {}; // drops are recycled, not reallocated every kill
+    p.x = x + rand(-3, 3); p.y = y + rand(-3, 3); p.z = rand(4, 12); p.vx = Math.cos(a) * sp; p.vy = Math.sin(a) * sp; p.vz = rand(20, 200); p.hc = p.hs = 0;
+    p.r = (Math.random() < .15 ? rand(3, 5) : rand(1.2, 3)) * bq.size; p.c = gold === true ? pick(GOLD_BLOOD) : gold ? pick(gold) : pick(CONFIG.bloodColors); p.ox = x; p.oy = y; // gold: golden target; an array: that creature's own blood colors
+    parts.push(p);
   }
 }
 
@@ -114,10 +116,10 @@ function rebuildSegGrid() { // bucket snake segments so blood drops only test ne
     segGrid[j * SGW + i].push(k);
   });
 }
-function killPart(i) { parts[i] = parts[parts.length - 1]; parts.pop(); }
-let bloodAcc = 0, bloodTick = 0;
-function updateBlood(dt) {
-  const st = BQ().step; if (st > 1) { bloodAcc += dt; if (++bloodTick % st) return; dt = bloodAcc; bloodAcc = 0; } // Low: blood physics runs at half rate
+const PART_POOL = [];
+function killPart(i) { const p = parts[i]; parts[i] = parts[parts.length - 1]; parts.pop(); if (PART_POOL.length < 1200) PART_POOL.push(p); }
+const DROP_NB = [];
+function updateBlood(dt) { // every live drop moves every frame at every quality: smoothness is never what quality trades away
   if (parts.length) rebuildSegGrid();
   for (let i = parts.length - 1; i >= 0; i--) {
     const p = parts[i];
@@ -134,8 +136,7 @@ function updateBlood(dt) {
     }
     if (p.z < 30 && !p.hc) { // airborne drops stain anyone they fly into
       let hit = false;
-      for (const c of creatures) {
-        if (!c.alive) continue;
+      for (const c of nearbyCreatures(p.x, p.y, 12, DROP_NB)) { // only who's actually there (spatial grid), not the whole crowd per drop
         const rr = c.def.r + 1;
         if (Math.abs(p.x - c.x) < rr && Math.abs(p.y - c.y) < rr && dist2(p.x, p.y, c.x, c.y) < rr * rr) {
           stainCreature(c, p.x, p.y, p.r * 1.4, p.c, Math.atan2(p.vy, p.vx), Math.hypot(p.vx, p.vy)); p.hc = 1;
@@ -154,7 +155,7 @@ function updateBlood(dt) {
         const ii = ci + di, jj = cj + dj; if (ii < 0 || jj < 0 || ii >= SGW || jj >= SGH) continue;
         for (const k of segGrid[jj * SGW + ii]) {
           const g = snake.segs[k];
-          if (dist2(p.x, p.y, g.x, g.y) < CONFIG.snakeR ** 2) { stainSnake(k, p.x, p.y, p.r * 1.3, p.c); p.hs = 1; hit = Math.random() < .5; break outer; }
+          if (dist2(p.x, p.y, g.x, g.y) < snakeRadius() ** 2) { stainSnake(k, p.x, p.y, p.r * 1.3, p.c); p.hs = 1; hit = Math.random() < .5; break outer; }
         }
       }
       if (hit) { killPart(i); continue; }
@@ -175,7 +176,7 @@ function updateBlood(dt) {
     if (pl.r > pl.max * .985) {
       if (snowAt(pl.x, pl.y) < .12) { // settled: a few drops around the edge, and it stays glossy for a while
         fctx.fillStyle = pl.c || BLOOD;
-        for (let k = 0; k < randi(4, 9); k++) { const a = (pl.ang || 0) + rand(-1.6, 1.6), d = pl.r * rand(1.05, 1.7), dr = rand(.6, 1.8); circ(fctx, pl.x + Math.cos(a) * d, pl.y + Math.sin(a) * d, dr); if (dr > 1.2 && Math.random() < .5) { fctx.lineWidth = dr * .8; fctx.strokeStyle = pl.c || BLOOD; fctx.beginPath(); fctx.moveTo(pl.x + Math.cos(a) * pl.r * .8, pl.y + Math.sin(a) * pl.r * .8); fctx.lineTo(pl.x + Math.cos(a) * d, pl.y + Math.sin(a) * d); fctx.stroke(); } }
+        for (let k = Math.round(randi(4, 9) * BQ().sat); k > 0; k--) { const a = (pl.ang || 0) + rand(-1.6, 1.6), d = pl.r * rand(1.05, 1.7), dr = rand(.6, 1.8); circ(fctx, pl.x + Math.cos(a) * d, pl.y + Math.sin(a) * d, dr); if (dr > 1.2 && Math.random() < .5) { fctx.lineWidth = dr * .8; fctx.strokeStyle = pl.c || BLOOD; fctx.beginPath(); fctx.moveTo(pl.x + Math.cos(a) * pl.r * .8, pl.y + Math.sin(a) * pl.r * .8); fctx.lineTo(pl.x + Math.cos(a) * d, pl.y + Math.sin(a) * d); fctx.stroke(); } }
         if (pl.max > 7) { gloss.push({ x: pl.x, y: pl.y, r: pl.r, c: pl.c || BLOOD, t: T, l: pl.lobes }); if (gloss.length > 30) gloss.shift(); }
       }
       pools.splice(i, 1);

@@ -22,9 +22,10 @@ let mist = [];
 const FX_K = () => ({ Low: .4, Normal: 1, High: 1.5 })[SETTINGS.fxLevel] || 1;
 function bloodMist(x, y, dirA, amount, cols) {
   const n = Math.round((5 + amount * 7) * FX_K() * Math.max(.3, BQ().mist));
-  for (let k = 0; k < n && mist.length < 80; k++) {
+  const cap = 80 * Math.min(1, BQ().mist), lifeK = BQ().detail ? 1 : .7; // low quality: fewer, shorter-lived puffs (still animated every frame)
+  for (let k = 0; k < n && mist.length < cap; k++) {
     const a = dirA + gauss() * 1.1, sp = rand(20, 90) * (.6 + amount * .5);
-    mist.push({ x: x + rand(-4, 4), y: y + rand(-4, 4), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: rand(4, 9) * (.7 + amount * .5), g: rand(14, 30), t: 0, life: rand(.35, .7), c: pick(cols), a: rand(.18, .32) });
+    mist.push({ x: x + rand(-4, 4), y: y + rand(-4, 4), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: rand(4, 9) * (.7 + amount * .5), g: rand(14, 30), t: 0, life: rand(.35, .7) * lifeK, c: pick(cols), a: rand(.18, .32) });
   }
 }
 function updateMist(dt) {

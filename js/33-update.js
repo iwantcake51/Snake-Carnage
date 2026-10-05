@@ -16,8 +16,10 @@ function update(dt) {
   if (hitStop > 0) { hitStop -= dt; return; } // hit-stop: the world holds its breath for a few frames
   T += dt;
   if (!snake || !snake.started) for (const k in abilCD) abilCD[k] += dt; // frozen opening: cooldowns don't tick until you first move
-  if (state === 'play') { updateSnake(dt); run.time += dt; crTick(dt); progressTick(dt); }
-  updateCrowd(); updateConvos(dt);
+  updateCrowd(); // the neighbor grid, once per tick, before anything moves or asks who's near
+  if (state === 'play') { updateSnake(dt); snakeNoise(dt); run.time += dt; crTick(dt); progressTick(dt); }
+  updateSounds();
+  updateConvos(dt);
   for (const c of creatures) if (c.alive) updateCreature(c, dt);
   updateBlood(dt); updateGiblets(dt); updateSplashes(dt); updateMist(dt); updateSmoke(dt); updateFlies(dt); updateVomit(dt);
   if ((fadeT -= dt) <= 0) { fadeT = 2; fadeBlood(); }

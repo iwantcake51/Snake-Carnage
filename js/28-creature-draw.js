@@ -7,6 +7,7 @@ function armPos(c) {
   if (c.state === 'panic' && c.flail) { const f = Math.sin(T * 25 + c.side) * 2; return [5.5 + f, -sw + 1.5, 5.5 - f, sw - 1.5]; } // the jumpy ones flap their arms
   if (run) { const p = s * (c.armK || 1) * 5.6; return [1.4 - p, -sw + .8, 1.4 + p, sw - .8]; } // running: elbows in, arms pumping against the legs
   if (c.dance) { const b = Math.sin(T * CLUB_BPM / 60 * Math.PI * 2 + (c.seed ?? .5) * 30); return [3 + b * 2.5, -sw - 1.5, 3 - b * 2.5, sw + 1.5]; } // hands up
+  if (MOD.blind && c.def.human && !c.def.alien && !c.dance) return c.fl && c.fl.on && !c.fl.helmet ? [4.5 + s * 1.2, -sw + 1.2, 6 + s * .8, sw - 2] : [4.5 + s * 1.5, -sw + 1.2, 4.5 - s * 1.5, sw - 1.2]; // blind: hands out in front, feeling the way
   if (c.fl && c.fl.on && !c.fl.helmet) return [-s * 4, -sw, 6 + s * .8, sw - 2]; // right hand held out in front with the flashlight
   return [-s * 4, -sw, s * 4, sw];
 }
@@ -301,7 +302,9 @@ function drawCreature(x, c, portrait) {
     const p = clamp((T - c.markT) / .28, 0, 1), sc = p < .5 ? .3 + 2.6 * p : 1.6 - .6 * Math.min(1, (p - .5) * 2), my = c.y - 13 - (c.hz || 0) * .7; // springs in, settles small
     x.save(); x.translate(c.x, my); x.scale(sc, sc); x.font = '900 10px "Segoe UI",sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
     x.lineWidth = 2.6; x.strokeStyle = 'rgba(0,0,0,.65)'; x.strokeText(mk, 0, 0);
-    x.fillStyle = c.state === 'panic' ? '#ff3b30' : c.state === 'flee' ? '#ff9f1a' : '#f2f2f2'; x.fillText(mk, 0, 0); x.restore(); x.textBaseline = 'alphabetic';
+    x.fillStyle = c.state === 'panic' ? '#ff3b30' : c.state === 'flee' ? '#ff9f1a' : '#f2f2f2'; x.fillText(mk, 0, 0);
+    if (c.listenT > T) { const w = .5 + .5 * Math.sin(T * 9); x.strokeStyle = `rgba(242,242,242,${(.45 + .4 * w).toFixed(2)})`; x.lineWidth = 1.1; for (const sd of [-1, 1]) for (const r of [6, 9]) { x.beginPath(); x.arc(0, 0, r, sd > 0 ? -.6 : Math.PI - .6, sd > 0 ? .6 : Math.PI + .6); x.stroke(); } } // blind and listening: little sound rings either side of the "?"
+    x.restore(); x.textBaseline = 'alphabetic';
   } else c.markK = null;
 }
 

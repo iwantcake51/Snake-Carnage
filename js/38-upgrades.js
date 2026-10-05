@@ -33,9 +33,10 @@ const ABIL = { // cd/dur read the owned level each time
   camo: { get cd() { const l = upg('camo'); return l > 2 ? 14 : l > 1 ? 16 : 20; }, get dur() { const l = upg('camo'); return l > 2 ? 10 : l > 1 ? 8 : 5; }, go(s) { s.camoT = this.dur; Sfx.camo(); } },
   hiss: { cd: 15, dur: .8, go(s) {
     const lv = upg('hiss'), R = lv > 2 ? 270 : lv > 1 ? 240 : 190; s.hissLv = lv;
-    Sfx.hiss(); shake = Math.max(shake, lv > 1 ? 8 : 5); s.hissT = this.dur; s.hissR = R;
-    for (const c of creatures) if (c.alive && dist2(c.x, c.y, s.x, s.y) < R * R) {
-      panic(c, s.x, s.y, rand(3, 5) * (lv > 1 ? 1.5 : 1), 'hissed'); c.alert = 1;
+    Sfx.hiss(); shake = Math.max(shake, lv > 1 ? 8 : 5); s.hissT = this.dur; s.hissR = R; noise('hiss', s.x, s.y, 1, R * 1.4);
+    for (const c of nearbyCreatures(s.x, s.y, R, [])) {
+      const at = MOD.blind && c.def.human ? guessAt(c, s.x, s.y, R * 1.4) : s; // the blind only know it came from over there, somewhere
+      panic(c, at.x, at.y, rand(3, 5) * (lv > 1 ? 1.5 : 1), 'hissed'); c.alert = 1;
       if (lv > 1) { c.slowT = T + 4; c.deafT = T + 10; c.adren = 0; if (c.def.human && !c.def.alien) c.reply = { t: rand(.8, 1.6), ctx: 'deaf' }; }
       if (lv > 2) { const d = Math.hypot(c.x - s.x, c.y - s.y) || 1, f = (1 - d / R) * 260 + 60; c.kb = { vx: (c.x - s.x) / d * f, vy: (c.y - s.y) / d * f, t: .35 }; c.slowT = T + 5; if (typeof leaveGroup === 'function') leaveGroup(c); } // knocked flat, the group blown apart
     }
@@ -134,7 +135,9 @@ function smashObstacle(o, ang) {
     for (const q of obstacles) if (q.bgroup === o.bgroup) q.cracked = true;
     run.walls = (run.walls || 0) + 1;
   }
-  for (const c of creatures) if (c.alive && dist2(c.x, c.y, cx, cy) < 230 * 230) {
+  noise(wall ? 'wallSmash' : 'smash', cx, cy, clamp(size / 40, .6, 1.2));
+  for (const c of nearbyCreatures(cx, cy, 230, [])) {
+    if (MOD.blind && c.def.human) continue; // they hear the crash (above) and work out roughly where it was
     if (wall && c.def.human) { panic(c, cx, cy, rand(3, 5), 'wallSmash'); if (Math.random() < .45) c.reply = { t: rand(1.4, 2.6), ctx: 'stunned' }; continue; } // through the WALL
     if (c.state === 'wander' || c.state === 'idle') { c.state = 'uneasy'; c.fx = cx; c.fy = cy; c.timer = rand(1, 2); if (Math.random() < .4) say(c, 'crash'); }
     else if (c.def.human && Math.random() < .35) c.reply = { t: rand(.3, .9), ctx: 'stunned' };
@@ -245,7 +248,7 @@ function scentTargets(s, n) { // what's worth hunting: big and close first, gold
     const d = Math.hypot(c.x - s.x, c.y - s.y);
     let val = c.def.human ? 2 : (c.def.score || 1) * (1 + c.def.r / 12); // bigger animals are a bigger meal
     if (c.golden) val *= c.def.human ? 5 : 4; // gold people above gold animals
-    if (c.def.human) { let g = 0; for (const o of creatures) if (o !== c && o.alive && o.def.human && dist2(o.x, o.y, c.x, c.y) < 70 * 70) g++; val *= 1 + g * .45; } // a group means a combo
+    if (c.def.human) val *= 1 + countNearby(c.x, c.y, 70, isHuman, c) * .45; // a group means a combo
     if (c.state === 'wander' || c.state === 'idle') val *= 1.3; else if (c.state === 'panic') val *= .75; // unaware prey smells strongest; runners are harder
     if (c.fl && c.fl.on) val *= .85; // flashlights spot you first
     out.push({ c, d, sc: val / (d + 90) });

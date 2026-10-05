@@ -31,9 +31,12 @@ if (!SETTINGS.pxFix) { SETTINGS.pixel = 1; SETTINGS.pxFix = 1; } // old default 
 if (!['Cycle', 'Day', 'Dawn', 'Dusk', 'Night'].includes(SETTINGS.timeMode)) SETTINGS.timeMode = 'Cycle'; SETTINGS.dayMinutes = 4; // Cycle: each run starts at a random hour and the day moves on
 SETTINGS.snake = Object.assign({ color: '#4e7cf6', color2: '#f2f2f2', pattern: 'Solid', hat: 'None', eyes: 'Normal', outline: 'None', trail: 'None' }, SETTINGS.snake);
 if (SETTINGS.bloodQ === 'Normal') SETTINGS.bloodQ = 'Medium'; // renamed
-/* Blood quality: how much blood is simulated and how finely it's drawn. Lower settings do less work, not just show less. */
-const BQ_CFG = { Low: { n: .4, size: 1.3, step: 2, trail: .7, mist: .3, splat: .6 }, Medium: { n: .7, size: 1.12, step: 1, trail: 1, mist: .5, splat: .85 },
-  High: { n: 1, size: 1, step: 1, trail: 1.2, mist: 1, splat: 1 }, Extreme: { n: 1.35, size: .92, step: 1, trail: 1.5, mist: 1.6, splat: 1.2 } };
+/* Blood quality: how much blood is simulated and how finely it's drawn. Lower settings do less work (fewer, simpler drops,
+   smaller caps, shorter-lived mist, plainer splats), never a lower update rate: every drop still moves every frame.
+   n: drops per kill, cap: max live drops, detail: splat shape complexity (0 plain .. 2 full), mist: puff amount, sat: satellite drops round pools */
+const BQ_CFG = { Low: { n: .4, size: 1.3, cap: .35, detail: 0, trail: .7, mist: .3, splat: .6, sat: .4 }, Medium: { n: .7, size: 1.12, cap: .65, detail: 1, trail: 1, mist: .5, splat: .85, sat: .7 },
+  High: { n: 1, size: 1, cap: 1, detail: 2, trail: 1.2, mist: 1, splat: 1, sat: 1 }, Extreme: { n: 1.35, size: .92, cap: 1.3, detail: 2, trail: 1.5, mist: 1.6, splat: 1.2, sat: 1.2 } };
+const partCap = () => CONFIG.maxParticles * BQ().cap | 0;
 const BQ = () => BQ_CFG[SETTINGS.bloodQ] || BQ_CFG.High;
 const GRAV = () => { const m = typeof MAPS !== 'undefined' && MAPS[mapIdx]; return !m ? 1 : m.name === 'Moon' ? .4 : m.name === 'Mars' ? .55 : 1; }; // low gravity, but not so low that blood hangs in the air for ages // the Moon and Mars pull less; a station has its own (normal) gravity
 const BLOOD = '#8c0a0a', GOLD_BLOOD = ['#c9a227', '#b38b1d', '#d6b443', '#a8821a']; // metallic gold, not glowing

@@ -54,6 +54,22 @@ const LINES = {
     2: ["IT CAME THROUGH THE WALL!", "THE WALL! IT BROKE THE WALL!", "WHAT THE FUCK, THROUGH THE WALL?!", "IT'S IN HERE! IT'S IN HERE NOW!"],
     3: ["THE WALL—", "IT'S THROUGH!", "RUN!"],
   },
+  heard: { // Blind crowd: they only ever hear it
+    0: ["Did you hear that?", "What was that noise?", "Hello? Somebody there?", "Something's moving.", "Is someone there?#nothing", "Probably just the wind.#nothing", "...hello?"],
+    1: ["Something's out there.", "I can hear it. It's close.", "That sounded wet.", "What IS that sound?", "Who's there?", "Shh. Listen.", "Okay, that's not the wind.", "It's dragging something.", "Which way did that come from?"],
+    2: ["SOMETHING'S HERE!", "IT'S CLOSE! I CAN HEAR IT!", "WHERE IS IT?!", "WHICH WAY?!", "WHO'S THERE?!", "STOP MOVING, I CAN'T HEAR IT!"],
+    3: ["WHERE—", "GET AWAY!", "IT'S HERE—", "WHICH WAY—", "NO NO—"],
+  },
+  heardKill: {
+    1: ["That was a scream. That was a real scream.", "Something just— crunched.", "What happened? What was that?", "Somebody's hurt.", "Hello?! Are you okay?!"],
+    2: ["SOMEONE'S HURT!", "WHAT WAS THAT?!", "OH GOD, WHAT WAS THAT SOUND?!", "SOMETHING GOT THEM!", "WHO SCREAMED?!"],
+    3: ["NO—", "WHAT—", "GO! GO!", "RUN!"],
+  },
+  touched: {
+    1: ["Something touched me.", "What was that? Something brushed my leg.", "Something's down there."],
+    2: ["SOMETHING TOUCHED ME!", "IT'S RIGHT HERE!", "IT BRUSHED MY LEG!", "GET IT OFF! GET IT OFF!", "IT'S SCALY!"],
+    3: ["AAH!", "IT'S HERE—", "GET OFF—", "NO—"],
+  },
   convoBreak: ["Wait, what?", "What's wrong?", "Hey, what—", "Why are you— oh.", "What? What is it?", "Huh?", "...what?"],
   jokeReact: ["Not helping.", "Okay, that was kinda funny.", "Shut up and run.", "Seriously? Now?", "...heh.", "Dude.", "Not the time.", "How are you joking right now?"],
   spit: ["EW, WHAT THE FUCK?", "IT WENT IN MY MOUTH!", "That's someone's BLOOD!", "Oh god, I swallowed some.", "Pfft— PTOO— oh god.", "Bleh— no, no no."],

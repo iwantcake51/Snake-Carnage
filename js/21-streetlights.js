@@ -22,7 +22,8 @@ function breakLamp(o, ang) {
   if (lit > .1) for (let k = 0; k < 14; k++) { const a = rand(0, TAU), sp = rand(80, 260); debris.push({ spark: true, x: hx, y: hy, z: 26, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(-20, 120), t: 0, life: rand(.15, .45) }); }
   Sfx.lampBreak(o.x, lit > .1); shake = Math.max(shake, 3);
   run.lamps = (run.lamps || 0) + 1; PROG.maxLampsRun = Math.max(PROG.maxLampsRun || 0, run.lamps); scatterBugs(o);
-  for (const c of creatures) if (c.alive && c.def.human && dist2(c.x, c.y, o.x, o.y) < 260 * 260) { // people turn toward the crash
+  noise('lamp', o.x, o.y);
+  if (!MOD.blind) for (const c of nearbyHumans(o.x, o.y, 260, [])) { // people turn toward the crash (a blind crowd only hears it: see 27b-hearing)
     if (c.fl && c.fl.on) c.fl.look = { x: o.x, y: o.y, t: rand(1, 2) };
     if (c.state === 'wander' || c.state === 'idle') { c.state = 'uneasy'; c.fx = o.x; c.fy = o.y; c.timer = rand(1, 2); }
   }

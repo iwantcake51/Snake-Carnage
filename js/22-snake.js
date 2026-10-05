@@ -11,7 +11,13 @@ function newSnake(st) {
   computeSegs(s);
   return s;
 }
-const segR = (i, n) => CONFIG.snakeR * (1 - .35 * Math.max(0, (i - (n - 6)) / 6));
+/* ---- snake size: one place that knows how big the snake physically is. Everything that depends on its body size
+   (drawing, collision, eating, spacing, blood, camera) asks these instead of reading CONFIG.snakeR directly. ---- */
+const snakeScale = () => (snake && snake.scale) || 1;
+const snakeRadius = () => CONFIG.snakeR * snakeScale();
+const snakeSegmentSpacing = () => CONFIG.segSpacing * snakeScale();
+const snakeEatRadius = () => snakeRadius() * .8;
+const segR = (i, n) => snakeRadius() * (1 - .35 * Math.max(0, (i - (n - 6)) / 6));
 
 function hitObstacle(x, y, r) { // precise shape test, so thin things like lamp posts hit exactly where they're drawn
   for (const o of obstacles) {
@@ -66,7 +72,7 @@ function updateSnake(dt) {
   for (let i = 8; i < s.segs.length; i++) if (dist2(s.x, s.y, s.segs[i].x, s.segs[i].y) < (CONFIG.snakeR * 1.1) ** 2) { if (s.segs.length >= 60) { PROG.ouro = 1; checkAch(); } crashHit = { seg: i, t: T }; return die(); }
 
   let ate = false;
-  for (const c of creatures) if (c.alive && dist2(s.x, s.y, c.x, c.y) < (r + c.def.r) ** 2) { eat(c); ate = true; }
+  for (const c of nearbyCreatures(s.x, s.y, r + 16, EAT_NB)) if (c.alive && dist2(s.x, s.y, c.x, c.y) < (r + c.def.r) ** 2) { eat(c); ate = true; } // biggest body radius is ~14
   if (ate) creatures = creatures.filter(c => c.alive);
 
   if (s.drip > 0) { // blood dripping from the jaws for a while after a kill
@@ -81,6 +87,7 @@ function updateSnake(dt) {
   }
 }
 
+const EAT_NB = []; // its own list: eating sets off screams that run their own neighbor queries
 let groundParts = [], regrowT = .4;
 function groundFX(s, dt) { // ruts in the grass and crumbs of dirt flicked out behind the snake
   if (s.gx === undefined) { s.gx = s.x; s.gy = s.y; }
