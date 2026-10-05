@@ -80,7 +80,7 @@ function addCombo(c) {
   if (li) { li.querySelector('b').textContent = combo.counts[name] + 'x'; li.classList.remove('bump'); void li.offsetWidth; li.classList.add('bump'); list.prepend(li); }
   else { li = document.createElement('li'); li.dataset.k = name; li.innerHTML = `${name}<b>1x</b>`; list.prepend(li); }
   while (list.children.length > 5) list.lastElementChild.remove(); // newest types on top, the list stays short
-  run.maxCombo = Math.max(run.maxCombo, combo.n); cr.maxCombo = Math.max(cr.maxCombo, combo.n);
+  run.maxCombo = Math.max(run.maxCombo, combo.n); cr.maxCombo = Math.max(cr.maxCombo, combo.n); if (!cr.usedNV) cr.maxNoNV = Math.max(cr.maxNoNV, combo.n);
   cr.maxComboTypes = Math.max(cr.maxComboTypes, Object.keys(combo.counts).length);
   if (combo.allHuman) cr.maxHumanCombo = Math.max(cr.maxHumanCombo, combo.n);
   if (light.dark > .45) cr.maxDark = Math.max(cr.maxDark, combo.n);

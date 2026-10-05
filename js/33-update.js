@@ -41,6 +41,7 @@ function update(dt) {
     chT = .5;
     const pan = creatures.filter(c => c.alive && c.def.human && c.state === 'panic').length;
     run.maxPanic = Math.max(run.maxPanic, pan); cr.maxPanic = Math.max(cr.maxPanic, pan);
+    if (T - cr.lastEat > 10) cr.quiet = Math.max(cr.quiet, pan); // panic spread without a kill in the last 10 seconds
     const bloody = snake.stains.filter(l => l.length >= 3).length; cr.maxGore = Math.max(cr.maxGore, Math.round(bloody / snake.stains.length * 100));
     checkChallenges();
   }

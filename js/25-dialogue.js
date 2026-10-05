@@ -509,10 +509,12 @@ function scream(c, ctx = 'panic') {
   if (MOD.mute) return; // silent crowd: nobody shouts a warning (seeing others panic still spreads it)
   if (MOD.blind) { noise('scream', c.x, c.y); return; } // blind: a scream is just a sound from where the screamer stands; whoever hears it works out the rest
   const R = 170 * (MOD.doublePanic ? 1.6 : 1);
+  let n = 0;
   for (const o of nearbyHumans(c.x, c.y, R)) { // people who hear it panic a moment later and pass it on
     if (o === c || o.state === 'panic' || o.warn) continue;
-    if (dist2(c.x, c.y, o.x, o.y) < 90 * 90 || los(c.x, c.y, o.x, o.y)) o.warn = { x: c.fx, y: c.fy, t: rand(.25, .7) / (o.panicK || 1) };
+    if (dist2(c.x, c.y, o.x, o.y) < 90 * 90 || los(c.x, c.y, o.x, o.y)) { o.warn = { x: c.fx, y: c.fy, t: rand(.25, .7) / (o.panicK || 1) }; n++; }
   }
+  if (state === 'play') crScream(n);
 }
 function panic(c, x, y, t, ctx = 'panic') {
   if (!c.alive) return;

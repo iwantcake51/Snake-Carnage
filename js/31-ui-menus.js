@@ -197,6 +197,11 @@ function achPreview(cat, v, clear) { // rewards show as a real preview; early on
 function chFit(ch) { // does this challenge suit how the next run is set up? A gentle hint, never a requirement
   const mods = new Set(SETTINGS.mods || []), tm = SETTINGS.timeMode;
   if (ch.mod && mods.has(ch.mod)) return ['good', 'Your modifiers are set up for this one'];
+  if (ch.mod && (ch.k === 'modKills' || ch.k === 'sizeKills' || ch.k === 'modHumans')) return ['meh', `Needs ${(MODS.find(q => q.id === ch.mod) || {}).name} on`];
+  if (ch.k === 'screamChain' && (mods.has('mute') || mods.has('blind'))) return ['bad', mods.has('mute') ? "Mute is on: nobody screams" : "Blind crowd: a scream is just a noise, nobody knows where to run"];
+  if (ch.k === 'order' && mods.has('noAnimals') && ch.seq.some(t => !TYPES[t].human)) return ['bad', "No Animals is on: this one can't be done"];
+  if (ch.k === 'darkStreak' && tm === 'Day') return ['meh', 'Hard in daylight'];
+  if ((ch.k === 'darkStreak' || ch.k === 'noNVCombo') && (tm === 'Night' || tm === 'Dusk')) return ['good', 'Suits a night run'];
   if (mods.has('noAnimals') && ['animals', 'animalStreak', 'comboTypes', 'allAnimals', 'sequence', 'type', 'goldenAny'].includes(ch.k)) return ['bad', 'No Animals is on: this one can\'t be done'];
   if (mods.has('overcrowded') && ['humans', 'humanStreak', 'humanCombo', 'panic', 'panicKills', 'watched'].includes(ch.k)) return ['good', 'Overcrowded: plenty of people for this'];
   if ((tm === 'Night' || tm === 'Dusk') && ['nvKills', 'darkCombo', 'noNVScore', 'unaware'].includes(ch.k)) return ['good', 'Suits a night run'];
@@ -210,7 +215,7 @@ function mapChallengesHtml() { // the selected map's current challenges: name, p
     [...activeChallenges(m)].sort((p, q) => TIER_ORDER[p.tier] - TIER_ORDER[q.tier]).map((ch, i) => { const v = done[ch.id] ? ch.n : (best[ch.id] || 0);
       const fit = !done[ch.id] && chFit(ch);
       return `<div class="mc ${done[ch.id] ? 'done' : ''} ${fit ? 'fit-' + fit[0] : ''}" style="--i:${i}" data-tip="${ch.t}. Reward: ${rewardText(ch).replace(/<[^>]+>/g, '')} chips${fit ? '. ' + fit[1] : ''}"><em class="tier ${ch.tier}">${TIERS[ch.tier].label}</em><b>${done[ch.id] ? '✔ ' : ''}${ch.name}</b><small>${ch.t}</small>
-        <span class="pbar"><span style="width:${(v / ch.n * 100).toFixed(0)}%"></span></span><span class="mcf"><span>${v}${chUnit(ch)}/${ch.n}${chUnit(ch)}</span><span class="rw3">+${TIERS[ch.tier].chips} <i class="pc"></i></span></span></div>`; }).join('') + '</div>';
+        <span class="pbar"><span style="width:${(v / ch.n * 100).toFixed(0)}%"></span></span><span class="mcf"><span>${v}${chUnit(ch)}/${ch.n}${chUnit(ch)}</span><span class="rw3">+${chReward(ch).chips} <i class="pc"></i></span></span></div>`; }).join('') + '</div>';
 }
 let selT = 0;
 function selectMap(i) { // updates the menu in place, so nothing else resets. The heavy map load runs a beat later, and only for the map you land on
