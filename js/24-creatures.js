@@ -7,7 +7,8 @@ function makeCreature(type, x, y, zone) {
            stains: [], feet: 0, step: 0, fs: 1, side: Math.random() < .5 ? -1 : 1, pt: rand(0, .2), zone, alive: true, avx: 0, avy: 0,
            look: def.human ? humanLook(type) : null, alert: 0, adren: 0, seed: Math.random(), // seed: a stable per-creature number for its looks (pt is the perception timer and changes every frame)
            male: Math.random() < .45, sizeK: rand(.88, 1.12), toneK: rand(-.12, .1), antK: rand(.8, 1.25),
-           spdK: def.human ? (Math.random() < .12 ? rand(1.2, 1.32) : rand(.86, 1.12)) : rand(.92, 1.08) }; // natural speed differences
+           spdK: def.human ? (Math.random() < .12 ? rand(1.2, 1.32) : rand(.86, 1.12)) : rand(.92, 1.08), // natural speed differences
+           snowCover: def.human && !def.alien && type !== 'astronaut' && snowOn && seasonId() === 'winter' && !MAPS[mapIdx].indoor && Math.random() < .75 ? rand(.3, 1) : 0 }; // been out in the snow a while: set once, here
 }
 function goldify(c) { // golden target: worth a fortune, gone (back to normal) when the ring runs out
   const def = c.def; c.golden = true; c.goldAt = T; c.goldT = c.goldMax = def.human ? 35 : 28;

@@ -30,7 +30,20 @@ const ANIMAL_SHAPE = { rabbit: [6.6, 4.8, -1, 5, 3.3], deer: [11.2, 6.2, -1, 12,
 function drawHuman(x, c) { // a little bob with each step and a sway side to side, so walking doesn't look like sliding
   if (c.strideK === undefined) { c.strideK = rand(.85, 1.15); c.armK = rand(.75, 1.2); c.flail = hasTrait(c, 'jumpy') || hasTrait(c, 'nervous') || Math.random() < .15; }
   const m = c.moveAmt, run = c.state === 'panic' || c.state === 'flee', bob = 1 + (1 - Math.cos(c.phase * 2)) * .5 * .045 * m * (run ? 1.4 : 1);
-  x.save(); x.translate(0, Math.sin(c.phase) * .55 * m * (run ? 1.3 : 1)); x.scale(bob, bob); drawHumanBody(x, c); x.restore();
+  x.save(); x.translate(0, Math.sin(c.phase) * .55 * m * (run ? 1.3 : 1)); x.scale(bob, bob); drawHumanBody(x, c); if (c.snowCover > .03) drawSnowCover(x, c); x.restore();
+}
+/* a light dusting of snow on shoulders, head and hat. It's drawing state, not a layer: c.snowCover (0..1) is set once
+   when they spawn in the snow and only ever goes down (running shakes it off, blood stains it); the patch layout comes
+   from the person's own seed, so it's the same every frame and never stacks up. */
+function drawSnowCover(x, c) {
+  const L = c.look, k = c.snowCover, r = seeded(((c.seed ?? .5) * 1e6 | 0) + 7);
+  if (!c.snowP) { c.snowP = []; for (let i = 0; i < 9; i++) { const onHead = i < 3, a = r() * TAU; c.snowP.push(onHead ? [.6 + Math.cos(a) * 2.2 - 1, Math.sin(a) * 2.6, 1.4 + r() * 1.4] : [-L.d * (.1 + r() * .6), (r() < .5 ? -1 : 1) * L.w * (.35 + r() * .5), 1.5 + r() * 1.8]); } }
+  const stained = c.stains.length > 6;
+  x.save(); x.beginPath(); x.ellipse(0, 0, L.d + .4, L.w + .4, 0, 0, TAU); x.moveTo(5.6, 0); x.arc(.6, 0, 5, 0, TAU); x.clip(); // only on the body and the head
+  for (let i = 0; i < c.snowP.length; i++) { const p = c.snowP[i]; if (i / c.snowP.length > k + .15) break; // thinner cover: fewer patches
+    x.fillStyle = stained && i % 3 === 0 ? 'rgba(190,120,125,.75)' : `rgba(238,243,252,${(.55 + .35 * k).toFixed(2)})`; circ(x, p[0], p[1], p[2]); }
+  x.fillStyle = `rgba(255,255,255,${(.25 * k).toFixed(2)})`; circ(x, -.8, -1.4, 1.6); // a brighter crest where the light catches it
+  x.restore();
 }
 function drawHumanBody(x, c) { // top-down person, +x = facing direction
   const L = c.look, s = Math.sin(c.phase) * c.moveAmt, [a1, b1, a2, b2] = armPos(c), O = 'rgba(0,0,0,.3)', fy = L.w * .38;
@@ -274,14 +287,14 @@ const hiFx = () => SETTINGS.lightQ === 'High' && !lowFx;
 const AO_SPR = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 6, 32, 32, 32); gr.addColorStop(0, 'rgba(0,0,0,.55)'); gr.addColorStop(.55, 'rgba(0,0,0,.22)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return c; })();
 const VOL_SPR = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), gr = g.createRadialGradient(24, 22, 2, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,.2)'); gr.addColorStop(.45, 'rgba(255,255,255,0)'); gr.addColorStop(.8, 'rgba(0,0,0,.12)'); gr.addColorStop(1, 'rgba(0,0,0,.34)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return c; })();
 function drawAO(x) { // soft contact darkness where bodies meet the ground
-  if (!hiFx()) return;
+  if (!hiFx() || !shadowsOn()) return;
   x.globalAlpha = .5;
   for (const c of creatures) if (c.alive && !c.def.fly) { const R = c.def.r * 1.9; x.drawImage(AO_SPR, c.x - R, c.y - R, R * 2, R * 2); }
   if (snake && snake.alive) { const P = snake._pts || snake.segs; for (let i = 0; i < P.length; i += 3) { const R = snakeRadius() * 1.8; x.drawImage(AO_SPR, P[i].x - R, P[i].y - R, R * 2, R * 2); } }
   x.globalAlpha = 1;
 }
 function drawCreature(x, c, portrait) {
-  if (c.hz > .3) { const k = clamp(1 - c.hz / 14, .45, 1); x.fillStyle = `rgba(0,0,0,${(.24 * k).toFixed(3)})`; ell(x, c.x, c.y, c.def.r * .95 * k, c.def.r * .75 * k); } // the shadow shrinks as it leaves the ground
+  if (c.hz > .3 && shadowsOn()) { const k = clamp(1 - c.hz / 14, .45, 1); x.fillStyle = `rgba(0,0,0,${(.24 * k).toFixed(3)})`; ell(x, c.x, c.y, c.def.r * .95 * k, c.def.r * .75 * k); } // the shadow shrinks as it leaves the ground
   x.save(); x.translate(c.x, c.y - (c.hz || 0) * .7); x.rotate(c.a); if (c.hz) x.scale(1 + c.hz * .045, 1 + c.hz * .045); // ...and the body gets bigger, closer to you
   if (c.dance) { const b = Math.abs(Math.sin(T * CLUB_BPM / 60 * Math.PI + (c.seed ?? .5) * 30)); x.scale(1 + b * .05, 1 + b * .05); x.rotate(Math.sin(T * 2 + (c.seed ?? .5) * 9) * .12); }
   if (!c.def.human && c.moveAmt > .02 && !c.hz) { // animals: a little weight shift each step, side to side, the body yawing against the legs

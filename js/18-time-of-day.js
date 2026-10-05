@@ -47,6 +47,7 @@ function computeLight() {
 const [tmpSC, tsx] = makeLayer();
 function bakeShadows() { // sun shadows: sharp at the base, softer the further they reach (drawn as two passes: crisp core, blurred tail)
   const L = light; tsx.clearRect(0, 0, W, H); tsx.fillStyle = '#000'; shx.clearRect(0, 0, W, H);
+  if (!shadowsOn()) return; // Off: no sun shadows at all (and the layer isn't drawn either)
   for (const o of obstacles) {
     const h = HEIGHTS[o.kind] ?? 10; if (!h) continue;
     const ox = L.sdx * h, oy = L.sdy * h, n = Math.max(1, Math.ceil(Math.hypot(ox, oy) / 2.5));
@@ -63,7 +64,7 @@ function bakeShadows() { // sun shadows: sharp at the base, softer the further t
 }
 const contactC = document.createElement('canvas'); contactC.width = W / 2; contactC.height = H / 2; const ccx = contactC.getContext('2d');
 function bakeContactShadows(x, list) { // a soft dark rim where every object meets the floor, day or night (blurred at half size: it's soft anyway, and full-res blur stalled map loads)
-  if (!('filter' in ccx)) return;
+  if (!('filter' in ccx) || !shadowsOn()) return;
   ccx.setTransform(1, 0, 0, 1, 0, 0); ccx.clearRect(0, 0, W / 2, H / 2); ccx.setTransform(.5, 0, 0, .5, 0, 0); ccx.filter = 'blur(1.5px)'; ccx.fillStyle = '#000';
   for (const o of list) { const h = HEIGHTS[o.kind] ?? 10; if (!h || o.kind === 'border') continue; const g = Math.min(4, 1 + h * .1); if (o.poly || obsFlag(o, 'noShadow')) continue; fillObs(ccx, o, 0, 0, g); }
   ccx.filter = 'none';

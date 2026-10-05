@@ -28,11 +28,11 @@ function render() {
   drawGrass(x);
   for (const b of bucketList) { if (!b.fd) continue; x.globalAlpha = bucketAlpha(b); x.drawImage(b.f, 0, 0, W, H); }
   x.globalAlpha = 1; drawSnow(x); // (no fake pool reflections: the pools are just blood)
-  x.globalAlpha = L.salpha; x.drawImage(shadowC, 0, 0, W, H); x.globalAlpha = 1;
-  x.fillStyle = `rgba(0,0,0,${L.salpha})`; x.beginPath(); // creature + snake shadows as one shape
-  for (const c of creatures) if (c.alive) { const r = c.def.r * .85, sx = c.x + L.sdx * 5, sy = c.y + L.sdy * 5; x.moveTo(sx + r, sy); x.arc(sx, sy, r, 0, TAU); }
-  snakeShadowPath(x, L.sdx * 6, L.sdy * 6);
-  x.fill();
+  if (shadowsOn()) { x.globalAlpha = L.salpha; x.drawImage(shadowC, 0, 0, W, H); x.globalAlpha = 1; } // baked sun shadows (Static and Full)
+  if (movingShadows()) { x.fillStyle = `rgba(0,0,0,${L.salpha})`; x.beginPath(); // creature + snake shadows as one shape (Full only)
+    for (const c of creatures) if (c.alive) { const r = c.def.r * .85, sx = c.x + L.sdx * 5, sy = c.y + L.sdy * 5; x.moveTo(sx + r, sy); x.arc(sx, sy, r, 0, TAU); }
+    snakeShadowPath(x, L.sdx * 6, L.sdy * 6);
+    x.fill(); }
   drawAO(x); drawLeashes(x);
   for (const c of creatures) if (c.alive) drawCreature(x, c);
   drawFlashBodies(x); drawHitGhosts(x);

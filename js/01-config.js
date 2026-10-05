@@ -23,7 +23,7 @@ const CONFIG = {
 const SETTINGS_MIGRATE = s => { if (s.noticeSnake && s.mods && !s.mods.includes('noticeSnake')) s.mods.push('noticeSnake'); delete s.noticeSnake; return s; }; // moved from Settings to a modifier
 const SETTINGS = Object.assign({
   darkness: .2, pixel: 1, creatureSpeed: .55, timeMode: 'Cycle', dayMinutes: 4, bloodFade: 'Normal', customHour: 22, volume: .7,
-  lightQ: (() => { try { return matchMedia('(pointer: coarse)').matches ? 'Medium' : 'High'; } catch (e) { return 'High'; } })(), dynShadows: true, vomit: true, fxLevel: 'Normal', bloodQ: 'High', season: 'Random', shakeK: 1, bloodBlur: true, reduceFlash: false, bloodAmt: 'Full', simpleFx: false, mouseFollow: false,
+  lightQ: (() => { try { return matchMedia('(pointer: coarse)').matches ? 'Medium' : 'High'; } catch (e) { return 'High'; } })(), vomit: true, fxLevel: 'Normal', bloodQ: 'High', season: 'Random', shakeK: 1, bloodBlur: true, reduceFlash: false, bloodAmt: 'Full', simpleFx: false, mouseFollow: false,
   vignette: true, desaturate: true, shake: true, noticeSnake: false, uiSounds: true, mods: [], reduceMotion: false, bubbleSize: 'Normal', strongOutlines: false, snakeOutline: 'Subtle', uiScale: 'Auto', renderRes: 'Auto', fogQ: 'High', treeQ: 'High', fpsCap: 'VSync', fullscreen: false,
 }, (() => { try { return SETTINGS_MIGRATE(JSON.parse(localStorage.getItem('snakeCarnageSettings')) || {}); } catch (e) { return {}; } })());
 if (!SETTINGS.mapOutlines) SETTINGS.mapOutlines = SETTINGS.strongOutlines ? 'Strong' : 'Subtle'; // "Strong outlines" became "Map outlines"
@@ -31,6 +31,11 @@ if (!SETTINGS.pxFix) { SETTINGS.pixel = 1; SETTINGS.pxFix = 1; } // old default 
 if (!['Cycle', 'Day', 'Dawn', 'Dusk', 'Night'].includes(SETTINGS.timeMode)) SETTINGS.timeMode = 'Cycle'; SETTINGS.dayMinutes = 4; // Cycle: each run starts at a random hour and the day moves on
 SETTINGS.snake = Object.assign({ color: '#4e7cf6', color2: '#f2f2f2', pattern: 'Solid', hat: 'None', eyes: 'Normal', outline: 'None', trail: 'None' }, SETTINGS.snake);
 if (SETTINGS.bloodQ === 'Normal') SETTINGS.bloodQ = 'Medium'; // renamed
+if (!['Off', 'Static', 'Full'].includes(SETTINGS.shadows)) SETTINGS.shadows = SETTINGS.dynShadows === false ? 'Static' : 'Full'; delete SETTINGS.dynShadows; // "Moving shadows" on/off became Shadows: Off / Static / Full
+/* Shadows: Off = nothing is cast at all (no sun, object, contact, creature, snake or flashlight shadows; none of it is even
+   worked out); Static = the baked, unchanging ones (sun shadows, lamps against walls, contact shading); Full = everything,
+   including bodies moving under lamps and flashlights. Lighting quality (lightQ) is separate: the light itself still works. */
+const shadowsOn = () => SETTINGS.shadows !== 'Off', movingShadows = () => SETTINGS.shadows === 'Full';
 /* Blood quality: how much blood is simulated and how finely it's drawn. Lower settings do less work (fewer, simpler drops,
    smaller caps, shorter-lived mist, plainer splats), never a lower update rate: every drop still moves every frame.
    n: drops per kill, cap: max live drops, detail: splat shape complexity (0 plain .. 2 full), mist: puff amount, sat: satellite drops round pools */

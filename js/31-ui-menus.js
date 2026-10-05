@@ -298,10 +298,10 @@ const SETTING_TABS = {
     ['seg', 'lightQ', 'Lighting', 'High: full dynamic lighting. Medium: fewer moving shadows. Low: baked shadows only, cheapest.', ['Low', 'Medium', 'High']],
     ['seg', 'treeQ', 'Tree detail', 'High: every branch sways on its own. Medium: whole trees lean in the wind (cheaper). Low: no sway, all trees drawn as one picture (cheapest).', ['Low', 'Medium', 'High']],
     ['seg', 'fogQ', 'Fog detail', 'Heavy fog modifier. High: drifting billows, torn edges, lamps glowing through it. Medium: billows only. Low: plain soft fog, cheapest.', ['Low', 'Medium', 'High']],
-    ['toggle', 'dynShadows', 'Moving shadows', 'People, animals and the snake cast shadows from lamps and flashlights.'],
+    ['seg', 'shadows', 'Shadows', 'Full: everything casts shadows, including people, animals and the snake under lamps and flashlights. Static: only the fixed ones (buildings, walls, furniture in sunlight and lamplight). Off: no shadows at all and none are worked out, the fastest. Light and darkness work the same either way.', ['Off', 'Static', 'Full']],
     ['seg', 'fxLevel', 'Particles', 'How many particles are simulated: blood mist, smoke, sparks, snow powder, scent wisps, insects. Low simulates far fewer.', ['Low', 'Normal', 'High']],
     ['toggle', 'bloodBlur', 'Blood motion blur', 'Fast drops stretch and smear along their path. Off: plain round drops.'],
-    ['seg', 'bloodQ', 'Blood quality', 'How much blood is simulated and how finely it is drawn. Low: fewer, chunkier drops updated at half rate, short trails, no mist (fastest). Extreme: the most drops, smooth motion blur, mist and long-lasting trails.', ['Low', 'Medium', 'High', 'Extreme']],
+    ['seg', 'bloodQ', 'Blood quality', 'How much blood is simulated and how finely it is drawn. Low: fewer, chunkier, plainer drops and short trails (still smooth: every drop moves every frame), the fastest. Extreme: the most drops, smooth motion blur, mist and long-lasting trails.', ['Low', 'Medium', 'High', 'Extreme']],
     ['toggle', 'vignette', 'Kill vignette', 'A red pulse at the screen edges when you eat.'],
     ['toggle', 'desaturate', 'Color drain', 'Briefly drains color after a kill.'],
     ['toggle', 'shake', 'Screen shake', 'Shake the camera on kills and crashes.']] },
@@ -344,6 +344,7 @@ function applySetting(k) { // side effects of a setting change
   if (k === 'uiScale') { applyUiScale(); requestAnimationFrame(() => overlay.querySelectorAll('.seg,.sseg').forEach(sg => placeThumb(sg, true))); }
   if (k === 'mapOutlines') { drawObstacleLayer(); bakeOutline(); }
   if (k === 'lightQ') resizeLights();
+  if (k === 'shadows') shadowsChanged();
   if (k === 'fullscreen') setFullscreen(SETTINGS.fullscreen);
   if (k === 'renderRes') setTimeout(() => location.reload(), 150); // every layer is sized from it at startup
   if (k === 'bloodQ' || k === 'bloodFade') bloodQualityChanged();
