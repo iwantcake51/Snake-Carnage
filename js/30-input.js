@@ -12,25 +12,36 @@ function keyAngle() {
   const dx = (held.has('r') ? 1 : 0) - (held.has('l') ? 1 : 0), dy = (held.has('d') ? 1 : 0) - (held.has('u') ? 1 : 0);
   return dx || dy ? Math.atan2(dy, dx) : null;
 }
-function predictUTurn(side, final) { // play the turn forward: would the head hit a wall or the body on the way round?
-  const s = snake, sl = upg('speed'), v = s.speed, R = CONFIG.snakeR;
-  let x = s.x, y = s.y, ang = s.angle, dir = side, bad = 0;
-  for (let k = 0; k < 60; k++) { const dt = 1 / 60, mx = CONFIG.turnRate * dt * (1 + .48) * 2.4, d = angDiff(ang, dir);
+function predictUTurn(side, final, boost) { // play the whole turn forward, plus the run back alongside the body: any wall or body contact?
+  const s = snake, R = CONFIG.snakeR, sl = upg('speed'), v = s.speed * (s.dashV || 1);
+  let x = s.x, y = s.y, ang = s.angle, dir = side, bad = 0, after = -1; const path = [];
+  for (let k = 0; k < 150; k++) { const dt = 1 / 60, mx = CONFIG.turnRate * dt * (1 + (sl >= 2 ? .18 : 0) + (sl >= 4 ? .18 : 0) + (sl >= 5 ? .12 : 0)) * boost, d = angDiff(ang, dir);
     ang += Math.abs(d) < .002 ? d : clamp(d * Math.min(1, dt * CONFIG.turnEase) + Math.sign(d) * mx * .18, -mx, mx);
     if (dir !== final && Math.abs(angDiff(ang, dir)) < .5) dir = final;
     x += Math.cos(ang) * v * dt; y += Math.sin(ang) * v * dt;
     if (hitObstacle(x, y, R * .75) || x < B || y < B || x > W - B || y > H - B) bad += 10; // a wall
-    for (let i = 8; i < s.segs.length; i++) if (dist2(x, y, s.segs[i].x, s.segs[i].y) < (R * 1.25) ** 2) { bad += 5; break; } // your own body
-    if (Math.abs(angDiff(ang, final)) < .15 && k > 10) break;
+    { // your own body, where it will be by then: it follows the head round the turn, so walk back along the path the head will have drawn
+      const sp = CONFIG.segSpacing, minD = sp * 8, maxD = sp * s.len; let px = x, py = y, acc = 0, hitB = false;
+      const step = (qx, qy) => { acc += Math.hypot(qx - px, qy - py); px = qx; py = qy; if (acc >= minD && acc <= maxD && dist2(x, y, qx, qy) < (R * 1.35) ** 2) hitB = true; return acc > maxD || hitB; };
+      let done = false;
+      for (let j = path.length - 1; j >= 0 && !done; j--) done = step(path[j][0], path[j][1]);
+      if (!done) done = step(s.x, s.y);
+      for (let j = 0; j < s.hist.length && !done; j++) done = step(s.hist[j].x, s.hist[j].y);
+      if (hitB) bad += 5;
+    }
+    path.push([x, y]);
+    if (after < 0 && Math.abs(angDiff(ang, final)) < .1) after = k;
+    if (after >= 0 && k - after > 45) break; // and keep checking for a while after the turn, running back past the body
   }
   return bad;
 }
 function setHeading(a) { // one place where a new target heading is accepted (8-way rules)
   if (snake.started && Math.abs(angDiff(snake.dir, a)) > Math.PI * .9) { // no instant reversal... unless Speed Demon V lets you whip round
     if (upg('speed') < 5 || T - (snake.uturnAt || -9) < .6 || snake.uturnT > 0) return;
-    const sides = [snake.dir - Math.PI / 2, snake.dir + Math.PI / 2].map(sd => ({ sd, bad: predictUTurn(sd, a) })).sort((p, q) => p.bad - q.bad);
-    if (sides[0].bad > 0) return; // both ways would hit a wall or your own body: no U-turn
-    snake.uturnAt = T; snake.uturnT = .55; snake.uturnTo = a; snake.dir = sides[0].sd; Sfx.turn(); return; // the clear side (and if the first choice isn't clear, the other one)
+    let pickd = null; // tightest safe turn first; if that would clip the body, try a wider one; either side
+    for (const boost of [2.4, 1.7, 1.25]) { for (const sd of [snake.dir - Math.PI / 2, snake.dir + Math.PI / 2]) if (!predictUTurn(sd, a, boost)) { pickd = { sd, boost }; break; } if (pickd) break; }
+    if (!pickd) return; // every way round would hit a wall or your own body: no U-turn
+    snake.uturnAt = T; snake.uturnT = .8; snake.uturnK = pickd.boost; snake.uturnTo = a; snake.dir = pickd.sd; Sfx.turn(); return; // the clear side (and if the first choice isn't clear, the other one)
   }
   if (snake.started && Math.abs(angDiff(snake.dir, a)) > .1) Sfx.turn();
   if (snake.started && Math.abs(angDiff(snake.dir, a)) > 1.4) snake.hardTurnT = T; // 90 degrees or more

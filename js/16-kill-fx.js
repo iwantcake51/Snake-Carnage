@@ -2,23 +2,26 @@
    KILL FX: vignette pulse, color drain, blood on the "lens"
    ========================================================= */
 let hitStop = 0, hitGhosts = [];
-function drawHitGhosts(x) { // the eaten body hangs for a frame or two, flashed white, then it's gone
+function drawHitGhosts(x) { // the eaten body squashes, flashes and gets knocked along the bite for a split second, then it's gone
+  const D = .14;
   for (let i = hitGhosts.length - 1; i >= 0; i--) {
-    const g = hitGhosts[i]; g.t += 1 / 60; if (g.t > .1) { hitGhosts.splice(i, 1); continue; }
-    const k = 1 - g.t / .1; x.save(); x.globalAlpha = k; drawCreature(x, g.c, true);
-    x.translate(g.c.x, g.c.y); x.rotate(g.c.a); x.scale(1 + .25 * (1 - k), 1 + .25 * (1 - k)); shapePath(x, g.c); x.fillStyle = `rgba(255,255,255,${.75 * k})`; x.fill(); x.restore();
+    const g = hitGhosts[i]; g.t += 1 / 60; if (g.t > D) { hitGhosts.splice(i, 1); continue; }
+    const u = g.t / D, k = 1 - u, sq = Math.sin(u * Math.PI); // squash peaks mid-way, then it springs back as it fades
+    const kx = Math.cos(g.ka) * 6 * Math.sqrt(u), ky = Math.sin(g.ka) * 6 * Math.sqrt(u); // a small knock in the direction of the bite
+    x.save(); x.globalAlpha = k; x.translate(kx, ky); drawCreature(x, g.c, true);
+    x.translate(g.c.x, g.c.y); x.rotate(g.ka); x.scale(1 - .3 * sq, 1 + .35 * sq); x.rotate(g.c.a - g.ka); shapePath(x, g.c); x.fillStyle = `rgba(255,255,255,${.8 * k})`; x.fill(); x.restore();
   }
 }
 let killV = 0, killFlash = 0, desatHold = 0, lastFilter = '';
 function killFx(x, y, amount) {
-  killV = Math.min(1, killV + .35 + .5 * amount);
-  killFlash = SETTINGS.reduceFlash ? 0 : .8; desatHold = .1;
+  killV = Math.min(.5, killV + .12 + .18 * amount); // only a whisper on screen; the impact is on the target itself
+  killFlash = 0; desatHold = 0;
 }
 /* BLOOD MIST: a short, soft puff right where something gets eaten (in the target's own blood color) */
 let mist = [];
 const FX_K = () => ({ Low: .4, Normal: 1, High: 1.5 })[SETTINGS.fxLevel] || 1;
 function bloodMist(x, y, dirA, amount, cols) {
-  const n = Math.round((5 + amount * 7) * FX_K());
+  const n = Math.round((5 + amount * 7) * FX_K() * Math.max(.3, BQ().mist));
   for (let k = 0; k < n && mist.length < 80; k++) {
     const a = dirA + gauss() * 1.1, sp = rand(20, 90) * (.6 + amount * .5);
     mist.push({ x: x + rand(-4, 4), y: y + rand(-4, 4), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: rand(4, 9) * (.7 + amount * .5), g: rand(14, 30), t: 0, life: rand(.35, .7), c: pick(cols), a: rand(.18, .32) });
@@ -51,7 +54,7 @@ function updateVomit(dt) {
     for (let k = 0; k < 2; k++) puke.push({ x: mx, y: my, z: 6, vx: Math.cos(a) * rand(40, 90), vy: Math.sin(a) * rand(40, 90), vz: rand(-10, 30), c: pick(VOMIT), r: rand(1, 2.2) });
   }
   for (let i = puke.length - 1; i >= 0; i--) {
-    const p = puke[i]; p.vz -= 400 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
+    const p = puke[i]; p.vz -= 400 * GRAV() * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
     if (p.z <= 0) { markF(); fctx.globalAlpha = .85; fctx.fillStyle = p.c; ell(fctx, p.x, p.y, p.r * 1.8, p.r * 1.3); if (Math.random() < .3) { fctx.fillStyle = '#d6c870'; circ(fctx, p.x + rand(-2, 2), p.y + rand(-2, 2), .7); } fctx.globalAlpha = 1; puke.splice(i, 1); }
   }
 }

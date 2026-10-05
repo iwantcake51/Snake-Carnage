@@ -28,7 +28,7 @@ const ANIMAL_SHAPE = { rabbit: [6.6, 4.8, -1, 5, 3.3], deer: [11.2, 6.2, -1, 12,
   chicken: [5.4, 4.4, -.6, 4.8, 3], duck: [6.2, 4.6, -.6, 6, 3], pig: [10.2, 7.6, -.5, 9.6, 5], sheep: [8.2, 7.6, 0, 8.8, 3.8], rat: [5.6, 3.3, -.4, 4.8, 2.3], firefly: [2.4, 1.8, 0, 2, 1] };
 function drawHuman(x, c) { // a little bob with each step and a sway side to side, so walking doesn't look like sliding
   if (c.strideK === undefined) { c.strideK = rand(.85, 1.15); c.armK = rand(.75, 1.2); c.flail = hasTrait(c, 'jumpy') || hasTrait(c, 'nervous') || Math.random() < .15; }
-  const m = c.moveAmt, run = c.state === 'panic' || c.state === 'flee', bob = 1 + Math.abs(Math.sin(c.phase)) * .045 * m * (run ? 1.4 : 1);
+  const m = c.moveAmt, run = c.state === 'panic' || c.state === 'flee', bob = 1 + (1 - Math.cos(c.phase * 2)) * .5 * .045 * m * (run ? 1.4 : 1);
   x.save(); x.translate(0, Math.sin(c.phase) * .55 * m * (run ? 1.3 : 1)); x.scale(bob, bob); drawHumanBody(x, c); x.restore();
 }
 function drawHumanBody(x, c) { // top-down person, +x = facing direction
@@ -36,8 +36,11 @@ function drawHumanBody(x, c) { // top-down person, +x = facing direction
   // legs and shoes stride out from under the body
   x.strokeStyle = L.pants; x.lineWidth = 3.6; x.lineCap = 'round';
   const run = c.state === 'panic' || c.state === 'flee', stride = (run ? 7.8 : 5.2) * (c.strideK || 1);
-  x.beginPath(); x.moveTo(0, -fy); x.lineTo(s * stride, -fy); x.moveTo(0, fy); x.lineTo(-s * stride, fy); x.stroke();
-  x.fillStyle = L.shoes; ell(x, s * stride + 1.1, -fy, 2.5, 1.7); ell(x, -s * stride + 1.1, fy, 2.5, 1.7);
+  const cp = Math.cos(c.phase) * c.moveAmt, l1 = Math.max(0, cp), l2 = Math.max(0, -cp); // the foot swinging forward lifts a little (bigger from above), the planted one stays flat
+  const f1 = s * stride, f2 = -s * stride, y1 = -fy - l1 * .5, y2 = fy + l2 * .5;
+  x.beginPath(); x.moveTo(-.6, -fy * .8); x.quadraticCurveTo(f1 * .5, -fy - l1 * .4, f1, y1); x.moveTo(-.6, fy * .8); x.quadraticCurveTo(f2 * .5, fy + l2 * .4, f2, y2); x.stroke();
+  x.fillStyle = L.shoes; ell(x, f1 + 1.1, y1, 2.5 * (1 + l1 * .14), 1.7 * (1 + l1 * .1)); ell(x, f2 + 1.1, y2, 2.5 * (1 + l2 * .14), 1.7 * (1 + l2 * .1));
+  x.rotate(-s * .07); // shoulders twist against the hips
   if (run) x.translate(1.3 * c.moveAmt, 0); // leaning into the run: everything above the legs pitches forward
   if (L.acc === 'backpack') { x.fillStyle = L.top2; rrect(x, -L.d - 3.4, -L.w * .55, 4.6, L.w * 1.1, 1.8); x.fill(); x.fillStyle = O; x.fillRect(-L.d - 2.4, -L.w * .45, 1, L.w * .9); }
   // arms: sleeve at the shoulder, hand at the end
@@ -122,9 +125,11 @@ function drawFirefly(x, c, d) { // a little beetle: dark wing cases, a flicker o
 }
 /* ---- animals: top-down, +x forward. Each one: feet that actually step, a shaded body, a head with real features ---- */
 const EYE = (x, px, py, r = .8) => { x.fillStyle = '#121212'; circ(x, px, py, r); x.fillStyle = 'rgba(255,255,255,.7)'; circ(x, px + r * .3, py - r * .3, r * .35); };
-function feet(x, c, d, fx, bx, wy, col, r = 1.5) { // four paws/hooves stepping in a trot
-  const s = Math.sin(c.phase) * c.moveAmt * 2.2; x.fillStyle = col;
-  circ(x, fx + s, -wy, r); circ(x, fx - s, wy, r); circ(x, bx - s, -wy, r); circ(x, bx + s, wy, r);
+function feet(x, c, d, fx, bx, wy, col, r = 1.5) { // four paws/hooves in a proper trot: diagonal pairs move together; a swinging foot lifts (bigger, lighter), a planted one pushes back flat
+  const m = c.moveAmt, ph = c.phase, st = 2.4 * m, sw = Math.sin(ph), lift = Math.cos(ph);
+  const foot = (bx0, y, dir) => { const s = sw * st * dir, up = Math.max(0, lift * dir) * m; // up > 0: this foot is in the air, travelling forward
+    x.fillStyle = up > .05 ? shade(col, .12 * up) : col; circ(x, bx0 + s, y * (1 + up * .08), r * (1 + up * .22)); };
+  foot(fx, -wy, 1); foot(bx, wy, 1); foot(fx, wy, -1); foot(bx, -wy, -1); // left-front with right-back, then the other pair
 }
 function body(x, len, wid, col, cx = 0) { // shaded oval: darker underside edge, lit back
   x.fillStyle = shade(col, -.18); ell(x, cx, 0, len, wid);
@@ -278,6 +283,8 @@ function drawCreature(x, c, portrait) {
   if (c.hz > .3) { const k = clamp(1 - c.hz / 14, .45, 1); x.fillStyle = `rgba(0,0,0,${(.24 * k).toFixed(3)})`; ell(x, c.x, c.y, c.def.r * .95 * k, c.def.r * .75 * k); } // the shadow shrinks as it leaves the ground
   x.save(); x.translate(c.x, c.y - (c.hz || 0) * .7); x.rotate(c.a); if (c.hz) x.scale(1 + c.hz * .045, 1 + c.hz * .045); // ...and the body gets bigger, closer to you
   if (c.dance) { const b = Math.abs(Math.sin(T * CLUB_BPM / 60 * Math.PI + (c.seed ?? .5) * 30)); x.scale(1 + b * .05, 1 + b * .05); x.rotate(Math.sin(T * 2 + (c.seed ?? .5) * 9) * .12); }
+  if (!c.def.human && c.moveAmt > .02 && !c.hz) { // animals: a little weight shift each step, side to side, the body yawing against the legs
+    const m = c.moveAmt, ph = c.phase * (c.def.gaitK || 1); x.translate(0, Math.sin(ph) * .45 * m); x.rotate(Math.cos(ph) * .045 * m); }
   c.def.human ? drawHuman(x, c) : drawAnimal(x, c);
   if (!portrait && hiFx() && !c.def.fly) { x.save(); shapePath(x, c); x.clip(); x.rotate(-c.a); const R = c.def.r * 1.5; x.drawImage(VOL_SPR, -R, -R, R * 2, R * 2); x.restore(); } // rounded: light on top, darker toward the edges
   if (c.stains.length) {
@@ -307,41 +314,60 @@ function hsl2hex(h, s, l) {
   const k = n => (n + h / 30) % 12, a = s * Math.min(l, 1 - l), f = n => Math.round(255 * (l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1))));
   return '#' + [f(0), f(8), f(4)].map(v => v.toString(16).padStart(2, '0')).join('');
 }
-function segColor(i, n, cfg) {
+function segColor(i, n, cfg) { // every skin is built from your primary (P) and secondary (S) colors, plus shades of them
+  const P = cfg.color, S = cfg.color2, D = shade(P, -.55);
   switch (cfg.pattern) {
-    case 'Stripes': return Math.floor(i / 2) % 2 ? cfg.color2 : cfg.color;
-    case 'Zebra': return i % 2 ? cfg.color2 : cfg.color;
-    case 'Gradient': return mixColor(cfg.color, cfg.color2, i / Math.max(1, n - 1));
-    case 'Rainbow': return hsl2hex(((i * 22 - T * 90) % 360 + 360) % 360, 85, 56);
-    case 'Neon': return mixColor(cfg.color, '#ffffff', (Math.sin(T * 6 - i * .5) + 1) * .22);
-    case 'Lava': return mixColor('#ff3b00', '#ffc400', (Math.sin(T * 3 + i * .6) + 1) / 2);
-    case 'Galaxy': return mixColor('#1a1033', cfg.color, (Math.sin(i * .7 + T) + 1) * .18);
-    case 'Rat Fur': return i >= n - 3 ? '#d99a9a' : i % 2 ? '#7a7a82' : '#8a8a92';                       // grey fur, pink tail tip
-    case 'Gold Plated': return mixColor('#a87a12', '#ffe680', (Math.sin(i * .5 - T * 2.5) + 1) * .5 * .8); // a highlight sweeping down the body
-    case 'Blood Soaked': return mixColor(cfg.color, '#5a0606', .45 + .25 * ((i * 7919 % 13) / 13));
-    case 'Hazard': return Math.floor(i / 2) % 2 ? '#1d1d1f' : '#f2c230';
-    case 'Lunar': return mixColor('#b9c0c8', '#8a9099', (i * 37 % 10) / 22);
-    case 'Martian': return mixColor('#c1440e', '#e2763a', (Math.sin(i * .8) + 1) * .4);
-    default: return i % 2 ? mixColor(cfg.color, '#000000', .06) : cfg.color;
+    case 'Stripes': return Math.floor(i / 2) % 2 ? S : P;
+    case 'Zebra': return i % 2 ? S : P;
+    case 'Gradient': return mixColor(P, S, i / Math.max(1, n - 1));
+    case 'Rainbow': return mixColor(P, S, (Math.sin(i * .35 - T * 4) + 1) / 2); // the two colors chase each other down the body
+    case 'Neon': return mixColor(P, '#ffffff', (Math.sin(T * 6 - i * .5) + 1) * .22);
+    case 'Lava': return mixColor(P, S, (Math.sin(T * 3 + i * .6) + 1) / 2);
+    case 'Galaxy': return mixColor(shade(P, -.75), P, (Math.sin(i * .7 + T) + 1) * .18);
+    case 'Rat Fur': return i >= n - 3 ? S : i % 2 ? shade(P, -.08) : P; // fur, with the tail tip in your second color
+    case 'Gold Plated': return mixColor(shade(P, -.3), S, (Math.sin(i * .5 - T * 2.5) + 1) * .5 * .8); // a highlight sweeping down the body
+    case 'Blood Soaked': return mixColor(P, shade(S, -.6), .45 + .25 * ((i * 7919 % 13) / 13));
+    case 'Hazard': return Math.floor(i / 2) % 2 ? S : P;
+    case 'Lunar': return mixColor(P, shade(P, -.25), (i * 37 % 10) / 22);
+    case 'Martian': return mixColor(P, S, (Math.sin(i * .8) + 1) * .4);
+    // real snakes, in your colors
+    case 'Coral': return [P, P, S, D, D, S][i % 6];
+    case 'Kingsnake': return i % 4 === 0 ? S : D;
+    case 'Diamondback': return mixColor(P, shade(P, .12), (i % 2) * .5);
+    case 'Python': return mixColor(P, shade(P, -.08), ((i * 31) % 7) / 7);
+    case 'Garter': return mixColor(D, shade(D, .15), (i % 2) * .5);
+    case 'Emerald': return mixColor(P, shade(P, .12), (Math.sin(i * .4) + 1) * .3);
+    default: return i % 2 ? mixColor(P, '#000000', .06) : P;
   }
+}
+const NATURAL = new Set(['Coral', 'Kingsnake', 'Diamondback', 'Python', 'Garter', 'Emerald']);
+function patternStripes(x, pts, n, cfg) { // patterns that run the length of the body
+  if (cfg.pattern === 'Neon') { x.save(); x.strokeStyle = cfg.color2; x.globalAlpha = .55 + .25 * Math.sin(T * 4); x.lineWidth = 2.4; tubePath(x, pts, n, -1.2); x.stroke(); x.globalAlpha = .25; x.lineWidth = 5; x.stroke(); x.restore(); return; } // a glowing tube edge in your second color
+  if (cfg.pattern !== 'Garter') return;
+  const run = (off, w, col) => { x.strokeStyle = col; x.lineWidth = w; x.beginPath(); for (let i = 0; i < n; i++) { const g = pts[i], r = segR(i, n), px = g.x - Math.sin(g.a) * r * off, py = g.y + Math.cos(g.a) * r * off; i ? x.lineTo(px, py) : x.moveTo(px, py); } x.stroke(); };
+  x.lineCap = 'round'; x.lineJoin = 'round'; run(0, CONFIG.snakeR * .38, cfg.color2); run(-.72, CONFIG.snakeR * .2, shade(cfg.color2, -.12)); run(.72, CONFIG.snakeR * .2, shade(cfg.color2, -.12)); // the yellow dorsal stripe and two side stripes
 }
 function patternOverlay(x, g, r, i, cfg) {
   switch (cfg.pattern) {
     case 'Spots':
-      if (i % 3 === 1) { const sa = g.a + (i % 2 ? 1.6 : -1.6); x.fillStyle = cfg.color2; circ(x, g.x + Math.cos(sa) * r * .4, g.y + Math.sin(sa) * r * .4, r * .35); }
+      if (i % 2 === 1) { const h = (i * 7919) % 101, sa = g.a + (h % 2 ? 1.57 : -1.57) * (.3 + (h % 7) / 10); x.save(); x.translate(g.x + Math.cos(sa) * r * .45, g.y + Math.sin(sa) * r * .45); x.rotate(g.a + h * .03); x.fillStyle = cfg.color2; ell(x, 0, 0, r * (.48 + (h % 5) * .05), r * .34); x.restore(); } // irregular oval spots, like a real spotted skin
       break;
-    case 'Checker': { const a0 = g.a + (i % 2 ? 0 : Math.PI); x.fillStyle = cfg.color2; x.beginPath(); x.moveTo(g.x, g.y); x.arc(g.x, g.y, r, a0, a0 + Math.PI); x.fill(); break; }
+    case 'Checker': { const nx = -Math.sin(g.a), ny = Math.cos(g.a), dx = Math.cos(g.a) * r * .62, dy = Math.sin(g.a) * r * .62, sd = i % 2 ? 1 : -1; x.fillStyle = cfg.color2; x.beginPath(); x.moveTo(g.x + dx, g.y + dy); x.lineTo(g.x - dx, g.y - dy); x.lineTo(g.x - dx + nx * r * 1.6 * sd, g.y - dy + ny * r * 1.6 * sd); x.lineTo(g.x + dx + nx * r * 1.6 * sd, g.y + dy + ny * r * 1.6 * sd); x.fill(); break; } // half the band, alternating sides of the spine
     case 'Diamond':
       if (i % 2 === 0) { x.save(); x.translate(g.x, g.y); x.rotate(g.a + Math.PI / 4); x.fillStyle = cfg.color2; x.fillRect(-r * .35, -r * .35, r * .7, r * .7); x.restore(); }
       break;
     case 'Rat Fur':
-      x.strokeStyle = 'rgba(40,40,46,.35)'; x.lineWidth = .7;
+      x.strokeStyle = shade(cfg.color, -.5); x.globalAlpha *= .5; x.lineWidth = .7;
       for (let k = -1; k <= 1; k++) { const a = g.a + Math.PI + k * .5; x.beginPath(); x.moveTo(g.x + Math.cos(a) * r * .2, g.y + Math.sin(a) * r * .2); x.lineTo(g.x + Math.cos(a) * r * .8, g.y + Math.sin(a) * r * .8); x.stroke(); }
       break;
+    case 'Diamondback': if (i % 2 === 0) { x.save(); x.translate(g.x, g.y); x.rotate(g.a + Math.PI / 4); const d = r * .74; x.fillStyle = cfg.color2; x.fillRect(-d - 1.1, -d - 1.1, d * 2 + 2.2, d * 2 + 2.2); x.fillStyle = shade(cfg.color, -.55); x.fillRect(-d, -d, d * 2, d * 2); x.fillStyle = shade(cfg.color, -.3); x.fillRect(-d * .5, -d * .5, d, d); x.restore(); } break; // dark diamonds with a pale border
+    case 'Python': { const h = (i * 7919) % 97; if (i % 2 === 0) { x.save(); x.translate(g.x, g.y); x.rotate(g.a + (h % 9 - 4) * .08); x.fillStyle = shade(cfg.color, -.6); ell(x, 0, (h % 5 - 2) * r * .14, r * 1.05, r * .78); x.fillStyle = cfg.color2; ell(x, 0, (h % 5 - 2) * r * .14, r * .42, r * .26); x.restore(); } break; } // blotches with pale hearts
+    case 'Emerald': if (i % 4 === 1) { x.fillStyle = cfg.color2; const c = Math.cos(g.a), sn = Math.sin(g.a); ell(x, g.x - sn * r * .05, g.y + c * r * .05, r * .26, r * .14); } break; // white flecks down the back
+    case 'Kingsnake': if (i % 4 === 0) { x.fillStyle = 'rgba(0,0,0,.18)'; circ(x, g.x, g.y, r * .2); } break;
     case 'Gold Plated': x.fillStyle = 'rgba(255,250,220,.35)'; ell(x, g.x - r * .3, g.y - r * .35, r * .45, r * .22); break; // metal sheen
-    case 'Blood Soaked': if (i % 3 === 0) { x.fillStyle = '#4a0505'; circ(x, g.x + Math.cos(i * 2.3) * r * .4, g.y + Math.sin(i * 2.3) * r * .4, r * .35); } break;
-    case 'Lunar': if (i % 2 === 0) { x.fillStyle = 'rgba(70,76,86,.45)'; circ(x, g.x + Math.cos(i * 1.7) * r * .35, g.y + Math.sin(i * 1.7) * r * .35, r * .28); } break;
-    case 'Martian': x.fillStyle = 'rgba(255,200,150,.5)'; for (let k = 0; k < 2; k++) circ(x, g.x + Math.cos(i * 3 + k * 2) * r * .5, g.y + Math.sin(i * 3 + k * 2) * r * .5, .7); break;
+    case 'Blood Soaked': if (i % 3 === 0) { x.fillStyle = shade(cfg.color2, -.7); circ(x, g.x + Math.cos(i * 2.3) * r * .4, g.y + Math.sin(i * 2.3) * r * .4, r * .35); } break;
+    case 'Lunar': if (i % 2 === 0) { x.fillStyle = shade(cfg.color, -.4); circ(x, g.x + Math.cos(i * 1.7) * r * .35, g.y + Math.sin(i * 1.7) * r * .35, r * .28); } break;
+    case 'Martian': x.fillStyle = mixColor(cfg.color2, '#ffffff', .4); for (let k = 0; k < 2; k++) circ(x, g.x + Math.cos(i * 3 + k * 2) * r * .5, g.y + Math.sin(i * 3 + k * 2) * r * .5, .7); break;
     case 'Galaxy':
       x.fillStyle = '#fff';
       for (let k = 0; k < 2; k++) {

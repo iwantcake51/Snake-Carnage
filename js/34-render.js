@@ -1,12 +1,11 @@
-function snakeShadowPath(x, ox, oy) { // squared-off segments, turned with the body, like the hitbox they come from
+function snakeShadowPath(x, ox, oy) { // round, soft-edged discs per segment, like everyone else's shadow
   const sg = snake.segs, n = sg.length;
-  for (let i = 0; i < n; i++) {
-    const g = sg[i], r = segR(i, n) * .95, c = Math.cos(g.a), s = Math.sin(g.a), sx = g.x + ox, sy = g.y + oy;
-    x.moveTo(sx + (c * r - s * r), sy + (s * r + c * r)); x.lineTo(sx + (-c * r - s * r), sy + (-s * r + c * r)); x.lineTo(sx + (-c * r + s * r), sy + (-s * r - c * r)); x.lineTo(sx + (c * r + s * r), sy + (s * r - c * r)); x.closePath();
-  }
+  for (let i = 0; i < n; i++) { const g = sg[i], r = segR(i, n) * .95, sx = g.x + ox, sy = g.y + oy; x.moveTo(sx + r, sy); x.arc(sx, sy, r, 0, TAU); }
 }
 function render() {
-  const x = sctx, L = light, sh = shake && SETTINGS.shake ? shake * (SETTINGS.shakeK ?? 1) : 0;
+  const pxS = Math.max(1, SETTINGS.pixel | 0), wob = snake && ((snake.wallStun > 0 && !SETTINGS.simpleFx) || (snake.ramT > 0 && !SETTINGS.reduceFlash));
+  const direct = pxS <= 1 && !wob; render.src = direct ? cv : sceneC; // no post effect this frame: draw straight to the screen and skip a full-frame copy
+  const x = direct ? ctx : sctx, L = light, sh = shake && SETTINGS.shake ? shake * (SETTINGS.shakeK ?? 1) : 0;
   V.sx = sh ? rand(-sh, sh) : 0; V.sy = sh ? rand(-sh, sh) : 0; V.z = 0;
   if (cam) { // spawn camera: starts tight on the snake, eases out to the full map
     const q = cam.hold ? 0 : Math.min(1, cam.t / cam.dur), p = q < .5 ? 4 * q * q * q : 1 - Math.pow(-2 * q + 2, 3) / 2, fp = Math.pow(p, 2.5);
@@ -27,7 +26,7 @@ function render() {
   if (MAPS[mapIdx].club) drawDanceFloor(x);
   drawGrass(x);
   for (const b of bucketList) { if (!b.fd) continue; x.globalAlpha = bucketAlpha(b); x.drawImage(b.f, 0, 0, W, H); }
-  x.globalAlpha = 1; drawGloss(x); drawSnow(x);
+  x.globalAlpha = 1; drawSnow(x); // (no fake pool reflections: the pools are just blood)
   x.globalAlpha = L.salpha; x.drawImage(shadowC, 0, 0, W, H); x.globalAlpha = 1;
   x.fillStyle = `rgba(0,0,0,${L.salpha})`; x.beginPath(); // creature + snake shadows as one shape
   for (const c of creatures) if (c.alive) { const r = c.def.r * .85, sx = c.x + L.sdx * 5, sy = c.y + L.sdy * 5; x.moveTo(sx + r, sy); x.arc(sx, sy, r, 0, TAU); }
@@ -59,14 +58,14 @@ function render() {
     if (lowC.width !== lw || lowC.height !== lh) { lowC.width = lw; lowC.height = lh; }
     lctx.drawImage(sceneC, 0, 0, lw, lh);
     ctx.imageSmoothingEnabled = false; ctx.drawImage(lowC, 0, 0, cv.width, cv.height); ctx.imageSmoothingEnabled = true;
-  } else ctx.drawImage(sceneC, 0, 0);
+  } else if (!direct) ctx.drawImage(sceneC, 0, 0);
   const ws = snake && snake.wallStun > 0 ? Math.min(1.5, Math.pow(snake.wallStun / (snake.wallMax || 3.4), .6) * (snake.stunFx || 1)) : 0;
   if (ws > .02 && px <= 1 && !SETTINGS.simpleFx) { // seeing stars after a wall: the picture wobbles in slow waves, fading with the daze
     const bh = Math.ceil(cv.height / 48), amp = 7 * ws * DPR;
     for (let y = 0; y < cv.height; y += bh) { const o = Math.sin(y / cv.height * 9 + T * 3.1) * amp + Math.sin(T * 1.7 + y * .01) * amp * .4; ctx.drawImage(sceneC, 0, y, cv.width, bh, o, y, cv.width, bh); }
     if (!SETTINGS.reduceFlash && !SETTINGS.simpleFx) chromaSplit(Math.min(1, ws));
   }
-  if (snake && snake.ramT > 0 && px <= 1 && !SETTINGS.reduceFlash) { const bk = Math.pow(snake.ramT / (snake.ramMax || 1), .6) * (snake.stunFx || 1); concussBloom(bk * (snake.wallStun > 0 ? .42 : .22)); } // any daze blooms; walls much more
+  if (snake && snake.ramT > 0 && px <= 1 && !SETTINGS.reduceFlash) { const bk = Math.pow(snake.ramT / (snake.ramMax || 1), .6) * (snake.stunFx || 1); concussBloom(bk * (snake.wallStun > 0 ? .26 : .1)); } // any daze blooms; walls much more
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   if (nightVision) { // green phosphor look done in-canvas, so the overlays after it keep their real colors
     ctx.globalCompositeOperation = 'saturation'; ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
@@ -76,7 +75,7 @@ function render() {
   ctx.save(); applyView(ctx); // crisp overlays above blood and lighting
   if (px <= 1 && !render.dazed) { drawGoldenFX(ctx); ctx.globalAlpha = render.olk ?? 1; drawTargetOutlines(ctx); drawSnakeNightRim(ctx); ctx.globalAlpha = 1; }
   if (nightVision) drawNVHighlights(ctx);
-  drawScent(ctx); drawHissWave(ctx);
+  drawWinStars(ctx); drawScent(ctx); drawHissWave(ctx); drawCrashFlash(ctx);
   if (!cam) drawBubbles(ctx);
   ctx.restore();
   if (nightVision) drawNightVision(ctx);
@@ -94,12 +93,15 @@ function render() {
     ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
   }
   const pg = (state === 'ready' || state === 'intro' || state === 'loading') && !(snake && snake.started);
+  stage.classList.toggle('started', !!(snake && snake.started && state !== 'menu')); // the modifier bar steps aside once you're moving
   if (pg !== !!render.pg) { render.pg = pg; stage.classList.toggle('pregame', pg); if (!pg) { stage.classList.add('hudin'); clearTimeout(render.hudT); render.hudT = setTimeout(() => stage.classList.remove('hudin'), 900); } }
   const wantStart = state === 'ready' && !cam;
   if (wantStart !== !!render.startShown) { render.startShown = wantStart; wantStart ? showResume('to begin') : hideResume(); }
-  const stun = snake && snake.ramT > 0 ? Math.min(1, Math.pow(snake.ramT / (snake.ramMax || 1), .6) * (snake.stunFx || 1)) : 0; // lingers, then eases out // dazed after smashing through something
+  const stunRaw = snake && snake.ramT > 0 ? Math.min(1, Math.pow(snake.ramT / (snake.ramMax || 1), .45) * (snake.stunFx || 1)) : 0; // dazed after smashing through something
+  render.stunS = (render.stunS || 0) + (stunRaw - (render.stunS || 0)) * (stunRaw > (render.stunS || 0) ? 1 : .022); // the hit lands instantly, then drains slowly as speed returns // heavy but smooth: eases in, then drains slowly as speed returns
+  const stun = render.stunS < .01 ? 0 : render.stunS;
   if (Math.abs(stun - (render.stun || 0)) > .02 || (stun === 0) !== (render.stun === 0)) { render.stun = stun; stage.style.setProperty('--stun', stun.toFixed(2)); stage.classList.toggle('stunned', stun > 0); stage.classList.toggle('wallstun', !!(snake && snake.wallStun > 0)); }
-  const sat = (SETTINGS.desaturate && !nightVision ? clamp(1 - killFlash * .5, .45, 1) : 1) * (1 - .75 * stun);
+  const sat = (SETTINGS.desaturate && !nightVision ? clamp(1 - killFlash * .5, .45, 1) : 1) * (1 - .93 * stun);
   const f = nightVision ? `contrast(1.15) brightness(${(.95 - SETTINGS.darkness * .2).toFixed(2)})` : `saturate(${sat.toFixed(2)}) brightness(${(1 - SETTINGS.darkness).toFixed(2)}) contrast(1.08)`;
   if (f !== lastFilter) { cv.style.filter = f; lastFilter = f; }
   const clock = (MAPS[mapIdx].indoor ? '🏢 ' : light.day > .5 ? '☀️ ' : light.day > .05 ? '🌇 ' : '🌙 ') +
@@ -154,20 +156,37 @@ function drawNightVision(x) {
 }
 let last = performance.now();
 let frameMs = 16, lowFx = false, fastT = 0; // adaptive quality: if frames run slow, lighting gets cheaper (with hysteresis)
+const blurTmp = document.createElement('canvas');
+function bakeBlurBg() { // blur the frozen frame into its own pixels once, so the menu on top can scroll without anything re-blurring
+  try { blurTmp.width = cv.width; blurTmp.height = cv.height; const t = blurTmp.getContext('2d'); t.drawImage(cv, 0, 0);
+    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.filter = `blur(${Math.round(6 * DPR)}px) saturate(.35) brightness(.8)`; ctx.drawImage(blurTmp, 0, 0); ctx.restore(); ctx.filter = 'none'; } catch (e) {}
+}
 function frame(now) {
+  const cap = +SETTINGS.fpsCap; // VSync -> NaN: draw every refresh
+  if (cap && now - last < 1000 / cap - 2) { requestAnimationFrame(frame); return; }
   const raw = now - last; if (raw < 200) frameMs += (raw - frameMs) * .03;
   if (!lowFx && frameMs > 24) { lowFx = true; fastT = 0; }
   else if (lowFx && frameMs < 15) { if ((fastT += raw) > 8000) lowFx = false; } else fastT = 0; // only back to full quality after 8s of clearly fast frames
   const dt = Math.min(.033, raw / 1000); last = now;
   requestAnimationFrame(frame); // scheduled first: nothing below can ever stop the loop
+  if (state === 'editor') return; // the map editor draws itself
+  const menu = state === 'menu'; // menus show a CSS backdrop instead of the map: the game costs nothing there
+  if (menu !== !!frame.cov) { frame.cov = menu; stage.classList.toggle('menuBg', menu); }
+  if (menu) { UT += dt; return; }
   try { update(dt); } catch (e) { loopError(e, 'update'); }
   try { render(); } catch (e) { loopError(e, 'render'); }
 }
 
-overlay.addEventListener('pointermove', e => { // mouse parallax on the menu
-  const r = overlay.getBoundingClientRect(), mx = (e.clientX - r.left) / r.width * 2 - 1, my = (e.clientY - r.top) / r.height * 2 - 1;
-  overlay.style.setProperty('--mx', mx.toFixed(3)); overlay.style.setProperty('--my', my.toFixed(3));
-  if (state === 'menu') cv.style.translate = `${(-mx * 2.5).toFixed(1)}px ${(-my * 1.6).toFixed(1)}px`; // deepest layer, moves least
+let plxQ = null; // mouse parallax: main menu only, at most once a frame. Over the blurred pause/death backdrop every nudge re-blurs the whole screen, so it stays still there
+document.addEventListener('pointermove', e => { // on the document: during play the game holds the pointer, so the overlay itself only heard moves after a click
+  if ((state !== 'menu' && state !== 'paused' && state !== 'dead') || SETTINGS.reduceMotion) return;
+  const first = !plxQ; plxQ = [e.clientX, e.clientY]; if (!first) return;
+  requestAnimationFrame(() => {
+    const r = overlay.getBoundingClientRect(), mx = (plxQ[0] - r.left) / r.width * 2 - 1, my = (plxQ[1] - r.top) / r.height * 2 - 1; plxQ = null;
+    overlay.style.setProperty('--mx', mx.toFixed(2)); overlay.style.setProperty('--my', my.toFixed(2));
+    if (state !== 'menu') return; // over a paused or finished game only the panel drifts; moving the game under the blur is what made it lag
+    stage.style.setProperty('--bx', (-mx * 14).toFixed(1) + 'px'); stage.style.setProperty('--by', (-my * 10).toFixed(1) + 'px'); // backdrop drifts with the mouse
+  });
 });
 /* ---- club: the dance floor lights up in time with the beat ---- */
 const CLUB_BPM = 124;
@@ -177,7 +196,7 @@ function drawDanceFloor(x) {
   for (let j = 0; j < 6; j++) for (let i = 0; i < 9; i++) {
     const h = (i * 7 + j * 13 + bar * 5) % 11, on = (h + Math.floor(beat)) % 3 === 0;
     x.fillStyle = cols[(i + j + bar) % cols.length]; x.globalAlpha = on ? .32 + .38 * pulse : .08;
-    x.fillRect(302 + i * 40, 222 + j * 43.3, 36, 39);
+    x.fillRect(XO + 302 + i * 40, 222 + j * 43.3, 36, 39);
   }
   x.globalAlpha = 1;
 }
@@ -190,7 +209,7 @@ function loopError(e, where) { // a bug in one frame must never freeze the run o
 
 /* airborne blood: the faster a drop flies, the longer and softer it smears along its path; slow drops are round again.
    Always the drop's own color. Blood quality picks how much of this is drawn. */
-const DROP_Q = { Low: 0, Normal: 1, High: 2, Extreme: 3 };
+const DROP_Q = { Low: 0, Medium: 1, Normal: 1, High: 2, Extreme: 3 };
 function drawDrops(x) {
   const q = SETTINGS.bloodBlur === false ? 0 : DROP_Q[SETTINGS.bloodQ] ?? 2; x.lineCap = 'round';
   for (const p of parts) {
@@ -247,4 +266,18 @@ function lookAround() {
   look.fx += (gx - look.fx) * k; look.fy += (gy - look.fy) * k;
   if (V.z || look.z < 1.002) return; // the spawn zoom has the camera, or we're back to normal
   V.z = look.z; V.fx = look.fx; V.fy = look.fy;
+}
+
+function drawCrashFlash(x) { // whatever you hit pops out with a red and white flashing outline
+  if (!crashHit || state !== 'dead') return;
+  const t = T - crashHit.t; if (t > 1.6) return;
+  const pop = 1 + .22 * Math.exp(-t * 7) * Math.sin(t * 22) + .06, col = Math.floor(t / .11) % 2 ? '#ffffff' : '#ff2a2a', a = t > 1.2 ? (1.6 - t) / .4 : 1;
+  x.save(); x.globalAlpha = a; x.lineJoin = 'round';
+  const o = crashHit.o, g = crashHit.seg != null && snake ? snake.segs[crashHit.seg] : null;
+  const cx = o ? (o.t === 'r' ? o.x + o.w / 2 : o.x) : g ? g.x : 0, cy = o ? (o.t === 'r' ? o.y + o.h / 2 : o.y) : g ? g.y : 0;
+  x.translate(cx, cy); x.scale(pop, pop);
+  const path = () => { x.beginPath(); if (o && o.t === 'r') x.rect(-o.w / 2, -o.h / 2, o.w, o.h); else x.arc(0, 0, o ? o.r : CONFIG.snakeR + 1, 0, TAU); };
+  path(); x.strokeStyle = 'rgba(0,0,0,.6)'; x.lineWidth = 6 / pop; x.stroke();
+  path(); x.strokeStyle = col; x.lineWidth = 3 / pop; x.stroke();
+  x.restore();
 }

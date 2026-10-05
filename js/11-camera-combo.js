@@ -9,6 +9,11 @@ function updateCamFollow(dt) {
 
 /* COMBO STREAK */
 let combo = null;
+const COMBO_STYLES = { // how each bought combo style behaves (the look itself is in the CSS: body.cb-<name>)
+  Default: { shake: 1, shatter: true }, Minimal: { shake: 0, shatter: false }, Typewriter: { shake: 0, shatter: false }, Arcade: { shake: 1.2, shatter: true, step: true },
+  Brutal: { shake: 1.8, shatter: true }, Neon: { shake: .6, shatter: false }, Gilded: { shake: .8, shatter: true }, Manhunt: { shake: 1.4, shatter: true }, Overdrive: { shake: 1.6, shatter: true, step: true },
+  Hollow: { shake: .4, shatter: false }, Splatter: { shake: 1.3, shatter: true }, Marquee: { shake: .5, shatter: false } };
+const comboStyle = () => COMBO_STYLES[SETTINGS.snake && SETTINGS.snake.combo] || COMBO_STYLES.Default;
 const comboDur = () => 6.5 * (MOD.comboFocus ? .75 : 1) * (MOD.comboCushion ? 1.5 : 1) * comboGutMult();
 const COMBO_CAP = 1.8; // the timer can bank up to 1.8x its normal length
 const comboGain = c => comboDur() * (c.golden ? .9 : c.def.human ? .55 : c.def.score >= 2 ? .45 : .32); // bigger, juicier targets buy more time
@@ -46,8 +51,8 @@ function updateCombo(dt) {
   if (bar) bar.style.width = (Math.min(1, k / COMBO_CAP) * 100).toFixed(1) + '%';
   el.classList.toggle('banked', k > 1); // more time banked than a fresh combo gets
   el.classList.toggle('warn', k < .35); el.classList.toggle('crit', k < .15);
-  const box = el.querySelector('.cbox'), amp = SETTINGS.reduceMotion ? 0 : Math.min(3.2, Math.max(0, combo.n - 4) * .16) * (k < .15 ? 1.5 : 1); // shakes harder as it grows
-  if (box) box.style.translate = amp ? `${rand(-amp, amp).toFixed(1)}px ${rand(-amp, amp).toFixed(1)}px` : '';
+  const st = comboStyle(), box = el.querySelector('.cbox'), amp = SETTINGS.reduceMotion ? 0 : Math.min(3.2, Math.max(0, combo.n - 4) * .16) * (k < .15 ? 1.5 : 1) * st.shake; // shakes harder as it grows (how hard depends on the combo style)
+  if (box) { const q = v => st.step ? Math.round(v / 2) * 2 : v; box.style.translate = amp ? `${q(rand(-amp, amp)).toFixed(1)}px ${q(rand(-amp, amp)).toFixed(1)}px` : ''; }
   if (combo.t <= 0) endCombo();
 }
 function endCombo(instant) {
@@ -56,7 +61,7 @@ function endCombo(instant) {
   if (combo && combo.n >= 3 && !instant) gainXP(Math.round(combo.n * 1.5 * rewardMult), 0); // small streak bonus
   combo = null;
   if (instant) { el.className = ''; el.innerHTML = ''; return; }
-  if (lost && !SETTINGS.reduceMotion) shatterCombo(el);
+  if (lost && !SETTINGS.reduceMotion && comboStyle().shatter) shatterCombo(el);
   el.classList.add('out'); setTimeout(() => { if (!combo) { el.className = ''; el.innerHTML = ''; } }, lost ? 1000 : 460);
 }
 function shatterCombo(el) { // the number box cracks into pieces that drop away

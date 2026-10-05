@@ -6,6 +6,7 @@ function pauseGame() {
   Sfx.ui('open'); showPause();
 }
 function showPause() {
+  overlay.style.setProperty('--mx', 0); overlay.style.setProperty('--my', 0); cv.style.translate = ''; // no parallax over the paused game
   state = 'paused'; stage.classList.remove('bars'); stage.classList.add('paused');
   const ids = runMods;
   overlay.className = 'menuMode pauseMode'; overlay.style.display = 'flex';
@@ -64,9 +65,10 @@ function startGame(opts = {}) {
   // a clean slate: nothing from the last run (frozen frame, filters, effects, stray timers) may leak into this one
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height); cv.style.filter = ''; lastFilter = '';
   stage.classList.remove('paused', 'stunned'); dropped = []; debris = []; beams = []; trail = []; strayBugs = []; ringPops = []; mist = []; shake = 0; deadT = 0; loopErrs = 0;
-  runMods = (opts.mods || SETTINGS.mods || []).filter(id => MODS.some(m => m.id === id)); // the random map also rolls its own modifiers; ids that no longer exist are dropped
+  runMods = (opts.mods || SETTINGS.mods || []).filter(id => MODS.some(m => m.id === id)); { const set = new Set(runMods); runMods = runMods.filter(id => !modBlockReason(id, set)); } // nothing that can't actually do anything this run // the random map also rolls its own modifiers; ids that no longer exist are dropped
   MOD = Object.fromEntries(runMods.map(id => [id, true])); rewardMult = modMult(runMods);
   document.body.classList.toggle('minimal', !!MOD.minimal);
+  setTimeout(() => { if (MAPS[mapIdx].name === 'Bunker' && bunkerLock && state !== 'menu') notify({ kind: 'reset', title: 'Lockdown', sub: 'The alarms are going. Red lights only down here today.', dur: 4 }); }, 3200);
   tod = SETTINGS.timeMode === 'Cycle' ? pickStartTime(MAPS[mapIdx]) : FIXED_TIMES[SETTINGS.timeMode] ?? 12; // dynamic runs start at a different hour, weighted per map
   nightVision = false; endCombo(true); document.getElementById('rewards').innerHTML = ''; hideResume(); clearNotes();
   camF.x = camF.y = camF.k.x = camF.k.y = camF.kv.x = camF.kv.y = 0;
@@ -77,7 +79,7 @@ function startGame(opts = {}) {
   setTimeout(() => overlay.querySelectorAll('.casebox').forEach(b => b.remove()), 600);
   introTimers.forEach(clearTimeout); introTimers = [];
   stage.classList.add('bars');
-  if (myst) { intro.innerHTML = ''; intro.className = 'run ghost'; }
+  if (myst || opts.test) { intro.innerHTML = ''; intro.className = 'run ghost'; } // play tests from the editor skip the intro
   else { intro.innerHTML = introHtml(sz); intro.className = 'run'; } // up on screen straight away; the map loads behind it
   requestAnimationFrame(() => requestAnimationFrame(() => { if (startGame.gen === gen) finishStart(opts, sz); }));
 }
@@ -92,6 +94,7 @@ function finishStart(opts, sz) {
   updateTime(0);
   state = 'intro';
   cam = { t: 0, dur: SETTINGS.reduceMotion ? .01 : 1.5, z0: 5, hold: true };
+  if (opts.test) { cam.dur = .01; cam.hold = false; endIntro(true); stage.classList.remove('bars'); return; } // editor play test: straight in
   if (opts.mystery) { // random map: no picture or name, the world itself is the reveal
     intro.innerHTML = `<div class="iname mys">${timeBadge()}${seasonBadge()}</div>`;
     introTimers = [setTimeout(endIntro, SETTINGS.reduceMotion ? 200 : 650)];
@@ -108,7 +111,7 @@ function seasonBadge() { return season ? `<span class="tbadge szn ${season.id}">
 function introHtml(sz) { // the loading card: map name, when, what season, which modifiers
   const m = MAPS[mapIdx], tags = [m.space ? 'Space' : m.indoor ? 'Indoors' : 'Outdoors'];
   const szB = sz ? `<span class="tbadge szn ${sz.id}"><i class="sic">${sz.icon}</i><b>${sz.name}</b></span>` : '';
-  const mods = runMods.map(id => { const q = MODS.find(x => x.id === id); return q ? `<span class="imod">${MOD_ICON[id] || ''} ${q.name}</span>` : ''; }).join('');
+  const mods = runMods.map(id => { const q = MODS.find(x => x.id === id); return q ? `<span class="imod">${q.name}</span>` : ''; }).join('');
   return `<canvas class="iimg" width="${W}" height="${H}"></canvas><div class="ishade"></div>
     <div class="iwrap"><span class="ieye" style="--d:.05s">${tags.join(' · ')}</span>
       <h2 class="iname2" style="--d:.12s">${m.name}</h2>
@@ -123,7 +126,7 @@ function introShot(c) { // the real map, this season, as the backdrop
 }
 function modIntro(ids) { // random run: show what was rolled at the bottom for a moment, then send each one up and away
   const el = document.getElementById('modintro'); clearTimeout(el._t);
-  el.innerHTML = ids.map((id, i) => `<span class="mi" style="--i:${i}">${MOD_ICON[id] || ''} ${MODS.find(m => m.id === id).name}</span>`).join('');
+  el.innerHTML = ids.map((id, i) => `<span class="mi" style="--i:${i}">${MODS.find(m => m.id === id).name}</span>`).join('');
   el._t = setTimeout(() => { el.querySelectorAll('.mi').forEach(m => m.classList.add('go')); el._t = setTimeout(() => { el.innerHTML = ''; }, 900 + ids.length * 160); }, SETTINGS.reduceMotion ? 1500 : 4200);
 }
 function endIntro(abort) { // fade the intro out, pull the bars away and start the spawn zoom
@@ -140,7 +143,7 @@ document.getElementById('menuBtn').onclick = () => { if (['play', 'ready', 'intr
 let boardScale = 1;
 function fit() {
   const small = innerHeight < 560 || innerWidth < 760; document.body.classList.toggle('phone', small); // phones: thin bar, no margins
-  const barH = small ? 34 : 70, pad = small ? 4 : 24;
+  const barH = (small ? 0 : 30) + (bar.offsetHeight || 40), pad = small ? 4 : 24; // the real bar height: the board never runs off the bottom
   const s = boardScale = Math.min((innerWidth - pad) / W, (innerHeight - barH) / H, 2.2); // render the game larger when there's room
   cv.style.width = W * s + 'px'; cv.style.height = H * s + 'px'; bar.style.width = W * s + 'px';
   applyUiScale();

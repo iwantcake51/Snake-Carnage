@@ -1,15 +1,22 @@
 /* BLOOD BUCKETS: blood is drawn into time-slice layers. A layer stays fully opaque for a long hold time,
    then fades smoothly via globalAlpha (no 8-bit leftovers). Old layers are recycled. */
 const FADE = { Never: null, Slow: { hold: 90, fade: 60 }, Normal: { hold: 40, fade: 35 }, Fast: { hold: 15, fade: 20 } }; // seconds
-const fadeCfg = () => SETTINGS.bloodQ === 'Extreme' ? { hold: 18, fade: 10 } : FADE[SETTINGS.bloodFade]; // Extreme draws a lot more blood, so it always clears after half a minute or so
+const fadeCfg = () => SETTINGS.bloodQ === 'Extreme' ? { hold: 9, fade: 6 } : FADE[SETTINGS.bloodFade]; // Extreme draws a lot more blood, so it always clears quickly // Extreme draws a lot more blood, so it always clears after half a minute or so
 const BLOOD_BUCKETS = 4; // each layer is two full-screen canvases drawn every frame, so keep this small
 let bucketList = [], bucketPool = [], curBucket = null;
 const markF = () => { if (curBucket) curBucket.fd = true; }, markW = () => { if (curBucket) curBucket.wd = true; };
 function makeBucket() {
   const f = document.createElement('canvas'), w = document.createElement('canvas');
-  const k = Math.min(DPR, 2); f.width = w.width = W * k; f.height = w.height = H * k; // crisp blood
+  const k = bloodRes(); f.width = w.width = W * k; f.height = w.height = H * k; // resolution follows blood quality: each layer is drawn every frame, so pixels cost
   const fx = f.getContext('2d'), wx = w.getContext('2d'); fx.setTransform(k, 0, 0, k, 0, 0); wx.setTransform(k, 0, 0, k, 0, 0);
-  return { f, fx, w, wx, born: 0 };
+  return { f, fx, w, wx, born: 0, k };
+}
+function bloodRes() { const q = SETTINGS.bloodQ; return q === 'Extreme' ? Math.min(DPR, 2) : q === 'High' ? Math.min(DPR, 1.5) : 1; }
+function bloodQualityChanged() { // switching quality: what's on the ground fades out within a second, new blood uses layers at the new resolution
+  const k = bloodRes(); bucketPool = bucketPool.filter(b => b.k === k);
+  for (const b of bucketList) if (b.ff === undefined || b.ff > T - (BLOOD_FF - 1.1)) b.ff = T - (BLOOD_FF - 1.1);
+  newBucket(); bucketList[bucketList.length - 1].ff = undefined;
+  parts.length = Math.min(parts.length, CONFIG.maxParticles * BQ().n | 0);
 }
 const BLOOD_LIMIT = 14, BLOOD_FF = 6; // ~14 big kills on screen at once; past that, the oldest blood fades out over 6s
 function bucketAlpha(b) {
@@ -29,8 +36,8 @@ function mergeOldest() { // out of layers: fold the oldest into the next one so 
   bucketPool.push(a);
 }
 function newBucket() {
-  let b = bucketPool.pop();
-  if (!b) { if (bucketList.length < BLOOD_BUCKETS) b = makeBucket(); else { mergeOldest(); b = bucketPool.pop(); } }
+  const k = bloodRes(); let b = bucketPool.pop(); if (b && b.k !== k) b = null;
+  if (!b) { if (bucketList.length < BLOOD_BUCKETS) b = makeBucket(); else { mergeOldest(); b = bucketPool.pop(); if (b && b.k !== k) b = makeBucket(); } }
   b.fx.clearRect(0, 0, W, H); b.wx.clearRect(0, 0, W, H); b.born = T; b.amt = 0; b.ff = undefined; b.fd = b.wd = false; // fd/wd: has ground/wall blood
   curBucket = b;
   bucketList.push(b); fctx = b.fx; wctx = b.wx;
@@ -39,7 +46,7 @@ function resetBuckets() { bucketPool.push(...bucketList); bucketList = []; newBu
 function updateBuckets() {
   const p = fadeCfg(), span = p ? (p.hold + p.fade) / (BLOOD_BUCKETS - 2) : Infinity; // blood that never fades needs one layer
   if (T - bucketList[bucketList.length - 1].born > span) newBucket();
-  while (bucketList.length > 1 && bucketAlpha(bucketList[0]) <= 0) bucketPool.push(bucketList.shift());
+  while (bucketList.length > 1 && bucketAlpha(bucketList[0]) <= 0) { const o = bucketList.shift(); if (o.k === bloodRes()) bucketPool.push(o); }
 }
 function fadeBlood() { // every 2s: rotate layers and let old ground wetness dry out (stains on bodies stay)
   updateBuckets();
@@ -69,18 +76,20 @@ const groundColAt = (x, y) => { // hex, so it mixes with body colors; snow count
   const c = floorCol[clamp(y / GM | 0, 0, GMH - 1) * GMW + clamp(x / GM | 0, 0, GMW - 1)] || [110, 150, 80];
   return '#' + c.map(v => clamp(v | 0, 0, 255).toString(16).padStart(2, '0')).join('');
 };
+const floorColAt = (x, y) => floorCol[clamp(y / GM | 0, 0, GMH - 1) * GMW + clamp(x / GM | 0, 0, GMW - 1)] || [150, 130, 100];
+const dirtAt = (x, y) => { if (grassAt(x, y)) return false; const c = floorColAt(x, y); return c[0] > c[1] && c[1] > c[2] && c[0] - c[2] > 28 && c[0] > 90 && c[0] < 230; }; // warm brown ground: a dirt path or track
 const grassColAt = (x, y) => grassCol[(y / GM | 0) * GMW + (x / GM | 0)] || [110, 170, 70];
 
 function spawnBlood(x, y, dirA, amount, spread, backFrac, gold) { // gold: a golden target, mostly gold blood with some red mixed in
   const ba = { Minimal: .2, Reduced: .5 }[SETTINGS.bloodAmt] || 1, pq = SETTINGS.fxLevel === 'Low' ? .55 : 1;
-  const n = Math.round(95 * amount * (parts.length > 500 ? .5 : 1) * ba * pq); // fewer drops simulated, not just hidden
+  const bq = BQ(), n = Math.round(95 * amount * (parts.length > 500 ? .5 : 1) * ba * pq * bq.n); // fewer drops simulated, not just hidden (lower quality: fewer, slightly bigger drops)
   for (let i = 0; i < n && parts.length < CONFIG.maxParticles; i++) {
     let a, sp; const r = Math.random();
     if (r < backFrac) { a = dirA + Math.PI + gauss() * .9; sp = rand(60, 220); }       // back-spray onto the snake
     else if (r < backFrac + .2) { a = rand(0, TAU); sp = rand(20, 140); }             // radial burst
     else { a = dirA + gauss() * spread; sp = rand(120, 480) * (.6 + amount * .4); }   // main forward jet
     parts.push({ x: x + rand(-3, 3), y: y + rand(-3, 3), z: rand(4, 12), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
-                 vz: rand(20, 200), r: Math.random() < .15 ? rand(3, 5) : rand(1.2, 3), c: gold === true ? pick(GOLD_BLOOD) : gold ? pick(gold) : pick(CONFIG.bloodColors), ox: x, oy: y }); // gold: golden target; an array: that creature's own blood colors
+                 vz: rand(20, 200), r: (Math.random() < .15 ? rand(3, 5) : rand(1.2, 3)) * bq.size, c: gold === true ? pick(GOLD_BLOOD) : gold ? pick(gold) : pick(CONFIG.bloodColors), ox: x, oy: y }); // gold: golden target; an array: that creature's own blood colors
   }
 }
 
@@ -106,12 +115,14 @@ function rebuildSegGrid() { // bucket snake segments so blood drops only test ne
   });
 }
 function killPart(i) { parts[i] = parts[parts.length - 1]; parts.pop(); }
+let bloodAcc = 0, bloodTick = 0;
 function updateBlood(dt) {
+  const st = BQ().step; if (st > 1) { bloodAcc += dt; if (++bloodTick % st) return; dt = bloodAcc; bloodAcc = 0; } // Low: blood physics runs at half rate
   if (parts.length) rebuildSegGrid();
   for (let i = parts.length - 1; i >= 0; i--) {
     const p = parts[i];
-    p.vz -= 600 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
-    const drag = 1 - .6 * dt; p.vx *= drag; p.vy *= drag;
+    p.vz -= 430 * GRAV() * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; // falls a little slower, so it carries further
+    const drag = 1 - .38 * dt; p.vx *= drag; p.vy *= drag;
     if (solid(p.x, p.y) && p.z < 60) { // lamps are thin poles: blood flies past their tops and lands around them
       const o = obstacleAt(p.x, p.y);
       if (o && o.kind === 'water' && iceOn()) { if (p.z <= 2) { splat(wctx, p.x, p.y, p.vx, p.vy, p.r, p.c, false); markW(); killPart(i); } continue; } // frozen: blood splashes across the ice
@@ -174,18 +185,40 @@ function updateBlood(dt) {
 
 /* wet pools catch the light: a soft highlight that slides a little as you move, strongest while fresh. Its own blood's color, lifted */
 let gloss = [];
-function drawGloss(x) {
+function drawGloss(x) { // fresh pools are little mirrors: the sky, nearby lamps and whatever stands over them show in the surface
   const q = DROP_Q[SETTINGS.bloodQ] ?? 2; if (!q || !gloss.length) return;
-  const L = light, vx = snake ? snake.x : W / 2, vy = snake ? snake.y : H / 2;
+  const L = light, day = L ? L.day : 1, vx = snake ? snake.x : W / 2, vy = snake ? snake.y : H / 2, indoor = MAPS[mapIdx].indoor;
+  const sky = indoor ? [150, 150, 160] : day > .6 ? [190, 214, 245] : day > .25 ? [245, 160, 120] : [60, 70, 110]; // what the open sky looks like right now
   for (let i = gloss.length - 1; i >= 0; i--) {
     const g = gloss[i], age = T - g.t, fresh = clamp(1 - age / 50, 0, 1); if (fresh <= 0) { gloss.splice(i, 1); continue; }
-    const dx = clamp((vx - g.x) * .03, -3, 3) - (L ? L.sdx * 2 : 0), dy = clamp((vy - g.y) * .03, -3, 3) - (L ? L.sdy * 2 : 0), lit = .25 + .75 * (L ? L.day + .3 : 1);
-    const hc = mixColor(g.c.startsWith('#') ? g.c : '#8a0a0a', '#ffffff', .5), a = .32 * fresh * Math.min(1, lit) * Math.min(1, g.r / 14);
-    x.save(); x.translate(g.x + dx - g.r * .18, g.y + dy - g.r * .2); x.rotate(-.5);
-    x.globalAlpha = a; x.fillStyle = hc; ell(x, 0, 0, g.r * .38, g.r * .12);
-    x.globalAlpha = a * .8; ell(x, g.r * .32, g.r * .16, g.r * .07, g.r * .05);
-    if (q >= 2) { x.globalAlpha = a * .45; x.strokeStyle = hc; x.lineWidth = 1; x.beginPath(); x.arc(g.r * .22, g.r * .25, g.r * .62, .3, 1.3); x.stroke(); } // rim light on the far edge
-    x.restore();
+    const R = g.r, wetK = fresh * Math.min(1, R / 12);
+    x.save();
+    x.beginPath(); if (g.l) for (const l of g.l) { x.moveTo(g.x + l.dx * R + R * l.s * .92, g.y + l.dy * R); x.ellipse(g.x + l.dx * R, g.y + l.dy * R, R * l.s * .92, R * l.s * .78, 0, 0, TAU); } else x.arc(g.x, g.y, R * .9, 0, TAU);
+    x.clip();
+    // 1. the sky: a soft gradient across the surface, brighter toward the far edge (as seen from the snake)
+    const ax = g.x - vx, ay = g.y - vy, ad = Math.hypot(ax, ay) || 1, ux = ax / ad, uy = ay / ad;
+    const sg = x.createLinearGradient(g.x - ux * R, g.y - uy * R, g.x + ux * R, g.y + uy * R);
+    const sa = (indoor ? .04 : .05 + .06 * day) * wetK; // a hint of sky, not a sheet of it
+    sg.addColorStop(0, `rgba(${sky},0)`); sg.addColorStop(.65, `rgba(${sky},${sa * .6})`); sg.addColorStop(1, `rgba(${sky},${sa})`);
+    x.fillStyle = sg; x.fillRect(g.x - R * 1.6, g.y - R * 1.6, R * 3.2, R * 3.2);
+    // 2. things standing over the pool show as dark, slightly offset reflections
+    x.fillStyle = `rgba(0,0,0,${.14 * wetK})`;
+    if (snake) { const n = snake.segs.length; for (let k = 0; k < n; k += 2) { const sgm = snake.segs[k]; if (dist2(sgm.x, sgm.y, g.x, g.y) < (R + 14) ** 2) circ(x, sgm.x + 2, sgm.y + 4, segR(k, n) * .9); } }
+    for (const c of creatures) if (c.alive && dist2(c.x, c.y, g.x, g.y) < (R + 12) ** 2) circ(x, c.x + 1.5, c.y + 4, c.def.r * .8);
+    // 3. lamps nearby: a bright highlight on the side of the pool facing each one, in the light's own color
+    if (L && q >= 1) for (const l of lights) {
+      if (l.kind === 'window' && q < 3) continue; const k = lightK(l); if (k < .05) continue;
+      const dx = l.x - g.x, dy = l.y - g.y, d = Math.hypot(dx, dy); if (d > l.r + R) continue;
+      const near = 1 - d / (l.r + R), hx = g.x + dx / (d || 1) * R * .5, hy = g.y + dy / (d || 1) * R * .5, rr = R * (.18 + .16 * near);
+      const hg = x.createRadialGradient(hx, hy, 0, hx, hy, rr); hg.addColorStop(0, `rgba(${l.c},${(.26 * k * near + .03) * fresh})`); hg.addColorStop(.35, `rgba(${l.c},${(.09 * k * near) * fresh})`); hg.addColorStop(1, `rgba(${l.c},0)`);
+      x.globalCompositeOperation = 'lighter'; x.fillStyle = hg; circ(x, hx, hy, rr); x.globalCompositeOperation = 'source-over';
+    }
+    // 4. the sun (or the moon) as a sharp sliver of light that slides as you move, plus a slow ripple
+    const lit = L ? Math.min(1, .25 + .75 * (day + .3)) : 1, hc = mixColor(g.c.startsWith('#') ? g.c : '#8a0a0a', '#ffffff', .62);
+    const sx = g.x + clamp((vx - g.x) * .03, -3, 3) - (L ? L.sdx * 2 : 0) - R * .18, sy = g.y + clamp((vy - g.y) * .03, -3, 3) - (L ? L.sdy * 2 : 0) - R * .22;
+    x.save(); x.translate(sx, sy); x.rotate(-.5); x.globalAlpha = .26 * wetK * lit; x.fillStyle = hc; ell(x, 0, 0, R * .34, R * .08); x.globalAlpha *= .7; ell(x, R * .3, R * .15, R * .06, R * .04); x.restore();
+    if (q >= 3) { const ph = T * 1.3 + g.x * .1; x.strokeStyle = `rgba(255,255,255,${.05 * wetK})`; x.lineWidth = .7; for (let k = 0; k < 2; k++) { const rr = R * ((ph * .25 + k * .5) % 1); x.globalAlpha = 1 - rr / R; x.beginPath(); x.arc(g.x + R * .1, g.y + R * .1, rr, 0, TAU); x.stroke(); } x.globalAlpha = 1; }
+        x.restore();
   }
   x.globalAlpha = 1;
 }

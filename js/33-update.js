@@ -10,11 +10,12 @@ function update(dt) {
   if (state === 'dead') { // the world is frozen; only the camera settles and the death screen arrives
     shake *= Math.exp(-dt * 8); if (shake < .2) shake = 0;
     killV *= Math.exp(-dt * 1.4); killFlash *= Math.exp(-dt * 7);
-    if (deadT > 0) { deadT -= dt; if (deadT <= 0) showDead(); }
+    if (deadT > 0) { deadT -= dt; if (deadT <= 0 || performance.now() - deadAt > 900) { deadT = 0; showDead(); } } // real time, not frame time: a slow frame can't hold the crash screen back
     return;
   }
   if (hitStop > 0) { hitStop -= dt; return; } // hit-stop: the world holds its breath for a few frames
   T += dt;
+  if (!snake || !snake.started) for (const k in abilCD) abilCD[k] += dt; // frozen opening: cooldowns don't tick until you first move
   if (state === 'play') { updateSnake(dt); run.time += dt; crTick(dt); progressTick(dt); }
   updateCrowd(); updateConvos(dt);
   for (const c of creatures) if (c.alive) updateCreature(c, dt);
@@ -33,6 +34,7 @@ function update(dt) {
   if (cam && !cam.hold) { cam.t += dt; if (state === 'intro' && cam.t > cam.dur * .8) state = 'ready'; if (cam.t >= cam.dur) cam = null; }
   updateCamFollow(dt); updateCombo(dt); updateEvents(dt);
   if ((abilT -= dt) <= 0) { abilT = .1; abilityHud(); hudNear(); }
+  abilityTick();
   if (state === 'play' && (chT -= dt) <= 0) {
     chT = .5;
     const pan = creatures.filter(c => c.alive && c.def.human && c.state === 'panic').length;
@@ -85,6 +87,9 @@ function drawTrail(x) {
       case 'Gold Dust': x.fillStyle = k > .5 ? '#fff1b0' : '#d4af37'; star(x, p.x, p.y, 1.8 * k + .8, p.rot); break;
       case 'Blood Drip': x.fillStyle = '#7a0909'; ell(x, p.x, p.y, 1.3, 1.3 + (1 - k) * 1.6); break;
       case 'Alarm': x.fillStyle = Math.floor(p.t * 8) % 2 ? '#ff2b2b' : '#ffffff'; circ(x, p.x, p.y, 1.8 * k + .6); break;
+      case 'Afterglow': x.globalAlpha = k * .5; x.fillStyle = SETTINGS.snake.color || '#4e7cf6'; circ(x, p.x, p.y, 2.5 + (1 - k) * 4); break;
+      case 'Nuggets': x.save(); x.translate(p.x, p.y); x.rotate(p.rot * .3); x.fillStyle = '#b8860b'; x.fillRect(-2, -1.6, 4, 3.2); x.fillStyle = '#ffe27a'; x.fillRect(-1.6, -1.4, 2, 1.2); x.restore(); break;
+      case 'Shrapnel': x.save(); x.translate(p.x, p.y); x.rotate(p.rot); x.fillStyle = k > .6 ? '#c9c2b6' : '#7d776e'; x.beginPath(); x.moveTo(-2, -1); x.lineTo(2.2, 0); x.lineTo(-1, 1.6); x.fill(); x.restore(); break;
       case 'Stardust': x.fillStyle = p.c === '#3fd4ff' ? '#9fe6ff' : '#ffffff'; star(x, p.x, p.y, 1.4 * k + .6, p.rot); break;
     }
   }
@@ -92,10 +97,66 @@ function drawTrail(x) {
 }
 const OLC = document.createElement('canvas'), OLX = OLC.getContext('2d');
 OLC.width = OLC.height = 80;
+const fogR = a => 1 + .11 * Math.sin(3 * a + T * .23) + .07 * Math.sin(5 * a - T * .37 + 1.3) + .04 * Math.sin(9 * a + T * .61 + 4); // the fog's edge billows: lobes that slowly drift and change shape
+function fogBlob(x, cx, cy, r, ph) { x.beginPath(); for (let k = 0; k <= 48; k++) { const a = k / 48 * TAU, rr = r * fogR(a + ph); k ? x.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr) : x.moveTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); } x.closePath(); x.fill(); }
+/* ---- heavy fog: a volumetric-looking layer ----
+   Thick haze with drifting density (two noise layers at different heights and speeds, world-anchored so moving shows
+   parallax), a clearing round the snake with a soft falloff and torn, wispy edges, and light from lamps and flashlights
+   scattering into it as a glow. Drawn at half resolution: it's all soft. */
+function fogNoise(seed, size = 256, oct = 5) { // seamless fractal value noise, 0..1
+  const c = document.createElement('canvas'); c.width = c.height = size; const x = c.getContext('2d'), img = x.createImageData(size, size), r = seeded(seed), acc = new Float32Array(size * size);
+  let amp = 1, tot = 0;
+  for (let o = 0; o < oct; o++) { const g = 4 << o, v = new Float32Array(g * g); for (let i = 0; i < v.length; i++) v[i] = r();
+    for (let py = 0; py < size; py++) { const fy = py / size * g, y0 = Math.floor(fy), ty = fy - y0, sy = ty * ty * (3 - 2 * ty);
+      for (let px = 0; px < size; px++) { const fx = px / size * g, x0 = Math.floor(fx), tx = fx - x0, sx = tx * tx * (3 - 2 * tx), x1 = (x0 + 1) % g, y1 = (y0 + 1) % g;
+        const a = v[y0 * g + x0] + (v[y0 * g + x1] - v[y0 * g + x0]) * sx, b = v[y1 * g + x0] + (v[y1 * g + x1] - v[y1 * g + x0]) * sx; acc[py * size + px] += (a + (b - a) * sy) * amp; } }
+    tot += amp; amp *= .5; }
+  for (let i = 0; i < acc.length; i++) { const n = acc[i] / tot, k = clamp((n - .32) / .45, 0, 1); img.data[i * 4 + 3] = Math.round(k * k * (3 - 2 * k) * 255); } // contrast: puffs and gaps
+  x.putImageData(img, 0, 0); return c;
+}
+const FOG = { };
+function fogLayer(col, day) {
+  const x = vctx; if (!FOG.n1) { FOG.n1 = fogNoise(71); FOG.n2 = fogNoise(133, 256, 4); FOG.tmp = document.createElement('canvas'); FOG.tmp.width = visC.width; FOG.tmp.height = visC.height; FOG.tx = FOG.tmp.getContext('2d'); }
+  const fc = FOG.c || (FOG.c = { x: snake.x, y: snake.y, t: T }), dt = clamp(T - fc.t, 0, .1); fc.t = T; // the clearing lags a touch behind the snake
+  if (Math.hypot(snake.x - fc.x, snake.y - fc.y) > 300) { fc.x = snake.x; fc.y = snake.y; } const k = 1 - Math.exp(-dt * 4); fc.x += (snake.x - fc.x) * k; fc.y += (snake.y - fc.y) * k;
+  const cx = fc.x, cy = fc.y, R = 175, wind = [T * 9, T * 3.5], fq = SETTINGS.simpleFx ? 'Low' : SETTINGS.fogQ || 'High', hi = fq === 'High', mid = fq !== 'Low';
+  const layer = (g, img, scale, ox, oy, alpha, op) => { g.save(); g.globalCompositeOperation = op; g.globalAlpha = alpha; const pat = g.createPattern(img, 'repeat'); g.translate(-(ox % (256 * scale)), -(oy % (256 * scale))); g.scale(scale, scale); g.fillStyle = pat; g.fillRect(-256, -256, (W + 1024) / scale, (H + 1024) / scale); g.restore(); };
+  // 1. thick fog with uneven density: thin patches drift through it
+  x.globalAlpha = 1; x.fillStyle = col; x.fillRect(-60, -60, W + 120, H + 120);
+
+  // 2. the clearing: a smooth, deep falloff (no hard rim)
+  x.globalCompositeOperation = 'destination-out';
+  const g = x.createRadialGradient(cx, cy, 0, cx, cy, R * 1.4);
+  for (const [t, a] of [[0, 1], [.25, .98], [.42, .9], [.56, .72], [.68, .48], [.8, .25], [.9, .1], [1, 0]]) g.addColorStop(t, `rgba(0,0,0,${a})`);
+  x.fillStyle = g; x.beginPath(); x.arc(cx, cy, R * 1.4, 0, TAU); x.fill();
+  // 3. torn edge: noise cut into a ring round the clearing, so wisps reach in and gaps reach out
+  if (hi) { const t = FOG.tx; t.setTransform(.5, 0, 0, .5, 0, 0); t.globalCompositeOperation = 'source-over'; t.clearRect(0, 0, W, H);
+    const rg = t.createRadialGradient(cx, cy, R * .55, cx, cy, R * 1.65); rg.addColorStop(0, 'rgba(0,0,0,0)'); rg.addColorStop(.3, 'rgba(0,0,0,.8)'); rg.addColorStop(.6, 'rgba(0,0,0,.3)'); rg.addColorStop(1, 'rgba(0,0,0,0)');
+    t.fillStyle = rg; t.fillRect(cx - R * 2, cy - R * 2, R * 4, R * 4); layer(t, FOG.n1, 1.1, wind[0] * 1.6, wind[1] * 1.6, 1, 'destination-in');
+    x.save(); x.setTransform(1, 0, 0, 1, 0, 0); x.globalAlpha = .6; x.drawImage(FOG.tmp, 0, 0); x.restore();
+    x.globalCompositeOperation = 'source-over'; x.fillStyle = col; // and a few fog tendrils drifting over the clear patch
+    t.clearRect(0, 0, W, H); const ig = t.createRadialGradient(cx, cy, 0, cx, cy, R * 1.1); ig.addColorStop(0, 'rgba(0,0,0,.0)'); ig.addColorStop(.45, 'rgba(0,0,0,.35)'); ig.addColorStop(1, 'rgba(0,0,0,0)');
+    t.globalCompositeOperation = 'source-over'; t.fillStyle = ig; t.fillRect(cx - R * 1.2, cy - R * 1.2, R * 2.4, R * 2.4); layer(t, FOG.n2, .9, -wind[0] * 1.3, wind[1] * .8, 1, 'source-in');
+    t.globalCompositeOperation = 'source-in'; t.fillStyle = col; t.fillRect(0, 0, W, H);
+    x.save(); x.setTransform(1, 0, 0, 1, 0, 0); x.globalAlpha = .55; x.drawImage(FOG.tmp, 0, 0); x.restore(); }
+  x.globalCompositeOperation = 'source-over'; x.globalAlpha = 1;
+  // 4. you can always make out your own body
+  x.globalCompositeOperation = 'destination-out'; const sg = x.createRadialGradient(snake.x, snake.y, 0, snake.x, snake.y, 60); sg.addColorStop(0, 'rgba(0,0,0,1)'); sg.addColorStop(.6, 'rgba(0,0,0,.7)'); sg.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = sg; x.fillRect(snake.x - 60, snake.y - 60, 120, 120);
+  // 5. light scattering in the fog: lamps and flashlights glow through it (stronger in the dark)
+  x.globalCompositeOperation = 'source-atop'; const night = clamp(1 - day * 1.3, .15, 1);
+  if (hi) for (const l of lights || []) { const kk = typeof lightK === 'function' ? lightK(l) : 0; if (kk < .05 || l.kind === 'window') continue; const rr = l.r * 1.1, gg = x.createRadialGradient(l.x, l.y, 0, l.x, l.y, rr);
+    gg.addColorStop(0, `rgba(${l.c},${(.45 * kk * night).toFixed(3)})`); gg.addColorStop(.35, `rgba(${l.c},${(.16 * kk * night).toFixed(3)})`); gg.addColorStop(1, `rgba(${l.c},0)`); x.fillStyle = gg; x.fillRect(l.x - rr, l.y - rr, rr * 2, rr * 2); }
+  if (hi) for (const f of (typeof beams !== 'undefined' ? beams : [])) { const rr = (f.range || 200) * .7, bx = f.x + Math.cos(f.a || 0) * rr * .5, by = f.y + Math.sin(f.a || 0) * rr * .5, gg = x.createRadialGradient(bx, by, 0, bx, by, rr); gg.addColorStop(0, `rgba(255,240,210,${(.3 * (f.k || 1) * night).toFixed(3)})`); gg.addColorStop(1, 'rgba(255,240,210,0)'); x.fillStyle = gg; x.fillRect(bx - rr, by - rr, rr * 2, rr * 2); }
+  // 6. a little shading so the fog has body: denser puffs a touch darker
+  if (mid) { // body: billows lit from above (lighter) and their undersides (darker), drifting at two heights
+    const lite = `rgba(255,255,255,${(.12 + .1 * day).toFixed(3)})`, dark = `rgba(0,0,10,${(.14 + .12 * (1 - day)).toFixed(3)})`, tint = (img, sc, ox, oy, c) => { const t = FOG.tx; t.setTransform(.5, 0, 0, .5, 0, 0); t.globalCompositeOperation = 'source-over'; t.clearRect(-10, -10, W + 20, H + 20); layer(t, img, sc, ox, oy, 1, 'source-over'); t.globalCompositeOperation = 'source-in'; t.fillStyle = c; t.fillRect(-10, -10, W + 20, H + 20); x.save(); x.setTransform(1, 0, 0, 1, 0, 0); x.globalCompositeOperation = 'source-atop'; x.drawImage(FOG.tmp, 0, 0); x.restore(); };
+    tint(FOG.n2, 2.4, wind[0] * .5, -wind[1] * .5 + 200, dark); tint(FOG.n1, 3.2, wind[0] * 1.2 + 90, wind[1] * 1.2, lite); }
+  x.globalCompositeOperation = 'source-over'; x.globalAlpha = 1;
+}
 function playerSees(x, y) { // 0..1 how visible a point is through heavy fog / tunnel vision
   if (!snake || (!MOD.fog && !MOD.fow)) return 1;
   const dx = x - snake.x, dy = y - snake.y, d = Math.hypot(dx, dy);
-  if (MOD.fog) return clamp(1 - (d - 105) / 70, 0, 1);
+  if (MOD.fog) { const c = FOG.c || snake, dd = Math.hypot(x - c.x, y - c.y); return clamp(1 - (dd - 150) / 110, 0, 1); }
   const near = clamp(1 - (d - 52) / 22, 0, 1), ang = Math.abs(angDiff(snake.angle, Math.atan2(dy, dx)));
   const cone = clamp((.85 - ang) / .18, 0, 1) * clamp((285 - d) / 60, 0, 1);
   return Math.max(near, cone);
@@ -107,9 +168,9 @@ function drawVisionMask(x) { // opaque haze everywhere you can't see
   vctx.globalCompositeOperation = 'source-over'; vctx.clearRect(-60, -60, W + 120, H + 120);
   vctx.fillStyle = col; vctx.fillRect(-60, -60, W + 120, H + 120);
   vctx.globalCompositeOperation = 'destination-out';
-  if ('filter' in vctx) vctx.filter = 'blur(10px)';
+  if ('filter' in vctx && !MOD.fog) vctx.filter = 'blur(10px)'; // fog fades with gradients instead
   vctx.fillStyle = '#000';
-  if (MOD.fog) { const g = vctx.createRadialGradient(snake.x, snake.y, 80, snake.x, snake.y, 180); g.addColorStop(0, '#000'); g.addColorStop(1, 'rgba(0,0,0,0)'); vctx.fillStyle = g; circ(vctx, snake.x, snake.y, 180); }
+  if (MOD.fog) { vctx.globalCompositeOperation = 'source-over'; vctx.filter = 'none'; fogLayer(col, day); vctx.globalCompositeOperation = 'source-over'; x.drawImage(visC, 0, 0, W, H); fillOutside(x, col); return; }
   else {
     circ(vctx, snake.x, snake.y, 60);
     const g = vctx.createRadialGradient(snake.x, snake.y, 200, snake.x, snake.y, 290); g.addColorStop(0, '#000'); g.addColorStop(1, 'rgba(0,0,0,0)');
@@ -118,6 +179,11 @@ function drawVisionMask(x) { // opaque haze everywhere you can't see
   if ('filter' in vctx) vctx.filter = 'none';
   vctx.globalCompositeOperation = 'source-over';
   x.drawImage(visC, 0, 0, W, H);
+  if (MOD.fog && !SETTINGS.simpleFx) { // thin wisps drifting through the clear patch, so it never reads as a clean hole
+    x.fillStyle = col;
+    for (let k = 0; k < 5; k++) { const a = T * (.05 + k * .013) + k * 1.9, d = 60 + 40 * Math.sin(T * .09 + k * 2.3); x.globalAlpha = .06 + .03 * Math.sin(T * .3 + k); fogBlob(x, snake.x + Math.cos(a) * d, snake.y + Math.sin(a) * d, 34 + k * 6, k * 1.7); }
+    x.globalAlpha = 1;
+  }
   if (MOD.fow) { // walls you aren't looking at stay nearly black, but a faint trace nearby keeps you from driving blind into them
     x.save(); x.beginPath(); x.arc(snake.x, snake.y, 150, 0, TAU); x.clip();
     x.globalAlpha = .16; x.drawImage(outlineC, 0, 0, W, H); x.restore();
@@ -227,7 +293,7 @@ function applyView(x) { // shake, spawn zoom and look-ahead, shared by the scene
   if (V.z) { x.translate(W / 2, H / 2); x.scale(V.z, V.z); x.translate(-V.fx, -V.fy); }
   x.translate(-V.ox, -V.oy);
 }
-const NEAR_IDS = ['chhud', 'modhud', 'combo', 'rewards', 'modbar', 'abil', 'notes', 'lvlup'];
+const NEAR_IDS = ['chhud', 'modhud', 'combo', 'rewards', 'modbar', 'abil', 'notes', 'lvlup', 'evt'];
 let nearRects = null, nearRectT = 0;
 function hudNear() { // corner UI turns half see-through while the snake is close to it
   if (!snake) return;
@@ -237,10 +303,11 @@ function hudNear() { // corner UI turns half see-through while the snake is clos
       return { el, x0: (r.left - cr.left) / cr.width * W, y0: (r.top - cr.top) / cr.height * H, x1: (r.right - cr.left) / cr.width * W, y1: (r.bottom - cr.top) / cr.height * H, empty: !r.width }; });
   }
   document.getElementById('chhud').classList.toggle('dim', state === 'play' && run.time > 4); // the checklist steps back once you're playing
-  const pts = snake.segs.slice(0, 12), pad = 46, ah = Math.cos(snake.angle), av = Math.sin(snake.angle);
+  const pts = snake.segs.filter((g, i) => i % 3 === 0), pad = 30, ah = Math.cos(snake.angle), av = Math.sin(snake.angle); // the whole body, not just the head
   pts.push({ x: snake.x + ah * 90, y: snake.y + av * 90 }); // where the head is about to be: fade before it gets there
   for (const b of nearRects) {
     const near = !b.empty && state !== 'menu' && pts.some(g => g.x - V.ox > b.x0 - pad && g.x - V.ox < b.x1 + pad && g.y - V.oy > b.y0 - pad && g.y - V.oy < b.y1 + pad);
-    if (b.el.classList.contains('near') !== near) b.el.classList.toggle('near', near);
+    if (near) b.nearT = UT; const on = near || UT - (b.nearT ?? -9) < .7; // stays faded a moment after the body clears
+    if (b.el.classList.contains('near') !== on) b.el.classList.toggle('near', on);
   }
 }

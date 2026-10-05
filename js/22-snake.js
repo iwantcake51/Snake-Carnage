@@ -42,12 +42,12 @@ function updateSnake(dt) {
   const s = snake; if (!s.started || !s.alive) return;
   if (MOD.freeMove) steerFree(dt);
   // ease toward the target heading: quick to start, settles softly, capped so it never snaps
-  const sl = upg('speed'), d = angDiff(s.angle, s.dir), mx = CONFIG.turnRate * dt * (1 + (sl >= 2 ? .18 : 0) + (sl >= 4 ? .18 : 0) + (sl >= 5 ? .12 : 0)) * (s.uturnT > 0 ? 2.4 : 1); // Speed Demon: snappier turns, and a fast whip round on a U-turn
+  const sl = upg('speed'), d = angDiff(s.angle, s.dir), mx = CONFIG.turnRate * dt * (1 + (sl >= 2 ? .18 : 0) + (sl >= 4 ? .18 : 0) + (sl >= 5 ? .12 : 0)) * (s.uturnT > 0 ? s.uturnK || 2.4 : 1); // Speed Demon: snappier turns, and a fast whip round on a U-turn
   s.angle += Math.abs(d) < .002 ? d : clamp(d * Math.min(1, dt * CONFIG.turnEase) + Math.sign(d) * mx * .18, -mx, mx);
   if (s.uturnT > 0) { s.uturnT -= dt; if (s.uturnTo !== undefined && Math.abs(angDiff(s.angle, s.dir)) < .5) { s.dir = s.uturnTo; s.uturnTo = undefined; } } // second half of the U-turn
   if (s.wallStun > 0) { const k = s.wallStun / (s.wallMax || 3.4); s.wallStun -= dt; s.angle += (Math.sin(T * 4.7) * 1.5 + Math.sin(T * 2.3 + 1.3)) * k * dt; } // seeing stars: it can't hold a line
   for (const k of ['dashT', 'camoT', 'scentT', 'hissT', 'ramT']) if (s[k] > 0) s[k] -= dt * (k === 'ramT' && sl >= 3 ? 1.33 : 1); // Speed Demon III shakes off dazes faster
-  if (s.camoT > 0) { const turning = Math.abs(angDiff(s.angle, s.dir)) > .05 || s.dashT > 0; s.still = clamp((s.still || 0) + (turning ? -dt * 4 : dt * 1.1), 0, 1); } else s.still = 0; // camouflage settles in on a straight line
+  if (s.camoT > 0) { const turning = Math.abs(angDiff(s.angle, s.dir)) > .05 || s.dashT > 0; s.still = clamp((s.still || 0) + (turning ? -dt * (upg('camo') > 2 ? 1.2 : 4) : dt * 1.1), 0, 1); } else s.still = 0; // camouflage settles in on a straight line
   const dk = s.dashT > 0 ? s.dashK || 1.8 : 1; s.dashV = dk >= (s.dashV || 1) ? dk : 1 + ((s.dashV || 1) - 1) * Math.exp(-dt * 3.2); // lunge hits at once, then the speed bleeds off over about a second
   const v = s.speed * s.dashV * (s.ramT > 0 ? 1 - (s.ramDeep || .5) * (s.ramT / (s.ramMax || 1)) : 1); // a lunge, or a stagger after smashing through something
   // unit vector * speed => identical speed in all 8 directions
@@ -62,8 +62,8 @@ function updateSnake(dt) {
   for (const o of obstacles) if (o.kind === 'lamp' && dist2(hx, hy, o.x, o.y) < (CONFIG.snakeR * .72 + o.r) ** 2) { breakLamp(o, s.angle); break; } // posts snap instead of stopping you
   const hitO = obstacleHitBy(hx, hy, CONFIG.snakeR * .72);
   if (hitO && canRam(hitO)) smashObstacle(hitO, s.angle); // Battering Ram: furniture gives way
-  else if (hitO) return die();
-  for (let i = 8; i < s.segs.length; i++) if (dist2(s.x, s.y, s.segs[i].x, s.segs[i].y) < (CONFIG.snakeR * 1.1) ** 2) { if (s.segs.length >= 60) { PROG.ouro = 1; checkAch(); } return die(); }
+  else if (hitO) { crashHit = { o: hitO, t: T }; return die(); }
+  for (let i = 8; i < s.segs.length; i++) if (dist2(s.x, s.y, s.segs[i].x, s.segs[i].y) < (CONFIG.snakeR * 1.1) ** 2) { if (s.segs.length >= 60) { PROG.ouro = 1; checkAch(); } crashHit = { seg: i, t: T }; return die(); }
 
   let ate = false;
   for (const c of creatures) if (c.alive && dist2(s.x, s.y, c.x, c.y) < (r + c.def.r) ** 2) { eat(c); ate = true; }
@@ -104,12 +104,23 @@ function groundFX(s, dt) { // ruts in the grass and crumbs of dirt flicked out b
       groundParts.push({ x: s.x + nx * side, y: s.y + ny * side, z: 2, vx: Math.cos(back) * sp + nx * rand(-30, 30), vy: Math.sin(back) * sp + ny * rand(-30, 30),
         vz: rand(40, 110), dirt, rot: rand(0, TAU), c: dirt ? pick(['#6b4a2b', '#7d5a33', '#5a3d22']) : `rgb(${g[0] - 25},${g[1] - 12},${g[2] - 22})` });
     }
+  } else if (snowAt(s.x, s.y) < .1 && dirtAt(s.x, s.y)) { // on a dirt path: a smooth drag groove, darker where it bites in, with the loose dirt pushed up along both sides
+    const nx = -Math.sin(s.angle), ny = Math.cos(s.angle), seg = Math.hypot(s.x - s.gx, s.y - s.gy), fc = floorColAt(s.x, s.y);
+    for (let t = 0; t < seg; t += 2.5) {
+      const px = s.gx + (s.x - s.gx) * (t / seg), py = s.gy + (s.y - s.gy) * (t / seg), w = CONFIG.snakeR * (.9 + perlin(px * .04, py * .04) * .15);
+      gctx.save(); gctx.translate(px, py); gctx.rotate(s.angle);
+      gctx.globalAlpha = .2; gctx.fillStyle = `rgb(${fc[0] - 45 | 0},${fc[1] - 42 | 0},${fc[2] - 35 | 0})`; ell(gctx, 0, 0, 3, w * .75); // the groove
+      gctx.globalAlpha = .16; gctx.fillStyle = `rgb(${Math.min(255, fc[0] + 25) | 0},${Math.min(255, fc[1] + 22) | 0},${Math.min(255, fc[2] + 16) | 0})`; ell(gctx, 0, -w * .95, 2.6, 1.6); ell(gctx, 0, w * .95, 2.6, 1.6); // ridges of loose dirt either side
+      gctx.restore();
+    }
+    if ((s.gT = (s.gT || 0) - dt) <= 0 && groundParts.length < 140) { s.gT = .06; const back = s.angle + Math.PI + rand(-.8, .8), sp = rand(20, 60), side = rand(-6, 6);
+      groundParts.push({ x: s.x + nx * side, y: s.y + ny * side, z: 1.5, vx: Math.cos(back) * sp, vy: Math.sin(back) * sp, vz: rand(25, 70), dirt: true, rot: 0, c: `rgb(${fc[0] - 30 | 0},${fc[1] - 30 | 0},${fc[2] - 25 | 0})` }); } // a few crumbs kicked back
   }
   s.gx = s.x; s.gy = s.y;
 }
 function updateGround(dt) {
   for (let i = groundParts.length - 1; i >= 0; i--) {
-    const p = groundParts[i]; p.vz -= 520 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; p.rot += dt * 9;
+    const p = groundParts[i]; p.vz -= 520 * GRAV() * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; p.rot += dt * 9;
     if (p.z > 0) continue;
     if (p.dirt) { gctx.fillStyle = p.c; circ(gctx, p.x, p.y, rand(.7, 1.3)); }
     else { gctx.strokeStyle = p.c; gctx.lineWidth = .9; gctx.beginPath(); gctx.moveTo(p.x, p.y); gctx.lineTo(p.x + Math.cos(p.rot) * 2.5, p.y + Math.sin(p.rot) * 2.5); gctx.stroke(); }
@@ -138,13 +149,13 @@ function smearBlood(s, dt) {
     s.smW = clamp((s.smW || 1.4) + rand(-.12, .12), 1, 1.8); s.smO = clamp((s.smO || 0) + rand(-.5, .5), -2.5, 2.5); // width and drift wander
     const sc = s.smC ? `rgb(${s.smC[0] | 0},${s.smC[1] | 0},${s.smC[2] | 0})` : BLOOD;
     markF(); fctx.save(); fctx.lineCap = 'round'; fctx.strokeStyle = sc; fctx.fillStyle = sc;
-    fctx.globalAlpha = s.smear * rand(.3, .45); fctx.lineWidth = CONFIG.snakeR * s.smW;
+    fctx.globalAlpha = s.smear * rand(.5, .64); fctx.lineWidth = CONFIG.snakeR * s.smW;
     line(lx + nx * s.smO, ly + ny * s.smO, s.x + nx * s.smO, s.y + ny * s.smO);
-    fctx.globalAlpha = s.smear * rand(.55, .8); fctx.lineWidth = rand(1, 2.2);
+    fctx.globalAlpha = s.smear * rand(.75, .95); fctx.lineWidth = rand(1, 2.2);
     for (const o of [-5, 0, 5]) if (Math.random() < .75) { const q = o + rand(-1, 1) + s.smO; line(lx + nx * q, ly + ny * q, s.x + nx * q, s.y + ny * q); }
     if (Math.random() < .14 * s.smear) { const side = (Math.random() < .5 ? -1 : 1) * rand(7, 12); fctx.globalAlpha = .85; circ(fctx, s.x + nx * side, s.y + ny * side, rand(.6, 1.9)); }
     fctx.restore();
-    s.smear *= Math.exp(-s.speed * dt / 80); // trails last longer, so you can read where you've been
+    s.smear *= Math.exp(-s.speed * dt / (80 * BQ().trail)); // trails last longer, so you can read where you've been
   }
   s.lastX = s.x; s.lastY = s.y;
   for (let i = 0; i < s.segs.length; i++) { // body soaks up blood it lies in
@@ -164,9 +175,10 @@ function bleedIntoWater(x, y, amount, col = BLOOD) {
   }
 }
 function eat(c) {
+  if (snake.camoT > 0 && upg('camo') > 2) snake.camoT = Math.min(12, snake.camoT + 2); // Ambush: each kill buys more time hidden
   if (snake.dashT > 0 && upg('dash') > 2) { abilCD.dash = Math.min(abilCD.dash || 0, T + 1.2); snake.dashT = Math.max(snake.dashT, .3); } // pounce: straight into the next one
   c.alive = false; dropFlash(c); leaveGroup(c);
-  hitGhosts.push({ c, t: 0 }); hitStop = Math.max(hitStop, c.def.human ? .055 : c.def.r >= 9 ? .045 : .03); // a frozen beat on the bite
+  hitGhosts.push({ c, t: 0, ka: snake.angle }); // the impact lives on the victim's sprite only: no freeze, the game keeps running
   const s = snake, sx = Math.cos(s.angle), sy = Math.sin(s.angle);
   const mv = clamp(c.spd / (c.def.run * SETTINGS.creatureSpeed), 0, 1);
   const headOn = -(sx * Math.cos(c.a) + sy * Math.sin(c.a)) * mv;           // +1 = target ran into the snake
@@ -177,7 +189,7 @@ function eat(c) {
   bleedIntoWater(c.x, c.y, amount, bloodOf(c)[0]);
   let pc = c.golden ? GOLD_BLOOD[0] : c.def.bloodCol ? c.def.bloodCol[0] : BLOOD;
   if (wetAt(c.x, c.y) > 1.5) { const w = rgbOf2(wetColAt(c.x, c.y)), hx = '#' + w.map(v => (v | 0).toString(16).padStart(2, '0')).join(''); pc = mixColor(pc, hx, .4); } // lands in someone else's blood: the colors run together
-  pools.push({ x: c.x, y: c.y, r: 2, c: pc, max: (4 + amount * 15) * rand(.85, 1.15) * ({ Minimal: .5, Reduced: .75 }[SETTINGS.bloodAmt] || 1), ang: s.angle,
+  pools.push({ x: c.x, y: c.y, r: 2, c: pc, max: (3 + amount * 8.5) * rand(.85, 1.15) * ({ Minimal: .5, Reduced: .75 }[SETTINGS.bloodAmt] || 1), ang: s.angle,
                lobes: Array.from({ length: randi(7, 11) }, () => ({ dx: rand(-.6, .6), dy: rand(-.6, .6), s: rand(.35, 1) })) });
   for (let k = 0; k < 14 * amount; k++) {
     const i = randi(0, Math.min(3, s.segs.length - 1)), g = s.segs[i];
@@ -197,7 +209,7 @@ function eat(c) {
   crEat(c, pts, kxp); statEat(c); progressEat(c);
   gainXP(kxp, Math.max(1, Math.round(c.def.score * .6 * gold * rewardMult * mb.m)));
   modHud();
-  shake = Math.min(CONFIG.shakeMax, shake + 2 + 12 * amount);
+  shake = Math.min(CONFIG.shakeMax * .4, shake + .5 + 2.5 * amount); // just a nudge: the hit is felt on the target, not the camera
   camF.kv.x += sx * (60 + 70 * amount); camF.kv.y += sy * (60 + 70 * amount); // small push in the direction of the bite
   s.drip = 2.5 * amount; s.dripCol = bloodOf(c);
   bloodMist(c.x, c.y, s.angle, amount, bloodOf(c));
@@ -209,8 +221,9 @@ function eat(c) {
   checkChallenges();
   updateHud();
 }
+let crashHit = null; // what you ran into: it flashes as the run ends
 function die() {
-  snake.alive = false; state = 'dead'; deadT = .9; shake = 10;
+  snake.alive = false; state = 'dead'; deadT = .9; deadAt = performance.now(); shake = 10;
   Sfx.crash(snake.x);
   const m = MAPS[mapIdx].name;
   PROG.best[m] = Math.max(PROG.best[m] || 0, score); PROG.runs++; PROG.kills += kills.h + kills.a;

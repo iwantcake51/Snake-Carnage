@@ -220,6 +220,12 @@ function buildCanopy(o) { // two sprite layers: an under layer and a lighter top
   return { lo, hi, S, amp: o.kind === 'bush' ? .35 : 1 };
 }
 let treeSprites = []; const CANOPY = new Map(); // sprites per tree and season, kept so a retry or a map you've played loads instantly
+function warmCanopies() { // while you browse the menu, quietly pre-build every map's trees so picking a map doesn't stall on them
+  if (warmCanopies.done || typeof requestIdleCallback === 'undefined') return; warmCanopies.done = true;
+  const todo = []; for (const m of MAPS) { try { for (const o of m.build().obs) if (o.kind === 'tree' || o.kind === 'bush') todo.push(o); } catch (e) {} }
+  const step = dl => { while (todo.length && dl.timeRemaining() > 4) { if (state !== 'menu' || season) return requestIdleCallback(step); const o = todo.pop(); treeInfo(o); const key = `${o.kind}${o.x},${o.y},${o.r}:${seasonId()}`; if (!CANOPY.has(key) && CANOPY.size < 250) CANOPY.set(key, buildCanopy(o)); } if (todo.length) requestIdleCallback(step); };
+  requestIdleCallback(step);
+}
 function buildTrees() { // called on map load; obstacles keep their collision circles, only the look changes
   treeSprites = [];
   for (const o of obstacles) if (o.kind === 'tree' || o.kind === 'bush') { treeInfo(o); const key = `${o.kind}${o.x},${o.y},${o.r}:${seasonId()}${season && season.late ? 'L' : ''}`; if (!CANOPY.has(key)) { if (CANOPY.size > 260) CANOPY.clear(); CANOPY.set(key, buildCanopy(o)); } treeSprites.push({ o, ...CANOPY.get(key) }); }
@@ -246,7 +252,25 @@ function drawTrunk(x, o) { // baked: trunk and the main limbs, which show throug
 function windAt(px, py, ph) { // a slow gust rolls across the map; each tree also has its own wobble
   return Math.sin(T * .9 - px * .006 - py * .003) * .6 + Math.sin(T * 1.7 + ph) * .25 + Math.sin(T * .43 + ph * 2.3) * .2;
 }
+let treeBake = null; // Low tree quality: every canopy painted once into one layer
+function drawTreeStatic(x, t) { const o = t.o, s = t.S;
+  if (t.limbs) for (const l of t.limbs) x.drawImage(l.c, o.x - s / 2, o.y - s / 2, s, s); else x.drawImage(t.lo, o.x - s / 2, o.y - s / 2, s, s);
+  x.drawImage(t.hi, o.x - s / 2, o.y - s / 2, s, s); }
 function drawTrees(x) {
+  const q = SETTINGS.treeQ || 'High';
+  if (q === 'Low') { // no sway: one image for all trees
+    const key = treeSprites.length + ':' + obstacles.length + ':' + DPR;
+    if (!treeBake || treeBake.key !== key || treeBake.src !== treeSprites) { const [c, g] = treeBake && treeBake.c ? [treeBake.c, treeBake.c.getContext('2d')] : makeLayer(); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, c.width, c.height); g.setTransform(DPR, 0, 0, DPR, 0, 0);
+      const live = new Set(obstacles); for (const t of treeSprites) if (live.has(t.o)) drawTreeStatic(g, t); treeBake = { c, key, src: treeSprites }; }
+    x.drawImage(treeBake.c, 0, 0, W, H); drawWeather(x); return;
+  }
+  if (q === 'Medium') { // trees lean together in the wind as one piece: two draws a tree instead of one per limb
+    for (const t of treeSprites) { const o = t.o, s = t.S;
+      if (!t.base) { const c = document.createElement('canvas'); c.width = c.height = Math.ceil(s * DPR); const g = c.getContext('2d'); g.setTransform(DPR, 0, 0, DPR, s / 2 * DPR, s / 2 * DPR); drawTreeStatic(g, { ...t, o: { ...o, x: 0, y: 0 }, hi: document.createElement('canvas') }); t.base = c; }
+      const w = windAt(o.x, o.y, o.tinfo.ph), A = (1 + o.r * .025) * t.amp;
+      x.drawImage(t.base, o.x + w * A * .3 - s / 2, o.y - s / 2, s, s); x.drawImage(t.hi, o.x + w * A * .7 - s / 2, o.y + w * A * .2 - s / 2, s, s); }
+    drawWeather(x); return;
+  }
   for (const t of treeSprites) {
     const o = t.o, w = windAt(o.x, o.y, t.o.tinfo.ph), w2 = windAt(o.x + 40, o.y + 30, t.o.tinfo.ph + 1.3), A = (1 + o.r * .025) * t.amp, s = t.S;
     if (t.limbs) { // each limb swings about the trunk on its own beat, carrying its leaves with it
@@ -290,11 +314,46 @@ function drawWeather(x) {
 
 /* ---- snow settles on roofs and on top of things (baked into the obstacle layer) ---- */
 const CAPPED = new Set(['building', 'barn', 'car', 'tent', 'bench', 'table', 'crate', 'hay', 'generator', 'shelf', 'slide', 'fence', 'hedge', 'wall', 'silo', 'gazebo', 'rock']);
+function roofSnow(x, o, late) { // a proper blanket: follows the roof's shape, piles up at the eaves, hangs over the edge, drips icicles
+  const r = seeded(Math.round(o.x * 13 + o.y * 5) + 3), { x: X, y: Y, w, h } = o, type = o.kind === 'barn' ? 'gable' : (o.roof || 'gable'), hz = w >= h;
+  const cover = late ? .55 : .92, S = 'rgb(240,244,250)', SH = 'rgba(150,170,205,', blur = 'filter' in x;
+  x.save();
+  // 1. the blanket itself, clipped to the roof and softened so it reads as a mass, not a sticker
+  x.save(); x.beginPath(); x.rect(X, Y, w, h); x.clip(); if (blur) x.filter = 'blur(1.6px)';
+  x.globalAlpha = cover; x.fillStyle = S;
+  if (late) { for (let k = 0; k < Math.max(4, w * h / 220); k++) ell(x, X + r() * w, Y + r() * h, 5 + r() * 16, 4 + r() * 12); } // late autumn: patches
+  else x.fillRect(X - 2, Y - 2, w + 4, h + 4);
+  x.filter = 'none'; x.globalAlpha = 1;
+  // 2. shading: slopes facing away from the light are bluer; the ridge pokes through a little where the wind scoured it
+  const g = hz ? x.createLinearGradient(0, Y, 0, Y + h) : x.createLinearGradient(X, 0, X + w, 0);
+  if (type === 'flat') { g.addColorStop(0, 'rgba(255,255,255,.18)'); g.addColorStop(.5, 'rgba(255,255,255,0)'); g.addColorStop(1, SH + '.22)'); }
+  else { g.addColorStop(0, 'rgba(255,255,255,.22)'); g.addColorStop(.48, 'rgba(255,255,255,.05)'); g.addColorStop(.52, SH + '.18)'); g.addColorStop(1, SH + '.3)'); }
+  x.fillStyle = g; x.fillRect(X, Y, w, h);
+  if (type !== 'flat') { // the ridge line, partly showing through
+    x.strokeStyle = 'rgba(80,70,70,.28)'; x.lineWidth = 1.4; x.setLineDash([6 + r() * 6, 4 + r() * 5]); x.beginPath();
+    if (type === 'hip') { const m = Math.min(w, h) / 2; if (hz) { x.moveTo(X + m, Y + h / 2); x.lineTo(X + w - m, Y + h / 2); } else { x.moveTo(X + w / 2, Y + m); x.lineTo(X + w / 2, Y + h - m); } }
+    else if (hz) { x.moveTo(X, Y + h / 2); x.lineTo(X + w, Y + h / 2); } else { x.moveTo(X + w / 2, Y); x.lineTo(X + w / 2, Y + h); }
+    x.stroke(); x.setLineDash([]);
+  } else { x.strokeStyle = SH + '.35)'; x.lineWidth = 2; x.strokeRect(X + 3, Y + 3, w - 6, h - 6); } // flat roof: the parapet edge under a soft drift line
+  for (let k = 0; k < w * h / 120; k++) { x.fillStyle = r() < .5 ? 'rgba(255,255,255,.7)' : SH + '.25)'; x.fillRect(X + r() * w, Y + r() * h, 1, 1); } // sparkle and grain
+  x.restore();
+  if (late) { x.restore(); return; }
+  // 3. the overhang: a rounded lip of snow over the lower (south) eave and a thin one on the east side, with a soft shadow under it
+  x.fillStyle = 'rgba(30,40,60,.18)'; x.fillRect(X + 2, Y + h + 1, w - 2, 3);
+  x.fillStyle = S; x.beginPath(); x.moveTo(X, Y + h - 1);
+  for (let px = X; px <= X + w; px += 6) x.quadraticCurveTo(px + 3, Y + h + 2.2 + r() * 1.6, px + 6, Y + h + .6);
+  x.lineTo(X + w, Y + h - 1); x.closePath(); x.fill();
+  x.fillStyle = SH + '.45)'; x.fillRect(X, Y + h + .4, w, .9);
+  // 4. icicles along the south eave, irregular
+  for (let px = X + 3; px < X + w - 2; px += 4 + r() * 7) { if (r() < .35) continue; const L = 2 + r() * 5; x.fillStyle = 'rgba(225,238,250,.9)'; x.beginPath(); x.moveTo(px - 1, Y + h + 1.5); x.lineTo(px + 1, Y + h + 1.5); x.lineTo(px, Y + h + 1.5 + L); x.closePath(); x.fill(); }
+  x.restore();
+}
 function snowCaps(x, list) {
   if (!snowy()) return;
   const late = season.id !== 'winter';
   for (const o of list) {
     if (!CAPPED.has(o.kind) || o.kind === 'border') continue;
+    if ((o.kind === 'building' || o.kind === 'barn') && o.t === 'r') { roofSnow(x, o, late); continue; }
     const r = seeded(Math.round(o.x * 11 + o.y * 7) + 9);
     x.save(); x.beginPath(); if (o.t === 'r') x.rect(o.x, o.y, o.w, o.h); else x.arc(o.x, o.y, o.r, 0, TAU); x.clip();
     const bx = o.t === 'r' ? o.x : o.x - o.r, by = o.t === 'r' ? o.y : o.y - o.r, bw = o.t === 'r' ? o.w : o.r * 2, bh = o.t === 'r' ? o.h : o.r * 2;

@@ -11,7 +11,7 @@ const gauss = () => (Math.random() + Math.random() + Math.random() - 1.5) / 1.5;
 function angDiff(a, b) { let d = b - a; while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU; return d; }
 function shade(hex, p) {
   const n = parseInt(hex.slice(1), 16), f = v => clamp(Math.round(v * (1 + p)), 0, 255);
-  return `rgb(${f(n >> 16)},${f(n >> 8 & 255)},${f(n & 255)})`;
+  return '#' + ((1 << 24) | (f(n >> 16) << 16) | (f(n >> 8 & 255) << 8) | f(n & 255)).toString(16).slice(1); // hex, so a shaded color can be mixed or shaded again
 }
 function circ(x, cx, cy, r) { x.beginPath(); x.arc(cx, cy, r, 0, TAU); x.fill(); }
 function ell(x, cx, cy, rx, ry) { x.beginPath(); x.ellipse(cx, cy, rx, ry, 0, 0, TAU); x.fill(); }
