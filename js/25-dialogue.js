@@ -150,6 +150,7 @@ function bub(c, o) {
   const nb = { text: o.text, yell: !!o.yell, act: !!o.act, t: 0, delay: o.delay || 0, cps, urg: o.urg || 0, convo: o.convo, li: o.li,
     life: (cps ? len / cps : 0) + clamp(.8 + len * .028, 1, 2.1) };
   b.push(nb); if (b.length > 4) b.splice(0, b.length - 4);
+  if (NETM.run) netBubNew(c, nb); // co-op: the line goes out to everyone as text
   return nb;
 }
 const shownLen = b => b.cps ? Math.min(b.text.length, Math.ceil(b.t * b.cps)) : b.text.length;
@@ -516,7 +517,7 @@ function scream(c, ctx = 'panic') {
     if (o === c || o.state === 'panic' || o.warn) continue;
     if (dist2(c.x, c.y, o.x, o.y) < 90 * 90 || los(c.x, c.y, o.x, o.y)) { o.warn = { x: c.fx, y: c.fy, t: rand(.25, .7) / (o.panicK || 1) }; n++; }
   }
-  if (state === 'play') crScream(n);
+  if (state === 'play') { crScream(n); if (n) netEmit({ t: 'scr', n }); } // a team challenge in co-op: everyone's counter moves
 }
 function panic(c, x, y, t, ctx = 'panic') {
   if (!c.alive) return;

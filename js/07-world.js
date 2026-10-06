@@ -204,12 +204,13 @@ function loadMap(idx, sz) {
   light = computeLight(); shadowKey = ''; bakeShadows();
   snake = newSnake(b.start || m.start);
   curRoads = b.roads || []; curCross = b.crossings || [];
+  netReseed(1); // co-op: spawning happens on the host only, so it gets dice of its own (see 40d-net-sync)
   for (const [type, n, zone] of m.pop) { // run modifiers can change the crowd
     const k = type === 'human' ? (MOD.overcrowded ? 2.1 : 1) : (MOD.noAnimals ? 0 : 1);
     for (let i = 0; i < Math.round(n * k); i++) spawn(type, zone);
   }
   makeFlies(m.fireflies || 0);
-  curPaths = b.paths || []; curRoads = b.roads || []; curCross = b.crossings || []; spawnWalkers(m.walkers || 0); if (state === 'menu') creatures = []; /* the map behind the menus is empty: nobody milling about */ makeGrass(m.grass || 0); makeWeather();
+  curPaths = b.paths || []; curRoads = b.roads || []; curCross = b.crossings || []; spawnWalkers(m.walkers || 0); if (state === 'menu') creatures = []; /* the map behind the menus is empty: nobody milling about */ netReseed(2); makeGrass(m.grass || 0); makeWeather();
   deaths = []; if (typeof run === 'object') run.startPop = creatures.length;
   buildNeighbors(); // neighbour queries never see the previous map's crowd, even before the first tick
   updateHud();

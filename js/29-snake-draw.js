@@ -12,7 +12,7 @@ function tubePath(x, pts, n, grow) { // the body as one smooth tapered tube: a r
 function drawSnake(x, s = snake, cfg = SETTINGS.snake) {
   const n = s.segs.length;
   // gentle side-to-side slither while moving (visual only; collisions use the real path)
-  const moving = s === snake && s.started && s.alive && state === 'play';
+  const moving = s === snake ? s.started && s.alive && state === 'play' : !!s.netMoving; // a teammate: moving if their head is
   s.wv = (s.wv || 0) + ((moving ? 1 : 0) - (s.wv || 0)) * .08;
   const pts = s.segs.map((g, i) => {
     const amp = s.wv * 1.7 * Math.min(1, i / 4) * Math.max(0, 1 - i / (n + 6)), o = Math.sin(i * .55 - T * 9) * amp;

@@ -144,7 +144,7 @@ function chRewardFor(tier, q, n, r) {
   const T0 = TIERS[tier], lo = Math.min(...q.ns), hi = Math.max(...q.ns), req = hi > lo ? (n - lo) / (hi - lo) : .5; // 0 = the easiest target this challenge rolls, 1 = the hardest
   const k = clamp(1 + (r() * 2 - 1) * REWARD_VAR[tier] + (req - .5) * .12, .82, 1.22);
   const round = (v, step) => Math.max(step, Math.round(v * k / step) * step);
-  return { xp: round(T0.xp, 5), chips: round(T0.chips, 1), bonus: T0.bonus || 0, k: +k.toFixed(3) };
+  return { xp: round(T0.xp, 5), chips: round(T0.chips, 1), bonus: T0.bonus || 0, var: +k.toFixed(3) }; // var, not k: k is the challenge kind it gets spread onto
 }
 const PLURAL = { sheep: 'sheep', deer: 'deer', mouse: 'mice', fish: 'fish', human: 'person', astronaut: 'astronaut', alien: 'alien' };
 const aOne = t => (/^[aeiou]/.test(t) ? 'an ' : 'a ') + (t === 'human' ? 'person' : t);
@@ -259,6 +259,10 @@ function chValue(ch) {
   }
   return 0;
 }
+// co-op: these read the shared crowd, so the whole team works on them together (each player's copy pays them once).
+// Every other challenge counts only what you do yourself: your kills, your combo, your lamps.
+const CH_TEAM = new Set(['panic', 'quietPanic', 'screamChain']);
+const chTeam = ch => NETM.on && CH_TEAM.has(ch.k), teamTag = ch => chTeam(ch) ? '<em class="chteam" title="Team challenge: everyone in the run counts toward it">Team</em>' : '';
 const chUnit = ch => ({ survive: 's', comboTime: 's', dist: ' m', goreDist: ' m', gore: '%' })[ch.k] || '';
 const chReward = ch => ch.xp ? ch : TIERS[ch.tier]; // the reward rolled with the challenge (see chRewardFor), stored on it
 const rewardText = (ch, short) => { const r = chReward(ch);
@@ -299,15 +303,15 @@ function challengeRows() { // compact list used by the pause menu
   const m = MAPS[mapIdx].name, done = PROG.chDone[m] || {}, best = PROG.chBest[m] || {};
   return activeChallenges(m).map(ch => {
     const v = done[ch.id] ? ch.n : Math.max(best[ch.id] || 0, Math.min(chValue(ch), ch.n));
-    return `<div class="pcr ${done[ch.id] ? 'done' : ''}"><span class="ck">${done[ch.id] ? '✔' : ''}</span><span class="t"><em class="tier ${ch.tier}">${TIERS[ch.tier].label}</em><b class="cn2">${ch.name}</b> ${ch.t}</span><span class="v">${v}${chUnit(ch)}/${ch.n}${chUnit(ch)}<small>${rewardText(ch, true)}</small></span><i style="width:${(v / ch.n * 100).toFixed(0)}%"></i></div>`;
+    return `<div class="pcr ${done[ch.id] ? 'done' : ''}"><span class="ck">${done[ch.id] ? '✔' : ''}</span><span class="t"><em class="tier ${ch.tier}">${TIERS[ch.tier].label}</em>${teamTag(ch)}<b class="cn2">${ch.name}</b> ${ch.t}</span><span class="v">${v}${chUnit(ch)}/${ch.n}${chUnit(ch)}<small>${rewardText(ch, true)}</small></span><i style="width:${(v / ch.n * 100).toFixed(0)}%"></i></div>`;
   }).join('') + `<p class="rot">New challenges in <b data-rot>${fmtClock(rotLeft())}</b></p>`;
 }
 function challengeHud(rebuild, refreshed) { // live checklist in the bottom-left corner while playing
   const el = document.getElementById('chhud'), m = MAPS[mapIdx].name, list = activeChallenges(m), done = PROG.chDone[m] || {};
-  if (rebuild || el.dataset.key !== m + rotIndex()) {
-    el.dataset.key = m + rotIndex();
+  if (rebuild || el.dataset.key !== m + rotIndex() + NETM.on) {
+    el.dataset.key = m + rotIndex() + NETM.on;
     el.innerHTML = `<div class="hch">Challenges<span>New in <b data-rot>${fmtClock(rotLeft())}</b></span></div>` +
-      list.map((ch, i) => `<div class="hc" data-id="${ch.id}" style="--i:${i}"><span class="ck ${ch.tier}"></span><span class="t" title="${ch.name}: ${ch.t}"><b class="cn2">${ch.name}</b><span class="sep"> · </span>${ch.t}</span><span class="v"></span><span class="rw2">${rewardText(ch, true)}</span><i></i></div>`).join('');
+      list.map((ch, i) => `<div class="hc" data-id="${ch.id}" style="--i:${i}"><span class="ck ${ch.tier}"></span><span class="t" title="${ch.name}: ${ch.t}">${teamTag(ch)}<b class="cn2">${ch.name}</b><span class="sep"> · </span>${ch.t}</span><span class="v"></span><span class="rw2">${rewardText(ch, true)}</span><i></i></div>`).join('');
     el.classList.remove('refresh'); if (refreshed) { void el.offsetWidth; el.classList.add('refresh'); }
   }
   for (const ch of list) {
@@ -328,7 +332,7 @@ function updateRotClocks() { // every visible "new challenges in" timer
 function challengePopup(ch, r) {
   const box = document.getElementById('rewards'), el = document.createElement('div');
   el.className = 'rw ch';
-  el.innerHTML = `<span>✔ ${ch.name}</span><span class="c">${rewardText(ch)}</span>`;
+  el.innerHTML = `<span>✔ ${chTeam(ch) ? 'Team: ' : ''}${ch.name}</span><span class="c">${rewardText(ch)}</span>`;
   box.prepend(el); Sfx.ui('confirm');
   setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 400); }, 4500);
 }

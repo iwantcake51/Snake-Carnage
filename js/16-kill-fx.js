@@ -44,6 +44,7 @@ function drawMist(x) {
 let puke = [];
 const VOMIT = ['#b8a641', '#a39233', '#c9b95a', '#8c7d2a'];
 function vomit(c) {
+  if (NETM.run && NETM.host && c.nid) netEmit({ t: 'vom', id: c.nid });
   if (SETTINGS.vomit === false || c.type === 'astronaut' || c.def.alien) return;
   c.pukeT = .7; c.pukeA = c.a; c.pukeRun = false;
 }

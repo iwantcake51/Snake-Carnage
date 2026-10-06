@@ -8,8 +8,9 @@ function drawBrokenLamp(x, px, py, a) {
   x.fillStyle = '#1e1e1e'; circ(x, 0, 0, 4.2); x.fillStyle = '#585858'; circ(x, -.8, -.8, 2);
   x.restore();
 }
-function breakLamp(o, ang) {
+function breakLamp(o, ang, quiet) { // co-op: replays of another player's break (NS.remote) only rebuild and show it; quiet = catching up, no show
   const i = obstacles.indexOf(o); if (i < 0) return;
+  const mine = !NS.remote;
   obstacles.splice(i, 1);
   let lit = 0; for (const l of lights) if (l.o === o) { lit = lightK(l); l.dead = true; l.cur = 0; l.fl = 0; }
   const fa = ang + rand(-.5, .5);
@@ -17,11 +18,12 @@ function breakLamp(o, ang) {
   drawObstacleLayer();
   bakeOutline(); buildSolid(); shadowKey = ''; bakeShadows(); bakeLightMasks({ x: o.x, y: o.y, r: 60 });
   const hx = o.x + Math.cos(fa) * 32, hy = o.y + Math.sin(fa) * 32;
-  for (let k = 0; k < 16; k++) { const a = fa + rand(-1.6, 1.6), sp = rand(30, 150); debris.push({ x: hx, y: hy, z: 26, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(40, 150), t: 0, s: rand(1.1, 2.3), c: pick(['#dfe9ee', '#bcd3dc', '#f4f8fa']) }); }
-  for (let k = 0; k < 5; k++) { const a = fa + rand(-1, 1), sp = rand(30, 110); debris.push({ x: hx, y: hy, z: 24, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(30, 110), t: 0, s: rand(1.8, 3), c: pick(['#5b5b5b', '#3c3c3c']) }); }
-  if (lit > .1) for (let k = 0; k < 14; k++) { const a = rand(0, TAU), sp = rand(80, 260); debris.push({ spark: true, x: hx, y: hy, z: 26, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(-20, 120), t: 0, life: rand(.15, .45) }); }
-  Sfx.lampBreak(o.x, lit > .1); shake = Math.max(shake, 3);
-  run.lamps = (run.lamps || 0) + 1; if (state === 'play') cr.lamps++; PROG.maxLampsRun = Math.max(PROG.maxLampsRun || 0, run.lamps); scatterBugs(o);
+  if (!quiet) for (let k = 0; k < 16; k++) { const a = fa + rand(-1.6, 1.6), sp = rand(30, 150); debris.push({ x: hx, y: hy, z: 26, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(40, 150), t: 0, s: rand(1.1, 2.3), c: pick(['#dfe9ee', '#bcd3dc', '#f4f8fa']) }); }
+  if (!quiet) for (let k = 0; k < 5; k++) { const a = fa + rand(-1, 1), sp = rand(30, 110); debris.push({ x: hx, y: hy, z: 24, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(30, 110), t: 0, s: rand(1.8, 3), c: pick(['#5b5b5b', '#3c3c3c']) }); }
+  if (lit > .1 && !quiet) for (let k = 0; k < 14; k++) { const a = rand(0, TAU), sp = rand(80, 260); debris.push({ spark: true, x: hx, y: hy, z: 26, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(-20, 120), t: 0, life: rand(.15, .45) }); }
+  if (!quiet) { Sfx.lampBreak(o.x, lit > .1); scatterBugs(o); }
+  if (mine) { shake = Math.max(shake, 3); run.lamps = (run.lamps || 0) + 1; if (state === 'play') cr.lamps++; PROG.maxLampsRun = Math.max(PROG.maxLampsRun || 0, run.lamps); netBroke(o, 'lamp', ang); }
+  if (!AUTH()) return;
   noise('lamp', o.x, o.y);
   if (!MOD.blind) for (const c of nearbyHumans(o.x, o.y, 260, [])) { // people turn toward the crash (a blind crowd only hears it: see 27b-hearing)
     if (c.fl && c.fl.on) c.fl.look = { x: o.x, y: o.y, t: rand(1, 2) };

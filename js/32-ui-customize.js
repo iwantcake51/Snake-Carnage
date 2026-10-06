@@ -69,24 +69,26 @@ function startGame(opts = {}) {
   MOD = Object.fromEntries(runMods.map(id => [id, true])); rewardMult = modMult(runMods);
   document.body.classList.toggle('minimal', !!MOD.minimal);
   setTimeout(() => { if (MAPS[mapIdx].name === 'Bunker' && bunkerLock && state !== 'menu') notify({ kind: 'reset', title: 'Lockdown', sub: 'The alarms are going. Red lights only down here today.', dur: 4 }); }, 3200);
-  tod = SETTINGS.timeMode === 'Cycle' ? pickStartTime(MAPS[mapIdx]) : FIXED_TIMES[SETTINGS.timeMode] ?? 12; // dynamic runs start at a different hour, weighted per map
+  if (opts.net) { if (NS.prevTime === undefined) NS.prevTime = SETTINGS.timeMode; SETTINGS.timeMode = opts.net.time; } // co-op: the host's clock settings, for this session only
+  tod = opts.net ? opts.net.tod : SETTINGS.timeMode === 'Cycle' ? pickStartTime(MAPS[mapIdx]) : FIXED_TIMES[SETTINGS.timeMode] ?? 12; // dynamic runs start at a different hour, weighted per map
   nightVision = false; endCombo(true); document.getElementById('rewards').innerHTML = ''; hideResume(); clearNotes();
   camF.x = camF.y = camF.k.x = camF.k.y = camF.kv.x = camF.kv.y = 0; resetUserCam(true);
-  const sz = pickSeason(MAPS[mapIdx]), myst = !!opts.mystery, gen = startGame.gen = (startGame.gen || 0) + 1;
+  const sz = opts.net ? opts.net.season : pickSeason(MAPS[mapIdx]), myst = !!opts.mystery, gen = startGame.gen = (startGame.gen || 0) + 1;
   state = 'loading'; cam = null;
   hideOverlay(); cv.style.translate = '0px 0px'; cv.style.scale = '1';
   if (document.activeElement) document.activeElement.blur();
   setTimeout(() => overlay.querySelectorAll('.casebox').forEach(b => b.remove()), 600);
   introTimers.forEach(clearTimeout); introTimers = [];
   stage.classList.add('bars');
-  if (myst || opts.test) { intro.innerHTML = ''; intro.className = 'run ghost'; } // play tests from the editor skip the intro
+  if (myst || opts.test || opts.late) { intro.innerHTML = ''; intro.className = 'run ghost'; } // play tests from the editor skip the intro
   else { intro.innerHTML = introHtml(sz); intro.className = 'run'; } // up on screen straight away; the map loads behind it
   requestAnimationFrame(() => requestAnimationFrame(() => { if (startGame.gen === gen) finishStart(opts, sz); }));
 }
 function finishStart(opts, sz) {
   const t0 = performance.now();
   newRun();
-  loadMap(mapIdx, sz); run.startPop = creatures.length;
+  if (opts.net) { netWithSeed(opts.net.seed, () => loadMap(mapIdx, sz)); netAfterLoad(); } else loadMap(mapIdx, sz); // co-op: the same world on every screen
+  run.startPop = creatures.length;
   const animals = [...new Set(creatures.filter(c => !c.def.human).map(c => c.type))];
   runMod = { lastType: null, lastCat: null, varStreak: 0, same: 0, chain: 0, humanRun: 0, ask: null, askIn: 3, avoid: animals.length ? pick(animals) : null };
   modHud(); challengeHud(true); modBar(); resetAbilities();
@@ -94,7 +96,7 @@ function finishStart(opts, sz) {
   updateTime(0);
   state = 'intro';
   cam = { t: 0, dur: SETTINGS.reduceMotion ? .01 : 1.5, z0: 5, hold: true };
-  if (opts.test) { cam.dur = .01; cam.hold = false; endIntro(true); stage.classList.remove('bars'); return; } // editor play test: straight in
+  if (opts.test || opts.late) { cam.dur = .01; cam.hold = false; endIntro(true); stage.classList.remove('bars'); return; } // editor play test (or rejoining a co-op run): straight in
   if (opts.mystery) { // random map: no picture or name, the world itself is the reveal
     intro.innerHTML = `<div class="iname mys">${timeBadge()}${seasonBadge()}</div>`;
     introTimers = [setTimeout(endIntro, SETTINGS.reduceMotion ? 200 : 650)];

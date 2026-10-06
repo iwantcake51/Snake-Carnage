@@ -38,7 +38,7 @@ function render() {
   for (const c of creatures) if (c.alive) drawCreature(x, c);
   drawFlashBodies(x); drawHitGhosts(x);
   drawGiblets(x); // chunks on the ground sit under the snake
-  drawTrail(x); drawGround(x); drawHoovFx(x); drawSnake(x); drawRamCharge(x); drawStreaks(x); drawSnowFx(x);
+  drawTrail(x); drawGround(x); drawHoovFx(x); if (NETM.run) netDrawSnakes(x); if (!(snake && snake.netHidden)) drawSnake(x); drawRamCharge(x); drawStreaks(x); drawSnowFx(x);
   if ((render.olk ?? 1) > .995 || SETTINGS.mapOutlines === 'Off') x.drawImage(obsC, 0, 0, W, H); else { x.drawImage(plainC, 0, 0, W, H); if (render.olk > .01) { x.globalAlpha = render.olk; x.drawImage(outlineC, 0, 0, W, H); x.globalAlpha = 1; } } drawTrees(x); // outlines only cost extra while they're fading
   drawWaters(x); drawCustomFx(x, 'top');
   for (const b of bucketList) { if (!b.wd) continue; x.globalAlpha = bucketAlpha(b); x.drawImage(b.w, 0, 0, W, H); }
@@ -79,6 +79,7 @@ function render() {
   if (nightVision) drawNVHighlights(ctx);
   drawWinStars(ctx); drawScent(ctx); drawHissWave(ctx); drawCrashFlash(ctx);
   ctx.restore();
+  if (NETM.run && !cam) netDrawTags(ctx); // co-op: teammates' names and where they are off screen
   if (!cam) drawBubbles(ctx); // screen space (positions go through the camera), so text stays readable at any zoom
   if (nightVision) drawNightVision(ctx);
   if (toastT > 0) {

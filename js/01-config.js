@@ -3,7 +3,7 @@
    CONFIG
    ========================================================= */
 // Bump by exactly 1 (1.3 -> 1.4 -> ... -> 1.10) with every change you push. See CLAUDE.md.
-const GAME_VERSION = '1.16';
+const GAME_VERSION = '1.17';
 const H = 640, B = 16, TAU = Math.PI * 2;
 /* The world is as wide as the screen's shape allows (960 to 1472, in steps of 128): maps are built for the middle 960 and
    extended on both sides (see 05b-map-extend). Fixed for the session, so every buffer can be sized once. In co-op everyone

@@ -4,6 +4,7 @@
 let UT = 0, rotT = 0, abilT = 0; // UI clock keeps running while the world is paused
 function update(dt) {
   UT += dt;
+  if (NETM.on) netTick(dt); // co-op: send and receive, whatever state the game is in
   if ((rotT -= dt) <= 0) { rotT = .5; checkRotation(); updateRotClocks(); }
   Sfx.musicUpdate(!!MAPS[mapIdx].music && ['play', 'ready', 'intro', 'held'].includes(state));
   if (state === 'menu' || state === 'paused' || state === 'held' || state === 'loading') return; // time stops: no AI, movement, blood or sounds
@@ -17,17 +18,17 @@ function update(dt) {
   T += dt;
   if (!snake || !snake.started) for (const k in abilCD) abilCD[k] += dt; // frozen opening: cooldowns don't tick until you first move
   updateCrowd(); // the neighbor grid, once per tick, before anything moves or asks who's near
-  if (state === 'play') { updateSnake(dt); snakeNoise(dt); run.time += dt; crTick(dt); progressTick(dt); }
-  updateSounds();
-  updateConvos(dt);
-  for (const c of creatures) if (c.alive) updateCreature(c, dt);
+  if (state === 'play') { updateSnake(dt); if (AUTH()) snakeNoise(dt); run.time += dt; crTick(dt); progressTick(dt); }
+  if (AUTH()) { updateSounds(); updateConvos(dt); } // the crowd's ears and chatter live on the deciding browser
+  if (NETM.run) { if (NETM.host) netUpdateCreatures(dt); else netClientCreatures(dt); } // co-op: the host's AI reacts to every player; guests show what the host says
+  else for (const c of creatures) if (c.alive) updateCreature(c, dt);
   updateBlood(dt); updateGiblets(dt); updateSplashes(dt); updateMist(dt); updateSmoke(dt); updateFlies(dt); updateVomit(dt);
   if ((fadeT -= dt) <= 0) { fadeT = 2; fadeBlood(); }
   updateTrail(dt); updateHoovFx(dt);
   if (snake) { const dk = snake.ramT > 0 ? Math.pow(snake.ramT / (snake.ramMax || 1), .6) * (snake.stunFx || 1) : 0; Sfx.daze(dk, snake.wallStun > 0); }
   updateScent(dt);
   updateGround(dt); updateSnow(dt); updateWeather(dt);
-  for (let i = respawnQ.length - 1; i >= 0; i--) { if ((respawnQ[i].t -= dt) <= 0) { spawn(respawnQ[i].type, respawnQ[i].zone); respawnQ.splice(i, 1); } }
+  if (AUTH()) for (let i = respawnQ.length - 1; i >= 0; i--) { if ((respawnQ[i].t -= dt) <= 0) { spawn(respawnQ[i].type, respawnQ[i].zone); respawnQ.splice(i, 1); } }
   shake *= Math.exp(-dt * 8); if (shake < .2) shake = 0;
   killV *= Math.exp(-dt * 1.4);
   if (desatHold > 0) desatHold -= dt; else killFlash *= Math.exp(-dt * 7);

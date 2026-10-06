@@ -13,7 +13,8 @@ function newSnake(st) {
 }
 /* ---- snake size: one place that knows how big the snake physically is. Everything that depends on its body size
    (drawing, collision, eating, spacing, blood, camera) asks these instead of reading CONFIG.snakeR directly. ---- */
-const snakeScale = () => (snake && snake.scale) || 1;
+let SCALE_OVR = 0; // co-op: drawing a teammate's snake at its own size
+const snakeScale = () => SCALE_OVR || (snake && snake.scale) || 1;
 const snakeRadius = () => CONFIG.snakeR * snakeScale();
 const snakeSegmentSpacing = () => CONFIG.segSpacing * snakeScale();
 const snakeEatRadius = () => snakeRadius() * .8;
@@ -79,10 +80,11 @@ function updateSnake(dt) {
   const r = snakeEatRadius(), hr = snakeHitRadius();
   const hx = s.x + Math.cos(s.angle) * 2 * s.scale, hy = s.y + Math.sin(s.angle) * 2 * s.scale;
   for (const o of obstacles) if (o.kind === 'lamp' && dist2(hx, hy, o.x, o.y) < (hr + o.r) ** 2) { breakLamp(o, s.angle); break; } // posts snap instead of stopping you
-  const hitO = obstacleHitBy(hx, hy, hr);
+  const grace = s.graceT > 0; if (grace) s.graceT -= dt; // co-op respawn: a moment to get clear before anything can hit you
+  const hitO = grace ? null : obstacleHitBy(hx, hy, hr);
   if (hitO && canRam(hitO) && ramSpot(hitO, hx, hy)) smashObstacle(hitO, s.angle); // Battering Ram: furniture gives way
   else if (hitO) { crashHit = { o: hitO, t: T }; return die(); }
-  for (let i = 8; i < s.segs.length; i++) if (dist2(s.x, s.y, s.segs[i].x, s.segs[i].y) < (snakeRadius() * 1.1) ** 2) { if (s.segs.length >= 60) { PROG.ouro = 1; checkAch(); } crashHit = { seg: i, t: T }; return die(); }
+  if (!grace) for (let i = 8; i < s.segs.length; i++) if (dist2(s.x, s.y, s.segs[i].x, s.segs[i].y) < (snakeRadius() * 1.1) ** 2) { if (s.segs.length >= 60) { PROG.ouro = 1; checkAch(); } crashHit = { seg: i, t: T }; return die(); }
 
   hoover(s, dt);
   let ate = false;
@@ -231,23 +233,47 @@ function bleedIntoWater(x, y, amount, col = BLOOD) {
     if (d < 45) for (let k = 0; k < 4; k++) waterBlood(o, ex + rand(-6, 6), ey + rand(-6, 6), amount * .5 * (1 - Math.max(0, d) / 45), 0, 0, col);
   }
 }
+/* Eating, in two halves so co-op can split them: eatWorld is the kill as everyone sees it (the target dies, blood, gibs,
+   mist, the crunch, and on the deciding browser the crowd's reaction); eatReward is what the eater gets (growth, score,
+   combo, XP, challenges, the kick on screen). Single player simply does both. In co-op a guest's bite goes to the host
+   first (netClaim) and the reward is paid when the host's kill event names them (see 40d-net-sync). */
 function eat(c) {
-  if (snake.camoT > 0 && upg('camo') > 2) snake.camoT = Math.min(12, snake.camoT + 2); // Ambush: each kill buys more time hidden
-  if (snake.dashT > 0 && upg('dash') > 2) { abilCD.dash = Math.min(abilCD.dash || 0, T + 1.2); snake.dashT = Math.max(snake.dashT, .3); } // pounce: straight into the next one
+  if (netIsGuest()) return netClaim(c);
+  const amount = eatWorld(c, snake.angle, eatAmount(c, snake), snake);
+  eatReward(c, amount, snake.angle);
+  if (NETM.run) netKillEvent(c, NETM.me, snake.angle, amount);
+}
+function eatAmount(c, s) { // how much blood: more when it ran headlong into the jaws
+  const sx = Math.cos(s.angle), sy = Math.sin(s.angle), mv = clamp(c.spd / (c.def.run * SETTINGS.creatureSpeed), 0, 1);
+  const headOn = -(sx * Math.cos(c.a) + sy * Math.sin(c.a)) * mv;
+  return c.def.blood * (1 + .5 * headOn) * rand(.9, 1.15) * (MOD.bloody ? 1.8 : 1);
+}
+function eatWorld(c, ang, amount, s) {
   c.alive = false; dropFlash(c); leaveGroup(c);
-  hitGhosts.push({ c, t: 0, ka: snake.angle }); // the impact lives on the victim's sprite only: no freeze, the game keeps running
-  const s = snake, sx = Math.cos(s.angle), sy = Math.sin(s.angle);
-  const mv = clamp(c.spd / (c.def.run * SETTINGS.creatureSpeed), 0, 1);
-  const headOn = -(sx * Math.cos(c.a) + sy * Math.sin(c.a)) * mv;           // +1 = target ran into the snake
-  const side = Math.abs(sx * Math.sin(c.a) - sy * Math.cos(c.a));            // hit from the side => wider spray
-  const amount = c.def.blood * (1 + .5 * headOn) * rand(.9, 1.15) * (MOD.bloody ? 1.8 : 1);
-  spawnBlood(c.x, c.y, s.angle, amount, .3 + .55 * side, .1 + .2 * Math.max(0, headOn), c.golden || c.def.bloodCol);
-  spawnGiblets(c, s.angle); addBloodAmount(amount);
+  hitGhosts.push({ c, t: 0, ka: ang }); // the impact lives on the victim's sprite only: no freeze, the game keeps running
+  const sx = Math.cos(ang), sy = Math.sin(ang), mv = clamp(c.spd / (c.def.run * SETTINGS.creatureSpeed), 0, 1);
+  const headOn = -(sx * Math.cos(c.a) + sy * Math.sin(c.a)) * mv, side = Math.abs(sx * Math.sin(c.a) - sy * Math.cos(c.a)); // +1 = it ran into the jaws; hit from the side => wider spray
+  spawnBlood(c.x, c.y, ang, amount, .3 + .55 * side, .1 + .2 * Math.max(0, headOn), c.golden || c.def.bloodCol);
+  spawnGiblets(c, ang); addBloodAmount(amount);
   bleedIntoWater(c.x, c.y, amount, bloodOf(c)[0]);
   let pc = c.golden ? GOLD_BLOOD[0] : c.def.bloodCol ? c.def.bloodCol[0] : BLOOD;
   if (wetAt(c.x, c.y) > 1.5) { const w = rgbOf2(wetColAt(c.x, c.y)), hx = '#' + w.map(v => (v | 0).toString(16).padStart(2, '0')).join(''); pc = mixColor(pc, hx, .4); } // lands in someone else's blood: the colors run together
-  pools.push({ x: c.x, y: c.y, r: 2, c: pc, max: (3 + amount * 8.5) * rand(.85, 1.15) * ({ Minimal: .5, Reduced: .75 }[SETTINGS.bloodAmt] || 1), ang: s.angle,
+  pools.push({ x: c.x, y: c.y, r: 2, c: pc, max: (3 + amount * 8.5) * rand(.85, 1.15) * ({ Minimal: .5, Reduced: .75 }[SETTINGS.bloodAmt] || 1), ang,
                lobes: Array.from({ length: randi(7, 11) }, () => ({ dx: rand(-.6, .6), dy: rand(-.6, .6), s: rand(.35, 1) })) });
+  bloodMist(c.x, c.y, ang, amount, bloodOf(c));
+  Sfx.eat(c.x, c.def.human, amount, c.def.alien ? 'alien' : '');
+  if (s && s !== snake && s.drip !== undefined) { s.drip = 2.5 * amount; s.dripCol = bloodOf(c); }
+  if (AUTH()) { // the crowd: who saw it, where to avoid now, who comes to take their place
+    deaths.push({ x: c.x, y: c.y }); if (deaths.length > 25) deaths.shift();
+    witness(c.x, c.y, c);
+    respawnQ.push({ type: c.type, zone: c.zone, t: rand(2, 5) });
+  }
+  return amount;
+}
+function eatReward(c, amount, ang) {
+  const s = snake, sx = Math.cos(ang), sy = Math.sin(ang);
+  if (s.camoT > 0 && upg('camo') > 2) s.camoT = Math.min(12, s.camoT + 2); // Ambush: each kill buys more time hidden
+  if (s.dashT > 0 && upg('dash') > 2) { abilCD.dash = Math.min(abilCD.dash || 0, T + 1.2); s.dashT = Math.max(s.dashT, .3); } // pounce: straight into the next one
   for (let k = 0; k < 14 * amount; k++) {
     const i = randi(0, Math.min(3, s.segs.length - 1)), g = s.segs[i], R = snakeRadius();
     stainSnake(i, g.x + rand(-R, R), g.y + rand(-R, R), rand(1.5, 4) * s.scale, pick(bloodOf(c)));
@@ -266,15 +292,10 @@ function eat(c) {
   crEat(c, pts, kxp); statEat(c); progressEat(c);
   gainXP(kxp, Math.max(1, Math.round(c.def.score * .6 * gold * rewardMult * mb.m)));
   modHud();
+  killFx(c.x, c.y, amount);
   shake = Math.min(CONFIG.shakeMax * .4, shake + .5 + 2.5 * amount); // just a nudge: the hit is felt on the target, not the camera
   camF.kv.x += sx * (60 + 70 * amount); camF.kv.y += sy * (60 + 70 * amount); // small push in the direction of the bite
   s.drip = 2.5 * amount; s.dripCol = bloodOf(c);
-  bloodMist(c.x, c.y, s.angle, amount, bloodOf(c));
-  Sfx.eat(c.x, c.def.human, amount, c.def.alien ? 'alien' : '');
-  killFx(c.x, c.y, amount);
-  deaths.push({ x: c.x, y: c.y }); if (deaths.length > 25) deaths.shift();
-  witness(c.x, c.y, c);
-  respawnQ.push({ type: c.type, zone: c.zone, t: rand(2, 5) });
   checkChallenges();
   updateHud();
 }
@@ -285,6 +306,7 @@ function ramSpot(o, x, y) { // a custom prop can say WHERE it breaks (its intera
 let crashHit = null; // what you ran into: it flashes as the run ends
 const deathDelay = () => IS_TOUCH ? .3 : .7; // a beat to feel the impact (the hit flashes, the screen shakes), then the crash screen. Phones get it fast.
 function die() {
+  if (NETM.run) return netLocalDown(); // co-op: you go down, the team carries on (see 40d-net-sync)
   snake.alive = false; state = 'dead'; deadT = deathDelay(); deadAt = performance.now(); shake = 10;
   Sfx.crash(snake.x);
   const m = MAPS[mapIdx].name;

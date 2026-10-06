@@ -16,6 +16,7 @@ function goldify(c) { // golden target: worth a fortune, gone (back to normal) w
   else { c.plainDef = def; c.def = { ...def, col: '#e0b52c', hcol: def.hcol ? '#c99a1a' : undefined, tcol: def.tcol ? '#b8901c' : undefined }; }
 }
 function ungoldify(c) {
+  if (NETM.run && NETM.host && c.nid) netEmit({ t: 'ungold', id: c.nid });
   c.golden = false; c.goldT = 0;
   if (c.plainLook) { c.look = c.plainLook; c.plainLook = null; }
   if (c.plainDef) { c.def = c.plainDef; c.plainDef = null; }
@@ -25,6 +26,7 @@ function ungoldify(c) {
 let ringPops = [];
 function giveFlash(c) { if (c.def.human && Math.random() < flashChance(c)) c.fl = newFlash(c); return c; }
 function spawn(type, zone) {
+  if (netIsGuest()) return; // co-op: only the host spawns; guests get the creatures from it
   const def = TYPES[type], z = zone || { x: B, y: B, w: W - 2 * B, h: H - 2 * B };
   for (let k = 0; k < 300; k++) {
     const x = rand(z.x + def.r, z.x + z.w - def.r), y = rand(z.y + def.r, z.y + z.h - def.r);
@@ -45,6 +47,7 @@ function spawn(type, zone) {
 /* ---- strollers: some people start the run already walking a path, back and forth, a few with a dog on a lead ---- */
 let curPaths = [];
 function spawnWalkers(n) {
+  if (netIsGuest()) return;
   if (!curPaths.length) return;
   for (let k = 0; k < n; k++) {
     const pts = pick(curPaths); let i = randi(0, pts.length - 1);
