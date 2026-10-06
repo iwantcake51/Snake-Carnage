@@ -9,7 +9,7 @@ const SN = 1, SNW = W / SN, SNH = H / SN; // one cell per world pixel: smooth ed
 let snowOn = false, snowD = null, snowS = null, snowC3 = null, snowAO = null, snowW = null; // snowW: how worn down each spot is by repeated passes
 const snowCv = document.createElement('canvas'); snowCv.width = SNW; snowCv.height = SNH;
 const snowX = snowCv.getContext('2d'); let snowImg = null;
-let snowDirty = null, snowFx = [], soaks = [], snowSoakT = 0;
+let snowDirty = null, snowFx = [], soaks = [], snowSoakT = 0, snowRedrawT = 0;
 const snowAt = (x, y) => { if (!snowOn) return 0; const i = x / SN | 0, j = y / SN | 0; return i >= 0 && j >= 0 && i < SNW && j < SNH ? snowD[j * SNW + i] : 0; };
 function buildSnow() {
   snowOn = snowy(); snowFx = []; soaks = []; snowDirty = null;
@@ -28,23 +28,32 @@ function buildSnow() {
   const NC = 6, nw = Math.ceil(SNW / NC) + 2, nh = Math.ceil(SNH / NC) + 2, NZ = new Float32Array(nw * nh), LZ = new Float32Array(nw * nh); // noise on a coarser grid, smoothly upsampled
   for (let j = 0; j < nh; j++) for (let i = 0; i < nw; i++) { const x = i * NC * SN, y = j * NC * SN; NZ[j * nw + i] = fbm(x / 190 + sd, y / 190 - sd, 4) + perlin(x / 47 + sd * 2, y / 47) * .22; LZ[j * nw + i] = .5 + .45 * sstep(-.3, .6, fbm(x / 70 - sd, y / 70 + sd, 2)) + perlin(x / 22 + sd, y / 22 - sd) * .14; }
   const up = (A, i, j) => { const fx = i / NC, fy = j / NC, i0 = fx | 0, j0 = fy | 0, tx = fx - i0, ty = fy - j0, q = j0 * nw + i0; return (A[q] * (1 - tx) + A[q + 1] * tx) * (1 - ty) + (A[q + nw] * (1 - tx) + A[q + nw + 1] * tx) * ty; };
-  const nAt = (i, j) => up(NZ, i, j);
-  for (let j = 0; j < SNH; j++) for (let i = 0; i < SNW; i++) {
-    const x = i * SN + 1, y = j * SN + 1, k = j * SNW + i, gk = (y / SG | 0) * GW + (x / SG | 0);
-    if (dist[gk] === 0) continue;
-    const gx = clamp(x / SG - .5, 0, GW - 1.001), gy = clamp(y / SG - .5, 0, GH - 1.001), gi = gx | 0, gj = gy | 0, tx = gx - gi, ty = gy - gj, g0 = gj * GW + gi; // sampled smoothly, so the snow's edge round objects isn't stair-stepped
-    const dd = (dist[g0] * (1 - tx) + dist[g0 + 1] * tx) * (1 - ty) + (dist[g0 + GW] * (1 - tx) + dist[g0 + GW + 1] * tx) * ty;
-    const n = nAt(i, j);
-    let cov = late ? sstep(.16, .36, n) : sstep(-.38, -.04, n);
-    let d = cov * up(LZ, i, j); // lumpy, not flat
-    const gr = greenField ? greenField[(j * SN >> 1) * (W >> 1) + (i * SN >> 1)] : grassAt(x, y); d *= (late ? .25 : .3) + (late ? .75 : .7) * gr; // paths and pavement get trodden and cleared
-    if (!late && dd < 40) d += .4 * Math.exp(-(dd - SG) / 10) * sstep(-.7, -.1, n); // drifts pile up against walls and props
-    for (const t of pines) { const r = Math.hypot(x - t.x, y - t.y); if (r < t.r * 1.15) d *= .3 + .7 * (r / (t.r * 1.15)) ** 2; } // sheltered under evergreens
-    d *= sstep(SG * .5, SG * 2.2, dd); // eases off right at the base of things
-    snowD[k] = late ? d * .75 : Math.min(1.25, d);
-    snowAO[k] = 1 - .38 * Math.exp(-dd / 7);
-  }
-  snowImg = snowX.createImageData(SNW, SNH); shadeSnow(0, 0, SNW, SNH); snowX.putImageData(snowImg, 0, 0);
+  // the per-cell work runs on the worker pool (03b-workers), split by rows: every core builds a band at once. The snow
+  // fades in when it's ready (well inside the map card); until then there is simply none, so nothing waits on it.
+  let green = greenField; if (!green) { green = new Float32Array((W >> 1) * (H >> 1)); for (let j = 0; j < H >> 1; j++) for (let i = 0; i < W >> 1; i++) green[j * (W >> 1) + i] = grassAt(i * 2, j * 2) ? 1 : 0; }
+  const pin = new Float32Array(pines.length * 3); pines.forEach((t, i) => { pin[i * 3] = t.x; pin[i * 3 + 1] = t.y; pin[i * 3 + 2] = t.r; });
+  const gen = ++snowGen, base = { SNW, SN, SG, GW, GH, dist, NZ, LZ, nw, NC, green, gw: W >> 1, late, pines: pin };
+  snowImg = snowX.createImageData(SNW, SNH); snowX.clearRect(0, 0, SNW, SNH);
+  const nb = Math.max(1, PX.size), rows = Math.ceil(SNH / nb), D0 = snowD, A0 = snowAO;
+  Promise.all(Array.from({ length: nb }, (_, b) => PX.run('snowField', { ...base, j0: b * rows, j1: Math.min(SNH, (b + 1) * rows) })))
+    .then(parts => {
+      if (gen !== snowGen || snowD !== D0) return; // the map changed meanwhile
+      for (const r of parts) { D0.set(r.D, r.j0 * SNW); A0.set(r.AO, r.j0 * SNW); }
+      return Promise.all(Array.from({ length: nb }, (_, b) => snowShadeJob(0, b * rows, SNW, Math.min(SNH, (b + 1) * rows))));
+    }).catch(e => console.warn('[snow]', e));
+}
+let snowGen = 0, snowJobs = 0;
+function snowShadeJob(x0, y0, x1, y1) { // re-shade a rectangle off the main thread, then put it on the snow layer
+  const ox = Math.max(0, x0 - 8), oy = Math.max(0, y0 - 8), ex = Math.min(SNW, x1 + 8), ey = Math.min(SNH, y1 + 8), w = ex - ox, h = ey - oy;
+  const D = new Float32Array(w * h), AO = new Float32Array(w * h), S = new Float32Array(w * h), C3 = new Float32Array(w * h * 3);
+  for (let j = 0; j < h; j++) { const k = (oy + j) * SNW + ox; D.set(snowD.subarray(k, k + w), j * w); AO.set(snowAO.subarray(k, k + w), j * w); S.set(snowS.subarray(k, k + w), j * w); C3.set(snowC3.subarray(k * 3, (k + w) * 3), j * w * 3); }
+  const gen = snowGen; snowJobs++;
+  return PX.run('snowShade', { D, AO, S, C3, w, h, ox, oy, SNW, SNH, x0, y0, x1, y1 }, [D.buffer, AO.buffer, S.buffer, C3.buffer]).then(r => {
+    snowJobs--; if (gen !== snowGen || !snowOn) return;
+    const rw = r.x1 - r.x0, rh = r.y1 - r.y0; if (rw <= 0 || rh <= 0) return;
+    snowX.putImageData(new ImageData(r.P, rw, rh), r.x0, r.y0);
+    const P = snowImg.data; for (let j = 0; j < rh; j++) P.set(r.P.subarray(j * rw * 4, (j + 1) * rw * 4), ((r.y0 + j) * SNW + r.x0) * 4);
+  }, e => { snowJobs--; console.warn('[snow]', e); });
 }
 function shadeSnow(x0, y0, x1, y1) { // light from the upper left, AO in hollows and against things, blood mixed in
   const D = snowD, P = snowImg.data;
@@ -128,6 +137,7 @@ function updateSnow(dt) {
     if (soakStep) stainDisk(s.x, s.y, s.r * (1 + k * 1.3), s.a * .1 * 1.1, s.c);
     if (k >= 1) soaks.splice(i, 1);
   }
+  if (SETTINGS.snowQ === 'Simple') { snowFx.length = 0; return; } // Simple: the snow just lies there, nothing is carved or redrawn
   const sn = snake;
   if (sn && state === 'play' && sn.started) {
     const n = sn.segs.length, fast = sn.dashT > 0 ? sn.dashK || 1.8 : 1, lunge = sn.dashT > 0;
@@ -170,16 +180,22 @@ function updateSnow(dt) {
     }
     if (p.t > p.life) { snowFx[i] = snowFx[snowFx.length - 1]; snowFx.pop(); }
   }
-  if (snowDirty) { // shading looks a few cells around, so each tile is redrawn with a small margin
-    for (const t of snowDirty) { const a = (t % STW) * STL - 9, b = (t / STW | 0) * STL - 9, a1 = a + STL + 18, b1 = b + STL + 18;
-      shadeSnow(a, b, a1, b1); const x0 = Math.max(0, a), y0 = Math.max(0, b); snowX.putImageData(snowImg, 0, 0, x0, y0, Math.min(SNW, a1) - x0, Math.min(SNH, b1) - y0); }
-    snowDirty = null;
+  if (snowDirty && (snowRedrawT = (snowRedrawT || 0) - dt) <= 0) { snowRedrawT = .05; // re-shaded and re-uploaded 20 times a second at most: each upload stalls the graphics chip
+    // shading looks a few cells around, so each tile is redrawn with a small margin
+    if (PX.size && snowJobs < 12) { // on the worker pool; anything over the limit waits for the next round
+      for (const t of snowDirty) { const a = (t % STW) * STL - 9, b = (t / STW | 0) * STL - 9; snowShadeJob(Math.max(0, a), Math.max(0, b), Math.min(SNW, a + STL + 18), Math.min(SNH, b + STL + 18)); }
+      snowDirty = null;
+    } else if (!PX.size) {
+      for (const t of snowDirty) { const a = (t % STW) * STL - 9, b = (t / STW | 0) * STL - 9, a1 = a + STL + 18, b1 = b + STL + 18;
+        shadeSnow(a, b, a1, b1); const x0 = Math.max(0, a), y0 = Math.max(0, b); snowX.putImageData(snowImg, 0, 0, x0, y0, Math.min(SNW, a1) - x0, Math.min(SNH, b1) - y0); }
+      snowDirty = null;
+    }
   }
 }
 function stainedNear(x, y) { const k = (y / SN | 0) * SNW + (x / SN | 0); return snowS && snowS[k] > .3 ? [snowC3[k * 3], snowC3[k * 3 + 1], snowC3[k * 3 + 2]] : null; }
 function drawSnow(x) {
   if (!snowOn) return;
-  x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'medium'; // smoother upscale on high-DPI screens, still cheap
+  x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'low'; // 'medium' made this full-screen draw one of the most expensive things in a frame; the snow is soft anyway
   x.drawImage(snowCv, 0, 0, W, H);
 }
 function drawSnowFx(x) {

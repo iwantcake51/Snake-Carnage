@@ -135,8 +135,12 @@ const VEIL = { street: .2, pool: .26, emerg: .3, fluor: .07, fire: .16, fixed: .
 /* LIGHTING QUALITY: how many lights get live shadows from moving things, how many flashlight beams, and which extra passes run.
    Lights that aren't changing are merged into one cached "holes" layer (and one cached color layer), so a map full of
    lamps and windows costs two drawImage calls per frame instead of one per light. */
-const LQ_CFG = { High: { dyn: 4, beams: 6, beamSh: 6, shine: 3, desat: true, veil: true }, Medium: { dyn: 2, beams: 4, beamSh: 2, shine: 1, desat: true, veil: true }, Low: { dyn: 0, beams: 3, beamSh: 0, shine: 0, desat: false, veil: false } };
-function lq() { let q = SETTINGS.lightQ || 'High'; if (lowFx) q = q === 'High' ? 'Medium' : 'Low'; const c = LQ_CFG[q] || LQ_CFG.High; return movingShadows() ? c : { ...c, dyn: 0, beamSh: 0 }; } // Static/Off: no live shadows from lamps or flashlights
+/* Lighting quality. The color drain in the dark (desat) uses a 'saturation' blend, which browsers can't do on the GPU:
+   it's the single most expensive thing on screen, so only High has it. Low also rebuilds the light layer every other
+   frame (at half resolution); Off skips the light layer entirely and just tints the screen for the time of day.
+   None of this changes the game: who can see whom is worked out from the lights themselves (lightAt), not the picture. */
+const LQ_CFG = { High: { dyn: 4, beams: 6, beamSh: 6, shine: 3, desat: true, veil: true }, Medium: { dyn: 2, beams: 4, beamSh: 2, shine: 1, desat: false, veil: true }, Low: { dyn: 0, beams: 2, beamSh: 0, shine: 0, desat: false, veil: false, skip: true } };
+function lq() { let q = SETTINGS.lightQ || 'High'; if (q === 'Off') q = 'Low'; if (lowFx) q = q === 'High' ? 'Medium' : 'Low'; const c = LQ_CFG[q] || LQ_CFG.High; return movingShadows() ? c : { ...c, dyn: 0, beamSh: 0 }; } // Static/Off: no live shadows from lamps or flashlights
 const mkLight = () => { const c = document.createElement('canvas'); c.width = lightC.width; c.height = lightC.height; const x = c.getContext('2d'); x.setTransform(LDPR, 0, 0, LDPR, 0, 0); return [c, x]; };
 const [statC, stx] = mkLight(), [veilC, vtx] = mkLight();
 function resizeLights() { // lighting quality changed: rebuild the light buffers at the new resolution
@@ -147,8 +151,15 @@ function resizeLights() { // lighting quality changed: rebuild the light buffers
 let statKey = '', veilKey = '', lightVer = 0;
 const isStaticTint = l => !l.enc && !(l.ign > 0) && !(l.fT > 0) && l.kind !== 'emerg' && l.kind !== 'disco'; // live shadows don't change a light's color veil, so it stays cached
 const isStaticLight = l => !l.enc && !l.dynNow && !(l.ign > 0) && !(l.fT > 0) && l.kind !== 'emerg' && l.kind !== 'disco';
+let lightSkip = 0, lightUsedAdd = false;
 function drawLighting(x) {
   const L = light, nv = nightVision, Q = lq();
+  if (SETTINGS.lightQ === 'Off') { // no light layer: a flat tint for dusk and night, lamp bulbs still glow
+    const dk = L.dark * (nv ? .15 : 1) * .6; if (dk > .01) { x.fillStyle = `rgba(${L.dc},${dk.toFixed(3)})`; x.fillRect(-20, -20, W + 40, H + 40); }
+    if (!nv && L.tA > .005) { x.fillStyle = `rgba(${L.tBot},${(L.tA * .6).toFixed(3)})`; x.fillRect(-20, -20, W + 40, H + 40); }
+    return;
+  }
+  if (Q.skip && (lightSkip ^= 1) && L.dark >= .02 && !nv) { if (L.tA > .005) { const g = x.createLinearGradient(0, 0, W * .35, H); g.addColorStop(0, `rgba(${L.tTop},${L.tA.toFixed(3)})`); g.addColorStop(1, `rgba(${L.tBot},${L.tA.toFixed(3)})`); x.fillStyle = g; x.fillRect(-20, -20, W + 40, H + 40); } x.drawImage(lightC, 0, 0, W, H); fillOutside(x, `rgba(${L.dc},${L.dark})`); if (lightUsedAdd) { x.globalCompositeOperation = 'lighter'; x.drawImage(addC, 0, 0, W, H); x.globalCompositeOperation = 'source-over'; } return; } // Low: every other frame reuses the last light layer
   if (!nv && L.tA > .005) { // dawn / dusk grade: sky-side to horizon-side colors
     const g = x.createLinearGradient(0, 0, W * .35, H);
     g.addColorStop(0, `rgba(${L.tTop},${L.tA.toFixed(3)})`); g.addColorStop(1, `rgba(${L.tBot},${L.tA.toFixed(3)})`);
@@ -230,6 +241,7 @@ function drawLighting(x) {
     fillOutside(x, `rgba(${L.dc},${dark})`); // darkness past the map edge too
   } else for (const f of beams) { const s = composeBeam(f, false); tintFrom(s2, S1, s, f.c); useAdd(); beamAdd(f, s, .07, false); } // daylight: barely visible
   if (L.lampsOn > .01 && !nv && windows.length) { useAdd(); adx.globalAlpha = .85 * L.lampsOn; adx.fillStyle = `rgb(${LCOL.window})`; for (const w of windows) adx.fillRect(w.x, w.y, w.w, w.h); }
+  lightUsedAdd = used;
   if (used) { adx.globalAlpha = 1; adx.globalCompositeOperation = 'source-over'; x.globalCompositeOperation = 'lighter'; x.drawImage(addC, 0, 0, W, H); x.globalCompositeOperation = 'source-over'; }
 }
 

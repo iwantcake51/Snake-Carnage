@@ -3,11 +3,12 @@
    CONFIG
    ========================================================= */
 // Bump by exactly 1 (1.3 -> 1.4 -> ... -> 1.10) with every change you push. See CLAUDE.md.
-const GAME_VERSION = '1.15';
+const GAME_VERSION = '1.16';
 const H = 640, B = 16, TAU = Math.PI * 2;
 /* The world is as wide as the screen's shape allows (960 to 1472, in steps of 128): maps are built for the middle 960 and
-   extended on both sides (see 05b-map-extend). Fixed for the session, so every buffer can be sized once. */
-let W = (() => { try { const sw = Math.max(screen.width, screen.height), sh = Math.min(screen.width, screen.height); return 960 + 128 * Math.max(0, Math.min(4, Math.round((640 * sw / Math.max(1, sh - 60) - 960) / 128))); } catch (e) { return 960; } })();
+   extended on both sides (see 05b-map-extend). Fixed for the session, so every buffer can be sized once. In co-op everyone
+   shares the host's size: a player whose screen gives a different one reloads into it (sessionStorage, see 40d-net-sync). */
+let W = (() => { try { const f = +sessionStorage.getItem('snakeCarnageW'); if (f >= 960 && f <= 1472 && f % 128 === 64) return f; } catch (e) {} try { const sw = Math.max(screen.width, screen.height), sh = Math.min(screen.width, screen.height); return 960 + 128 * Math.max(0, Math.min(4, Math.round((640 * sw / Math.max(1, sh - 60) - 960) / 128))); } catch (e) { return 960; } })();
 const CONFIG = {
   snakeSpeeds: { Slow: 110, Normal: 140, Fast: 185 },
   turnRate: 17,          // rad/s, max swing speed of the head toward the new 8-way heading
@@ -23,7 +24,7 @@ const CONFIG = {
 const SETTINGS_MIGRATE = s => { if (s.noticeSnake && s.mods && !s.mods.includes('noticeSnake')) s.mods.push('noticeSnake'); delete s.noticeSnake; return s; }; // moved from Settings to a modifier
 const SETTINGS = Object.assign({
   darkness: .2, pixel: 1, creatureSpeed: .55, timeMode: 'Cycle', dayMinutes: 4, bloodFade: 'Normal', customHour: 22, volume: .7,
-  lightQ: (() => { try { return matchMedia('(pointer: coarse)').matches ? 'Medium' : 'High'; } catch (e) { return 'High'; } })(), vomit: true, fxLevel: 'Normal', bloodQ: 'High', season: 'Random', shakeK: 1, bloodBlur: true, reduceFlash: false, bloodAmt: 'Full', simpleFx: false, mouseFollow: false,
+  lightQ: 'Medium', // High adds the color drain in the dark, which is slow on many graphics chips: an opt-in vomit: true, fxLevel: 'Normal', bloodQ: 'High', snowQ: 'Full', season: 'Random', shakeK: 1, bloodBlur: true, reduceFlash: false, bloodAmt: 'Full', simpleFx: false, mouseFollow: false,
   vignette: true, desaturate: true, shake: true, noticeSnake: false, uiSounds: true, mods: [], reduceMotion: false, bubbleSize: 'Normal', strongOutlines: false, snakeOutline: 'Subtle', uiScale: 'Auto', renderRes: 'Auto', fogQ: 'High', treeQ: 'High', fpsCap: 'VSync', fullscreen: false,
 }, (() => { try { return SETTINGS_MIGRATE(JSON.parse(localStorage.getItem('snakeCarnageSettings')) || {}); } catch (e) { return {}; } })());
 if (!SETTINGS.mapOutlines) SETTINGS.mapOutlines = SETTINGS.strongOutlines ? 'Strong' : 'Subtle'; // "Strong outlines" became "Map outlines"

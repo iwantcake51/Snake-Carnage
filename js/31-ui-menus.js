@@ -308,7 +308,8 @@ const SETTING_TABS = {
     ['seg', 'fpsCap', 'Frame rate', 'VSync matches your screen. A cap saves battery and heat.', ['30', '60', '120', 'VSync']],
     ['slider', 'darkness', 'Darkness', 'Overall dimness of the scene.', 0, .7, .05],
     ['slider', 'pixel', 'Pixelation', 'Chunky pixel look. Off shows full detail.', 1, 8, 1],
-    ['seg', 'lightQ', 'Lighting', 'High: full dynamic lighting. Medium: fewer moving shadows. Low: baked shadows only, cheapest.', ['Low', 'Medium', 'High']],
+    ['seg', 'lightQ', 'Lighting', 'The biggest cost on screen. High: everything, including colors draining away in the dark (slow on many graphics chips). Medium: no color drain, fewer lamp shadows. Low: half-resolution light, no tinted pools, updated every other frame. Off: no light layer, just a dim tint at night, the fastest. Who can see you works the same at every setting.', ['Off', 'Low', 'Medium', 'High']],
+    ['seg', 'snowQ', 'Snow', 'Winter maps. Full: deep snow that you and everyone else plough through, with powder and footprints. Simple: snow on the ground that stays as it is, almost free. Off: no snow on the ground at all.', ['Off', 'Simple', 'Full']],
     ['seg', 'treeQ', 'Tree detail', 'High: every branch sways on its own. Medium: whole trees lean in the wind (cheaper). Low: no sway, all trees drawn as one picture (cheapest).', ['Low', 'Medium', 'High']],
     ['seg', 'fogQ', 'Fog detail', 'Heavy fog modifier. High: drifting billows, torn edges, lamps glowing through it. Medium: billows only. Low: plain soft fog, cheapest.', ['Low', 'Medium', 'High']],
     ['seg', 'shadows', 'Shadows', 'Full: everything casts shadows, including people, animals and the snake under lamps and flashlights. Static: only the fixed ones (buildings, walls, furniture in sunlight and lamplight). Off: no shadows at all and none are worked out, the fastest. Light and darkness work the same either way.', ['Off', 'Static', 'Full']],
@@ -360,6 +361,7 @@ function applySetting(k) { // side effects of a setting change
   if (k === 'mapOutlines') { drawObstacleLayer(); bakeOutline(); }
   if (k === 'lightQ') resizeLights();
   if (k === 'shadows') shadowsChanged();
+  if (k === 'snowQ' && state !== 'menu' && season) { const was = snowOn; buildSnow(); if (was !== snowOn) drawObstacleLayer(); } // snow on or off mid-run: rebuild the ground's snow
   if (k === 'fullscreen') setFullscreen(SETTINGS.fullscreen);
   if (k === 'renderRes') setTimeout(() => location.reload(), 150); // every layer is sized from it at startup
   if (k === 'bloodQ' || k === 'bloodFade') bloodQualityChanged();

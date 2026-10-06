@@ -27,6 +27,6 @@ const lowC = document.createElement('canvas'), lctx = lowC.getContext('2d'); // 
 const [shadowC, shx] = makeLayer();
 const [maskC, mkx] = makeLayer(), [outlineC, olx] = makeLayer(), [nvOutC, nvx] = makeLayer();  // outline around everything you can crash into                   // baked obstacle shadows (rebaked as the sun moves)
 // the darkness mask is soft, so it doesn't need full resolution; its size follows the lighting quality setting
-const lightRes = () => Math.min(DPR, ({ High: 1.5, Medium: 1, Low: .75 })[SETTINGS.lightQ] || 1.5);
+const lightRes = () => Math.min(DPR, ({ High: 1.5, Medium: 1, Low: .5, Off: .5 })[SETTINGS.lightQ] || 1.5); // the light layer is soft: Low draws it at half resolution
 let LDPR = lightRes(); const lightC = document.createElement('canvas'); lightC.width = W * LDPR; lightC.height = H * LDPR;
 const lgx = lightC.getContext('2d'); lgx.setTransform(LDPR, 0, 0, LDPR, 0, 0);
