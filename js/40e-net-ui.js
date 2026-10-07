@@ -55,7 +55,12 @@ function netJoined() { // a different screen shape means a different world size:
 let netPick = null; // the host's open picker: 'map' | null
 function netShowLobby() { state = 'menu'; overlay.className = 'menuMode'; overlay.style.display = 'flex'; overlay.innerHTML = '<div class="panel mplobby"></div>'; netLobbyRender(); }
 function netHideLobby() { const l = overlay.querySelector('.mplobby,.mpres'); if (l) overlay.innerHTML = ''; netPick = null; }
+function netLobbySyncLevel() { // levelled up since joining (a run in between): the host and everyone else see the new number
+  if (!NETM.on || NETM.host || !NETM.hostLink || NETM.sentLvl === (PROG.level | 0)) return;
+  NETM.sentLvl = PROG.level | 0; NETM.hostLink.sendR({ k: 'lvl', v: NETM.sentLvl });
+}
 function netLobbyRender() {
+  netLobbySyncLevel();
   netHud();
   if (NETM.phase === 'end' && !NETM.run && NS.board && !overlay.querySelector('.mpres') && state === 'dead') return;
   const box = overlay.querySelector('.mplobby'); if (!box) { const res = overlay.querySelector('.mpres'); if (res) netResultsRefresh(); return; }
@@ -74,7 +79,7 @@ function netLobbyRender() {
     <p class="mpsub">${host ? 'Send your friends the code or the link. Start when everyone is ready.' : `Waiting for <b>${esc((NETM.players.find(p => p.host) || {}).name || 'the host')}</b> to start.`}</p>
     <div class="mpbody">
       <div class="mpplayers">${plist.map(p => `<div class="mprow ${p.id === NETM.me ? 'me' : ''} ${p.conn === false ? 'away' : ''}">
-          ${teams ? teamBtn(p) : ''}<i class="mpdot" style="background:${p.color}"></i><b>${esc(p.name)}</b><i class="rdot ${p.ready ? 'on' : ''}" title="${p.ready ? 'Ready' : 'Not ready'}"></i>${p.host ? '<em class="mptag host">Host</em>' : ''}${p.touch ? '<em class="mptag">Phone</em>' : ''}${p.conn === false ? '<em class="mptag warn">Reconnecting…</em>' : ''}
+          ${teams ? teamBtn(p) : ''}<i class="mpdot" style="background:${p.color}"></i><b>${esc(p.name)}</b>${p.lvl ? `<em class="mplvl" title="Account level">Lv ${p.lvl | 0}</em>` : ''}<i class="rdot ${p.ready ? 'on' : ''}" title="${p.ready ? 'Ready' : 'Not ready'}"></i>${p.host ? '<em class="mptag host">Host</em>' : ''}${p.touch ? '<em class="mptag">Phone</em>' : ''}${p.conn === false ? '<em class="mptag warn">Reconnecting…</em>' : ''}
           <span class="mpping">${p.ping && !p.host ? p.ping + ' ms' : ''}</span>
           <span class="mpready ${p.ready ? 'on' : ''}">${p.ready ? 'Ready' : 'Not ready'}</span>
           ${host && !p.host ? `<button class="ghost mpsm mpkick" data-kick="${esc(p.id)}" title="Remove from the lobby">Kick</button>` : ''}</div>`).join('')}
@@ -307,12 +312,12 @@ addEventListener('load', () => setTimeout(() => {
 }, 120));
 
 /* ---- starting: Space (or Enter) readies you up, and the host's starts the run once everyone is. The screen closes to
-   black like a pair of shutters with a red seam, names the map, and opens again on the new world. ---- */
+   black like a pair of shutters with a red seam, names the mode, and opens again on the new world. ---- */
 const netAllReady = () => NETM.players.filter(p => p.conn !== false).every(p => p.ready);
 let netGoing = 0;
 function netGo() { // host: start, with the shutters
   if (!NETM.host || !netAllReady() || netGoing) return;
-  const lbl = { map: (MAPS[NETM.cfg.map] || MAPS[0]).name, mode: NET_MODES[NETM.cfg.mode || 'coop'] || 'Co-op' };
+  const lbl = { mode: NET_MODES[NETM.cfg.mode || 'coop'] || 'Co-op' };
   netGoing = 1; netBroadcast({ k: 'go', lbl }); netGoFade(lbl);
   setTimeout(() => { netGoing = 0; if (NETM.host && NETM.on && netAllReady()) { stage.classList.remove('paused'); netStartRun(); } else netGoReveal(); }, SETTINGS.reduceMotion ? 60 : 620);
 }
@@ -320,9 +325,9 @@ let netFadeT = 0;
 function netGoFade(lbl, instant) {
   const st = document.getElementById('stage') || document.body; let el = document.getElementById('goFade');
   if (!el) {
-    if (instant && !lbl) lbl = NS.cfg ? { map: NS.cfg.mapName, mode: NET_MODES[NS.cfg.mode] || 'Co-op' } : null;
+    if (instant && !lbl) lbl = NS.cfg ? { mode: NET_MODES[NS.cfg.mode] || 'Co-op' } : null;
     el = document.createElement('div'); el.id = 'goFade';
-    el.innerHTML = `<i class="shT"></i><i class="shB"></i><i class="shS"></i><div class="shL">${lbl ? `<small>${esc(lbl.mode)}</small><b>${esc(lbl.map)}</b>` : ''}</div>`;
+    el.innerHTML = `<i class="shT"></i><i class="shB"></i><i class="shS"></i><div class="shL">${lbl ? `<small>Get ready</small><b>${esc(lbl.mode)}</b>` : ''}</div>`;
     st.appendChild(el);
     if (instant) el.classList.add('in', 'now'); else { void el.offsetWidth; el.classList.add('in'); Sfx.ui && Sfx.ui('confirm'); }
   }

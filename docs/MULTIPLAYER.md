@@ -26,7 +26,8 @@ The host picks one in the lobby.
 - **Lobby:**
   - The host picks the mode, the map, the time of day, the round length, the respawn time and the modifiers, and everyone plays with them.
   - Everyone presses **Ready** (or **Space**), the host included. A glowing dot next to each name shows it: green for ready, red for not yet. The host's **Start** unlocks only once every player is ready; once it has, the host's **Space** starts the run too.
-  - Starting closes the screen to black for everyone, like a pair of shutters meeting on a red seam with the mode and map name, and opens it on the new world once it has loaded.
+  - Starting closes the screen to black for everyone, like a pair of shutters meeting on a red seam with the mode, and opens it on the new world once it has loaded.
+  - Each name shows that player's account level.
   - The host can kick players. Name tags and off-screen arrows can be switched off.
 - **Lives:**
   - A death costs one life from your pool (see Modes). You're back after the respawn time (5 seconds by default; the host can pick 3, 5, 8, 10 or 15), with 1.5 seconds of grace.

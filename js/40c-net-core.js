@@ -93,7 +93,7 @@ const NET_COLORS = ['#e8433a', '#3a8ee8', '#f2c230', '#3cc46a', '#b05ce8', '#f07
 function netProfile() { // name, color, looks and upgrade levels (the host applies your Hiss/Camouflage levels to its NPCs)
   let name = ''; try { name = localStorage.getItem('snakeCarnageName') || ''; } catch (e) {}
   const up = {}; for (const u of UPGRADES) up[u.id] = upg(u.id);
-  return { name: (name || 'Snake').slice(0, 16), cos: { ...SETTINGS.snake }, upg: up, touch: IS_TOUCH, ver: GAME_VERSION, proto: NET_PROTO, w: W };
+  return { name: (name || 'Snake').slice(0, 16), cos: { ...SETTINGS.snake }, upg: up, touch: IS_TOUCH, ver: GAME_VERSION, proto: NET_PROTO, w: W, lvl: PROG.level | 0 }; // lvl: your account level, shown in the lobby
 }
 const netName = n => String(n || 'Snake').replace(/[<>&"]/g, '').trim().slice(0, 16) || 'Snake';
 function netSession() { try { return JSON.parse(sessionStorage.getItem('snakeCarnageCoop') || 'null'); } catch (e) { return null; } }
@@ -112,7 +112,7 @@ function netHostCreate() { // returns a promise of the lobby code
 function netBecomeHost(peer, keep) { // fresh lobby, or taking over one whose host left (keep: the players who were in it)
   const prof = netProfile();
   Object.assign(NETM, { on: true, host: true, run: false, phase: 'lobby', peer, me: peer.id, code: netCodeOf(peer.id), hostId: peer.id, cfg: NETM.cfg || netDefaultCfg(), tokens: new Map(), joining: null });
-  NETM.players = [{ id: peer.id, name: netName(prof.name), color: (keep && keep.find(p => p.id === peer.id) || {}).color || NET_COLORS[0], ready: false, host: true, touch: prof.touch, cos: prof.cos, upg: prof.upg, slot: 0, joinT: Date.now(), conn: true }];
+  NETM.players = [{ id: peer.id, name: netName(prof.name), color: (keep && keep.find(p => p.id === peer.id) || {}).color || NET_COLORS[0], ready: false, host: true, touch: prof.touch, cos: prof.cos, upg: prof.upg, lvl: prof.lvl, slot: 0, joinT: Date.now(), conn: true }];
   if (keep) for (const p of keep) if (p.id !== peer.id) NETM.players.push({ ...p, host: false, ready: false, conn: false, awayT: performance.now(), migrated: true }); // they reconnect on their own
   for (const ev of ['connection', 'error', 'disconnected']) peer.off(ev); // a guest taking over: drop the guest-side handlers (a guest turns every caller away)
   peer.on('connection', conn => netHostAccept(conn));
@@ -152,12 +152,12 @@ function netHostHello(L, m) {
   let p = NETM.players.find(q => (m.token && q.token === m.token) || (m.prev && q.id === m.prev && q.migrated));
   if (p) { // reconnecting (same tab after a drop, or after the host changed): same slot, same stats
     if (p.id !== L.id) { const old = NETM.links.get(p.id); if (old) old.close(); NETM.links.delete(p.id); netRekey(p.id, L.id); p.id = L.id; }
-    p.conn = true; p.awayT = 0; p.migrated = false; p.name = netName(m.name); p.cos = m.cos; p.upg = m.upg; p.touch = !!m.touch;
+    p.conn = true; p.awayT = 0; p.migrated = false; p.name = netName(m.name); p.cos = m.cos; p.upg = m.upg; p.touch = !!m.touch; p.lvl = m.lvl | 0;
   } else {
     if (NETM.players.length >= NET_MAX) return deny('That lobby is full.');
     if (NETM.phase === 'run') return deny("They're in the middle of a run. Try again when it ends.");
     const used = new Set(NETM.players.map(q => q.color)), slot = Math.max(-1, ...NETM.players.map(q => q.slot)) + 1;
-    p = { id: L.id, name: netName(m.name), color: NET_COLORS.find(c => !used.has(c)) || NET_COLORS[slot % NET_COLORS.length], ready: false, host: false, touch: !!m.touch, cos: m.cos, upg: m.upg, slot, joinT: Date.now(), conn: true };
+    p = { id: L.id, name: netName(m.name), color: NET_COLORS.find(c => !used.has(c)) || NET_COLORS[slot % NET_COLORS.length], ready: false, host: false, touch: !!m.touch, cos: m.cos, upg: m.upg, lvl: m.lvl | 0, slot, joinT: Date.now(), conn: true };
     p.token = Math.random().toString(36).slice(2) + Date.now().toString(36);
     NETM.players.push(p);
     if (NETM.players.filter(q => q.name === p.name).length > 1) p.name = netName(p.name.slice(0, 13) + ' ' + (p.slot + 1)); // two "Snake"s: tell them apart
@@ -174,7 +174,8 @@ function netHostMsg(p, L, m) {
     case 'ready': p.ready = !!m.v; netLobbyChanged(); break;
     case 'team': if (NETM.phase !== 'run' && NETM.cfg && NETM.cfg.mode === 'teams') { p.team = Math.max(0, Math.min(NETM.cfg.teams - 1, m.v | 0)); netLobbyChanged(); } break;
     case 'leave': netHostLost(p.id, 'left'); break;
-    case 'prof': p.name = netName(m.name); p.cos = m.cos; p.upg = m.upg; netLobbyChanged(); break;
+    case 'lvl': p.lvl = m.v | 0; netLobbyChanged(); break;
+    case 'prof': p.name = netName(m.name); p.cos = m.cos; p.upg = m.upg; p.lvl = m.lvl | 0; netLobbyChanged(); break;
     case 'ping': L.sendR({ k: 'pong', t: m.t, h: netNow() }); break;
     case 'pong': L.rtt = L.rtt * .7 + (performance.now() - m.t) * .3; p.ping = Math.round(L.rtt); break;
     case 'ev': if (typeof netHostEvents === 'function') netHostEvents(p, m.e); break;
@@ -190,10 +191,10 @@ function netHostLost(id, why) { // a player dropped or left. Dropped: kept a min
   netLobbyChanged();
 }
 function netKick(id) { const L = NETM.links.get(id); if (L) L.sendR({ k: 'kick' }); setTimeout(() => netHostLost(id, 'kick'), 150); }
-const netPublicPlayers = () => NETM.players.map(({ id, name, color, ready, host, touch, cos, slot, conn, ping, stats, upg, team }) => ({ id, name, color, ready, host, touch, cos, slot, conn, ping, stats, upg, team }));
+const netPublicPlayers = () => NETM.players.map(({ id, name, color, ready, host, touch, cos, slot, conn, ping, stats, upg, team, lvl }) => ({ id, name, color, ready, host, touch, cos, slot, conn, ping, stats, upg, team, lvl }));
 function netBroadcast(m, except) { for (const [id, L] of NETM.links) if (id !== except) L.sendR(m); }
 function netLobbyChanged() { // tell everyone, redraw the lobby
-  if (NETM.host) { netBalanceTeams(); netBroadcast({ k: 'lobby', players: netPublicPlayers(), cfg: NETM.cfg, phase: NETM.phase, code: NETM.code }); }
+  if (NETM.host) { const me = NETM.players.find(p => p.id === NETM.me); if (me) me.lvl = PROG.level | 0; netBalanceTeams(); netBroadcast({ k: 'lobby', players: netPublicPlayers(), cfg: NETM.cfg, phase: NETM.phase, code: NETM.code }); }
   if (typeof netLobbyRender === 'function') netLobbyRender();
 }
 function netHeartbeat() { // every second: pings both ways; silence for 5 s means the link is gone
@@ -220,7 +221,7 @@ function netJoin(code, opts = {}) { // resolves when the host has welcomed us
     let done = false; const fail = e => { if (done) return; done = true; NETM.joining = null; clearTimeout(to); L.close(); rej(e); };
     NETM.joining = { fail };
     const to = setTimeout(() => fail(new Error("The host didn't answer. Check the code, or their connection.")), 15000);
-    L.onOpen = () => { const pr = netProfile(); L.sendR({ k: 'hello', ...pr, token: opts.token || (prev && prev.code === code ? prev.token : ''), prev: opts.prev || '' }); };
+    L.onOpen = () => { const pr = netProfile(); NETM.sentLvl = pr.lvl; L.sendR({ k: 'hello', ...pr, token: opts.token || (prev && prev.code === code ? prev.token : ''), prev: opts.prev || '' }); };
     L.onR = m => {
       if (!done) {
         if (m.k === 'deny') { fail(new Error(m.why)); return; }

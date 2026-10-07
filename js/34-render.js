@@ -141,7 +141,7 @@ function drawNVHighlights(x) { // drawn after the green tint, so the rings stay 
     x.beginPath(); x.arc(c.x, c.y, r, 0, TAU); x.stroke(); x.setLineDash([]);
   }
   x.globalAlpha = 1;
-  if (snake) { x.strokeStyle = 'rgba(255,255,255,.9)'; x.lineWidth = 1.6; x.beginPath(); x.arc(snake.x, snake.y, snakeRadius() + 4, 0, TAU); x.stroke(); }
+  if (snake && !snake.netHidden) { x.strokeStyle = 'rgba(255,255,255,.9)'; x.lineWidth = 1.6; x.beginPath(); x.arc(snake.x, snake.y, snakeRadius() + 4, 0, TAU); x.stroke(); }
   x.restore();
 }
 function drawNightVision(x) {

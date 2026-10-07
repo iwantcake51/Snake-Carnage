@@ -2192,3 +2192,6 @@ body:not(.phone):not(.narrow) .sbody .srow2:hover small,body:not(.phone):not(.na
 body:not(.phone):not(.narrow) .sbody .sgrp{margin:10px 0 0;padding-bottom:5px}
 body:not(.phone):not(.narrow) .sbody>.lead{margin-bottom:6px}
 body:not(.phone):not(.narrow) .keylist{gap:9px 20px}
+#mpHud{transition:top .2s ease,opacity .25s ease}#stage #mpHud.near{opacity:.14!important}
+#overlay .mprow .mplvl{font:600 11px var(--f-num);font-style:normal;color:#c9bfc3;background:rgba(255,255,255,.06);border:1px solid var(--edge2);border-radius:2px;padding:1px 5px;margin-left:2px;letter-spacing:.02em}
+#overlay .mprow.me .mplvl{color:#fff;border-color:color-mix(in srgb,var(--acc) 55%,var(--edge2))}

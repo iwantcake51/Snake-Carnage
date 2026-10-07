@@ -198,7 +198,7 @@ function fillOutside(x, style) { // paints everything around the 0..W x 0..H wor
 }
 const [snOC, snx] = makeLayer();
 function drawSnakeNightRim(x) { // white rim at night, readable over dark ground and blood, with or without night vision
-  if (!snake || !snake._pts || light.dark <= .3 || (SETTINGS.snakeOutline || 'Subtle') === 'Off') return;
+  if (!snake || !snake._pts || light.dark <= .3 || (SETTINGS.snakeOutline || 'Subtle') === 'Off' || snake.netHidden || !snake.alive) { if (snake && snake._rimBox) { const b = snake._rimBox; snx.clearRect(b[0], b[1], b[2] - b[0], b[3] - b[1]); snake._rimBox = null; } return; } // dead (or burst, in multiplayer): no rim left hanging in the air
   const strong = SETTINGS.snakeOutline === 'Strong', pts = snake._pts, n = pts.length;
   let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
   for (const g of pts) { if (g.x < x0) x0 = g.x; if (g.x > x1) x1 = g.x; if (g.y < y0) y0 = g.y; if (g.y > y1) y1 = g.y; }
@@ -302,13 +302,13 @@ function applyView(x) { // shake, spawn zoom and look-ahead, shared by the scene
   if (V.z) { x.translate(W / 2, H / 2); x.scale(V.z, V.z); x.translate(-V.fx, -V.fy); }
   x.translate(-V.ox, -V.oy);
 }
-const NEAR_IDS = ['chhud', 'modhud', 'combo', 'rewards', 'modbar', 'abil', 'notes', 'lvlup', 'evt'];
+const NEAR_IDS = ['chhud', 'modhud', 'combo', 'rewards', 'modbar', 'abil', 'notes', 'lvlup', 'evt', 'mpHud']; // mpHud: the multiplayer score panel, only there during a run
 let nearRects = null, nearRectT = 0;
 function hudNear() { // corner UI turns half see-through while the snake is close to it
   if (!snake) return;
   const cr = cv.getBoundingClientRect(); if (!cr.width) return;
   if (!nearRects || UT - nearRectT > .25) { // measure the HUD boxes in board units (twice a second is plenty)
-    nearRectT = UT; nearRects = NEAR_IDS.map(id => { const el = document.getElementById(id), r = el.getBoundingClientRect();
+    nearRectT = UT; nearRects = NEAR_IDS.map(id => document.getElementById(id)).filter(Boolean).map(el => { const r = el.getBoundingClientRect();
       return { el, x0: (r.left - cr.left) / cr.width * W, y0: (r.top - cr.top) / cr.height * H, x1: (r.right - cr.left) / cr.width * W, y1: (r.bottom - cr.top) / cr.height * H, empty: !r.width }; });
   }
   document.getElementById('chhud').classList.toggle('dim', state === 'play' && run.time > 4); // the checklist steps back once you're playing
@@ -316,7 +316,7 @@ function hudNear() { // corner UI turns half see-through while the snake is clos
   pts.push({ x: snake.x + ah * 90, y: snake.y + av * 90 }); // where the head is about to be: fade before it gets there
   for (const b of nearRects) {
     const near = !b.empty && state !== 'menu' && pts.some(g => { const q = worldToCanvas(g.x, g.y); return q.x > b.x0 - pad && q.x < b.x1 + pad && q.y > b.y0 - pad && q.y < b.y1 + pad; });
-    if (near) b.nearT = UT; const on = near || UT - (b.nearT ?? -9) < .7; // stays faded a moment after the body clears
+    if (near) b.el.nearT = UT; const on = near || UT - (b.el.nearT ?? -9) < .7; // stays faded a moment after the body clears
     if (b.el.classList.contains('near') !== on) b.el.classList.toggle('near', on);
   }
 }
