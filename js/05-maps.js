@@ -66,7 +66,7 @@ function dirtTrails(x, list) { // worn dirt paths: uneven width and edges, packe
   }
   dx.restore();
   hx.globalCompositeOperation = 'source-in'; hx.fillStyle = 'rgba(118,96,50,1)'; hx.fillRect(0, 0, W, H); // worn, thinning grass along the edges
-  x.save(); x.globalAlpha = .28; x.drawImage(hc, 0, 0, W, H); x.globalAlpha = 1; x.drawImage(dc, 0, 0, W, H); x.restore();
+  x.save(); x.globalAlpha = .28; x.drawImage(hc, 0, 0, W, H); x.globalAlpha = 1; x.drawImage(dc, 0, 0, W, H); x.restore(); freeCanvas(hc, dc);
 }
 const dirtTrail = (x, pts, w, seed) => dirtTrails(x, [[pts, w, seed]]);
 function flowers(x, n, cols, seed, clusters = 9) { // wildflowers grow in patches, not evenly

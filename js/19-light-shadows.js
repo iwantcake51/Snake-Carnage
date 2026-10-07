@@ -154,7 +154,7 @@ const isStaticLight = l => !l.enc && !l.dynNow && !(l.ign > 0) && !(l.fT > 0) &&
 let lightSkip = 0, lightUsedAdd = false;
 function drawLighting(x) {
   const L = light, nv = nightVision, Q = lq();
-  if (SETTINGS.lightQ === 'Off') { // no light layer: a flat tint for dusk and night, lamp bulbs still glow
+  if (SETTINGS.lightQ === 'Off' || lowFx > 1) { // no light layer: a flat tint for dusk and night, lamp bulbs still glow
     const dk = L.dark * (nv ? .15 : 1) * .6; if (dk > .01) { x.fillStyle = `rgba(${L.dc},${dk.toFixed(3)})`; x.fillRect(-20, -20, W + 40, H + 40); }
     if (!nv && L.tA > .005) { x.fillStyle = `rgba(${L.tBot},${(L.tA * .6).toFixed(3)})`; x.fillRect(-20, -20, W + 40, H + 40); }
     return;

@@ -137,7 +137,7 @@ function updateSnow(dt) {
     if (soakStep) stainDisk(s.x, s.y, s.r * (1 + k * 1.3), s.a * .1 * 1.1, s.c);
     if (k >= 1) soaks.splice(i, 1);
   }
-  if (SETTINGS.snowQ === 'Simple') { snowFx.length = 0; return; } // Simple: the snow just lies there, nothing is carved or redrawn
+  if (SETTINGS.snowQ === 'Simple' || lowFx > 1) { snowFx.length = 0; return; } // Simple: the snow just lies there, nothing is carved or redrawn
   const sn = snake;
   if (sn && state === 'play' && sn.started) {
     const n = sn.segs.length, fast = sn.dashT > 0 ? sn.dashK || 1.8 : 1, lunge = sn.dashT > 0;

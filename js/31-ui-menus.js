@@ -25,12 +25,14 @@ function makeThumbs() { // rendered preview of every map (used by the cards, the
 }
 function mapThumb(m) {
   {
-    const [c, x] = makeLayer(), b = m.build();
-    b.floor(x); const [oc, ox] = makeLayer(); drawObstacleLayer(ox, b, [...borderWalls(m.border), ...b.obs], b.lights || m.lights || []); x.drawImage(oc, 0, 0, W, H);
-    const t = document.createElement('canvas'); t.width = 480; t.height = 320;
-    if (m.custom) t.getContext('2d').drawImage(c, 0, 0, W * DPR, H * DPR, 0, (320 - 480 * H / W) / 2, 480, 480 * H / W); // a custom map is shown whole
-    else t.getContext('2d').drawImage(c, XO * DPR, 0, MW * DPR, H * DPR, 0, 0, 480, 320); // the card shows the original middle of the map
-    return t.toDataURL ? t.toDataURL() : '';
+    const k = Math.min(DPR, 480 / (m.custom ? W : MW) * 1.25); // drawn straight at about the card's size, not at full screen resolution
+    const mk = () => { const c = document.createElement('canvas'); c.width = Math.ceil(W * k); c.height = Math.ceil(H * k); const x = c.getContext('2d'); x.setTransform(k, 0, 0, k, 0, 0); return [c, x]; };
+    const [c, x] = mk(), b = m.build();
+    b.floor(x); const [oc, ox] = mk(); drawObstacleLayer(ox, b, [...borderWalls(m.border), ...b.obs], b.lights || m.lights || []); x.drawImage(oc, 0, 0, W, H);
+    const t = document.createElement('canvas'); t.width = 480; t.height = 320; const tx = t.getContext('2d'); tx.imageSmoothingQuality = 'high';
+    if (m.custom) tx.drawImage(c, 0, 0, W * k, H * k, 0, (320 - 480 * H / W) / 2, 480, 480 * H / W); // a custom map is shown whole
+    else tx.drawImage(c, XO * k, 0, MW * k, H * k, 0, 0, 480, 320); // the card shows the original middle of the map
+    const url = t.toDataURL ? t.toDataURL() : ''; freeCanvas(c, oc, t); return url;
   }
 }
 function makeSplatSVG() { // flat blood splatter behind the title (seeded, so it looks the same every time)
@@ -304,7 +306,8 @@ const SETTING_TABS = {
     ['seg', 'season', 'Season', 'Outdoor maps only. Random picks one each run.', ['Random', 'Spring', 'Summer', 'Autumn', 'Winter']]] },
   Graphics: { icon: 'graphics', lead: 'Look and feel of the picture.', rows: [
     ['toggle', 'fullscreen', 'Fullscreen', 'Fill the whole screen. Esc or F11 leaves it.'],
-    ['seg', 'renderRes', 'Render resolution', 'How many pixels the game draws. Lower is much faster and a bit softer. Changing it reloads the game.', ['50%', '75%', '100%', '125%', 'Auto']],
+    ['seg', 'renderRes', 'Render resolution', 'How many pixels the game draws, compared with the automatic choice for your screen. Lower is much faster and a bit softer. Changing it reloads the game.', ['50%', '75%', '100%', '125%', 'Auto']],
+    ['toggle', 'autoQ', 'Automatic quality', 'When the game runs slowly it simplifies the lighting and snow by itself, for that run, to keep it smooth.'],
     ['seg', 'fpsCap', 'Frame rate', 'VSync matches your screen. A cap saves battery and heat.', ['30', '60', '120', 'VSync']],
     ['slider', 'darkness', 'Darkness', 'Overall dimness of the scene.', 0, .7, .05],
     ['slider', 'pixel', 'Pixelation', 'Chunky pixel look. Off shows full detail.', 1, 8, 1],

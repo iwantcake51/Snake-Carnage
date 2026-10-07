@@ -62,31 +62,39 @@ function netLobbyRender() {
   const me = netMe(), host = NETM.host, cfg = NETM.cfg || {}, m = MAPS[cfg.map] || MAPS[0], link = netInviteLink();
   const others = NETM.players.filter(p => !p.host && p.conn !== false), allReady = others.every(p => p.ready);
   const mods = (cfg.mods || []).map(id => (MODS.find(q => q.id === id) || {}).name).filter(Boolean);
+  const mode = cfg.mode || 'coop', nT = cfg.teams || 2, teams = mode === 'teams';
+  const plist = teams ? [...NETM.players].sort((a, b) => (a.team - b.team) || (a.slot - b.slot)) : NETM.players;
+  const teamBtn = p => { const t = NET_TEAMS[p.team] || NET_TEAMS[0], mine = p.id === NETM.me; return `<button class="mpteam ${host || mine ? '' : 'ro'}" data-team-of="${esc(p.id)}" style="--tc:${t.c}" title="${host || mine ? 'Switch team' : ''}" ${host || mine ? '' : 'disabled'}>${t.n}</button>`; };
+  const hint = mode === 'ffa' ? 'Everyone for themselves: the best score wins. You each get 3 lives. Nobody can hurt anyone else; you just race each other for the crowd.'
+    : teams ? `Tap a team to switch. Each team shares its lives (2 plus one per player); the team with the most score wins. Nobody can hurt anyone else.`
+    : 'Everyone plays with the same modifiers. Each crash costs the team a life; with none left you watch the others.';
   if (!thumbs || thumbs.length !== MAPS.length) thumbs = makeThumbs();
-  box.innerHTML = `<div class="mphead"><h2>Co-op lobby</h2><span class="mpcode" title="Lobby code">${esc(NETM.code)}</span>
+  box.innerHTML = `<div class="mphead"><h2>${esc(NET_MODES[mode])} lobby</h2><span class="mpcode" title="Lobby code">${esc(NETM.code)}</span>
       <button class="ghost mpsm" id="mpCopy">Copy invite link</button>${navigator.share ? '<button class="ghost mpsm" id="mpShare">Share…</button>' : ''}</div>
     <p class="mpsub">${host ? 'Send your friends the code or the link. Start when everyone is ready.' : `Waiting for <b>${esc((NETM.players.find(p => p.host) || {}).name || 'the host')}</b> to start.`}</p>
     <div class="mpbody">
-      <div class="mpplayers">${NETM.players.map(p => `<div class="mprow ${p.id === NETM.me ? 'me' : ''} ${p.conn === false ? 'away' : ''}">
-          <i class="mpdot" style="background:${p.color}"></i><b>${esc(p.name)}</b>${p.host ? '<em class="mptag host">Host</em>' : ''}${p.touch ? '<em class="mptag">Phone</em>' : ''}${p.conn === false ? '<em class="mptag warn">Reconnecting…</em>' : ''}
+      <div class="mpplayers">${plist.map(p => `<div class="mprow ${p.id === NETM.me ? 'me' : ''} ${p.conn === false ? 'away' : ''}">
+          ${teams ? teamBtn(p) : ''}<i class="mpdot" style="background:${p.color}"></i><b>${esc(p.name)}</b>${p.host ? '<em class="mptag host">Host</em>' : ''}${p.touch ? '<em class="mptag">Phone</em>' : ''}${p.conn === false ? '<em class="mptag warn">Reconnecting…</em>' : ''}
           <span class="mpping">${p.ping && !p.host ? p.ping + ' ms' : ''}</span>
           <span class="mpready ${p.host || p.ready ? 'on' : ''}">${p.host ? 'Host' : p.ready ? 'Ready' : 'Not ready'}</span>
           ${host && !p.host ? `<button class="ghost mpsm mpkick" data-kick="${esc(p.id)}" title="Remove from the lobby">Kick</button>` : ''}</div>`).join('')}
-        ${NETM.players.length < 2 ? '<p class="mphint">Nobody else yet. They can join any time before you start.</p>' : ''}</div>
+        ${NETM.players.length < 2 ? '<p class="mphint">Nobody else yet. They can join any time before you start.</p>' : ''}
+        <p class="mphint">${hint} Challenges marked <em class="chteam">${mode === 'coop' ? 'Team' : 'Shared'}</em> count the whole crowd; the rest count only what you do.</p></div>
       <div class="mpcfg">
-        <div class="mpmap"><img src="${thumbs[cfg.map] || ''}" alt=""><span>${esc(m.name)}</span></div>
-        ${host ? '<button class="ghost mpsm" id="mpMap">Change map</button>' : ''}
-        <div class="mpline"><b>Time</b><span>${esc(TIME_MODES[cfg.time] || cfg.time || 'Dynamic')}</span>${host ? `<select id="mpTime">${Object.keys(TIME_MODES).map(k => `<option value="${k}" ${k === cfg.time ? 'selected' : ''}>${TIME_MODES[k]}</option>`).join('')}</select>` : ''}</div>
+        <div class="mpmap"><img src="${thumbs[cfg.map] || ''}" alt=""><span>${esc(m.name)}</span>${host ? '<button class="ghost mpsm" id="mpMap">Change map</button>' : ''}</div>
+        <div class="mpline"><b>Time</b>${host ? '' : `<span>${esc(TIME_MODES[cfg.time] || cfg.time || 'Dynamic')}</span>`}${host ? `<select id="mpTime">${Object.keys(TIME_MODES).map(k => `<option value="${k}" ${k === cfg.time ? 'selected' : ''}>${TIME_MODES[k]}</option>`).join('')}</select>` : ''}</div>
+        <div class="mpline"><b>Mode</b>${host ? '' : `<span>${esc(NET_MODES[mode])}</span>`}${host ? `<select id="mpMode">${Object.keys(NET_MODES).map(k => `<option value="${k}" ${k === mode ? 'selected' : ''}>${NET_MODES[k]}</option>`).join('')}</select>` : ''}</div>
+        ${teams ? `<div class="mpline"><b>Teams</b>${host ? '' : `<span>${nT} teams</span>`}${host ? `<select id="mpTeams">${[2, 3, 4].map(n => `<option value="${n}" ${n === nT ? 'selected' : ''}>${n} teams</option>`).join('')}</select>` : ''}</div>` : ''}
+        <div class="mpline"><b>Length</b>${host ? '' : `<span>${cfg.len ? cfg.len + ' minutes' : 'No time limit'}</span>`}${host ? `<select id="mpLen">${NET_LENS.map(n => `<option value="${n}" ${n === (cfg.len || 0) ? 'selected' : ''}>${n ? n + ' minutes' : 'No time limit'}</option>`).join('')}</select>` : ''}</div>
         <div class="mpline"><b>Modifiers</b><span>${mods.length ? esc(mods.join(', ')) : 'None'}</span>${host ? '<button class="ghost mpsm" id="mpMods">Change</button>' : ''}</div>
-        <p class="mphint">Everyone plays with the same modifiers. Each crash costs the team a life; with none left you watch the others. Challenges marked <em class="chteam">Team</em> count the whole crowd; the rest count only what you do.</p>
       </div>
     </div>
     ${netPick === 'map' ? `<div class="mppick">${MAPS.map((q, i) => `<button class="card ${i === cfg.map ? 'on' : ''}" data-map="${i}"><img src="${thumbs[i]}" alt=""><span class="cn">${esc(q.name)}</span></button>`).join('')}</div>` : ''}
     <div class="mpfoot">
       <button class="ghost" id="mpLeave">${host ? 'Close lobby' : 'Leave'}</button>
       <label class="mpopt"><input type="checkbox" id="mpNames" ${SETTINGS.mpNames !== false ? 'checked' : ''}> Name tags</label>
-      <label class="mpopt"><input type="checkbox" id="mpArrows" ${SETTINGS.mpArrows !== false ? 'checked' : ''}> Teammate arrows</label>
-      ${host ? `<button class="play" id="mpStart" ${allReady ? '' : 'disabled'}><span>${allReady ? 'Start' : `Waiting for ${others.filter(p => !p.ready).length} to be ready`}</span></button>`
+      <label class="mpopt"><input type="checkbox" id="mpArrows" ${SETTINGS.mpArrows !== false ? 'checked' : ''}> Player arrows</label>
+      ${host ? `<button class="play" id="mpStart" ${allReady ? '' : 'disabled'}><span>${allReady ? 'Start' : `${others.filter(p => !p.ready).length} not ready yet`}</span></button>`
              : `<button class="play ${me.ready ? 'on' : ''}" id="mpReady"><span>${me.ready ? 'Ready ✓' : 'Ready'}</span></button>`}
     </div><div class="mptoast"></div>`;
   const $ = id => document.getElementById(id);
@@ -99,10 +107,17 @@ function netLobbyRender() {
     $('mpStart').onclick = () => { if (others.every(p => p.ready)) netStartRun(); };
     $('mpMap').onclick = () => { netPick = netPick === 'map' ? null : 'map'; netLobbyRender(); };
     $('mpTime').onchange = e => { cfg.time = e.target.value; netLobbyChanged(); };
+    $('mpMode').onchange = e => { cfg.mode = e.target.value; if (cfg.mode !== 'coop' && !cfg.len) cfg.len = 5; netLobbyChanged(); }; // a race needs a finish line: 5 minutes unless the host picks another
+    $('mpLen').onchange = e => { cfg.len = +e.target.value; netLobbyChanged(); };
+    if ($('mpTeams')) $('mpTeams').onchange = e => { cfg.teams = +e.target.value; netLobbyChanged(); };
     $('mpMods').onclick = () => { SETTINGS.mods = [...(cfg.mods || [])]; transitionTo(() => showModifiers()); };
     box.querySelectorAll('.mppick .card').forEach(b => b.onclick = () => { cfg.map = +b.dataset.map; netPick = null; netLobbyChanged(); });
     box.querySelectorAll('[data-kick]').forEach(b => b.onclick = () => netKick(b.dataset.kick));
   } else $('mpReady').onclick = () => { const v = !me.ready; me.ready = v; NETM.hostLink && NETM.hostLink.sendR({ k: 'ready', v }); netLobbyRender(); };
+  box.querySelectorAll('[data-team-of]').forEach(b => b.onclick = () => { // the next team over: anyone for themselves, the host for anyone
+    const p = NETM.players.find(q => q.id === b.dataset.teamOf); if (!p) return; const v = ((p.team || 0) + 1) % nT;
+    if (host) { p.team = v; netLobbyChanged(); } else if (p.id === NETM.me && NETM.hostLink) { p.team = v; NETM.hostLink.sendR({ k: 'team', v }); netLobbyRender(); }
+  });
 }
 const netInviteLink = () => { const u = new URL(location.href); u.search = ''; u.hash = ''; u.searchParams.set('join', NETM.code); const pq = new URLSearchParams(location.search).get('peer'); if (pq) u.searchParams.set('peer', pq); return u.toString(); };
 function netCopy(t) { (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).catch(() => { const a = document.createElement('textarea'); a.value = t; document.body.appendChild(a); a.select(); try { document.execCommand('copy'); } catch (e) {} a.remove(); }); }
@@ -111,6 +126,7 @@ const _netShowMods = showModifiers;
 showModifiers = function () { const r = _netShowMods.apply(this, arguments); if (NETM.on && NETM.host && !NETM.run) { const back = document.getElementById('backBtn'); if (back) back.onclick = () => { NETM.cfg.mods = [...(SETTINGS.mods || [])]; netLobbyChanged(); transitionTo(netShowLobby); }; } return r; };
 /* ---- in the run: teammates on the board ---- */
 function netDrawSnakes(x) {
+  if (netMode() === 'teams' && snake && snake.alive && snake.segs && snake.segs[0]) { const g = snake.segs[0]; x.save(); x.globalAlpha = snake.camoT > 0 ? .25 : .7; x.strokeStyle = NET_TEAMS[netTeamOf(NETM.me)].c; x.lineWidth = 1.6; x.beginPath(); x.arc(g.x, g.y, CONFIG.snakeR * (snake.scale || 1) + 4, 0, TAU); x.stroke(); x.restore(); } // your own team's ring
   for (const rs of NS.rs.values()) {
     if (!rs.segs.length || !rs.alive || rs.hidden) continue;
     SCALE_OVR = rs.scale || 1;
@@ -143,15 +159,20 @@ function netDrawTags(x) { // screen space: names over teammates, and an arrow at
   }
   x.restore();
 }
-/* ---- team panel ---- */
+/* ---- the score panel: the team (co-op), the standings (free for all) or every team (Teams), with lives and the round clock ---- */
+const netHearts = (n, title) => `<span class="mplives" title="${title}">${'♥'.repeat(Math.min(12, n))}${n > 12 ? '+' : ''}${n ? '' : '<i>no lives left</i>'}</span>`;
 function netHud() {
   let el = document.getElementById('mpHud');
   if (!NETM.run) { if (el) el.remove(); return; }
   if (!el) { el = document.createElement('div'); el.id = 'mpHud'; (document.getElementById('stage') || document.body).appendChild(el); }
+  const mode = netMode(), left = netTimeLeft(), clock = left === null ? '' : `<span class="mpclk ${left <= 30 ? 'low' : ''}">${fmtClock(left * 1000)}</span>`;
   const rows = NETM.players.map(p => { const st = p.id === NETM.me ? { score } : p.stats || {}, d = NS.down.get(p.id); return { p, s: st.score || 0, d }; }).sort((a, b) => b.s - a.s);
-  const team = rows.reduce((a, r) => a + r.s, 0);
-  el.innerHTML = `<div class="mph">Team <b>${team}</b><span class="mplives" title="Shared lives">${'♥'.repeat(Math.min(12, NS.lives))}${NS.lives > 12 ? '+' : ''}${NS.lives ? '' : '<i>no lives left</i>'}</span></div>`
-    + rows.map(r => `<div class="mpr ${r.p.id === NETM.me ? 'me' : ''} ${r.d ? (r.d.out ? 'out' : 'down') : ''} ${r.p.conn === false ? 'away' : ''}"><i class="mpdot" style="background:${r.p.color}"></i><span>${esc(r.p.name)}</span><b>${r.s}</b></div>`).join('');
+  const row = (r, i) => `<div class="mpr ${r.p.id === NETM.me ? 'me' : ''} ${r.d ? (r.d.out ? 'out' : 'down') : ''} ${r.p.conn === false ? 'away' : ''}">${i !== undefined ? `<em>${i + 1}</em>` : ''}<i class="mpdot" style="background:${r.p.color}"></i><span>${esc(r.p.name)}</span><b>${r.s}</b></div>`;
+  if (mode === 'ffa') el.innerHTML = `<div class="mph">Free for all ${clock}${netHearts(netLivesOf(NETM.me), 'Your lives')}</div>` + rows.map(row).join('');
+  else if (mode === 'teams') {
+    const T = NET_TEAMS.slice(0, NS.cfg.teams).map((t, i) => ({ t, i, m: rows.filter(r => netTeamOf(r.p.id) === i) })).filter(q => q.m.length).map(q => ({ ...q, s: q.m.reduce((a, r) => a + r.s, 0) })).sort((a, b) => b.s - a.s);
+    el.innerHTML = `<div class="mph">Teams ${clock}</div>` + T.map(q => `<div class="mpt ${q.i === netTeamOf(NETM.me) ? 'mine' : ''}" style="--tc:${q.t.c}"><i class="mpdot" style="background:${q.t.c}"></i><span>${q.t.n}</span><b>${q.s}</b>${netHearts(NS.pools['t' + q.i] || 0, q.t.n + ' lives')}</div>` + q.m.map(r => row(r)).join('')).join('');
+  } else el.innerHTML = `<div class="mph">Team <b>${rows.reduce((a, r) => a + r.s, 0)}</b>${clock}${netHearts(NS.pools.all || 0, 'Shared lives')}</div>` + rows.map(r => row(r)).join('');
 }
 let netHudT = 0;
 const _netUpdateHud = updateHud;
@@ -160,12 +181,14 @@ function netDownBanner(out) {
   let el = document.getElementById('mpDown');
   if (out === null || out === undefined) { if (el) el.remove(); return; }
   if (!el) { el = document.createElement('div'); el.id = 'mpDown'; (document.getElementById('stage') || document.body).appendChild(el); }
-  el.innerHTML = out ? '<b>Out of lives</b><span>Watching your team. The run ends when everyone is down.</span>' : '<b>You crashed</b><span>Back in a moment…</span>';
+  const mode = netMode(), timed = NS.cfg && NS.cfg.len > 0;
+  el.innerHTML = out ? `<b>Out of lives</b><span>${mode === 'ffa' ? 'Watching the others.' : 'Watching your team.'} The run ends ${timed ? "when time's up or " : 'when '}everyone is down.</span>` : '<b>You crashed</b><span>Back in a moment…</span>';
 }
 /* spectating: while you're down your camera follows a teammate */
 function netSpectate() {
   if (!NETM.run || !snake || snake.alive || !snake.netHidden) return;
-  const live = [...NS.rs.values()].filter(r => r.alive && !r.hidden); if (!live.length) return;
+  let live = [...NS.rs.values()].filter(r => r.alive && !r.hidden); if (!live.length) return;
+  if (netMode() === 'teams') { const mine = live.filter(r => netTeamOf(r.pid) === netTeamOf(NETM.me)); if (mine.length) live = mine; } // your own team first
   const t = live.find(r => r.pid === NS.specId) || live[0]; NS.specId = t.pid; snake.x = t.x; snake.y = t.y; snake.angle = t.angle;
 }
 const _netTick = netTick;
@@ -199,17 +222,27 @@ function netShowResults(board, aborted) {
 function netResultsRefresh(aborted) {
   const box = overlay.querySelector('.mpres'), b = NS.board; if (!box || !b) return;
   const host = NETM.host, me = netMe(), live = new Map(NETM.players.map(p => [p.id, p]));
-  const rows = [...b.rows].sort((p, q) => (q.score || 0) - (p.score || 0)), top = rows[0];
+  const rows = [...b.rows].sort((p, q) => (q.score || 0) - (p.score || 0)), top = rows[0], mode = b.mode || 'coop';
   const others = NETM.players.filter(p => !p.host && p.conn !== false), allReady = others.every(p => p.ready);
-  const col = (k, v) => `<td class="${k}">${v ?? 0}</td>`;
-  box.innerHTML = `<h2>${aborted ? 'The host left' : b.why === 'wiped' ? 'Everyone went down' : 'Run over'}</h2>
-    <p class="mpsub">${esc(b.map || '')} · ${fmtTime(b.time || 0)} · team score <b>${b.team.score}</b></p>
+  const col = (k, v) => `<td class="${k}">${v ?? 0}</td>`, cells = r => `${col('s', r.score)}${col('', r.killed)}${col('', r.humans)}${col('', r.animals)}${col('', (r.best || 0) + 'x')}${col('', r.goldens)}${col('', r.deaths)}${col('', r.xp)}${col('', r.chips)}`;
+  const tags = r => (mode === 'ffa' ? b.winner === r.id : mode === 'coop' && r === top && rows.length > 1 && r.score) ? ` <em class="mptag">${mode === 'ffa' ? 'Winner' : 'Top'}</em>` : '';
+  const prow = (r, i) => `<tr class="${r.id === NETM.me ? 'me' : ''} ${live.get(r.id) ? '' : 'gone'}"><td class="pn">${i !== undefined ? `<em class="rk">${i + 1}</em>` : ''}<i class="mpdot" style="background:${r.color}"></i>${esc(r.name)}${tags(r)}${live.get(r.id) && live.get(r.id).ready && !r.host ? ' <em class="mptag ok">Ready</em>' : ''}</td>${cells(r)}${host ? `<td>${!r.host && live.get(r.id) ? `<button class="ghost mpsm" data-kick="${esc(r.id)}">Kick</button>` : ''}</td>` : ''}</tr>`;
+  const T = mode === 'teams' ? [...(b.teams || [])].sort((p, q) => q.score - p.score) : [];
+  const body = mode === 'teams' ? T.map(t => `<tr class="team tg" style="--tc:${t.color}"><td class="pn"><i class="mpdot" style="background:${t.color}"></i>${esc(t.name)}${b.winner === t.i ? ' <em class="mptag">Winner</em>' : ''}</td>${cells(t)}${host ? '<td></td>' : ''}</tr>` + rows.filter(r => r.team === t.i).map(r => prow(r)).join('')).join('')
+    : mode === 'ffa' ? rows.map(prow).join('')
+    : rows.map(r => prow(r)).join('') + `<tr class="team"><td class="pn">Team</td>${cells(b.team)}${host ? '<td></td>' : ''}</tr>`;
+  const winT = mode === 'teams' && b.winner !== null && b.winner !== undefined ? (b.teams || []).find(t => t.i === b.winner) : null, winP = mode === 'ffa' && b.winner ? rows.find(r => r.id === b.winner) : null;
+  const title = aborted ? 'The host left' : mode === 'ffa' ? (winP ? `${esc(winP.name)} wins!` : 'A draw') : mode === 'teams' ? (winT ? `<span style="color:${winT.color}">${esc(winT.name)}</span> team wins!` : 'A draw') : b.why === 'wiped' ? 'Everyone went down' : 'Run over';
+  const why = b.why === 'time' ? "Time's up" : b.why === 'wiped' ? 'Everyone went down' : b.why === 'host' ? 'Ended by the host' : '';
+  const ord = n => n + (n % 10 === 1 && n % 100 !== 11 ? 'st' : n % 10 === 2 && n % 100 !== 12 ? 'nd' : n % 10 === 3 && n % 100 !== 13 ? 'rd' : 'th');
+  const place = mode === 'ffa' ? ` · you came ${ord(rows.findIndex(r => r.id === NETM.me) + 1)} of ${rows.length}` : mode === 'teams' ? (() => { const i = T.findIndex(t => t.i === (rows.find(r => r.id === NETM.me) || {}).team); return i >= 0 ? ` · your team came ${ord(i + 1)} of ${T.length}` : ''; })() : '';
+  box.innerHTML = `<h2>${title}</h2>
+    <p class="mpsub">${esc(b.map || '')} · ${fmtTime(b.time || 0)}${mode === 'coop' ? ` · team score <b>${b.team.score}</b>` : ''}${why && mode !== 'coop' ? ' · ' + why : ''}</p>
     <div class="mptable"><table><thead><tr><th>Player</th><th>Score</th><th>Eaten</th><th>People</th><th>Animals</th><th>Best combo</th><th>Golden</th><th>Crashes</th><th>XP</th><th>Chips</th>${host ? '<th></th>' : ''}</tr></thead><tbody>
-      ${rows.map(r => `<tr class="${r.id === NETM.me ? 'me' : ''} ${live.get(r.id) ? '' : 'gone'}"><td class="pn"><i class="mpdot" style="background:${r.color}"></i>${esc(r.name)}${r === top && rows.length > 1 && r.score ? ' <em class="mptag">Top</em>' : ''}${live.get(r.id) && live.get(r.id).ready && !r.host ? ' <em class="mptag ok">Ready</em>' : ''}</td>${col('s', r.score)}${col('', r.killed)}${col('', r.humans)}${col('', r.animals)}${col('', (r.best || 0) + 'x')}${col('', r.goldens)}${col('', r.deaths)}${col('', r.xp)}${col('', r.chips)}${host ? `<td>${!r.host && live.get(r.id) ? `<button class="ghost mpsm" data-kick="${esc(r.id)}">Kick</button>` : ''}</td>` : ''}</tr>`).join('')}
-      <tr class="team"><td class="pn">Team</td>${col('s', b.team.score)}${col('', b.team.killed)}${col('', b.team.humans)}${col('', b.team.animals)}${col('', (b.team.best || 0) + 'x')}${col('', b.team.goldens)}${col('', b.team.deaths)}${col('', b.team.xp)}${col('', b.team.chips)}${host ? '<td></td>' : ''}</tr></tbody></table></div>
-    <p class="mpsub mine">You: +${run.xpGained || 0} XP · +${run.coinsGained || 0} chips${run.chList && run.chList.length ? ` · ${run.chList.length} challenge${run.chList.length > 1 ? 's' : ''} done` : ''}</p>
+      ${body}</tbody></table></div>
+    <p class="mpsub mine">You: +${run.xpGained || 0} XP · +${run.coinsGained || 0} chips${run.chList && run.chList.length ? ` · ${run.chList.length} challenge${run.chList.length > 1 ? 's' : ''} done` : ''}${place}</p>
     <div class="mpfoot">${aborted ? '<button class="play" id="mpLobby"><span>To the lobby</span></button>' : host
-      ? `<button class="ghost" id="mpLobby">Return to lobby</button><button class="ghost" id="mpMap2">Change map</button><button class="ghost" id="mpMods2">Change modifiers</button><button class="play" id="mpAgain" ${allReady ? '' : 'disabled'}><span>${allReady ? 'Play again' : `Waiting for ${others.filter(p => !p.ready).length} to be ready`}</span></button>`
+      ? `<button class="ghost" id="mpLobby">Return to lobby</button><button class="ghost" id="mpMap2">Change map</button><button class="ghost" id="mpMods2">Change modifiers</button><button class="play" id="mpAgain" ${allReady ? '' : 'disabled'}><span>${allReady ? 'Play again' : `${others.filter(p => !p.ready).length} not ready yet`}</span></button>`
       : `<button class="ghost" id="mpLeave2">Leave lobby</button><button class="play ${me.ready ? 'on' : ''}" id="mpReady2"><span>${me.ready ? 'Ready ✓' : 'Ready'}</span></button>`}</div>`;
   const $ = id => document.getElementById(id);
   const toLobby = () => { if (NETM.host) { NETM.phase = 'lobby'; netLobbyChanged(); } stage.classList.remove('paused'); state = 'menu'; showMenu(); };

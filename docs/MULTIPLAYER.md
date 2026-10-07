@@ -1,29 +1,45 @@
-# Co-op multiplayer
+# Multiplayer
 
-Private co-op for a few friends, 2 to 8 players (built and tested for 2–4). PvE only: snakes pass through each other, and everyone hunts the same crowd.
+Private games for a few friends, 2 to 8 players (built and tested for 2–4). Never PvP: snakes pass through each other, and everyone hunts the same crowd. In the competitive modes you only race each other for it.
+
+## Modes
+
+The host picks one in the lobby.
+
+| Mode | Who wins | Lives | Length |
+|---|---|---|---|
+| **Co-op** | Everyone together; the team score is what counts | One shared pool: 3 + number of players | No limit by default |
+| **Free for all** | The best score | 3 each | 5 minutes by default |
+| **Teams** (2, 3 or 4 teams) | The team with the most score (members' scores added up) | One pool per team: 2 + its players | 5 minutes by default |
+
+- Round length can be set to no limit, 3, 5, 8 or 10 minutes in any mode.
+  - The clock is real time and starts when the first player moves.
+  - A run also ends when everyone is out of lives, or when the host ends it.
+- **Teams:** everyone is put on the smallest team when they join. A player can tap their team chip to switch, and the host can move anyone.
+  - In the run, each snake wears a ring in its team's color, and the score panel groups players under their team.
+- **Results:** the scoreboard names the winner (or a draw). Free for all ranks the players; Teams lists each team with its total above its members.
 
 ## Playing
 
 - **Host:** main menu → **Play with friends** → enter a name → **Host**. Share the 6-character code, or use **Copy invite link** (`…/?join=CODE`).
 - **Join:** **Play with friends** → type the code → **Join**, or open the invite link. Friends you've played with show up under **Played with recently**; tap one to join their last lobby.
 - **Lobby:**
-  - The host picks the map, the time of day and the modifiers, and everyone plays with them.
+  - The host picks the mode, the map, the time of day, the round length and the modifiers, and everyone plays with them.
   - Guests press **Ready**. The host's **Start** unlocks once everyone is ready.
   - The host can kick players. Name tags and off-screen arrows can be switched off.
 - **Lives:**
-  - The team shares 3 + (number of players) lives.
-  - A crash costs one life, and you're back 3 seconds later, with 1.5 seconds of grace.
-  - With no lives left you watch a teammate. The run ends when everyone is out, or when the host ends it from the pause menu.
+  - A crash costs one life from your pool (see Modes), and you're back 3 seconds later, with 1.5 seconds of grace.
+  - With no lives left you watch someone else, a teammate first. The run ends when everyone is out, when the time runs out, or when the host ends it from the pause menu.
 - **Pause:** pausing doesn't stop the world. It opens a small menu (Resume, Settings, Leave co-op, and End run for the host).
 - **End of run:**
-  - A scoreboard for every player plus team totals: score, eaten, people, animals, best combo, golden, crashes, XP and chips.
+  - A scoreboard for every player plus team totals (per team in Teams): score, eaten, people, animals, best combo, golden, crashes, XP and chips.
   - The host can **Play again**, **Return to lobby**, **Change map**, **Change modifiers** or **Kick**. Guests can **Ready** or **Leave lobby**.
   - The lobby stays open between runs.
 
 ## Progression
 
 - Each player earns their own XP, chips, challenge progress and achievements from their own kills, with the same code as single player. Every kill has an id and is paid once, to the player the host credited it to.
-- Challenges marked **Team** (panic, quiet panic, scream chain) read the shared crowd, so the whole team works on them together. Each player's own copy completes once and pays once.
+- Challenges marked **Team** (panic, quiet panic, scream chain) read the shared crowd, so the whole team works on them together. Each player's own copy completes once and pays once. In free for all and Teams the same challenges are marked **Shared**: anyone's chaos counts.
 - Everything else counts only what you do yourself.
 
 ## How it works

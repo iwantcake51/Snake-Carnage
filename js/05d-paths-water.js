@@ -63,7 +63,7 @@ function paintTrails(x, trails) { // every style merged into one shape, textured
     ex.globalCompositeOperation = 'source-in'; ex.fillStyle = EDGE_COL[style]; ex.fillRect(0, 0, W, H);
     fx.globalCompositeOperation = 'source-in'; fx.fillStyle = fx.createPattern(styleTile(style), 'repeat'); fx.fillRect(0, 0, W, H); // pattern anchored at world 0,0
     if (style === 'road') { fx.globalCompositeOperation = 'source-atop'; fx.strokeStyle = '#e8d06a'; fx.lineWidth = 3; fx.setLineDash([22, 18]); fx.lineCap = 'butt'; for (const t of list) if (t.w >= 30) line(fx, trailPoints(t.pts)); fx.setLineDash([]); } // centre line
-    x.save(); x.setTransform(m.a / DPR, m.b / DPR, m.c / DPR, m.d / DPR, m.e, m.f); x.globalAlpha = style === 'asphalt' ? 1 : .55; x.drawImage(ec, 0, 0); x.globalAlpha = 1; x.drawImage(fc, 0, 0); x.restore();
+    x.save(); x.setTransform(m.a / DPR, m.b / DPR, m.c / DPR, m.d / DPR, m.e, m.f); x.globalAlpha = style === 'asphalt' ? 1 : .55; x.drawImage(ec, 0, 0); x.globalAlpha = 1; x.drawImage(fc, 0, 0); x.restore(); freeCanvas(ec, fc);
   }
 }
 /* ---- polygons (water) ---- */

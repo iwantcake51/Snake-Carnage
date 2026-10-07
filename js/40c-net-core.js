@@ -122,7 +122,18 @@ function netBecomeHost(peer, keep) { // fresh lobby, or taking over one whose ho
   clearInterval(NETM.hbT); NETM.hbT = setInterval(netHeartbeat, 1000);
   netLobbyChanged();
 }
-function netDefaultCfg() { return { map: mapIdx, mods: [...(SETTINGS.mods || [])], time: SETTINGS.timeMode, w: W, lives: 0 }; }
+function netDefaultCfg() { return { map: mapIdx, mods: [...(SETTINGS.mods || [])], time: SETTINGS.timeMode, w: W, lives: 0, mode: 'coop', teams: 2, len: 0 }; }
+/* modes: co-op (one team against the crowd), free for all (everyone for themselves, the best score wins) and teams
+   (2-4 teams, the team with the most score wins). It's never PvP: snakes pass through each other and only race for the crowd. */
+const NET_MODES = { coop: 'Co-op', ffa: 'Free for all', teams: 'Teams' };
+const NET_TEAMS = [{ n: 'Red', c: '#e8433a' }, { n: 'Blue', c: '#3a8ee8' }, { n: 'Gold', c: '#f2c230' }, { n: 'Green', c: '#3cc46a' }];
+const NET_LENS = [0, 3, 5, 8, 10]; // round length in minutes; 0 = until everyone is out (or the host ends it)
+function netBalanceTeams() { // host: everyone on a team that exists; newcomers and the players of a team that just went away join the smallest
+  const cfg = NETM.cfg; if (!cfg || cfg.mode !== 'teams') return;
+  const n = cfg.teams = Math.max(2, Math.min(4, cfg.teams || 2)), size = Array(n).fill(0);
+  for (const p of NETM.players) if (p.team >= 0 && p.team < n) size[p.team]++;
+  for (const p of NETM.players) if (!(p.team >= 0 && p.team < n)) { const t = size.indexOf(Math.min(...size)); p.team = t; size[t]++; }
+}
 function netHostAccept(conn) {
   const L = netMakeLink(conn);
   L.onR = m => {
@@ -160,6 +171,7 @@ const netRekey = (a, b) => { if (typeof netSyncRekey === 'function') netSyncReke
 function netHostMsg(p, L, m) {
   switch (m.k) {
     case 'ready': p.ready = !!m.v; netLobbyChanged(); break;
+    case 'team': if (NETM.phase !== 'run' && NETM.cfg && NETM.cfg.mode === 'teams') { p.team = Math.max(0, Math.min(NETM.cfg.teams - 1, m.v | 0)); netLobbyChanged(); } break;
     case 'leave': netHostLost(p.id, 'left'); break;
     case 'prof': p.name = netName(m.name); p.cos = m.cos; p.upg = m.upg; netLobbyChanged(); break;
     case 'ping': L.sendR({ k: 'pong', t: m.t, h: netNow() }); break;
@@ -177,10 +189,10 @@ function netHostLost(id, why) { // a player dropped or left. Dropped: kept a min
   netLobbyChanged();
 }
 function netKick(id) { const L = NETM.links.get(id); if (L) L.sendR({ k: 'kick' }); setTimeout(() => netHostLost(id, 'kick'), 150); }
-const netPublicPlayers = () => NETM.players.map(({ id, name, color, ready, host, touch, cos, slot, conn, ping, stats, upg }) => ({ id, name, color, ready, host, touch, cos, slot, conn, ping, stats, upg }));
+const netPublicPlayers = () => NETM.players.map(({ id, name, color, ready, host, touch, cos, slot, conn, ping, stats, upg, team }) => ({ id, name, color, ready, host, touch, cos, slot, conn, ping, stats, upg, team }));
 function netBroadcast(m, except) { for (const [id, L] of NETM.links) if (id !== except) L.sendR(m); }
 function netLobbyChanged() { // tell everyone, redraw the lobby
-  if (NETM.host) netBroadcast({ k: 'lobby', players: netPublicPlayers(), cfg: NETM.cfg, phase: NETM.phase, code: NETM.code });
+  if (NETM.host) { netBalanceTeams(); netBroadcast({ k: 'lobby', players: netPublicPlayers(), cfg: NETM.cfg, phase: NETM.phase, code: NETM.code }); }
   if (typeof netLobbyRender === 'function') netLobbyRender();
 }
 function netHeartbeat() { // every second: pings both ways; silence for 5 s means the link is gone
@@ -227,8 +239,9 @@ function netJoin(code, opts = {}) { // resolves when the host has welcomed us
   }));
 }
 function netClientMsg(m, L) {
+  if (NETM.host || L !== NETM.hostLink) return; // a straggler from a host we've already left (or taken over from)
   switch (m.k) {
-    case 'lobby': NETM.players = m.players; NETM.cfg = m.cfg; if (m.code) NETM.code = m.code; if (!NETM.run) NETM.phase = m.phase; // in a run, the start and end messages move us along netLobbyRender && netLobbyRender(); break;
+    case 'lobby': NETM.players = m.players; NETM.cfg = m.cfg; if (m.code) NETM.code = m.code; if (!NETM.run) NETM.phase = m.phase; netLobbyRender && netLobbyRender(); break; // in a run, the start and end messages move us along
     case 'ping': L.sendR({ k: 'pong', t: m.t }); break;
     case 'pong': L.rtt = L.rtt * .7 + (performance.now() - m.t) * .3; if (m.h !== undefined) netClockSample(m.h, (performance.now() - m.t) / 2); break;
     case 'closed': netClientHostLost('left'); break; // the host closed the lobby on purpose: hand it over at once

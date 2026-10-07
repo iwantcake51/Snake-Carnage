@@ -158,7 +158,7 @@ function drawNightVision(x) {
   x.restore();
 }
 let last = performance.now();
-let frameMs = 16, lowFx = false, fastT = 0; // adaptive quality: if frames run slow, lighting gets cheaper (with hysteresis)
+let frameMs = 16, lowFx = 0, fastT = 0, slowT = 0, lowFxSaid = false; // adaptive quality: 1 = cheaper lighting while frames run slow (with hysteresis); 2 = lighting off and snow simplified for the rest of the run (Automatic quality)
 const blurTmp = document.createElement('canvas');
 function bakeBlurBg() { // blur the frozen frame into its own pixels once, so the menu on top can scroll without anything re-blurring
   try { blurTmp.width = cv.width; blurTmp.height = cv.height; const t = blurTmp.getContext('2d'); t.drawImage(cv, 0, 0);
@@ -168,8 +168,10 @@ function frame(now) {
   const cap = +SETTINGS.fpsCap; // VSync -> NaN: draw every refresh
   if (cap && now - last < 1000 / cap - 2) { requestAnimationFrame(frame); return; }
   const raw = now - last; if (raw < 200) frameMs += (raw - frameMs) * .03;
-  if (!lowFx && frameMs > 24) { lowFx = true; fastT = 0; }
-  else if (lowFx && frameMs < 15) { if ((fastT += raw) > 8000) lowFx = false; } else fastT = 0; // only back to full quality after 8s of clearly fast frames
+  if (!lowFx && frameMs > 24) { lowFx = 1; fastT = 0; }
+  else if (lowFx === 1 && frameMs < 15) { if ((fastT += raw) > 8000) lowFx = 0; } else fastT = 0; // only back to full quality after 8s of clearly fast frames
+  if (lowFx === 1 && SETTINGS.autoQ !== false && state === 'play' && frameMs > 30) { if ((slowT += raw) > 4000) { lowFx = 2; slowT = 0; if (!lowFxSaid) { lowFxSaid = true; notify({ kind: 'info', title: 'Graphics simplified', sub: 'Lighting and snow, to keep this run smooth. Settings › Graphics.', dur: 3.5 }); } } } else slowT = 0; // still too slow: the expensive layers go, until the next run
+  if (lowFx === 2 && (state === 'menu' || SETTINGS.autoQ === false)) lowFx = 0;
   const dt = Math.min(.033, raw / 1000); last = now;
   requestAnimationFrame(frame); // scheduled first: nothing below can ever stop the loop
   if (state === 'editor') return; // the map editor draws itself

@@ -63,7 +63,7 @@ function updateSnake(dt) {
   if (MOD.freeMove) steerFree(dt);
   // ease toward the target heading: quick to start, settles softly, capped so it never snaps
   const sl = upg('speed'), d = angDiff(s.angle, s.dir), mx = CONFIG.turnRate * dt * (1 + (sl >= 2 ? .18 : 0) + (sl >= 4 ? .18 : 0) + (sl >= 5 ? .12 : 0)) * (s.uturnT > 0 ? s.uturnK || 2.4 : 1); // Speed Demon: snappier turns, and a fast whip round on a U-turn
-  s.angle += Math.abs(d) < .002 ? d : clamp(d * Math.min(1, dt * CONFIG.turnEase) + Math.sign(d) * mx * .18, -mx, mx);
+  const ad = Math.abs(d); s.angle += Math.sign(d) * Math.min(ad, mx, ad * (1 - Math.exp(-dt * CONFIG.turnEase)) + mx * .18); // never past the target: overshooting it made the head flick side to side every frame, worse the lower the frame rate
   if (s.uturnT > 0) { s.uturnT -= dt; if (s.uturnTo !== undefined && Math.abs(angDiff(s.angle, s.dir)) < .5) { s.dir = s.uturnTo; s.uturnTo = undefined; } } // second half of the U-turn
   if (s.wallStun > 0) { const k = s.wallStun / (s.wallMax || 3.4); s.wallStun -= dt; s.angle += (Math.sin(T * 4.7) * 1.5 + Math.sin(T * 2.3 + 1.3)) * k * dt; } // seeing stars: it can't hold a line
   for (const k of ['dashT', 'camoT', 'scentT', 'hissT', 'ramT']) if (s[k] > 0) s[k] -= dt * (k === 'ramT' && sl >= 3 ? 1.33 : 1); // Speed Demon III shakes off dazes faster

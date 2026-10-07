@@ -262,7 +262,7 @@ function chValue(ch) {
 // co-op: these read the shared crowd, so the whole team works on them together (each player's copy pays them once).
 // Every other challenge counts only what you do yourself: your kills, your combo, your lamps.
 const CH_TEAM = new Set(['panic', 'quietPanic', 'screamChain']);
-const chTeam = ch => NETM.on && CH_TEAM.has(ch.k), teamTag = ch => chTeam(ch) ? '<em class="chteam" title="Team challenge: everyone in the run counts toward it">Team</em>' : '';
+const chTeam = ch => NETM.on && CH_TEAM.has(ch.k), teamTag = ch => !chTeam(ch) ? '' : netMode() === 'coop' ? '<em class="chteam" title="Team challenge: everyone in the run counts toward it">Team</em>' : '<em class="chteam" title="Shared: the whole crowd counts, whoever set it off">Shared</em>';
 const chUnit = ch => ({ survive: 's', comboTime: 's', dist: ' m', goreDist: ' m', gore: '%' })[ch.k] || '';
 const chReward = ch => ch.xp ? ch : TIERS[ch.tier]; // the reward rolled with the challenge (see chRewardFor), stored on it
 const rewardText = (ch, short) => { const r = chReward(ch);
@@ -308,8 +308,8 @@ function challengeRows() { // compact list used by the pause menu
 }
 function challengeHud(rebuild, refreshed) { // live checklist in the bottom-left corner while playing
   const el = document.getElementById('chhud'), m = MAPS[mapIdx].name, list = activeChallenges(m), done = PROG.chDone[m] || {};
-  if (rebuild || el.dataset.key !== m + rotIndex() + NETM.on) {
-    el.dataset.key = m + rotIndex() + NETM.on;
+  if (rebuild || el.dataset.key !== m + rotIndex() + NETM.on + netMode()) {
+    el.dataset.key = m + rotIndex() + NETM.on + netMode();
     el.innerHTML = `<div class="hch">Challenges<span>New in <b data-rot>${fmtClock(rotLeft())}</b></span></div>` +
       list.map((ch, i) => `<div class="hc" data-id="${ch.id}" style="--i:${i}"><span class="ck ${ch.tier}"></span><span class="t" title="${ch.name}: ${ch.t}">${teamTag(ch)}<b class="cn2">${ch.name}</b><span class="sep"> · </span>${ch.t}</span><span class="v"></span><span class="rw2">${rewardText(ch, true)}</span><i></i></div>`).join('');
     el.classList.remove('refresh'); if (refreshed) { void el.offsetWidth; el.classList.add('refresh'); }
@@ -332,7 +332,7 @@ function updateRotClocks() { // every visible "new challenges in" timer
 function challengePopup(ch, r) {
   const box = document.getElementById('rewards'), el = document.createElement('div');
   el.className = 'rw ch';
-  el.innerHTML = `<span>✔ ${chTeam(ch) ? 'Team: ' : ''}${ch.name}</span><span class="c">${rewardText(ch)}</span>`;
+  el.innerHTML = `<span>✔ ${chTeam(ch) ? (netMode() === 'coop' ? 'Team: ' : 'Shared: ') : ''}${ch.name}</span><span class="c">${rewardText(ch)}</span>`;
   box.prepend(el); Sfx.ui('confirm');
   setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 400); }, 4500);
 }

@@ -15,9 +15,15 @@
    ========================================================= */
 const NS = { // sync state for the current co-op run
   nid: 1, byId: new Map(), obsById: new Map(), evQ: [], out: [], snapT: 0, seq: 0, upT: 0, upSeq: 0, statT: 0, todT: 0,
-  rs: new Map(), lives: 0, down: new Map(), fxDone: new Set(), paid: new Set(), pend: new Map(), bubs: [], loaded: false, early: [], lastSnap: 0,
+  rs: new Map(), pools: {}, clock: 0, clkT: 0, clkAt: 0, down: new Map(), fxDone: new Set(), paid: new Set(), pend: new Map(), bubs: [], loaded: false, early: [], lastSnap: 0,
 };
 const NET_INTERP = 110, NET_SNAP = 1 / 15, NET_UP = 1 / 20;
+/* the run's mode (set by the host at the start and fixed for the run) */
+const netMode = () => ((NETM.run || NETM.phase === 'end') && NS.cfg ? NS.cfg.mode : NETM.cfg && NETM.cfg.mode) || 'coop';
+const netTeamOf = pid => { const t = NS.cfg && NS.cfg.teamOf && NS.cfg.teamOf[pid]; if (t !== undefined) return t; const p = NETM.players.find(q => q.id === pid); return p && p.team >= 0 ? p.team : 0; };
+const netColorOf = p => netMode() === 'teams' ? NET_TEAMS[netTeamOf(p.id)].c : p.color; // in Teams everyone wears their team's color
+const netPool = pid => { const m = netMode(); return m === 'ffa' ? 'p:' + pid : m === 'teams' ? 't' + netTeamOf(pid) : 'all'; }; // whose lives a crash costs
+const netLivesOf = pid => NS.pools[netPool(pid)] || 0;
 /* ---- seeded world: every browser builds the same map from the host's seed ---- */
 let netRng = null;
 // mulberry() (a small seeded generator) comes from 13-challenges
@@ -31,7 +37,7 @@ const netSend = e => { if (NETM.run && !NETM.host) NS.out.push(e); };
 const netIsGuest = () => NETM.run && !NETM.host;
 /* ---- remote snakes: built from a stream of head positions; the body simply follows the path the head took ---- */
 function rsNew(p) {
-  return { pid: p.id, name: p.name, color: p.color, cos: p.cos || SETTINGS.snake, upgLv: p.upg || {}, x: 0, y: 0, angle: 0, dir: 0, len: CONFIG.startLen, scale: 1, hist: [], segs: [], stains: [],
+  return { pid: p.id, name: p.name, color: netColorOf(p), cos: p.cos || SETTINGS.snake, upgLv: p.upg || {}, x: 0, y: 0, angle: 0, dir: 0, len: CONFIG.startLen, scale: 1, hist: [], segs: [], stains: [],
     alive: false, started: false, camoT: 0, still: 0, dashT: 0, dashV: 1, speed: CONFIG.snakeSpeeds.Normal, buf: [], remote: true, wv: 0, seen: 0 };
 }
 function rsSample(rs, t, x, y, a, len, sc, fl, still) {
@@ -173,26 +179,40 @@ function netHostLateJoin(p, L) { // a guest coming back mid-run: the run's setti
 function netFullSync(L) { // a guest has just loaded the map: everything that's happened since (or before) its run began
   const sp = []; for (const c of creatures) if (c.alive) { if (!c.nid) netAssign(c); sp.push({ t: 'sp', id: c.nid, d: netCreatureData(c) }); }
   const gone = [...NS.obsById.entries()].filter(([, o]) => !obstacles.includes(o)).map(([id, o]) => ({ t: 'brk', o: id, w: o.kind === 'lamp' ? 'lamp' : 'smash', a: 0, quiet: 1 }));
-  L.sendR({ k: 'ev', e: [...gone, ...sp, { t: 'tod', v: tod }, { t: 'lives', n: NS.lives }, ...(evt ? [{ t: 'evt', v: evt }] : []), ...[...NS.down.entries()].map(([pid, d]) => ({ t: 'down', pid, out: d.out }))] });
+  L.sendR({ k: 'ev', e: [...gone, ...sp, { t: 'tod', v: tod }, ...Object.entries(NS.pools).map(([k, n]) => ({ t: 'lives', k, n })), { t: 'clk', v: NS.clock }, ...(evt ? [{ t: 'evt', v: evt }] : []), ...[...NS.down.entries()].map(([pid, d]) => ({ t: 'down', pid, out: d.out }))] });
 }
-function netSyncRekey(a, b) { const rs = NS.rs.get(a); if (rs) { NS.rs.delete(a); rs.pid = b; NS.rs.set(b, rs); } if (NS.down.has(a)) { NS.down.set(b, NS.down.get(a)); NS.down.delete(a); } }
+function netSyncRekey(a, b) { // a player came back under a new id: everything keyed by the old one moves over
+  const rs = NS.rs.get(a); if (rs) { NS.rs.delete(a); rs.pid = b; NS.rs.set(b, rs); } if (NS.down.has(a)) { NS.down.set(b, NS.down.get(a)); NS.down.delete(a); }
+  if (NS.pools['p:' + a] !== undefined) { NS.pools['p:' + b] = NS.pools['p:' + a]; delete NS.pools['p:' + a]; netEmit({ t: 'lives', k: 'p:' + b, n: NS.pools['p:' + b] }); }
+  if (NS.cfg && NS.cfg.teamOf && NS.cfg.teamOf[a] !== undefined) { NS.cfg.teamOf[b] = NS.cfg.teamOf[a]; netEmit({ t: 'team', pid: b, v: NS.cfg.teamOf[a] }); }
+}
 function netSyncPlayerGone(p, why) { if (!NETM.run) return; if (why === 'left' || why === 'kick' || why === 'gone') { NS.rs.delete(p.id); NS.down.delete(p.id); netEmit({ t: 'left', pid: p.id }); } }
-/* deaths: a shared pool of lives. A crash costs one and you're back in 3 s; with none left you watch the others. The run
-   ends when everyone is down at once with nothing left to bring them back. */
+/* deaths: a pool of lives (the whole team's in co-op, each team's in Teams, your own in free for all). A crash costs one
+   and you're back in 3 s; with none left you watch the others. The run ends when everyone is down at once with nothing
+   left to bring them back, or when the round's time runs out. */
 function netPlayerDown(pid, x, y) {
   if (!NETM.run || !NETM.host || NS.down.get(pid)) return;
   const p = netPlayer(pid); if (p) p.deaths = (p.deaths || 0) + 1;
-  const back = NS.lives > 0; if (back) NS.lives--;
+  const k = netPool(pid), back = (NS.pools[k] || 0) > 0; if (back) NS.pools[k]--;
   NS.down.set(pid, { t: back ? 3 : 0, out: !back });
-  netEmit({ t: 'down', pid, x, y, out: !back }); netEmit({ t: 'lives', n: NS.lives });
-  netClientEvent({ k: 'ev', e: [{ t: 'down', pid, x, y, out: !back }, { t: 'lives', n: NS.lives }] }, true);
+  const ev = [{ t: 'down', pid, x, y, out: !back }, { t: 'lives', k, n: NS.pools[k] || 0 }];
+  for (const e of ev) netEmit(e); netClientEvent({ k: 'ev', e: ev }, true);
 }
 function netLivesTick(dt) {
   if (!NETM.run || NETM.phase !== 'run') return;
+  netClockTick();
+  if ((NS.clkT -= dt) <= 0) { NS.clkT = 2; netEmit({ t: 'clk', v: +NS.clock.toFixed(2) }); }
+  if (NS.cfg.len > 0 && NS.clock >= NS.cfg.len * 60) return netEndRun('time');
   for (const [pid, d] of NS.down) if (!d.out && (d.t -= dt) <= 0) { NS.down.delete(pid); const sp = netSpawnPoint(); netEmit({ t: 'up', pid, x: sp.x, y: sp.y, a: sp.a }); netClientEvent({ k: 'ev', e: [{ t: 'up', pid, x: sp.x, y: sp.y, a: sp.a }] }, true); }
   const active = NETM.players.filter(p => p.conn !== false);
   if (active.length && active.every(p => { const d = NS.down.get(p.id); return d && d.out; })) netEndRun('wiped');
 }
+function netClockTick() { // the round clock is real time: a slow frame rate slows the world down, never the clock
+  const now = performance.now(), d = Math.min(.25, Math.max(0, (now - (NS.clkAt || now)) / 1000)); NS.clkAt = now;
+  if (netClockRuns()) NS.clock += d;
+}
+function netClockRuns() { return (snake && snake.started) || [...NS.rs.values()].some(r => r.started); } // the round clock starts with the first player to move
+const netTimeLeft = () => NS.cfg && NS.cfg.len > 0 ? Math.max(0, NS.cfg.len * 60 - NS.clock) : null;
 function netSpawnPoint() { // somewhere open, not on top of anyone, facing into space
   const st = MAPS[mapIdx].start || { x: W / 2, y: H / 2, a: 0 }, ss = netSnakes().filter(s => s.alive);
   let best = { x: st.x, y: st.y, a: st.a }, bs = -1;
@@ -211,7 +231,11 @@ function netStartRun() { // host: everyone loads the same world
   mapIdx = cfg.map;
   const sz = pickSeason(m), t = cfg.time === 'Cycle' ? pickStartTime(m) : FIXED_TIMES[cfg.time] ?? 12;
   const players = NETM.players.filter(p => p.conn !== false);
-  NS.cfg = { seed: Math.floor(Math.random() * 2 ** 31), map: cfg.map, mapName: m.name, mods: cfg.mods, time: cfg.time, tod: t, season: sz ? { ...sz } : null, w: W, lives: 3 + players.length, t0: Date.now() };
+  const mode = cfg.mode || 'coop', teamOf = {}, pools = {};
+  if (mode === 'teams') { netBalanceTeams(); for (const p of players) teamOf[p.id] = p.team; for (let i = 0; i < cfg.teams; i++) { const n = players.filter(p => p.team === i).length; if (n) pools['t' + i] = 2 + n; } }
+  else if (mode === 'ffa') for (const p of players) pools['p:' + p.id] = 3;
+  else pools.all = 3 + players.length;
+  NS.cfg = { seed: Math.floor(Math.random() * 2 ** 31), map: cfg.map, mapName: m.name, mods: cfg.mods, time: cfg.time, tod: t, season: sz ? { ...sz } : null, w: W, mode, teams: cfg.teams || 2, teamOf, pools, len: cfg.len || 0, t0: Date.now() };
   NETM.phase = 'run';
   for (const p of NETM.players) { p.ready = p.host; p.stats = null; p.deaths = 0; }
   for (const L of NETM.links.values()) { L.ready = false; L.sent = new Map(); }
@@ -220,7 +244,7 @@ function netStartRun() { // host: everyone loads the same world
 }
 function netBeginRun(cfg, late) { // every player: load the shared world and start
   netSyncReset(false, true);
-  NS.cfg = cfg; NETM.run = true; NETM.phase = 'run'; NS.lives = cfg.lives; NS.loaded = false;
+  NS.cfg = cfg; NETM.run = true; NETM.phase = 'run'; NS.pools = { ...(cfg.pools || { all: cfg.lives || 0 }) }; NS.clock = 0; NS.loaded = false;
   mapIdx = MAPS.findIndex(m => m.name === cfg.mapName); if (mapIdx < 0) mapIdx = cfg.map;
   for (const p of NETM.players) if (p.id !== NETM.me) NS.rs.set(p.id, rsNew(p));
   if (typeof netHideLobby === 'function') netHideLobby();
@@ -242,9 +266,13 @@ function netEndRun(why) { // host: the run is over for everyone
   setTimeout(() => { const board = netBoard(why); netBroadcast({ k: 'end', board }); netFinishRun(board); netLobbyChanged(); }, 700); // a moment for everyone's final numbers to arrive
 }
 function netBoard(why) {
-  const rows = NETM.players.map(p => ({ id: p.id, name: p.name, color: p.color, host: p.host, conn: p.conn !== false, deaths: p.deaths || 0, ...(p.stats || {}) }));
-  const sum = k => rows.reduce((a, r) => a + (r[k] || 0), 0);
-  return { why, map: NS.cfg && NS.cfg.mapName, time: run.time, rows, team: { score: sum('score'), killed: sum('killed'), humans: sum('humans'), animals: sum('animals'), goldens: sum('goldens'), deaths: sum('deaths'), xp: sum('xp'), chips: sum('chips'), best: Math.max(0, ...rows.map(r => r.best || 0)) }, lives: NS.lives };
+  const mode = netMode(), rows = NETM.players.map(p => ({ id: p.id, name: p.name, color: p.color, host: p.host, conn: p.conn !== false, deaths: p.deaths || 0, team: mode === 'teams' ? netTeamOf(p.id) : undefined, ...(p.stats || {}) }));
+  const total = list => { const sum = k => list.reduce((a, r) => a + (r[k] || 0), 0); return { score: sum('score'), killed: sum('killed'), humans: sum('humans'), animals: sum('animals'), goldens: sum('goldens'), deaths: sum('deaths'), xp: sum('xp'), chips: sum('chips'), best: Math.max(0, ...list.map(r => r.best || 0)) }; };
+  const b = { why, mode, map: NS.cfg && NS.cfg.mapName, time: run.time, rows, team: total(rows), winner: null };
+  const top = (list, key) => { const best = Math.max(...list.map(key)); const at = list.filter(q => key(q) === best); return best > 0 && at.length === 1 ? at[0] : null; }; // a tie (or nobody scoring) has no winner
+  if (mode === 'ffa') { const w = top(rows, r => r.score || 0); b.winner = w ? w.id : null; }
+  if (mode === 'teams') { b.teams = NET_TEAMS.slice(0, NS.cfg.teams).map((t, i) => ({ i, name: t.n, color: t.c, ...total(rows.filter(r => r.team === i)), n: rows.filter(r => r.team === i).length })).filter(t => t.n); const w = top(b.teams, t => t.score); b.winner = w ? w.i : null; }
+  return b;
 }
 function netMyStats(final) { return { score, killed: run.killed || 0, humans: run.humans || 0, animals: run.animals || 0, best: run.maxCombo || 0, goldens: run.goldens || 0, xp: run.xpGained || 0, chips: run.coinsGained || 0, deaths: NS.myDeaths || 0, final: !!final }; }
 function netFinishRun(board) { // every player: the run is over, keep the lobby
@@ -298,7 +326,9 @@ function netApply(e, local) {
     case 'scr': crScream(e.n || 0); break;
     case 'evt': evt = e.v ? { ...e.v } : null; if (evt) { evt.shown = false; Sfx.chime(); showEvent(); } break;
     case 'tod': if (Math.abs(angDiff(tod / 24 * TAU, e.v / 24 * TAU)) > .01) tod = e.v; break;
-    case 'lives': NS.lives = e.n; netHud && netHud(); break;
+    case 'lives': NS.pools[e.k || 'all'] = e.n; netHud && netHud(); break;
+    case 'clk': NS.clock = e.v; break;
+    case 'team': if (NS.cfg) (NS.cfg.teamOf = NS.cfg.teamOf || {})[e.pid] = e.v; break;
     case 'down': netDownApply(e); break;
     case 'up': netUpApply(e); break;
     case 'left': NS.rs.delete(e.pid); break;
@@ -329,7 +359,7 @@ function netClientTick(dt) {
   if (NS.loaded && snake && ((NS.upT -= dt) <= 0)) { NS.upT = NET_UP; NS.upSeq++; if (NETM.hostLink) NETM.hostLink.sendU(netPackMe(NS.upSeq)); }
   if (NS.out.length && NETM.hostLink) { NETM.hostLink.sendR({ k: 'ev', e: NS.out }); NS.out = []; }
   if ((NS.statT -= dt) <= 0) { NS.statT = 1; if (NETM.hostLink) NETM.hostLink.sendR({ k: 'stats', s: netMyStats() }); }
-  netPendTick();
+  netPendTick(); if (NETM.phase === 'run') netClockTick(); // the host's clock, run on between its updates
   const renderT = netHostTime() - NET_INTERP; for (const rs of NS.rs.values()) rsUpdate(rs, renderT);
 }
 function netClientCreatures(dt) { // the guest's copy of the crowd: placed from snapshots, animated locally
@@ -414,7 +444,7 @@ function netTick(dt) {
 }
 function netSyncReset(wasRun, keepSession) {
   const pt = NS.prevTime; if (!keepSession && pt !== undefined) SETTINGS.timeMode = pt; // the host's clock settings were for the session only
-  Object.assign(NS, { nid: 1, byId: new Map(), obsById: new Map(), evQ: [], out: [], snapT: 0, seq: 0, upT: 0, upSeq: 0, statT: 0, todT: 0, rs: new Map(), down: new Map(), fxDone: new Set(), paid: new Set(), pend: new Map(), bubs: [], loaded: false, early: [], lastSnap: 0, myDeaths: 0, prevTime: keepSession ? pt : undefined });
+  Object.assign(NS, { nid: 1, byId: new Map(), obsById: new Map(), evQ: [], out: [], snapT: 0, seq: 0, upT: 0, upSeq: 0, statT: 0, todT: 0, rs: new Map(), pools: {}, clock: 0, clkT: 0, clkAt: 0, down: new Map(), fxDone: new Set(), paid: new Set(), pend: new Map(), bubs: [], loaded: false, early: [], lastSnap: 0, myDeaths: 0, prevTime: keepSession ? pt : undefined });
   if (!keepSession) { NETM.run = false; if (wasRun && state !== 'menu') { state = 'menu'; showMenu(); } }
 }
 function netSyncHostGone(old) { // the host vanished mid-run: this run can't go on (its world lived there); back to the lobby

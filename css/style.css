@@ -460,7 +460,7 @@ body.minimal #chhud{display:none}
 #modbar{position:absolute;left:50%;top:10px;translate:-50% 0;z-index:13;display:flex;gap:5px;flex-wrap:wrap;justify-content:center;max-width:56%;pointer-events:none}
 #modbar:empty{display:none}
 #modbar .mb{pointer-events:auto;position:relative;display:flex;align-items:center;gap:5px;padding:3px 9px 3px 7px;border-radius:999px;font:700 11.5px "Segoe UI",system-ui,sans-serif;color:#f0e9e2;
-  background:linear-gradient(180deg,rgba(28,24,30,.82),rgba(16,14,18,.82));box-shadow:0 0 0 1px rgba(255,255,255,.1),0 4px 12px rgba(0,0,0,.35);backdrop-filter:blur(6px);animation:liIn .45s var(--spring) backwards;animation-delay:calc(var(--i) * 60ms);cursor:help}
+  background:linear-gradient(180deg,rgba(28,24,30,.82),rgba(16,14,18,.9));box-shadow:0 0 0 1px rgba(255,255,255,.1),0 4px 12px rgba(0,0,0,.35);animation:liIn .45s var(--spring) backwards;animation-delay:calc(var(--i) * 60ms);cursor:help}
 #modbar .mb em{font-style:normal;opacity:.85}
 #modbar .mb.mult{color:#2a1a04;background:linear-gradient(180deg,#ffd970,#f2b632)}
 #modbar .mb.mult.down{color:#eaf3ff;background:linear-gradient(180deg,#5b7fae,#3d5f8e)}
@@ -478,7 +478,7 @@ body.minimal #chhud{display:none}
 #notes{position:absolute;left:50%;top:46px;translate:-50% 0;z-index:21;display:flex;flex-direction:column;align-items:center;gap:7px;pointer-events:none;width:min(420px,70%)}
 .note{position:relative;display:flex;align-items:center;gap:10px;min-width:200px;max-width:100%;padding:8px 14px 8px 10px;border-radius:12px;overflow:hidden;
   font-family:"Segoe UI",system-ui,sans-serif;color:#f2ece6;background:linear-gradient(180deg,rgba(30,26,32,.9),rgba(16,14,18,.92));
-  box-shadow:0 0 0 1px rgba(255,255,255,.1),0 10px 28px rgba(0,0,0,.45);backdrop-filter:blur(8px);animation:noteIn .42s var(--spring) backwards}
+  box-shadow:0 0 0 1px rgba(255,255,255,.1),0 10px 28px rgba(0,0,0,.45);animation:noteIn .42s var(--spring) backwards}
 .note::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--ac,#9aa)}
 .note .ni{flex:none;display:grid;place-items:center;width:28px;height:28px;border-radius:9px;font-style:normal;font-size:16px;background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
 .note .nt{display:flex;flex-direction:column;min-width:0}
@@ -1008,7 +1008,7 @@ body.compact .pmwrap{grid-template-columns:150px 1fr}
 #touch .tabil .ab{border-radius:50%}
 /* dazed after a smash: edges blur and darken, easing out with the stagger */
 #stage::before{content:'';position:absolute;inset:0;z-index:11;pointer-events:none;opacity:0;transition:opacity .6s ease;
-  backdrop-filter:blur(5px) grayscale(.6);-webkit-backdrop-filter:blur(5px) grayscale(.6);-webkit-mask:radial-gradient(ellipse at center,transparent 35%,#000 80%);mask:radial-gradient(ellipse at center,transparent 35%,#000 80%);
+  -webkit-mask:radial-gradient(ellipse at center,transparent 35%,#000 80%);mask:radial-gradient(ellipse at center,transparent 35%,#000 80%);
   background:radial-gradient(ellipse at center,transparent 50%,rgba(20,0,0,.35))}
 #stage.stunned::before{opacity:var(--stun,0)}
 
@@ -1863,9 +1863,9 @@ body.touch #edBtn{display:none!important}
 .mptag.host{background:color-mix(in srgb,var(--acc) 35%,transparent)}.mptag.warn{background:#5a3a14}.mptag.ok{background:#1f4a2c}
 .mpping{margin-left:auto;font-size:12px;opacity:.5}
 .mpready{font-size:12.5px;font-weight:700;opacity:.55}.mpready.on{color:#7ee08f;opacity:1}
-.mpcfg{display:flex;flex-direction:column;gap:9px}
+.mpcfg{display:flex;flex-direction:column;gap:7px}.mpcfg select{margin-left:auto;padding:6px 10px}
 .mpmap{position:relative;border-radius:10px;overflow:hidden;border:1px solid #2e2833}
-.mpmap img{display:block;width:100%;aspect-ratio:3/2;object-fit:cover}.mpmap span{position:absolute;left:10px;bottom:8px;font-weight:800;text-shadow:0 1px 3px #000}
+.mpmap img{display:block;width:100%;aspect-ratio:2.3/1;object-fit:cover}.mpmap #mpMap{position:absolute;right:8px;bottom:7px;background:rgba(12,10,14,.78)}.mpmap span{position:absolute;left:10px;bottom:8px;font-weight:800;text-shadow:0 1px 3px #000}
 .mpline{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.mpline b{min-width:84px}.mpline span{flex:1;opacity:.8;font-size:14px}
 .mphint{opacity:.55;font-size:12.5px;margin:4px 0 0;line-height:1.35}
 .mppick{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-top:14px}
@@ -1875,7 +1875,7 @@ body.touch #edBtn{display:none!important}
 .mpfoot .ghost{flex:none;padding:11px 16px}.mpfoot .play{flex:1;min-width:200px;justify-content:center;font-size:18px;padding:13px 18px}
 .mpfoot .play[disabled]{opacity:.5;cursor:default;filter:saturate(.4)}.mpfoot .play.on{background:#2f8f4a;box-shadow:0 6px 0 #1a4a28}
 .mpopt{display:flex;align-items:center;gap:6px;font-size:13px;opacity:.8;cursor:pointer}
-.mptoast{position:absolute;left:50%;bottom:14px;translate:-50% 0;background:#26212b;border:1px solid #3a3340;padding:7px 14px;border-radius:8px;opacity:0;pointer-events:none;font-size:13.5px}
+.mptoast{position:absolute;left:50%;top:14px;translate:-50% 0;background:#26212b;border:1px solid #3a3340;padding:7px 14px;border-radius:8px;opacity:0;pointer-events:none;font-size:13.5px}
 .mptoast.on{animation:mptoast 2.2s ease}
 @keyframes mptoast{0%{opacity:0;translate:-50% 6px}12%{opacity:1;translate:-50% 0}80%{opacity:1}100%{opacity:0}}
 .mptable{overflow-x:auto;margin:6px 0 10px}
@@ -1888,7 +1888,7 @@ body.touch #edBtn{display:none!important}
 .mptable tr.me td{background:rgba(255,255,255,.04)}.mptable tr.gone{opacity:.5}
 .mptable tr.team td{border-top:2px solid #3a3340;font-weight:800;color:#f3e6c4}
 .mpres .mine{opacity:.85;margin-top:2px}
-#mpHud{position:absolute;right:12px;top:58px;z-index:6;min-width:150px;max-width:220px;background:rgba(14,11,16,.62);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:6px 9px;font-size:12.5px;color:#eee;pointer-events:none;backdrop-filter:blur(3px)}
+#mpHud{position:absolute;right:12px;top:58px;z-index:6;min-width:150px;max-width:220px;background:rgba(14,11,16,.74);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:6px 9px;font-size:12.5px;color:#eee;pointer-events:none}
 #mpHud .mph{display:flex;align-items:center;gap:6px;font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;opacity:.9;margin-bottom:4px}
 #mpHud .mph b{font-size:14px;letter-spacing:0}#mpHud .mplives{margin-left:auto;color:#ff5a62;letter-spacing:.05em}#mpHud .mplives i{color:#aaa;font-style:normal;font-size:10.5px;text-transform:none}
 #mpHud .mpr{display:flex;align-items:center;gap:6px;padding:1.5px 0}#mpHud .mpr span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -1900,3 +1900,15 @@ body.phone #mpHud{top:46px;right:6px;font-size:11px;min-width:120px}
 #mpPause .panel{display:flex;flex-direction:column;gap:10px;width:min(360px,90%)}#mpPause .ghost{flex:none}#mpPause .play{justify-content:center}
 @media (max-width:700px){.mpcols,.mpbody{grid-template-columns:1fr}}
 .chteam{display:inline-block;font-style:normal;font-size:9px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:1px 5px;border-radius:999px;margin-right:6px;vertical-align:1px;color:#0b1a24;background:#5ec8f0}
+/* co-op modes: team chips in the lobby, the round clock, team rows in the score panel and the scoreboard */
+.mpteam{font:800 10.5px var(--f-body,system-ui),sans-serif;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:999px;border:0;color:#fff;background:var(--tc);box-shadow:inset 0 -2px 0 rgba(0,0,0,.25);cursor:pointer;margin-right:2px;min-width:46px}
+.mpteam.ro{cursor:default;opacity:.92}.mpteam:not(.ro):hover{filter:brightness(1.12)}
+#mpHud .mpclk{font-variant-numeric:tabular-nums;font-weight:800;letter-spacing:.02em;text-transform:none;font-size:12.5px;color:#fff;background:rgba(255,255,255,.1);border-radius:6px;padding:0 5px}
+#mpHud .mpclk.low{color:#ff6a6a;animation:mpclk 1s steps(2) infinite}@keyframes mpclk{50%{opacity:.45}}
+#mpHud .mpt{display:flex;align-items:center;gap:6px;margin-top:4px;padding:2px 0 1px;border-top:1px solid color-mix(in srgb,var(--tc) 55%,transparent);font-weight:800}
+#mpHud .mpt span{flex:1}#mpHud .mpt.mine > span:not(.mplives)::after{content:' (you)';font-weight:600;opacity:.6;font-size:10.5px}
+#mpHud .mpt .mplives{margin-left:4px;font-size:10px}
+#mpHud .mpt ~ .mpr{padding-left:10px}
+#mpHud .mpr em{font-style:normal;font-size:10px;opacity:.6;width:10px;text-align:right}
+.mptable tr.tg td{border-top:2px solid var(--tc);background:color-mix(in srgb,var(--tc) 14%,transparent);font-weight:800}
+.mptable .rk{font-style:normal;opacity:.55;font-size:.85em;margin-right:6px;display:inline-block;width:1.1em;text-align:right}
