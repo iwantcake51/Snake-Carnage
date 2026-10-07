@@ -175,6 +175,7 @@ function netHostMsg(p, L, m) {
     case 'team': if (NETM.phase !== 'run' && NETM.cfg && NETM.cfg.mode === 'teams') { p.team = Math.max(0, Math.min(NETM.cfg.teams - 1, m.v | 0)); netLobbyChanged(); } break;
     case 'leave': netHostLost(p.id, 'left'); break;
     case 'lvl': p.lvl = m.v | 0; netLobbyChanged(); break;
+    case 'prof2': if (NETM.phase !== 'run') { p.cos = m.cos; p.upg = m.upg; p.lvl = m.lvl | 0; netLobbyChanged(); } break; // a new skin, upgrade or level while waiting
     case 'prof': p.name = netName(m.name); p.cos = m.cos; p.upg = m.upg; p.lvl = m.lvl | 0; netLobbyChanged(); break;
     case 'ping': L.sendR({ k: 'pong', t: m.t, h: netNow() }); break;
     case 'pong': L.rtt = L.rtt * .7 + (performance.now() - m.t) * .3; p.ping = Math.round(L.rtt); break;
@@ -194,7 +195,7 @@ function netKick(id) { const L = NETM.links.get(id); if (L) L.sendR({ k: 'kick' 
 const netPublicPlayers = () => NETM.players.map(({ id, name, color, ready, host, touch, cos, slot, conn, ping, stats, upg, team, lvl }) => ({ id, name, color, ready, host, touch, cos, slot, conn, ping, stats, upg, team, lvl }));
 function netBroadcast(m, except) { for (const [id, L] of NETM.links) if (id !== except) L.sendR(m); }
 function netLobbyChanged() { // tell everyone, redraw the lobby
-  if (NETM.host) { const me = NETM.players.find(p => p.id === NETM.me); if (me) me.lvl = PROG.level | 0; netBalanceTeams(); netBroadcast({ k: 'lobby', players: netPublicPlayers(), cfg: NETM.cfg, phase: NETM.phase, code: NETM.code }); }
+  if (NETM.host) { const me = NETM.players.find(p => p.id === NETM.me); if (me && NETM.phase !== 'run') { const pr = netProfile(); me.lvl = pr.lvl; me.cos = pr.cos; me.upg = pr.upg; } /* the host's own skin, upgrades and level, as they are now */ netBalanceTeams(); netBroadcast({ k: 'lobby', players: netPublicPlayers(), cfg: NETM.cfg, phase: NETM.phase, code: NETM.code }); }
   if (typeof netLobbyRender === 'function') netLobbyRender();
 }
 function netHeartbeat() { // every second: pings both ways; silence for 5 s means the link is gone
@@ -221,7 +222,7 @@ function netJoin(code, opts = {}) { // resolves when the host has welcomed us
     let done = false; const fail = e => { if (done) return; done = true; NETM.joining = null; clearTimeout(to); L.close(); rej(e); };
     NETM.joining = { fail };
     const to = setTimeout(() => fail(new Error("The host didn't answer. Check the code, or their connection.")), 15000);
-    L.onOpen = () => { const pr = netProfile(); NETM.sentLvl = pr.lvl; L.sendR({ k: 'hello', ...pr, token: opts.token || (prev && prev.code === code ? prev.token : ''), prev: opts.prev || '' }); };
+    L.onOpen = () => { const pr = netProfile(); NETM.sentLvl = pr.lvl; NETM.sentProf = JSON.stringify([pr.cos, pr.upg, pr.lvl]); L.sendR({ k: 'hello', ...pr, token: opts.token || (prev && prev.code === code ? prev.token : ''), prev: opts.prev || '' }); };
     L.onR = m => {
       if (!done) {
         if (m.k === 'deny') { fail(new Error(m.why)); return; }

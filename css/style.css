@@ -2195,3 +2195,42 @@ body:not(.phone):not(.narrow) .keylist{gap:9px 20px}
 #mpHud{transition:top .2s ease,opacity .25s ease}#stage #mpHud.near{opacity:.14!important}
 #overlay .mprow .mplvl{font:600 11px var(--f-num);font-style:normal;color:#c9bfc3;background:rgba(255,255,255,.06);border:1px solid var(--edge2);border-radius:2px;padding:1px 5px;margin-left:2px;letter-spacing:.02em}
 #overlay .mprow.me .mplvl{color:#fff;border-color:color-mix(in srgb,var(--acc) 55%,var(--edge2))}
+
+/* =====================================================================
+   IN A LOBBY: the main menu is the lobby (party panel in place of the logo), and every other menu shows a small tab
+   ===================================================================== */
+#overlay .menu.party .logo,#overlay .menu.party .tag,#overlay .menu.party #edBtn{display:none}
+#overlay .mpparty{position:relative;width:100%;margin:0 0 14px;background:rgba(10,8,9,.6);border:1px solid var(--edge2);border-radius:3px;animation:tabIn .4s var(--ease) backwards}
+#overlay .mpparty .pph{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--edge)}
+#overlay .mpparty .pph b{font:800 17px var(--f-head);letter-spacing:.06em;text-transform:uppercase;color:var(--ink)}
+#overlay .mpparty .mpcode{font:700 15px var(--f-num);letter-spacing:.18em;padding:3px 8px;border:1px solid var(--edge2);background:#0c0a0b;color:#fff}
+#overlay .mpparty .ppc{margin-left:auto;font:600 12px var(--f-num);color:var(--dim)}
+#overlay .mpparty .ppl{max-height:min(34vh,260px);overflow:auto}
+#overlay .mpparty .pr,#mpDock .pr{display:flex;align-items:center;gap:8px;padding:8px 12px;border-top:1px solid var(--edge)}
+#overlay .mpparty .pr:first-child,#mpDock .pr:first-child{border-top:0}
+#overlay .mpparty .pr.me,#mpDock .pr.me{box-shadow:inset 3px 0 0 var(--acc);background:rgba(255,255,255,.03)}
+#overlay .mpparty .pr.away,#mpDock .pr.away{opacity:.5}
+#overlay .mpparty .pr b{font:700 16px var(--f-body);color:var(--ink)}
+#overlay .mpparty .pr .sp,#mpDock .pr .sp{flex:1}
+#overlay .mpparty .pr .mpready{font:700 11px var(--f-head);letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+#overlay .mpparty .pr .mpready.on{color:#5be08a}
+.mpparty .mplvl,#mpDock .mplvl{font:600 11px var(--f-num);font-style:normal;color:#c9bfc3;background:rgba(255,255,255,.06);border:1px solid var(--edge2);border-radius:2px;padding:1px 5px}
+#overlay .mpparty .ppf{display:flex;align-items:center;gap:10px;padding:9px 12px;border-top:1px solid var(--edge);font-size:12.5px;color:var(--dim);line-height:1.35}
+#overlay .mpparty .ppf span{flex:1}#overlay .mpparty .ppf b{color:var(--ink)}
+#overlay .mpparty .mptoast{position:absolute;right:10px;top:-14px}
+#overlay .menu.party #playBtn.mpwait{filter:saturate(.35) brightness(.85)}
+#overlay .menu.party #playBtn.mpgo{animation:mpGoPulse 1.6s ease-in-out infinite}
+@keyframes mpGoPulse{50%{box-shadow:0 0 0 3px color-mix(in srgb,var(--acc-hi) 45%,transparent),0 0 28px color-mix(in srgb,var(--acc) 55%,transparent)}}
+#overlay .menu.party #mpSetupBtn small{margin-left:8px;font:600 11px var(--f-body);letter-spacing:.04em;text-transform:none;color:var(--dim)}
+#overlay .menu.party .cards.ro .card{cursor:default}#overlay .menu.party .cards.ro .card:not(.on){opacity:.55}
+#overlay .menu.party .tseg.ro{opacity:.75}#overlay .menu.party .tseg.ro button{cursor:default}
+#mpDock{position:absolute;right:0;top:50%;translate:0 -50%;z-index:20;display:flex;flex-direction:column;align-items:flex-end;color:var(--ink);font:500 13px var(--f-body)}
+#mpDock .dkt{display:flex;align-items:center;gap:7px;padding:8px 10px 8px 12px;background:rgba(12,9,10,.92);border:1px solid var(--edge2);border-right:0;border-radius:3px 0 0 3px;box-shadow:-6px 6px 20px rgba(0,0,0,.4);cursor:default}
+#mpDock .dkl{font:800 12px var(--f-head);letter-spacing:.16em;text-transform:uppercase;color:var(--acc-hi)}
+#mpDock .dkdots{display:flex;gap:4px}#mpDock .dkn{font:600 11px var(--f-num);color:var(--dim)}
+#mpDock .dkb{width:240px;max-height:0;overflow:hidden;opacity:0;background:rgba(12,9,10,.95);border:1px solid var(--edge2);border-right:0;border-top:0;transition:max-height .3s var(--ease),opacity .2s}
+#mpDock:hover .dkb,#mpDock:focus-within .dkb{max-height:420px;opacity:1}
+#mpDock .pr b{font:700 14px var(--f-body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px}
+#mpDock .dkf{display:flex;gap:6px;padding:8px 10px;border-top:1px solid var(--edge)}#mpDock .dkf button{flex:1}
+#mpDock .mptoast{position:absolute;right:8px;bottom:-34px;white-space:nowrap}
+body.phone #mpDock{top:auto;bottom:70px;translate:none}

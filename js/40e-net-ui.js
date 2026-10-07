@@ -1,7 +1,9 @@
 /* =========================================================
    CO-OP: SCREENS AND IN-GAME DISPLAY
-   Main menu "Play with friends" -> host or join (code, link, or a friend you played with before) -> the lobby (players,
-   Ready, the host's map / time / modifiers, invite link) -> the run (teammates drawn in their own colors with a name
+   Main menu "Play with friends" -> host or join (code, link, or a friend you played with before) -> the lobby, which is
+   the main menu itself (a party panel with everyone's level and ready dot; the big button readies up or starts; Game
+   setup holds the map / mode / time / modifiers; a small tab on every other menu, so you can shop and upgrade while you
+   wait) -> the run (teammates drawn in their own colors with a name
    tag, arrows to anyone off screen, a team panel with scores and shared lives) -> the scoreboard (every player and the
    team, host: Play Again / Lobby / Change map / Modifiers / Kick; everyone else: Ready / Leave). The lobby stays up
    between runs.
@@ -9,11 +11,11 @@
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const netMe = () => netPlayer(NETM.me) || {};
 function netNotify(text, color) { if (state === 'menu' && !NETM.run) return netLobbyToast(text); notify({ kind: 'info', title: text, dur: 2.4, icon: color ? `<i class="mpdot" style="background:${color}"></i>` : '' }); }
-function netLobbyToast(t) { const el = document.querySelector('.mplobby .mptoast'); if (!el) return; el.textContent = t; el.classList.remove('on'); void el.offsetWidth; el.classList.add('on'); }
+function netLobbyToast(t) { const el = document.querySelector('.mplobby .mptoast, #mpParty .mptoast, #mpDock .mptoast'); if (!el) return; el.textContent = t; el.classList.remove('on'); void el.offsetWidth; el.classList.add('on'); }
 /* ---- main menu entry ---- */
 const _netShowMenu = showMenu;
 showMenu = function () {
-  if (NETM.on && !NETM.run) { _netShowMenu.apply(this, arguments); netShowLobby(); return; } // in a lobby: the lobby is the menu
+  if (NETM.on && !NETM.run) { _netShowMenu.apply(this, arguments); netPartyMenu(); return; } // in a lobby: the main menu is the lobby (upgrades, shop, settings all still work)
   _netShowMenu.apply(this, arguments);
   const play = document.getElementById('playBtn'); if (!play || document.getElementById('coopBtn')) return;
   const b = document.createElement('button'); b.className = 'ghost coopbtn'; b.id = 'coopBtn'; b.dataset.sfx = 'open';
@@ -39,7 +41,7 @@ function netShowCoop(msg) {
   const saveName = () => { try { localStorage.setItem('snakeCarnageName', netName(nm.value)); } catch (e) {} };
   nm.onchange = saveName; code.oninput = () => { code.value = code.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6); };
   const busy = (b, t) => { overlay.querySelectorAll('button').forEach(x => x.disabled = b); err.textContent = t || ''; err.classList.toggle('wait', !!b); };
-  document.getElementById('mpHost').onclick = () => { saveName(); busy(true, 'Opening a lobby…'); netHostCreate().then(() => { netShowLobby(); }).catch(e => busy(false, e.message || 'Could not open a lobby.')); };
+  document.getElementById('mpHost').onclick = () => { saveName(); busy(true, 'Opening a lobby…'); netHostCreate().then(() => { showMenu(); }).catch(e => busy(false, e.message || 'Could not open a lobby.')); };
   const join = c => { saveName(); busy(true, 'Joining…'); netJoin(c).then(() => netJoined()).catch(e => busy(false, e.message || 'Could not join.')); };
   document.getElementById('mpJoin').onclick = () => join(code.value);
   code.onkeydown = e => { e.stopPropagation(); if (e.key === 'Enter') join(code.value); };
@@ -49,18 +51,81 @@ function netShowCoop(msg) {
 }
 function netJoined() { // a different screen shape means a different world size: take the host's (one reload, then straight back in)
   if (NETM.needW && NETM.needW !== W) { try { sessionStorage.setItem('snakeCarnageW', NETM.needW); } catch (e) {} const u = new URL(location.href); u.searchParams.set('join', NETM.code); location.replace(u.toString()); return; }
-  netShowLobby();
+  showMenu();
 }
 /* ---- the lobby ---- */
 let netPick = null; // the host's open picker: 'map' | null
 function netShowLobby() { state = 'menu'; overlay.className = 'menuMode'; overlay.style.display = 'flex'; overlay.innerHTML = '<div class="panel mplobby"></div>'; netLobbyRender(); }
 function netHideLobby() { const l = overlay.querySelector('.mplobby,.mpres'); if (l) overlay.innerHTML = ''; netPick = null; }
-function netLobbySyncLevel() { // levelled up since joining (a run in between): the host and everyone else see the new number
-  if (!NETM.on || NETM.host || !NETM.hostLink || NETM.sentLvl === (PROG.level | 0)) return;
-  NETM.sentLvl = PROG.level | 0; NETM.hostLink.sendR({ k: 'lvl', v: NETM.sentLvl });
+function netLobbySyncProfile() { // a new skin, an upgrade or a level since joining (bought in the shop while waiting, or earned in a run): everyone gets it
+  if (!NETM.on || NETM.run || NETM.host || !NETM.hostLink) return;
+  const pr = netProfile(), sig = JSON.stringify([pr.cos, pr.upg, pr.lvl]); if (NETM.sentProf === sig) return;
+  NETM.sentProf = sig; NETM.sentLvl = pr.lvl; NETM.hostLink.sendR({ k: 'prof2', cos: pr.cos, upg: pr.upg, lvl: pr.lvl });
+  const me = netPlayer(NETM.me); if (me) { me.cos = pr.cos; me.upg = pr.upg; me.lvl = pr.lvl; }
 }
+function netSetReady(v) { const me = netPlayer(NETM.me); if (!me) return; netLobbySyncProfile(); me.ready = v; if (NETM.host) netLobbyChanged(); else { NETM.hostLink && NETM.hostLink.sendR({ k: 'ready', v }); netLobbyRender(); } }
+function netCta() { // the main menu's big button in a lobby: ready up, unready, or (the host, everyone ready) start
+  const me = netMe(); if (NETM.host && me.ready && netAllReady()) return netGo(); netSetReady(!me.ready); Sfx.ui && Sfx.ui(me.ready ? 'on' : 'off');
+}
+const netRowsHtml = (list, small) => list.map(p => `<div class="pr ${p.id === NETM.me ? 'me' : ''} ${p.conn === false ? 'away' : ''}"><i class="mpdot" style="background:${p.color}"></i><b>${esc(p.name)}</b>${p.lvl ? `<em class="mplvl" title="Account level">Lv ${p.lvl | 0}</em>` : ''}${p.host && !small ? '<em class="mptag host">Host</em>' : ''}<span class="sp"></span>${small ? '' : `<span class="mpready ${p.ready ? 'on' : ''}">${p.conn === false ? 'Reconnecting' : p.ready ? 'Ready' : 'Not ready'}</span>`}<i class="rdot ${p.ready ? 'on' : ''}" title="${p.ready ? 'Ready' : 'Not ready'}"></i></div>`).join('');
+/* ---- the main menu while you're in a lobby ---- */
+function netPartyMenu() {
+  const menu = overlay.querySelector('.menu'); if (!menu) return;
+  menu.classList.add('party');
+  const logo = menu.querySelector('.logo'); if (logo && !menu.querySelector('#mpParty')) { const d = document.createElement('div'); d.className = 'mpparty'; d.id = 'mpParty'; logo.before(d); }
+  const play = document.getElementById('playBtn');
+  if (play) { play.onclick = () => netCta(); if (!document.getElementById('mpSetupBtn')) { const b = document.createElement('button'); b.className = 'ghost coopbtn'; b.id = 'mpSetupBtn'; b.dataset.sfx = 'open'; play.after(b); b.onclick = () => transitionTo(netShowLobby); } }
+  const host = NETM.host, cfg = NETM.cfg || {};
+  overlay.querySelectorAll('.card[data-map]').forEach(card => { // the host's pick is the lobby's map; guests see it
+    if (card.dataset.map === 'rand') { card.style.display = 'none'; return; }
+    card.onclick = () => { if (!NETM.host) return netLobbyToast('The host picks the map'); selectMap(+card.dataset.map); NETM.cfg.map = +card.dataset.map; netLobbyChanged(); };
+  });
+  const seg = overlay.querySelector('.tseg');
+  if (seg) seg.querySelectorAll('button').forEach(b => b.onclick = () => { if (!NETM.host) return netLobbyToast('The host picks the time of day'); NETM.cfg.time = b.dataset.time; netLobbyChanged(); });
+  const mb = document.getElementById('modBtn'); if (mb) mb.onclick = () => { if (!NETM.host) return netLobbyToast('The host picks the modifiers'); SETTINGS.mods = [...(NETM.cfg.mods || [])]; transitionTo(() => showModifiers()); };
+  overlay.querySelectorAll('#modline .mchip[data-mod]').forEach(ch => ch.onclick = null);
+  netLobbySyncProfile(); netPartyRender();
+}
+function netPartyRender() {
+  const box = document.getElementById('mpParty'); if (!box || !NETM.on || NETM.run) return;
+  const me = netMe(), host = NETM.host, cfg = NETM.cfg || {}, present = NETM.players.filter(p => p.conn !== false), nR = present.filter(p => p.ready).length, allReady = present.length > 0 && nR === present.length;
+  const mode = cfg.mode || 'coop';
+  box.innerHTML = `<div class="pph"><b>${esc(NET_MODES[mode])} lobby</b><span class="mpcode" title="Lobby code">${esc(NETM.code)}</span><button class="ghost mpsm" id="ppInvite">Invite</button><span class="ppc">${nR}/${present.length} ready</span></div>
+    <div class="ppl">${netRowsHtml(NETM.players)}</div>
+    <div class="ppf"><span>${host ? (allReady ? 'Everyone is ready.' : 'Start once everyone is ready.') : `Waiting for <b>${esc((NETM.players.find(p => p.host) || {}).name || 'the host')}</b> to start.`} Upgrades, the shop and settings all work while you wait.</span><button class="ghost mpsm" id="ppLeave">${host ? 'Close lobby' : 'Leave'}</button></div><div class="mptoast"></div>`;
+  box.querySelector('#ppInvite').onclick = () => { netCopy(netInviteLink()); netLobbyToast('Invite link copied'); };
+  box.querySelector('#ppLeave').onclick = () => { netLeave(); state = 'menu'; showMenu(); };
+  const play = document.getElementById('playBtn');
+  if (play) { // one button: ready, unready, or start
+    const go = host && me.ready && allReady, label = go ? 'Start' : !me.ready ? 'Ready up' : host ? `Waiting · ${present.length - nR} not ready` : 'Ready ✓';
+    const sp = play.querySelector('span'); if (sp && sp.textContent !== label) sp.textContent = label;
+    play.classList.toggle('mpwait', me.ready && !go); play.classList.toggle('mpgo', !!go);
+    play.title = me.ready && !go ? 'Click to unready' : '';
+  }
+  const sb = document.getElementById('mpSetupBtn'); if (sb) sb.innerHTML = `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h10M4 18h7"/><circle cx="18" cy="12" r="2.2"/><circle cx="14" cy="18" r="2.2"/></svg> ${host ? 'Game setup' : 'Game details'} <small>${esc((MAPS[cfg.map] || MAPS[0]).name)} · ${esc(TIME_MODES[cfg.time] || 'Dynamic')}</small>`;
+  if (mapIdx !== cfg.map && MAPS[cfg.map] && overlay.querySelector('.card[data-map]')) selectMap(cfg.map); // everyone looks at the host's map
+  const pb = document.querySelector('#playBtn span'); if (pb && pb.textContent.startsWith('Play ')) netPartyRender.fix = 1; // (selectMap renames the button: put ours back)
+  if (play && netPartyRender.fix) { netPartyRender.fix = 0; const go = host && me.ready && allReady; play.querySelector('span').textContent = go ? 'Start' : !me.ready ? 'Ready up' : host ? `Waiting · ${present.length - nR} not ready` : 'Ready ✓'; }
+  const seg = overlay.querySelector('.tseg');
+  if (seg) { let ch = false; seg.querySelectorAll('button').forEach(b => { const on = b.dataset.time === cfg.time; if (b.classList.contains('on') !== on) { b.classList.toggle('on', on); ch = true; } }); if (ch) placeThumb(seg); seg.classList.toggle('ro', !host); }
+  const ml = document.getElementById('modline'); if (ml) { const h = modLine(cfg.mods || []); if (ml.innerHTML !== h) ml.innerHTML = h; }
+  const cards = overlay.querySelector('.cards'); if (cards) cards.classList.toggle('ro', !host);
+}
+/* ---- the little tab on every other menu: who's in and who's ready ---- */
+function netDockRender() {
+  let el = document.getElementById('mpDock');
+  const show = NETM.on && !NETM.run && state === 'menu' && overlay.style.display !== 'none' && !overlay.querySelector('.menu.party, .mplobby, .mpres, .mpcoop');
+  if (!show) { if (el) el.remove(); return; }
+  if (!el) { el = document.createElement('div'); el.id = 'mpDock'; stage.appendChild(el); }
+  const me = netMe(), present = NETM.players.filter(p => p.conn !== false), nR = present.filter(p => p.ready).length, go = NETM.host && me.ready && nR === present.length;
+  el.innerHTML = `<div class="dkt"><span class="dkl">Lobby</span><span class="dkdots">${present.map(p => `<i class="rdot ${p.ready ? 'on' : ''}" title="${esc(p.name)}: ${p.ready ? 'ready' : 'not ready'}"></i>`).join('')}</span><span class="dkn">${nR}/${present.length}</span></div>
+    <div class="dkb"><div class="ppl">${netRowsHtml(NETM.players, true)}</div><div class="dkf"><button class="ghost mpsm ${me.ready ? 'on' : ''}" id="dkReady">${me.ready ? 'Ready ✓' : 'Ready up'}</button>${go ? '<button class="play mpsm" id="dkStart"><span>Start</span></button>' : ''}</div></div><div class="mptoast"></div>`;
+  el.querySelector('#dkReady').onclick = () => netSetReady(!me.ready);
+  const st = el.querySelector('#dkStart'); if (st) st.onclick = () => netGo();
+}
+new MutationObserver(() => { if (NETM.on) { netDockRender(); if (!overlay.querySelector('.menu.party')) netLobbySyncProfile(); } }).observe(overlay, { childList: true });
 function netLobbyRender() {
-  netLobbySyncLevel();
+  netLobbySyncProfile(); netPartyRender(); netDockRender();
   netHud();
   if (NETM.phase === 'end' && !NETM.run && NS.board && !overlay.querySelector('.mpres') && state === 'dead') return;
   const box = overlay.querySelector('.mplobby'); if (!box) { const res = overlay.querySelector('.mpres'); if (res) netResultsRefresh(); return; }
@@ -97,7 +162,7 @@ function netLobbyRender() {
     </div>
     ${netPick === 'map' ? `<div class="mppick">${MAPS.map((q, i) => `<button class="card ${i === cfg.map ? 'on' : ''}" data-map="${i}"><img src="${thumbs[i]}" alt=""><span class="cn">${esc(q.name)}</span></button>`).join('')}</div>` : ''}
     <div class="mpfoot">
-      <button class="ghost" id="mpLeave">${host ? 'Close lobby' : 'Leave'}</button>
+      <button class="ghost" id="mpBack">Back</button><button class="ghost" id="mpLeave">${host ? 'Close lobby' : 'Leave'}</button>
       <label class="mpopt"><input type="checkbox" id="mpNames" ${SETTINGS.mpNames !== false ? 'checked' : ''}> Name tags</label>
       <label class="mpopt"><input type="checkbox" id="mpArrows" ${SETTINGS.mpArrows !== false ? 'checked' : ''}> Player arrows</label>
       <button class="${host ? 'ghost mprdy' : 'play'} ${me.ready ? 'on' : ''}" id="mpReady"><span>${me.ready ? 'Ready ✓' : 'Ready'}</span></button>
@@ -107,6 +172,7 @@ function netLobbyRender() {
   $('mpCopy').onclick = () => { netCopy(link); netLobbyToast('Invite link copied'); };
   if ($('mpShare')) $('mpShare').onclick = () => navigator.share({ title: 'Snake: Carnage co-op', text: `Join my Snake: Carnage game. Code ${NETM.code}`, url: link }).catch(() => {});
   $('mpLeave').onclick = () => { netLeave(); state = 'menu'; showMenu(); };
+  $('mpBack').onclick = () => transitionTo(showMenu);
   $('mpNames').onchange = e => { SETTINGS.mpNames = e.target.checked; saveSettings(); };
   $('mpArrows').onchange = e => { SETTINGS.mpArrows = e.target.checked; saveSettings(); };
   if (host) {
@@ -121,7 +187,7 @@ function netLobbyRender() {
     box.querySelectorAll('.mppick .card').forEach(b => b.onclick = () => { cfg.map = +b.dataset.map; netPick = null; netLobbyChanged(); });
     box.querySelectorAll('[data-kick]').forEach(b => b.onclick = () => netKick(b.dataset.kick));
   }
-  $('mpReady').onclick = () => { const v = !me.ready; me.ready = v; if (host) netLobbyChanged(); else { NETM.hostLink && NETM.hostLink.sendR({ k: 'ready', v }); netLobbyRender(); } };
+  $('mpReady').onclick = () => netSetReady(!me.ready);
   box.querySelectorAll('[data-team-of]').forEach(b => b.onclick = () => { // the next team over: anyone for themselves, the host for anyone
     const p = NETM.players.find(q => q.id === b.dataset.teamOf); if (!p) return; const v = ((p.team || 0) + 1) % nT;
     if (host) { p.team = v; netLobbyChanged(); } else if (p.id === NETM.me && NETM.hostLink) { p.team = v; NETM.hostLink.sendR({ k: 'team', v }); netLobbyRender(); }
@@ -131,7 +197,7 @@ const netInviteLink = () => { const u = new URL(location.href); u.search = ''; u
 function netCopy(t) { (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).catch(() => { const a = document.createElement('textarea'); a.value = t; document.body.appendChild(a); a.select(); try { document.execCommand('copy'); } catch (e) {} a.remove(); }); }
 /* the host's modifiers screen returns here: whatever was picked becomes the lobby's */
 const _netShowMods = showModifiers;
-showModifiers = function () { const r = _netShowMods.apply(this, arguments); if (NETM.on && NETM.host && !NETM.run) { const back = document.getElementById('backBtn'); if (back) back.onclick = () => { NETM.cfg.mods = [...(SETTINGS.mods || [])]; netLobbyChanged(); transitionTo(netShowLobby); }; } return r; };
+showModifiers = function () { const r = _netShowMods.apply(this, arguments); if (NETM.on && NETM.host && !NETM.run) { const back = document.getElementById('backBtn'); if (back) back.onclick = () => { NETM.cfg.mods = [...(SETTINGS.mods || [])]; netLobbyChanged(); transitionTo(showMenu); }; } return r; };
 /* ---- in the run: teammates on the board ---- */
 function netDrawSnakes(x) {
   if (netMode() === 'teams' && snake && snake.alive && snake.segs && snake.segs[0]) { const g = snake.segs[0]; x.save(); x.globalAlpha = snake.camoT > 0 ? .25 : .7; x.strokeStyle = NET_TEAMS[netTeamOf(NETM.me)].c; x.lineWidth = 1.6; x.beginPath(); x.arc(g.x, g.y, CONFIG.snakeR * (snake.scale || 1) + 4, 0, TAU); x.stroke(); x.restore(); } // your own team's ring
@@ -340,10 +406,10 @@ function netGoReveal() {
 addEventListener('keydown', e => {
   if ((e.code !== 'Space' && e.code !== 'Enter') || e.repeat || !NETM.on || NETM.run) return;
   const t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
-  if (!overlay.querySelector('.mplobby, .mpres') || overlay.classList.contains('hide')) return;
+  if (!overlay.querySelector('.mplobby, .mpres, .menu.party') || overlay.classList.contains('hide')) return;
   if (t && t.tagName === 'BUTTON' && e.code === 'Enter') return; // Enter on a focused button presses that button
   e.preventDefault(); e.stopPropagation(); if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   const me = netMe(); if (!me) return;
   if (NETM.host && netAllReady()) return netGo();
-  if (!me.ready) { const b = document.getElementById('mpReady2') || document.getElementById('mpReady'); if (b) b.click(); if (NETM.host && netAllReady()) setTimeout(netGo, 180); } // ready up; the host's last ready starts it
+  if (!me.ready) { const b = document.getElementById('mpReady2') || document.getElementById('mpReady'); if (b) b.click(); else netSetReady(true); if (NETM.host && netAllReady()) setTimeout(netGo, 180); } // ready up; the host's last ready starts it
 }, true);

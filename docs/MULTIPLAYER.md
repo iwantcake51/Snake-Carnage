@@ -21,14 +21,16 @@ The host picks one in the lobby.
 
 ## Playing
 
-- **Host:** main menu → **Play with friends** → enter a name → **Host**. Share the 6-character code, or use **Copy invite link** (`…/?join=CODE`).
+- **Host:** main menu → **Play with friends** → enter a name → **Host**. Share the 6-character code, or use **Invite** (`…/?join=CODE`).
 - **Join:** **Play with friends** → type the code → **Join**, or open the invite link. Friends you've played with show up under **Played with recently**; tap one to join their last lobby.
-- **Lobby:**
-  - The host picks the mode, the map, the time of day, the round length, the respawn time and the modifiers, and everyone plays with them.
-  - Everyone presses **Ready** (or **Space**), the host included. A glowing dot next to each name shows it: green for ready, red for not yet. The host's **Start** unlocks only once every player is ready; once it has, the host's **Space** starts the run too.
+- **The lobby is the main menu.** Once you're in one, the main menu stays usable: level up upgrades, buy and change skins in the shop, check challenges or change settings while you wait.
+  - A party panel replaces the logo: the lobby code, every player with their account level and a glowing dot (green ready, red not yet).
+  - The big button readies you up (click again to unready). For the host it becomes **Start** once everyone, the host included, is ready. **Space** does the same.
+  - **Game setup** (host) or **Game details** (guests) opens the full setup: map, time of day, mode, teams, round length, respawn time and modifiers. The host can also pick the map and the time of day straight from the main menu; guests see the host's picks.
+  - On every other menu a small **Lobby** tab sits at the right edge with a dot per player; point at it to see who's ready and ready up yourself (the host can start from it too).
+  - A new skin, an upgrade or a level reaches everyone else as soon as you're back on a menu, so the run uses what you just bought.
+  - The host can kick players from Game setup. Name tags and off-screen arrows can be switched off there.
   - Starting closes the screen to black for everyone, like a pair of shutters meeting on a red seam with the mode, and opens it on the new world once it has loaded.
-  - Each name shows that player's account level.
-  - The host can kick players. Name tags and off-screen arrows can be switched off.
 - **Lives:**
   - A death costs one life from your pool (see Modes). You're back after the respawn time (5 seconds by default; the host can pick 3, 5, 8, 10 or 15), with 1.5 seconds of grace.
   - Dying: your snake bursts into blood, chunks and coils of gut on every player's screen, scaled by each player's own blood settings. The spray stains whoever and whatever it hits: people, walls, the floor and other players' snakes.
