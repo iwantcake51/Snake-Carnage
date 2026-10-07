@@ -2114,28 +2114,21 @@ select.ddsrc{position:absolute!important;width:1px!important;height:1px!importan
 .dd.on .ddc{transform:rotate(-135deg);margin-top:-.1em}
 .dd:disabled{opacity:.5;cursor:default}
 #overlay .mplobby .dd{padding-top:.5em;padding-bottom:.5em}
-.ddl{position:fixed;z-index:100000;min-width:120px;max-width:420px;padding:7px 0 9px;color:#ece4de;font-family:var(--f-body);perspective:600px;pointer-events:auto}
-.ddl::before,.ddl::after{content:'';position:absolute;top:0;bottom:0;width:2px;background:repeating-linear-gradient(180deg,var(--acc-hi) 0 5px,var(--acc) 5px 8px);box-shadow:0 0 8px color-mix(in srgb,var(--acc) 60%,transparent);transform:scaleY(0);transform-origin:top;transition:transform .34s cubic-bezier(.3,.9,.3,1);z-index:2;border-radius:1px}
-.ddl.up::before,.ddl.up::after{transform-origin:bottom}
-.ddl::before{left:9px}.ddl::after{right:9px}
-.ddl.open::before,.ddl.open::after{transform:scaleY(1)}
-.ddl.closing::before,.ddl.closing::after{transform:scaleY(0);transition:transform .26s ease-in calc(min(var(--n),14) * 22ms)}
-.ddl .ddin{position:relative;display:flex;flex-direction:column;gap:3px;padding:0 4px;overflow-y:auto;overflow-x:hidden;transform-origin:top center;scrollbar-width:thin;scrollbar-color:#4a3c42 transparent}
-.ddl.up .ddin{transform-origin:bottom center}
-.ddl.open .ddin{animation:ddSway .9s cubic-bezier(.3,.6,.3,1) .12s}
-@keyframes ddSway{0%{transform:rotate(0)}25%{transform:rotate(1.6deg)}50%{transform:rotate(-1deg)}72%{transform:rotate(.45deg)}100%{transform:rotate(0)}}
-.ddo,.ddg{position:relative;margin:0 2px;padding:.48em 1.4em .48em 1.5em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transform-origin:top center;opacity:0;transform:translateY(-.9em) rotateX(-82deg) scaleY(.5);transition:transform .32s cubic-bezier(.25,1.45,.45,1) calc(min(var(--i),14) * 34ms + 60ms),opacity .14s calc(min(var(--i),14) * 34ms + 60ms),background-color .12s,color .12s}
-.ddl.up .ddo,.ddl.up .ddg{transform-origin:bottom center;transform:translateY(.9em) rotateX(82deg) scaleY(.5)}
-.ddo{background:linear-gradient(180deg,#221b1e,#171214);border:1px solid #33292e;border-radius:2px;cursor:pointer;font-weight:600;box-shadow:0 3px 6px rgba(0,0,0,.45)}
-.ddo::before,.ddo::after{content:'';position:absolute;top:50%;width:6px;height:6px;margin-top:-3px;background:#0d0a0b;border:1px solid color-mix(in srgb,var(--acc) 70%,#000);border-radius:1px;transform:rotate(45deg)}
-.ddo::before{left:4px}.ddo::after{right:4px}
-.ddg{padding:.6em 1.5em .2em;font:700 .74em var(--f-head);letter-spacing:.16em;text-transform:uppercase;color:#9c8f95}
+.ddl{position:fixed;z-index:100000;min-width:120px;max-width:420px;padding:4px 0;color:#ece4de;font-family:var(--f-body);perspective:700px;pointer-events:auto;background:#141012;border:1px solid var(--edge2);border-radius:3px;box-shadow:0 14px 34px rgba(0,0,0,.55);clip-path:inset(0 0 100% 0);transition:clip-path .28s cubic-bezier(.3,.9,.3,1)}
+.ddl.up{clip-path:inset(100% 0 0 0)}
+.ddl.open{clip-path:inset(0 0 0 0)}
+.ddl.closing{clip-path:inset(0 0 100% 0);transition:clip-path .24s ease-in calc(min(var(--n),14) * 14ms)}
+.ddl.up.closing{clip-path:inset(100% 0 0 0)}
+.ddl .ddin{position:relative;display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:#4a3c42 transparent}
+.ddo,.ddg{position:relative;padding:.5em 1.1em .5em .95em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transform-origin:top center;opacity:0;transform:translateY(-.55em) rotateX(-55deg);transition:transform .26s cubic-bezier(.2,.9,.3,1.15) calc(min(var(--i),14) * 26ms + 40ms),opacity .16s calc(min(var(--i),14) * 26ms + 40ms),background-color .12s,color .12s}
+.ddl.up .ddo,.ddl.up .ddg{transform-origin:bottom center;transform:translateY(.55em) rotateX(55deg)}
+.ddo{cursor:pointer;font-weight:600;color:#d9d0cb;border-top:1px solid rgba(255,255,255,.045)}
+.ddo:first-child{border-top:0}
+.ddg{padding:.65em .95em .25em;font:700 .74em var(--f-head);letter-spacing:.16em;text-transform:uppercase;color:#8f8489}
 .ddl.open .ddo,.ddl.open .ddg{opacity:1;transform:none}
-.ddl.closing .ddo,.ddl.closing .ddg{transition:transform .2s cubic-bezier(.5,0,.75,0) calc((min(var(--n),14) - min(var(--i),14)) * 22ms),opacity .16s calc((min(var(--n),14) - min(var(--i),14)) * 22ms + 40ms)}
-.ddo.hi{background:linear-gradient(180deg,#30252a,#231b1f);border-color:#5a454d;color:#fff}
-.ddo.hi::before,.ddo.hi::after{background:var(--acc)}
-.ddo.cur{color:#fff;border-color:color-mix(in srgb,var(--acc) 70%,#33292e);box-shadow:inset 3px 0 0 var(--acc-hi),0 3px 6px rgba(0,0,0,.45)}
-.ddo.cur::after{background:var(--acc-hi);box-shadow:0 0 6px var(--acc-hi)}
+.ddl.closing .ddo,.ddl.closing .ddg{transition:transform .18s ease-in calc((min(var(--n),14) - min(var(--i),14)) * 14ms),opacity .14s calc((min(var(--n),14) - min(var(--i),14)) * 14ms)}
+.ddo.hi{background:rgba(255,255,255,.06);color:#fff}
+.ddo.cur{color:#fff;box-shadow:inset 3px 0 0 var(--acc)}
 .ddo.dis{opacity:.4!important;cursor:default}
 .ddl.ed{font-size:12.5px!important}
 .ddl.ed .ddo{padding:.4em 1.3em .4em 1.4em}

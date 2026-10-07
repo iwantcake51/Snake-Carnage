@@ -9,7 +9,8 @@ function tubePath(x, pts, n, grow) { // the body as one smooth tapered tube: a r
   const Rr = R.slice().reverse(); x.quadraticCurveTo(Rr[0][0], Rr[0][1], (Rr[0][0] + (Rr[1] || Rr[0])[0]) / 2, (Rr[0][1] + (Rr[1] || Rr[0])[1]) / 2); side(Rr.slice(1));
   const h = pts[0], hr = segR(0, n) * (n > 6 ? HEAD[0] : 1) + grow; x.lineTo(R[0][0], R[0][1]); x.arc(h.x, h.y, hr, h.a + Math.PI / 2, h.a - Math.PI / 2, true); x.closePath();
 }
-function drawSnake(x, s = snake, cfg = SETTINGS.snake) {
+function drawSnake(x, s = snake, cfg = SETTINGS.snake) { const prev = SEG_SNAKE; SEG_SNAKE = s; try { return drawSnakeBody(x, s, cfg); } finally { SEG_SNAKE = prev; } }
+function drawSnakeBody(x, s, cfg) {
   const n = s.segs.length;
   // gentle side-to-side slither while moving (visual only; collisions use the real path)
   const moving = s === snake ? s.started && s.alive && state === 'play' : !!s.netMoving; // a teammate: moving if their head is

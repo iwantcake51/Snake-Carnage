@@ -30,7 +30,11 @@ function sizeTarget(s) {
   return 1;
 }
 function updateSize(s, dt) { s.playT = (s.playT || 0) + dt; const t = sizeTarget(s); s.scale += (t - s.scale) * Math.min(1, dt * 2.5); }
-const segR = (i, n) => snakeRadius() * (1 - .35 * Math.max(0, (i - (n - 6)) / 6));
+let SEG_SNAKE = null; // the snake being drawn right now (drawSnake sets it; teammates' snakes go through the same code)
+const segR = (i, n) => { // the tail tapers over its last 6 segments; while the body is growing, the taper follows the fractional length so nothing pops
+  const s = SEG_SNAKE || snake, nf = s && s.lenV !== undefined && s.segs && s.segs.length === n ? Math.max(n - 1, Math.min(n, s.lenV)) : n;
+  return snakeRadius() * (1 - .35 * Math.max(0, (i - (nf - 6)) / 6));
+};
 
 function hitObstacle(x, y, r) { // precise shape test, so thin things like lamp posts hit exactly where they're drawn
   for (const o of obstacles) {
@@ -39,22 +43,30 @@ function hitObstacle(x, y, r) { // precise shape test, so thin things like lamp 
   }
   return false;
 }
+function growLen(s) { // the body grows into its new length over a moment instead of popping: lenV eases up to len (a shorter body is at once)
+  const now = performance.now(), dt = s.lenT ? Math.min(.1, (now - s.lenT) / 1000) : 0; s.lenT = now;
+  if (s.lenV === undefined || s.lenV > s.len || !dt) { if (s.lenV === undefined || s.lenV > s.len) s.lenV = s.len; }
+  else if (s.lenV < s.len) s.lenV = Math.min(s.len, s.lenV + Math.max(3, (s.len - s.lenV) * 3.2) * dt); // a meal's segments slide out in about half a second
+  return s.lenV;
+}
 function computeSegs(s) {
   const segs = s.segs, h = s.hist; segs.length = 0;
+  const lv = growLen(s), n = Math.ceil(lv - 1e-6), frac = lv - Math.floor(lv); // n segments; the last one only part-way out while growing
   segs.push({ x: s.x, y: s.y, a: s.angle });
   const sp = CONFIG.segSpacing * (s.scale || 1); let px = s.x, py = s.y, trav = 0, target = sp, lastA = s.angle, i = 0;
-  for (; i < h.length && segs.length < s.len; i++) {
+  for (; i < h.length && segs.length < n; i++) {
     const q = h[i]; let L = Math.hypot(q.x - px, q.y - py);
     if (L < 1e-6) continue;
     const a = Math.atan2(py - q.y, px - q.x);
-    while (trav + L >= target && segs.length < s.len) {
+    while (trav + L >= target && segs.length < n) {
       const t = (target - trav) / L; px += (q.x - px) * t; py += (q.y - py) * t;
       segs.push({ x: px, y: py, a }); trav = target; target += sp; L = Math.hypot(q.x - px, q.y - py);
     }
     trav += L; px = q.x; py = q.y; lastA = a;
   }
   if (i < h.length - 2) h.length = i + 2;
-  while (segs.length < s.len) segs.push({ x: px, y: py, a: lastA });
+  while (segs.length < n) segs.push({ x: px, y: py, a: lastA });
+  if (frac > 1e-3 && n > 1) { const g = segs[n - 1], p = segs[n - 2]; g.x = p.x + (g.x - p.x) * frac; g.y = p.y + (g.y - p.y) * frac; } // the newest tail piece slides out of the one before it
 }
 
 function updateSnake(dt) {

@@ -391,6 +391,7 @@ let netFadeT = 0;
 function netGoFade(lbl, instant) {
   const st = document.getElementById('stage') || document.body; let el = document.getElementById('goFade');
   if (!el) {
+    netFadeAt = performance.now();
     if (instant && !lbl) lbl = NS.cfg ? { mode: NET_MODES[NS.cfg.mode] || 'Co-op' } : null;
     el = document.createElement('div'); el.id = 'goFade';
     el.innerHTML = `<i class="shT"></i><i class="shB"></i><i class="shS"></i><div class="shL">${lbl ? `<small>Get ready</small><b>${esc(lbl.mode)}</b>` : ''}</div>`;
@@ -399,9 +400,12 @@ function netGoFade(lbl, instant) {
   }
   el.classList.remove('out'); clearTimeout(netFadeT); netFadeT = setTimeout(netGoReveal, 8000); // never stuck black: the host left, or the start got lost
 }
+let netFadeAt = 0;
+const NET_FADE_HOLD = 1900; // ms from the shutters starting to close until they may open: about 1.3 s fully closed on the mode's name, however fast the map loads
 function netGoReveal() {
   const el = document.getElementById('goFade'); if (!el) return; clearTimeout(netFadeT);
-  requestAnimationFrame(() => requestAnimationFrame(() => { el.classList.remove('now'); el.classList.add('out'); setTimeout(() => el.remove(), 1100); })); // after the first frame of the new world is up
+  const wait = SETTINGS.reduceMotion ? 0 : Math.max(0, NET_FADE_HOLD - (performance.now() - netFadeAt));
+  netFadeT = setTimeout(() => requestAnimationFrame(() => requestAnimationFrame(() => { if (!el.isConnected) return; el.classList.remove('now'); el.classList.add('out'); setTimeout(() => el.remove(), 1100); })), wait); // and only after the first frame of the new world is up
 }
 addEventListener('keydown', e => {
   if ((e.code !== 'Space' && e.code !== 'Enter') || e.repeat || !NETM.on || NETM.run) return;
