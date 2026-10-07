@@ -12,16 +12,17 @@
      sound     default | glass | wood | metal | stone | zap | soft | pop | none, vol
      shake     screen shake (x), stun: default | none | light | heavy   (what it does to the snake that broke it)
      noise     how far people hear it (x), scare   people nearby run instead of just looking
+     slide     how far pieces skid across the floor after they land (0 = they stop where they fall)
    Glass shatters for anyone ("Anyone" in the Battering Ram row): no upgrade needed, a shower of glinting shards.
    ========================================================= */
 const BFX_SHAPES = ['chip', 'shard', 'splinter', 'rubble', 'confetti', 'fluff'];
 const BFX_WRECKS = ['default', 'shards', 'splinters', 'rubble', 'scorch', 'confetti', 'none'];
 const BFX_SOUNDS = ['default', 'glass', 'wood', 'metal', 'stone', 'zap', 'soft', 'pop', 'none'];
 const BFX_STUNS = ['default', 'none', 'light', 'heavy'];
-const BFX_BASE = { n: 24, shape: 'chip', size: 1, speed: 1, spread: 1.2, lift: 1, scale: true, cols: ['auto', 'auto', 'auto'], glint: false, dust: 4, dustC: '#a8a096', sparks: 0, sparkC: '#ffd27a', wreck: 'default', sound: 'default', vol: 1, shake: 1, stun: 'default', noise: 1, scare: false };
+const BFX_BASE = { slide: 0, n: 24, shape: 'chip', size: 1, speed: 1, spread: 1.2, lift: 1, scale: true, cols: ['auto', 'auto', 'auto'], glint: false, dust: 4, dustC: '#a8a096', sparks: 0, sparkC: '#ffd27a', wreck: 'default', sound: 'default', vol: 1, shake: 1, stun: 'default', noise: 1, scare: false };
 const BFX_PRESETS = {
   classic: { name: 'Classic', n: 24, shape: 'chip', cols: ['auto', 'auto', '#2a2220'], dust: 2 },
-  glass: { name: 'Glass', n: 46, shape: 'shard', size: .9, speed: 1.15, spread: 1.5, lift: 1.1, cols: ['#d8f0fa', '#a9d4e6', '#ffffff'], glint: true, dust: 5, dustC: '#e6f6fb', wreck: 'shards', sound: 'glass', vol: 1, shake: .5, stun: 'light', noise: 1.15, scare: false },
+  glass: { name: 'Glass', n: 46, shape: 'shard', size: .9, speed: 1.15, spread: 1.5, lift: 1.1, cols: ['#d8f0fa', '#a9d4e6', '#ffffff'], glint: true, slide: .55, dust: 5, dustC: '#e6f6fb', wreck: 'shards', sound: 'glass', vol: 1, shake: .5, stun: 'light', noise: 1.15, scare: false },
   wood: { name: 'Wood', n: 28, shape: 'splinter', size: 1.1, cols: ['auto', '#7a5434', '#c9a473'], dust: 6, dustC: '#a8957a', wreck: 'splinters', sound: 'wood' },
   metal: { name: 'Metal', n: 20, shape: 'chip', speed: 1.2, cols: ['auto', '#8a9098', '#55595f'], dust: 3, dustC: '#9a9aa2', sparks: 16, sparkC: '#ffd27a', wreck: 'default', sound: 'metal', shake: 1.2, noise: 1.3 },
   stone: { name: 'Stone', n: 36, shape: 'rubble', size: 1.2, speed: .85, spread: 1.1, cols: ['auto', '#8a8478', '#5f5a52'], dust: 14, dustC: '#aaa096', wreck: 'rubble', sound: 'stone', shake: 1.6, stun: 'heavy', noise: 1.4, scare: true },
@@ -54,6 +55,7 @@ function bfxBurst(o, fx, ang, into = debris, mistInto = mist) {
     if (sh === 'confetti') { p.g = .22; p.drag = 2.6; p.va = rand(-20, 20); }
     if (sh === 'fluff') { p.g = .35; p.drag = 2.4; }
     if (fx.glint) p.glint = true;
+    if (fx.slide > 0 && sh !== 'confetti' && sh !== 'fluff') p.slide = fx.slide; // skids across the floor after landing
     into.push(p);
   }
   const rgb = bfxRgb(fx.sparkC);
@@ -121,7 +123,7 @@ function bfxPreview(canvas, o, fx, drawBase) {
     if (!broke) drawBase(x, o); else { x.save(); bfxWreck(x, o, fx, ang); x.restore(); }
     for (let i = parts.length - 1; i >= 0; i--) { const p = parts[i]; p.t += dt; p.vz -= 420 * (p.g ?? 1) * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; const dr = p.drag ?? 1.5; p.vx *= 1 - dr * dt; p.vy *= 1 - dr * dt; p.rot = (p.rot || 0) + (p.va || 0) * dt;
       if (p.spark) { if (p.t > p.life) { parts.splice(i, 1); continue; } const a = 1 - p.t / p.life, [r, g, b] = p.rgb; x.strokeStyle = `rgba(${r},${g},${b},${a.toFixed(2)})`; x.lineWidth = 1.4; x.beginPath(); x.moveTo(p.x - p.vx * .02, p.y - p.z * .3 - p.vy * .02); x.lineTo(p.x, p.y - p.z * .3); x.stroke(); continue; }
-      if (p.z <= 0) { p.z = 0; p.vz = 0; p.vx *= .8; p.vy *= .8; } debrisPiece(x, p, p.x, p.y - p.z * .3, p.z <= 0); }
+      if (p.z <= 0) { p.z = 0; p.vz = 0; const f = p.slide ? Math.exp(-dt * (10 - 6 * p.slide)) : .8; p.vx *= f; p.vy *= f; } debrisPiece(x, p, p.x, p.y - p.z * .3, p.z <= 0); }
     for (const m of dusts) { m.t += dt; const a = Math.max(0, 1 - m.t / m.life) * m.a; if (a <= 0) continue; m.x += m.vx * dt; m.y += m.vy * dt; x.globalAlpha = a; x.fillStyle = m.c; circ(x, m.x, m.y, m.r + m.g * m.t / m.life); x.globalAlpha = 1; }
     if (el < 2.6 && canvas.isConnected) requestAnimationFrame(step);
   };

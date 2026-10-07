@@ -21,6 +21,7 @@ const attr = s => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').repla
 const ICONS = {
   gameplay: '<path d="M6 9h4M8 7v4M15 8.5h.01M17 10.5h.01"/><path d="M4 7a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v6a5 5 0 0 1-9 3H11a5 5 0 0 1-7-3z"/>',
   graphics: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4M7 12l3-3 3 3 2-2 2 2"/>',
+  effects: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M6 18l2.5-2.5M15.5 8.5L18 6"/><circle cx="12" cy="12" r="2"/>',
   audio: '<path d="M4 10v4h4l5 4V6L8 10z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/>',
   controls: '<rect x="2" y="7" width="20" height="10" rx="2"/><path d="M6 11h.01M10 11h.01M14 11h.01M18 11h.01M7 14h10"/>',
   access: '<circle cx="12" cy="5" r="2"/><path d="M5 9l7 1 7-1M12 10v5l-3 6M12 15l3 6"/>',

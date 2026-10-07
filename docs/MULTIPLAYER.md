@@ -17,23 +17,24 @@ The host picks one in the lobby.
   - A run also ends when everyone is out of lives, or when the host ends it.
 - **Teams:** everyone is put on the smallest team when they join. A player can tap their team chip to switch, and the host can move anyone.
   - In the run, each snake wears a ring in its team's color, and the score panel groups players under their team.
-- **Results:** the scoreboard names the winner (or a draw). Free for all ranks the players; Teams lists each team with its total above its members.
+- **Results:** the scoreboard names the winner (or a draw) and the round's **MVP**: the best score, with what they led in (most eaten, best combo, most golden, most people). Free for all ranks the players; Teams lists each team with its total above its members.
 
 ## Playing
 
 - **Host:** main menu → **Play with friends** → enter a name → **Host**. Share the 6-character code, or use **Copy invite link** (`…/?join=CODE`).
 - **Join:** **Play with friends** → type the code → **Join**, or open the invite link. Friends you've played with show up under **Played with recently**; tap one to join their last lobby.
 - **Lobby:**
-  - The host picks the mode, the map, the time of day, the round length and the modifiers, and everyone plays with them.
-  - Guests press **Ready**. The host's **Start** unlocks once everyone is ready.
+  - The host picks the mode, the map, the time of day, the round length, the respawn time and the modifiers, and everyone plays with them.
+  - Everyone presses **Ready**, the host included. A glowing dot next to each name shows it: green for ready, red for not yet. The host's **Start** unlocks only once every player is ready.
   - The host can kick players. Name tags and off-screen arrows can be switched off.
 - **Lives:**
-  - A crash costs one life from your pool (see Modes), and you're back 3 seconds later, with 1.5 seconds of grace.
+  - A death costs one life from your pool (see Modes). You're back after the respawn time (5 seconds by default; the host can pick 3, 5, 8, 10 or 15), with 1.5 seconds of grace.
+  - Dying: the screen jolts, your view drains to grey under a red wash within half a second, and the camera slowly pulls out to the whole map while a **You died** banner counts down. As you come back, the color and your own zoom fade back in.
   - With no lives left you watch someone else, a teammate first. The run ends when everyone is out, when the time runs out, or when the host ends it from the pause menu.
 - **Pause:** pausing doesn't stop the world. It opens a small menu (Resume, Settings, Leave co-op, and End run for the host).
 - **End of run:**
-  - A scoreboard for every player plus team totals (per team in Teams): score, eaten, people, animals, best combo, golden, crashes, XP and chips.
-  - The host can **Play again**, **Return to lobby**, **Change map**, **Change modifiers** or **Kick**. Guests can **Ready** or **Leave lobby**.
+  - A scoreboard for every player plus team totals (per team in Teams): score, eaten, people, animals, best combo, golden, deaths, XP and chips, with the MVP called out above it.
+  - Everyone readies up again (ready dots on the scoreboard too). The host can **Play again** once all are ready, or **Return to lobby**, **Change map**, **Change modifiers** or **Kick**. Guests can **Ready** or **Leave lobby**.
   - The lobby stays open between runs.
 
 ## Progression

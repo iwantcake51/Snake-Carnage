@@ -33,22 +33,24 @@ function userCam() { // -> { z, fx, fy } to draw with, or null when the camera i
     if (mode === 'free') { UCAM.ax = UCAM.fx - UCAM.px; UCAM.ay = UCAM.fy - UCAM.py; } else { UCAM.tpx = UCAM.px = UCAM.fx - snake.x; UCAM.tpy = UCAM.py = UCAM.fy - snake.y; }
     UCAM.mode = mode;
   }
-  const k = 1 - Math.exp(-dt * 12), z0 = baseZoom();
+  const k = 1 - Math.exp(-dt * (UCAM.rate || 12)), z0 = baseZoom(); // rate: a slow, deliberate zoom (co-op death and respawn) or the usual quick one
+  if (UCAM.rate && Math.abs(UCAM.z - UCAM.tz) < .005) UCAM.rate = 0;
   UCAM.z += (UCAM.tz - UCAM.z) * k; UCAM.px += (UCAM.tpx - UCAM.px) * k; UCAM.py += (UCAM.tpy - UCAM.py) * k;
   const z = clamp(UCAM.z * z0, 1, UCAM_MAX * z0);
   if (z < 1.003) { UCAM.fx = W / 2; UCAM.fy = H / 2; return null; }
-  const hw = W / 2 / z, hh = H / 2 / z;
-  if (mode === 'follow') { const mx = Math.max(0, hw - 70), my = Math.max(0, hh - 70); UCAM.tpx = clamp(UCAM.tpx, -mx, mx); UCAM.tpy = clamp(UCAM.tpy, -my, my); } // the snake always stays in frame
+  const hw = W / 2 / z, hh = H / 2 / z, zt = clamp(UCAM.tz * z0, 1, UCAM_MAX * z0), thw = W / 2 / zt, thh = H / 2 / zt; // the pan target is held to the zoom it's heading for, so easing in never trims it
+  if (mode === 'follow') { const mx = Math.max(0, thw - 70), my = Math.max(0, thh - 70); UCAM.tpx = clamp(UCAM.tpx, -mx, mx); UCAM.tpy = clamp(UCAM.tpy, -my, my); } // the snake always stays in frame
   const [bx, by] = ucamBase(), tx = clamp(bx + UCAM.px, hw, W - hw), ty = clamp(by + UCAM.py, hh, H - hh);
-  if (mode === 'free') { UCAM.tpx = clamp(UCAM.tpx, hw - bx, W - hw - bx); UCAM.tpy = clamp(UCAM.tpy, hh - by, H - hh - by); } // free look: no panning off the map
+  if (mode === 'free') { UCAM.tpx = clamp(UCAM.tpx, thw - bx, W - thw - bx); UCAM.tpy = clamp(UCAM.tpy, thh - by, H - thh - by); } // free look: no panning off the map
   const fk = 1 - Math.exp(-dt * 16); UCAM.fx += (tx - UCAM.fx) * fk; UCAM.fy += (ty - UCAM.fy) * fk;
   return { z, fx: UCAM.fx, fy: UCAM.fy };
 }
-function zoomAt(cx, cy, factor) { // zoom toward a canvas point: the world under it stays under it
+function zoomAt(cx, cy, factor) { // zoom in on your snake: it's always the centre of the view; with no snake about, toward the pointer
   const z0 = baseZoom(), before = canvasToWorld(cx, cy);
-  UCAM.tz = clamp(UCAM.tz * factor, 1 / z0, UCAM_MAX);
+  UCAM.tz = clamp(UCAM.tz * factor, 1 / z0, UCAM_MAX); UCAM.rate = 0;
   const z = clamp(UCAM.tz * z0, 1, UCAM_MAX * z0);
   if (z < 1.003) { UCAM.tpx = UCAM.tpy = 0; return; }
+  if (snake && state !== 'menu' && state !== 'editor') { const [bx, by] = ucamBase(); UCAM.tpx = snake.x - bx; UCAM.tpy = snake.y - by; return; }
   const [bx, by] = ucamBase();
   UCAM.tpx = before.x - V.ox - (cx - V.sx - W / 2) / z - bx; UCAM.tpy = before.y - V.oy - (cy - V.sy - H / 2) / z - by;
 }

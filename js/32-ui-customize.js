@@ -152,7 +152,7 @@ function fit() {
 }
 const UI_SCALES = { Small: .85, Medium: 1, Large: 1.15, 'Extra Large': 1.3 };
 function applyUiScale() { // zoom every HUD/menu layer; overlay is shrunk by the same factor first so percentages still fit
-  const u = UI_SCALES[SETTINGS.uiScale] || clamp(boardScale * .92, document.body.classList.contains('phone') ? .62 : .8, 1.45);
+  const phone = document.body.classList.contains('phone'), u = UI_SCALES[SETTINGS.uiScale] || clamp(boardScale * (phone ? .92 : .82), phone ? .62 : .8, 1.4); // desktop menus get a little more room to lay out in, so most fit without scrolling
   document.documentElement.style.setProperty('--ui', u.toFixed(3));
   const lw = W * boardScale / u, lh = H * boardScale / u; // how much room the menus actually get, in their own units
   document.body.classList.toggle('compact', lw < 820 || lh < 600); document.body.classList.toggle('narrow', lw < 640);

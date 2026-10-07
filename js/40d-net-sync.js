@@ -187,14 +187,14 @@ function netSyncRekey(a, b) { // a player came back under a new id: everything k
   if (NS.cfg && NS.cfg.teamOf && NS.cfg.teamOf[a] !== undefined) { NS.cfg.teamOf[b] = NS.cfg.teamOf[a]; netEmit({ t: 'team', pid: b, v: NS.cfg.teamOf[a] }); }
 }
 function netSyncPlayerGone(p, why) { if (!NETM.run) return; if (why === 'left' || why === 'kick' || why === 'gone') { NS.rs.delete(p.id); NS.down.delete(p.id); netEmit({ t: 'left', pid: p.id }); } }
-/* deaths: a pool of lives (the whole team's in co-op, each team's in Teams, your own in free for all). A crash costs one
-   and you're back in 3 s; with none left you watch the others. The run ends when everyone is down at once with nothing
+/* deaths: a pool of lives (the whole team's in co-op, each team's in Teams, your own in free for all). A death costs one
+   and you're back after the lobby's respawn time (5 s unless the host changed it); with none left you watch the others. The run ends when everyone is down at once with nothing
    left to bring them back, or when the round's time runs out. */
 function netPlayerDown(pid, x, y) {
   if (!NETM.run || !NETM.host || NS.down.get(pid)) return;
   const p = netPlayer(pid); if (p) p.deaths = (p.deaths || 0) + 1;
   const k = netPool(pid), back = (NS.pools[k] || 0) > 0; if (back) NS.pools[k]--;
-  NS.down.set(pid, { t: back ? 3 : 0, out: !back });
+  NS.down.set(pid, { at: performance.now() + (back ? (NS.cfg && NS.cfg.respawn) || 5 : 0) * 1000, out: !back }); // real time, like the round clock
   const ev = [{ t: 'down', pid, x, y, out: !back }, { t: 'lives', k, n: NS.pools[k] || 0 }];
   for (const e of ev) netEmit(e); netClientEvent({ k: 'ev', e: ev }, true);
 }
@@ -203,7 +203,7 @@ function netLivesTick(dt) {
   netClockTick();
   if ((NS.clkT -= dt) <= 0) { NS.clkT = 2; netEmit({ t: 'clk', v: +NS.clock.toFixed(2) }); }
   if (NS.cfg.len > 0 && NS.clock >= NS.cfg.len * 60) return netEndRun('time');
-  for (const [pid, d] of NS.down) if (!d.out && (d.t -= dt) <= 0) { NS.down.delete(pid); const sp = netSpawnPoint(); netEmit({ t: 'up', pid, x: sp.x, y: sp.y, a: sp.a }); netClientEvent({ k: 'ev', e: [{ t: 'up', pid, x: sp.x, y: sp.y, a: sp.a }] }, true); }
+  for (const [pid, d] of NS.down) if (!d.out && performance.now() >= d.at) { NS.down.delete(pid); const sp = netSpawnPoint(); netEmit({ t: 'up', pid, x: sp.x, y: sp.y, a: sp.a }); netClientEvent({ k: 'ev', e: [{ t: 'up', pid, x: sp.x, y: sp.y, a: sp.a }] }, true); }
   const active = NETM.players.filter(p => p.conn !== false);
   if (active.length && active.every(p => { const d = NS.down.get(p.id); return d && d.out; })) netEndRun('wiped');
 }
@@ -235,9 +235,9 @@ function netStartRun() { // host: everyone loads the same world
   if (mode === 'teams') { netBalanceTeams(); for (const p of players) teamOf[p.id] = p.team; for (let i = 0; i < cfg.teams; i++) { const n = players.filter(p => p.team === i).length; if (n) pools['t' + i] = 2 + n; } }
   else if (mode === 'ffa') for (const p of players) pools['p:' + p.id] = 3;
   else pools.all = 3 + players.length;
-  NS.cfg = { seed: Math.floor(Math.random() * 2 ** 31), map: cfg.map, mapName: m.name, mods: cfg.mods, time: cfg.time, tod: t, season: sz ? { ...sz } : null, w: W, mode, teams: cfg.teams || 2, teamOf, pools, len: cfg.len || 0, t0: Date.now() };
+  NS.cfg = { seed: Math.floor(Math.random() * 2 ** 31), map: cfg.map, mapName: m.name, mods: cfg.mods, time: cfg.time, tod: t, season: sz ? { ...sz } : null, w: W, mode, teams: cfg.teams || 2, teamOf, pools, len: cfg.len || 0, respawn: cfg.respawn || 5, t0: Date.now() };
   NETM.phase = 'run';
-  for (const p of NETM.players) { p.ready = p.host; p.stats = null; p.deaths = 0; }
+  for (const p of NETM.players) { p.ready = false; p.stats = null; p.deaths = 0; } // everyone readies up again for the next one, the host too
   for (const L of NETM.links.values()) { L.ready = false; L.sent = new Map(); }
   netBroadcast({ k: 'start', cfg: NS.cfg }); netLobbyChanged();
   netBeginRun(NS.cfg);
@@ -400,21 +400,26 @@ function netCreatureCosmetics(c, dt, moved) { // the parts of updateCreature tha
 /* my own snake going down and coming back (any player, host included) */
 function netLocalDown() {
   const s = snake; if (!s.alive) return;
-  s.alive = false; shake = 10; Sfx.crash(s.x); NS.myDeaths = (NS.myDeaths || 0) + 1; endCombo(true);
+  s.alive = false; shake = Math.max(shake, 20); Sfx.crash(s.x); NS.myDeaths = (NS.myDeaths || 0) + 1; endCombo(true); // a hard jolt as you go down
+  NS.deadAt = performance.now(); NS.respawnIn = (NS.cfg && NS.cfg.respawn) || 5; netDeathCam(true); // the tint and the zoom-out start now, not a round trip later
   if (NETM.host) netPlayerDown(NETM.me, s.x, s.y); else netSend({ t: 'crash', x: Math.round(s.x), y: Math.round(s.y) });
   checkChallenges(); updateHud();
 }
+function netDeathCam(down) { // dying: the camera eases out to the whole map; back in, your own zoom returns
+  if (down) { if (NS.zoomBack === undefined) NS.zoomBack = UCAM.tz; UCAM.rate = 1.6; UCAM.tz = 1 / baseZoom(); UCAM.tpx = UCAM.tpy = 0; }
+  else { UCAM.rate = 3; if (NS.zoomBack !== undefined) UCAM.tz = NS.zoomBack; NS.zoomBack = undefined; UCAM.tpx = UCAM.tpy = 0; }
+}
 function netDownApply(e) {
-  NS.down.set(e.pid, { out: !!e.out });
+  if (!NS.down.has(e.pid)) NS.down.set(e.pid, { out: !!e.out }); // the host's own entry keeps its respawn timer
   const p = netPlayer(e.pid);
-  if (e.pid === NETM.me) { if (snake) { snake.alive = false; snake.netHidden = true; } netDownBanner && netDownBanner(e.out); }
-  else { const rs = NS.rs.get(e.pid); if (rs && e.x !== undefined) { for (let k = 0; k < 10; k++) debris.push({ x: e.x, y: e.y, z: rand(4, 10), vx: rand(-90, 90), vy: rand(-90, 90), vz: rand(30, 90), t: 0, s: rand(1.2, 2.4), c: p ? p.color : '#888' }); Sfx.crash(e.x); } if (p && typeof netNotify === 'function') netNotify(`${p.name} crashed${e.out ? ' (out)' : ''}`, p.color); }
+  if (e.pid === NETM.me) { if (snake) { snake.alive = false; snake.netHidden = true; } if (!NS.deadAt) NS.deadAt = performance.now(); NS.respawnIn = e.out ? 0 : (NS.cfg && NS.cfg.respawn) || 5; netDeathCam(true); netDownBanner && netDownBanner(e.out); }
+  else { const rs = NS.rs.get(e.pid); if (rs && e.x !== undefined) { for (let k = 0; k < 10; k++) debris.push({ x: e.x, y: e.y, z: rand(4, 10), vx: rand(-90, 90), vy: rand(-90, 90), vz: rand(30, 90), t: 0, s: rand(1.2, 2.4), c: p ? p.color : '#888' }); Sfx.crash(e.x); } if (p && typeof netNotify === 'function') netNotify(`${p.name} died${e.out ? ' (out of lives)' : ''}`, p.color); }
   netHud && netHud();
 }
 function netUpApply(e) {
   NS.down.delete(e.pid);
   if (e.pid === NETM.me) { // back in: fresh body, a moment of grace
-    const keep = snake ? snake.started : true; snake = newSnake({ x: e.x, y: e.y, a: e.a }); snake.started = keep; snake.graceT = 1.5; netDownBanner && netDownBanner(null);
+    const keep = snake ? snake.started : true; snake = newSnake({ x: e.x, y: e.y, a: e.a }); snake.started = keep; snake.graceT = 1.5; NS.deadAt = 0; netDeathCam(false); netDownBanner && netDownBanner(null);
     Sfx.whoosh && Sfx.whoosh(); resetAbilities();
   }
   netHud && netHud();
@@ -444,7 +449,7 @@ function netTick(dt) {
 }
 function netSyncReset(wasRun, keepSession) {
   const pt = NS.prevTime; if (!keepSession && pt !== undefined) SETTINGS.timeMode = pt; // the host's clock settings were for the session only
-  Object.assign(NS, { nid: 1, byId: new Map(), obsById: new Map(), evQ: [], out: [], snapT: 0, seq: 0, upT: 0, upSeq: 0, statT: 0, todT: 0, rs: new Map(), pools: {}, clock: 0, clkT: 0, clkAt: 0, down: new Map(), fxDone: new Set(), paid: new Set(), pend: new Map(), bubs: [], loaded: false, early: [], lastSnap: 0, myDeaths: 0, prevTime: keepSession ? pt : undefined });
+  Object.assign(NS, { nid: 1, byId: new Map(), obsById: new Map(), evQ: [], out: [], snapT: 0, seq: 0, upT: 0, upSeq: 0, statT: 0, todT: 0, rs: new Map(), pools: {}, clock: 0, clkT: 0, clkAt: 0, down: new Map(), fxDone: new Set(), paid: new Set(), pend: new Map(), bubs: [], loaded: false, early: [], lastSnap: 0, myDeaths: 0, deadAt: 0, zoomBack: undefined, prevTime: keepSession ? pt : undefined });
   if (!keepSession) { NETM.run = false; if (wasRun && state !== 'menu') { state = 'menu'; showMenu(); } }
 }
 function netSyncHostGone(old) { // the host vanished mid-run: this run can't go on (its world lived there); back to the lobby

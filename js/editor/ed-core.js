@@ -746,7 +746,7 @@ function peBreakFx(p, def) {
     <button class="pebtry edghost edwide" ${breaks || fx || kindDef ? '' : 'disabled'}>${edSvg('play', 14)} Try it</button>
     ${!fx ? `<p class="edhint">${kindDef ? `Breaks with the ${BFX_PRESETS[kindDef].name.toLowerCase()} effect.` : 'Breaks the classic way.'} Pick a look above to start from, then change anything you like.</p>` : `
     <div class="pebgrid">
-      <h5>Debris</h5>${sl('n', 'Pieces', 0, 160, 1)}${sel('shape', 'Shape', BFX_SHAPES)}${sl('size', 'Size', .3, 3, .1)}${sl('speed', 'Speed', .2, 2.5, .05)}${sl('spread', 'Spread', 0, 3.14, .02, 'How wide it sprays around the hit (3.14 = every way)')}${sl('lift', 'Height', .2, 2.5, .05, 'How high pieces fly')}
+      <h5>Debris</h5>${sl('n', 'Pieces', 0, 160, 1)}${sel('shape', 'Shape', BFX_SHAPES)}${sl('size', 'Size', .3, 3, .1)}${sl('speed', 'Speed', .2, 2.5, .05)}${sl('spread', 'Spread', 0, 3.14, .02, 'How wide it sprays around the hit (3.14 = every way)')}${sl('lift', 'Height', .2, 2.5, .05, 'How high pieces fly')}${sl('slide', 'Slide', 0, 1, .05, 'How far pieces skid across the floor after landing')}
       ${tg('scale', 'Bigger props, more pieces')}${tg('glint', 'Glints', 'Pieces catch the light as they fly')}
       <div class="pebcols"><span>Colors</span>${[0, 1, 2].map(slot).join('')}</div>
       <h5>Dust and sparks</h5>${sl('dust', 'Dust', 0, 40, 1)}${col('dustC', 'Dust color')}${sl('sparks', 'Sparks', 0, 80, 1)}${col('sparkC', 'Spark color')}

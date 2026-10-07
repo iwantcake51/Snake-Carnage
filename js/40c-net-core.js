@@ -112,7 +112,7 @@ function netHostCreate() { // returns a promise of the lobby code
 function netBecomeHost(peer, keep) { // fresh lobby, or taking over one whose host left (keep: the players who were in it)
   const prof = netProfile();
   Object.assign(NETM, { on: true, host: true, run: false, phase: 'lobby', peer, me: peer.id, code: netCodeOf(peer.id), hostId: peer.id, cfg: NETM.cfg || netDefaultCfg(), tokens: new Map(), joining: null });
-  NETM.players = [{ id: peer.id, name: netName(prof.name), color: (keep && keep.find(p => p.id === peer.id) || {}).color || NET_COLORS[0], ready: true, host: true, touch: prof.touch, cos: prof.cos, upg: prof.upg, slot: 0, joinT: Date.now(), conn: true }];
+  NETM.players = [{ id: peer.id, name: netName(prof.name), color: (keep && keep.find(p => p.id === peer.id) || {}).color || NET_COLORS[0], ready: false, host: true, touch: prof.touch, cos: prof.cos, upg: prof.upg, slot: 0, joinT: Date.now(), conn: true }];
   if (keep) for (const p of keep) if (p.id !== peer.id) NETM.players.push({ ...p, host: false, ready: false, conn: false, awayT: performance.now(), migrated: true }); // they reconnect on their own
   for (const ev of ['connection', 'error', 'disconnected']) peer.off(ev); // a guest taking over: drop the guest-side handlers (a guest turns every caller away)
   peer.on('connection', conn => netHostAccept(conn));
@@ -122,12 +122,13 @@ function netBecomeHost(peer, keep) { // fresh lobby, or taking over one whose ho
   clearInterval(NETM.hbT); NETM.hbT = setInterval(netHeartbeat, 1000);
   netLobbyChanged();
 }
-function netDefaultCfg() { return { map: mapIdx, mods: [...(SETTINGS.mods || [])], time: SETTINGS.timeMode, w: W, lives: 0, mode: 'coop', teams: 2, len: 0 }; }
+function netDefaultCfg() { return { map: mapIdx, mods: [...(SETTINGS.mods || [])], time: SETTINGS.timeMode, w: W, lives: 0, mode: 'coop', teams: 2, len: 0, respawn: 5 }; }
 /* modes: co-op (one team against the crowd), free for all (everyone for themselves, the best score wins) and teams
    (2-4 teams, the team with the most score wins). It's never PvP: snakes pass through each other and only race for the crowd. */
 const NET_MODES = { coop: 'Co-op', ffa: 'Free for all', teams: 'Teams' };
 const NET_TEAMS = [{ n: 'Red', c: '#e8433a' }, { n: 'Blue', c: '#3a8ee8' }, { n: 'Gold', c: '#f2c230' }, { n: 'Green', c: '#3cc46a' }];
 const NET_LENS = [0, 3, 5, 8, 10]; // round length in minutes; 0 = until everyone is out (or the host ends it)
+const NET_RESPAWNS = [3, 5, 8, 10, 15]; // seconds down after dying, before you're back in
 function netBalanceTeams() { // host: everyone on a team that exists; newcomers and the players of a team that just went away join the smallest
   const cfg = NETM.cfg; if (!cfg || cfg.mode !== 'teams') return;
   const n = cfg.teams = Math.max(2, Math.min(4, cfg.teams || 2)), size = Array(n).fill(0);

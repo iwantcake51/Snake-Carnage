@@ -1927,106 +1927,149 @@ body.phone #mpHud{top:46px;right:6px;font-size:11px;min-width:120px}
 .edpgh{margin:10px 2px 5px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#a89fab;display:flex;flex-direction:column;gap:1px}
 .edpgh:first-of-type{margin-top:6px}.edpgh small{font-size:10px;letter-spacing:0;text-transform:none;color:#7d7580;font-weight:400}
 
-/* =====================================================================
-   MULTIPLAYER, READABLE: bigger type, real contrast, headings that read as headings (the theme's panel headings are
-   small grey caps, meant for side labels), and buttons that stay visible over a map picture.
-   ===================================================================== */
-#overlay .mpcoop h2,#overlay .mplobby h2,#overlay .mpres h2,#mpPause .panel h2{font-size:30px!important;color:#f4eee8!important;letter-spacing:.03em!important;line-height:1.05;margin:0 0 6px}
-#overlay .mpcoop .mpcol h3,#overlay .mpfh{font-size:16px!important;letter-spacing:.06em!important;color:#f4eee8!important;border-bottom:0;padding-bottom:0;opacity:1}
-#overlay .mpsub,#mpPause .mpsub{opacity:1;color:#d3cad0;font-size:15.5px}
-#overlay .mphint{opacity:1;color:#b3aab4;font-size:14px;line-height:1.45}
-#overlay .mpcol p{opacity:1;color:#c9c0c7;font-size:14.5px}
-#overlay .mpname{font-size:16px;color:#f4eee8}
-#overlay .mpcode{font-size:28px;padding:7px 14px;border-color:#5a4e5e;box-shadow:inset 0 0 0 1px rgba(255,255,255,.04)}
-#overlay .mprow{padding:12px 14px;background:rgba(255,255,255,.065);border-color:#3c3442;gap:10px}
-#overlay .mprow b{font-size:17.5px;color:#fbf6f1}
-#overlay .mprow .mpdot,#overlay .mptable .mpdot{width:12px;height:12px}
-#overlay .mptag{font-size:12px;opacity:1;color:#efe7ee;background:rgba(255,255,255,.14);padding:3px 8px}
-#overlay .mptag.ok{background:#1f5a33;color:#c9f7d4}#overlay .mptag.warn{background:#6a4316;color:#ffe2b8}#overlay .mptag.host{color:#fff}
-#overlay .mpready{font-size:14px;opacity:.85;color:#c9c0c7}#overlay .mpready.on{color:#86f09a;opacity:1}
-#overlay .mpping{font-size:13px;opacity:.75;font-variant-numeric:tabular-nums}
-#overlay .mpline b{font-size:16px;color:#f4eee8}#overlay .mpline span{font-size:15.5px;opacity:1;color:#ddd4da}
-#overlay .mplobby select,#overlay .mpcoop input{font-size:16px;border-color:#4a4150;background:#16131a}
-#overlay .mpopt{font-size:14.5px;opacity:1;color:#ddd4da}
-#overlay .mpfriend{font-size:15px}
-#overlay .mperr{font-size:15px}
-/* the map picture: its name and the Change map button sit on a dark fade, so any map's colors leave them readable */
-#overlay .mpmap{border-color:#4a4150}
-#overlay .mpmap::after{content:'';position:absolute;left:0;right:0;bottom:0;height:58%;background:linear-gradient(180deg,rgba(8,6,10,0),rgba(8,6,10,.82));pointer-events:none}
-#overlay .mpmap span{z-index:1;font-size:19px;color:#fff;text-shadow:0 1px 2px #000,0 0 8px rgba(0,0,0,.8);bottom:10px;left:12px}
-#overlay .mpmap #mpMap{z-index:1;background:rgba(10,8,12,.92)!important;color:#fff!important;border:1px solid rgba(255,255,255,.55)!important;box-shadow:0 2px 10px rgba(0,0,0,.6)!important;padding:8px 14px;font-size:14px;bottom:9px;right:10px}
-#overlay .mpmap #mpMap:hover{background:var(--acc)!important;border-color:var(--acc)!important}
-#overlay .mppick .card{border-width:2px}#overlay .mppick .card::after{content:'';position:absolute;left:0;right:0;bottom:0;height:50%;background:linear-gradient(180deg,rgba(8,6,10,0),rgba(8,6,10,.85));pointer-events:none}
-#overlay .mppick .cn{z-index:1;font-size:14px;left:8px;bottom:6px}
-/* in the run */
-#mpHud{font-size:14px;background:rgba(12,10,14,.86);border-color:rgba(255,255,255,.14);padding:8px 11px;min-width:170px;transition:top .2s ease;box-shadow:0 6px 18px rgba(0,0,0,.4)}
-#mpHud .mph{font-size:12.5px;color:#f4eee8;opacity:1}#mpHud .mph b{font-size:16px}
-#mpHud .mpr{padding:2.5px 0}#mpHud .mpr b{font-variant-numeric:tabular-nums;color:#fff}#mpHud .mpr.me span{color:#fff}
-#mpHud .mpclk{font-size:14px}
-body.phone #mpHud{font-size:12px;min-width:140px}
-#mpDown{background:rgba(12,10,14,.86);padding:16px 26px;border:1px solid rgba(255,255,255,.14);box-shadow:0 10px 28px rgba(0,0,0,.5)}
-#mpDown b{font-size:24px}#mpDown span{opacity:1;color:#d3cad0;font-size:15px}
-#mpPause .panel{width:min(400px,92%)}
+/* co-op death: grey and a red wash, driven every frame by --dfx (0..1) */
+#stage.mpdfx #c{transition:none;filter:grayscale(calc(var(--dfx) * .92)) brightness(calc(1 - var(--dfx) * .14)) contrast(calc(1 + var(--dfx) * .08))}
+#mpTint{position:absolute;inset:0;z-index:5;pointer-events:none;opacity:var(--dfx);mix-blend-mode:multiply;background:radial-gradient(ellipse at 50% 50%,rgba(170,20,20,.55) 0%,rgba(120,0,0,.85) 100%)}
 
-/* ---- the scoreboard ---- */
-#overlay .panel.mpres{width:min(940px,95%)}
-.mprhead{text-align:center;margin:2px 0 14px}
-.mpkick{display:inline-block;font:800 12px var(--f-head,system-ui);letter-spacing:.2em;text-transform:uppercase;color:var(--acc-text,#ff8a8a);margin-bottom:6px}
-#overlay .mpres .mprhead h2{font-size:40px!important;letter-spacing:.02em!important;margin:0 0 10px;text-shadow:0 2px 0 rgba(0,0,0,.5)}
-.mpchips{display:flex;justify-content:center;flex-wrap:wrap;gap:6px}
-.mpchips span{background:rgba(255,255,255,.07);border:1px solid #3c3442;border-radius:999px;padding:4px 12px;font-size:14px;color:#ddd4da}.mpchips b{color:#fff}
-.mppod{display:flex;justify-content:center;align-items:flex-end;gap:10px;margin:4px 0 16px;flex-wrap:wrap}
-.mpcard{position:relative;flex:1 1 150px;max-width:230px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:16px 12px 12px;border-radius:8px;
-  background:linear-gradient(180deg,color-mix(in srgb,var(--pc,#888) 22%,#1a161c),#151216);border:1px solid color-mix(in srgb,var(--pc,#888) 45%,#2e2833);box-shadow:inset 0 3px 0 var(--pc,#888),0 8px 20px rgba(0,0,0,.35)}
-.mpcard .nm{font-size:18px;color:#fff;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.mpcard .big{font:800 34px/1.05 var(--f-num,ui-monospace),monospace;color:#fff;text-shadow:0 2px 0 rgba(0,0,0,.4)}
-.mpcard small{font-size:13px;color:#c9c0c7;text-align:center}
-.mpcard .lbl{font:800 12px var(--f-head,system-ui);letter-spacing:.18em;text-transform:uppercase;color:#ffcf33}
-.mpcard .medal{position:absolute;top:-12px;left:50%;translate:-50% 0;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font:800 14px var(--f-num,monospace);color:#1a1410;background:#8a8a92;box-shadow:0 2px 6px rgba(0,0,0,.5),inset 0 -2px 0 rgba(0,0,0,.25)}
-.mpcard.p1 .medal{background:linear-gradient(180deg,#ffe58a,#e0a92a)}.mpcard.p2 .medal{background:linear-gradient(180deg,#f2f2f4,#a9adb6)}.mpcard.p3 .medal{background:linear-gradient(180deg,#f0b48a,#b06a3a)}
-.mpcard.p1{padding-top:22px;padding-bottom:16px;border-color:#e0b84a;box-shadow:inset 0 3px 0 var(--pc,#888),0 0 0 1px rgba(255,210,90,.25),0 10px 28px rgba(0,0,0,.45),0 0 26px rgba(255,200,70,.12)}
-.mpcard.p1 .big{font-size:42px}
-.mppod.ffa .mpcard.p1{order:2}.mppod.ffa .mpcard.p2{order:1}.mppod.ffa .mpcard.p3{order:3}
-.mpcard.me .nm::after{content:' (you)';font-weight:600;font-size:13px;color:#c9c0c7}
-.mpcard.hero{--pc:#ffcf33;flex-basis:100%;max-width:none;padding:12px 16px}.mpcard.hero .big{font-size:46px}
-.mpcrown{position:absolute;top:-30px;left:50%;translate:-50% 0;width:34px;height:23px;fill:#ffd24a;filter:drop-shadow(0 2px 3px rgba(0,0,0,.6))}
-.mpcard.p1 .mpcrown~.medal{display:none}
-#overlay .mptable{border:1px solid #3c3442;border-radius:8px;background:rgba(0,0,0,.18)}
-#overlay .mptable table{font-size:15.5px}
-#overlay .mptable th{font-size:12px;opacity:1;color:#b3aab4;padding:9px 10px;background:rgba(255,255,255,.04);position:sticky;top:0}
-#overlay .mptable td{padding:10px;border-top:1px solid #2f2934;color:#e6dee4;font-variant-numeric:tabular-nums}
-#overlay .mptable td.pn{font-size:16px;color:#fff;box-shadow:inset 4px 0 0 var(--pc,transparent)}
-#overlay .mptable tbody tr:nth-child(even) td{background:rgba(255,255,255,.025)}
-#overlay .mptable tr.me td{background:color-mix(in srgb,var(--acc) 12%,transparent)}
-#overlay .mptable td.s{font-size:17px;color:#fff}
-#overlay .mptable td.top{color:#ffd24a;font-weight:800}#overlay .mptable td.top::after{content:'★';font-size:.7em;margin-left:3px;vertical-align:.2em}
-#overlay .mptable .rk{opacity:1;display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.1);font:800 12px var(--f-num,monospace);color:#fff;margin-right:2px}
-#overlay .mptable .rk.r1{background:#e0a92a;color:#1a1410}#overlay .mptable .rk.r2{background:#a9adb6;color:#1a1410}#overlay .mptable .rk.r3{background:#b06a3a;color:#fff}
-#overlay .mptable tr.team td{font-size:15.5px;color:#ffe3a0;background:rgba(255,207,51,.06)}
-#overlay .mptable tr.tg td{color:#fff;background:color-mix(in srgb,var(--tc) 22%,transparent);border-top:2px solid var(--tc)}
-#overlay .mptag.win{background:linear-gradient(180deg,#ffe58a,#e0a92a);color:#1a1410;font-weight:800}#overlay .mptag.you{background:color-mix(in srgb,var(--acc) 55%,transparent);color:#fff}
-.mpmine{display:flex;justify-content:center;flex-wrap:wrap;gap:8px;margin:4px 0 2px}
-.mpmine span{background:rgba(255,255,255,.06);border:1px solid #3c3442;border-radius:6px;padding:5px 12px;font-size:15px;color:#ece4ea;font-variant-numeric:tabular-nums}
-.mpmine .pl{border-color:color-mix(in srgb,var(--acc) 60%,#3c3442);background:color-mix(in srgb,var(--acc) 16%,transparent)}.mpmine b{color:#fff}
-.mpres.fresh .mprhead{animation:mpIn .45s cubic-bezier(.2,.8,.2,1) backwards}
-.mpres.fresh .mpcard{animation:mpPop .5s cubic-bezier(.2,.9,.25,1.2) backwards}.mpres.fresh .mpcard:nth-child(2){animation-delay:.08s}.mpres.fresh .mpcard:nth-child(3){animation-delay:.16s}.mpres.fresh .mpcard:nth-child(4){animation-delay:.24s}
-.mpres.fresh .mptable tbody tr{animation:mpIn .4s ease backwards}.mpres.fresh .mptable tbody tr:nth-child(2){animation-delay:.05s}.mpres.fresh .mptable tbody tr:nth-child(3){animation-delay:.1s}.mpres.fresh .mptable tbody tr:nth-child(n+4){animation-delay:.15s}
-@keyframes mpIn{from{opacity:0;translate:0 8px}}@keyframes mpPop{from{opacity:0;scale:.85}}
-@media (max-width:700px){.mpcard{flex-basis:120px}.mpcard .big{font-size:26px}.mpcard.p1 .big{font-size:32px}#overlay .mpres .mprhead h2{font-size:30px!important}}
-#overlay .mptable td.pn{display:table-cell;vertical-align:middle}
-#overlay .mptable td.pn>*{vertical-align:middle;margin-right:6px}#overlay .mptable td.pn .mpdot{margin-right:8px}
-#overlay .mptable td{vertical-align:middle}
-.mpcard.hero{flex-basis:170px;max-width:230px;padding:14px 12px 12px}.mpcard.hero .big{font-size:38px}.mpcard.hero small{font-size:12.5px}
-.mppod{margin:16px 0 12px}.mpcard{padding:12px 10px 10px}.mpcard.p1{padding-top:16px;padding-bottom:12px}
-.mpcard .big{font-size:30px}.mpcard.p1 .big{font-size:36px}
-#overlay .mpres .mprhead h2{font-size:36px!important;margin-bottom:8px}.mprhead{margin-bottom:6px}
-#overlay .mptable td{padding:8px 10px}
-#overlay .mptoast{left:auto;right:16px;top:16px;translate:none;z-index:3;background:#2a2430;border-color:#4a4150;font-size:14px}
-@keyframes mptoast{0%{opacity:0;translate:0 -6px}12%{opacity:1;translate:0 0}80%{opacity:1}100%{opacity:0}}
-#overlay .mpres .mptable{max-height:min(34vh,320px);overflow:auto}
-#overlay .mpres .mptable thead th{z-index:1;background:#1d191f}
-#mpHud .mpt span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#mpHud .mpt.mine > span:not(.mplives)::after{content:'YOU';font-size:9px;font-weight:800;letter-spacing:.06em;opacity:1;margin-left:5px;padding:1px 4px;border-radius:3px;background:var(--tc);color:#fff;vertical-align:1px}
-.mppod{margin-top:30px}
-#overlay .mptable th,#overlay .mptable td{padding-left:8px;padding-right:8px}#overlay .mptable tr>*:last-child{padding-right:12px}
+/* =====================================================================
+   MULTIPLAYER SCREENS, in the game's own look: matte panels, square corners, hairlines, condensed caps, mono numbers.
+   Readable sizes and contrast (the theme's panel headings are small grey side labels, so these override them).
+   ===================================================================== */
+#overlay #mpAgain,#overlay #mpStart{white-space:nowrap}
+#overlay #mpAgain:disabled span,#overlay #mpStart:disabled span{font-size:.78em}
+#overlay .mpcoop h2,#overlay .mplobby h2,#overlay .mpres h2,#mpPause .panel h2{font-size:32px!important;color:var(--ink)!important;letter-spacing:.02em!important;line-height:1.05;margin:0 0 6px;font-weight:700!important}
+#overlay .mpcoop .mpcol h3,#overlay .mpfh{font-size:15px!important;letter-spacing:.12em!important;color:var(--ink)!important;opacity:1;border-bottom:1px solid var(--edge);padding-bottom:5px;margin-bottom:8px}
+#overlay .mpsub,#mpPause .mpsub{opacity:1;color:#cfc6c0;font-size:15.5px}
+#overlay .mphint{opacity:1;color:var(--dim);font-size:14px;line-height:1.45}
+#overlay .mpcol{border-radius:var(--r);background:rgba(0,0,0,.22);border-color:var(--edge)}
+#overlay .mpcol p{opacity:1;color:#c9c0ba;font-size:14.5px}
+#overlay .mpname{font-size:16px;color:var(--ink)}
+#overlay .mpcoop input,#overlay .mplobby select{font-size:16px;border-radius:3px;border-color:var(--edge2);background:#0f0d0e}
+#overlay .mpcode{font:700 28px/1 var(--f-num);letter-spacing:.22em;border-radius:3px;border-color:var(--edge2);background:#0f0d0e;padding:7px 14px}
 #overlay .mpcoop #backBtn{padding:11px 20px;flex:none}
+#overlay .mpfriend{border-radius:3px;font-size:15px;background:rgba(0,0,0,.25);border-color:var(--edge2)}
+#overlay .mperr{font-size:15px}
+/* lobby rows */
+#overlay .mpplayers{gap:0;border:1px solid var(--edge);border-radius:var(--r);overflow:hidden}
+#overlay .mprow{border:0;border-radius:0;border-top:1px solid var(--edge);background:rgba(0,0,0,.18);padding:11px 14px;gap:10px;box-shadow:inset 3px 0 0 transparent}
+#overlay .mprow:first-child{border-top:0}#overlay .mprow.me{box-shadow:inset 3px 0 0 var(--acc);background:rgba(255,255,255,.035)}
+#overlay .mprow b{font-size:18px;color:var(--ink);font-weight:700}
+#overlay .mpdot{width:12px;height:12px;border-radius:2px;box-shadow:none}
+.mpsq{display:inline-block;width:12px;height:12px;border-radius:2px;vertical-align:-1px}
+#overlay .mpready{font:600 13px var(--f-num);letter-spacing:.04em;text-transform:uppercase;color:var(--dim);opacity:1}#overlay .mpready.on{color:#7fe596}
+#overlay .mpping{font:500 13px var(--f-num);color:var(--faint);opacity:1}
+/* ready dots: green and glowing when ready, red when not */
+.rdot{display:inline-block;width:10px;height:10px;border-radius:50%;flex:none;margin:0 2px;background:#ff3c3c;box-shadow:0 0 0 2px rgba(255,60,60,.18),0 0 9px 2px rgba(255,50,50,.7);vertical-align:middle}
+.rdot.on{background:#3ee66d;box-shadow:0 0 0 2px rgba(62,230,109,.18),0 0 10px 2px rgba(62,230,109,.75)}
+/* tags as stamps */
+#overlay .mptag,.stamp{font:700 11px var(--f-head)!important;text-transform:uppercase;letter-spacing:.1em;padding:2px 7px;border-radius:2px;background:transparent;border:1px solid var(--edge2);color:#d8cfc9;opacity:1;font-style:normal}
+#overlay .mptag.host{border-color:color-mix(in srgb,var(--acc) 70%,transparent);color:var(--acc-text,#ff8a8a)}#overlay .mptag.warn{border-color:#8a5a20;color:#ffc77a}
+.stamp.win,.stamp.mvp{border-color:#d9a93a;color:#ffd06a}.stamp.you{border-color:color-mix(in srgb,var(--acc) 70%,transparent);color:#fff}
+/* settings column */
+#overlay .mpline b{font-size:15px;color:var(--ink);font-family:var(--f-head)!important;text-transform:uppercase;letter-spacing:.08em}#overlay .mpline span{font-size:15.5px;opacity:1;color:#ddd4ce}
+#overlay .mpopt{font-size:14.5px;opacity:1;color:#d8cfc9}
+#overlay .mpmap{border-radius:var(--r);border-color:var(--edge2)}
+#overlay .mpmap::after{content:'';position:absolute;left:0;right:0;bottom:0;height:55%;background:linear-gradient(180deg,rgba(8,6,7,0),rgba(8,6,7,.85));pointer-events:none}
+#overlay .mpmap span{z-index:1;font:700 20px var(--f-head);text-transform:uppercase;letter-spacing:.06em;color:#fff;text-shadow:0 1px 2px #000;bottom:10px;left:12px}
+#overlay .mpmap #mpMap{z-index:1;background:#0f0d0e!important;color:#fff!important;border:1px solid rgba(255,255,255,.6)!important;padding:8px 14px;font-size:14px;bottom:9px;right:10px}
+#overlay .mpmap #mpMap:hover{background:var(--acc)!important;border-color:var(--acc)!important}
+#overlay .mppick .card{border-radius:var(--r)}#overlay .mppick .card::after{content:'';position:absolute;left:0;right:0;bottom:0;height:50%;background:linear-gradient(180deg,rgba(8,6,7,0),rgba(8,6,7,.85));pointer-events:none}
+#overlay .mppick .cn{z-index:1;font:700 14px var(--f-head);text-transform:uppercase;letter-spacing:.05em}
+#overlay .mpteam{border-radius:2px;font-family:var(--f-head)!important}
+#overlay .mpfoot .mprdy.on,#overlay .mpfoot .play.on{border-color:#3ee66d!important;color:#c9f7d4!important;box-shadow:inset 0 0 0 1px rgba(62,230,109,.4)!important}
+#overlay .mpfoot .play.on{background:#24683a!important}
+#overlay .mptoast{left:auto;right:16px;top:16px;translate:none;z-index:3;border-radius:3px;background:#1d191b;border-color:var(--edge2);font-size:14px}
+@keyframes mptoast{0%{opacity:0;translate:0 -6px}12%{opacity:1;translate:0 0}80%{opacity:1}100%{opacity:0}}
+/* in the run */
+#mpHud{font-size:14px;background:rgba(14,11,12,.88);border:1px solid var(--edge2);border-radius:3px;padding:8px 11px;min-width:170px;transition:top .2s ease}
+#mpHud .mph{font:700 12.5px var(--f-head);letter-spacing:.12em;text-transform:uppercase;color:var(--ink);opacity:1;border-bottom:1px solid var(--edge);padding-bottom:5px}
+#mpHud .mph b,#mpHud .mpr b,#mpHud .mpt b{font-family:var(--f-num);color:#fff}#mpHud .mph b{font-size:15px}
+#mpHud .mpr{padding:2.5px 0}#mpHud .mpr.me span{color:#fff;font-weight:700}
+#mpHud .mpclk{font:700 14px var(--f-num);border-radius:2px}
+#mpHud .mpt{border-top-color:var(--edge2)}#mpHud .mpt span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#mpHud .mpt.mine > span:not(.mplives)::after{content:'YOU';font:700 9px var(--f-head);letter-spacing:.1em;margin-left:6px;padding:1px 4px;border:1px solid var(--tc);border-radius:2px;color:#fff;vertical-align:1px}
+body.phone #mpHud{font-size:12px;min-width:140px}
+#mpDown{background:rgba(14,11,12,.9);padding:16px 30px;border:1px solid var(--edge2);border-radius:3px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+#mpDown b{font:700 34px var(--f-head);letter-spacing:.06em;text-transform:uppercase;color:#ff5a5a}#mpDown span{opacity:1;color:#e2d9d3;font-size:16px}
+#mpDown .cd i{font:700 18px var(--f-num);font-style:normal;color:#fff}
+#mpPause .panel{width:min(400px,92%)}
+/* the scoreboard */
+#overlay .panel.mpres{width:min(1000px,95%)}
+.mprhead{margin:2px 0 12px;border-bottom:1px solid var(--edge);padding-bottom:12px}
+.mpkick{display:flex;gap:8px;margin-bottom:8px}.mpkick span{font:700 12px var(--f-head);letter-spacing:.16em;text-transform:uppercase;color:var(--acc-text,#ff8a8a);border:1px solid color-mix(in srgb,var(--acc) 60%,transparent);padding:2px 8px;border-radius:2px}
+.mpkick span+span{color:var(--dim);border-color:var(--edge2)}
+#overlay .mpres .mprhead h2{font-size:44px!important;text-transform:uppercase;margin:0 0 4px}
+.mpmeta{font:500 14px var(--f-num);color:var(--dim);letter-spacing:.04em}
+.mpsum{display:flex;gap:12px;margin:0 0 12px;flex-wrap:wrap}
+.mpmvp{flex:1 1 340px;display:flex;align-items:center;gap:14px;padding:12px 16px;background:rgba(0,0,0,.25);border:1px solid var(--edge2);border-radius:3px;box-shadow:inset 4px 0 0 var(--pc)}
+.mpmvp .stamp.mvp{font-size:15px!important;padding:6px 10px;letter-spacing:.18em}
+.mpmvp .who{flex:1;min-width:0;display:flex;flex-direction:column}.mpmvp .who b{font:700 26px var(--f-head);text-transform:uppercase;letter-spacing:.03em;color:#fff;line-height:1.05}
+.mpmvp .who em{font:600 12px var(--f-head);text-transform:uppercase;letter-spacing:.1em;color:var(--pc);font-style:normal}.mpmvp .who small{font-size:14px;color:#cfc6c0;margin-top:2px}
+.mpmvp .num{font:700 40px/1 var(--f-num);color:#fff;text-align:right}.mpmvp .num small{display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.mpstats{flex:1 1 420px;display:grid;grid-template-columns:repeat(5,1fr);border:1px solid var(--edge2);border-radius:3px;background:rgba(0,0,0,.25)}
+.mpstats div{padding:10px 12px;border-left:1px solid var(--edge)}.mpstats div:first-child{border-left:0}
+.mpstats small{display:block;font:600 11px var(--f-head);letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}.mpstats b{font:700 26px var(--f-num);color:#fff}
+.mpstats div:first-child b{color:#ffd06a}
+.mpbars{flex:1 1 380px;display:flex;flex-direction:column;justify-content:center;gap:6px;padding:10px 14px;border:1px solid var(--edge2);border-radius:3px;background:rgba(0,0,0,.25)}
+.mpbar{display:grid;grid-template-columns:70px 1fr 56px;align-items:center;gap:10px}
+.mpbar .tn{font:700 14px var(--f-head);text-transform:uppercase;letter-spacing:.08em;color:var(--tc)}
+.mpbar .track{height:10px;background:rgba(255,255,255,.05);border:1px solid var(--edge);border-radius:2px;overflow:hidden}.mpbar .track i{display:block;height:100%;width:var(--w);background:var(--tc)}
+.mpbar b{font:700 20px var(--f-num);color:#fff;text-align:right}.mpbar.win b{color:#ffd06a}
+#overlay .mptable{margin:0 0 10px;border:1px solid var(--edge2);border-radius:3px;background:rgba(0,0,0,.2)}
+#overlay .mpres .mptable{max-height:min(34vh,340px);overflow:auto}
+#overlay .mptable table{font-size:15px}
+#overlay .mptable th{font:700 11.5px var(--f-head);letter-spacing:.08em;text-transform:uppercase;color:var(--dim);opacity:1;padding:9px 9px;background:#151213;position:sticky;top:0;z-index:1;border-bottom:1px solid var(--edge2)}
+#overlay .mptable td{padding:8px 8px;border-top:1px solid var(--edge);color:#ddd4ce;font-family:var(--f-num);vertical-align:middle}
+#overlay .mptable tr>*:last-child{padding-right:12px}
+#overlay .mptable .mpkick,#overlay .mptable button{padding:4px 9px;font-size:12px}
+#overlay .mptable td.pn{display:table-cell;font-family:var(--f-body);font-size:16px;color:#fff;font-weight:700;box-shadow:inset 3px 0 0 var(--pc,transparent)}
+#overlay .mptable td.pn>*{vertical-align:middle;margin-right:6px}
+#overlay .mptable td.s{color:#fff;font-weight:700}#overlay .mptable td.top{color:#fff;font-weight:800}
+#overlay .mptable .rk{font:600 12px var(--f-num);color:var(--faint);font-style:normal}
+#overlay .mptable tr.me td{background:rgba(255,255,255,.035)}#overlay .mptable tr.gone{opacity:.5}
+#overlay .mptable tr.team td{color:#ffd06a;font-weight:700;background:rgba(0,0,0,.2);border-top:1px solid var(--edge2)}
+#overlay .mptable tr.tg td{color:#fff;background:color-mix(in srgb,var(--tc) 14%,transparent);border-top:1px solid color-mix(in srgb,var(--tc) 60%,transparent)}
+#overlay .mptable tr.tg td.pn{box-shadow:inset 3px 0 0 var(--tc);font-family:var(--f-head);text-transform:uppercase;letter-spacing:.06em}
+.mpmine{display:flex;flex-wrap:wrap;gap:0;border:1px solid var(--edge2);border-radius:3px;margin:0 0 4px;width:max-content;max-width:100%}
+.mpmine span{padding:6px 12px;font:600 14px var(--f-num);color:#e2d9d3;border-left:1px solid var(--edge)}.mpmine span:first-child{border-left:0;font:700 12px var(--f-head);letter-spacing:.14em;text-transform:uppercase;color:var(--acc-text,#ff8a8a);display:flex;align-items:center}
+.mpres.fresh .mprhead,.mpres.fresh .mpsum,.mpres.fresh .mptable{animation:mpIn .35s ease backwards}.mpres.fresh .mpsum{animation-delay:.08s}.mpres.fresh .mptable{animation-delay:.16s}
+@keyframes mpIn{from{opacity:0;translate:0 6px}}
+@media (max-width:700px){.mpstats{grid-template-columns:repeat(3,1fr)}#overlay .mpres .mprhead h2{font-size:32px!important}.mpmvp .num{font-size:30px}}
+/* =====================================================================
+   DESKTOP: menus use the room they have, so most fit without scrolling
+   ===================================================================== */
+body:not(.phone) #overlay .panel{max-height:calc(100% - 20px)}
+body:not(.phone) .panel.set{width:min(1240px,97%);height:min(900px,calc(100% - 20px))}
+body:not(.phone):not(.narrow) .sbody{display:grid;grid-template-columns:1fr 1fr;column-gap:30px;align-content:start;padding:22px 28px}
+body:not(.phone):not(.narrow) .sbody>h2,body:not(.phone):not(.narrow) .sbody>.lead,body:not(.phone):not(.narrow) .sbody>.keylist{grid-column:1/-1}
+body:not(.phone):not(.narrow) .sbody .srow2{padding-top:9px;padding-bottom:9px;min-width:0}
+body:not(.phone):not(.narrow) .sbody .srow2 small{font-size:12.5px;line-height:1.35}
+body:not(.phone):not(.narrow) .sbody .srow2 .sseg button{padding-left:7px;padding-right:7px}
+body:not(.phone) .panel.upg{width:min(1400px,97%)}
+body:not(.phone):not(.narrow) .upgrid{grid-template-columns:repeat(4,1fr)}
+body:not(.phone) .panel.mods{width:min(1400px,97%)}
+body:not(.phone):not(.narrow) .modgrid{grid-template-columns:repeat(5,1fr)}
+body:not(.phone) .panel.chal2{width:min(1400px,97%)}
+body:not(.phone) .menu{padding-top:26px;padding-bottom:18px}
+body:not(.phone):not(.narrow) .cards{grid-template-columns:repeat(5,1fr);gap:7px}
+body:not(.phone):not(.narrow) .modgrid{grid-template-columns:repeat(6,1fr);gap:6px}
+body:not(.phone):not(.narrow) .modgrid .mtile{padding-top:6px;padding-bottom:6px}
+body:not(.phone):not(.narrow) .modgrid .mg{margin-top:6px}
+body:not(.phone):not(.narrow) .upc{padding:10px 12px;gap:6px}
+body:not(.phone) .panel.shop2{width:min(1400px,97%);height:calc(100% - 20px);max-height:none}
+body:not(.phone):not(.narrow) .sbody .srow2{padding-top:7px;padding-bottom:7px}
+body:not(.phone):not(.narrow) .sbody>.lead{margin-bottom:6px}
+body:not(.phone):not(.narrow) .modgrid .mtile{grid-template-columns:24px 1fr auto;gap:7px}
+body:not(.phone):not(.narrow) .modgrid .mtile .mic{width:24px;height:24px;font-size:13px}
+body:not(.phone):not(.narrow) .modgrid .mtile small{font-size:11px}
+body:not(.phone):not(.narrow) .modgrid{gap:5px}
+body:not(.phone):not(.narrow) .modgrid .mtile{padding-top:5px;padding-bottom:5px}
+body:not(.phone):not(.narrow) .modgrid .mg{margin:3px 0 0;padding-bottom:2px}
+body:not(.phone):not(.narrow) .panel.mods>.lead,body:not(.phone):not(.narrow) .panel.mods>p{margin-bottom:6px;font-size:13.5px}
+body:not(.phone):not(.narrow) .sbody{padding-top:16px}
+body:not(.phone):not(.narrow) .sbody>h2{margin-bottom:0}
+body:not(.phone):not(.narrow) .sbody .srow2{padding-top:6px;padding-bottom:6px}
+body:not(.phone):not(.narrow) .sbody .srow2 small{font-size:12px;line-height:1.3}
+body:not(.phone):not(.narrow) .modgrid .mtile{padding-top:4px;padding-bottom:4px}
+body:not(.phone):not(.narrow) .modgrid .mg{margin-top:1px}
+body:not(.phone):not(.narrow) .panel.mods .chhead{margin-bottom:0}
