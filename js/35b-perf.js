@@ -170,5 +170,56 @@ async function perfFindSlow() {
     `<div class="prow"><span class="pn" title="${r.hint ? 'Change it in Settings › ' + r.hint : ''}"><i class="o"></i>${r.label}${r.hint ? `<em>${r.hint}</em>` : ''}</span><span class="pv">${r.ms.toFixed(1)}</span><span class="pp">${Math.round(r.ms / Math.max(1, base) * 100)}%</span><b class="pb ab" style="width:${(r.ms / top * 100).toFixed(1)}%"></b></div>`).join('')
     + (out.some(r => r.ms >= .3) ? '' : `<div class="ph1"><span>${base < 18 ? 'Running at your screen\'s refresh rate: nothing here is holding it back.' : 'Nothing stood out: every part costs under 0.3 ms on this device.'}</span></div>`);
 }
+/* ---- THIS RUN: always recorded (a few comparisons a frame), so the pause screen can say what made it lag even with the
+   stats panel off. Frame times while you play, every hitch with what was happening at that moment (kills, smashing,
+   how much blood and debris was in the air), and, if Performance stats were on Full, which parts spiked. ---- */
+const PR = { run: null, n: 0, sum: 0, worst: 0, b: [0, 0, 0, 0, 0], slowT: 0, hitch: [], last: 0, skip: 0, kH: new Int32Array(40), sH: new Int32Array(40), ki: 0, avg: 16.7, lowFx: [], lastLow: 0 };
+function perfRunTick(now) {
+  if (PR.run !== run) { Object.assign(PR, { run, n: 0, sum: 0, worst: 0, b: [0, 0, 0, 0, 0], slowT: 0, hitch: [], skip: 40, lowFx: [], lastLow: 0, avg: 16.7 }); PR.last = now; return; } // a new run: start over
+  const dt = now - PR.last; PR.last = now;
+  const i = PR.ki = (PR.ki + 1) % 40; PR.kH[i] = run.killed || 0; PR.sH[i] = run.smashed || 0;
+  if (state !== 'play' || dt > 1000) return; // only while you're actually playing (a paused or hidden tab doesn't count)
+  if (PR.skip > 0) { PR.skip--; return; } // the first frames of a run are the map settling in
+  PR.n++; PR.sum += dt; if (dt > PR.worst) PR.worst = dt; PR.b[dt <= 17.5 ? 0 : dt <= 25 ? 1 : dt <= 34 ? 2 : dt <= 50 ? 3 : 4]++; if (dt > 34) PR.slowT += dt;
+  if (lowFx !== PR.lastLow) { if (lowFx > PR.lastLow) PR.lowFx.push({ t: run.time, lv: lowFx }); PR.lastLow = lowFx; }
+  if (dt > Math.max(50, PR.avg * 2.6)) { // a hitch: note what was going on
+    const o = (i + 1) % 40, alive = creatures.reduce((a, c) => a + (c.alive ? 1 : 0), 0);
+    const h = { t: run.time, ms: dt, kills: PR.kH[i] - PR.kH[o], smash: PR.sH[i] - PR.sH[o], drops: typeof parts !== 'undefined' ? parts.length : 0, gibs: typeof gibs !== 'undefined' ? gibs.length : 0, debris: typeof debris !== 'undefined' ? debris.length : 0, alive,
+      js: PERF.mode === 'Full' ? PERF.frameJs : null, top: PERF.mode === 'Full' ? [...PERF.stats.values()].filter(q => q.cur > .5).sort((a, b) => b.cur - a.cur).slice(0, 3).map(q => [q.label, q.cur]) : null };
+    PR.hitch.push(h); if (PR.hitch.length > 40) { PR.hitch.sort((a, b) => b.ms - a.ms); PR.hitch.length = 25; } // keep the worst ones
+  }
+  PR.avg += (dt - PR.avg) * .05;
+}
+function perfRunCauses() { // a plain-language guess at what hurt, from the hitches and the overall frame rate
+  const hs = PR.hitch, out = [], n = hs.length, avg = PR.n ? PR.sum / PR.n : 16.7;
+  if (!PR.n) return out;
+  const k = hs.filter(h => h.kills > 0).length, sm = hs.filter(h => h.smash > 0).length, busy = hs.filter(h => h.drops > 250 || h.gibs > 40 || h.debris > 120).length;
+  if (n >= 2 && k / n >= .5) out.push(['Kills', `${k} of ${n} hitches came right after eating someone: the blood spray, gibs and pools. Effects › Blood quality (Medium or Low) and Particles cut that most.`]);
+  if (n >= 2 && sm / n >= .4) out.push(['Breaking things', `${sm} of ${n} hitches came right after smashing something. Effects › Particles: Low makes the debris lighter.`]);
+  if (n >= 3 && busy / n >= .5 && !(k / n >= .5)) out.push(['Busy screen', 'Most hitches had a lot of blood or debris in the air at once. Effects › Blood quality or Particles lower that.']);
+  const tops = {}; for (const h of hs) for (const [l, v] of h.top || []) tops[l] = (tops[l] || 0) + v;
+  const timed = hs.filter(h => h.js !== null && h.js !== undefined), outside = timed.filter(h => h.js < h.ms * .4).length;
+  if (timed.length && outside / timed.length >= .5) out.push(['Outside the game code', `In ${outside} of ${timed.length} measured hitches the game's own code took only a small part of the frame: the rest was the graphics chip drawing, or the browser (garbage collection, another tab). Lower Render resolution and Lighting to ease the graphics side.`]);
+  else { const best = Object.entries(tops).sort((a, b) => b[1] - a[1])[0]; if (best) out.push(['Measured', `When it hitched, ${best[0]} took the most time.`]); }
+  if (avg > 24 && n < PR.n * .02) out.push(['Steady load', `It ran slowly all the time rather than in spikes (${Math.round(1000 / avg)} fps on average). The biggest levers: Graphics › Lighting (Low), Shadows (Static), Render resolution (75%). In a run, the F3 panel's "Find what's slow" measures each part on this device.`]);
+  if (PR.lowFx.length) out.push(['Automatic quality', `It ran slowly enough that the game simplified the ${PR.lowFx.some(e => e.lv > 1) ? 'lighting and snow' : 'lighting'} by itself at ${fmtTime(PR.lowFx[0].t)}.`]);
+  if (!out.length) out.push(n ? ['Nothing stands out', 'The hitches didn\'t line up with kills, smashing or a busy screen. They may come from the browser itself (garbage collection, another tab, the graphics driver).'] : ['Smooth', 'No hitches so far this run.']);
+  return out;
+}
+function perfRunHtml() {
+  if (!PR.n) return '<p class="pfempty">Nothing recorded yet. Play for a moment and pause again.</p>';
+  const avg = PR.sum / PR.n, fps = Math.round(1000 / avg), worst = Math.round(PR.worst), tot = PR.b.reduce((a, b) => a + b, 0) || 1;
+  const pct = PR.b.map(v => v / tot * 100), slow = PR.slowT / Math.max(1, PR.sum) * 100;
+  const worstH = [...PR.hitch].sort((a, b) => b.ms - a.ms).slice(0, 5);
+  const cause = h => { const w = []; if (h.kills) w.push(h.kills > 1 ? `${h.kills} kills` : 'a kill'); if (h.smash) w.push('smashing'); if (h.drops > 150) w.push(`${h.drops} blood drops`); if (h.gibs > 25) w.push(`${h.gibs} gibs`); if (h.debris > 80) w.push(`${h.debris} debris`); return w.length ? 'just after ' + w.join(', ') : `${h.alive} alive, quiet moment`; };
+  const parts = PERF.mode === 'Full' ? [...PERF.stats.values()].filter(q => q.avg > .05).sort((a, b) => b.avg - a.avg).slice(0, 5) : [];
+  return `<div class="pfsum"><div><b class="${fps >= 55 ? 'ok' : fps >= 30 ? 'meh' : 'bad'}">${fps}</b><small>avg fps</small></div><div><b>${worst}</b><small>worst ms</small></div><div><b>${PR.hitch.length}</b><small>hitches</small></div><div><b>${slow.toFixed(0)}%</b><small>time under 30 fps</small></div></div>
+    <div class="pfbar" title="How long frames took this run">${pct.map((v, i) => v > .3 ? `<i class="f${i}" style="width:${v.toFixed(1)}%"></i>` : '').join('')}</div>
+    <div class="pfleg"><span><i class="f0"></i>smooth</span><span><i class="f1"></i>ok</span><span><i class="f2"></i>slow</span><span><i class="f3"></i>very slow</span><span><i class="f4"></i>hitch</span></div>
+    <h4>Likely causes</h4><div class="pfcause">${perfRunCauses().map(([t, d]) => `<p><b>${t}</b>${d}</p>`).join('')}</div>
+    ${worstH.length ? `<h4>Worst moments</h4><div class="pfhit">${worstH.map(h => `<p><span>${fmtTime(h.t)}</span><b>${Math.round(h.ms)} ms</b><em>${cause(h)}${h.js !== null && h.js !== undefined ? (h.js < h.ms * .4 ? ` · ${Math.round(h.ms - h.js)} ms outside the game code` : h.top && h.top.length ? ` · ${h.top.map(([l, v]) => `${l} ${v.toFixed(0)} ms`).join(', ')}` : '') : ''}</em></p>`).join('')}</div>` : ''}
+    ${parts.length ? `<h4>Each part, per frame</h4><div class="pfparts">${parts.map(q => `<p><span>${q.label}</span><b>${q.avg.toFixed(2)} ms</b></p>`).join('')}</div>`
+      : `<p class="pfhint">${PERF.mode === 'Full' ? '' : 'For which part of the game costs what, turn on full stats; they measure from then on.'}</p>${PERF.mode === 'Full' ? '' : '<button class="btn alt pfon" id="pfOn">Turn on full stats</button>'}`}`;
+}
 addEventListener('keydown', e => { if (e.code === 'F3' && !e.repeat) { e.preventDefault(); perfCycle(); } });
 addEventListener('load', () => { if ((SETTINGS.perfHud || 'Off') !== 'Off') perfApply(); }); // after every file: all the functions exist

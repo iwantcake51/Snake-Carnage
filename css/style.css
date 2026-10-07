@@ -2228,3 +2228,26 @@ body:not(.phone):not(.narrow) .keylist{gap:9px 20px}
 #mpDock .mptoast{position:absolute;right:8px;bottom:-34px;white-space:nowrap}
 body.phone #mpDock{top:auto;bottom:70px;translate:none}
 #perfHud[hidden]{display:none!important}
+
+/* pause screen: Challenges | Performance (what made this run lag) */
+.panel.pause .ptabs{display:flex;gap:4px;margin:2px 0 10px;border-bottom:1px solid var(--edge,#2c2226)}
+.panel.pause .ptabs button{background:none;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;padding:6px 10px 7px;color:#9b8f88;font:800 11px var(--f-head);letter-spacing:.14em;text-transform:uppercase;cursor:pointer}
+.panel.pause .ptabs button.on{color:var(--ink,#f0e8e2);border-bottom-color:var(--acc)}
+.panel.pause .ptabs button:hover{color:#fff}
+.ppf{text-align:left;font-size:13px;color:#cfc6c0;max-height:min(58vh,520px);overflow:auto;padding-right:4px}
+.ppf .pfsum{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}
+.ppf .pfsum div{background:rgba(0,0,0,.25);border:1px solid var(--edge,#2c2226);border-radius:3px;padding:7px 8px}
+.ppf .pfsum b{display:block;font:700 22px/1.1 var(--f-num);color:#fff}.ppf .pfsum b.ok{color:#5be08a}.ppf .pfsum b.meh{color:#f2c14e}.ppf .pfsum b.bad{color:#ff5a4a}
+.ppf .pfsum small{font:700 10px var(--f-head);letter-spacing:.1em;text-transform:uppercase;color:#8f8489}
+.ppf .pfbar{display:flex;height:9px;border-radius:2px;overflow:hidden;background:#1a1416}
+.ppf .pfbar i,.ppf .pfleg i{display:block;height:100%}.ppf .f0{background:#4fd17a}.ppf .f1{background:#a6d14f}.ppf .f2{background:#f2c14e}.ppf .f3{background:#ff8a4c}.ppf .f4{background:#ff4a3d}
+.ppf .pfleg{display:flex;flex-wrap:wrap;gap:10px;margin:5px 0 4px;font-size:11px;color:#8f8489}.ppf .pfleg span{display:flex;align-items:center;gap:4px}.ppf .pfleg i{width:8px;height:8px;border-radius:1px}
+.ppf h4{margin:12px 0 5px;font:800 11px var(--f-head);letter-spacing:.14em;text-transform:uppercase;color:var(--acc-text)}
+.ppf .pfcause p{margin:0 0 6px;line-height:1.4}.ppf .pfcause b{display:block;color:#fff;font-size:13px}
+.ppf .pfhit p,.ppf .pfparts p{display:grid;grid-template-columns:42px 58px 1fr;gap:6px;margin:0;padding:4px 0;border-top:1px solid rgba(255,255,255,.05);align-items:baseline}
+.ppf .pfparts p{grid-template-columns:1fr auto}
+.ppf .pfhit span{color:#8f8489;font:500 11px var(--f-num)}.ppf .pfhit b,.ppf .pfparts b{font:700 12px var(--f-num);color:#ff7a6a}.ppf .pfparts b{color:#fff}
+.ppf .pfhit em{font-style:normal;color:#bfb5b0}
+.ppf .pfhint,.ppf .pfempty{color:#8f8489;margin:12px 0 6px}.ppf .pfon{margin-top:2px}
+#mpPause .ppf{margin-top:10px;border-top:1px solid var(--edge,#2c2226);padding-top:10px;max-height:46vh}
+.panel.pause .pch[hidden],.ppf[hidden]{display:none!important}

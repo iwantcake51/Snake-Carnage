@@ -16,7 +16,11 @@ function showPause() {
     ${ids.length ? `<div class="modline center">${modLine(ids)}</div>` : ''}
     <div class="pbtns"><button class="btn" id="resBtn" data-sfx="confirm">Resume</button><button class="btn alt" id="pSetBtn" data-sfx="open">Settings</button><button class="btn alt" id="pMenuBtn" data-sfx="close">Quit to menu</button></div>
     <p class="small">${IS_TOUCH ? 'Tap Resume to continue' : 'Esc or Space to resume'}</p></div>
-    <div class="pr"><h3>Challenges</h3><div class="pch">${challengeRows()}</div></div></div>`;
+    <div class="pr"><div class="ptabs"><button class="on" data-pt="ch" data-sfx="tab">Challenges</button><button data-pt="pf" data-sfx="tab">Performance</button></div><div class="pch">${challengeRows()}</div><div class="ppf" hidden>${perfRunHtml()}</div></div></div>`;
+  const pr = overlay.querySelector('.pause .pr'), tab = t => { pr.querySelectorAll('[data-pt]').forEach(b => b.classList.toggle('on', b.dataset.pt === t)); pr.querySelector('.pch').hidden = t !== 'ch'; pr.querySelector('.ppf').hidden = t !== 'pf'; showPause.tab = t; };
+  pr.querySelectorAll('[data-pt]').forEach(b => b.onclick = () => tab(b.dataset.pt));
+  const on = document.getElementById('pfOn'); if (on) on.onclick = () => { SETTINGS.perfHud = 'Full'; saveSettings(); perfApply(); pr.querySelector('.ppf').innerHTML = perfRunHtml(); toast('Full performance stats on'); };
+  if (showPause.tab === 'pf') tab('pf'); // reopens on the tab you left it on
   document.getElementById('resBtn').onclick = resumeGame;
   document.getElementById('pSetBtn').onclick = () => { settingsFrom = 'pause'; transitionTo(() => showSettings()); };
   document.getElementById('pMenuBtn').onclick = returnToMenu;

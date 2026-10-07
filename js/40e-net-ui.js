@@ -296,10 +296,11 @@ pauseGame = function () {
   el.innerHTML = `<div class="panel"><h2>Menu</h2><p class="mpsub">The game keeps running for everyone while this is open.</p>
     <button class="play" id="mpResume"><span>Back to the game</span></button>
     ${NETM.host ? '<button class="ghost" id="mpEnd">End the run for everyone</button>' : ''}
-    <button class="ghost" id="mpSet">Settings</button><button class="ghost" id="mpQuit">Leave co-op</button></div>`;
+    <button class="ghost" id="mpSet">Settings</button><button class="ghost" id="mpPerf">Performance</button><button class="ghost" id="mpQuit">Leave co-op</button><div class="ppf" hidden></div></div>`;
   document.body.appendChild(el); Sfx.ui('open');
   el.querySelector('#mpResume').onclick = netClosePause;
   if (NETM.host) el.querySelector('#mpEnd').onclick = () => { netClosePause(); netEndRun('host'); };
+  el.querySelector('#mpPerf').onclick = () => { const b = el.querySelector('.ppf'); b.hidden = !b.hidden; if (!b.hidden) { b.innerHTML = perfRunHtml(); const on = b.querySelector('#pfOn'); if (on) on.onclick = () => { SETTINGS.perfHud = 'Full'; saveSettings(); perfApply(); b.innerHTML = perfRunHtml(); }; } };
   el.querySelector('#mpSet').onclick = () => { netClosePause(); settingsFrom = 'mp'; overlay.style.display = 'flex'; showSettings(); };
   el.querySelector('#mpQuit').onclick = () => { netClosePause(); netLeave(); state = 'menu'; showMenu(); };
 };

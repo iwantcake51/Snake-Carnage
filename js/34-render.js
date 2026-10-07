@@ -182,7 +182,7 @@ function frame(now) {
   if (menu) { UT += dt; return; }
   try { update(dt); } catch (e) { loopError(e, 'update'); }
   try { render(); } catch (e) { loopError(e, 'render'); }
-  if (PERF.mode !== 'Off') perfFrame(now);
+  perfRunTick(now); if (PERF.mode !== 'Off') perfFrame(now);
 }
 
 let plxQ = null; // mouse parallax: main menu only, at most once a frame. Over the blurred pause/death backdrop every nudge re-blurs the whole screen, so it stays still there
