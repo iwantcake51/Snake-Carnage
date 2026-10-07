@@ -204,13 +204,18 @@ function drawSnakeNightRim(x) { // white rim at night, readable over dark ground
   for (const g of pts) { if (g.x < x0) x0 = g.x; if (g.x > x1) x1 = g.x; if (g.y < y0) y0 = g.y; if (g.y > y1) y1 = g.y; }
   const pad = snakeRadius() + 6, prev = snake._rimBox; x0 -= pad; y0 -= pad; x1 += pad; y1 += pad;
   if (prev) snx.clearRect(prev[0], prev[1], prev[2] - prev[0], prev[3] - prev[1]); else snx.clearRect(-60, -60, W + 120, H + 120);
-  snake._rimBox = [x0, y0, x1, y1]; snx.beginPath();
-  for (let i = 0; i < n; i++) { const g = pts[i], r = segR(i, n) + .4; snx.moveTo(g.x + r, g.y); snx.arc(g.x, g.y, r, 0, TAU); }
-  snx.strokeStyle = `rgba(255,255,255,${strong ? .95 : .8})`; snx.lineWidth = strong ? 3.6 : 2.4; snx.stroke();
-  snx.globalCompositeOperation = 'destination-out'; snx.fill(); snx.globalCompositeOperation = 'source-over';
+  snake._rimBox = [x0, y0, x1, y1];
+  // one ring per segment, then every disc cut back out, leaving only the outer edge. Each circle is its own draw (the graphics
+  // chip draws circles directly; all of them as one path would be rasterized over the whole body's box), solid white here and
+  // made see-through when the layer goes on, so the overlapping rings don't add up
+  snx.strokeStyle = '#fff'; snx.lineWidth = strong ? 3.6 : 2.4;
+  for (let i = 0; i < n; i++) { const g = pts[i]; snx.beginPath(); snx.arc(g.x, g.y, segR(i, n) + .4, 0, TAU); snx.stroke(); }
+  snx.globalCompositeOperation = 'destination-out'; snx.fillStyle = '#000';
+  for (let i = 0; i < n; i++) { const g = pts[i]; snx.beginPath(); snx.arc(g.x, g.y, segR(i, n) + .4, 0, TAU); snx.fill(); }
+  snx.globalCompositeOperation = 'source-over';
   if (MOD.fog || MOD.fow) { snx.globalCompositeOperation = 'destination-out'; snx.drawImage(visC, 0, 0, W, H); snx.globalCompositeOperation = 'source-over'; } // only the part of the body you can see
   const bx = Math.max(0, x0), by = Math.max(0, y0), bw = Math.min(W, x1) - bx, bh = Math.min(H, y1) - by;
-  if (bw > 0 && bh > 0) x.drawImage(snOC, bx * DPR, by * DPR, bw * DPR, bh * DPR, bx, by, bw, bh);
+  if (bw > 0 && bh > 0) { const ga = x.globalAlpha; x.globalAlpha = ga * (strong ? .95 : .8); x.drawImage(snOC, bx * DPR, by * DPR, bw * DPR, bh * DPR, bx, by, bw, bh); x.globalAlpha = ga; }
 }
 function drawGoldenFX(x) { // soft glow, orbiting glints and a ring that counts down the golden time
   for (const c of creatures) {

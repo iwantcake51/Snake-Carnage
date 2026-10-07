@@ -376,12 +376,16 @@ function segColor(i, n, cfg) { // every skin is built from your primary (P) and 
   }
 }
 const NATURAL = new Set(['Coral', 'Kingsnake', 'Diamondback', 'Python', 'Garter', 'Emerald']);
-function patternStripes(x, pts, n, cfg) { // patterns that run the length of the body
-  if (cfg.pattern === 'Neon') { x.save(); x.strokeStyle = cfg.color2; x.globalAlpha = .55 + .25 * Math.sin(T * 4); x.lineWidth = 2.4; tubePath(x, pts, n, -1.2); x.stroke(); x.globalAlpha = .25; x.lineWidth = 5; x.stroke(); x.restore(); return; } // a glowing tube edge in your second color
+function patternStripes(x, pts, n, cfg, i0 = 0, i1 = n - 1) { // Garter: the stripes that run the length of the body (drawn piece by piece: points i0..i1)
   if (cfg.pattern !== 'Garter') return;
-  const run = (off, w, col) => { x.strokeStyle = col; x.lineWidth = w; x.beginPath(); for (let i = 0; i < n; i++) { const g = pts[i], r = segR(i, n), px = g.x - Math.sin(g.a) * r * off, py = g.y + Math.cos(g.a) * r * off; i ? x.lineTo(px, py) : x.moveTo(px, py); } x.stroke(); };
+  const run = (off, w, col) => { x.strokeStyle = col; x.lineWidth = w; x.beginPath(); for (let i = i0; i <= i1; i++) { const g = pts[i], r = segR(i, n), px = g.x - Math.sin(g.a) * r * off, py = g.y + Math.cos(g.a) * r * off; i > i0 ? x.lineTo(px, py) : x.moveTo(px, py); } x.stroke(); };
   x.lineCap = 'round'; x.lineJoin = 'round'; const R0 = snakeRadius(); run(0, R0 * .38, cfg.color2); run(-.72, R0 * .2, shade(cfg.color2, -.12)); run(.72, R0 * .2, shade(cfg.color2, -.12)); // the yellow dorsal stripe and two side stripes
 }
+function neonEdge(x, cfg, sides) { // Neon: a glowing tube edge in your second color (sides() adds the flanks, just inside the outline, to the path)
+  x.save(); x.strokeStyle = cfg.color2; x.globalAlpha = .55 + .25 * Math.sin(T * 4); x.lineWidth = 2.4; x.beginPath(); sides(); x.stroke(); x.globalAlpha = .25; x.lineWidth = 5; x.stroke(); x.restore();
+}
+const PATTERN_MARKS = new Set(['Spots', 'Checker', 'Diamond', 'Rat Fur', 'Diamondback', 'Python', 'Emerald', 'Kingsnake', 'Gold Plated', 'Blood Soaked', 'Lunar', 'Martian', 'Galaxy']); // the patterns patternOverlay paints marks for
+const PATTERN_SPILL = new Set(['Spots', 'Checker', 'Diamondback', 'Python', 'Garter']); // ...and the ones whose marks reach past the body's edge, so they're drawn clipped to it
 function patternOverlay(x, g, r, i, cfg) {
   switch (cfg.pattern) {
     case 'Spots':
