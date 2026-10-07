@@ -53,6 +53,11 @@ function perfApply() { // the setting changed (or F3)
   perfBuild();
 }
 function perfCycle() { const o = ['Off', 'FPS', 'Full']; SETTINGS.perfHud = o[(o.indexOf(SETTINGS.perfHud || 'Off') + 1) % 3]; saveSettings(); perfApply(); notify && notify({ kind: 'info', title: 'Performance stats', right: SETTINGS.perfHud.toUpperCase(), dur: 1.2, key: 'perf' }); }
+function perfShowIfPlaying() { // only during a run: never over the menus, the pause screen, the death screen or the editor
+  const ov = overlay.style.display !== 'none' && !overlay.classList.contains('hide') && !!overlay.firstElementChild;
+  const on = ['play', 'ready', 'held', 'intro'].includes(state) && !ov && !document.getElementById('mpPause');
+  if (PERF.el.hidden === on) PERF.el.hidden = !on;
+}
 function perfBuild() {
   if (PERF.el) PERF.el.remove();
   const el = document.createElement('div'); el.id = 'perfHud'; el.className = PERF.mode === 'Full' ? 'full' : 'mini';
@@ -63,7 +68,7 @@ function perfBuild() {
        <div class="pt"></div><div class="pab"></div><div class="psc"></div><div class="phx"></div>
        <div class="pf"><button class="pfind" title="Switches each part off for a moment and measures what it really costs on this device, graphics chip included">Find what's slow</button><button class="pcopy">Copy report</button><button class="preset">Reset</button></div>`
     : `<b class="pfps">--</b><small>fps</small><span class="pa">-- ms</span><canvas class="pg" width="90" height="22"></canvas>`;
-  stage.appendChild(el); PERF.el = el; PERF.gfx = el.querySelector('.pg').getContext('2d');
+  el.hidden = true; stage.appendChild(el); PERF.el = el; PERF.gfx = el.querySelector('.pg').getContext('2d');
   const q = c => el.querySelector(c);
   if (q('.px')) q('.px').onclick = () => { SETTINGS.perfHud = 'Off'; saveSettings(); perfApply(); };
   if (q('.preset')) q('.preset').onclick = () => { PERF.hitches = []; for (const s of PERF.stats.values()) { s.avg = s.pk = s.acc = s.winPeak = 0; } PERF.ft.fill(0); PERF.js.fill(0); };

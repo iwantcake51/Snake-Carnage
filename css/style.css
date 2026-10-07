@@ -2227,3 +2227,4 @@ body:not(.phone):not(.narrow) .keylist{gap:9px 20px}
 #mpDock .dkf{display:flex;gap:6px;padding:8px 10px;border-top:1px solid var(--edge)}#mpDock .dkf button{flex:1}
 #mpDock .mptoast{position:absolute;right:8px;bottom:-34px;white-space:nowrap}
 body.phone #mpDock{top:auto;bottom:70px;translate:none}
+#perfHud[hidden]{display:none!important}
