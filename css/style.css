@@ -1923,3 +1923,6 @@ body.phone #mpHud{top:46px;right:6px;font-size:11px;min-width:120px}
 .pebslot{display:inline-flex;align-items:center;gap:2px}.pebslot input[type=color]{width:30px;height:24px;padding:1px}.pebslot input.auto{opacity:.4}
 #propEd .pebslot button{padding:2px 5px;font-size:10px;border-radius:5px}#propEd .pebslot button.on{background:var(--acc,#d0191f);color:#fff}
 .pebcol input[type=color]{width:44px;height:26px;padding:1px}
+/* the editor's prop palette, in sections */
+.edpgh{margin:10px 2px 5px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#a89fab;display:flex;flex-direction:column;gap:1px}
+.edpgh:first-of-type{margin-top:6px}.edpgh small{font-size:10px;letter-spacing:0;text-transform:none;color:#7d7580;font-weight:400}

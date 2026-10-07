@@ -169,7 +169,7 @@ const MAP_EXT = {
   Bunker: (st, k, e) => indoorWing(st, k, e, {
     floorTop: x => { x.fillStyle = '#3a3532'; x.fillRect(0, 0, W, H); speckle(x, 1600, ['#332e2b', '#423c38', '#2c2826'], 36, 2); },
     floorBot: x => { x.fillStyle = '#36322f'; x.fillRect(0, 0, W, H); speckle(x, 1600, ['#332e2b', '#423c38', '#2c2826'], 37, 2); },
-    corridor: [284, 86, x => { x.fillStyle = '#2f2a28'; x.fillRect(0, 284, W, 86); x.fillStyle = '#c9a227'; for (let i = 20 + XO % 40; i < W; i += 40) x.fillRect(i - 40, 325, 20, 3); hazard(x, 0, 284, W, 5); hazard(x, 0, 365, W, 5); }],
+    corridor: [284, 86, () => {}], // the corridor floor is the map's Hazard corridor prop, stretched to the new edges (see extendBuild)
     top: [16, 270], bot: [384, 624], wall: '#4a3c38',
     rooms: st.s < 0 ? [
       (k, r, e) => e.obs.push(k.R(0, r[0], Math.min(120, r.w - 40), 26, '#4a4a40', 'shelf'), k.R(0, r[0] + 80, 40, 40, '#5a4a32', 'crate')), // armory
@@ -255,10 +255,19 @@ function carryPath(p) { // a trail that ran off the old edge carries on, with a 
   else if (L[0] <= B + 4) g.push([XO * .5, bend(gl, .5)], [-10, bend(gl, 1)]);
   return g;
 }
+function carryCorridors(list) { // a painted corridor (Hazard corridor) that meets the old map's edge runs on to the new one, as one piece you can edit
+  if (!XO) return list;
+  for (const o of list) if (o.kind === 'detail' && o.d === 'hazard' && o.w > o.h && !o.rot) {
+    if (Math.abs(o.x - (XO + B)) <= 2) { o.w += o.x - B; o.x = B; }
+    if (Math.abs(o.x + o.w - (W - XO - B)) <= 2) o.w = W - B - o.x;
+  }
+  return list;
+}
 function extendBuild(m, idx) {
   if (!XO || m.native) return m.build0();
   const WF = W; W = MW; let b; try { b = m.build0(); } finally { W = WF; }
   b.obs.forEach(o => { o.x += XO; });
+  carryCorridors(b.obs);
   const lights = (b.lights || m.lights || []).map(l => ({ ...l, x: l.x + XO }));
   for (const l of lights) if (l.fix === 'exit') l.x = l.x < W / 2 ? 15 : W - 15; // EXIT signs belong at the corridor's real ends
   const roads = (b.roads || []).map(([x, y, w, h]) => { let x0 = x + XO, x1 = x0 + w; if (x <= B) x0 = B; if (x + w >= MW - B) x1 = W - B; return [x0, y, x1 - x0, h]; });

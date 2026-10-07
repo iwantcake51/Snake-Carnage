@@ -178,7 +178,7 @@ function loadMap(idx, sz) {
   const m = MAPS[idx], b = m.build(); curBuild = b;
   Sfx.setMuffle(!!m.space && !m.indoor); // thin air on the surface; inside a pressurized station sound is normal
   const ov = mapOverride(m.name); // edits made in the map editor replace the map's own objects and lights as they are
-  if (ov) { b.obs = JSON.parse(JSON.stringify(ov.obs)); b.lights = JSON.parse(JSON.stringify(ov.lights)); }
+  if (ov) { b.obs = carryCorridors(JSON.parse(JSON.stringify(ov.obs))); b.lights = JSON.parse(JSON.stringify(ov.lights)); } // edits saved before the corridor ran on into the wide map's wings get it too
   if (ov && ov.trails) { // walkers follow the edited paths (and keep any sidewalk routes that weren't painted trails)
     const old = captureTrails(m.build()), near = (p, q) => Math.abs(p[0] - q[0]) < 2 && Math.abs(p[1] - q[1]) < 2;
     b.paths = [...(b.paths || []).filter(p => !old.some(t => t.pts.some(q => near(p[0], q)))), ...ov.trails.map(t => t.pts)];
