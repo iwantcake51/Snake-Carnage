@@ -45,6 +45,25 @@ function drawSnowCover(x, c) {
   x.fillStyle = `rgba(255,255,255,${(.25 * k).toFixed(2)})`; circ(x, -.8, -1.4, 1.6); // a brighter crest where the light catches it
   x.restore();
 }
+function drawLegs(x, L, a0, c1x, c1y, e1x, e1y, b0, c2x, c2y, e2x, e2y) { // two strides, hip -> foot, dressed by style (see LEG_STYLES)
+  const st = L.legs || 'plain', P = [[-.6, a0, c1x, c1y, e1x, e1y], [-.6, b0, c2x, c2y, e2x, e2y]];
+  const path = (k0, k1) => { x.beginPath(); for (const [hx, hy, cx, cy, ex, ey] of P) { // the part of each leg from k0 to k1 (0 hip, 1 foot), cut out of the same curve
+    const q = t => { const u = 1 - t; return [u * u * hx + 2 * u * t * cx + t * t * ex, u * u * hy + 2 * u * t * cy + t * t * ey]; };
+    const [sx, sy] = q(k0), [mx, my] = q((k0 + k1) / 2), [fx, fy] = q(k1); x.moveTo(sx, sy); x.quadraticCurveTo(2 * mx - (sx + fx) / 2, 2 * my - (sy + fy) / 2, fx, fy); }
+  };
+  if (st === 'shorts' || st === 'skirt') { // bare legs (or tights) from the hem down
+    x.strokeStyle = st === 'skirt' && L.tights ? L.tights : L.skin; x.lineWidth = st === 'skirt' ? 2.8 : 3; path(0, 1); x.stroke();
+    if (st === 'shorts') { x.fillStyle = L.pants; x.beginPath(); x.ellipse(-2.4, 0, L.d * .72, L.w * .62, 0, 0, TAU); x.fill(); x.strokeStyle = L.pants; x.lineWidth = 4; path(0, .45); x.stroke(); return; }
+    const rx = L.d + 1.4, ry = L.w * .82; // the skirt flares out a little past the body, front and back
+    x.fillStyle = L.pants; x.beginPath(); x.ellipse(-.3, 0, rx, ry, 0, 0, TAU); x.fill();
+    x.fillStyle = 'rgba(0,0,0,.2)'; x.beginPath(); x.ellipse(-.3, 0, rx, ry, 0, Math.PI * .7, Math.PI * 1.3); x.fill(); return;
+  }
+  if (st !== 'plain') { x.fillStyle = L.pants; x.beginPath(); x.ellipse(-2.4, 0, L.d * .72, L.w * (st === 'leggings' ? .5 : .6), 0, 0, TAU); x.fill(); } // the seat of the trousers shows just behind the shoulders
+  x.strokeStyle = L.pants; x.lineWidth = st === 'leggings' ? 2.9 : st === 'cargo' ? 4 : 3.6; path(0, 1); x.stroke();
+  if (st === 'jeans') { x.strokeStyle = 'rgba(255,255,255,.16)'; x.lineWidth = .7; path(.1, .85); x.stroke(); if (L.cuff) { x.strokeStyle = shade(L.pants, .3); x.lineWidth = 3.8; path(.82, .97); x.stroke(); } }
+  else if (st === 'joggers') { x.strokeStyle = L.stripe || '#f2f2f2'; x.lineWidth = .8; path(.05, .9); x.stroke(); x.strokeStyle = shade(L.pants, -.25); x.lineWidth = 3.9; path(.86, .98); x.stroke(); } // a side stripe, cuffed at the ankle
+  else if (st === 'cargo') { x.strokeStyle = shade(L.pants, -.28); x.lineWidth = 4.6; path(.58, .74); x.stroke(); } // a pocket low on each leg
+}
 function drawHumanBody(x, c) { // top-down person, +x = facing direction
   const L = c.look, s = Math.sin(c.phase) * c.moveAmt, [a1, b1, a2, b2] = armPos(c), O = 'rgba(0,0,0,.3)', fy = L.w * .38;
   // legs and shoes stride out from under the body
@@ -52,7 +71,7 @@ function drawHumanBody(x, c) { // top-down person, +x = facing direction
   const run = c.state === 'panic' || c.state === 'flee', stride = (run ? 7.8 : 5.2) * (c.strideK || 1);
   const cp = Math.cos(c.phase) * c.moveAmt, l1 = Math.max(0, cp), l2 = Math.max(0, -cp); // the foot swinging forward lifts a little (bigger from above), the planted one stays flat
   const f1 = s * stride, f2 = -s * stride, y1 = -fy - l1 * .5, y2 = fy + l2 * .5;
-  x.beginPath(); x.moveTo(-.6, -fy * .8); x.quadraticCurveTo(f1 * .5, -fy - l1 * .4, f1, y1); x.moveTo(-.6, fy * .8); x.quadraticCurveTo(f2 * .5, fy + l2 * .4, f2, y2); x.stroke();
+  drawLegs(x, L, -fy * .8, f1 * .5, -fy - l1 * .4, f1, y1, fy * .8, f2 * .5, fy + l2 * .4, f2, y2);
   x.fillStyle = L.shoes; ell(x, f1 + 1.1, y1, 2.5 * (1 + l1 * .14), 1.7 * (1 + l1 * .1)); ell(x, f2 + 1.1, y2, 2.5 * (1 + l2 * .14), 1.7 * (1 + l2 * .1));
   x.rotate(-s * .07); // shoulders twist against the hips
   if (run) x.translate(1.3 * c.moveAmt, 0); // leaning into the run: everything above the legs pitches forward
@@ -255,8 +274,8 @@ const ANIMALS = {
   sheep(x, c, d) {
     feet(x, c, d, 5.5, -5.5, 4.2, '#222', 1.2);
     x.fillStyle = shade(d.col, -.14); circ(x, 0, 0, 8);
-    const r = seeded(Math.round((c.seed ?? .5) * 1e4)); // a fluffy fleece of overlapping curls
-    for (let k = 0; k < 11; k++) { const a = k * TAU / 11, rr = 5.6 + r() * 1.2; x.fillStyle = shade(d.col, -.05 + r() * .08); circ(x, Math.cos(a) * rr * .95, Math.sin(a) * rr * .8, 3.2); }
+    if (!c.fleece) { const r = seeded(Math.round((c.seed ?? .5) * 1e4)); c.fleece = []; for (let k = 0; k < 11; k++) { const a = k * TAU / 11, rr = 5.6 + r() * 1.2; c.fleece.push([Math.cos(a) * rr * .95, Math.sin(a) * rr * .8, shade(d.col, -.05 + r() * .08)]); } } // a fluffy fleece of overlapping curls, worked out once
+    for (const [fx, fy, fc] of c.fleece) { x.fillStyle = fc; circ(x, fx, fy, 3.2); }
     x.fillStyle = d.col; circ(x, -.4, -.4, 5.4); x.fillStyle = 'rgba(255,255,255,.45)'; circ(x, -2, -2, 2.4);
     const hc = d.hcol || '#333'; x.fillStyle = hc; ell(x, 8.6, 0, 3.6, 3); for (const sg of [-1, 1]) ell(x, 7.4, sg * 3.4, 2.2, 1);
     x.fillStyle = shade(d.col, .02); circ(x, 7, 0, 1.8); // woolly topknot

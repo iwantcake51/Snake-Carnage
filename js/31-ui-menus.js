@@ -300,57 +300,74 @@ function randomRoll() { // case-opening roll; the pick stays secret until the ga
 const fmtSetting = (k, v) => k === 'shakeK' ? (v <= 0 ? 'Off' : Math.round(v * 100) + '%') : k === 'customHour' ? String(v).padStart(2, '0') + ':00' : k === 'dayMinutes' ? v + ' min' : k === 'pixel' ? (v <= 1 ? 'Off' : v + 'x') : Math.round(v * 100) + '%';
 const SETTING_TABS = {
   Gameplay: { icon: 'gameplay', lead: 'How the world behaves around you.', rows: [
+    ['head', 'World'],
     ['slider', 'creatureSpeed', 'Creature speed', 'How fast people and animals move.', .3, 1.2, .05],
-    ['seg', 'timeMode', 'Time of day', 'Dynamic starts every run at a random hour and lets the day move on. The others stay fixed.', ['Cycle', 'Day', 'Dawn', 'Dusk', 'Night'], null, null, null, TIME_MODES],
     ['seg', 'bloodFade', 'Blood fades', 'How long blood stays on the ground and walls.', ['Never', 'Slow', 'Normal', 'Fast']],
+    ['head', 'Time and weather'],
+    ['seg', 'timeMode', 'Time of day', 'Dynamic starts every run at a random hour and lets the day move on. The others stay fixed.', ['Cycle', 'Day', 'Dawn', 'Dusk', 'Night'], null, null, null, TIME_MODES],
     ['seg', 'season', 'Season', 'Outdoor maps only. Random picks one each run.', ['Random', 'Spring', 'Summer', 'Autumn', 'Winter']]] },
   Graphics: { icon: 'graphics', lead: 'Look and feel of the picture.', rows: [
+    ['head', 'Display'],
     ['toggle', 'fullscreen', 'Fullscreen', 'Fill the whole screen. Esc or F11 leaves it.'],
     ['seg', 'renderRes', 'Render resolution', 'How many pixels the game draws, compared with the automatic choice for your screen. Lower is much faster and a bit softer. Changing it reloads the game.', ['50%', '75%', '100%', '125%', 'Auto']],
-    ['toggle', 'bloom', 'Bloom', 'A soft glow round things that light up: console buttons, screens, warning lamps, reactor cores.'],
-    ['toggle', 'autoQ', 'Automatic quality', 'When the game runs slowly it simplifies the lighting and snow by itself, for that run, to keep it smooth.'],
     ['seg', 'fpsCap', 'Frame rate', 'VSync matches your screen. A cap saves battery and heat.', ['30', '60', '120', 'VSync']],
+    ['toggle', 'autoQ', 'Automatic quality', 'When the game runs slowly it simplifies the lighting and snow by itself, for that run, to keep it smooth.'],
+    ['head', 'Light and shadow'],
     ['seg', 'lightQ', 'Lighting', 'The biggest cost on screen. High: everything, including colors draining away in the dark (slow on many graphics chips). Medium: no color drain, fewer lamp shadows. Low: half-resolution light, no tinted pools, updated every other frame. Off: no light layer, just a dim tint at night, the fastest. Who can see you works the same at every setting.', ['Off', 'Low', 'Medium', 'High']],
+    ['seg', 'shadows', 'Shadows', 'Full: everything casts shadows, including people, animals and the snake under lamps and flashlights. Static: only the fixed ones (buildings, walls, furniture in sunlight and lamplight). Off: no shadows at all and none are worked out, the fastest. Light and darkness work the same either way.', ['Off', 'Static', 'Full']],
+    ['toggle', 'bloom', 'Bloom', 'A soft glow round things that light up: console buttons, screens, warning lamps, reactor cores.'],
+    ['head', 'World detail'],
     ['seg', 'snowQ', 'Snow', 'Winter maps. Full: deep snow that you and everyone else plough through, with powder and footprints. Simple: snow on the ground that stays as it is, almost free. Off: no snow on the ground at all.', ['Off', 'Simple', 'Full']],
     ['seg', 'treeQ', 'Tree detail', 'High: every branch sways on its own. Medium: whole trees lean in the wind (cheaper). Low: no sway, all trees drawn as one picture (cheapest).', ['Low', 'Medium', 'High']],
     ['seg', 'fogQ', 'Fog detail', 'Heavy fog modifier. High: drifting billows, torn edges, lamps glowing through it. Medium: billows only. Low: plain soft fog, cheapest.', ['Low', 'Medium', 'High']],
-    ['seg', 'shadows', 'Shadows', 'Full: everything casts shadows, including people, animals and the snake under lamps and flashlights. Static: only the fixed ones (buildings, walls, furniture in sunlight and lamplight). Off: no shadows at all and none are worked out, the fastest. Light and darkness work the same either way.', ['Off', 'Static', 'Full']]] },
+    ['head', 'Diagnostics'],
+    ['seg', 'perfHud', 'Performance stats', 'A panel with the frame rate, a frame-time graph, and how long each part of the game takes per frame, so you can see what is slowing a map down. F3 cycles it during a run.', ['Off', 'FPS', 'Full']]] },
   Effects: { icon: 'effects', lead: 'Blood, particles and the jolts that sell a kill.', rows: [
+    ['head', 'Blood'],
+    ['seg', 'bloodQ', 'Blood quality', 'How much blood is simulated and how finely it is drawn. Low: fewer, chunkier, plainer drops and short trails (still smooth: every drop moves every frame), the fastest. Extreme: the most drops, smooth motion blur, mist and long-lasting trails.', ['Low', 'Medium', 'High', 'Extreme']],
+    ['toggle', 'bloodBlur', 'Blood motion blur', 'Fast drops stretch and smear along their path. Off: plain round drops.'],
+    ['head', 'Particles'],
+    ['seg', 'fxLevel', 'Particles', 'How many particles are simulated: blood mist, smoke, sparks, snow powder, scent wisps, insects. Low simulates far fewer.', ['Low', 'Normal', 'High']],
+    ['head', 'Screen'],
     ['slider', 'darkness', 'Darkness', 'Overall dimness of the scene.', 0, .7, .05],
     ['slider', 'pixel', 'Pixelation', 'Chunky pixel look. Off shows full detail.', 1, 8, 1],
-    ['seg', 'fxLevel', 'Particles', 'How many particles are simulated: blood mist, smoke, sparks, snow powder, scent wisps, insects. Low simulates far fewer.', ['Low', 'Normal', 'High']],
-    ['toggle', 'bloodBlur', 'Blood motion blur', 'Fast drops stretch and smear along their path. Off: plain round drops.'],
-    ['seg', 'bloodQ', 'Blood quality', 'How much blood is simulated and how finely it is drawn. Low: fewer, chunkier, plainer drops and short trails (still smooth: every drop moves every frame), the fastest. Extreme: the most drops, smooth motion blur, mist and long-lasting trails.', ['Low', 'Medium', 'High', 'Extreme']],
     ['toggle', 'vignette', 'Kill vignette', 'A red pulse at the screen edges when you eat.'],
     ['toggle', 'desaturate', 'Color drain', 'Briefly drains color after a kill.'],
     ['toggle', 'shake', 'Screen shake', 'Shake the camera on kills and crashes.']] },
   Audio: { icon: 'audio', lead: 'Everything you hear.', rows: [
+    ['head', 'Volume'],
     ['slider', 'volume', 'Master volume', 'All game sounds.', 0, 1, .05],
+    ['head', 'Interface'],
     ['toggle', 'uiSounds', 'Menu sounds', 'Hover and click sounds in menus.']] },
   Controls: { icon: 'controls', lead: 'Keys you can use while playing. On a phone or tablet, drag anywhere on the board to steer.', keys: [
-    ['W A S D', 'Move. Hold two keys to go diagonal. Let go to keep going straight.'], ['Arrows', 'Also move'],
-    ['F', 'Night vision'], ['Shift', 'Lunge (upgrade)'], ['Q', 'Camouflage (upgrade)'], ['E', 'Scent (upgrade)'], ['R', 'Hiss (upgrade)'],
-    ['Mouse', 'Steer with the cursor (Free movement modifier + Mouse steering)'], ['Space', 'Start, skip the intro, play again'], ['Esc', 'Pause, back'],
-    ['Wheel', 'Zoom the camera in or out, toward the cursor'], ['Drag', 'Pan the camera (middle mouse, or left mouse when not steering with it)'], ['Double-click', 'Camera back on the snake'],
-    ['Pinch', 'On a touch screen: two fingers zoom and pan; one finger still steers']] },
+    ['#Moving'], ['W A S D', 'Move. Hold two keys to go diagonal. Let go to keep going straight.'], ['Arrows', 'Also move'],
+    ['#Abilities'], ['F', 'Night vision'], ['Shift', 'Lunge (upgrade)'], ['Q', 'Camouflage (upgrade)'], ['E', 'Scent (upgrade)'], ['R', 'Hiss (upgrade)'],
+    ['#Steering and camera'], ['Mouse', 'Steer with the cursor (Free movement modifier + Mouse steering)'], 
+    ['Wheel', 'Zoom the camera in or out, always on your snake'], ['Drag', 'Pan the camera (middle mouse, or left mouse when not steering with it)'], ['Double-click', 'Camera back on the snake'],
+    ['Pinch', 'On a touch screen: two fingers zoom and pan; one finger still steers'],
+    ['#Menus'], ['Space', 'Start, skip the intro, play again. In a multiplayer lobby: ready up, and the host starts once everyone is ready'], ['Esc', 'Pause, back, close settings'], ['F3', 'Performance stats: off, frame rate, full']] },
   Accessibility: { icon: 'access', lead: 'Make the game easier to see and use.', rows: [
-    ['toggle', 'reduceMotion', 'Reduce motion', 'Turns off menu animations, floating buttons and the intro zoom.'],
+    ['head', 'Interface'],
     ['seg', 'uiScale', 'UI scale', 'Size of menus, HUD, notifications and buttons. Auto follows the size of the game.', ['Small', 'Medium', 'Large', 'Extra Large', 'Auto']],
-    ['toggle', 'vomit', 'Show vomit', 'People who see too much throw up, and it stays on the floor. Turn off to skip it.'],
     ['seg', 'bubbleSize', 'Speech bubble size', 'Text size of what people shout.', ['Small', 'Normal', 'Large']],
+    ['toggle', 'reduceMotion', 'Reduce motion', 'Turns off menu animations, floating buttons and the intro zoom.'],
+    ['head', 'Visibility'],
     ['seg', 'snakeOutline', 'Snake outline', 'A thin rim that keeps the snake easy to spot on any ground.', ['Off', 'Subtle', 'Strong']],
     ['seg', 'mapOutlines', 'Map outlines', 'Dark edges around walls and everything else you can crash into.', ['Off', 'Subtle', 'Strong']],
-    ['slider', 'shakeK', 'Shake strength', 'How hard the screen shakes, from none to full.', 0, 1, .1],
     ['toggle', 'reduceFlash', 'Reduce flashes', 'No bloom, double vision or color drain flashes after kills and hits.'],
+    ['toggle', 'simpleFx', 'Simplified effects', 'Plain versions of skill and impact effects: no warping, wakes or ghosting.'],
+    ['head', 'Comfort and content'],
+    ['slider', 'shakeK', 'Shake strength', 'How hard the screen shakes, from none to full.', 0, 1, .1],
     ['seg', 'bloodAmt', 'Amount of blood', 'Fewer drops, smaller pools and fewer chunks. Purely visual.', ['Minimal', 'Reduced', 'Full']],
-    ['toggle', 'simpleFx', 'Simplified effects', 'Plain versions of skill and impact effects: no warping, wakes or ghosting.']] },
+    ['toggle', 'vomit', 'Show vomit', 'People who see too much throw up, and it stays on the floor. Turn off to skip it.']] },
 };
 let settingsTab = 'Gameplay';
 function settingsBody(tab) {
   const t = SETTING_TABS[tab];
   let html = `<h2>${tab}</h2><p class="lead">${t.lead}</p>`;
-  if (t.keys) return html + `<div class="keylist">${t.keys.map(([k, d], i) => `<kbd style="--i:${i * 2}">${k}</kbd><span style="--i:${i * 2 + 1}">${d}</span>`).join('')}</div>`;
+  if (t.keys) return html + `<div class="keylist">${t.keys.map(([k, d], i) => k[0] === '#' ? `<h3 class="sgrp" style="--i:${i * 2}">${k.slice(1)}</h3>` : `<kbd style="--i:${i * 2}">${k}</kbd><span style="--i:${i * 2 + 1}">${d}</span>`).join('')}</div>`;
   return html + t.rows.map(([type, k, label, desc, a, b, c, when, names], i) => {
+    if (type === 'head') return `<h3 class="sgrp" style="--i:${i}">${k}</h3>`; // a category inside the tab
     let ctl = '';
     if (type === 'toggle') ctl = `<button class="tgl ${SETTINGS[k] ? 'on' : ''}" data-sfx="none" role="switch" aria-checked="${!!SETTINGS[k]}" aria-label="${label}" data-k="${k}"></button>`;
     if (type === 'slider') ctl = `<div class="rng"><input type="range" data-k="${k}" min="${a}" max="${b}" step="${c}" value="${SETTINGS[k]}" aria-label="${label}" style="--v:${((SETTINGS[k] - a) / (b - a) * 100).toFixed(1)}%"><output>${fmtSetting(k, SETTINGS[k])}</output></div>`;
@@ -367,6 +384,7 @@ function applySetting(k) { // side effects of a setting change
   if (k === 'lightQ') resizeLights();
   if (k === 'shadows') shadowsChanged();
   if (k === 'snowQ' && state !== 'menu' && season) { const was = snowOn; buildSnow(); if (was !== snowOn) drawObstacleLayer(); } // snow on or off mid-run: rebuild the ground's snow
+  if (k === 'perfHud') perfApply();
   if (k === 'fullscreen') setFullscreen(SETTINGS.fullscreen);
   if (k === 'renderRes') setTimeout(() => location.reload(), 150); // every layer is sized from it at startup
   if (k === 'bloodQ' || k === 'bloodFade') bloodQualityChanged();
@@ -401,7 +419,7 @@ function showSettings(tab = settingsTab) {
     body.innerHTML = settingsBody(settingsTab); body.classList.remove('tabIn'); void body.offsetWidth; body.classList.add('tabIn'); body.scrollTop = 0;
     wireSettings(body);
   });
-  document.getElementById('backBtn').onclick = () => transitionTo(settingsFrom === 'pause' ? showPause : showMenu);
+  document.getElementById('backBtn').onclick = () => settingsFrom === 'mp' ? netCloseSettings() : transitionTo(settingsFrom === 'pause' ? showPause : showMenu); // in a multiplayer run: straight back to the game
 }
 
 function setFullscreen(on) {

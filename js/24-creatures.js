@@ -86,10 +86,13 @@ function makeGrass(n) {
 function drawGrass(x) {
   if (!grass.length) return;
   x.lineCap = 'round'; x.lineWidth = 1.1;
-  for (const g of grass) {
-    const w = Math.sin(T * 1.7 + g.x * .018 + g.y * .01) * 1.6 + Math.sin(T * 3.1 + g.ph) * .4; // a gust rolls across the field
-    x.strokeStyle = g.c; x.beginPath();
-    for (const o of [-1.6, 0, 1.6]) { x.moveTo(g.x + o, g.y); x.quadraticCurveTo(g.x + o + w * .4, g.y - g.h * .6, g.x + o * 1.4 + w, g.y - g.h - (o ? -1 : 0)); }
+  if (!grass.byCol) { grass.byCol = new Map(); for (const g of grass) { let b = grass.byCol.get(g.c); if (!b) grass.byCol.set(g.c, b = []); b.push(g); } } // one stroke per color, not one per tuft: far fewer draw calls for the graphics chip
+  for (const [col, list] of grass.byCol) {
+    x.strokeStyle = col; x.beginPath();
+    for (const g of list) {
+      const w = Math.sin(T * 1.7 + g.x * .018 + g.y * .01) * 1.6 + Math.sin(T * 3.1 + g.ph) * .4; // a gust rolls across the field
+      for (let o = -1.6; o <= 1.7; o += 1.6) { x.moveTo(g.x + o, g.y); x.quadraticCurveTo(g.x + o + w * .4, g.y - g.h * .6, g.x + o * 1.4 + w, g.y - g.h - (o ? -1 : 0)); }
+    }
     x.stroke();
   }
 }

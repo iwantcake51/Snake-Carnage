@@ -5,6 +5,12 @@
    ========================================================= */
 const isYell = t => /[A-Z]/.test(t) && t === t.toUpperCase();
 const expand = s => s.replace(/\{([^{}]*\|[^{}]*)\}/g, (_, o) => pick(o.split('|')));
+function adrenFrom(c, sx, sy) { // fear's sprint: not everyone has it in them, and only with the snake straight behind them
+  if (c.adrenCD > T || c.seed > .5) return false; // about half of people never get the burst
+  const a = c.a ?? 0, dx = sx - c.x, dy = sy - c.y, d = Math.hypot(dx, dy) || 1;
+  if ((Math.cos(a) * dx + Math.sin(a) * dy) / d > -.9) return false; // within ~25° of directly behind
+  c.adren = rand(.9, 1.5); c.adrenCD = T + rand(12, 18); return true;
+}
 function stretch(t) { // FUCKKK, NOOOO
   const words = t.split(' '), i = randi(0, words.length - 1), w = words[i];
   const vowel = w.search(/[aeiou](?!.*[aeiou])/i), pos = vowel >= 0 && Math.random() < .5 ? vowel : w.replace(/[^a-z]+$/i, '').length - 1;
@@ -582,7 +588,7 @@ function perceive(c) {
   if (MOD.blind && hum) return blindPerceive(c, hum); // no eyes: hearing and touch only (see 27b-hearing)
   const dist = Math.hypot(c.x - s.x, c.y - s.y), sight = c.def.sight * (MOD.skittish ? 1.5 : MOD.oblivious ? .6 : 1) * (MOD.fog ? .55 : 1) * (s.camoT > 0 ? .25 - (upg('camo') > 2 ? .15 * (s.still || 0) : 0) : 1) * (hasTrait(c, 'distracted') ? .7 : hasTrait(c, 'curious') ? 1.15 : 1); // camouflage: only up close
   const seen = (dist < (s.camoT > 0 ? (upg('camo') > 2 ? 9 : 22) : 40) || (dist < sight * (c.alert > .3 ? 1.25 : 1) && lightAt(s.x, s.y) > VISIBLE && los(c.x, c.y, s.x, s.y)));
-  if (hum && c.state === 'panic' && dist < 70 && !(c.adrenCD > T) && Math.random() < .12) { c.adren = rand(1, 1.8); c.adrenCD = T + rand(7, 12); } // a burst of fear
+  if (hum && c.state === 'panic' && dist < 62 && Math.random() < .06) adrenFrom(c, s.x, s.y); // a burst of fear, only with the snake right on their heels
   if (dist < 75 && (seen || dist < 40)) c.closeCall = true; // the snake came right past them...
   else if (c.closeCall && dist > 140) { c.closeCall = false; if (hum && Math.random() < .6) say(c, 'relief'); } // ...and kept going
   if (c.state === 'flee' || c.state === 'panic' || c.state === 'uneasy') {

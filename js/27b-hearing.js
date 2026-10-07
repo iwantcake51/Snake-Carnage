@@ -54,7 +54,7 @@ function blindPerceive(c, hum) { // the Blind crowd's version of looking around:
   const g = touchingSnake(c);
   if (g) { // brushed against it: the one exact piece of information they ever get
     const dx = c.x - g.x, dy = c.y - g.y, dd = Math.hypot(dx, dy) || 1; c.avx += dx / dd * 1.2; c.avy += dy / dd * 1.2; // recoil from the touch itself
-    if (c.state !== 'panic') { panic(c, g.x, g.y, rand(3, 5), hum ? 'touched' : 'panic'); c.wasChased = true; if (!(c.adrenCD > T)) { c.adren = rand(1, 1.8); c.adrenCD = T + rand(7, 12); } }
+    if (c.state !== 'panic') { panic(c, g.x, g.y, rand(3, 5), hum ? 'touched' : 'panic'); c.wasChased = true; adrenFrom(c, g.x, g.y); }
     else { c.fx = g.x; c.fy = g.y; }
     c.ear = { x: g.x, y: g.y, conf: 3, t: T };
     return;

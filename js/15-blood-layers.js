@@ -90,7 +90,7 @@ function spawnBlood(x, y, dirA, amount, spread, backFrac, gold) { // gold: a gol
     else if (r < backFrac + .2) { a = rand(0, TAU); sp = rand(20, 140); }             // radial burst
     else { a = dirA + gauss() * spread; sp = rand(120, 480) * (.6 + amount * .4); }   // main forward jet
     const p = PART_POOL.pop() || {}; // drops are recycled, not reallocated every kill
-    p.x = x + rand(-3, 3); p.y = y + rand(-3, 3); p.z = rand(4, 12); p.vx = Math.cos(a) * sp; p.vy = Math.sin(a) * sp; p.vz = rand(20, 200); p.hc = p.hs = 0;
+    p.x = x + rand(-3, 3); p.y = y + rand(-3, 3); p.z = rand(4, 12); p.vx = Math.cos(a) * sp; p.vy = Math.sin(a) * sp; p.vz = rand(20, 200); p.hc = p.hs = p.hr = 0;
     p.r = (Math.random() < .15 ? rand(3, 5) : rand(1.2, 3)) * bq.size; p.c = gold === true ? pick(GOLD_BLOOD) : gold ? pick(gold) : pick(CONFIG.bloodColors); p.ox = x; p.oy = y; // gold: golden target; an array: that creature's own blood colors
     parts.push(p);
   }
@@ -121,8 +121,15 @@ function rebuildSegGrid() { // bucket snake segments so blood drops only test ne
 const PART_POOL = [];
 function killPart(i) { const p = parts[i]; parts[i] = parts[parts.length - 1]; parts.pop(); if (PART_POOL.length < 1200) PART_POOL.push(p); }
 const DROP_NB = [];
+function stainRemote(rs, i, px, py, r, col) { // another player's snake (multiplayer): their body wears the blood too
+  const g = rs.segs[i]; if (!g || !rs.stains[i]) return; const rr = segR(i, rs.segs.length), k = rs.scale || 1;
+  addStain(rs.stains[i], { a: Math.atan2(py - g.y, px - g.x) - g.a, d: Math.min(Math.hypot(px - g.x, py - g.y), rr - 1) / k, r: r / k, c: col, e: rand(1, 2.2) }, 30);
+}
+const RS_BB = [];
 function updateBlood(dt) { // every live drop moves every frame at every quality: smoothness is never what quality trades away
   if (parts.length) rebuildSegGrid();
+  RS_BB.length = 0;
+  if (parts.length && NETM.run) for (const rs of NS.rs.values()) { if (!rs.alive || rs.hidden || !rs.segs || !rs.segs.length) continue; let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; for (const g of rs.segs) { if (g.x < x0) x0 = g.x; if (g.x > x1) x1 = g.x; if (g.y < y0) y0 = g.y; if (g.y > y1) y1 = g.y; } RS_BB.push([rs, x0 - 10, y0 - 10, x1 + 10, y1 + 10, (CONFIG.snakeR * (rs.scale || 1) + 1) ** 2]); }
   for (let i = parts.length - 1; i >= 0; i--) {
     const p = parts[i];
     p.vz -= 430 * GRAV() * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; // falls a little slower, so it carries further
@@ -160,6 +167,13 @@ function updateBlood(dt) { // every live drop moves every frame at every quality
           if (dist2(p.x, p.y, g.x, g.y) < snakeRadius() ** 2) { stainSnake(k, p.x, p.y, p.r * 1.3, p.c); p.hs = 1; hit = Math.random() < .5; break outer; }
         }
       }
+      if (hit) { killPart(i); continue; }
+    }
+    if (p.z < 14 && !p.hr && RS_BB.length) { // other players' snakes
+      let hit = false;
+      for (const [rs, x0, y0, x1, y1, R2] of RS_BB) { if (p.x < x0 || p.x > x1 || p.y < y0 || p.y > y1) continue;
+        for (let k = 0; k < rs.segs.length; k++) { const g = rs.segs[k]; if (dist2(p.x, p.y, g.x, g.y) < R2) { stainRemote(rs, k, p.x, p.y, p.r * 1.3, p.c); p.hr = 1; hit = Math.random() < .5; break; } }
+        if (p.hr) break; }
       if (hit) { killPart(i); continue; }
     }
     if (p.z <= 0) { if (!snowStain(p.x, p.y, p.r * p.r * .35, p.c)) splat(fctx, p.x, p.y, p.vx, p.vy, p.r, p.c, false); addWet(p.x, p.y, p.r * .15, p.c); if (p.r > 2) Sfx.splat(p.x, false); killPart(i); }

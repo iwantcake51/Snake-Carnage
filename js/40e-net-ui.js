@@ -105,7 +105,7 @@ function netLobbyRender() {
   $('mpNames').onchange = e => { SETTINGS.mpNames = e.target.checked; saveSettings(); };
   $('mpArrows').onchange = e => { SETTINGS.mpArrows = e.target.checked; saveSettings(); };
   if (host) {
-    $('mpStart').onclick = () => { if (NETM.players.filter(p => p.conn !== false).every(p => p.ready)) netStartRun(); };
+    $('mpStart').onclick = () => netGo();
     $('mpMap').onclick = () => { netPick = netPick === 'map' ? null : 'map'; netLobbyRender(); };
     $('mpTime').onchange = e => { cfg.time = e.target.value; netLobbyChanged(); };
     $('mpMode').onchange = e => { cfg.mode = e.target.value; if (cfg.mode !== 'coop' && !cfg.len) cfg.len = 5; netLobbyChanged(); }; // a race needs a finish line: 5 minutes unless the host picks another
@@ -197,23 +197,16 @@ function netSpectate() {
   const t = live.find(r => r.pid === NS.specId) || live[0]; NS.specId = t.pid; snake.x = t.x; snake.y = t.y; snake.angle = t.angle;
 }
 const _netTick = netTick;
-netTick = function (dt) { _netTick(dt); netSpectate(); netDeathFx(dt); netDownTick(); if (NETM.run && performance.now() - netHudT > 500) { netHudT = performance.now(); netHud(); } if (NETM.run && performance.now() - netHudPlaceT > 120) { netHudPlaceT = performance.now(); netHudPlace(); } };
+netTick = function (dt) { _netTick(dt); netSpectate(); netDownTick(); if (NETM.run && performance.now() - netHudT > 500) { netHudT = performance.now(); netHud(); } if (NETM.run && performance.now() - netHudPlaceT > 120) { netHudPlaceT = performance.now(); netHudPlace(); } };
 let netHudPlaceT = 0;
 function netDownTick() { // the respawn countdown on the banner
   const el = document.querySelector('#mpDown .cd i'); if (!el || !NS.deadAt) return;
   const left = Math.max(0, Math.ceil(NS.respawnIn - (performance.now() - NS.deadAt) / 1000)), t = left ? `${left}…` : 'now…';
   if (el.textContent !== t) el.textContent = t;
 }
-let dfxK = 0;
-function netDeathFx(dt) { // dying: the picture drains to grey under a red wash within half a second; back in, it comes back over about one
-  const down = NETM.run && !!NS.deadAt, k0 = dfxK;
-  dfxK += ((down ? 1 : 0) - dfxK) * (1 - Math.exp(-dt * (down ? 7 : 3.2)));
-  if (dfxK < .004 && !down) dfxK = 0;
-  if (Math.abs(dfxK - k0) < 1e-4 && (dfxK === 0 || dfxK > .999)) return;
-  const st = document.getElementById('stage'); if (!st) return;
-  let tint = document.getElementById('mpTint'); if (!tint && dfxK > 0) { tint = document.createElement('div'); tint.id = 'mpTint'; st.appendChild(tint); }
-  st.classList.toggle('mpdfx', dfxK > 0); st.style.setProperty('--dfx', dfxK.toFixed(3));
-  if (tint && dfxK === 0) tint.remove();
+function netUiCleanup() { // a run ended or you left: nothing of it stays on screen
+  for (const id of ['mpHud', 'dTint', 'mpDown']) { const el = document.getElementById(id); if (el) el.remove(); }
+  dfxK = 0; const st = document.getElementById('stage'); if (st) { st.style.removeProperty('--dfx'); st.classList.remove('dying'); }
 }
 function netHudPlace() { // the score panel shares the top-right corner with the combo counter: it moves down below the combo while one is showing
   const el = document.getElementById('mpHud'), cb = document.getElementById('combo'); if (!el) return;
@@ -225,6 +218,7 @@ function netHudPlace() { // the score panel shares the top-right corner with the
 const _netPause = pauseGame;
 pauseGame = function () {
   if (!NETM.run) return _netPause.apply(this, arguments);
+  if (netSettingsOpen()) return netCloseSettings(); // Esc in the settings: close them all the way, back to the game
   if (document.getElementById('mpPause')) return netClosePause();
   if (state === 'intro') endIntro();
   const el = document.createElement('div'); el.id = 'mpPause';
@@ -235,9 +229,11 @@ pauseGame = function () {
   document.body.appendChild(el); Sfx.ui('open');
   el.querySelector('#mpResume').onclick = netClosePause;
   if (NETM.host) el.querySelector('#mpEnd').onclick = () => { netClosePause(); netEndRun('host'); };
-  el.querySelector('#mpSet').onclick = () => { netClosePause(); settingsFrom = 'pause'; overlay.style.display = 'flex'; showSettings(); };
+  el.querySelector('#mpSet').onclick = () => { netClosePause(); settingsFrom = 'mp'; overlay.style.display = 'flex'; showSettings(); };
   el.querySelector('#mpQuit').onclick = () => { netClosePause(); netLeave(); state = 'menu'; showMenu(); };
 };
+const netSettingsOpen = () => settingsFrom === 'mp' && overlay.style.display !== 'none' && !overlay.classList.contains('hide') && !!overlay.querySelector('.set');
+function netCloseSettings() { settingsFrom = 'menu'; if (NETM.run && state !== 'dead') { hideOverlay(); stage.classList.remove('paused', 'bars'); } else transitionTo(showMenu); if (document.activeElement) document.activeElement.blur(); }
 function netClosePause() { const el = document.getElementById('mpPause'); if (el) el.remove(); }
 addEventListener('keydown', e => { if (e.code === 'Escape' && document.getElementById('mpPause')) { e.stopPropagation(); netClosePause(); } }, true);
 /* ---- the scoreboard ---- */
@@ -286,7 +282,7 @@ function netResultsRefresh(aborted) {
   const toLobby = () => { if (NETM.host) { NETM.phase = 'lobby'; netLobbyChanged(); } stage.classList.remove('paused'); state = 'menu'; showMenu(); };
   if ($('mpLobby')) $('mpLobby').onclick = toLobby;
   if (host && !aborted) {
-    $('mpAgain').onclick = () => { if (NETM.players.filter(p => p.conn !== false).every(p => p.ready)) { stage.classList.remove('paused'); netStartRun(); } };
+    $('mpAgain').onclick = () => netGo();
     $('mpReady2').onclick = () => { me.ready = !me.ready; netLobbyChanged(); netResultsRefresh(); };
     $('mpMap2').onclick = () => { netPick = 'map'; toLobby(); };
     $('mpMods2').onclick = () => { toLobby(); SETTINGS.mods = [...(NETM.cfg.mods || [])]; transitionTo(() => showModifiers()); };
@@ -309,3 +305,40 @@ addEventListener('load', () => setTimeout(() => {
     overlay.style.display = 'flex'; netShowCoop('Joining…'); netJoin(code, ses && ses.code === code.toUpperCase() ? { token: ses.token } : {}).then(netJoined).catch(e => netShowCoop(e.message)); return; }
   if (ses && !ses.host && ses.code) { netShowCoop('Reconnecting…'); netJoin(ses.code, { token: ses.token }).then(netJoined).catch(e => { netSaveSession(null); netShowCoop(e.message); }); }
 }, 120));
+
+/* ---- starting: Space (or Enter) readies you up, and the host's starts the run once everyone is. The screen closes to
+   black like a pair of shutters with a red seam, names the map, and opens again on the new world. ---- */
+const netAllReady = () => NETM.players.filter(p => p.conn !== false).every(p => p.ready);
+let netGoing = 0;
+function netGo() { // host: start, with the shutters
+  if (!NETM.host || !netAllReady() || netGoing) return;
+  const lbl = { map: (MAPS[NETM.cfg.map] || MAPS[0]).name, mode: NET_MODES[NETM.cfg.mode || 'coop'] || 'Co-op' };
+  netGoing = 1; netBroadcast({ k: 'go', lbl }); netGoFade(lbl);
+  setTimeout(() => { netGoing = 0; if (NETM.host && NETM.on && netAllReady()) { stage.classList.remove('paused'); netStartRun(); } else netGoReveal(); }, SETTINGS.reduceMotion ? 60 : 620);
+}
+let netFadeT = 0;
+function netGoFade(lbl, instant) {
+  const st = document.getElementById('stage') || document.body; let el = document.getElementById('goFade');
+  if (!el) {
+    if (instant && !lbl) lbl = NS.cfg ? { map: NS.cfg.mapName, mode: NET_MODES[NS.cfg.mode] || 'Co-op' } : null;
+    el = document.createElement('div'); el.id = 'goFade';
+    el.innerHTML = `<i class="shT"></i><i class="shB"></i><i class="shS"></i><div class="shL">${lbl ? `<small>${esc(lbl.mode)}</small><b>${esc(lbl.map)}</b>` : ''}</div>`;
+    st.appendChild(el);
+    if (instant) el.classList.add('in', 'now'); else { void el.offsetWidth; el.classList.add('in'); Sfx.ui && Sfx.ui('confirm'); }
+  }
+  el.classList.remove('out'); clearTimeout(netFadeT); netFadeT = setTimeout(netGoReveal, 8000); // never stuck black: the host left, or the start got lost
+}
+function netGoReveal() {
+  const el = document.getElementById('goFade'); if (!el) return; clearTimeout(netFadeT);
+  requestAnimationFrame(() => requestAnimationFrame(() => { el.classList.remove('now'); el.classList.add('out'); setTimeout(() => el.remove(), 1100); })); // after the first frame of the new world is up
+}
+addEventListener('keydown', e => {
+  if ((e.code !== 'Space' && e.code !== 'Enter') || e.repeat || !NETM.on || NETM.run) return;
+  const t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+  if (!overlay.querySelector('.mplobby, .mpres') || overlay.classList.contains('hide')) return;
+  if (t && t.tagName === 'BUTTON' && e.code === 'Enter') return; // Enter on a focused button presses that button
+  e.preventDefault(); e.stopPropagation(); if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  const me = netMe(); if (!me) return;
+  if (NETM.host && netAllReady()) return netGo();
+  if (!me.ready) { const b = document.getElementById('mpReady2') || document.getElementById('mpReady'); if (b) b.click(); if (NETM.host && netAllReady()) setTimeout(netGo, 180); } // ready up; the host's last ready starts it
+}, true);

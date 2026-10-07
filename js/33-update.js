@@ -99,8 +99,6 @@ function drawTrail(x) {
   }
   x.globalAlpha = 1;
 }
-const OLC = document.createElement('canvas'), OLX = OLC.getContext('2d');
-OLC.width = OLC.height = 80;
 const fogR = a => 1 + .11 * Math.sin(3 * a + T * .23) + .07 * Math.sin(5 * a - T * .37 + 1.3) + .04 * Math.sin(9 * a + T * .61 + 4); // the fog's edge billows: lobes that slowly drift and change shape
 function fogBlob(x, cx, cy, r, ph) { x.beginPath(); for (let k = 0; k <= 48; k++) { const a = k / 48 * TAU, rr = r * fogR(a + ph); k ? x.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr) : x.moveTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); } x.closePath(); x.fill(); }
 /* ---- heavy fog: a volumetric-looking layer ----
@@ -244,21 +242,29 @@ function goldenBanner(animal, c) { // each golden target gets its own note; seve
   const who = c && c.def.alien ? 'ALIEN' : c && c.type === 'astronaut' ? 'ASTRONAUT' : 'HUMAN';
   notify({ kind: 'goldH', title: 'GOLDEN ' + who, sub: 'Find them before the gold wears off.', dur: 5.5, bar: true }); Sfx.golden();
 }
+const [rimC, rimX] = makeLayer();
 function drawTargetOutlines(x) { // clean silhouette rim around everything edible: black by day, white at night
-  const night = light.dark > .3, col = night ? 'rgba(255,255,255,.78)' : 'rgba(0,0,0,.6)';
+  // every rim goes into one layer (stroke the outline, then cut the body out of it: only the outer rim stays, no lines
+  // across heads or arms) and the layer is drawn once. A scratch canvas per creature meant a round trip to the graphics
+  // chip for each of them, every frame.
+  const night = light.dark > .3, col = night ? 'rgba(255,255,255,.78)' : 'rgba(0,0,0,.6)', prev = drawTargetOutlines.box;
+  if (prev) rimX.clearRect(prev[0], prev[1], prev[2] - prev[0], prev[3] - prev[1]);
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
   for (const c of creatures) {
-    if (!c.alive) continue;
-    let a = 1;
-    a = playerSees(c.x, c.y); if (a <= .02) continue;
-    // stroke the outline, then cut the body out of it: leaves only the outer rim, no lines across the head or arms
-    if (c.def.fly) continue;
-    const hz = c.hz || 0, sc = 2 * (1 + hz * .045);
-    OLX.setTransform(1, 0, 0, 1, 0, 0); OLX.clearRect(0, 0, 80, 80); OLX.setTransform(sc, 0, 0, sc, 40, 40); OLX.rotate(c.a);
-    shapePath(OLX, c);
-    OLX.strokeStyle = c.golden ? '#ffcf33' : col; OLX.lineWidth = c.golden ? 3.2 : 2; OLX.stroke();
-    OLX.globalCompositeOperation = 'destination-out'; OLX.fill(); OLX.globalCompositeOperation = 'source-over';
-    x.globalAlpha = a * (render.olk ?? 1); x.drawImage(OLC, c.x - 20, c.y - 20 - hz * .7, 40, 40); x.globalAlpha = 1; // the rim rides up with a hop
+    if (!c.alive || c.def.fly) continue;
+    const a = playerSees(c.x, c.y); if (a <= .02) continue;
+    const hz = c.hz || 0, k = 1 + hz * .045, cy = c.y - hz * .7; // the rim rides up with a hop
+    rimX.save(); rimX.translate(c.x, cy); rimX.scale(k, k); rimX.rotate(c.a);
+    shapePath(rimX, c);
+    rimX.globalAlpha = a; rimX.strokeStyle = c.golden ? '#ffcf33' : col; rimX.lineWidth = c.golden ? 3.2 : 2; rimX.stroke();
+    rimX.globalAlpha = 1; rimX.globalCompositeOperation = 'destination-out'; rimX.fill(); rimX.globalCompositeOperation = 'source-over';
+    rimX.restore();
+    if (c.x - 22 < x0) x0 = c.x - 22; if (cy - 22 < y0) y0 = cy - 22; if (c.x + 22 > x1) x1 = c.x + 22; if (cy + 22 > y1) y1 = cy + 22;
   }
+  if (x1 < x0) { drawTargetOutlines.box = null; return; }
+  x0 = Math.max(0, Math.floor(x0)); y0 = Math.max(0, Math.floor(y0)); x1 = Math.min(W, Math.ceil(x1)); y1 = Math.min(H, Math.ceil(y1)); drawTargetOutlines.box = [x0, y0, x1, y1];
+  x.globalAlpha = render.olk ?? 1;
+  x.drawImage(rimC, x0 * DPR, y0 * DPR, (x1 - x0) * DPR, (y1 - y0) * DPR, x0, y0, x1 - x0, y1 - y0); x.globalAlpha = 1; // only the part that has rims in it
 }
 function drawBubbles(x) {
   const fs = { Small: 8.5, Normal: 10, Large: 12.5 }[SETTINGS.bubbleSize] || 10, bh = fs + 5;

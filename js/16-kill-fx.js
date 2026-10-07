@@ -13,6 +13,17 @@ function drawHitGhosts(x) { // the eaten body squashes, flashes and gets knocked
   }
 }
 let killV = 0, killFlash = 0, desatHold = 0, lastFilter = '';
+/* DYING: the picture drains to grey under a red wash within about half a second (render folds the grey into the canvas
+   filter; the red is a multiply layer over it). Coming back (respawn, or a new run) it returns over about a second. */
+let dfxK = 0;
+function deathFxTick(dt) {
+  const down = NETM.run ? !!NS.deadAt : state === 'dead' && !!snake && !snake.alive, k0 = dfxK;
+  dfxK += ((down ? 1 : 0) - dfxK) * (1 - Math.exp(-dt * (down ? 7 : 3.2)));
+  if (dfxK < .004 && !down) dfxK = 0;
+  if (Math.abs(dfxK - k0) < 1e-4 && (dfxK === 0 || dfxK > .999)) return;
+  let tint = document.getElementById('dTint'); if (!tint && dfxK > 0) { tint = document.createElement('div'); tint.id = 'dTint'; stage.appendChild(tint); }
+  stage.style.setProperty('--dfx', dfxK.toFixed(3)); stage.classList.toggle('dying', dfxK > 0); if (tint && dfxK === 0) tint.remove(); // .dying: the canvas filter follows frame by frame, no CSS easing on top
+}
 function killFx(x, y, amount) {
   killV = Math.min(.5, killV + .12 + .18 * amount); // only a whisper on screen; the impact is on the target itself
   killFlash = 0; desatHold = 0;

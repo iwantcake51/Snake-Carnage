@@ -248,7 +248,9 @@ function netBeginRun(cfg, late) { // every player: load the shared world and sta
   mapIdx = MAPS.findIndex(m => m.name === cfg.mapName); if (mapIdx < 0) mapIdx = cfg.map;
   for (const p of NETM.players) if (p.id !== NETM.me) NS.rs.set(p.id, rsNew(p));
   if (typeof netHideLobby === 'function') netHideLobby();
+  if (typeof netGoFade === 'function') netGoFade(null, true); // already black if the host's 'go' came first
   startGame({ mods: cfg.mods, net: cfg, late });
+  if (typeof netGoReveal === 'function') netGoReveal();
 }
 function netAfterLoad() { // called by finishStart once the map exists
   NS.obsById.clear(); obstacles.forEach((o, i) => { o.nid = i + 1; NS.obsById.set(o.nid, o); });
@@ -304,6 +306,7 @@ function netClientFast(buf) {
   } catch (e) { console.warn('[net] snapshot', e); }
 }
 function netClientEvent(m, local) { // reliable messages from the host (or the host's own copy of its events: local)
+  if (m.k === 'go') { if (typeof netGoFade === 'function') netGoFade(m.lbl); return; } // the host pressed start: the screen closes to black while the world loads
   if (m.k === 'start') { if (m.cfg) netBeginRun(m.cfg, m.late); return; }
   if (m.k === 'endreq') { netSend({ t: 'x' }); NETM.hostLink && NETM.hostLink.sendR({ k: 'stats', s: netMyStats(true) }); return; }
   if (m.k === 'end') { netFinishRun(m.board); return; }
@@ -401,7 +404,7 @@ function netCreatureCosmetics(c, dt, moved) { // the parts of updateCreature tha
 function netLocalDown() {
   const s = snake; if (!s.alive) return;
   s.alive = false; shake = Math.max(shake, 20); Sfx.crash(s.x); NS.myDeaths = (NS.myDeaths || 0) + 1; endCombo(true); // a hard jolt as you go down
-  NS.deadAt = performance.now(); NS.respawnIn = (NS.cfg && NS.cfg.respawn) || 5; netDeathCam(true); // the tint and the zoom-out start now, not a round trip later
+  NS.deadAt = performance.now(); NS.respawnIn = (NS.cfg && NS.cfg.respawn) || 5; netDeathCam(true); snake.netHidden = true; NS.burst = true; snakeBurst(s, (SETTINGS.snake || {}).color); // you burst, right away // the tint and the zoom-out start now, not a round trip later
   if (NETM.host) netPlayerDown(NETM.me, s.x, s.y); else netSend({ t: 'crash', x: Math.round(s.x), y: Math.round(s.y) });
   checkChallenges(); updateHud();
 }
@@ -412,16 +415,16 @@ function netDeathCam(down) { // dying: the camera eases out to the whole map; ba
 function netDownApply(e) {
   if (!NS.down.has(e.pid)) NS.down.set(e.pid, { out: !!e.out }); // the host's own entry keeps its respawn timer
   const p = netPlayer(e.pid);
-  if (e.pid === NETM.me) { if (snake) { snake.alive = false; snake.netHidden = true; } if (!NS.deadAt) NS.deadAt = performance.now(); NS.respawnIn = e.out ? 0 : (NS.cfg && NS.cfg.respawn) || 5; netDeathCam(true); netDownBanner && netDownBanner(e.out); }
-  else { const rs = NS.rs.get(e.pid); if (rs && e.x !== undefined) { for (let k = 0; k < 10; k++) debris.push({ x: e.x, y: e.y, z: rand(4, 10), vx: rand(-90, 90), vy: rand(-90, 90), vz: rand(30, 90), t: 0, s: rand(1.2, 2.4), c: p ? p.color : '#888' }); Sfx.crash(e.x); } if (p && typeof netNotify === 'function') netNotify(`${p.name} died${e.out ? ' (out of lives)' : ''}`, p.color); }
+  if (e.pid === NETM.me) { if (snake) { if (!NS.burst && snake.segs) snakeBurst(snake, (SETTINGS.snake || {}).color); NS.burst = true; snake.alive = false; snake.netHidden = true; } if (!NS.deadAt) NS.deadAt = performance.now(); NS.respawnIn = e.out ? 0 : (NS.cfg && NS.cfg.respawn) || 5; netDeathCam(true); netDownBanner && netDownBanner(e.out); }
+  else { const rs = NS.rs.get(e.pid); if (rs && rs.segs && rs.segs.length) snakeBurst(rs, (rs.cos && rs.cos.color) || (p && p.color)); else if (e.x !== undefined) snakeBurst({ segs: [{ x: e.x, y: e.y, a: 0 }] }, p && p.color); if (p && typeof netNotify === 'function') netNotify(`${p.name} died${e.out ? ' (out of lives)' : ''}`, p.color); }
   netHud && netHud();
 }
 function netUpApply(e) {
   NS.down.delete(e.pid);
   if (e.pid === NETM.me) { // back in: fresh body, a moment of grace
     const keep = snake ? snake.started : true; snake = newSnake({ x: e.x, y: e.y, a: e.a }); snake.started = keep; snake.graceT = 1.5; NS.deadAt = 0; netDeathCam(false); netDownBanner && netDownBanner(null);
-    Sfx.whoosh && Sfx.whoosh(); resetAbilities();
-  }
+    Sfx.whoosh && Sfx.whoosh(); resetAbilities(); NS.burst = false;
+  } else { const rs = NS.rs.get(e.pid); if (rs) rs.stains = rs.stains.map(() => []); } // a fresh body: the old blood stays where it fell
   netHud && netHud();
 }
 /* ---- speech bubbles go out as text; an interruption that cuts one short goes out as the new text ---- */
@@ -449,7 +452,9 @@ function netTick(dt) {
 }
 function netSyncReset(wasRun, keepSession) {
   const pt = NS.prevTime; if (!keepSession && pt !== undefined) SETTINGS.timeMode = pt; // the host's clock settings were for the session only
-  Object.assign(NS, { nid: 1, byId: new Map(), obsById: new Map(), evQ: [], out: [], snapT: 0, seq: 0, upT: 0, upSeq: 0, statT: 0, todT: 0, rs: new Map(), pools: {}, clock: 0, clkT: 0, clkAt: 0, down: new Map(), fxDone: new Set(), paid: new Set(), pend: new Map(), bubs: [], loaded: false, early: [], lastSnap: 0, myDeaths: 0, deadAt: 0, zoomBack: undefined, prevTime: keepSession ? pt : undefined });
+  if (NS.zoomBack !== undefined) { UCAM.tz = NS.zoomBack; UCAM.rate = 0; } // died at the very end: your own zoom back
+  if (typeof netUiCleanup === 'function') netUiCleanup(); // the score panel, the death tint and banner go with the run
+  Object.assign(NS, { nid: 1, byId: new Map(), obsById: new Map(), evQ: [], out: [], snapT: 0, seq: 0, upT: 0, upSeq: 0, statT: 0, todT: 0, rs: new Map(), pools: {}, clock: 0, clkT: 0, clkAt: 0, down: new Map(), fxDone: new Set(), paid: new Set(), pend: new Map(), bubs: [], loaded: false, early: [], lastSnap: 0, myDeaths: 0, deadAt: 0, zoomBack: undefined, burst: false, prevTime: keepSession ? pt : undefined });
   if (!keepSession) { NETM.run = false; if (wasRun && state !== 'menu') { state = 'menu'; showMenu(); } }
 }
 function netSyncHostGone(old) { // the host vanished mid-run: this run can't go on (its world lived there); back to the lobby
