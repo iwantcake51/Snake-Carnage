@@ -26,6 +26,7 @@ const isRot = o => o.t === 'r' && !o.poly && (o.rot || 0) % 360 !== 0;
 function fillObs(x, o, dx = 0, dy = 0, grow = 0) { // the footprint, for masks and shadows
   if (o.poly) { const P = polyShape(o); x.beginPath(); P.forEach(([a, b], k) => k ? x.lineTo(a + dx, b + dy) : x.moveTo(a + dx, b + dy)); x.closePath(); x.fill(); }
   else if (isRot(o)) { const P = obsCorners({ ...o, x: o.x - grow, y: o.y - grow, w: o.w + grow * 2, h: o.h + grow * 2 }); x.beginPath(); P.forEach(([a, b], k) => k ? x.lineTo(a + dx, b + dy) : x.moveTo(a + dx, b + dy)); x.closePath(); x.fill(); }
+  else if (o.t === 'r' && o.whole) { const W0 = o.whole, x0 = Math.max(W0.x, o.x - .75), y0 = Math.max(W0.y, o.y - .75), x1 = Math.min(W0.x + W0.w, o.x + o.w + .75), y1 = Math.min(W0.y + W0.h, o.y + o.h + .75); x.fillRect(x0 - grow + dx, y0 - grow + dy, x1 - x0 + grow * 2, y1 - y0 + grow * 2); } // a section of a long object overlaps its neighbours a hair, so the footprint has no seams
   else if (o.t === 'r') x.fillRect(o.x - grow + dx, o.y - grow + dy, o.w + grow * 2, o.h + grow * 2);
   else circ(x, o.x + dx, o.y + dy, o.r + grow);
 }

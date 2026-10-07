@@ -50,6 +50,14 @@ function drawPropShapes(x, o, shapes) { // pieces live in the object's box: 0..1
 function objPivot(o) { const p = propCache[o.kind], pv = p && p.pivot; if (o.t !== 'r') return [o.x, o.y]; return pv ? [o.x + o.w * pv[0], o.y + o.h * pv[1]] : [o.x + o.w / 2, o.y + o.h / 2]; }
 const _drawObstacle = drawObstacle;
 drawObstacle = function (x, o) { // every obstacle drawing goes through here, so a kind's changes show everywhere
+  if (o && o.whole && !o.rot && o.t === 'r') { // a section of a long object: the whole thing is drawn once per unbroken run of sections, so it has no seams
+    const sec = obstacles.includes(o) ? obstacles.filter(q => q.whole === o.whole) : [o], ks = new Map(sec.map(q => [q.gk, q]));
+    if (sec.length > 1 && ks.has(o.gk - 1)) return; // drawn with the run it belongs to
+    let last = o; while (ks.has(last.gk + 1)) last = ks.get(last.gk + 1);
+    const W0 = o.whole, full = last.x + last.w >= W0.x + W0.w - .01 && last.y + last.h >= W0.y + W0.h - .01 && o.x <= W0.x + .01 && o.y <= W0.y + .01;
+    x.save(); if (!full) { x.beginPath(); x.rect(o.x, o.y, last.x + last.w - o.x, last.y + last.h - o.y); x.clip(); }
+    try { drawObstacleUpright(x, { ...o, ...W0, whole: null }); } finally { x.restore(); } return;
+  }
   if (o && o.rot && !o.poly && o.rot % 360) { // turned: draw it upright about its pivot, inside a rotated frame
     const [cx, cy] = objPivot(o);
     x.save(); x.translate(cx, cy); x.rotate(o.rot * Math.PI / 180); x.translate(-cx, -cy); try { drawObstacleUpright(x, o); } finally { x.restore(); } return;

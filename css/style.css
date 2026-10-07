@@ -1926,3 +1926,107 @@ body.phone #mpHud{top:46px;right:6px;font-size:11px;min-width:120px}
 /* the editor's prop palette, in sections */
 .edpgh{margin:10px 2px 5px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#a89fab;display:flex;flex-direction:column;gap:1px}
 .edpgh:first-of-type{margin-top:6px}.edpgh small{font-size:10px;letter-spacing:0;text-transform:none;color:#7d7580;font-weight:400}
+
+/* =====================================================================
+   MULTIPLAYER, READABLE: bigger type, real contrast, headings that read as headings (the theme's panel headings are
+   small grey caps, meant for side labels), and buttons that stay visible over a map picture.
+   ===================================================================== */
+#overlay .mpcoop h2,#overlay .mplobby h2,#overlay .mpres h2,#mpPause .panel h2{font-size:30px!important;color:#f4eee8!important;letter-spacing:.03em!important;line-height:1.05;margin:0 0 6px}
+#overlay .mpcoop .mpcol h3,#overlay .mpfh{font-size:16px!important;letter-spacing:.06em!important;color:#f4eee8!important;border-bottom:0;padding-bottom:0;opacity:1}
+#overlay .mpsub,#mpPause .mpsub{opacity:1;color:#d3cad0;font-size:15.5px}
+#overlay .mphint{opacity:1;color:#b3aab4;font-size:14px;line-height:1.45}
+#overlay .mpcol p{opacity:1;color:#c9c0c7;font-size:14.5px}
+#overlay .mpname{font-size:16px;color:#f4eee8}
+#overlay .mpcode{font-size:28px;padding:7px 14px;border-color:#5a4e5e;box-shadow:inset 0 0 0 1px rgba(255,255,255,.04)}
+#overlay .mprow{padding:12px 14px;background:rgba(255,255,255,.065);border-color:#3c3442;gap:10px}
+#overlay .mprow b{font-size:17.5px;color:#fbf6f1}
+#overlay .mprow .mpdot,#overlay .mptable .mpdot{width:12px;height:12px}
+#overlay .mptag{font-size:12px;opacity:1;color:#efe7ee;background:rgba(255,255,255,.14);padding:3px 8px}
+#overlay .mptag.ok{background:#1f5a33;color:#c9f7d4}#overlay .mptag.warn{background:#6a4316;color:#ffe2b8}#overlay .mptag.host{color:#fff}
+#overlay .mpready{font-size:14px;opacity:.85;color:#c9c0c7}#overlay .mpready.on{color:#86f09a;opacity:1}
+#overlay .mpping{font-size:13px;opacity:.75;font-variant-numeric:tabular-nums}
+#overlay .mpline b{font-size:16px;color:#f4eee8}#overlay .mpline span{font-size:15.5px;opacity:1;color:#ddd4da}
+#overlay .mplobby select,#overlay .mpcoop input{font-size:16px;border-color:#4a4150;background:#16131a}
+#overlay .mpopt{font-size:14.5px;opacity:1;color:#ddd4da}
+#overlay .mpfriend{font-size:15px}
+#overlay .mperr{font-size:15px}
+/* the map picture: its name and the Change map button sit on a dark fade, so any map's colors leave them readable */
+#overlay .mpmap{border-color:#4a4150}
+#overlay .mpmap::after{content:'';position:absolute;left:0;right:0;bottom:0;height:58%;background:linear-gradient(180deg,rgba(8,6,10,0),rgba(8,6,10,.82));pointer-events:none}
+#overlay .mpmap span{z-index:1;font-size:19px;color:#fff;text-shadow:0 1px 2px #000,0 0 8px rgba(0,0,0,.8);bottom:10px;left:12px}
+#overlay .mpmap #mpMap{z-index:1;background:rgba(10,8,12,.92)!important;color:#fff!important;border:1px solid rgba(255,255,255,.55)!important;box-shadow:0 2px 10px rgba(0,0,0,.6)!important;padding:8px 14px;font-size:14px;bottom:9px;right:10px}
+#overlay .mpmap #mpMap:hover{background:var(--acc)!important;border-color:var(--acc)!important}
+#overlay .mppick .card{border-width:2px}#overlay .mppick .card::after{content:'';position:absolute;left:0;right:0;bottom:0;height:50%;background:linear-gradient(180deg,rgba(8,6,10,0),rgba(8,6,10,.85));pointer-events:none}
+#overlay .mppick .cn{z-index:1;font-size:14px;left:8px;bottom:6px}
+/* in the run */
+#mpHud{font-size:14px;background:rgba(12,10,14,.86);border-color:rgba(255,255,255,.14);padding:8px 11px;min-width:170px;transition:top .2s ease;box-shadow:0 6px 18px rgba(0,0,0,.4)}
+#mpHud .mph{font-size:12.5px;color:#f4eee8;opacity:1}#mpHud .mph b{font-size:16px}
+#mpHud .mpr{padding:2.5px 0}#mpHud .mpr b{font-variant-numeric:tabular-nums;color:#fff}#mpHud .mpr.me span{color:#fff}
+#mpHud .mpclk{font-size:14px}
+body.phone #mpHud{font-size:12px;min-width:140px}
+#mpDown{background:rgba(12,10,14,.86);padding:16px 26px;border:1px solid rgba(255,255,255,.14);box-shadow:0 10px 28px rgba(0,0,0,.5)}
+#mpDown b{font-size:24px}#mpDown span{opacity:1;color:#d3cad0;font-size:15px}
+#mpPause .panel{width:min(400px,92%)}
+
+/* ---- the scoreboard ---- */
+#overlay .panel.mpres{width:min(940px,95%)}
+.mprhead{text-align:center;margin:2px 0 14px}
+.mpkick{display:inline-block;font:800 12px var(--f-head,system-ui);letter-spacing:.2em;text-transform:uppercase;color:var(--acc-text,#ff8a8a);margin-bottom:6px}
+#overlay .mpres .mprhead h2{font-size:40px!important;letter-spacing:.02em!important;margin:0 0 10px;text-shadow:0 2px 0 rgba(0,0,0,.5)}
+.mpchips{display:flex;justify-content:center;flex-wrap:wrap;gap:6px}
+.mpchips span{background:rgba(255,255,255,.07);border:1px solid #3c3442;border-radius:999px;padding:4px 12px;font-size:14px;color:#ddd4da}.mpchips b{color:#fff}
+.mppod{display:flex;justify-content:center;align-items:flex-end;gap:10px;margin:4px 0 16px;flex-wrap:wrap}
+.mpcard{position:relative;flex:1 1 150px;max-width:230px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:16px 12px 12px;border-radius:8px;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--pc,#888) 22%,#1a161c),#151216);border:1px solid color-mix(in srgb,var(--pc,#888) 45%,#2e2833);box-shadow:inset 0 3px 0 var(--pc,#888),0 8px 20px rgba(0,0,0,.35)}
+.mpcard .nm{font-size:18px;color:#fff;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mpcard .big{font:800 34px/1.05 var(--f-num,ui-monospace),monospace;color:#fff;text-shadow:0 2px 0 rgba(0,0,0,.4)}
+.mpcard small{font-size:13px;color:#c9c0c7;text-align:center}
+.mpcard .lbl{font:800 12px var(--f-head,system-ui);letter-spacing:.18em;text-transform:uppercase;color:#ffcf33}
+.mpcard .medal{position:absolute;top:-12px;left:50%;translate:-50% 0;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font:800 14px var(--f-num,monospace);color:#1a1410;background:#8a8a92;box-shadow:0 2px 6px rgba(0,0,0,.5),inset 0 -2px 0 rgba(0,0,0,.25)}
+.mpcard.p1 .medal{background:linear-gradient(180deg,#ffe58a,#e0a92a)}.mpcard.p2 .medal{background:linear-gradient(180deg,#f2f2f4,#a9adb6)}.mpcard.p3 .medal{background:linear-gradient(180deg,#f0b48a,#b06a3a)}
+.mpcard.p1{padding-top:22px;padding-bottom:16px;border-color:#e0b84a;box-shadow:inset 0 3px 0 var(--pc,#888),0 0 0 1px rgba(255,210,90,.25),0 10px 28px rgba(0,0,0,.45),0 0 26px rgba(255,200,70,.12)}
+.mpcard.p1 .big{font-size:42px}
+.mppod.ffa .mpcard.p1{order:2}.mppod.ffa .mpcard.p2{order:1}.mppod.ffa .mpcard.p3{order:3}
+.mpcard.me .nm::after{content:' (you)';font-weight:600;font-size:13px;color:#c9c0c7}
+.mpcard.hero{--pc:#ffcf33;flex-basis:100%;max-width:none;padding:12px 16px}.mpcard.hero .big{font-size:46px}
+.mpcrown{position:absolute;top:-30px;left:50%;translate:-50% 0;width:34px;height:23px;fill:#ffd24a;filter:drop-shadow(0 2px 3px rgba(0,0,0,.6))}
+.mpcard.p1 .mpcrown~.medal{display:none}
+#overlay .mptable{border:1px solid #3c3442;border-radius:8px;background:rgba(0,0,0,.18)}
+#overlay .mptable table{font-size:15.5px}
+#overlay .mptable th{font-size:12px;opacity:1;color:#b3aab4;padding:9px 10px;background:rgba(255,255,255,.04);position:sticky;top:0}
+#overlay .mptable td{padding:10px;border-top:1px solid #2f2934;color:#e6dee4;font-variant-numeric:tabular-nums}
+#overlay .mptable td.pn{font-size:16px;color:#fff;box-shadow:inset 4px 0 0 var(--pc,transparent)}
+#overlay .mptable tbody tr:nth-child(even) td{background:rgba(255,255,255,.025)}
+#overlay .mptable tr.me td{background:color-mix(in srgb,var(--acc) 12%,transparent)}
+#overlay .mptable td.s{font-size:17px;color:#fff}
+#overlay .mptable td.top{color:#ffd24a;font-weight:800}#overlay .mptable td.top::after{content:'★';font-size:.7em;margin-left:3px;vertical-align:.2em}
+#overlay .mptable .rk{opacity:1;display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.1);font:800 12px var(--f-num,monospace);color:#fff;margin-right:2px}
+#overlay .mptable .rk.r1{background:#e0a92a;color:#1a1410}#overlay .mptable .rk.r2{background:#a9adb6;color:#1a1410}#overlay .mptable .rk.r3{background:#b06a3a;color:#fff}
+#overlay .mptable tr.team td{font-size:15.5px;color:#ffe3a0;background:rgba(255,207,51,.06)}
+#overlay .mptable tr.tg td{color:#fff;background:color-mix(in srgb,var(--tc) 22%,transparent);border-top:2px solid var(--tc)}
+#overlay .mptag.win{background:linear-gradient(180deg,#ffe58a,#e0a92a);color:#1a1410;font-weight:800}#overlay .mptag.you{background:color-mix(in srgb,var(--acc) 55%,transparent);color:#fff}
+.mpmine{display:flex;justify-content:center;flex-wrap:wrap;gap:8px;margin:4px 0 2px}
+.mpmine span{background:rgba(255,255,255,.06);border:1px solid #3c3442;border-radius:6px;padding:5px 12px;font-size:15px;color:#ece4ea;font-variant-numeric:tabular-nums}
+.mpmine .pl{border-color:color-mix(in srgb,var(--acc) 60%,#3c3442);background:color-mix(in srgb,var(--acc) 16%,transparent)}.mpmine b{color:#fff}
+.mpres.fresh .mprhead{animation:mpIn .45s cubic-bezier(.2,.8,.2,1) backwards}
+.mpres.fresh .mpcard{animation:mpPop .5s cubic-bezier(.2,.9,.25,1.2) backwards}.mpres.fresh .mpcard:nth-child(2){animation-delay:.08s}.mpres.fresh .mpcard:nth-child(3){animation-delay:.16s}.mpres.fresh .mpcard:nth-child(4){animation-delay:.24s}
+.mpres.fresh .mptable tbody tr{animation:mpIn .4s ease backwards}.mpres.fresh .mptable tbody tr:nth-child(2){animation-delay:.05s}.mpres.fresh .mptable tbody tr:nth-child(3){animation-delay:.1s}.mpres.fresh .mptable tbody tr:nth-child(n+4){animation-delay:.15s}
+@keyframes mpIn{from{opacity:0;translate:0 8px}}@keyframes mpPop{from{opacity:0;scale:.85}}
+@media (max-width:700px){.mpcard{flex-basis:120px}.mpcard .big{font-size:26px}.mpcard.p1 .big{font-size:32px}#overlay .mpres .mprhead h2{font-size:30px!important}}
+#overlay .mptable td.pn{display:table-cell;vertical-align:middle}
+#overlay .mptable td.pn>*{vertical-align:middle;margin-right:6px}#overlay .mptable td.pn .mpdot{margin-right:8px}
+#overlay .mptable td{vertical-align:middle}
+.mpcard.hero{flex-basis:170px;max-width:230px;padding:14px 12px 12px}.mpcard.hero .big{font-size:38px}.mpcard.hero small{font-size:12.5px}
+.mppod{margin:16px 0 12px}.mpcard{padding:12px 10px 10px}.mpcard.p1{padding-top:16px;padding-bottom:12px}
+.mpcard .big{font-size:30px}.mpcard.p1 .big{font-size:36px}
+#overlay .mpres .mprhead h2{font-size:36px!important;margin-bottom:8px}.mprhead{margin-bottom:6px}
+#overlay .mptable td{padding:8px 10px}
+#overlay .mptoast{left:auto;right:16px;top:16px;translate:none;z-index:3;background:#2a2430;border-color:#4a4150;font-size:14px}
+@keyframes mptoast{0%{opacity:0;translate:0 -6px}12%{opacity:1;translate:0 0}80%{opacity:1}100%{opacity:0}}
+#overlay .mpres .mptable{max-height:min(34vh,320px);overflow:auto}
+#overlay .mpres .mptable thead th{z-index:1;background:#1d191f}
+#mpHud .mpt span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#mpHud .mpt.mine > span:not(.mplives)::after{content:'YOU';font-size:9px;font-weight:800;letter-spacing:.06em;opacity:1;margin-left:5px;padding:1px 4px;border-radius:3px;background:var(--tc);color:#fff;vertical-align:1px}
+.mppod{margin-top:30px}
+#overlay .mptable th,#overlay .mptable td{padding-left:8px;padding-right:8px}#overlay .mptable tr>*:last-child{padding-right:12px}
+#overlay .mpcoop #backBtn{padding:11px 20px;flex:none}

@@ -129,7 +129,7 @@ function smashObstacle(o, ang, quiet) { // quiet: catching up on breakage that h
   const cx = o.t === 'r' ? o.x + o.w / 2 : o.x, cy = o.t === 'r' ? o.y + o.h / 2 : o.y, size = o.t === 'r' ? Math.sqrt(o.w * o.h) : o.r * 1.6;
   if (fx) bfxWreck(bctx, o, fx, ang); else drawWreck(bctx, o, ang); // the broken piece stays on the floor as wreckage
   if (o.kind === 'speaker') { const sp = clubSpeakers.find(q => q.o === o); if (sp) { sp.alive = false; Sfx.speakerDie(sp); } }
-  for (const q of obstacles) if (q.group && q.group === o.group) q.cracked = true; // the rest of a long object cracks but stands
+  // the rest of a long object (a split table, a glass wall's other panes) stands as it was: no crack lines on the neighbours
   if (!quiet && fx) bfxBurst(o, fx, ang);
   else if (!quiet) for (let k = 0; k < 18 + size / 3; k++) { const a = ang + rand(-1.2, 1.2), sp = rand(60, 230); debris.push({ x: cx + rand(-size / 3, size / 3), y: cy + rand(-size / 3, size / 3), z: rand(4, 16), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(60, 170), t: 0, s: rand(1.6, 3.6), c: pick([o.color, shade(o.color, -.2), shade(o.color, .15)]) }); }
   drawObstacleLayer();
@@ -148,9 +148,8 @@ function smashObstacle(o, ang, quiet) { // quiet: catching up on breakage that h
     for (let k = 0; k < 40; k++) { const a = ang + rand(-.9, .9), sp = rand(80, 300); debris.push({ x: cx + rand(-o.w / 2, o.w / 2), y: cy + rand(-o.h / 2, o.h / 2), z: rand(6, 20), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(80, 220), t: 0, s: rand(2.4, 5), c: pick([o.color, shade(o.color, -.25), shade(o.color, .2), '#8a7f74']) }); }
     for (let k = 0; k < 14; k++) mist.push({ x: cx + rand(-10, 10), y: cy + rand(-10, 10), vx: Math.cos(ang + rand(-1.4, 1.4)) * rand(20, 90), vy: Math.sin(ang + rand(-1.4, 1.4)) * rand(20, 90), r: rand(6, 14), g: rand(10, 24), t: 0, life: rand(1, 1.8), c: '#aaa096', a: rand(.25, .4) });
     wallSmoke(cx, cy, ang, o.w, o.h);
-    for (const q of obstacles) if (q.bgroup === o.bgroup) q.cracked = true;
     if (mine) run.walls = (run.walls || 0) + 1;
-  } else if (wall) { for (const q of obstacles) if (q.bgroup === o.bgroup) q.cracked = true; if (mine && !quiet) run.walls = (run.walls || 0) + 1; }
+  } else if (wall && mine && !quiet) run.walls = (run.walls || 0) + 1;
   const nk = fx ? fx.noise : 1, scare = fx ? fx.scare : wall; // how far it carries, and whether it sends people running
   if (AUTH() && nk > 0) { noise(wall ? 'wallSmash' : 'smash', cx, cy, clamp(size / 40, .6, 1.2) * nk);
   for (const c of nearbyCreatures(cx, cy, 230 * nk, [])) {
@@ -197,7 +196,8 @@ function splitBreakables(list) { // long furniture breaks a section at a time, n
     const L = Math.max(o.w || 0, o.h || 0);
     if (o.t !== 'r' || !(RAM_KINDS[2].has(o.kind) || TOUCH_KINDS.has(o.kind)) || L < 110 || o.kind === 'desk') { out.push(o); continue; } // a long glass wall breaks a pane at a time
     const hz = o.w >= o.h, n = Math.ceil(L / 64), step = L / n; g++;
-    for (let k = 0; k < n; k++) out.push(hz ? { ...o, x: o.x + k * step, w: step, group: g } : { ...o, y: o.y + k * step, h: step, group: g });
+    const whole = { x: o.x, y: o.y, w: o.w, h: o.h }; // each section draws its slice of the whole thing, so it reads as one piece (no seams) until a part breaks off
+    for (let k = 0; k < n; k++) out.push(hz ? { ...o, x: o.x + k * step, w: step, group: g, whole, gk: k } : { ...o, y: o.y + k * step, h: step, group: g, whole, gk: k });
   }
   return out;
 }

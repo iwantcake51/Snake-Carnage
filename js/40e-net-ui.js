@@ -26,7 +26,7 @@ function netShowCoop(msg) {
   let name = ''; try { name = localStorage.getItem('snakeCarnageName') || ''; } catch (e) {}
   const fr = netFriends();
   overlay.innerHTML = `<div class="panel mpcoop"><h2>Play with friends</h2>
-    <p class="mpsub">Co-op for you and up to ${NET_MAX - 1} friends: one shared world, everyone hunting together. Nobody can hurt anyone else.</p>
+    <p class="mpsub">You and up to ${NET_MAX - 1} friends in one shared world: hunt together in co-op, or race each other in free for all or teams. Nobody can hurt anyone else.</p>
     <label class="mpname">Your name <input id="mpName" maxlength="16" value="${esc(name)}" placeholder="Snake" autocomplete="nickname"></label>
     <div class="mpcols">
       <div class="mpcol"><h3>Host a game</h3><p>You get a code to send your friends. You pick the map, the time and the modifiers.</p><button class="play mphost" id="mpHost"><span>Host</span></button></div>
@@ -138,17 +138,17 @@ function netDrawSnakes(x) {
 }
 function netDrawTags(x) { // screen space: names over teammates, and an arrow at the edge toward anyone off screen
   const names = SETTINGS.mpNames !== false, arrows = SETTINGS.mpArrows !== false;
-  x.save(); x.font = '600 9.5px var(--f-body, system-ui), sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.save(); x.font = '700 11px Barlow, "Segoe UI", system-ui, sans-serif'; // (a canvas font can't use CSS variables) x.textAlign = 'center'; x.textBaseline = 'middle';
   for (const rs of NS.rs.values()) {
     const p = netPlayer(rs.pid); if (!p || !rs.buf.length) continue;
     const down = NS.down.get(rs.pid), P = worldToCanvas(rs.x, rs.y), off = P.x < 8 || P.y < 8 || P.x > W - 8 || P.y > H - 8;
     if (!off && names && rs.alive && !rs.hidden) {
       const near = snake && Math.hypot(rs.x - snake.x, rs.y - snake.y) < 34; // right next to you: get out of the way
-      const tw = x.measureText(p.name).width + 14, ty = P.y - CONFIG.snakeR * (rs.scale || 1) * (V.z || 1) - 14;
+      const tw = x.measureText(p.name).width + 16, ty = P.y - CONFIG.snakeR * (rs.scale || 1) * (V.z || 1) - 15;
       x.globalAlpha = (near ? .35 : .8) * (rs.camoT > 0 ? .5 : 1);
-      x.fillStyle = 'rgba(12,10,14,.62)'; rrect(x, P.x - tw / 2, ty - 7, tw, 14, 7); x.fill();
-      x.fillStyle = rs.color; x.beginPath(); x.arc(P.x - tw / 2 + 7, ty, 2.6, 0, TAU); x.fill();
-      x.fillStyle = '#f2ecef'; x.fillText(p.name, P.x + 3, ty + .5);
+      x.fillStyle = 'rgba(12,10,14,.78)'; rrect(x, P.x - tw / 2, ty - 8, tw, 16, 8); x.fill();
+      x.fillStyle = rs.color; x.beginPath(); x.arc(P.x - tw / 2 + 8, ty, 3, 0, TAU); x.fill();
+      x.fillStyle = '#ffffff'; x.fillText(p.name, P.x + 4, ty + .5);
     } else if (off && arrows && (rs.alive || down)) {
       const cx = W / 2, cy = H / 2, a = Math.atan2(P.y - cy, P.x - cx), k = Math.min((W / 2 - 22) / Math.abs(Math.cos(a) || 1e-6), (H / 2 - 22) / Math.abs(Math.sin(a) || 1e-6));
       const ax = cx + Math.cos(a) * k, ay = cy + Math.sin(a) * k;
@@ -192,7 +192,14 @@ function netSpectate() {
   const t = live.find(r => r.pid === NS.specId) || live[0]; NS.specId = t.pid; snake.x = t.x; snake.y = t.y; snake.angle = t.angle;
 }
 const _netTick = netTick;
-netTick = function (dt) { _netTick(dt); netSpectate(); if (NETM.run && performance.now() - netHudT > 500) { netHudT = performance.now(); netHud(); } };
+netTick = function (dt) { _netTick(dt); netSpectate(); if (NETM.run && performance.now() - netHudT > 500) { netHudT = performance.now(); netHud(); } if (NETM.run && performance.now() - netHudPlaceT > 120) { netHudPlaceT = performance.now(); netHudPlace(); } };
+let netHudPlaceT = 0;
+function netHudPlace() { // the score panel shares the top-right corner with the combo counter: it moves down below the combo while one is showing
+  const el = document.getElementById('mpHud'), cb = document.getElementById('combo'); if (!el) return;
+  let top = '';
+  if (cb && (cb.classList.contains('show') || cb.classList.contains('out'))) { const r = cb.getBoundingClientRect(), pr = (el.offsetParent || document.body).getBoundingClientRect(); if (r.height && r.right > pr.left + pr.width * .5) top = Math.round(r.bottom - pr.top + 10) + 'px'; }
+  if (el.style.top !== top) el.style.top = top;
+}
 /* ---- pause in co-op: the world can't stop for one player ---- */
 const _netPause = pauseGame;
 pauseGame = function () {
@@ -224,23 +231,32 @@ function netResultsRefresh(aborted) {
   const host = NETM.host, me = netMe(), live = new Map(NETM.players.map(p => [p.id, p]));
   const rows = [...b.rows].sort((p, q) => (q.score || 0) - (p.score || 0)), top = rows[0], mode = b.mode || 'coop';
   const others = NETM.players.filter(p => !p.host && p.conn !== false), allReady = others.every(p => p.ready);
-  const col = (k, v) => `<td class="${k}">${v ?? 0}</td>`, cells = r => `${col('s', r.score)}${col('', r.killed)}${col('', r.humans)}${col('', r.animals)}${col('', (r.best || 0) + 'x')}${col('', r.goldens)}${col('', r.deaths)}${col('', r.xp)}${col('', r.chips)}`;
-  const tags = r => (mode === 'ffa' ? b.winner === r.id : mode === 'coop' && r === top && rows.length > 1 && r.score) ? ` <em class="mptag">${mode === 'ffa' ? 'Winner' : 'Top'}</em>` : '';
-  const prow = (r, i) => `<tr class="${r.id === NETM.me ? 'me' : ''} ${live.get(r.id) ? '' : 'gone'}"><td class="pn">${i !== undefined ? `<em class="rk">${i + 1}</em>` : ''}<i class="mpdot" style="background:${r.color}"></i>${esc(r.name)}${tags(r)}${live.get(r.id) && live.get(r.id).ready && !r.host ? ' <em class="mptag ok">Ready</em>' : ''}</td>${cells(r)}${host ? `<td>${!r.host && live.get(r.id) ? `<button class="ghost mpsm" data-kick="${esc(r.id)}">Kick</button>` : ''}</td>` : ''}</tr>`;
+  const KEYS = ['score', 'killed', 'humans', 'animals', 'best', 'goldens', 'xp', 'chips'], hi = {}; for (const k of KEYS) hi[k] = Math.max(0, ...rows.map(r => r[k] || 0)); // the best in each column lights up
+  const col = (k, v, r, cls = '') => `<td class="${cls} ${r && k && hi[k] > 0 && (r[k] || 0) === hi[k] && rows.length > 1 ? 'top' : ''}">${v ?? 0}</td>`;
+  const cells = (r, pl) => { const q = pl ? r : null; return `${col('score', r.score, q, 's')}${col('killed', r.killed, q)}${col('humans', r.humans, q)}${col('animals', r.animals, q)}${col('best', (r.best || 0) + '×', q)}${col('goldens', r.goldens, q)}${col('', r.deaths)}${col('xp', r.xp, q)}${col('chips', r.chips, q)}`; };
+  const tags = r => (mode === 'ffa' ? b.winner === r.id : mode === 'coop' && r === top && rows.length > 1 && r.score) ? ` <em class="mptag win">${mode === 'ffa' ? 'Winner' : 'Top'}</em>` : '';
+  const prow = (r, i) => `<tr class="${r.id === NETM.me ? 'me' : ''} ${live.get(r.id) ? '' : 'gone'}" style="--pc:${r.color}"><td class="pn">${i !== undefined ? `<em class="rk r${i + 1}">${i + 1}</em>` : ''}<i class="mpdot" style="background:${r.color}"></i><span class="nm">${esc(r.name)}</span>${r.id === NETM.me ? '<em class="mptag you">You</em>' : ''}${tags(r)}${live.get(r.id) && live.get(r.id).ready && !r.host ? ' <em class="mptag ok">Ready</em>' : ''}</td>${cells(r, true)}${host ? `<td>${!r.host && live.get(r.id) ? `<button class="ghost mpsm" data-kick="${esc(r.id)}">Kick</button>` : ''}</td>` : ''}</tr>`;
   const T = mode === 'teams' ? [...(b.teams || [])].sort((p, q) => q.score - p.score) : [];
-  const body = mode === 'teams' ? T.map(t => `<tr class="team tg" style="--tc:${t.color}"><td class="pn"><i class="mpdot" style="background:${t.color}"></i>${esc(t.name)}${b.winner === t.i ? ' <em class="mptag">Winner</em>' : ''}</td>${cells(t)}${host ? '<td></td>' : ''}</tr>` + rows.filter(r => r.team === t.i).map(r => prow(r)).join('')).join('')
+  const body = mode === 'teams' ? T.map(t => `<tr class="team tg" style="--tc:${t.color}"><td class="pn"><i class="mpdot" style="background:${t.color}"></i>${esc(t.name)} team${b.winner === t.i ? ' <em class="mptag win">Winner</em>' : ''}</td>${cells(t)}${host ? '<td></td>' : ''}</tr>` + rows.filter(r => r.team === t.i).map(r => prow(r)).join('')).join('')
     : mode === 'ffa' ? rows.map(prow).join('')
-    : rows.map(r => prow(r)).join('') + `<tr class="team"><td class="pn">Team</td>${cells(b.team)}${host ? '<td></td>' : ''}</tr>`;
+    : rows.map(r => prow(r)).join('') + `<tr class="team"><td class="pn">Team total</td>${cells(b.team)}${host ? '<td></td>' : ''}</tr>`;
   const winT = mode === 'teams' && b.winner !== null && b.winner !== undefined ? (b.teams || []).find(t => t.i === b.winner) : null, winP = mode === 'ffa' && b.winner ? rows.find(r => r.id === b.winner) : null;
-  const title = aborted ? 'The host left' : mode === 'ffa' ? (winP ? `${esc(winP.name)} wins!` : 'A draw') : mode === 'teams' ? (winT ? `<span style="color:${winT.color}">${esc(winT.name)}</span> team wins!` : 'A draw') : b.why === 'wiped' ? 'Everyone went down' : 'Run over';
+  const title = aborted ? 'The host left' : mode === 'ffa' ? (winP ? `<span style="color:${winP.color}">${esc(winP.name)}</span> wins!` : "It's a draw") : mode === 'teams' ? (winT ? `<span style="color:${winT.color}">${esc(winT.name)}</span> team wins!` : "It's a draw") : b.why === 'wiped' ? 'Everyone went down' : 'Run over';
   const why = b.why === 'time' ? "Time's up" : b.why === 'wiped' ? 'Everyone went down' : b.why === 'host' ? 'Ended by the host' : '';
   const ord = n => n + (n % 10 === 1 && n % 100 !== 11 ? 'st' : n % 10 === 2 && n % 100 !== 12 ? 'nd' : n % 10 === 3 && n % 100 !== 13 ? 'rd' : 'th');
-  const place = mode === 'ffa' ? ` · you came ${ord(rows.findIndex(r => r.id === NETM.me) + 1)} of ${rows.length}` : mode === 'teams' ? (() => { const i = T.findIndex(t => t.i === (rows.find(r => r.id === NETM.me) || {}).team); return i >= 0 ? ` · your team came ${ord(i + 1)} of ${T.length}` : ''; })() : '';
-  box.innerHTML = `<h2>${title}</h2>
-    <p class="mpsub">${esc(b.map || '')} · ${fmtTime(b.time || 0)}${mode === 'coop' ? ` · team score <b>${b.team.score}</b>` : ''}${why && mode !== 'coop' ? ' · ' + why : ''}</p>
+  const place = mode === 'ffa' ? `You came <b>${ord(rows.findIndex(r => r.id === NETM.me) + 1)}</b> of ${rows.length}` : mode === 'teams' ? (() => { const i = T.findIndex(t => t.i === (rows.find(r => r.id === NETM.me) || {}).team); return i >= 0 ? `Your team came <b>${ord(i + 1)}</b> of ${T.length}` : ''; })() : '';
+  const crown = '<svg class="mpcrown" viewBox="0 0 24 16"><path d="M2 14h20L20 4l-5 5-3-7-3 7-5-5z"/></svg>';
+  const card = (r, i, extra = '') => `<div class="mpcard p${i + 1} ${r.id === NETM.me ? 'me' : ''}" style="--pc:${r.color}">${i === 0 && (mode !== 'ffa' || b.winner) ? crown : ''}<span class="medal">${i + 1}</span><b class="nm">${esc(r.name)}</b><span class="big">${r.score || 0}</span><small>${r.killed || 0} eaten · best ${r.best || 0}×${r.goldens ? ` · ${r.goldens} golden` : ''}</small>${extra}</div>`;
+  const pod = mode === 'teams' ? T.map((t, i) => `<div class="mpcard team p${i + 1} ${t.i === (rows.find(r => r.id === NETM.me) || {}).team ? 'me' : ''}" style="--pc:${t.color}">${b.winner === t.i ? crown : ''}<span class="medal">${i + 1}</span><b class="nm">${esc(t.name)}</b><span class="big">${t.score}</span><small>${rows.filter(r => r.team === t.i).map(r => esc(r.name)).join(' · ')}</small></div>`).join('')
+    : (mode === 'coop' ? `<div class="mpcard hero"><span class="lbl">Team score</span><span class="big">${b.team.score}</span><small>${b.team.killed} eaten · best ${b.team.best}× · ${b.team.goldens} golden · ${b.team.deaths} crash${b.team.deaths === 1 ? '' : 'es'}</small></div>` : '') + rows.slice(0, 3).map((r, i) => card(r, i)).join('');
+  const fresh = !box.dataset.shown; box.dataset.shown = 1;
+  box.classList.toggle('fresh', fresh); if (fresh) setTimeout(() => box.classList.remove('fresh'), 1600);
+  box.innerHTML = `<div class="mprhead"><span class="mpkick">${esc(NET_MODES[mode] || 'Co-op')}${why ? ` · ${why}` : ''}</span><h2>${title}</h2>
+      <div class="mpchips"><span>${esc(b.map || '')}</span><span>${fmtTime(b.time || 0)}</span>${mode !== 'coop' ? '' : `<span>Team score <b>${b.team.score}</b></span>`}</div></div>
+    ${aborted ? '' : `<div class="mppod ${mode}">${pod}</div>`}
     <div class="mptable"><table><thead><tr><th>Player</th><th>Score</th><th>Eaten</th><th>People</th><th>Animals</th><th>Best combo</th><th>Golden</th><th>Crashes</th><th>XP</th><th>Chips</th>${host ? '<th></th>' : ''}</tr></thead><tbody>
       ${body}</tbody></table></div>
-    <p class="mpsub mine">You: +${run.xpGained || 0} XP · +${run.coinsGained || 0} chips${run.chList && run.chList.length ? ` · ${run.chList.length} challenge${run.chList.length > 1 ? 's' : ''} done` : ''}${place}</p>
+    <div class="mpmine">${place ? `<span class="pl">${place}</span>` : ''}<span>+${run.xpGained || 0} XP</span><span>+${run.coinsGained || 0} chips</span>${run.chList && run.chList.length ? `<span>${run.chList.length} challenge${run.chList.length > 1 ? 's' : ''} done</span>` : ''}</div>
     <div class="mpfoot">${aborted ? '<button class="play" id="mpLobby"><span>To the lobby</span></button>' : host
       ? `<button class="ghost" id="mpLobby">Return to lobby</button><button class="ghost" id="mpMap2">Change map</button><button class="ghost" id="mpMods2">Change modifiers</button><button class="play" id="mpAgain" ${allReady ? '' : 'disabled'}><span>${allReady ? 'Play again' : `${others.filter(p => !p.ready).length} not ready yet`}</span></button>`
       : `<button class="ghost" id="mpLeave2">Leave lobby</button><button class="play ${me.ready ? 'on' : ''}" id="mpReady2"><span>${me.ready ? 'Ready ✓' : 'Ready'}</span></button>`}</div>`;

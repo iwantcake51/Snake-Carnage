@@ -10,6 +10,7 @@ const glx = glowC.getContext('2d'); let glowAny = false;
 const CONSOLE_LIGHTS = ['#5fffd0', '#ffcf33', '#ff5a4a', '#7fb3ff'];
 function glowEmitters(o) { // [cx, cy, w, h, color, strength] for each glowing part, in the object's own (unturned) frame
   const p = typeof propCache === 'object' && propCache[o.kind]; if (p && p.hideBase) return []; // its own look replaced: no buttons to glow
+  if (o.whole) { const q = { ...o, ...o.whole, whole: null }; return glowEmitters(q).filter(([cx, cy]) => cx >= o.x && cx < o.x + o.w && cy >= o.y && cy < o.y + o.h); } // a section of a long console: the lights on its own slice
   const out = [], { x: X, y: Y, w, h } = o;
   switch (o.kind) {
     case 'console': for (let q = X + 6; q < X + w - 14; q += 22) out.push([q + 9, Y + h / 2 - 1, 14, h - 14, CONSOLE_LIGHTS[Math.floor(q / 22) % 4], .9]); break; // the same panels 09-obstacles draws
