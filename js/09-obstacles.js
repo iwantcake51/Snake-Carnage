@@ -219,6 +219,13 @@ function drawObstacleBase(x, o) {
 function drawDetail(x, o) { // street furniture and markings, drawn to fit their box
   const { x: X, y: Y, w, h } = o, cx = X + w / 2, cy = Y + h / 2, m = Math.min(w, h);
   switch (o.d) {
+    case 'hazard': { // a painted corridor: dark floor, hazard stripes down both long edges, a dashed center line. Runs along its longer side
+      const hz = w >= h, L = hz ? w : h, D = hz ? h : w, e = Math.min(5, D * .12);
+      x.save(); x.translate(cx, cy); if (!hz) x.rotate(Math.PI / 2); x.translate(-L / 2, -D / 2);
+      x.fillStyle = '#2f2a28'; x.fillRect(0, 0, L, D);
+      x.fillStyle = '#c9a227'; for (let k = 4; k + 20 <= L - 4; k += 40) x.fillRect(k, D / 2 - 1.5, 20, 3);
+      if (D > 14) { hazard(x, 0, 0, L, e); hazard(x, 0, D - e, L, e); }
+      x.restore(); return; }
     case 'zebra': x.fillStyle = '#e6e6e6'; if (w > h) for (let k = X + 4; k < X + w - 4; k += 9) x.fillRect(k, Y + 2, 5, h - 4); else for (let k = Y + 4; k < Y + h - 4; k += 9) x.fillRect(X + 2, k, w - 4, 5); return;
     case 'manhole': x.fillStyle = '#2f2f34'; circ(x, cx, cy, m / 2); x.fillStyle = '#3b3b41'; circ(x, cx, cy, m / 3); return;
     case 'drain': x.fillStyle = '#26262b'; x.fillRect(X, Y, w, h); return;

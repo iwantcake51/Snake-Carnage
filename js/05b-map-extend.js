@@ -277,7 +277,8 @@ function extendBuild(m, idx) {
   const walls = carryWalls(b.obs, null, gateU); walls.forEach(o => { o.ext = true; });
   const floor0 = b.floor, decor0 = b.decor, trails = paths.filter((p, i) => edgeTrails.length && (b.paths || []).length > i && edgeTrails.includes(b.paths[i]));
   const local = (x, fn) => { const WF2 = W; W = MW; x.save(); x.beginPath(); x.rect(XO, 0, MW, H); x.clip(); x.translate(XO, 0); try { fn(); } finally { x.restore(); W = WF2; } };
-  return { ...b, obs: [...b.obs, ...walls, ...extObs], lights, paths, roads, crossings,
+  const shapes = (b.shapes || []).map(s => ({ ...s, x: s.x != null ? s.x + XO : s.x, nodes: s.nodes && s.nodes.map(n => [n[0] + XO, ...n.slice(1)]) })); // the map's own drawn shapes move with it
+  return { ...b, obs: [...b.obs, ...walls, ...extObs], lights, paths, roads, crossings, shapes,
     start: b.start && { ...b.start, x: b.start.x + XO },
     floor(x) {
       if (m.tileFloor) { floor0.call(b, x); for (const { e } of strips) e.cover.forEach(f => f(x)); } // a ground drawn for any width (it reads W)

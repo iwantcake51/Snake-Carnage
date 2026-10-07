@@ -1912,3 +1912,14 @@ body.phone #mpHud{top:46px;right:6px;font-size:11px;min-width:120px}
 #mpHud .mpr em{font-style:normal;font-size:10px;opacity:.6;width:10px;text-align:right}
 .mptable tr.tg td{border-top:2px solid var(--tc);background:color-mix(in srgb,var(--tc) 14%,transparent);font-weight:800}
 .mptable .rk{font-style:normal;opacity:.55;font-size:.85em;margin-right:6px;display:inline-block;width:1.1em;text-align:right}
+/* prop editor: "When it breaks" */
+#propEd .pebpre{flex-wrap:wrap}#propEd .pebpre button{flex:1 1 30%;border-bottom:1px solid #3a3035;padding:6px 4px;font-size:12px}
+.pebfx .pebtry{margin:8px 0 2px}
+.pebgrid{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.pebgrid h5{margin:8px 0 0;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#8d8590}
+.pebgrid label input[type=range]{flex:1;max-width:150px}.pebgrid label output{width:32px;text-align:right;font-variant-numeric:tabular-nums;color:#ddd;font-size:12px}
+.pebgrid select{max-width:150px}
+.pebcols{display:flex;align-items:center;gap:6px;color:#bbb}.pebcols>span:first-child{flex:1}
+.pebslot{display:inline-flex;align-items:center;gap:2px}.pebslot input[type=color]{width:30px;height:24px;padding:1px}.pebslot input.auto{opacity:.4}
+#propEd .pebslot button{padding:2px 5px;font-size:10px;border-radius:5px}#propEd .pebslot button.on{background:var(--acc,#d0191f);color:#fff}
+.pebcol input[type=color]{width:44px;height:26px;padding:1px}

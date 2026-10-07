@@ -307,6 +307,7 @@ const SETTING_TABS = {
   Graphics: { icon: 'graphics', lead: 'Look and feel of the picture.', rows: [
     ['toggle', 'fullscreen', 'Fullscreen', 'Fill the whole screen. Esc or F11 leaves it.'],
     ['seg', 'renderRes', 'Render resolution', 'How many pixels the game draws, compared with the automatic choice for your screen. Lower is much faster and a bit softer. Changing it reloads the game.', ['50%', '75%', '100%', '125%', 'Auto']],
+    ['toggle', 'bloom', 'Bloom', 'A soft glow round things that light up: console buttons, screens, warning lamps, reactor cores.'],
     ['toggle', 'autoQ', 'Automatic quality', 'When the game runs slowly it simplifies the lighting and snow by itself, for that run, to keep it smooth.'],
     ['seg', 'fpsCap', 'Frame rate', 'VSync matches your screen. A cap saves battery and heat.', ['30', '60', '120', 'VSync']],
     ['slider', 'darkness', 'Darkness', 'Overall dimness of the scene.', 0, .7, .05],

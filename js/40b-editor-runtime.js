@@ -8,15 +8,16 @@
    ========================================================= */
 const ED = { open: false }; // the editor's state lives here once it's loaded (js/editor/ed-core.js)
 /* ---- prop definitions (see the prop editor) ---- */
-const RAM_DEFAULT = { small: [...RAM_SMALL], large: [...RAM_LARGE], heavy: [...RAM_HEAVY] };
+const RAM_DEFAULT = { touch: [...RAM_TOUCH], small: [...RAM_SMALL], large: [...RAM_LARGE], heavy: [...RAM_HEAVY] };
 function propApply() { // rebuild the Battering Ram's lists from the defaults plus every kind's setting
-  const d = propDefs(), lists = { small: RAM_SMALL, large: RAM_LARGE, heavy: RAM_HEAVY };
+  const d = propDefs(), lists = { touch: RAM_TOUCH, small: RAM_SMALL, large: RAM_LARGE, heavy: RAM_HEAVY };
   for (const [k, arr] of Object.entries(lists)) { arr.length = 0; arr.push(...RAM_DEFAULT[k]); }
   for (const [kind, p] of Object.entries(d)) if (p.breakable && p.breakable !== 'default') { for (const arr of Object.values(lists)) { const i = arr.indexOf(kind); if (i >= 0) arr.splice(i, 1); } if (lists[p.breakable]) lists[p.breakable].push(kind); }
+  TOUCH_KINDS.clear(); for (const k of RAM_TOUCH) TOUCH_KINDS.add(k);
   RAM_KINDS[1] = new Set(RAM_SMALL); RAM_KINDS[2] = new Set([...RAM_SMALL, ...RAM_LARGE]); RAM_KINDS[3] = RAM_KINDS[4] = new Set([...RAM_SMALL, ...RAM_LARGE, ...RAM_HEAVY]);
   propCache = d;
 }
-const breakClass = kind => RAM_DEFAULT.heavy.includes(kind) ? 'heavy' : RAM_DEFAULT.large.includes(kind) ? 'large' : RAM_DEFAULT.small.includes(kind) ? 'small' : 'never';
+const breakClass = kind => RAM_DEFAULT.touch.includes(kind) ? 'touch' : RAM_DEFAULT.heavy.includes(kind) ? 'heavy' : RAM_DEFAULT.large.includes(kind) ? 'large' : RAM_DEFAULT.small.includes(kind) ? 'small' : 'never';
 function propShapePath(x, s, w, h) { // one piece's outline, centred on 0,0
   x.beginPath();
   if (s.type === 'rect') x.rect(-w / 2, -h / 2, w, h);

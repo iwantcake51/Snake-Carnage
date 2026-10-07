@@ -196,6 +196,7 @@ The three breakable hedges are picked from long hedges, so they always cut throu
 
 **Routes:**
 - The corridor is the spine; every room has a door onto it.
+- The boardroom's glass walls shatter for anyone who hits them, a pane at a time, so the boardroom opens straight into reception and the corner office.
 - The kitchen has a corridor door and a second door into the open plan, so open plan, kitchen and corridor form a loop.
 
 **Problems:**
@@ -276,6 +277,7 @@ The three breakable hedges are picked from long hedges, so they always cut throu
 - Top row: barracks, the mess hall and stores.
 - Bottom row: the generator room, comms and the med bay.
 - One corridor between them; lockdown runs go red.
+- The corridor's painted floor (dark concrete, hazard-striped edges, dashed center line) is a `hazard` floor detail, and the generator cables are two editable path shapes. Both can be moved, reshaped or resized in the editor without touching the floor painting.
 
 **Routes:**
 - The corridor spine, with a door into every room.

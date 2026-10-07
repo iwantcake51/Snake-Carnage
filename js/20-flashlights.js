@@ -53,11 +53,11 @@ function updateBeams(dt) {
     d.k = d.on ? d.pow * fl : 0;
   }
   for (let i = debris.length - 1; i >= 0; i--) {
-    const p = debris[i]; p.t += dt; p.vz -= 420 * GRAV() * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; p.vx *= 1 - 1.5 * dt; p.vy *= 1 - 1.5 * dt;
+    const p = debris[i]; p.t += dt; p.vz -= 420 * GRAV() * (p.g ?? 1) * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; const dr = p.drag ?? 1.5; p.vx *= 1 - dr * dt; p.vy *= 1 - dr * dt; if (p.va) p.rot += p.va * dt; // confetti and fluff float; pieces spin
     if (p.spark) { if (p.t > p.life || p.z < 0) debris.splice(i, 1); continue; }
     if (p.z <= 0) {
       if (!p.b && p.vz < -40) { p.z = 0; p.vz *= -.35; p.b = 1; }
-      else { bctx.globalAlpha = .9; bctx.fillStyle = p.c; bctx.fillRect(p.x - p.s / 2, p.y - p.s / 2, p.s, p.s * .7); bctx.globalAlpha = 1; debris.splice(i, 1); }
+      else { bctx.globalAlpha = .9; if (p.sh) debrisPiece(bctx, p, p.x, p.y, true); else { bctx.fillStyle = p.c; bctx.fillRect(p.x - p.s / 2, p.y - p.s / 2, p.s, p.s * .7); } bctx.globalAlpha = 1; debris.splice(i, 1); }
     }
   }
   const list = [];

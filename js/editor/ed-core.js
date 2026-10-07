@@ -14,7 +14,7 @@ const ED_PROPS = [ // palette: [label, kind, shape, size..., color, extra]
   ['Bed', 'bed', 'r', 90, 24, '#4e5a42'], ['Console', 'console', 'r', 100, 22, '#28343a'], ['Counter / bar', 'bar', 'r', 160, 30, '#8a8f99'], ['Pillar', 'pillar', 'c', 14, 0, '#2e2a36'],
   ['Barrier', 'barrier', 'r', 8, 24, '#c9a227'], ['Tent', 'tent', 'r', 44, 30, '#c9763a'], ['Generator', 'generator', 'r', 80, 70, '#3c4044'], ['Speaker', 'speaker', 'r', 60, 64, '#141218'],
   ['Booth', 'booth', 'r', 40, 100, '#5a1a3a'], ['Campfire', 'campfire', 'c', 14, 0, '#6d6a63'],
-  ['Mailbox', 'detail', 'r', 6, 7, '#888888', { d: 'mailbox', noCollide: true, noOutline: true, noShadow: true }], ['Hydrant', 'detail', 'r', 5.2, 5.2, '#888888', { d: 'hydrant', noCollide: true, noOutline: true, noShadow: true }], ['Stop sign', 'detail', 'r', 6.4, 6.4, '#888888', { d: 'stopsign', noCollide: true, noOutline: true, noShadow: true }], ['Bus stop sign', 'detail', 'r', 8, 11, '#888888', { d: 'busstop', noCollide: true, noOutline: true, noShadow: true }], ['Crosswalk', 'detail', 'r', 16, 64, '#888888', { d: 'zebra', noCollide: true, noOutline: true, noShadow: true }], ['Manhole', 'detail', 'r', 12, 12, '#888888', { d: 'manhole', noCollide: true, noOutline: true, noShadow: true }], ['Storm drain', 'detail', 'r', 12, 4, '#888888', { d: 'drain', noCollide: true, noOutline: true, noShadow: true }], ['Utility pole', 'detail', 'r', 4.8, 4.8, '#888888', { d: 'pole', noCollide: true, noOutline: true, noShadow: true }], ['Price board', 'detail', 'r', 12, 12, '#888888', { d: 'priceboard', noCollide: true, noOutline: true, noShadow: true }], ['Ice chest', 'detail', 'r', 8, 10, '#888888', { d: 'icechest', noCollide: true, noOutline: true, noShadow: true }], ['Shopping carts', 'detail', 'r', 23, 6, '#888888', { d: 'carts', noCollide: true, noOutline: true, noShadow: true }], ['Cross', 'detail', 'r', 12, 14, '#888888', { d: 'cross', noCollide: true, noOutline: true, noShadow: true }], ['Grave', 'detail', 'r', 6, 4, '#888888', { d: 'grave', noCollide: true, noOutline: true, noShadow: true }], ['Pod', 'pod', 'c', 20, 0, '#7fffc8'], ['Cryo tube', 'cryo', 'r', 36, 70, '#a9c4cc'], ['Silo', 'silo', 'c', 36, 0, '#b8b8c0'],
+  ['Hazard corridor', 'detail', 'r', 240, 86, '#888888', { d: 'hazard', noCollide: true, noOutline: true, noShadow: true }], ['Mailbox', 'detail', 'r', 6, 7, '#888888', { d: 'mailbox', noCollide: true, noOutline: true, noShadow: true }], ['Hydrant', 'detail', 'r', 5.2, 5.2, '#888888', { d: 'hydrant', noCollide: true, noOutline: true, noShadow: true }], ['Stop sign', 'detail', 'r', 6.4, 6.4, '#888888', { d: 'stopsign', noCollide: true, noOutline: true, noShadow: true }], ['Bus stop sign', 'detail', 'r', 8, 11, '#888888', { d: 'busstop', noCollide: true, noOutline: true, noShadow: true }], ['Crosswalk', 'detail', 'r', 16, 64, '#888888', { d: 'zebra', noCollide: true, noOutline: true, noShadow: true }], ['Manhole', 'detail', 'r', 12, 12, '#888888', { d: 'manhole', noCollide: true, noOutline: true, noShadow: true }], ['Storm drain', 'detail', 'r', 12, 4, '#888888', { d: 'drain', noCollide: true, noOutline: true, noShadow: true }], ['Utility pole', 'detail', 'r', 4.8, 4.8, '#888888', { d: 'pole', noCollide: true, noOutline: true, noShadow: true }], ['Price board', 'detail', 'r', 12, 12, '#888888', { d: 'priceboard', noCollide: true, noOutline: true, noShadow: true }], ['Ice chest', 'detail', 'r', 8, 10, '#888888', { d: 'icechest', noCollide: true, noOutline: true, noShadow: true }], ['Shopping carts', 'detail', 'r', 23, 6, '#888888', { d: 'carts', noCollide: true, noOutline: true, noShadow: true }], ['Cross', 'detail', 'r', 12, 14, '#888888', { d: 'cross', noCollide: true, noOutline: true, noShadow: true }], ['Grave', 'detail', 'r', 6, 4, '#888888', { d: 'grave', noCollide: true, noOutline: true, noShadow: true }], ['Pod', 'pod', 'c', 20, 0, '#7fffc8'], ['Cryo tube', 'cryo', 'r', 36, 70, '#a9c4cc'], ['Silo', 'silo', 'c', 36, 0, '#b8b8c0'],
 ];
 const ED_KINDS = [...new Set(ED_PROPS.map(p => p[1]).concat(['barn', 'module', 'tube', 'solar', 'dome', 'lander', 'gazebo', 'slide', 'chess', 'dj', 'holo', 'saucer', 'reactor']))].sort();
 const ED_VARIANTS = { // looks a kind can take: [flag, name]; '' is the plain one
@@ -26,7 +26,7 @@ const ED_VARIANTS = { // looks a kind can take: [flag, name]; '' is the plain on
   water: [['', 'Pond / pool'], ['fountain', 'Fountain'], ['tank', 'Specimen tank']], building: [['', 'Building'], ['market', 'Supermarket'], ['diner', 'Diner']],
   dome: [['', 'Dome'], ['green', 'Greenhouse']], lander: [['', 'Lander'], ['rocket', 'Rocket']], module: [['', 'Module'], ['command', 'Command module']],
 };
-const ED_DETAILS = {'mailbox': 'Mailbox', 'hydrant': 'Hydrant', 'stopsign': 'Stop sign', 'busstop': 'Bus stop sign', 'zebra': 'Crosswalk', 'manhole': 'Manhole', 'drain': 'Storm drain', 'pole': 'Utility pole', 'priceboard': 'Price board', 'icechest': 'Ice chest', 'carts': 'Shopping carts', 'cross': 'Cross', 'grave': 'Grave'};
+const ED_DETAILS = {'hazard': 'Hazard corridor', 'mailbox': 'Mailbox', 'hydrant': 'Hydrant', 'stopsign': 'Stop sign', 'busstop': 'Bus stop sign', 'zebra': 'Crosswalk', 'manhole': 'Manhole', 'drain': 'Storm drain', 'pole': 'Utility pole', 'priceboard': 'Price board', 'icechest': 'Ice chest', 'carts': 'Shopping carts', 'cross': 'Cross', 'grave': 'Grave'};
 const edVariant = o => { if (o.kind === 'detail') return [o.d, ED_DETAILS[o.d] || 'Detail']; const v = ED_VARIANTS[o.kind]; if (!v) return null; return v.find(([f]) => f && o[f]) || v[0]; };
 const ED_FIX = ['panel', 'strip', 'cage', 'spot', 'pool', 'exit', 'none'];
 const ED_SHAPES = ['rect', 'circle', 'ellipse', 'triangle', 'line', 'ring', 'cross'];
@@ -43,7 +43,7 @@ function openEditor(idx = mapIdx) {
   loadMap(idx); creatures = [];
   const b = MAPS[idx].build(), ov = mapOverride(MAPS[idx].name), cm = MAPS[idx].custom ? MAPS[idx].data : null; ED.custom = cm ? edClone(cm) : null; // a custom map edits its own document; a built-in map edits an override of itself
   if (cm) { const dx = Math.round((W - (cm.w || W)) / 2); ED.dx = dx; ED.obs = edClone(cm.objects || []); ED.lights = edClone(cm.lights || []); ED.trails = edClone(cm.paths || []); ED.areas = edClone(cm.areas || []); ED.base = cm.base || ''; ED.shapes = edClone(cm.shapes || []); ED.materials = edClone(cm.materials || {}); }
-  else { ED.obs = edClone(curPre.filter(o => !o.fromShape)); ED.lights = edClone(curMapLights); ED.trails = ov && ov.trails ? edClone(ov.trails) : captureTrails(b); ED.areas = ov && ov.areas ? edClone(ov.areas) : []; ED.base = ov && ov.base || ''; ED.shapes = edClone(ov && ov.shapes || []); ED.materials = edClone(ov && ov.materials || {}); }
+  else { ED.obs = edClone(curPre.filter(o => !o.fromShape)); ED.lights = edClone(curMapLights); ED.trails = ov && ov.trails ? edClone(ov.trails) : captureTrails(b); ED.areas = ov && ov.areas ? edClone(ov.areas) : []; ED.base = ov && ov.base || ''; ED.shapes = edClone(mapShapes(b, ov)); ED.materials = edClone(ov && ov.materials || {}); }
   ED.areas.forEach(polyBounds); // the map's painted trails, as editable paths
   ED.floorBase = makeLayer()[0]; { const x = ED.floorBase.getContext('2d'); x.setTransform(DPR, 0, 0, DPR, 0, 0); trailMute = true; try { b.floor(x); } finally { trailMute = false; } }
   ED.floor = makeLayer()[0]; edFloor(true); ED.decorFn = b.decor || null; // signs, crosses, hydrants...: painted over the objects, as in the game
@@ -73,7 +73,7 @@ function edMapProps() { const used = new Set(ED.obs.map(o => o.kind)), all = pro
 function edSave() {
   if (ED.custom) { const ok = saveCustomMap(edCustomDoc()); ED.dirtySave = !ok; edStatus(ok ? `Saved ${new Date().toLocaleTimeString()} · it's in the map list with the others` : 'Could not save (storage full?)'); return; }
   const all = edDrafts(); const clean = edCleanList;
-  all[mapEditKey(MAPS[ED.map].name)] = { obs: clean(ED.obs), lights: clean(ED.lights), trails: ED.trails, areas: ED.areas.map(a => ({ poly: a.poly, tex: a.tex, sharp: a.sharp || undefined, edge: a.edge })), base: ED.base || undefined, shapes: ED.shapes.length ? ED.shapes.map(({ _hide, _lock, ...v }) => v) : undefined, materials: Object.keys(edUsedMaterials()).length ? edUsedMaterials() : undefined };
+  all[mapEditKey(MAPS[ED.map].name)] = { obs: clean(ED.obs), lights: clean(ED.lights), trails: ED.trails, areas: ED.areas.map(a => ({ poly: a.poly, tex: a.tex, sharp: a.sharp || undefined, edge: a.edge })), base: ED.base || undefined, shapes: ED.shapes.length ? ED.shapes.map(({ _hide, _lock, ...v }) => v) : undefined, shapesV: 1, materials: Object.keys(edUsedMaterials()).length ? edUsedMaterials() : undefined }; // shapesV: this is the map's whole list (its own cords included)
   try { localStorage.setItem('snakeCarnageEdDrafts', JSON.stringify(all)); ED.dirtySave = false; edStatus(`Saved ${new Date().toLocaleTimeString()} · in the editor only (File → Use in my game to play it normally)`); } catch (e) { edStatus('Could not save (storage full?)'); }
 }
 function edReset() {
@@ -492,7 +492,7 @@ function edPanel() {
   } else {
     const lamp = o.kind === 'lamp';
     const vr = edVariant(o), vlist = o.kind === 'detail' ? Object.entries(ED_DETAILS) : ED_VARIANTS[o.kind];
-    p.innerHTML = `<h4>${vr ? vr[1] : o.kind}${vr && vr[0] && o.kind !== 'detail' ? ` <small>(a ${o.kind})</small>` : o.kind === 'detail' ? ' <small>(street detail · walk-over)</small>' : ''}</h4><label>Kind <button class="edpick okind"></button></label>${vlist ? `<label>Type <select class="ovar">${vlist.map(([f, n]) => `<option value="${f}" ${vr && vr[0] === f ? 'selected' : ''}>${n}</option>`).join('')}</select></label>` : ''}
+    p.innerHTML = `<h4>${vr ? vr[1] : o.kind}${vr && vr[0] && o.kind !== 'detail' ? ` <small>(a ${o.kind})</small>` : o.kind === "detail" ? " <small>(floor detail · walk-over)</small>" : ''}</h4><label>Kind <button class="edpick okind"></button></label>${vlist ? `<label>Type <select class="ovar">${vlist.map(([f, n]) => `<option value="${f}" ${vr && vr[0] === f ? 'selected' : ''}>${n}</option>`).join('')}</select></label>` : ''}
       <div class="edgrid2">${num('x', 'X')}${num('y', 'Y')}${o.t === 'r' ? num('w', 'Width', 2) + num('h', 'Height', 2) : num('r', 'Radius', 2)}</div>
       <label>Size <input type="range" min="25" max="400" value="100" class="edsz"><output>100%</output></label>
       <label>Color <input type="color" data-c value="${edHex(o.color)}"></label>
@@ -655,7 +655,7 @@ function peLive() { // the map behind already redraws every frame; the palette's
 }
 const peGet = () => edClone(propDefs()[PE.kind] || {});
 function peSet(p) { const before = peRaw(); let loc = {}; try { loc = JSON.parse(before) || {}; } catch (e) {}
-  const empty = !p.custom && !p.hit && !p.interact && !p.pivot && !p.color && (!p.breakable || p.breakable === 'default') && !p.hideBase && !p.noCollide && !p.noOutline && !p.noShadow && !(p.shapes && p.shapes.length);
+  const empty = !p.custom && !p.hit && !p.interact && !p.pivot && !p.color && (!p.breakable || p.breakable === 'default') && !p.hideBase && !p.noCollide && !p.noOutline && !p.noShadow && !(p.shapes && p.shapes.length) && !p.destruct;
   if (empty) { delete loc[PE.kind]; if (PROP_OVERRIDES[PE.kind]) loc[PE.kind] = {}; } else loc[PE.kind] = p;
   const after = JSON.stringify(loc), a = (window.event && window.event.target) || document.activeElement; // the slider or color being pulled (it may not have focus yet)
   if (after !== before) { peHistNote(before, PE.drag || (a && a.matches && a.matches('#propEd input:not([type=checkbox])') ? a : null)); try { localStorage.setItem('snakeCarnagePropDefs', after); } catch (e) {} }
@@ -680,7 +680,6 @@ function peMove(e) { if (!PE.drag) return; const p = peGet(), s = p.shapes[PE.se
   const ux = ((mx - v.ox) / v.s - v.x0) / v.bw, uy = ((my - v.oy) / v.s - v.y0) / v.bh; s.x = Math.round((PE.drag.x + ux - PE.drag.ux) * 100) / 100; s.y = Math.round((PE.drag.y + uy - PE.drag.uy) * 100) / 100; peSet(p); peSideVals(); }
 function peSide() {
   const p = peGet(), el = PE.box.querySelector('.peside'), def = breakClass(PE.kind), sh = p.shapes || [];
-  const bn = { default: `Default (${def === 'never' ? "can't break" : def})`, never: "Can't break", small: 'Breakable: small (Ram I)', large: 'Breakable: large (Ram II)', heavy: 'Breakable: heavy (Ram III)' };
   const name = (ED_PROPS.find(q => q[1] === PE.kind) || [PE.kind])[0], base = edHex(kindSample(PE.kind)[5]), edited = !!edLocalProps()[PE.kind];
   const SW = ['#ffffff', '#1d1d22', '#c0392b', '#e67e22', '#f1c40f', '#27ae60', '#2f6fb0', '#8e44ad', '#7a5a38', '#95a5a6'];
   const sw = (cls, cur) => `<div class="peswatch">${SW.map(c => `<button class="${cls}" data-c="${c}" style="background:${c}" ${edHex(cur) === c ? 'aria-pressed="true"' : ''}></button>`).join('')}</div>`;
@@ -689,8 +688,9 @@ function peSide() {
   el.innerHTML = `<div class="pettl"><h3>${name}</h3>${edited ? '<span class="pebadge">Edited</span>' : '<span class="pebadge off">Default</span>'}</div>
     <section><h4>Color</h4><div class="pecolrow"><label class="petog sm"><span><b>Recolor every ${name.toLowerCase()}</b></span><input type="checkbox" class="pecol" ${p.color ? 'checked' : ''}><i></i></label><input type="color" class="pecolv" value="${edHex(p.color || base)}" ${p.color ? '' : 'disabled'}></div>${p.color ? sw('pecs', p.color) : ''}</section>
     <section><h4>Behaviour</h4>${tog('noCollide', !p.noCollide, 'Solid', 'Blocks the snake and people. Off: walk right through it.')}${tog('noOutline', !p.noOutline, 'Outline', 'The dark edge drawn around things you can crash into.')}${tog('noShadow', !p.noShadow, 'Shadows', 'Casts sun and lamp shadows.')}</section>
-    <section><h4>Battering Ram</h4><div class="peseg">${[['default', 'Default'], ['never', 'Never'], ['small', 'Ram I'], ['large', 'Ram II'], ['heavy', 'Ram III']].map(([k, n]) => `<button data-brk="${k}" class="${k === (p.breakable || 'default') ? 'on' : ''}">${n}</button>`).join('')}</div>
-      <p class="edhint">${(p.breakable || 'default') === 'default' ? `Default for this prop: ${def === 'never' ? "can't be broken" : `breaks from ${{ small: 'Ram I', large: 'Ram II', heavy: 'Ram III' }[def]}`}.` : (p.breakable === 'never' ? "Nothing can break it." : `Breaks once you have ${{ small: 'Ram I', large: 'Ram II', heavy: 'Ram III' }[p.breakable]}.`)} Very large trees and boulders always hold.</p></section>
+    <section><h4>Breaks</h4><div class="peseg">${[['default', 'Default'], ['never', 'Never'], ['touch', 'Anyone'], ['small', 'Ram I'], ['large', 'Ram II'], ['heavy', 'Ram III']].map(([k, n]) => `<button data-brk="${k}" class="${k === (p.breakable || 'default') ? 'on' : ''}">${n}</button>`).join('')}</div>
+      <p class="edhint">${(p.breakable || 'default') === 'default' ? `Default for this prop: ${def === 'never' ? "can't be broken" : def === 'touch' ? 'anyone breaks it just by hitting it' : `breaks with the Battering Ram from ${{ small: 'Ram I', large: 'Ram II', heavy: 'Ram III' }[def]}`}.` : p.breakable === 'never' ? "Nothing can break it." : p.breakable === 'touch' ? 'Anyone breaks it just by hitting it, no upgrade needed (like glass).' : `Breaks once you have the Battering Ram at ${{ small: 'Ram I', large: 'Ram II', heavy: 'Ram III' }[p.breakable]}.`} Very large trees and boulders always hold.</p></section>
+    ${peBreakFx(p, def)}
     <section><h4>Extra shapes <small>painted on top of the prop</small></h4><div class="peadd">${ED_SHAPES.map(t => `<button data-add="${t}" title="Add a ${t}"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round">${SHI[t]}</svg><span>${t}</span></button>`).join('')}</div>
       <button class="pebreak edghost edwide" title="Turns the prop's own drawing into shapes you can move, recolor, resize or delete">${edSvg('layers', 14)} ${p.hideBase && sh.length ? 'Shapes are the drawing now' : 'Edit the original drawing'}</button>
       <p class="edhint">${p.hideBase && sh.length ? `The original drawing was split into ${sh.length} shapes. Click one in the list (or in the preview) to change it.` : 'Splits the prop\'s own look into its pieces, so you can change the original shapes instead of adding on top.'}</p>
@@ -705,6 +705,7 @@ function peSide() {
     const baseC = edHex(kindSample(PE.kind)[5]); for (const sh of parts) if (sh.c === baseC) sh.base = true; // pieces in the prop's main color follow 'Recolor every…'
     q.shapes = [...parts, ...(q.shapes || [])]; q.hideBase = true; PE.selShape = -1; peSet(q); peSide(); };
   el.querySelectorAll('[data-brk]').forEach(b => b.onclick = () => { const q = peGet(); q.breakable = b.dataset.brk; peSet(q); peSide(); });
+  peBreakFxWire(el);
   el.querySelectorAll('.pecs').forEach(b => b.onclick = () => { const q = peGet(); q.color = b.dataset.c; peSet(q); peSide(); });
   el.querySelector('.peshare1').onclick = () => edLocalProps()[PE.kind] ? edShare('p:' + PE.kind) : edModal('Nothing to share', `<p>You haven't changed the ${PE.kind} yet.</p>`, [['OK', null, 'edprimary']]);
   el.querySelector('.pehide').onchange = e => { const q = peGet(); q.hideBase = e.target.checked; peSet(q); peSide(); };
@@ -725,6 +726,45 @@ function peSide() {
     if (b.dataset.sa === 'del') { a.splice(i, 1); PE.selShape = -1; } if (b.dataset.sa === 'dup') { a.splice(i + 1, 0, edClone(a[i])); PE.selShape = i + 1; }
     if (b.dataset.sa === 'up' && i < a.length - 1) { [a[i], a[i + 1]] = [a[i + 1], a[i]]; PE.selShape = i + 1; } if (b.dataset.sa === 'down' && i > 0) { [a[i], a[i - 1]] = [a[i - 1], a[i]]; PE.selShape = i - 1; }
     peSet(q); peSide(); });
+}
+/* ---- "When it breaks": the prop's destruction effect (38b-destruction), from a preset to every last setting ---- */
+function peBreakFx(p, def) {
+  const d = p.destruct, kindDef = BFX_KIND_DEFAULT[PE.kind], cur = d ? d.preset : 'default', fx = d && d.preset !== 'default' ? { ...BFX_BASE, ...d } : null;
+  const breaks = (p.breakable && p.breakable !== 'default' ? p.breakable : def) !== 'never';
+  const presets = [['default', `Default${kindDef ? ` (${BFX_PRESETS[kindDef].name})` : ''}`], ...Object.entries(BFX_PRESETS).map(([k, v]) => [k, v.name])];
+  const sl = (k, lab, min, max, st, tip) => `<label title="${tip || ''}">${lab}<input type="range" data-bx="${k}" min="${min}" max="${max}" step="${st}" value="${fx[k]}"><output>${fx[k]}</output></label>`;
+  const sel = (k, lab, opts, names) => `<label>${lab}<select data-bs="${k}">${opts.map(o => `<option value="${o}" ${fx[k] === o ? 'selected' : ''}>${(names && names[o]) || o[0].toUpperCase() + o.slice(1)}</option>`).join('')}</select></label>`;
+  const tg = (k, t, dsc) => `<label class="petog sm"><span><b>${t}</b>${dsc ? `<small>${dsc}</small>` : ''}</span><input type="checkbox" data-bt="${k}" ${fx[k] ? 'checked' : ''}><i></i></label>`;
+  const col = (k, lab) => `<label class="pebcol">${lab}<input type="color" data-bc="${k}" value="${edHex(fx[k])}"></label>`;
+  const slot = i => { const c = (fx.cols || [])[i] || 'auto', auto = c === 'auto'; return `<span class="pebslot"><input type="color" data-bcol="${i}" value="${auto ? edHex(kindSample(PE.kind)[5]) : edHex(c)}" ${auto ? 'class="auto"' : ''} title="${auto ? "The prop's own color: pick one to change it" : 'Debris color'}"><button data-bauto="${i}" class="${auto ? 'on' : ''}" title="Use the prop's own color">Auto</button></span>`; };
+  return `<section class="pebfx"><h4>When it breaks <small>${breaks ? 'debris, dust, sound and what it leaves behind' : "it can't break yet: pick who breaks it above"}</small></h4>
+    <div class="peseg pebpre">${presets.map(([k, n]) => `<button data-bpre="${k}" class="${k === cur ? 'on' : ''}">${n}</button>`).join('')}</div>
+    <button class="pebtry edghost edwide" ${breaks || fx || kindDef ? '' : 'disabled'}>${edSvg('play', 14)} Try it</button>
+    ${!fx ? `<p class="edhint">${kindDef ? `Breaks with the ${BFX_PRESETS[kindDef].name.toLowerCase()} effect.` : 'Breaks the classic way.'} Pick a look above to start from, then change anything you like.</p>` : `
+    <div class="pebgrid">
+      <h5>Debris</h5>${sl('n', 'Pieces', 0, 160, 1)}${sel('shape', 'Shape', BFX_SHAPES)}${sl('size', 'Size', .3, 3, .1)}${sl('speed', 'Speed', .2, 2.5, .05)}${sl('spread', 'Spread', 0, 3.14, .02, 'How wide it sprays around the hit (3.14 = every way)')}${sl('lift', 'Height', .2, 2.5, .05, 'How high pieces fly')}
+      ${tg('scale', 'Bigger props, more pieces')}${tg('glint', 'Glints', 'Pieces catch the light as they fly')}
+      <div class="pebcols"><span>Colors</span>${[0, 1, 2].map(slot).join('')}</div>
+      <h5>Dust and sparks</h5>${sl('dust', 'Dust', 0, 40, 1)}${col('dustC', 'Dust color')}${sl('sparks', 'Sparks', 0, 80, 1)}${col('sparkC', 'Spark color')}
+      <h5>Afterwards</h5>${sel('wreck', 'Leaves behind', BFX_WRECKS, { default: 'Its broken self', shards: 'Shards', splinters: 'Splinters', rubble: 'Rubble', scorch: 'A scorch mark', confetti: 'Confetti', none: 'Nothing' })}
+      <h5>Sound and feel</h5>${sel('sound', 'Sound', BFX_SOUNDS, { default: 'Classic smash' })}${sl('vol', 'Volume', 0, 1.5, .05)}${sl('shake', 'Screen shake', 0, 3, .1)}
+      ${sel('stun', 'Snake staggers', BFX_STUNS, { default: 'As usual', none: 'Not at all', light: 'A little', heavy: 'Seeing stars' })}${sl('noise', 'Heard from', 0, 3, .05, 'How far away people hear it (x the usual)')}
+      ${tg('scare', 'Scares people', 'Anyone nearby runs, instead of just looking over')}
+    </div>`}</section>`;
+}
+function peBreakFxWire(el) {
+  const upd = f => { const q = peGet(); q.destruct = { ...BFX_BASE, ...(q.destruct || {}) }; f(q.destruct); peSet(q); };
+  el.querySelectorAll('[data-bpre]').forEach(b => b.onclick = () => { const q = peGet(), k = b.dataset.bpre; if (k === 'default') delete q.destruct; else q.destruct = bfxPreset(k); peSet(q); peSide(); });
+  el.querySelectorAll('[data-bx]').forEach(r => r.oninput = () => { r.nextElementSibling.textContent = r.value; upd(d => { d[r.dataset.bx] = +r.value; }); });
+  el.querySelectorAll('[data-bs]').forEach(s => s.onchange = () => upd(d => { d[s.dataset.bs] = s.value; }));
+  el.querySelectorAll('[data-bt]').forEach(c => c.onchange = () => upd(d => { d[c.dataset.bt] = c.checked; }));
+  el.querySelectorAll('[data-bc]').forEach(c => c.oninput = () => upd(d => { d[c.dataset.bc] = c.value; }));
+  el.querySelectorAll('[data-bcol]').forEach(c => c.oninput = () => { c.classList.remove('auto'); const b = c.nextElementSibling; if (b) b.classList.remove('on'); upd(d => { d.cols = [...(d.cols || ['auto', 'auto', 'auto'])]; d.cols[+c.dataset.bcol] = c.value; }); });
+  el.querySelectorAll('[data-bauto]').forEach(b => b.onclick = () => { upd(d => { d.cols = [...(d.cols || ['auto', 'auto', 'auto'])]; d.cols[+b.dataset.bauto] = 'auto'; }); peSide(); });
+  const t = el.querySelector('.pebtry'); if (t) t.onclick = () => { // the effect, played in the big preview
+    const v = peView(), fx = bfxFor(v.o) || bfxPreset("classic");
+    bfxPreview(v.c, v.o, fx, (x, o) => drawObstacle(x, o)); setTimeout(() => { if (PE.box && PE.box.isConnected) peDraw(); }, 2700);
+  };
 }
 function peSideVals() { const s = (peGet().shapes || [])[PE.selShape]; if (!s) return; PE.box.querySelectorAll('[data-sk]').forEach(r => { r.value = s[r.dataset.sk] ?? 0; r.nextElementSibling.textContent = r.value; }); }
 
@@ -955,7 +995,7 @@ closeEditor = function (play) {
   if (play) { edTestSkills = edSkillsGet();
     const k = mapEditKey(MAPS[ED.map].name), all = {}; const keep = edDrafts; // build the test copy from the editor as it is now
     const clean = list => list.map(o => { const c = {}; for (const q in o) if (!ED_RUNTIME.has(q)) c[q] = o[q]; return c; });
-    edTestData = { k, d: edClone({ obs: clean(ED.obs), lights: clean(ED.lights), trails: ED.trails, areas: ED.areas.map(a => ({ poly: a.poly, tex: a.tex, sharp: a.sharp, edge: a.edge })), base: ED.base || undefined, shapes: ED.shapes, materials: edUsedMaterials() }) };
+    edTestData = { k, d: edClone({ obs: clean(ED.obs), lights: clean(ED.lights), trails: ED.trails, areas: ED.areas.map(a => ({ poly: a.poly, tex: a.tex, sharp: a.sharp, edge: a.edge })), base: ED.base || undefined, shapes: ED.shapes, shapesV: 1, materials: edUsedMaterials() }) };
     return _edClose(true); }
   if (ED.dirtySave) return edModal('Save your changes?', `<p>You have unsaved changes to ${MAPS[ED.map].name}.</p>`, [['Cancel', null, ''], ["Don't save", () => { ED.dirtySave = false; closeEditor(); }, 'warn'], ['Save', () => { edSave(); closeEditor(); }, 'edprimary']]);
   clearInterval(ED.autoT);

@@ -45,7 +45,7 @@ function render() {
   x.globalAlpha = 1;
   drawDrops(x);
   drawDebris(x); drawMist(x); drawSmoke(x); drawVomit(x);
-  drawLighting(x);
+  drawLighting(x); drawPropGlow(x);
   drawLampBugs(x); drawFireflyGlow(x);
   drawSparks(x);
   drawVisionMask(x);

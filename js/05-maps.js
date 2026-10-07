@@ -111,6 +111,7 @@ function fixture(x, l) {
   else if (k === 'pool') { x.fillStyle = '#e9fbff'; circ(x, l.x, l.y, 3.2); x.strokeStyle = '#7fb6c6'; x.lineWidth = 1; x.beginPath(); x.arc(l.x, l.y, 4.2, 0, TAU); x.stroke(); }
 }
 const DETAIL = (d, x, y, w, h) => R(x, y, w, h, '#888888', 'detail', { d, noCollide: true, noOutline: true, noShadow: true }); // flat street details, not obstacles
+const CORD_MAT = { v: 1, layers: [{ t: 'solid', c: 'rgba(15,12,10,.75)' }] }; // a rubber cable on the floor
 const LAMP = (x, y, ex) => C(x, y, 5, '#3a3a3a', 'lamp', ex);
 const MAST = (x, y) => C(x, y, 6, '#5a6068', 'lamp', { mast: true, lr: 175 }); // floodlight mast (moon/mars, sports)
 const TREE = (x, y, r, col = '#3d7a2a') => C(x, y, r, col);
@@ -621,17 +622,18 @@ const MAPS = [
           // COMMS: the radio desk along the back wall, a side console, the map table in the middle
           R(404, 600, 230, 24, '#2c3034', 'console'), R(404, 398, 16, 76, '#2c3034', 'console'), C(560, 470, 18, '#4a4a40', 'table'),
           // MED BAY: two cots and the supply cabinet
-          R(820, 424, 80, 30, '#c9c9c4', 'bed', { med: true }), R(820, 494, 80, 30, '#c9c9c4', 'bed', { med: true }), R(880, 574, 64, 50, '#c9c9c4', 'shelf')
+          R(820, 424, 80, 30, '#c9c9c4', 'bed', { med: true }), R(820, 494, 80, 30, '#c9c9c4', 'bed', { med: true }), R(880, 574, 64, 50, '#c9c9c4', 'shelf'),
+          DETAIL('hazard', 16, 284, W - 32, 86) // the corridor's painted floor: a prop, so the editor can move, resize, turn or copy it
         ],
         floor(x) {
           x.fillStyle = '#3a3532'; x.fillRect(0, 0, W, H); speckle(x, 1600, ['#332e2b', '#423c38', '#2c2826'], 6, 2);
           x.strokeStyle = 'rgba(0,0,0,.25)'; x.lineWidth = 1; for (let i = 0; i <= W; i += 80) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i, H); x.stroke(); } for (let j = 0; j <= H; j += 80) { x.beginPath(); x.moveTo(0, j); x.lineTo(W, j); x.stroke(); } // poured concrete slabs
-          x.fillStyle = '#2f2a28'; x.fillRect(16, 284, W - 32, 86); x.fillStyle = '#c9a227'; for (let i = 20; i < W - 20; i += 40) x.fillRect(i, 325, 20, 3); // corridor + painted line
-          hazard(x, 16, 284, W - 32, 5); hazard(x, 16, 365, W - 32, 5);
           x.fillStyle = 'rgba(40,10,8,.35)'; x.beginPath(); x.ellipse(160, 520, 90, 60, 0, 0, TAU); x.fill(); // oil stain by the generators
           x.fillStyle = '#2c2a2e'; x.fillRect(724, 400, 210, 210); x.strokeStyle = 'rgba(180,200,200,.07)'; for (let i = 724; i < 934; i += 15) { x.beginPath(); x.moveTo(i, 400); x.lineTo(i, 610); x.stroke(); } // med bay: tiled, easy to hose down
-          x.strokeStyle = 'rgba(15,12,10,.6)'; x.lineWidth = 3; x.beginPath(); x.moveTo(180, 470); x.bezierCurveTo(260, 470, 300, 440, 380, 455); x.moveTo(300, 545); x.bezierCurveTo(340, 560, 360, 520, 390, 540); x.stroke(); x.lineWidth = 1; // cables from the generators toward comms
-        }
+        },
+        shapes: [ // cables from the generators toward comms: editable paths (drag them, bend them, delete them in the editor)
+          { kind: 'path', curve: 'bezier', nodes: [[180, 470, 0, 0, 80, 0], [380, 455, -80, -15, 0, 0]], w: 3, use: 'floor', fill: CORD_MAT, name: 'Generator cord' },
+          { kind: 'path', curve: 'bezier', nodes: [[300, 545, 0, 0, 40, 15], [390, 540, -30, -20, 0, 0]], w: 3, use: 'floor', fill: CORD_MAT, name: 'Generator cord' }]
       };
     }
   },
