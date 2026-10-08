@@ -17,7 +17,8 @@ function render() {
   const cw = snake && snake.wallStun > 0 ? Math.pow(snake.wallStun / (snake.wallMax || 3.4), .6) * (snake.stunFx || 1) : 0;
   if (cw > 0) { V.ox += (Math.sin(T * 1.25) * 7 + Math.sin(T * 2.9) * 2) * cw; V.oy += (Math.sin(T * .95 + 1.2) * 5 + Math.sin(T * 2.3) * 1.5) * cw; } // the room sways after a wall
   const st0 = snake && snake.ramT > 0 ? Math.min(1, Math.pow(snake.ramT / (snake.ramMax || 1), .6) * (snake.stunFx || 1)) : 0;
-  render.olk = (render.olk ?? 1) + ((st0 > 0 ? 0 : 1) - (render.olk ?? 1)) * (st0 > 0 ? .25 : .03); // outlines drop out fast, stay gone while dizzy, then creep back
+  const olOff = st0 > 0 || boomDaze() > .05; // smashed through something, or shaken by a blast
+  render.olk = (render.olk ?? 1) + ((olOff ? 0 : 1) - (render.olk ?? 1)) * (olOff ? .25 : .03); // everything else's outlines drop out fast, stay gone while dizzy, then creep back (yours stays)
   render.dazed = st0 > 0;
   x.setTransform(DPR, 0, 0, DPR, 0, 0);
   x.fillStyle = MAPS[mapIdx].border; x.fillRect(0, 0, W, H);
@@ -48,10 +49,9 @@ function render() {
   drawLighting(x); drawPropGlow(x);
   drawLampBugs(x); drawFireflyGlow(x);
   drawSparks(x);
-  drawShockwaves(x); // blasts bend the picture behind them
   drawVisionMask(x);
   const px = Math.max(1, SETTINGS.pixel | 0);
-  if (px > 1 || render.dazed) { drawAirstrikes(x); drawGoldenFX(x); x.globalAlpha = render.olk ?? 1; drawTargetOutlines(x); drawSnakeNightRim(x); x.globalAlpha = 1; } // pixelated look: outlines go through the same pixelation
+  if (px > 1 || render.dazed) { drawAirstrikes(x); drawGoldenFX(x); x.globalAlpha = render.olk ?? 1; drawTargetOutlines(x); x.globalAlpha = 1; drawSnakeNightRim(x); } // pixelated look: outlines go through the same pixelation
   x.setTransform(DPR, 0, 0, DPR, 0, 0);
 
   // pixelation
@@ -76,9 +76,10 @@ function render() {
     ctx.globalCompositeOperation = 'source-over'; ctx.fillStyle = 'rgba(0,12,4,.16)'; ctx.fillRect(0, 0, W, H);
   }
   ctx.save(); applyView(ctx); // crisp overlays above blood and lighting
-  if (px <= 1 && !render.dazed) { drawAirstrikes(ctx); drawGoldenFX(ctx); ctx.globalAlpha = render.olk ?? 1; drawTargetOutlines(ctx); drawSnakeNightRim(ctx); ctx.globalAlpha = 1; }
+  if (px <= 1 && !render.dazed) { drawAirstrikes(ctx); drawGoldenFX(ctx); ctx.globalAlpha = render.olk ?? 1; drawTargetOutlines(ctx); ctx.globalAlpha = 1; drawSnakeNightRim(ctx); }
   if (nightVision) drawNVHighlights(ctx);
   drawWinStars(ctx); drawScent(ctx); drawHissWave(ctx); drawCrashFlash(ctx);
+  drawShockwaves(ctx, cv); // last: blasts bend the whole picture behind them, outlines and all
   ctx.restore();
   drawAirFlash(ctx);
   if (NETM.run && !cam) netDrawTags(ctx); // co-op: teammates' names and where they are off screen
@@ -107,7 +108,7 @@ function render() {
   const stun = render.stunS < .01 ? 0 : render.stunS;
   if (Math.abs(stun - (render.stun || 0)) > .02 || (stun === 0) !== (render.stun === 0)) { render.stun = stun; stage.style.setProperty('--stun', stun.toFixed(2)); stage.classList.toggle('stunned', stun > 0); stage.classList.toggle('wallstun', !!(snake && snake.wallStun > 0)); }
   const sat = (SETTINGS.desaturate && !nightVision ? clamp(1 - killFlash * .5, .45, 1) : 1) * (1 - .93 * stun) * (1 - .92 * dfxK); // dying drains it to grey
-  const f = nightVision ? `contrast(1.15) brightness(${(.95 - SETTINGS.darkness * .2).toFixed(2)})${dfxK ? ` grayscale(${(.92 * dfxK).toFixed(2)})` : ''}` : `saturate(${sat.toFixed(2)}) brightness(${((1 - SETTINGS.darkness) * (1 - .14 * dfxK)).toFixed(2)}) contrast(${(1.08 + .08 * dfxK).toFixed(2)})`;
+  const f = nightVision ? `contrast(1.15) brightness(${((.95 - SETTINGS.darkness * .2) * (1 - .2 * boomDaze())).toFixed(2)})${dfxK ? ` grayscale(${(.92 * dfxK).toFixed(2)})` : ''}` : `saturate(${sat.toFixed(2)}) brightness(${((1 - SETTINGS.darkness) * (1 - .14 * dfxK) * (1 - .2 * boomDaze())).toFixed(2)}) contrast(${(1.08 + .08 * dfxK).toFixed(2)})`;
   if (f !== lastFilter) { cv.style.filter = f; lastFilter = f; }
   const clock = (MAPS[mapIdx].indoor ? '🏢 ' : light.day > .5 ? '☀️ ' : light.day > .05 ? '🌇 ' : '🌙 ') +
     String(Math.floor(tod)).padStart(2, '0') + ':' + String(Math.floor(tod % 1 * 60)).padStart(2, '0');

@@ -65,7 +65,7 @@ function drawSnakeBody(x, s, cfg) {
   const ol = SETTINGS.snakeOutline || 'Subtle';
   if (ol !== 'Off') { // visibility rim: faint light halo plus a dark edge, readable on any ground
     const strong = ol === 'Strong';
-    x.globalAlpha = (1 - .65 * camAvg) * (me ? render.olk ?? 1 : 1);
+    x.globalAlpha = 1 - .65 * camAvg; // your own outline stays when everything else's drops out (dazed by a smash or a blast)
     for (const [grow, col] of [[strong ? 3.8 : 2.8, `rgba(255,255,255,${strong ? .24 : .11})`], [strong ? 1.9 : 1.3, `rgba(8,5,5,${strong ? .85 : .5})`]]) {
       const E = tubeEdges(TB, grow); x.fillStyle = col;
       for (const [a, b] of pieces) { x.beginPath(); tubeRun(x, E, a, b); x.fill(); }
@@ -182,11 +182,11 @@ function camoField(s, n) {
   return { a, avg: sum / n, lv, still };
 }
 const grabC = document.createElement('canvas'), grx = grabC.getContext('2d');
-function grabScene(A, B) { // copy just this patch of the frame once (drawing the scene onto itself forces a full copy every call)
-  const sx = Math.max(0, Math.floor(A.x)), sy = Math.max(0, Math.floor(A.y)), sw = Math.min(render.src.width, Math.ceil(B.x)) - sx, sh = Math.min(render.src.height, Math.ceil(B.y)) - sy;
+function grabScene(A, B, src = render.src) { // copy just this patch of the frame once (drawing the scene onto itself forces a full copy every call)
+  const sx = Math.max(0, Math.floor(A.x)), sy = Math.max(0, Math.floor(A.y)), sw = Math.min(src.width, Math.ceil(B.x)) - sx, sh = Math.min(src.height, Math.ceil(B.y)) - sy;
   if (sw <= 0 || sh <= 0) return null;
   if (grabC.width < sw || grabC.height < sh) { grabC.width = Math.max(grabC.width, sw); grabC.height = Math.max(grabC.height, sh); }
-  grx.clearRect(0, 0, sw, sh); grx.drawImage(render.src, sx, sy, sw, sh, 0, 0, sw, sh);
+  grx.clearRect(0, 0, sw, sh); grx.drawImage(src, sx, sy, sw, sh, 0, 0, sw, sh);
   return { sx, sy, sw, sh };
 }
 function refractBody(x, s, pts, n, cam) { // the background seen through the body, swirled and split slightly

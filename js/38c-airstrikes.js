@@ -7,29 +7,35 @@
    Strikes get more frequent, faster and come in salvos as the run goes on.
    The blast: a white flash, rolling fireballs, a shockwave that warps the picture as it races out, flying dirt and
    embers, a dust skirt, smoke, fire left burning in the crater, and at night it lights up the whole sky for a moment.
-   Close to one, your ears ring and the world goes muffled for a few seconds.
+   Close to one, your ears ring and the world goes muffled for a few seconds, and you reel: the camera keeps trembling,
+   the picture dims, you slow right down for a second and only then pick up speed again, you can't lunge, and every
+   outline but your own drops out until it passes.
+   The further you get, the more there are: strikes come more often and in bigger salvos with every stretch you cover.
    Dying to one (and any death in multiplayer) bursts the snake from the head down to the tail, quickly, into blood in
    its own two colors that stains everyone around. The hat falls off, lands where you died and fades.
    Co-op: the host decides where bombs fall (an 'air' event); every screen counts down, draws and detonates them
    itself and checks only its own snake. Only the host kills the crowd.
    ========================================================= */
-const AIR = { warned: false, nextT: 0, flash: 0, sky: 0 }; // flash: the white-out on screen; sky: how much a blast is lighting up the night
+const AIR = { warned: false, nextT: 0, flash: 0, sky: 0, rumble: 0, d0: 0 }; // flash: the white-out on screen; sky: how much a blast is lighting up the night
 const AIR_START = 90, AIR_R = 44; // seconds into the run before the first strike; blast radius
 let strikes = [], booms = [], boomBits = [], corpses = [], fallenHats = [], jets = [], shocks = [], fires = [];
 const airMap = () => { const m = MAPS[mapIdx]; return !!m && !m.indoor && !m.space; }; // outdoors, on Earth
-function airReset() { strikes = []; booms = []; boomBits = []; corpses = []; fallenHats = []; jets = []; shocks = []; fires = []; AIR.warned = false; AIR.nextT = 0; AIR.flash = 0; AIR.sky = 0; }
+function airReset() { strikes = []; booms = []; boomBits = []; corpses = []; fallenHats = []; jets = []; shocks = []; fires = []; AIR.warned = false; AIR.nextT = 0; AIR.flash = 0; AIR.sky = 0; AIR.rumble = 0; AIR.d0 = 0; }
+/* reeling from a blast: full strength for the first second, then it fades over the next 1.2 */
+const boomSlow = s => s && s.boomT > 0 ? (s.boomK || 0) * clamp(s.boomT / 1.2, 0, 1) : 0;
+const boomDaze = () => snake && snake.alive ? boomSlow(snake) : 0;
 const airBusy = () => strikes.length || booms.length || boomBits.length || corpses.length || fallenHats.length || jets.length || shocks.length || fires.length;
 /* ---- calling them in (the deciding browser only) ---- */
 function airSchedule(dt) {
   if (SETTINGS.airstrikes === false || !airMap() || state !== 'play') return;
   const t = run.time || 0; if (t < AIR_START) return;
-  if (!AIR.warned) { AIR.warned = true; airWarn(); netEmit({ t: 'airw' }); AIR.nextT = 3.5; return; }
+  if (!AIR.warned) { AIR.warned = true; AIR.d0 = cr.dist; airWarn(); netEmit({ t: 'airw' }); AIR.nextT = 3.5; return; }
   if ((AIR.nextT -= dt) > 0) return;
-  const k = clamp((t - AIR_START) / 240, 0, 1); // ramps up over four minutes
-  AIR.nextT = (7 - 4.4 * k) * rand(.8, 1.25);
+  const g = Math.max((t - AIR_START) / 180, (cr.dist - AIR.d0) / 2500), k = Math.min(1, g); // how far you've come since they started: it never stops climbing
+  AIR.nextT = Math.max(.8, 7 / (1 + 1.4 * g)) * rand(.8, 1.25);
   const targets = netSnakes().filter(s => s.alive && s.started && !s.hidden && !s.netHidden && !(s.graceT > 0) && s.segs && s.segs.length);
   if (!targets.length) return;
-  const s = pick(targets), n = Math.random() < .2 + .45 * k ? randi(2, 3) : 1, warn = 2.5 - .6 * k, sp = (s.speed || CONFIG.snakeSpeeds.Normal) * (s.dashV || 1);
+  const s = pick(targets), n = Math.min(7, 1 + Math.floor(Math.random() * (1.3 + 1.6 * g))), warn = 2.5 - .6 * k, sp = (s.speed || CONFIG.snakeSpeeds.Normal) * (s.dashV || 1);
   const jetA = s.angle + (Math.random() < .5 ? 1 : -1) * rand(.9, 2.2); // the jet crosses your path
   for (let j = 0; j < n; j++) { // a salvo walks along the path
     const lead = warn * rand(.62, .78) + j * .42, side = gauss() * 14;
@@ -68,6 +74,7 @@ function airTick(dt) {
     if (p.z <= 0) { if (p.spark || p.ember) { boomBits[i] = boomBits[boomBits.length - 1]; boomBits.pop(); continue; } p.z = 0; p.vz = Math.abs(p.vz) > 60 ? -p.vz * .3 : 0; p.vx *= .6; p.vy *= .6; }
   }
   AIR.flash *= Math.exp(-dt * 9); AIR.sky *= Math.exp(-dt * 2.1);
+  if (AIR.rumble > .02) { shake = Math.max(shake, 9 * AIR.rumble); AIR.rumble *= Math.exp(-dt * 2); } else AIR.rumble = 0; // the ground keeps trembling a moment after a close one
   updateCorpses(dt); updateHats(dt);
 }
 function detonate(s) {
@@ -88,6 +95,11 @@ function detonate(s) {
   if (snake && near > 1) { const k = 260 * kk; camF.kv.x += (snake.x - x) / near * k; camF.kv.y += (snake.y - y) / near * k; } // the camera gets shoved away from it
   Sfx.boom(x, clamp(1.2 - near / 900, .5, 1.2));
   if (near < 230 && (state === 'play' || state === 'dead' || NETM.run)) Sfx.tinnitus(clamp(1.15 - near / 230, .25, 1)); // too close: your ears ring
+  if (snake && snake.alive && near < 320) { // close enough to knock you about: slowed, dimmed, no lunge, everything else's outlines gone
+    const dz = Math.pow(1 - near / 320, .6); AIR.rumble = Math.max(AIR.rumble, dz);
+    if (dz >= boomSlow(snake)) { snake.boomK = dz; snake.boomT = 2.2; }
+    snake.dashT = 0;
+  }
   // you: any part of the body inside the blast
   const me = snake;
   if (me && me.alive && !me.netHidden && !(me.graceT > 0) && (state === 'play' || NETM.run) && me.segs) {
@@ -272,14 +284,14 @@ function drawBoom(x, b) {
 }
 /* ---- the shockwave: a ring racing out that bends the picture behind it like a lens (the scene inside the ring is
    pushed outward, just inside it is pulled in), with a faint bright edge. Simplified effects turns the warp off. ---- */
-function drawShockwaves(x) {
+function drawShockwaves(x, src) { // src: the canvas being drawn (it already holds everything under the ring)
   if (!shocks.length || SETTINGS.simpleFx) return;
   const m = x.getTransform();
   for (const w of shocks) {
     const u = w.t / w.dur, e = 1 - (1 - u) ** 2.2, rr = w.R * (.08 + .92 * e), band = 10 + 22 * (1 - u), amp = .11 * (1 - u) ** 1.4;
     if (amp < .004) continue;
     const out = rr + band, inn = Math.max(0, rr - band);
-    const gr = grabScene(m.transformPoint({ x: w.x - out - 4, y: w.y - out - 4 }), m.transformPoint({ x: w.x + out + 4, y: w.y + out + 4 })); if (!gr) continue;
+    const gr = grabScene(m.transformPoint({ x: w.x - out - 4, y: w.y - out - 4 }), m.transformPoint({ x: w.x + out + 4, y: w.y + out + 4 }), src); if (!gr) continue;
     const C = m.transformPoint({ x: w.x, y: w.y });
     const mo = rr + band * .5, mi = Math.max(0, rr - band * .5);
     for (const [r0, r1, k] of [[mo, out, 1 + amp * .45], [rr, mo, 1 + amp], [mi, rr, 1 - amp * .7], [inn, mi, 1 - amp * .3]]) { // graded, so the lens has soft edges
