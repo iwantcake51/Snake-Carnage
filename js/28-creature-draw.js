@@ -30,25 +30,31 @@ const ANIMAL_SHAPE = { rabbit: [6.6, 4.8, -1, 5, 3.3], deer: [11.2, 6.2, -1, 12,
 /* the outline's shape: the body and head (shapePath) plus everything sticking out of them, matching how each one is
    drawn: a person's legs, shoes and sleeves; an animal's feet, tail, ears, wings, beak or antlers. Returns the filled parts
    as one path and the thin parts (legs, tails) as strokes with their widths, in the creature's own frame (+x forward). */
-function creatureSil(c) {
+function creatureSil(c, lite) { // lite: just the body and head (far away, where limbs wouldn't read anyway)
   const f = new Path2D(), lines = [], d = c.def; f.beginPath = () => {}; shapePath(f, c);
+  if (lite) return { f, lines };
   let k = 1, ox = 0, oy = 0, rc = 1, rs = 0; // the frame a part was drawn in: scale, then a turn and a shift
   const P = (x, y) => [ox + (x * rc - y * rs) * k, oy + (x * rs + y * rc) * k];
   const E = (x, y, rx, ry, rot = 0) => { const [px, py] = P(x, y); f.moveTo(px + Math.cos(rot + Math.atan2(rs, rc)) * rx * k, py + Math.sin(rot + Math.atan2(rs, rc)) * rx * k); f.ellipse(px, py, rx * k, ry * k, rot + Math.atan2(rs, rc), 0, TAU); };
   const C = (x, y, r) => E(x, y, r, r);
   const Tri = (...p) => { const q = []; for (let n = 0; n < p.length; n += 2) q.push(P(p[n], p[n + 1])); f.moveTo(...q[0]); for (let n = 1; n < q.length; n++) f.lineTo(...q[n]); f.closePath(); };
-  const Ln = (w, ...p) => { const pa = new Path2D(), q = []; for (let n = 0; n < p.length; n += 2) q.push(P(p[n], p[n + 1])); pa.moveTo(...q[0]); if (q.length === 3) pa.quadraticCurveTo(...q[1], ...q[2]); else if (q.length === 4) pa.bezierCurveTo(...q[1], ...q[2], ...q[3]); else for (let n = 1; n < q.length; n++) pa.lineTo(...q[n]); lines.push([w * k, pa]); };
+  const Ln = (w, ...p) => { // a limb, as slim ellipses along it (part of the one filled shape: a thick stroke per limb cost far more to draw)
+    const q = []; for (let n = 0; n < p.length; n += 2) q.push(P(p[n], p[n + 1])); let pts = q;
+    if (q.length === 3) pts = [q[0], q[2]]; // a gentle curve (a leg): one piece is close enough
+    else if (q.length === 4) pts = [0, 1 / 3, 2 / 3, 1].map(t => { const u = 1 - t; return [0, 1].map(d => u * u * u * q[0][d] + 3 * u * u * t * q[1][d] + 3 * u * t * t * q[2][d] + t * t * t * q[3][d]); });
+    const hw = w * k / 2;
+    for (let n = 1; n < pts.length; n++) { const [ax, ay] = pts[n - 1], [bx, by] = pts[n], L = Math.hypot(bx - ax, by - ay), r = Math.atan2(by - ay, bx - ax), mx = (ax + bx) / 2, my = (ay + by) / 2, rx = L / 2 + hw;
+      f.moveTo(mx + Math.cos(r) * rx, my + Math.sin(r) * rx); f.ellipse(mx, my, rx, hw, r, 0, TAU); } };
   const feetSil = (fx, bx, wy, r) => { const m = c.moveAmt, sw = Math.sin(c.phase), lift = Math.cos(c.phase), st = 2.4 * m; // as feet() places them
     for (const [x0, y, dir] of [[fx, -wy, 1], [bx, wy, 1], [fx, wy, -1], [bx, -wy, -1]]) { const up = Math.max(0, lift * dir) * m; C(x0 + sw * st * dir, y * (1 + up * .08), r * (1 + up * .22)); } };
   if (d.human) { // as drawHumanBody: two striding legs, the shoes, then the arms on twisted shoulders
     const L = c.look, s = Math.sin(c.phase) * c.moveAmt, [a1, b1, a2, b2] = armPos(c), fy = L.w * .38, run = c.state === 'panic' || c.state === 'flee', stride = (run ? 7.8 : 5.2) * (c.strideK || 1);
     const cp = Math.cos(c.phase) * c.moveAmt, l1 = Math.max(0, cp), l2 = Math.max(0, -cp), f1 = s * stride, f2 = -s * stride, y1 = -fy - l1 * .5, y2 = fy + l2 * .5;
     const lw = L.legs === 'leggings' ? 2.9 : L.legs === 'cargo' ? 4 : L.legs === 'skirt' ? 2.8 : L.legs === 'shorts' ? 3 : 3.6;
-    Ln(lw, -.6, -fy * .8, f1 * .5, -fy - l1 * .4, f1, y1); Ln(lw, -.6, fy * .8, f2 * .5, fy + l2 * .4, f2, y2);
+    Ln(lw, -.6, -fy * .8, f1 * .5, -fy - l1 * .4, f1 + 2.4, y1); Ln(lw, -.6, fy * .8, f2 * .5, fy + l2 * .4, f2 + 2.4, y2); // each leg runs on over its shoe
     if (L.legs === 'skirt') E(-.3, 0, L.d + 1.4, L.w * .82);
-    E(f1 + 1.1, y1, 2.5 * (1 + l1 * .14), 1.7 * (1 + l1 * .1)); E(f2 + 1.1, y2, 2.5 * (1 + l2 * .14), 1.7 * (1 + l2 * .1));
     rc = Math.cos(-s * .07); rs = Math.sin(-s * .07); if (run) ox = 1.3 * c.moveAmt;
-    for (const [ax, ay] of [[a1, b1], [a2, b2]]) { if (L.sleeves === 'long') Ln(4.4, 0, ay * .86, ax, ay); else E(ax * .35, ay * .9, 2.7, 2.5); C(ax + (L.sleeves === 'long' ? .9 : 0), ay, 2); }
+    for (const [ax, ay] of [[a1, b1], [a2, b2]]) { if (L.sleeves === 'long') Ln(4.4, 0, ay * .86, ax + .9, ay); else E(ax * .35, ay * .9, 2.7, 2.5); } // (the hands are in shapePath already)
     if (L.acc === 'backpack') E(-L.d - 1.1, 0, 2.3, L.w * .55);
     return { f, lines };
   }

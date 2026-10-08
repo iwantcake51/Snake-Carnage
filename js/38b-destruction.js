@@ -46,7 +46,34 @@ const bfxRgb = c => { const m = /^#?([\da-f]{2})([\da-f]{2})([\da-f]{2})/i.exec(
 
 /* ---- every smash, whatever it is: the thing comes apart in real pieces of itself, the hit lands with a flash and a
    shock ring, and dust in its own color billows out. Shared by props, walls, furniture and lamps. ---- */
-let chunks = [], impacts = [];
+let chunks = [], impacts = [], leafFall = [];
+/* a tree or bush going over: its canopy goes with it, and the leaves come off and flutter down in the season's colors, landing on the ground */
+function treeFall(o, ang, quiet) {
+  if (typeof treeSprites !== 'undefined') { treeSprites = treeSprites.filter(t => t.o !== o); if (typeof treeBake !== 'undefined') treeBake = null; }
+  if (quiet) return;
+  const sz = typeof SZN === 'function' ? SZN() : { leaves: ['#3f8a2a', '#4c9a30'], full: 1 }, pal = [...sz.leaves, ...(sz.blossom ? ['#f6c6d6', '#ffe0ea', '#f9d4df'] : [])];
+  const R = o.r * (o.kind === 'tree' ? 2.1 : 1.15), n = Math.round(clamp(R * R / 10 * ((sz.full ?? 1) + .25), 12, 110) * FX_K());
+  for (let k = 0; k < n; k++) { const a = rand(0, TAU), d = Math.sqrt(Math.random()) * R, push = rand(20, 110);
+    leafFall.push({ x: o.x + Math.cos(a) * d, y: o.y + Math.sin(a) * d, z: rand(10, 34) * (o.kind === 'tree' ? 1 : .6), vx: Math.cos(ang) * push + Math.cos(a) * rand(10, 50), vy: Math.sin(ang) * push + Math.sin(a) * rand(10, 50), vz: rand(10, 60), rot: rand(0, TAU), vr: rand(-6, 6), ph: rand(0, TAU), s: rand(1.6, 3.2), c: pick(pal), t: 0 }); }
+  if (leafFall.length > 500) leafFall.splice(0, leafFall.length - 500);
+}
+function updateLeafFall(dt) {
+  for (let i = leafFall.length - 1; i >= 0; i--) {
+    const p = leafFall[i]; p.t += dt; const f = Math.exp(-dt * 1.6); p.vx *= f; p.vy *= f;
+    p.vz = Math.max(-22 - p.s * 3, p.vz - 70 * dt); p.z += p.vz * dt; p.rot += p.vr * dt; // light: they drift down slowly, swinging side to side
+    p.x += (p.vx + Math.sin(T * 3.4 + p.ph) * 16) * dt; p.y += (p.vy + Math.cos(T * 2.7 + p.ph) * 6) * dt;
+    if (p.z <= 0) { // landed: it stays on the ground
+      if (!solid(p.x, p.y) && !(typeof inAnyWater === 'function' && inAnyWater(p.x, p.y))) { bctx.save(); bctx.globalAlpha = .9; bctx.translate(p.x, p.y); bctx.rotate(p.rot); bctx.fillStyle = p.c; bctx.beginPath(); bctx.ellipse(0, 0, p.s, p.s * .55, 0, 0, TAU); bctx.fill(); bctx.restore(); }
+      leafFall[i] = leafFall[leafFall.length - 1]; leafFall.pop();
+    }
+  }
+}
+function drawLeafFall(x) {
+  for (const p of leafFall) { const fl = .35 + .65 * Math.abs(Math.cos(p.t * 5 + p.ph)); // turning over as they fall
+    x.globalAlpha = .22; x.fillStyle = '#000'; x.beginPath(); x.ellipse(p.x + p.z * .25, p.y + p.z * .15, p.s * .9, p.s * .45, p.rot, 0, TAU); x.fill(); // its shadow
+    x.globalAlpha = 1; x.save(); x.translate(p.x, p.y - p.z * .3); x.rotate(p.rot); x.scale(1, fl); x.fillStyle = p.c; x.beginPath(); x.ellipse(0, 0, p.s, p.s * .55, 0, 0, TAU); x.fill(); x.fillStyle = 'rgba(255,255,255,.18)'; x.fillRect(-p.s * .8, -.2, p.s * 1.6, .4); x.restore(); }
+  x.globalAlpha = 1;
+}
 const CHUNK_MAX = 70;
 function chunkSprite(gx, gy, sz, col, solidCol) { // a ragged piece of the object as it's drawn on the map, a darker broken edge, its underside showing
   const S = Math.ceil(sz * 2) + 4, c = document.createElement('canvas'); c.width = c.height = S; const x = c.getContext('2d'), R = sz, n = randi(4, 7), pts = [];
@@ -76,8 +103,10 @@ function updateChunks(dt) {
     if (c.z <= 0) { c.z = 0; if (c.vz < -80) { c.vz = -c.vz * .3; c.vx *= .55; c.vy *= .55; c.vr *= .5; if (c.sz > 8 && Math.random() < .5) Sfx.splat && Sfx.splat(c.x, true); } else { const f = Math.exp(-dt * 9); c.vx *= f; c.vy *= f; c.vr *= f; c.vz = 0; if (c.vx * c.vx + c.vy * c.vy < 25) { settleChunk(c); chunks.splice(i, 1); } } } // lands, bounces, skids to a stop
   }
   for (let i = impacts.length - 1; i >= 0; i--) if ((impacts[i].t += dt) > impacts[i].dur) impacts.splice(i, 1);
+  updateLeafFall(dt);
 }
 function drawChunks(x) {
+  if (leafFall.length) drawLeafFall(x);
   for (const c of chunks) {
     const k = 1 + c.z * .006, S = c.spr.width;
     if (c.z > .5) { x.globalAlpha = .32 / (1 + c.z * .02); x.fillStyle = '#000'; ell(x, c.x + c.z * .22, c.y + c.z * .12, c.sz * .55, c.sz * .4); } // its shadow, further off the higher it flies

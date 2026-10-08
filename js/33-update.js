@@ -252,7 +252,7 @@ function goldenBanner(animal, c) { // each golden target gets its own note; seve
   const who = c && c.def.alien ? 'ALIEN' : c && c.type === 'astronaut' ? 'ASTRONAUT' : 'HUMAN';
   notify({ kind: 'goldH', title: 'GOLDEN ' + who, sub: 'Find them before the gold wears off.', dur: 5.5, bar: true }); Sfx.golden();
 }
-const [rimC, rimX] = makeLayer();
+const [rimC, rimX] = makeLayer(), OUTLINE_FULL = 30; // how many of the nearest get the full outline
 function drawTargetOutlines(x) { // clean silhouette rim around everything edible: black by day, white at night
   // every rim goes into one layer (stroke the outline, then cut the body out of it: only the outer rim stays, no lines
   // across heads or arms) and the layer is drawn once. A scratch canvas per creature meant a round trip to the graphics
@@ -260,15 +260,17 @@ function drawTargetOutlines(x) { // clean silhouette rim around everything edibl
   const night = light.dark > .3, col = night ? 'rgba(255,255,255,.78)' : 'rgba(0,0,0,.6)', prev = drawTargetOutlines.box;
   if (prev) rimX.clearRect(prev[0], prev[1], prev[2] - prev[0], prev[3] - prev[1]);
   let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
-  for (const c of creatures) {
+  rimX.lineCap = rimX.lineJoin = 'round';
+  const near = new Set(); // the full outline (arms, legs, tails) for the ones close to you; further out, just body and head, which is far cheaper
+  if (snake) { const d2 = []; for (const c of creatures) if (c.alive && !c.def.fly) d2.push([dist2(c.x, c.y, snake.x, snake.y), c]); if (d2.length > OUTLINE_FULL) d2.sort((a, b) => a[0] - b[0]); for (let i = 0; i < Math.min(OUTLINE_FULL, d2.length); i++) if (d2[i][0] < 420 * 420) near.add(d2[i][1]); }
+  for (const c of creatures) { // one small shape per creature (one big merged path is what chokes a graphics chip)
     if (!c.alive || c.def.fly) continue;
     const a = playerSees(c.x, c.y); if (a <= .02) continue;
     const hz = c.hz || 0, k = 1 + hz * .045, cy = c.y - hz * .7; // the rim rides up with a hop
     rimX.save(); rimX.translate(c.x, cy); rimX.scale(k, k); rimX.rotate(c.a);
-    const sil = creatureSil(c), rw = c.golden ? 3.2 : 2; // the whole silhouette, arms, legs, tails and ears included
-    rimX.globalAlpha = a; rimX.strokeStyle = c.golden ? '#ffcf33' : col; rimX.lineCap = rimX.lineJoin = 'round';
-    rimX.lineWidth = rw; rimX.stroke(sil.f); for (const [w, pa] of sil.lines) { rimX.lineWidth = w + rw; rimX.stroke(pa); } // a rim round every part...
-    rimX.globalAlpha = 1; rimX.globalCompositeOperation = 'destination-out'; rimX.fill(sil.f); for (const [w, pa] of sil.lines) { rimX.lineWidth = w; rimX.stroke(pa); } rimX.globalCompositeOperation = 'source-over'; // ...then the parts themselves cut out, so only the outer edge stays
+    const f = creatureSil(c, !near.has(c)).f; // the whole silhouette: body, head, arms, legs, tails and ears, as one shape
+    rimX.globalAlpha = a; rimX.strokeStyle = c.golden ? '#ffcf33' : col; rimX.lineWidth = c.golden ? 3.2 : 2; rimX.stroke(f); // a rim round it...
+    rimX.globalAlpha = 1; rimX.globalCompositeOperation = 'destination-out'; rimX.fill(f); rimX.globalCompositeOperation = 'source-over'; // ...then the body cut out, so only the outer edge stays
     rimX.restore();
     if (c.x - 22 < x0) x0 = c.x - 22; if (cy - 22 < y0) y0 = cy - 22; if (c.x + 22 > x1) x1 = c.x + 22; if (cy + 22 > y1) y1 = cy + 22;
   }

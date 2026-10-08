@@ -182,11 +182,13 @@ function profileChallenges() {
     const reward = [...rw.map(([cat, v]) => `${CAT_LABEL[cat]}${cat.startsWith('color') ? ': ' + colorName(v) : ': ' + v}`), `${xp} XP`, a.chips ? `${a.chips} chips` : ''].filter(Boolean).join(' · ');
     const tip = got ? `<span class="thead">${a.name}</span>${a.what}<span class="tdim">Earned ${fmtDate(PROG.ach[a.id])}</span>` : hide ? `<span class="thead">Secret challenge</span>Clue: ${a.clue}<span class="tdim">Progress ${Math.min(a.stat(), a.n)}/${a.n}</span>` : `<span class="thead">${a.name}</span>${a.what}<span class="tdim">Reward: ${reward}</span>`;
     const clear = got || (a.tier !== 'rare' && p >= .5);
-    const slides = hide ? ['<div class="prv sil q">?</div>'] : [...rw.map(([c, v]) => achPreview(c, v, clear)), ...(a.chips ? [`<div class="prv chipr"><i class="pc"></i><b>${a.chips}</b></div>`] : []), `<div class="prv xpr"><b>${xp}</b><small>XP</small></div>`];
+    const cos = rw.map(([c, v]) => achPreview(c, v, clear)); // the things you win; XP and chips are written over the bar instead of taking a slide (so no dots unless there's more than one thing)
+    const slides = hide ? ['<div class="prv sil q">?</div>'] : cos.length ? cos : [a.chips ? `<div class="prv chipr"><i class="pc"></i><b>${a.chips}</b></div>` : `<div class="prv xpr"><b>${xp}</b><small>XP</small></div>`];
     const car = slides.length > 1 ? `<div class="ap car" data-n="${slides.length}"><div class="track">${slides.join('')}</div><div class="dots">${slides.map((_, k) => `<i class="${k ? '' : 'on'}"></i>`).join('')}</div></div>` : `<div class="ap">${slides[0]}</div>`;
     return `<div class="ach ${got ? 'done' : ''} ${hide ? 'secret' : ''} t-${a.tier}" style="--i:${i}" data-tiph="${attr(tip)}">${car}
       <div class="ab"><em class="tier ${hide ? 'secret' : a.tier}">${hide ? 'Secret' : TIERS[a.tier].label}</em><b>${got ? '✔ ' : ''}${hide ? '???' : a.name}</b><small>${hide ? '<i class="clue">' + a.clue + '</i>' : a.what}</small>
-      <span class="pbar"><span style="width:${(p * 100).toFixed(0)}%"></span></span><span class="af"><span>${Math.min(a.stat(), a.n)}/${a.n}</span><span>${hide ? 'Reward: ???' : reward}</span></span></div></div>`; }).join('')}</div>`;
+      <span class="axp">${hide ? 'Reward: ???' : `+${xp} XP${a.chips ? ` · ${a.chips} chips` : ''}`}</span>
+      <span class="pbar"><span style="width:${(p * 100).toFixed(0)}%"></span><i>${Math.min(a.stat(), a.n)} / ${a.n}</i></span>${!hide && rw.length ? `<span class="arw">${rw.map(([cat, v]) => `${CAT_LABEL[cat]}${cat.startsWith('color') ? ': ' + colorName(v) : ': ' + v}`).join(' · ')}</span>` : ''}</div></div>`; }).join('')}</div>`;
 }
 function runCarousels(root) { // multi-reward previews slide sideways, one at a time, pausing while hovered
   const cars = [...root.querySelectorAll('.ap.car')]; if (!cars.length) return;
@@ -200,7 +202,7 @@ function mapPermChallenges() {
   return `<div class="pmwrap"><div class="pmmaps">${MAPS.map(m => `<button class="${m.name === chMap ? 'on' : ''}" data-cm="${attr(m.name)}" data-sfx="tab"><span>${m.name}</span><em>${pmDoneCount(m.name)}/${permChallenges(m.name).length}</em></button>`).join('')}</div>
     <div class="pmlist">${list.map((c, i) => { const when = (PROG.pmc[chMap] || {})[c.id], v = when ? c.n : Math.min(best[c.id] || 0, c.n), rw = TIERS[c.tier];
       return `<div class="pmc ${when ? 'done' : ''}" style="--i:${i}" ${when ? `data-tip="Completed ${fmtDate(when)}"` : ''}><em class="tier ${c.tier}">${rw.label}</em><b>${when ? '✔ ' : ''}${c.name}</b><small>${c.t}</small>
-        <span class="pbar"><span style="width:${(v / c.n * 100).toFixed(0)}%"></span></span><span class="af"><span>${v}${c.unit || ''}/${c.n}${c.unit || ''} best</span><span>+${Math.round(rw.xp * 1.5)} XP · +${Math.round(rw.chips * 1.5)} chips</span></span></div>`; }).join('')}</div></div>`;
+        <span class="axp">+${Math.round(rw.xp * 1.5)} XP · +${Math.round(rw.chips * 1.5)} chips</span><span class="pbar"><span style="width:${(v / c.n * 100).toFixed(0)}%"></span><i>${v}${c.unit || ''} / ${c.n}${c.unit || ''}${when ? '' : ' best'}</i></span></div>`; }).join('')}</div></div>`;
 }
 function achPreview(cat, v, clear) { // rewards show as a real preview; early on (and rare ones) stay silhouetted
   return `<div class="prv ${clear ? '' : 'sil'}">${itemPreview(cat, v)}</div>`;

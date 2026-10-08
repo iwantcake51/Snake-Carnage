@@ -127,6 +127,7 @@ function smashObstacle(o, ang, quiet) { // quiet: catching up on breakage that h
   const fx = bfxFor(o); // the prop's own "when it breaks" (38b-destruction); null = the classic smash below
   if (!quiet) smashLook(o, fx, ang); // real pieces of it, the hit, its dust (cut from the map layer before it's redrawn without it)
   obstacles.splice(i, 1);
+  if (o.kind === 'tree' || o.kind === 'bush') treeFall(o, ang, quiet); // its canopy goes too, and the leaves come down
   const cx = o.t === 'r' ? o.x + o.w / 2 : o.x, cy = o.t === 'r' ? o.y + o.h / 2 : o.y, size = o.t === 'r' ? Math.sqrt(o.w * o.h) : o.r * 1.6;
   if (fx) bfxWreck(bctx, o, fx, ang); else drawWreck(bctx, o, ang); // the broken piece stays on the floor as wreckage
   if (o.kind === 'speaker') { const sp = clubSpeakers.find(q => q.o === o); if (sp) { sp.alive = false; Sfx.speakerDie(sp); } }

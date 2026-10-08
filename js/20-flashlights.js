@@ -7,7 +7,7 @@ function newFlash(c) {
            pow: warm ? rand(.65, .85) : rand(.85, 1.05), range: rand(165, 225), half: rand(.3, .4), flick: Math.random() < (warm ? .4 : .12),
            seed: rand(0, 100), thr: rand(.32, .55), sw: 0, delay: rand(.2, 2.5), jit: 0, jitT: 0, back: 0, fT: 0, look: null };
 }
-function flashChance(c) { const m = MAPS[mapIdx]; return c && c.type === 'astronaut' ? 1 : c && c.def.alien ? 0 : m.club ? 0 : m.name === 'Maze' ? .5 : m.indoor ? .15 : .35; }
+function flashChance(c) { const m = MAPS[mapIdx]; return c && c.type === 'astronaut' ? 1 : c && c.def.alien ? 0 : typeof m.flash === 'number' ? m.flash : m.club ? 0 : m.name === 'Maze' ? .5 : m.indoor ? 0 : .35; } // indoors nobody carries one, unless the map says so (m.flash, set in the map editor)
 function updateFlash(c, dt) {
   const f = c.fl; if (!f) return;
   const dk = MAPS[mapIdx].indoor ? light.dark / .52 : 1 - light.day, want = dk > f.thr;

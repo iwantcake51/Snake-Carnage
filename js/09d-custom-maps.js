@@ -46,7 +46,7 @@ function compileCustomMap(raw) {
   const pop = [...(d.population || []).filter(p => TYPES[p[0]] && p[1] > 0).map(p => [p[0], p[1]]), ...(d.zones || []).filter(z => TYPES[z.type] && z.n > 0).map(z => [z.type, z.n, zone(z)])];
   return { name: d.name, icon: indoor ? '🏠' : '🌳', border: d.border || CUSTOM_DEFAULTS[d.env].border, start: { x: (d.spawn || {}).x + dx || W / 2, y: (d.spawn || {}).y || H / 2, a: (d.spawn || {}).a || 0 },
     indoor, ambient: indoor ? d.ambient ?? .3 : undefined, custom: d.id, seasons: !indoor && (d.weather || {}).seasons !== false, snow: !indoor && (d.weather || {}).snow !== false, times: d.times,
-    pop: pop.length ? pop : [['human', 8]], walkers: d.walkers || 0, grass: indoor ? 0 : d.grass ?? 140, data: d,
+    pop: pop.length ? pop : [['human', 8]], flash: typeof d.flash === 'number' ? d.flash : undefined, walkers: d.walkers || 0, grass: indoor ? 0 : d.grass ?? 140, data: d,
     build() {
       mapMaterials = d.materials || {}; if (JSON.stringify(mapPropDefs) !== JSON.stringify(d.props || {})) { mapPropDefs = d.props || {}; if (typeof propApply === 'function') propApply(); }
       const vs = compileVecShapes((d.shapes || []).map(shift));

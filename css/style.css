@@ -9,6 +9,15 @@ body.theme-nocturne{--acc:#8b5cf6;--acc-hi:#c4a8ff;--acc-lo:#5b34b8;--acc-text:#
 body.theme-dusk{--acc:#f2784b;--acc-hi:#ffb48a;--acc-lo:#b8482a;--acc-text:#f59873;--acc-deep:#4a2216;--acc-bg:#2c1914;--acc-bg2:#3b221b;--bg1:#18110f;--bg2:#1f1613;--line:#3a2620}
 body.theme-bone{--acc:#d8d2c4;--acc-hi:#ffffff;--acc-lo:#9a9384;--acc-text:#e6e0d2;--acc-deep:#3a3730;--acc-bg:#24221e;--acc-bg2:#302d28;--bg1:#121110;--bg2:#181715;--line:#2e2b27}
 body.theme-bone .btn:not(.alt),body.theme-bone .play{color:#141210}
+body.theme-ocean{--acc:#1fa3b8;--acc-hi:#6fe0ef;--acc-lo:#126f80;--acc-text:#4cc3d4;--acc-deep:#0f3a44;--acc-bg:#102a30;--acc-bg2:#163840;--bg1:#0e1517;--bg2:#121c1f;--line:#1f3236}
+body.theme-steel{--acc:#7d93ad;--acc-hi:#c3d3e6;--acc-lo:#52667e;--acc-text:#9fb3ca;--acc-deep:#283240;--acc-bg:#1b2129;--acc-bg2:#252d38;--bg1:#121417;--bg2:#171a1f;--line:#2a3039}
+body.theme-rose{--acc:#e8507e;--acc-hi:#ff9ab8;--acc-lo:#a8305a;--acc-text:#f07a9c;--acc-deep:#4a1a2c;--acc-bg:#2c141e;--acc-bg2:#3b1b28;--bg1:#171012;--bg2:#1e1417;--line:#3a2029}
+body.theme-jade{--acc:#22b07d;--acc-hi:#6ff0bd;--acc-lo:#137a55;--acc-text:#4fcf9b;--acc-deep:#123d2c;--acc-bg:#11271e;--acc-bg2:#173428;--bg1:#0f1513;--bg2:#131c18;--line:#1f3129}
+body.theme-ember{--acc:#e8541c;--acc-hi:#ffa060;--acc-lo:#a83510;--acc-text:#f07a40;--acc-deep:#4a1e0c;--acc-bg:#2c160c;--acc-bg2:#3b1e10;--bg1:#18100c;--bg2:#1f1510;--line:#3a2418}
+body.theme-frost{--acc:#8fd8ff;--acc-hi:#e6f8ff;--acc-lo:#4fa3d0;--acc-text:#b5e6ff;--acc-deep:#1c3a4a;--acc-bg:#152530;--acc-bg2:#1c3240;--bg1:#0f1418;--bg2:#141b21;--line:#24323c}
+body.theme-royal{--acc:#7a4fd8;--acc-hi:#e6c35a;--acc-lo:#5230a0;--acc-text:#d9b84a;--acc-deep:#2a1a4a;--acc-bg:#1c1530;--acc-bg2:#271d42;--bg1:#110e18;--bg2:#171221;--line:#2c2340}
+body.theme-neon{--acc:#ff2fd0;--acc-hi:#4ff5ff;--acc-lo:#b0108f;--acc-text:#ff6be0;--acc-deep:#3a0a34;--acc-bg:#200c22;--acc-bg2:#2c1030;--bg1:#0d0a12;--bg2:#120d18;--line:#2c1838}
+body.theme-frost .btn:not(.alt),body.theme-frost .play{color:#0c1a22}
 body.theme-gold .btn:not(.alt),body.theme-toxic .btn:not(.alt),body.theme-gold .play,body.theme-toxic .play{color:#160f04}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;background:#0c0a0b;font-family:"Segoe UI",system-ui,-apple-system,Roboto,sans-serif;color:#ddd;overflow:hidden}
@@ -2315,3 +2324,31 @@ body.edscrubbing,body.edscrubbing *{cursor:ew-resize!important;user-select:none!
 #admin .adm-tg input{accent-color:var(--acc,#d0191f);margin:0}
 #admin .adm-sl{display:flex;align-items:center;gap:8px;margin:6px 0}#admin .adm-sl input{flex:1;accent-color:var(--acc,#d0191f)}#admin .adm-sl em{font-style:normal;min-width:46px;text-align:right;color:#cfc6c0;font-variant-numeric:tabular-nums}
 #admin select{background:#121015;color:#eee;border:1px solid #3a3340;border-radius:6px;padding:4px 6px;flex:1;min-width:90px}
+
+/* ---- challenges: every card centered top to bottom; XP over the bar, the count inside it ---- */
+.panel.chal2 .ach,.panel.chal2 .pmc{flex-direction:column;align-items:center;text-align:center;gap:6px;padding:12px 12px 12px}
+.panel.chal2 .ach .ab,.panel.chal2 .pmc{align-items:center;width:100%}
+.panel.chal2 .ach .ab .tier,.panel.chal2 .pmc .tier{align-self:center}
+.panel.chal2 .ach .ap{margin:0 auto;height:56px}
+.panel.chal2 .ach .ap.car{height:64px}
+.panel.chal2 .ach .prv{position:relative;overflow:hidden}
+.panel.chal2 .ach .prv>*{margin:0}
+.panel.chal2 .ach .prv .pvCombo,.panel.chal2 .ach .prv .pvTheme,.panel.chal2 .ach .prv .pvCard,.panel.chal2 .ach .prv .pvFx,.panel.chal2 .ach .prv .pvTitle,.panel.chal2 .ach .prv .pvw{position:absolute;left:50%;top:50%;translate:-50% -50%;transform-origin:center}
+.panel.chal2 .ach .prv.xpr,.panel.chal2 .ach .prv.chipr{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.panel.chal2 .axp{display:block;width:100%;margin-top:4px;font:700 12px var(--f-num,system-ui);color:#ffe6a0;letter-spacing:.02em;text-align:center}
+.panel.chal2 .ach .pbar,.panel.chal2 .pmc .pbar{position:relative;width:100%;height:16px!important;margin:2px 0 0!important;border-radius:2px!important;background:rgba(255,255,255,.06)!important}
+.panel.chal2 .pbar>span{position:absolute;left:0;top:0;bottom:0;opacity:.85}
+.panel.chal2 .pbar>i{position:relative;display:block;font:700 10.5px/16px var(--f-num,system-ui);font-style:normal;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.8);text-align:center;font-variant-numeric:tabular-nums}
+.panel.chal2 .arw{display:block;width:100%;font-size:10.5px;color:#c9bfb6;text-align:center;line-height:1.35}
+.panel.chal2 .ach .ab small,.panel.chal2 .pmc small{text-align:center}
+
+/* upgrades: the buy button keeps one size whatever the price (or "Level 12"), and never swells on hover or after buying */
+.upc .upf{display:flex;align-items:center;gap:8px}
+.upc .upf .pips{flex:1;min-width:0}
+.upc .upf .btn{flex:none;width:104px!important;min-width:104px!important;max-width:104px!important;height:32px!important;padding:0 8px!important;display:inline-flex!important;align-items:center;justify-content:center;gap:5px;white-space:nowrap;scale:1!important;transform:none!important;font-variant-numeric:tabular-nums}
+.upc .upf .btn:hover,.upc .upf .btn:active{scale:1!important;transform:none!important}
+.upc .upf .maxed{flex:none;width:104px;text-align:center}
+
+/* shop previews for the newer UI themes */
+.pvTheme.th-ocean{--acc:#1fa3b8;background:#0e1517}.pvTheme.th-steel{--acc:#7d93ad;background:#121417}.pvTheme.th-rose{--acc:#e8507e;background:#171012}.pvTheme.th-jade{--acc:#22b07d;background:#0f1513}
+.pvTheme.th-ember{--acc:#e8541c;background:#18100c}.pvTheme.th-frost{--acc:#8fd8ff;background:#0f1418}.pvTheme.th-royal{--acc:#7a4fd8;background:#110e18}.pvTheme.th-neon{--acc:#ff2fd0;background:#0d0a12}
