@@ -157,7 +157,7 @@ function updateBlood(dt) { // every live drop moves every frame at every quality
       }
       if (hit) { killPart(i); continue; }
     }
-    if (p.z < 14 && !p.hs && snake) {
+    if (p.z < 14 && p.z > .5 && !p.hs && snake) { // spray still in the air lands on you; blood already on the ground doesn't climb onto you as you slide through it
       let hit = false;
       const ci = p.x / SEGC | 0, cj = p.y / SEGC | 0;
       outer: for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {

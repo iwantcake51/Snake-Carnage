@@ -126,17 +126,19 @@ function updateSnake(dt) {
 const HOOVER_R = 76, HOOVER_NB = []; let hoovFx = [];
 const hooverMouth = s => { const f = snakeRadius() * .7; return [s.x + Math.cos(s.angle) * f, s.y + Math.sin(s.angle) * f]; };
 function hoover(s, dt) {
-  const ul = MOD.hoover ? 3 : upg('hoover'); if (!ul) return; // the modifier, or the upgrade (weaker at its first levels)
-  const P = [0, .55, .78, 1][ul], [hx, hy] = hooverMouth(s), R = HOOVER_R * (.6 + .4 * P) * Math.sqrt(s.scale || 1), ca = Math.cos(s.angle), sa = Math.sin(s.angle);
+  if (s.hoovT > 0) s.hoovT -= dt;
+  const sk = s.hoovT > 0 ? clamp(s.hoovLv || upg('hoover') || 1, 1, 3) : 0; if (!sk && !MOD.hoover) return; // the skill while it lasts, or the modifier's steady pull
+  const P = sk ? [0, 1.5, 1.9, 2.6][sk] : 1, [hx, hy] = hooverMouth(s), R = HOOVER_R * (sk ? [0, 1.6, 1.95, 2.4][sk] : 1) * Math.sqrt(s.scale || 1), ca = Math.cos(s.angle), sa = Math.sin(s.angle), cone = sk ? .75 : .35;
   for (const c of nearbyCreatures(hx, hy, R, HOOVER_NB)) {
     if (!c.alive || c.def.fly) continue;
     const dx = hx - c.x, dy = hy - c.y, d = Math.hypot(dx, dy) || 1;
-    const front = clamp(.35 - (dx * ca + dy * sa) / d, 0, 1.35) / 1.35; if (front <= 0) continue; // mostly from in front of the mouth, nothing from behind
+    const front = clamp(cone - (dx * ca + dy * sa) / d, 0, 1 + cone) / (1 + cone); if (front <= 0) continue; // mostly from in front of the mouth, nothing from behind
     if (T - (c.hvT ?? -1) > .1) { c.hvT = T; c.hvLos = los(c.x, c.y, hx, hy); } // line of sight, re-checked ten times a second
     if (!c.hvLos) continue;
-    const k = Math.pow(1 - d / R, 2.2) * front, acc = (30 + 620 * k) * (c.def.human ? .75 : 1) * P; // a whisper at the edge, a real tug at the lips
+    const k = Math.pow(1 - d / R, sk ? 1.4 : 2.2) * front, acc = (30 + 620 * k) * (c.def.human && !sk ? .75 : 1) * P; // the skill drags people as hard as anything else // a whisper at the edge, a real tug at the lips
     const hv = c.hv || (c.hv = { vx: 0, vy: 0 }); hv.vx += dx / d * acc * dt; hv.vy += dy / d * acc * dt;
-    if (k > .05 && Math.random() < dt * 30 * k * Math.min(1, FX_K())) { // a few motes of dust (or blood, off a bloody one) streaming into the mouth
+    if (sk && c.def.human && c.state !== 'panic' && Math.random() < dt * 4) { c.alert = 1; if (typeof panic === 'function' && AUTH()) panic(c, s.x, s.y, rand(2, 3)); } // being dragged off your feet: they know
+    if (k > .05 && Math.random() < dt * (sk ? 60 : 30) * k * Math.min(1, FX_K())) { // a few motes of dust (or blood, off a bloody one) streaming into the mouth
       const a = rand(0, TAU), rr = c.def.r * rand(.4, 1.1);
       hoovFx.push({ x: c.x + Math.cos(a) * rr, y: c.y + Math.sin(a) * rr, t: 0, life: rand(.25, .45), c: c.stains.length > 3 ? (c.stains[c.stains.length - 1].c || BLOOD) : null });
       if (hoovFx.length > 90) hoovFx.shift();
@@ -151,6 +153,12 @@ function updateHoovFx(dt) {
     if (d < 5) { hoovFx.splice(i, 1); continue; } p.x += dx / d * Math.min(d, v * dt); p.y += dy / d * Math.min(d, v * dt); }
 }
 function drawHoovFx(x) {
+  const s = snake; if (s && s.hoovT > 0 && s.alive && !s.netHidden) { // the skill: air spiralling into the open mouth
+    const [hx, hy] = hooverMouth(s), lv = clamp(s.hoovLv || 1, 1, 3), R = HOOVER_R * [0, 1.6, 1.95, 2.4][lv] * .55, k = Math.min(1, s.hoovT * 3) * Math.min(1, (ABIL.hoover.dur - s.hoovT) * 6 + .2);
+    x.save(); x.lineCap = 'round';
+    for (let i = 0; i < 9; i++) { const ph = ((T * 1.6 + i / 9) % 1), r = R * (1 - ph), a0 = s.angle + i * 2.4 - T * 7 + ph * 3; x.strokeStyle = `rgba(230,222,205,${(.32 * k * Math.sin(ph * Math.PI)).toFixed(3)})`; x.lineWidth = 1 + 1.6 * (1 - ph); x.beginPath(); x.arc(hx, hy, Math.max(2, r), a0, a0 + 1.1); x.stroke(); }
+    x.restore();
+  }
   if (!hoovFx.length) return; x.lineCap = 'round'; x.lineWidth = 1.1;
   for (const p of hoovFx) { const f = Math.sin(p.t / p.life * Math.PI); x.strokeStyle = p.c ? p.c : `rgba(225,215,195,${(.55 * f).toFixed(3)})`; x.globalAlpha = p.c ? .7 * f : 1;
     x.beginPath(); x.moveTo(p.px ?? p.x, p.py ?? p.y); x.lineTo(p.x, p.y); x.stroke(); }
@@ -234,11 +242,7 @@ function smearBlood(s, dt) {
     s.smear *= Math.exp(-s.speed * dt / (80 * BQ().trail)); // trails last longer, so you can read where you've been
   }
   s.lastX = s.x; s.lastY = s.y;
-  for (let i = 0; i < s.segs.length; i++) { // body soaks up blood it lies in
-    if (Math.random() > .08) continue;
-    const g = s.segs[i];
-    if (freshAt(g.x, g.y) > .6) stainSnake(i, g.x + rand(-9, 9), g.y + rand(-9, 9), rand(1.2, 3), wetColAt(g.x, g.y));
-  }
+  // (sliding through blood on the ground no longer stains the body: only kills and spray do)
 }
 
 function bleedIntoWater(x, y, amount, col = BLOOD) {

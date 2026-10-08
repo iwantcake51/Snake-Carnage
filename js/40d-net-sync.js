@@ -162,6 +162,7 @@ function netHostBite(p, e) { // a guest's snake reached a creature on their scre
 }
 function netHostAbility(p, e) {
   const rs = NS.rs.get(p.id); if (!rs) return;
+  if (e.id === 'hoover') { const lv = clamp(e.lv | 0, 1, 3); rs.hoovT = [1.5, 1.5, 2, 2.5][lv]; rs.hoovLv = lv; } // their Hoover skill: hoover() pulls for them on this side (netHostRemoteSnakes)
   if (e.id === 'hiss') { const me = snake; snake = rs; UPG_OVR = rs.upgLv; let n = 0; try { n = hissNpc(rs, e.lv || 1); } finally { snake = me; UPG_OVR = null; } const L = NETM.links.get(p.id); if (L) L.sendR({ k: 'ev', e: [{ t: 'hissN', n }] }); }
   netEmit({ t: 'abil', pid: p.id, id: e.id, x: Math.round(rs.x), y: Math.round(rs.y) });
 }
@@ -323,7 +324,7 @@ function netApply(e, local) {
     case 'vom': { const c = NS.byId.get(e.id); if (c) vomit(c); break; }
     case 'ungold': { const c = NS.byId.get(e.id); if (c && c.golden) ungoldify(c); break; }
     case 'brk': { if (e.by === NETM.me) break; const o = NS.obsById.get(e.o); if (o && obstacles.includes(o)) netBreak(o, e.w, e.a, !!e.quiet); break; }
-    case 'abil': { if (e.pid === NETM.me) break; const rs = NS.rs.get(e.pid); if (e.id === 'hiss') { Sfx.hiss(e.x); if (snake && dist2(snake.x, snake.y, e.x, e.y) < 300 * 300) shake = Math.max(shake, 3); if (rs) rs.hissT = .8; } break; }
+    case 'abil': { if (e.pid === NETM.me) break; const rs = NS.rs.get(e.pid); if (e.id === 'hiss') { Sfx.hiss(e.x); if (snake && dist2(snake.x, snake.y, e.x, e.y) < 300 * 300) shake = Math.max(shake, 3); if (rs) rs.hissT = .8; } else if (e.id === 'hoover' && rs) Sfx.vacuum(2, 1, e.x); break; }
     case 'hissN': crHiss(e.n || 0); break;
     case 'scr': crScream(e.n || 0); break;
     case 'air': airStrike(e.x, e.y, e.w, e.r, e.j, e.f); break; // the host called in a bomb

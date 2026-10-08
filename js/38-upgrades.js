@@ -15,15 +15,15 @@ const UPGRADES = [
   { id: 'ram', name: 'Battering Ram', icon: 'ram', max: 4, cost: [300, 850, 1900, 3200], lvl: [4, 10, 16, 22],
     desc: 'Smash through things instead of crashing into them. Each level takes on heavier things; the heavier it is, the harder the knock. Without it, glass still breaks, but going through it knocks you senseless.', tiers: ['Small things: chairs, plants, crates, hay, fences, bins, glass. Barely slows you', 'Big furniture, bushes and small trees: desks, tables, benches, couches, shelves, beds, bars, consoles, speakers, saplings. A harder knock', 'Cars, rocks and the cracked wall sections on some maps: shortcuts, but the hit leaves you seeing stars', 'Thick skull: every concussion is 25% shorter and gentler'] },
   { id: 'gut', name: 'Iron Stomach', icon: 'gut', max: 3, cost: [350, 900, 1700], lvl: [7, 13, 19], desc: 'Combos last longer.', tiers: ['+10% combo time', '+20% combo time', '+30% combo time'] },
-  { id: 'hoover', name: 'Hoover Mouth', icon: 'hoover', max: 3, cost: [500, 1250, 2300], lvl: [6, 14, 21],
-    desc: 'Anything edible right in front of your mouth gets pulled in. Short range, never through walls. (The Hoover Mouth modifier gives you the full pull for one run.)', tiers: ['A gentle tug, close to the mouth', 'Stronger, and reaches a little further', 'The full pull, as far as the modifier reaches'] },
   { id: 'dash', name: 'Lunge', icon: 'dash', max: 3, cost: [250, 900, 1800], lvl: [3, 12, 18], ability: true, key: 'Shift',
     desc: 'A short burst of speed. Great for catching runners.', tiers: ['0.6 s at 1.8x speed, 7 s cooldown', '0.8 s at 1.9x speed, 5 s cooldown, a cleaner wake', 'Pounce: eat something mid-lunge and the cooldown almost resets, and you keep going'] },
   { id: 'scent', name: 'Scent', icon: 'scent', max: 3, cost: [400, 1100, 2000], lvl: [5, 15, 21], ability: true, key: 'E',
-    desc: 'Always tasting the air (E switches it off and on). Wisps drift toward the best meal: big animals close by, golden animals, golden people, and crowds over lone targets. Easy, unaware prey smells strongest. Wisps bump off walls, so you still have to find the way.',
-    tiers: ['One trail', 'Wisps are colored by what is at the end, and you see who can spot you', 'Bloodhound: three trails at once, and golden targets always get one'] },
+    desc: 'Always tasting the air (E switches it off and on). A scent trail leads the way you would actually have to go, around walls and through doorways, to the best meal near you: big animals close by, golden targets, and crowds over lone targets. Unaware prey smells strongest. It is strongest by your head and fades out further along.',
+    tiers: ['One trail', 'Trails are colored by what is at the end, and you see who can spot you', 'Bloodhound: three trails at once, they reach further, and golden targets always get one'] },
   { id: 'camo', name: 'Camouflage', icon: 'camo', max: 3, cost: [600, 1400, 2400], lvl: [8, 17, 23], ability: true, key: 'Q',
     desc: 'Your scales take on the ground under you. People only notice you up close.', tiers: ['5 s, 20 s cooldown', '8 s, 16 s cooldown, better blending', 'Ambush: 10 s, 14 s cooldown. Hold a straight line to fade almost completely; turns only dim it a little. Every kill while hidden adds 2 s, and people right next to you don\'t notice you'] },
+  { id: 'hoover', name: 'Hoover Mouth', icon: 'hoover', max: 3, cost: [500, 1250, 2300], lvl: [6, 14, 21], ability: true, key: 'C',
+    desc: 'Open wide and inhale: for a couple of seconds everything in front of you, people included, gets dragged toward your mouth. Never through walls. (The Hoover Mouth modifier is a weaker pull that never stops.)', tiers: ['1.5 s of pull, 16 s cooldown', '2 s, stronger and wider, 13 s cooldown', 'Vortex: 2.5 s, 10 s cooldown. A huge pull that drags in even people running for their lives'] },
   { id: 'hiss', name: 'Hiss', icon: 'hiss', max: 3, cost: [700, 1600, 2600], lvl: [11, 18, 24], ability: true, key: 'R',
     desc: 'A blood-curdling hiss you can see rippling out: everything nearby panics and scatters.', tiers: ['190 px radius, 15 s cooldown', 'Wider, and it rattles them: slowed for 4 s, half-deaf and slurring for 10 s', 'Shockwave: the blast knocks people off their feet and blows groups apart'] },
 ];
@@ -34,6 +34,10 @@ const ABIL = { // cd/dur read the owned level each time
   dash: { get cd() { return upg('dash') > 1 ? 5 : 7; }, get dur() { return upg('dash') > 1 ? .8 : .6; }, go(s) { s.dashT = this.dur; s.dashK = upg('dash') > 1 ? 1.9 : 1.8; s.lk = Math.max(s.lk || 0, .25); Sfx.dash(); camF.kv.x += Math.cos(s.angle) * 160; camF.kv.y += Math.sin(s.angle) * 160; } },
   scent: { cd: 1, dur: 1, go(s) { s.scentOn = !s.scentOn; if (s.scentOn) Sfx.sniff(); else Sfx.ui && Sfx.ui('off'); } }, // always on; the key switches it off and on again
   camo: { get cd() { const l = upg('camo'); return l > 2 ? 14 : l > 1 ? 16 : 20; }, get dur() { const l = upg('camo'); return l > 2 ? 10 : l > 1 ? 8 : 5; }, go(s) { s.camoT = this.dur; Sfx.camo(); } },
+  hoover: { get cd() { return [16, 16, 13, 10][upg('hoover')]; }, get dur() { return [1.5, 1.5, 2, 2.5][upg('hoover')]; }, go(s) {
+    const lv = upg('hoover'); s.hoovT = this.dur; s.hoovLv = lv; Sfx.vacuum(this.dur, lv);
+    if (netIsGuest()) netSend({ t: 'abil', id: 'hoover', lv }); // co-op guest: the host pulls its crowd for us
+  } },
   hiss: { cd: 15, dur: .8, go(s) {
     const lv = upg('hiss'), R = lv > 2 ? 270 : lv > 1 ? 240 : 190; s.hissLv = lv;
     Sfx.hiss(); shake = Math.max(shake, lv > 1 ? 8 : 5); s.hissT = this.dur; s.hissR = R;
@@ -264,8 +268,36 @@ function canSeeSnake(c) {
   const s = snake, d = Math.hypot(c.x - s.x, c.y - s.y), sight = c.def.sight * (MOD.skittish ? 1.5 : MOD.oblivious ? .6 : 1) * (MOD.fog ? .55 : 1) * (s.camoT > 0 ? .25 - (upg('camo') > 2 ? .15 * (s.still || 0) : 0) : 1);
   return d < 40 || (d < sight && lightAt(s.x, s.y) > VISIBLE && los(c.x, c.y, s.x, s.y));
 }
-/* ---- Scent: wisps drift from your head toward the best meals; brighter and thicker the closer you get ---- */
-let wisps = [];
+/* ---- Scent: a trail of scent laid out the way you'd actually have to go (around walls, through doorways) to the best meal near you.
+   Motes stream along it away from your head; it's strong close to you and fades out further along, so it points the way without being a map line ---- */
+let wisps = []; // (old name kept: other code clears it between runs)
+let scentTrails = [];
+const NAV = 16; let navGrid = null, navKey = '', navT = 0;
+function navBuild() { // which 16 px cells the snake can't get through (any solid in them)
+  const gw = Math.ceil(W / NAV), gh = Math.ceil(H / NAV), key = gw + 'x' + gh + ':' + obstacles.length;
+  if (navGrid && navKey === key && T - navT < 3) return navGrid; navKey = key; navT = T;
+  const g = new Uint8Array(gw * gh), k = NAV / SG;
+  for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) { let b = 0; for (let v = 0; v < k && !b; v++) for (let u = 0; u < k; u++) { const gx = i * k + u, gy = j * k + v; if (gx < GW && gy < GH && solidGrid[gy * GW + gx]) { b = 1; break; } } g[j * gw + i] = b; }
+  return navGrid = { g, gw, gh, dist: new Int16Array(gw * gh), q: new Int32Array(gw * gh) };
+}
+function scentPath(sx, sy, tx, ty) { // breadth-first out from the prey, then walk downhill from your head; smoothed into a curve
+  const N = navBuild(), { g, gw, gh, dist, q } = N, cell = (x, y) => clamp(y / NAV | 0, 0, gh - 1) * gw + clamp(x / NAV | 0, 0, gw - 1);
+  dist.fill(-1); let t0 = cell(tx, ty), h = 0, e = 0; dist[t0] = 0; q[e++] = t0;
+  while (h < e) { const c = q[h++], ci = c % gw, cj = c / gw | 0, d = dist[c] + 1;
+    if (ci > 0 && dist[c - 1] < 0 && !g[c - 1]) { dist[c - 1] = d; q[e++] = c - 1; } if (ci < gw - 1 && dist[c + 1] < 0 && !g[c + 1]) { dist[c + 1] = d; q[e++] = c + 1; }
+    if (cj > 0 && dist[c - gw] < 0 && !g[c - gw]) { dist[c - gw] = d; q[e++] = c - gw; } if (cj < gh - 1 && dist[c + gw] < 0 && !g[c + gw]) { dist[c + gw] = d; q[e++] = c + gw; } }
+  let c = cell(sx, sy);
+  if (dist[c] < 0) { let best = -1; for (let r = 1; r <= 2 && best < 0; r++) for (let v = -r; v <= r; v++) for (let u = -r; u <= r; u++) { const i = (c % gw) + u, j = (c / gw | 0) + v; if (i < 0 || j < 0 || i >= gw || j >= gh) continue; const k = j * gw + i; if (dist[k] >= 0 && (best < 0 || dist[k] < dist[best])) best = k; } if (best < 0) return null; c = best; } // your head is up against a wall: start from the nearest open cell
+  const pts = [sx, sy];
+  for (let n = 0; n < 400 && dist[c] > 0; n++) { let nb = c; const ci = c % gw, cj = c / gw | 0;
+    for (let v = -1; v <= 1; v++) for (let u = -1; u <= 1; u++) { if (!u && !v) continue; const i = ci + u, j = cj + v; if (i < 0 || j < 0 || i >= gw || j >= gh) continue; const k = j * gw + i;
+      if (dist[k] < 0 || dist[k] >= dist[nb]) continue; if (u && v && (g[cj * gw + i] || g[j * gw + ci])) continue; nb = k; } // no cutting corners past a wall
+    if (nb === c) break; c = nb; pts.push((c % gw + .5) * NAV, ((c / gw | 0) + .5) * NAV); }
+  pts.push(tx, ty);
+  let P = pts; for (let it = 0; it < 2; it++) { const o = [P[0], P[1]]; for (let i = 0; i < P.length - 2; i += 2) { const ax = P[i], ay = P[i + 1], bx = P[i + 2], by = P[i + 3]; o.push(ax * .75 + bx * .25, ay * .75 + by * .25, ax * .25 + bx * .75, ay * .25 + by * .75); } o.push(P[P.length - 2], P[P.length - 1]); P = o; } // Chaikin: a smooth curve, no stair steps
+  const L = new Float32Array(P.length / 2); for (let i = 1; i < L.length; i++) L[i] = L[i - 1] + Math.hypot(P[2 * i] - P[2 * i - 2], P[2 * i + 1] - P[2 * i - 1]);
+  return { P, L, len: L[L.length - 1] };
+}
 function scentTargets(s, n) { // what's worth hunting: big and close first, gold animals, gold people, and a crowd beats a loner
   const out = [];
   for (const c of creatures) {
@@ -276,6 +308,7 @@ function scentTargets(s, n) { // what's worth hunting: big and close first, gold
     if (c.def.human) val *= 1 + countNearby(c.x, c.y, 70, isHuman, c) * .45; // a group means a combo
     if (c.state === 'wander' || c.state === 'idle') val *= 1.3; else if (c.state === 'panic') val *= .75; // unaware prey smells strongest; runners are harder
     if (c.fl && c.fl.on) val *= .85; // flashlights spot you first
+    if (scentTrails.some(t => t.c === c)) val *= 1.5; // keep following the one you're on: no flicking between two that score about the same
     out.push({ c, d, sc: val / (d + 90) });
   }
   out.sort((a, b) => b.sc - a.sc); const top = out.slice(0, n);
@@ -284,31 +317,30 @@ function scentTargets(s, n) { // what's worth hunting: big and close first, gold
 }
 const wispCol = c => c.golden ? '255,214,70' : c.def.alien ? '140,255,120' : c.def.human ? '255,120,110' : '150,235,255';
 function updateScent(dt) {
-  const s = snake;
-  for (let i = wisps.length - 1; i >= 0; i--) { // they float toward the scent, but walls turn them aside
-    const w = wisps[i]; w.t += dt; if (w.t > w.life || !w.c.alive) { wisps.splice(i, 1); continue; }
-    const want = Math.atan2(w.c.y - w.y, w.c.x - w.x) + perlin(w.x * .02, w.y * .02 + T) * 1.1;
-    w.a += angDiff(w.a, want) * Math.min(1, dt * 3);
-    const nx = w.x + Math.cos(w.a) * w.sp * dt, ny = w.y + Math.sin(w.a) * w.sp * dt;
-    if (solid(nx, ny)) w.a += (Math.random() < .5 ? -1 : 1) * 1.6; else { w.x = nx; w.y = ny; }
-    w.pts.push(w.x, w.y); if (w.pts.length > 16) w.pts.splice(0, 2);
-  }
-  if (!s || !s.scentOn || !upg('scent') || state !== 'play') return;
+  const s = snake; wisps.length = 0;
+  if (!s || !s.alive || !s.scentOn || !upg('scent') || state !== 'play' || !solidGrid) { for (const t of scentTrails) t.fade = Math.min(t.fade, 1) - dt * 3; scentTrails = scentTrails.filter(t => t.fade > 0); return; }
   const lv = upg('scent');
-  for (const g of scentTargets(s, lv > 2 ? 3 : 1)) {
-    const close = clamp(1 - g.d / 650, .15, 1);
-    if (Math.random() > dt * (5 + 14 * close) * Math.min(1, FX_K())) continue; // more of them, the closer you are
-    const a = Math.atan2(g.c.y - s.y, g.c.x - s.x) + rand(-.6, .6);
-    wisps.push({ c: g.c, x: s.x + Math.cos(a) * 10, y: s.y + Math.sin(a) * 10, a, sp: rand(55, 90), t: 0, life: rand(.9, 1.5) * (.6 + close * .6), k: close, col: lv > 1 ? wispCol(g.c) : '230,220,200', pts: [] });
+  if ((updateScent.t = (updateScent.t || 0) - dt) <= 0) { updateScent.t = .25; // pick the targets and lay the trails four times a second
+    const want = scentTargets(s, lv > 2 ? 3 : 1).map(g => g.c);
+    for (const t of scentTrails) if (!want.includes(t.c) || !t.c.alive) t.dying = true;
+    for (const c of want) { let t = scentTrails.find(q => q.c === c && !q.dying); if (!t) scentTrails.push(t = { c, fade: 0, off: Math.random() * 40 });
+      const p = scentPath(s.x, s.y, c.x, c.y); if (p) Object.assign(t, p); else t.dying = true; }
   }
+  for (const t of scentTrails) { t.fade = t.dying ? t.fade - dt * 2.5 : Math.min(1, t.fade + dt * 2.5); if (t.P) { t.P[0] = s.x; t.P[1] = s.y; } t.off = (t.off + dt * 95) % 1e5; } // the trail stays stuck to your head between re-plans
+  scentTrails = scentTrails.filter(t => t.fade > 0);
 }
 function drawScent(x) {
   const s = snake; if (!s) return;
   x.save(); x.lineCap = 'round'; x.lineJoin = 'round';
-  for (const w of wisps) { // soft curling threads
-    const f = Math.min(1, w.t * 4) * (1 - w.t / w.life), P = w.pts; if (P.length < 4) continue;
-    x.strokeStyle = `rgba(${w.col},${(.3 + .5 * w.k) * f})`; x.lineWidth = 1.4 + 2.6 * w.k * f;
-    x.beginPath(); x.moveTo(P[0], P[1]); for (let i = 2; i < P.length; i += 2) x.lineTo(P[i], P[i + 1]); x.stroke();
+  const lv = upg('scent'), reach = lv > 2 ? 720 : 520, fx = Math.min(1, FX_K());
+  for (const t of scentTrails) { if (!t.P || t.fade <= 0) continue;
+    const P = t.P, L = t.L, n = L.length, col = lv > 1 ? wispCol(t.c) : '235,225,205', end = Math.min(t.len, reach), a0 = .55 * t.fade;
+    for (let i = 1; i < n && L[i - 1] < end; i++) { const f = 1 - L[i] / reach; if (f <= 0) break; // a soft band, strong by your head and thinning out along the way
+      x.strokeStyle = `rgba(${col},${(a0 * .32 * f).toFixed(3)})`; x.lineWidth = 7 * f + 2; x.beginPath(); x.moveTo(P[2 * i - 2], P[2 * i - 1]); x.lineTo(P[2 * i], P[2 * i + 1]); x.stroke(); }
+    const gap = 26 / Math.max(.4, fx); let j = 1; // motes drifting along it toward the meal
+    for (let d = t.off % gap; d < end; d += gap) { while (j < n - 1 && L[j] < d) j++; const u = (d - L[j - 1]) / Math.max(.001, L[j] - L[j - 1]), px = P[2 * j - 2] + (P[2 * j] - P[2 * j - 2]) * u, py = P[2 * j - 1] + (P[2 * j + 1] - P[2 * j - 1]) * u, f = 1 - d / reach;
+      if (d < 14) continue; x.fillStyle = `rgba(${col},${(a0 * 1.6 * f * Math.min(1, d / 40)).toFixed(3)})`; x.beginPath(); x.arc(px, py, 1.3 + 1.6 * f, 0, TAU); x.fill(); }
+    if (t.len < reach && t.c.alive) { const f = 1 - t.len / reach, r = t.c.def.r + 7 + 2.5 * Math.sin(T * 5); x.strokeStyle = `rgba(${col},${(a0 * 1.4 * (.4 + .6 * f)).toFixed(3)})`; x.lineWidth = 1.6; x.beginPath(); x.arc(t.c.x, t.c.y, r, 0, TAU); x.stroke(); } // the meal itself, once you're close
   }
   if (s.scentOn && upg('scent') && state === 'play') { // golden targets always get a dotted gold line, the moment they appear
     x.lineWidth = 1.6; x.setLineDash([3, 5]); x.lineDashOffset = -T * 30;

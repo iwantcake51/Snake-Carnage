@@ -99,6 +99,7 @@ addEventListener('keydown', e => {
   else if (e.code === 'KeyQ') useAbility('camo');
   else if (e.code === 'KeyE') useAbility('scent');
   else if (e.code === 'KeyR') useAbility('hiss');
+  else if (e.code === 'KeyC') useAbility('hoover');
 });
 function toggleNV() { // night vision only while actually playing
   if (!['play', 'ready', 'held'].includes(state)) return;

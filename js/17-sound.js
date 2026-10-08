@@ -21,21 +21,26 @@ const Sfx = {
   chain() { // the world's output: bus -> lowpass -> speakers, plus head (inside your head: the ear ringing skips the muffle)
     const c = this.ctx;
     this.bus = c.createGain(); this.lp = c.createBiquadFilter(); this.lp.type = 'lowpass'; this.lp.frequency.value = 20000; this.lp.Q.value = .5;
-    this.bus.connect(this.lp); this.lp.connect(c.destination); this.head = c.createGain(); this.head.connect(c.destination);
+    this.master = c.createGain(); this.master.connect(c.destination); // (fades the whole world out on death)
+    this.bus.connect(this.lp); this.lp.connect(this.master); this.head = c.createGain(); this.head.connect(this.master);
     this.setMuffle(this.muffled);
   },
   hold(on) { // the game paused (or the solo death screen up): the world's sound stops where it is and picks up again on resume
     if (!this.ctx || on === !!this.held) return;
-    if (on) { this.held = state === 'dead' ? 'dead' : 'pause'; this.ctx.suspend(); return; }
+    clearTimeout(this.fadeTO);
+    if (on) { this.held = state === 'dead' ? 'dead' : 'pause';
+      if (this.held === 'dead' && this.master) { this.master.gain.setTargetAtTime(0, this.ctx.currentTime, .4); this.fadeTO = setTimeout(() => { if (this.held) this.ctx.suspend(); }, 1800); } // dying: everything fades away over a second or so, then stops
+      else this.ctx.suspend(); return; }
+    if (this.master) { this.master.gain.cancelScheduledValues(this.ctx.currentTime); this.master.gain.setValueAtTime(1, this.ctx.currentTime); }
     const back = this.held === 'pause' && ['play', 'held', 'ready', 'intro'].includes(state); this.held = false;
     if (!back) this.flush(); // the run is over: whatever was still playing in it (a jet, a cannon run, an echo) is dropped, not resumed in the menu
     this.ctx.resume();
   },
   flush() { // cut off every world sound in flight: a fresh output chain; the old one, and everything still feeding it, is let go
     if (!this.bus) return;
-    try { this.bus.disconnect(); this.lp.disconnect(); this.head.disconnect(); } catch (e) {}
+    try { this.bus.disconnect(); this.lp.disconnect(); this.head.disconnect(); this.master.disconnect(); } catch (e) {}
     if (this.sl) { try { this.sl.src.stop(); } catch (e) {} this.sl = null; }
-    this.verb = null; this.mus = null; this.flys = []; this.dzF = 0; this.chain();
+    this.verb = null; this.mus = null; this.flys = []; this.dzF = 0; this.ringUntil = 0; this.chain();
   },
   setMuffle(on) {
     this.muffled = !!on; this.dzF = 0; if (!this.lp) return;
@@ -304,6 +309,14 @@ const Sfx = {
     if (lit) for (let k = 0; k < 3; k++) this.burst(o, t + .04 + k * .06, .025, 7000, 2, .035, 'highpass');
   },
   dash() { if (!this.ok()) return; const t = this.ctx.currentTime, o = this.out(snake && snake.x, .7); const f = this.burst(o, t, .35, 500, .8, .35); f.frequency.setValueAtTime(300, t); f.frequency.exponentialRampToValueAtTime(2600, t + .3); this.tone(o, t, 90, 160, .2, 'sine', .25); },
+  vacuum(dur = 2, lv = 1, x) { // a deep inhale: air roaring in, rising in pitch, with a low suck under it
+    if (!this.ok()) return; const c = this.ctx, t = c.currentTime, o = this.out(x ?? (snake && snake.x), .8), d = dur + .25;
+    const src = c.createBufferSource(), bp = c.createBiquadFilter(), g = c.createGain(); src.buffer = this.noise; src.loop = true; bp.type = 'bandpass'; bp.Q.value = 1.1;
+    bp.frequency.setValueAtTime(300, t); bp.frequency.exponentialRampToValueAtTime(1500 + 500 * lv, t + d * .8);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.45, t + .18); g.gain.setValueAtTime(.45, t + d - .3); g.gain.exponentialRampToValueAtTime(.001, t + d);
+    src.connect(bp); bp.connect(g); g.connect(o); src.start(t, Math.random() * .4); src.stop(t + d + .05);
+    this.tone(o, t, 70, 120, d, 'sine', .18); this.tone(o, t + d - .12, 260, 90, .14, 'sine', .25); // the low pull, and a gulp as it closes
+  },
   sniff() { if (!this.ok()) return; const t = this.ctx.currentTime, o = this.out(undefined, .6); for (let k = 0; k < 3; k++) this.burst(o, t + k * .12, .09, 2600, 1.5, .18, 'bandpass'); },
   camo() { if (!this.ok()) return; const t = this.ctx.currentTime, o = this.out(undefined, .6); const f = this.burst(o, t, .6, 2400, .7, .12); f.frequency.setValueAtTime(3000, t); f.frequency.exponentialRampToValueAtTime(300, t + .55); },
   hiss() { if (!this.ok()) return; const t = this.ctx.currentTime, o = this.out(snake && snake.x, 1); this.burst(o, t, .9, 5200, .6, .45, 'highpass'); this.burst(o, t, .7, 3200, 1.4, .25); this.tone(o, t, 70, 45, .6, 'sawtooth', .08); },
@@ -341,7 +354,7 @@ for (const k of ['ui', 'levelUp', 'buy', 'deny', 'whoosh', 'roll', 'knock', 'sta
   const f = Sfx[k]; if (typeof f !== 'function') continue;
   Sfx[k] = function (...a) {
     if (!this.held || !this.uctx) return f.apply(this, a);
-    const keep = [this.ctx, this.bus, this.lp, this.head, this.verb]; this.ctx = this.uctx; this.bus = this.lp = this.head = this.verb = null;
-    try { return f.apply(this, a); } finally { [this.ctx, this.bus, this.lp, this.head, this.verb] = keep; }
+    const keep = [this.ctx, this.bus, this.lp, this.head, this.verb, this.master]; this.ctx = this.uctx; this.bus = this.lp = this.head = this.verb = this.master = null;
+    try { return f.apply(this, a); } finally { [this.ctx, this.bus, this.lp, this.head, this.verb, this.master] = keep; }
   };
 }
