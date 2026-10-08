@@ -316,7 +316,7 @@ function ramSpot(o, x, y) { // a custom prop can say WHERE it breaks (its intera
   return polyHit(ip, x, y, snakeHitRadius() + 2);
 }
 let crashHit = null; // what you ran into: it flashes as the run ends
-const deathDelay = () => IS_TOUCH ? .3 : .7; // a beat to feel the impact (the hit flashes, the screen shakes), then the crash screen. Phones get it fast.
+const deathDelay = () => (IS_TOUCH ? .3 : .7) + (run.deathBy === 'bomb' ? 1.5 : 0); // a beat to feel the impact (the hit flashes, the screen shakes), then the crash screen. Phones get it fast. Blown up: time to watch yourself go off
 function die() {
   if (NETM.run) return netLocalDown(); // co-op: you go down, the team carries on (see 40d-net-sync)
   snake.alive = false; state = 'dead'; deadT = deathDelay(); deadAt = performance.now(); shake = 10;

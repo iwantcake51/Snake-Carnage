@@ -4,10 +4,10 @@
    short pieces only cover the body itself. The pieces share their cut lines exactly, so together they make the same tube. ---- */
 const TUBE_HEAD = [1.14, 1.02, .93, .96]; // a slightly broad head over a narrower neck
 const TUBE_PIECE = 16; // segments per piece
-function tubeBase(pts, n) { // per segment, once a frame: the normal and the radius (every flank below is this plus or minus a little)
-  const N = new Float64Array(2 * n), rad = new Float64Array(n);
-  for (let i = 0; i < n; i++) { const a = pts[i].a; N[2 * i] = -Math.sin(a); N[2 * i + 1] = Math.cos(a); rad[i] = segR(i, n) * (n > 6 ? TUBE_HEAD[i] || 1 : 1); }
-  return { pts, n, N, rad, tr: segR(n - 1, n), hr: segR(0, n) * (n > 6 ? TUBE_HEAD[0] : 1) };
+function tubeBase(pts, n, cut) { // per segment, once a frame: the normal and the radius (every flank below is this plus or minus a little). cut: what's left of a body going up in a chain of explosions (no head)
+  const N = new Float64Array(2 * n), rad = new Float64Array(n), hd = n > 6 && !cut;
+  for (let i = 0; i < n; i++) { const a = pts[i].a; N[2 * i] = -Math.sin(a); N[2 * i + 1] = Math.cos(a); rad[i] = segR(i, n) * (hd ? TUBE_HEAD[i] || 1 : 1); }
+  return { pts, n, N, rad, tr: segR(n - 1, n), hr: segR(0, n) * (hd ? TUBE_HEAD[0] : 1) };
 }
 function tubeEdges(B, grow) { // the flanks at this outset (inset if negative): control points L, R, and the cut points BL, BR between segments (cut 0 = the nose, cut n = the tail tip)
   const { pts, n, N, rad } = B, L = new Float64Array(2 * n), R = new Float64Array(2 * n), BL = new Float64Array(2 * n + 2), BR = new Float64Array(2 * n + 2);
@@ -57,7 +57,7 @@ function drawSnakeBody(x, s, cfg) {
   const me = s === snake, lv = me ? upg('dash') : 0, lk = me ? lungeK(s) : 0, cam = me ? camoField(s, n) : null;
   if (lk > .01 && !SETTINGS.simpleFx) drawLungeFx(x, s, pts, n, lk, lv);
   if (cam && !SETTINGS.simpleFx) refractBody(x, s, pts, n, cam);
-  const camAvg = cam ? cam.avg : 0, TB = tubeBase(pts, n), E0 = tubeEdges(TB, 0), pieces = [];
+  const camAvg = cam ? cam.avg : 0, TB = tubeBase(pts, n, s.cut), E0 = tubeEdges(TB, 0), pieces = [];
   for (let a = 0; a < n; a += TUBE_PIECE) pieces.push([a, Math.min(n, a + TUBE_PIECE)]);
   const inPieces = (margin, fn, clipIf) => { // fn(a, b) once per piece, tail first, clipped to that piece of the body (unless clipIf(a, b) says it needn't be). margin > 0 lets each piece's clip overlap its neighbours (for opaque marks that may cross a cut); 0 = the exact piece (for see-through ones, so nothing is painted twice)
     for (let p = pieces.length - 1; p >= 0; p--) { const [a, b] = pieces[p]; if (clipIf && !clipIf(a, b)) { fn(a, b); continue; } x.save(); x.beginPath(); tubeRun(x, E0, Math.max(0, a - margin), Math.min(n, b + margin)); x.clip(); fn(a, b); x.restore(); }
@@ -111,11 +111,13 @@ function drawSnakeBody(x, s, cfg) {
         for (let i = Math.max(1, a - 1); i < Math.min(n - 2, b + 1); i++) { const g = pts[i], r = segR(i, n), c = Math.cos(g.a), sn = Math.sin(g.a); for (const off of [-.5, 0, .5]) { const px = g.x - sn * r * off * 1.3, py = g.y + c * r * off * 1.3; x.beginPath(); x.arc(px, py, r * .34, g.a + 2.2, g.a + 4.1); x.stroke(); } } }
     });
   }
-  x.save(); x.translate(s.x, s.y); x.rotate(s.angle); if (s.scale && s.scale !== 1) x.scale(s.scale, s.scale); // eyes and hat grow with the head
-  if (cam) x.globalAlpha = 1 - .55 * cam.a[0];
-  drawEyes(x, cfg, segColor(0, n, cfg));
-  drawHat(x, cfg.hat);
-  x.restore();
+  if (!s.cut) {
+    x.save(); x.translate(s.x, s.y); x.rotate(s.angle); if (s.scale && s.scale !== 1) x.scale(s.scale, s.scale); // eyes and hat grow with the head
+    if (cam) x.globalAlpha = 1 - .55 * cam.a[0];
+    drawEyes(x, cfg, segColor(0, n, cfg));
+    drawHat(x, cfg.hat);
+    x.restore();
+  }
   if (cam) camoSheen(x, pts, n, cam);
 }
 /* ---- LUNGE: blurred motion ghosts and a wake that bends the air behind. Strongest at peak speed ---- */

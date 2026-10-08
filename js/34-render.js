@@ -38,7 +38,7 @@ function render() {
   for (const c of creatures) if (c.alive) drawCreature(x, c);
   drawFlashBodies(x); drawHitGhosts(x);
   drawGiblets(x); // chunks on the ground sit under the snake
-  drawTrail(x); drawGround(x); drawHoovFx(x); if (NETM.run) netDrawSnakes(x); if (!(snake && snake.netHidden)) drawSnake(x); drawRamCharge(x); drawStreaks(x); drawSnowFx(x);
+  drawTrail(x); drawGround(x); drawHoovFx(x); if (NETM.run) netDrawSnakes(x); if (!(snake && snake.netHidden)) drawSnake(x); drawCorpses(x); drawHats(x); drawRamCharge(x); drawStreaks(x); drawSnowFx(x);
   if ((render.olk ?? 1) > .995 || SETTINGS.mapOutlines === 'Off') x.drawImage(obsC, 0, 0, W, H); else { x.drawImage(plainC, 0, 0, W, H); if (render.olk > .01) { x.globalAlpha = render.olk; x.drawImage(outlineC, 0, 0, W, H); x.globalAlpha = 1; } } drawTrees(x); // outlines only cost extra while they're fading
   drawWaters(x); drawCustomFx(x, 'top');
   for (const b of bucketList) { if (!b.wd) continue; x.globalAlpha = bucketAlpha(b); x.drawImage(b.w, 0, 0, W, H); }
@@ -50,7 +50,7 @@ function render() {
   drawSparks(x);
   drawVisionMask(x);
   const px = Math.max(1, SETTINGS.pixel | 0);
-  if (px > 1 || render.dazed) { drawGoldenFX(x); x.globalAlpha = render.olk ?? 1; drawTargetOutlines(x); drawSnakeNightRim(x); x.globalAlpha = 1; } // pixelated look: outlines go through the same pixelation
+  if (px > 1 || render.dazed) { drawAirstrikes(x); drawGoldenFX(x); x.globalAlpha = render.olk ?? 1; drawTargetOutlines(x); drawSnakeNightRim(x); x.globalAlpha = 1; } // pixelated look: outlines go through the same pixelation
   x.setTransform(DPR, 0, 0, DPR, 0, 0);
 
   // pixelation
@@ -75,10 +75,11 @@ function render() {
     ctx.globalCompositeOperation = 'source-over'; ctx.fillStyle = 'rgba(0,12,4,.16)'; ctx.fillRect(0, 0, W, H);
   }
   ctx.save(); applyView(ctx); // crisp overlays above blood and lighting
-  if (px <= 1 && !render.dazed) { drawGoldenFX(ctx); ctx.globalAlpha = render.olk ?? 1; drawTargetOutlines(ctx); drawSnakeNightRim(ctx); ctx.globalAlpha = 1; }
+  if (px <= 1 && !render.dazed) { drawAirstrikes(ctx); drawGoldenFX(ctx); ctx.globalAlpha = render.olk ?? 1; drawTargetOutlines(ctx); drawSnakeNightRim(ctx); ctx.globalAlpha = 1; }
   if (nightVision) drawNVHighlights(ctx);
   drawWinStars(ctx); drawScent(ctx); drawHissWave(ctx); drawCrashFlash(ctx);
   ctx.restore();
+  drawAirFlash(ctx);
   if (NETM.run && !cam) netDrawTags(ctx); // co-op: teammates' names and where they are off screen
   if (!cam) drawBubbles(ctx); // screen space (positions go through the camera), so text stays readable at any zoom
   if (nightVision) drawNightVision(ctx);

@@ -327,6 +327,8 @@ function netApply(e, local) {
     case 'abil': { if (e.pid === NETM.me) break; const rs = NS.rs.get(e.pid); if (e.id === 'hiss') { Sfx.hiss(e.x); if (snake && dist2(snake.x, snake.y, e.x, e.y) < 300 * 300) shake = Math.max(shake, 3); if (rs) rs.hissT = .8; } break; }
     case 'hissN': crHiss(e.n || 0); break;
     case 'scr': crScream(e.n || 0); break;
+    case 'air': airStrike(e.x, e.y, e.w, e.r, e.j); break; // the host called in a bomb
+    case 'airw': airWarn(); break;
     case 'evt': evt = e.v ? { ...e.v } : null; if (evt) { evt.shown = false; Sfx.chime(); showEvent(); } break;
     case 'tod': if (Math.abs(angDiff(tod / 24 * TAU, e.v / 24 * TAU)) > .01) tod = e.v; break;
     case 'lives': NS.pools[e.k || 'all'] = e.n; netHud && netHud(); break;
@@ -404,7 +406,7 @@ function netCreatureCosmetics(c, dt, moved) { // the parts of updateCreature tha
 function netLocalDown() {
   const s = snake; if (!s.alive) return;
   s.alive = false; shake = Math.max(shake, 20); Sfx.crash(s.x); NS.myDeaths = (NS.myDeaths || 0) + 1; endCombo(true); // a hard jolt as you go down
-  NS.deadAt = performance.now(); NS.respawnIn = (NS.cfg && NS.cfg.respawn) || 5; netDeathCam(true); snake.netHidden = true; NS.burst = true; snakeBurst(s, (SETTINGS.snake || {}).color); // you burst, right away // the tint and the zoom-out start now, not a round trip later
+  NS.deadAt = performance.now(); NS.respawnIn = (NS.cfg && NS.cfg.respawn) || 5; netDeathCam(true); snake.netHidden = true; NS.burst = true; snakeBurst(s, (SETTINGS.snake || {}).color, SETTINGS.snake); // you burst, right away // the tint and the zoom-out start now, not a round trip later
   if (NETM.host) netPlayerDown(NETM.me, s.x, s.y); else netSend({ t: 'crash', x: Math.round(s.x), y: Math.round(s.y) });
   checkChallenges(); updateHud();
 }
@@ -415,8 +417,8 @@ function netDeathCam(down) { // dying: the camera eases out to the whole map; ba
 function netDownApply(e) {
   if (!NS.down.has(e.pid)) NS.down.set(e.pid, { out: !!e.out }); // the host's own entry keeps its respawn timer
   const p = netPlayer(e.pid);
-  if (e.pid === NETM.me) { if (snake) { if (!NS.burst && snake.segs) snakeBurst(snake, (SETTINGS.snake || {}).color); NS.burst = true; snake.alive = false; snake.netHidden = true; } if (!NS.deadAt) NS.deadAt = performance.now(); NS.respawnIn = e.out ? 0 : (NS.cfg && NS.cfg.respawn) || 5; netDeathCam(true); netDownBanner && netDownBanner(e.out); }
-  else { const rs = NS.rs.get(e.pid); if (rs && rs.segs && rs.segs.length) snakeBurst(rs, (rs.cos && rs.cos.color) || (p && p.color)); else if (e.x !== undefined) snakeBurst({ segs: [{ x: e.x, y: e.y, a: 0 }] }, p && p.color); if (p && typeof netNotify === 'function') netNotify(`${p.name} died${e.out ? ' (out of lives)' : ''}`, p.color); }
+  if (e.pid === NETM.me) { if (snake) { if (!NS.burst && snake.segs) snakeBurst(snake, (SETTINGS.snake || {}).color, SETTINGS.snake); NS.burst = true; snake.alive = false; snake.netHidden = true; } if (!NS.deadAt) NS.deadAt = performance.now(); NS.respawnIn = e.out ? 0 : (NS.cfg && NS.cfg.respawn) || 5; netDeathCam(true); netDownBanner && netDownBanner(e.out); }
+  else { const rs = NS.rs.get(e.pid); if (rs && rs.segs && rs.segs.length) snakeBurst(rs, (rs.cos && rs.cos.color) || (p && p.color), rs.cos); else if (e.x !== undefined) snakeBurst({ segs: [{ x: e.x, y: e.y, a: 0 }] }, p && p.color); if (p && typeof netNotify === 'function') netNotify(`${p.name} died${e.out ? ' (out of lives)' : ''}`, p.color); }
   netHud && netHud();
 }
 function netUpApply(e) {

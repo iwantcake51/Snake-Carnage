@@ -9,6 +9,7 @@ function update(dt) {
   Sfx.musicUpdate(!!MAPS[mapIdx].music && ['play', 'ready', 'intro', 'held'].includes(state));
   if (state === 'menu' || state === 'paused' || state === 'held' || state === 'loading') return; // time stops: no AI, movement, blood or sounds
   if (state === 'dead') { // the world is frozen; only the camera settles and the death screen arrives
+    if (airBusy()) { T += dt; airTick(dt); updateBlood(dt); updateGiblets(dt); updateSplashes(dt); updateMist(dt); updateSmoke(dt); } // ...except an explosion still playing out (blown up: you go off like a fuse)
     shake *= Math.exp(-dt * 8); if (shake < .2) shake = 0;
     killV *= Math.exp(-dt * 1.4); killFlash *= Math.exp(-dt * 7);
     if (deadT > 0) { deadT -= dt; if (deadT <= 0 || performance.now() - deadAt > deathDelay() * 1000) { deadT = 0; showDead(); } } // real time, not frame time: a slow frame can't hold the crash screen back
@@ -22,6 +23,7 @@ function update(dt) {
   if (AUTH()) { updateSounds(); updateConvos(dt); } // the crowd's ears and chatter live on the deciding browser
   if (NETM.run) { if (NETM.host) netUpdateCreatures(dt); else netClientCreatures(dt); } // co-op: the host's AI reacts to every player; guests show what the host says
   else for (const c of creatures) if (c.alive) updateCreature(c, dt);
+  airTick(dt); // air strikes, and snakes going up (before the blood moves, so a blast's spray flies this frame)
   updateBlood(dt); updateGiblets(dt); updateSplashes(dt); updateMist(dt); updateSmoke(dt); updateFlies(dt); updateVomit(dt);
   if ((fadeT -= dt) <= 0) { fadeT = 2; fadeBlood(); }
   updateTrail(dt); updateHoovFx(dt);
