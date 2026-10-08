@@ -21,6 +21,7 @@
    Strafing runs: sometimes a jet comes in low instead and rakes a line across your path with its cannon. The lane is
    marked first (a red strip with chevrons showing which way it's coming), then the rounds walk down it in a spray of
    dirt, sparks and tracers, with the tearing BRRRT arriving a beat after the impacts. Anything in the lane dies.
+   Some of these runs drop bombs instead: a string of them across your path, landing one after another down the line.
    Bombs in a salvo never land together: each one comes down a moment after the last.
    The Air raid modifier starts all of this from the first seconds of the run.
    Heavy fog and tunnel vision hide the markers like anything else, but a blast lights the fog up from inside.
@@ -64,10 +65,21 @@ function airSchedule(dt) {
     netEmit({ t: 'air', x: Math.round(x), y: Math.round(y), w, r: AIR_R, j: ja });
   }
 }
-function strafeRun(s, k) { // the deciding browser: line a gun run up across where this snake is about to be
+function strafeRun(s, k) { // the deciding browser: line a gun run (or now and then a bombing run) up across where this snake is about to be
+  if (Math.random() < .4) return bombRun(s, k);
   const sp = (s.speed || CONFIG.snakeSpeeds.Normal) * (s.dashV || 1), warn = +(2.3 - .5 * k).toFixed(2), a = s.angle + (Math.random() < .5 ? 1 : -1) * rand(.35, 1.15); // raking across your path at a slant
   const lead = warn + STRAFE_LEN / 2 / STRAFE_V + rand(-.15, .05), x = clamp(s.x + Math.cos(s.angle) * sp * lead, 40, W - 40), y = clamp(s.y + Math.sin(s.angle) * sp * lead, 40, H - 40);
   airStrafe(x, y, +a.toFixed(3), warn); netEmit({ t: 'airs', x: Math.round(x), y: Math.round(y), a: +a.toFixed(3), w: warn });
+}
+function bombRun(s, k) { // a jet flying a line across your path, letting a string of bombs go: they land one after another, walking down the line
+  const sp = (s.speed || CONFIG.snakeSpeeds.Normal) * (s.dashV || 1), warn = 2.3 - .5 * k, a = s.angle + (Math.random() < .5 ? 1 : -1) * rand(.35, 1.15);
+  const n = Math.min(10, 6 + Math.round(3 * k + Math.random())), gap = 78, walk = 650, r = Math.round(AIR_R * .85); // bombs every 78 px, landing 0.12 s apart
+  const lead = warn + (n - 1) / 2 * gap / walk, px = s.x + Math.cos(s.angle) * sp * lead, py = s.y + Math.sin(s.angle) * sp * lead; // the middle of the string lands where you'll be
+  let jet = +a.toFixed(3);
+  for (let i = 0; i < n; i++) {
+    const o = (i - (n - 1) / 2) * gap, x = px + Math.cos(a) * o, y = py + Math.sin(a) * o; if (x < 24 || y < 24 || x > W - 24 || y > H - 24) continue;
+    const w = +(warn + i * gap / walk).toFixed(2); airStrike(Math.round(x), Math.round(y), w, r, jet); netEmit({ t: 'air', x: Math.round(x), y: Math.round(y), w, r, j: jet }); jet = undefined; // one jet, flying the line
+  }
 }
 function airWarn() {
   notify({ kind: 'bad', icon: '✈️', title: MOD.airRaid ? 'AIR RAID' : 'AIR STRIKE INBOUND', sub: 'The military is bombing and strafing your path. Stay out of the red rings and lanes.', dur: 4.2, key: 'air' });
@@ -193,6 +205,7 @@ function strafeHit(s, d) {
   tracers.push({ x, y, t: 0, life: .07, f: true }); // the round going off
   if (Math.random() < .35) tracers.push({ x, y, a: s.a, t: 0, life: .09 }); // a tracer streaking in from the jet
   for (let k = 0; k < (hard ? 6 : 3); k++) { const b = s.a + rand(-1.3, 1.3) + (hard && Math.random() < .5 ? Math.PI : 0), v = rand(150, 420); boomBits.push({ spark: true, x, y, z: rand(1, 4), vx: Math.cos(b) * v, vy: Math.sin(b) * v, vz: rand(20, 160), t: 0, life: rand(.12, .35) }); }
+  if (AUTH()) { let hit = false; for (const c of nearbyCreatures(x, y, 20, [])) if (c.alive && dist2(c.x, c.y, x, y) < (c.def.r + 5) ** 2) { hit = true; const ang = s.a + rand(-.4, .4), amt = c.def.blood; eatWorld(c, ang, amt, null); if (NETM.run) netKillEvent(c, 'air', ang, amt); } if (hit) creatures = creatures.filter(c => c.alive); } // a round landing on someone
   if (hard) return;
   const pal = groundPalette(x, y, 5), soil = soilCol(x, y);
   for (let k = 0; k < 5; k++) { const b = s.a + rand(-1, 1), v = rand(40, 200); boomBits.push({ x, y, z: 1, vx: Math.cos(b) * v, vy: Math.sin(b) * v, vz: rand(90, 260), t: 0, life: rand(.7, 1.4), s: rand(1.2, 2.6), c: pick(pal) }); } // dirt kicked up the way the rounds were going
