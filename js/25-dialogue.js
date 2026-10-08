@@ -208,6 +208,7 @@ function fillTalk(t) {
 }
 function topicFits(tp) { // can this topic be talked about here, now?
   const m = MAPS[mapIdx];
+  if (tp.earth && m.space) return false;
   if (tp.out && (m.indoor || m.space)) return false;
   if (tp.dark && !darkOut()) return false;
   if (tp.light && darkOut()) return false;
@@ -237,15 +238,17 @@ function pickFreshT(c, list, v) { // tagged lines: not said in this talk, prefer
 }
 function answerFor(B, tp, q, v) { // an answer to what was actually asked, in this person's voice, consistent with what they said before
   const key = tp.id + ':' + q.key; B.said = B.said || {}; B.overheard = B.overheard || {};
-  if (B.said[key]) return { text: pick(['Like I said, ', 'I told you, ']) + lc(B.said[key].text), tags: B.said[key].tags, repeat: true }; // they remember what they said, and stick to it
-  if (B.overheard[key] && Math.random() < .7) return { text: pick(['Someone said ', 'I heard ', 'Apparently ']) + lc(B.overheard[key].text), tags: B.overheard[key].tags, repeat: true }; // caught it from another conversation
+  const fact = tp.fact && tp.fact(), previous = B.said[key];
+  if (previous && !previous.tags.some(t => FACT_TAGS.has(t) && fact && t !== fact)) return { text: previous.text, tags: previous.tags, repeat: true };
+  // Someone else's "I have a charger" or "my dog is two" cannot answer a question about this speaker.
+  // Pick the listener's own answer; overheard first-person statements are never borrowed.
   for (const [tr, k] of PERSONA_K) if (hasTrait(B, tr) && PERSONA_ANS[tr][q.type] && Math.random() < k) { const l = pickFreshT(B, PERSONA_ANS[tr][q.type], v); return { text: l.text, tags: ['unsure'], persona: tr }; }
   let pool = tp.A[q.key] || tp.A[q.type] || [{ text: 'Huh.', tags: ['unsure'] }];
-  const f = tp.fact && tp.fact(); if (f) { const ok = pool.filter(a => !a.tags.some(t => FACT_TAGS.has(t) && t !== f)); if (ok.length) pool = ok; } // the world decides: everyone agrees the shop is shut
+  if (fact) { const ok = pool.filter(a => !a.tags.some(t => FACT_TAGS.has(t) && t !== fact)); if (ok.length) pool = ok; } // the world decides: everyone agrees the shop is shut
   const ans = pool.filter(a => !a.tags.includes('ask') || hasFollow(tp.N, q.key, a.tags)); if (ans.length) pool = ans; // a question back only if something answers it
   return pickFreshT(B, pool, v);
 }
-const PERSONA_RE = ['Okay then.', 'Forget I asked.', 'Wow. Okay.', 'Never mind.'];
+const PERSONA_RE = ['Okay.', 'Never mind.', "I'll ask someone else.", "Don't worry about it."];
 function topicLines(tp, P, out, v, first) { // one topic: opener, the answer to it, then follow-ups that fit, deeper only along the graph
   const ai = out.length ? out[out.length - 1][0] ^ 1 : v.ask0, bi = ai ^ 1, A = P[ai], B = P[bi]; // whoever didn't just speak starts a new topic
   const known = A.known || (A.known = {});
@@ -290,7 +293,7 @@ function buildTalk(a, b, surv) { // -> [[speaker 0|1, text, topic id?, meta], ..
     if (pt && pt.tp.B.length && Math.random() < .35) { // back to what they were talking about before it all happened
       const backs = pt.tp.B.filter(l => !l.req || pt.facts.has(l.req)); a.pendingTopic = b.pendingTopic = null;
       if (backs.length) {
-        out.push([0, pick(backs).text, pt.tp.id], [1, pick(BACK_RE)]); if (Math.random() < .5) out.push([0, pick(['Yeah. Fair.', 'Sorry. Coping.', 'Just saying.', '...right.'])]);
+        out.push([0, pick(backs).text, pt.tp.id], [1, pick(pt.tp.backRe || BACK_RE)]);
         return { out, v };
       }
     }
@@ -310,7 +313,7 @@ function buildTalk(a, b, surv) { // -> [[speaker 0|1, text, topic id?, meta], ..
 }
 let convos = [], convoT = 3, mutterT = 4, resumeT = 1, resumeCD = 0;
 function speakIn(v, who, text, ctx, topicId) {
-  const [t0, tag] = expand(text).split('#');
+  const [t0, tag] = expand(fillNames(text, who)).split('#');
   if (tag && THREADS[tag]) who.mem = { tag, t: T };
   heard.set(text, T);
   const r = finishLine(t0, who, ctx), nb = bub(who, { ...r, urg: 0, convo: v, li: v.i });
