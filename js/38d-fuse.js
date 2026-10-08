@@ -52,6 +52,18 @@ function drawFuseBomb(x) { // the bomb strapped to your neck: a dark charge, a s
   x.fillStyle = `rgba(255,${200 + 55 * Math.random() | 0},120,.95)`; x.beginPath(); x.arc(-R * .2, -R * 1.35, 1.2 + Math.random() * 1.4, 0, TAU); x.fill(); // the burning tip
   x.restore();
 }
+function drawFuseVignette(x) { // the danger on screen: the edges close in and darken as the fuse burns down, throb red with every tick, and go solid red in the last half second
+  if (!fuseOn() || !combo.fuse) { FUSE.vig = Math.max(0, (FUSE.vig || 0) - .05); if (!FUSE.vig) return; } else FUSE.vig = Math.min(1, (FUSE.vig || 0) + .08);
+  const u = fuseOn() && combo.fuse ? FUSE.u : 0, flat = fuseOn() && combo.fuse && combo.fuse.flat, k = FUSE.vig * Math.max(.15, u), b = FUSE.blink;
+  if (k < .01) return;
+  const W2 = x.canvas.width, H2 = x.canvas.height, R1 = Math.hypot(W2, H2) * .56, R0 = Math.min(W2, H2) * (.62 - .34 * u);
+  x.save(); x.setTransform(1, 0, 0, 1, 0, 0);
+  const g = x.createRadialGradient(W2 / 2, H2 / 2, R0, W2 / 2, H2 / 2, R1); // the dark closing in
+  g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(.6, `rgba(10,0,0,${(.45 * k).toFixed(3)})`); g.addColorStop(1, `rgba(0,0,0,${(.85 * k).toFixed(3)})`); x.fillStyle = g; x.fillRect(0, 0, W2, H2);
+  const red = (flat ? .55 + .2 * Math.sin(T * 40) : .45 * b) * k * (SETTINGS.reduceFlash ? .5 : 1); // the red throb on each tick
+  if (red > .01) { const r = x.createRadialGradient(W2 / 2, H2 / 2, R0 * .9, W2 / 2, H2 / 2, R1); r.addColorStop(0, 'rgba(200,10,20,0)'); r.addColorStop(1, `rgba(210,14,24,${red.toFixed(3)})`); x.fillStyle = r; x.fillRect(0, 0, W2, H2); }
+  x.restore();
+}
 /* ---- hooks ---- */
 const _fuseUpdCombo = updateCombo;
 updateCombo = function (dt) { if (fuseOn()) fuseTick(dt); return _fuseUpdCombo(dt); };
@@ -90,3 +102,5 @@ Object.assign(Sfx, {
     if (!(v > 0)) { const old = this.fz; this.fz = null; setTimeout(() => { try { old.src.stop(); old.lfo.stop(); } catch (e) {} }, 400); }
   },
 });
+const _fuseAirFlash = drawAirFlash;
+drawAirFlash = function (x) { drawFuseVignette(x); _fuseAirFlash(x); }; // under the blast flash, over everything else

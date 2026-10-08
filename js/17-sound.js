@@ -21,7 +21,9 @@ const Sfx = {
   chain() { // the world's output: bus -> lowpass -> speakers, plus head (inside your head: the ear ringing skips the muffle)
     const c = this.ctx;
     this.bus = c.createGain(); this.lp = c.createBiquadFilter(); this.lp.type = 'lowpass'; this.lp.frequency.value = 20000; this.lp.Q.value = .5;
-    this.master = c.createGain(); this.master.connect(c.destination); // (fades the whole world out on death)
+    this.master = c.createGain(); // (fades the whole world out on death)
+    if (!this.comp) { const cp = this.comp = c.createDynamicsCompressor(); cp.threshold.value = -16; cp.knee.value = 14; cp.ratio.value = 3.5; cp.attack.value = .004; cp.release.value = .22; const mk = c.createGain(); mk.gain.value = 1.25; cp.connect(mk); mk.connect(c.destination); } // a master compressor: glues the mix, keeps big blasts from clipping, lifts the quiet stuff a little
+    this.master.connect(this.comp);
     this.bus.connect(this.lp); this.lp.connect(this.master); this.head = c.createGain(); this.head.connect(this.master);
     this.setMuffle(this.muffled);
   },
