@@ -6,13 +6,13 @@
    - Write like people talk: short, flat, half-finished, boring. Not every line needs to be a punchline.
    ========================================================= */
 const LINES = {
-  jetNear: ["There's a jet right overhead!", "That jet's loud!", "Do you hear that jet?", "That jet's coming over us!"],
-  jetFar: ["Is that a jet?", "There's a plane going over.", "That sounds like a jet out there.", "What's a jet doing out here?"],
-  blastClose: ["THAT WAS RIGHT NEXT TO ME!", "That nearly got me!", "Too close! Keep moving!", "I felt that one!", "Get back!"],
-  blastNear: ["They're bombing this place!", "That hit just over there!", "Stay away from where that landed!", "Another explosion! Move!"],
-  blastFar: ["That sounded a ways off.", "Something blew up in the distance.", "Did you hear that boom?", "I hope that stays over there."],
-  strafeClose: ["THOSE ROUNDS ALMOST HIT ME!", "Get out of its path!", "They're shooting at us!", "That went right past me!"],
-  strafeFar: ["Is that gunfire?", "That jet's firing over there!", "Hear that? They're shooting.", "Stay away from that gunfire."],
+  jetNear: ["Jesus, that's loud.","Is that a jet?","What the hell was that?","That sounded right over us.","You hear that plane?","That's a jet, isn't it?","Why's it so loud?","What is going on?"],
+  jetFar: ["You hear that? A plane?","Sounds like a jet.","Is that a plane out there?","What's that rumbling?","I think that's a jet.","You hear that engine?"],
+  blastClose: ["OH SHIT!","That was right here!","Fuck, that was close.","That almost hit me!","I felt that in my chest.","Jesus Christ!","Get back! Get back!","I'm okay. I'm okay."],
+  blastNear: ["What the fuck just blew up?","That wasn't far from here.","We need to get out of here.","Shit, that was close.","Did something just explode?","Where did that hit?","Don't go that way!","What the hell's happening?"],
+  blastFar: ["Did you hear that?","Was that an explosion?","Something blew up out there.","That sounded pretty far away.","What was that bang?","I hope nobody was over there.","You heard that too, right?","I don't like that."],
+  strafeClose: ["OH FUCK!","GET DOWN!","Something's shooting!","That almost hit me!","Move! Move!","Shit, get out of here!","What the fuck?!","Don't stop!"],
+  strafeFar: ["Is that gunfire?","What was that rattling?","That sounded like shooting.","You hear those shots?","Where's that coming from?","We should get out of here.","Was that the plane?","What the hell is going on?"],
   firstSight: {
     0: ["Huh. What is that?", "Is that... a snake?", "Uh. Guys?", "Okay, what is that thing.", "Is that real?", "Wait. Wait, is that moving?", "That's a big {log|hose|thing}. Is that a— no.", "Is somebody seeing this or just me?", "Hey, uh... look.", "That's not normal, right?", "Is that someone's pet?", "Okay that's {huge|way too big}."],
     1: ["Oh no. No no.", "Okay, that's a snake.", "Is that thing {real|alive}?", "Holy shit, look at it.", "That is NOT a normal snake.", "Don't— don't move.#stayStill", "Back up. Slowly.#stayStill", "Oh hell no.", "Nope.", "Somebody call {animal control|somebody}.#animalControl"],
