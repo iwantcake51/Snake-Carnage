@@ -60,7 +60,24 @@ function airCrowdReact(kind, x, y, r = AIR_R, seen) {
     if (seen) seen.add(c);
     const close = d < (kind === 'jet' ? 180 : kind === 'strafe' ? 110 : r + 85);
     const near = d < r + 250;
-    const ctx = kind === 'jet' ? (close ? 'jetNear' : 'jetFar') : kind === 'strafe' ? (close ? 'strafeClose' : 'strafeFar') : close ? 'blastClose' : near ? 'blastNear' : 'blastFar';
+    let ctx = kind === 'jet' ? (close ? 'jetNear' : 'jetFar') : kind === 'strafe' ? (close ? 'strafeClose' : 'strafeFar') : close ? 'blastClose' : near ? 'blastNear' : 'blastFar';
+    // Build an inference from separate attacks, not every round in one strafing pass.
+    if (c.def.human && visible) {
+      if (kind === 'jet') c.airJetAt = T;
+      else if (T - (c.airJetAt ?? -99) < 25 && T - (c.airEvidenceAt ?? -99) > 1.5) {
+        c.airEvidenceAt = T;
+        if (close || near) c.airRiskSeen = (c.airRiskSeen || 0) + 1;
+        const target = netSnakes().find(s => s.alive && !s.hidden && !s.netHidden &&
+          dist2(s.x, s.y, x, y) < 220 * 220 &&
+          dist2(c.x, c.y, s.x, s.y) < Math.min(c.def.sight || 300, 320) ** 2 &&
+          lightAt(s.x, s.y) > VISIBLE && los(c.x, c.y, s.x, s.y));
+        if (target) c.airTargetSeen = (c.airTargetSeen || 0) + 1;
+      }
+      if (kind !== 'jet' && T - (c.airJetAt ?? -99) < 25 && Math.random() < .4) {
+        if ((c.airTargetSeen || 0) >= 2 && Math.random() < .6) ctx = 'airTargetSnake';
+        else if ((c.airRiskSeen || 0) >= 2) ctx = 'airCivilianRisk';
+      }
+    }
     const urgency = URG[ctx], danger = kind !== 'jet' && (close || near);
     if (danger) {
       const source = MOD.blind ? guessAt(c, x, y, reach) : { x, y }, was = c.state === 'panic';

@@ -6,6 +6,8 @@
    - Write like people talk: short, flat, half-finished, boring. Not every line needs to be a punchline.
    ========================================================= */
 const LINES = {
+  airTargetSnake: ["Wait, they're trying to hit the snake.","They're going after that thing!","Those bombs keep landing near the snake.","It's the snake. That's what they're shooting at.","The planes are after that thing. Get away from it!","They're trying to kill it, and we're right here!","They keep firing where that thing goes.","Get away from the snake! They're aiming at it!"],
+  airCivilianRisk: ["They can see we're here, can't they?","We're still down here!","They're bombing us too!","Do they even care that we're here?","They're not stopping. We need to go.","They're going to kill us down here.","We're in the way. They don't give a shit.","There's people down here! Stop shooting!"],
   jetNear: ["Jesus, that's loud.","Is that a jet?","What the hell was that?","That sounded right over us.","You hear that plane?","That's a jet, isn't it?","Why's it so loud?","What is going on?"],
   jetFar: ["You hear that? A plane?","Sounds like a jet.","Is that a plane out there?","What's that rumbling?","I think that's a jet.","You hear that engine?"],
   blastClose: ["OH SHIT!","That was right here!","Fuck, that was close.","That almost hit me!","I felt that in my chest.","Jesus Christ!","Get back! Get back!","I'm okay. I'm okay."],

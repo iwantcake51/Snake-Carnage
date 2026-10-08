@@ -135,7 +135,7 @@ function disfluent(t, tier, c, yell) {
 function slur(t) { // ears ringing after a Hiss: words stretch, drop letters, trail off
   return t.split(' ').map(w => { const r = Math.random(); if (w.length > 3 && r < .3) return w.replace(/[aeiou]/i, m => m + m + m); if (w.length > 4 && r < .5) return w.slice(0, -2) + '-'; return w; }).join(' ').replace(/[.!?]*$/, '') + pick(['...', '..?', '—']);
 }
-const HOT_CTX = new Set(['witnessHuman', 'multiDeath', 'chased', 'bloodOnMe', 'touched', 'heardKill', 'blastClose', 'blastNear', 'strafeClose']);
+const HOT_CTX = new Set(['witnessHuman', 'multiDeath', 'chased', 'bloodOnMe', 'touched', 'heardKill', 'blastClose', 'blastNear', 'strafeClose', 'airTargetSnake', 'airCivilianRisk']);
 function finishLine(t, c, ctx) {
   let yell = isYell(t); const tier = tierOf(c);
   if (!yell && tier >= 2 && (HOT_CTX.has(ctx) || ctx === 'panic') && c.voice.heat > .6 && Math.random() < .3 + .2 * (tier - 2)) { t = t.toUpperCase(); yell = true; }
@@ -148,7 +148,7 @@ function finishLine(t, c, ctx) {
   return { text: t, yell };
 }
 /* ---- bubbles are typed out, so a thought can be cut off partway ---- */
-const URG = { jetNear: 2, jetFar: 1, blastClose: 4, blastNear: 3, blastFar: 1, strafeClose: 4, strafeFar: 2, heard: 2, heardKill: 3, touched: 4, idle: 0, mutter: 0, relief: 1, escaped: 1, crash: 1, bloodNearby: 1, jokeReact: 1, convoBreak: 1, stunned: 2, hissed: 2, deaf: 2, firstSight: 2, bloodySnake: 2, crowd: 2, warned: 2, answer: 2, follow: 3, panic: 3, witnessAnimal: 2, witnessHuman: 3, multiDeath: 3, wallSmash: 3, bloodOnMe: 3, spit: 3, chased: 4 };
+const URG = { airTargetSnake: 4, airCivilianRisk: 4, jetNear: 2, jetFar: 1, blastClose: 4, blastNear: 3, blastFar: 1, strafeClose: 4, strafeFar: 2, heard: 2, heardKill: 3, touched: 4, idle: 0, mutter: 0, relief: 1, escaped: 1, crash: 1, bloodNearby: 1, jokeReact: 1, convoBreak: 1, stunned: 2, hissed: 2, deaf: 2, firstSight: 2, bloodySnake: 2, crowd: 2, warned: 2, answer: 2, follow: 3, panic: 3, witnessAnimal: 2, witnessHuman: 3, multiDeath: 3, wallSmash: 3, bloodOnMe: 3, spit: 3, chased: 4 };
 const CUT = [[.6, .95], [.6, .95], [.3, .8], [.1, .6], [0, .5]]; // how far into a sentence each urgency lets you get
 function bub(c, o) {
   const b = c.bubbles || (c.bubbles = []), len = o.text.length;
