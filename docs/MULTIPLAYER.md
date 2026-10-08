@@ -32,7 +32,7 @@ The host picks one in the lobby.
   - The host can kick players from Game setup. Name tags and off-screen arrows can be switched off there.
   - Starting closes the screen to black for everyone, like a pair of shutters meeting on a red seam with the mode, and opens it on the new world once it has loaded.
 - **Lives:**
-  - A death costs one life from your pool (see Modes). You're back after the respawn time (5 seconds by default; the host can pick 3, 5, 8, 10 or 15), with 1.5 seconds of grace.
+  - A death costs one life from your pool (see Modes). You're back after the respawn time (5 seconds by default; the host can pick 3, 5, 8, 10 or 15), with 1.5 seconds of grace from your own tail and air strikes (walls and the map's edge still stop you).
   - Dying: your snake bursts into blood, chunks and coils of gut on every player's screen, scaled by each player's own blood settings. The spray stains whoever and whatever it hits: people, walls, the floor and other players' snakes.
   - Your screen jolts, your view drains to grey under a red wash within half a second, and the camera slowly pulls out to the whole map while a **You died** banner counts down. As you come back, the color and your own zoom fade back in.
   - With no lives left you watch someone else, a teammate first. The run ends when everyone is out, when the time runs out, or when the host ends it from the pause menu.
