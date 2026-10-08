@@ -431,7 +431,7 @@ function netDownApply(e) {
 function netUpApply(e) {
   NS.down.delete(e.pid);
   if (e.pid === NETM.me) { // back in: fresh body, a moment of grace
-    const keep = snake ? snake.started : true; snake = newSnake({ x: e.x, y: e.y, a: e.a }); snake.started = keep; snake.graceT = MOD.noSafety ? 0 : 1.5; NS.deadAt = 0; netDeathCam(false); netDownBanner && netDownBanner(null);
+    const keep = snake ? snake.started : true; snake = newSnake({ x: e.x, y: e.y, a: e.a }); snake.started = keep; snake.graceT = 1.5; NS.deadAt = 0; netDeathCam(false); netDownBanner && netDownBanner(null);
     Sfx.whoosh && Sfx.whoosh(); resetAbilities(); NS.burst = false;
   } else { const rs = NS.rs.get(e.pid); if (rs) rs.stains = rs.stains.map(() => []); } // a fresh body: the old blood stays where it fell
   netHud && netHud();

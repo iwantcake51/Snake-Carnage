@@ -301,7 +301,7 @@ function airHitSnake(i, by) {
   const me = snake, n = me.segs.length, front = Math.max(3, Math.ceil(n * AIR_FRONT));
   if (i < front) { airHurt(1); me.burstAt = i; return bombDeath(by); } // it goes up from where it was hit
   if (me.cutT > 0) return; // the same rounds walking on over the stump don't take another piece a frame later
-  airHurt(.8); if (MOD.fragileTail) i = Math.max(front, i - Math.max(3, n - i)); /* Fragile tail: twice as much comes off */ tailCut(me, i);
+  airHurt(.8); tailCut(me, i);
 }
 function tailCut(s, i) { // everything from piece i back is blown off and bursts into chunks you can eat back; the stump is left blunt, torn and bleeding
   const lost = s.segs.length - i, cfg = SETTINGS.snake;
