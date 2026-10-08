@@ -155,7 +155,7 @@ let lightSkip = 0, lightUsedAdd = false;
 function drawLighting(x) {
   const L = light, nv = nightVision, Q = lq();
   if (SETTINGS.lightQ === 'Off' || lowFx > 1) { // no light layer: a flat tint for dusk and night, lamp bulbs still glow
-    const dk = L.dark * (nv ? .15 : 1) * .6; if (dk > .01) { x.fillStyle = `rgba(${L.dc},${dk.toFixed(3)})`; x.fillRect(-20, -20, W + 40, H + 40); }
+    const dk = L.dark * (nv ? .15 : 1) * .6 * (1 - Math.min(.85, AIR.sky * .8)); if (dk > .01) { x.fillStyle = `rgba(${L.dc},${dk.toFixed(3)})`; x.fillRect(-20, -20, W + 40, H + 40); }
     if (!nv && L.tA > .005) { x.fillStyle = `rgba(${L.tBot},${(L.tA * .6).toFixed(3)})`; x.fillRect(-20, -20, W + 40, H + 40); }
     return;
   }
@@ -217,6 +217,7 @@ function drawLighting(x) {
       }
       lgx.globalAlpha = k; if (l.enc) encClip(lgx, l); lgx.drawImage(src, 0, 0, bs, bs, l.x - l.r, l.y - l.r, s, s); if (l.enc) lgx.restore();
     }
+    airLightHoles(lgx, dark); // explosions light up the night (38c-airstrikes)
     const desat = Q.desat && !nv && dark > .05;
     if (desat) { dsx.globalCompositeOperation = 'copy'; dsx.globalAlpha = 1; dsx.drawImage(lightC, 0, 0, desC.width, desC.height); } // snapshot (half res: it's a soft mask) before colored veils go in
     if (!nv && Q.veil) { // colored veil inside each light pool: sodium orange, fluorescent white, pool cyan, emergency red

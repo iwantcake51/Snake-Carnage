@@ -9,6 +9,8 @@ function update(dt) {
   Sfx.musicUpdate(!!MAPS[mapIdx].music && ['play', 'ready', 'intro', 'held'].includes(state));
   if (state === 'menu' || state === 'paused' || state === 'held' || state === 'loading') return; // time stops: no AI, movement, blood or sounds
   if (state === 'dead') { // the world is frozen; only the camera settles and the death screen arrives
+    airEars(dt); // a blast's muffle still clears while you're dead
+    if (airBusy()) { T += dt; airTick(dt); updateBlood(dt); updateGiblets(dt); updateSplashes(dt); updateMist(dt); updateSmoke(dt); } // ...except an explosion still playing out (blown up: you go off like a fuse)
     shake *= Math.exp(-dt * 8); if (shake < .2) shake = 0;
     killV *= Math.exp(-dt * 1.4); killFlash *= Math.exp(-dt * 7);
     if (deadT > 0) { deadT -= dt; if (deadT <= 0 || performance.now() - deadAt > deathDelay() * 1000) { deadT = 0; showDead(); } } // real time, not frame time: a slow frame can't hold the crash screen back
@@ -22,10 +24,12 @@ function update(dt) {
   if (AUTH()) { updateSounds(); updateConvos(dt); } // the crowd's ears and chatter live on the deciding browser
   if (NETM.run) { if (NETM.host) netUpdateCreatures(dt); else netClientCreatures(dt); } // co-op: the host's AI reacts to every player; guests show what the host says
   else for (const c of creatures) if (c.alive) updateCreature(c, dt);
+  updateChunks(dt); // broken pieces of things (38b-destruction)
+  airTick(dt); // air strikes, and snakes going up (before the blood moves, so a blast's spray flies this frame)
   updateBlood(dt); updateGiblets(dt); updateSplashes(dt); updateMist(dt); updateSmoke(dt); updateFlies(dt); updateVomit(dt);
   if ((fadeT -= dt) <= 0) { fadeT = 2; fadeBlood(); }
   updateTrail(dt); updateHoovFx(dt);
-  if (snake) { const dk = snake.ramT > 0 ? Math.pow(snake.ramT / (snake.ramMax || 1), .6) * (snake.stunFx || 1) : 0; Sfx.daze(dk, snake.wallStun > 0); }
+  if (snake) { const dk = snake.ramT > 0 ? Math.pow(snake.ramT / (snake.ramMax || 1), .6) * (snake.stunFx || 1) : 0; airEars(dt, dk, snake.wallStun > 0); } // muffled by a smash, a wall or a blast
   updateScent(dt);
   updateGround(dt); updateSnow(dt); updateWeather(dt);
   if (AUTH()) for (let i = respawnQ.length - 1; i >= 0; i--) { if ((respawnQ[i].t -= dt) <= 0) { spawn(respawnQ[i].type, respawnQ[i].zone); respawnQ.splice(i, 1); } }
@@ -204,13 +208,18 @@ function drawSnakeNightRim(x) { // white rim at night, readable over dark ground
   for (const g of pts) { if (g.x < x0) x0 = g.x; if (g.x > x1) x1 = g.x; if (g.y < y0) y0 = g.y; if (g.y > y1) y1 = g.y; }
   const pad = snakeRadius() + 6, prev = snake._rimBox; x0 -= pad; y0 -= pad; x1 += pad; y1 += pad;
   if (prev) snx.clearRect(prev[0], prev[1], prev[2] - prev[0], prev[3] - prev[1]); else snx.clearRect(-60, -60, W + 120, H + 120);
-  snake._rimBox = [x0, y0, x1, y1]; snx.beginPath();
-  for (let i = 0; i < n; i++) { const g = pts[i], r = segR(i, n) + .4; snx.moveTo(g.x + r, g.y); snx.arc(g.x, g.y, r, 0, TAU); }
-  snx.strokeStyle = `rgba(255,255,255,${strong ? .95 : .8})`; snx.lineWidth = strong ? 3.6 : 2.4; snx.stroke();
-  snx.globalCompositeOperation = 'destination-out'; snx.fill(); snx.globalCompositeOperation = 'source-over';
+  snake._rimBox = [x0, y0, x1, y1];
+  // one ring per segment, then every disc cut back out, leaving only the outer edge. Each circle is its own draw (the graphics
+  // chip draws circles directly; all of them as one path would be rasterized over the whole body's box), solid white here and
+  // made see-through when the layer goes on, so the overlapping rings don't add up
+  snx.strokeStyle = '#fff'; snx.lineWidth = strong ? 3.6 : 2.4;
+  for (let i = 0; i < n; i++) { const g = pts[i]; snx.beginPath(); snx.arc(g.x, g.y, segR(i, n) + .4, 0, TAU); snx.stroke(); }
+  snx.globalCompositeOperation = 'destination-out'; snx.fillStyle = '#000';
+  for (let i = 0; i < n; i++) { const g = pts[i]; snx.beginPath(); snx.arc(g.x, g.y, segR(i, n) + .4, 0, TAU); snx.fill(); }
+  snx.globalCompositeOperation = 'source-over';
   if (MOD.fog || MOD.fow) { snx.globalCompositeOperation = 'destination-out'; snx.drawImage(visC, 0, 0, W, H); snx.globalCompositeOperation = 'source-over'; } // only the part of the body you can see
   const bx = Math.max(0, x0), by = Math.max(0, y0), bw = Math.min(W, x1) - bx, bh = Math.min(H, y1) - by;
-  if (bw > 0 && bh > 0) x.drawImage(snOC, bx * DPR, by * DPR, bw * DPR, bh * DPR, bx, by, bw, bh);
+  if (bw > 0 && bh > 0) { const ga = x.globalAlpha; x.globalAlpha = ga * (strong ? .95 : .8); x.drawImage(snOC, bx * DPR, by * DPR, bw * DPR, bh * DPR, bx, by, bw, bh); x.globalAlpha = ga; }
 }
 function drawGoldenFX(x) { // soft glow, orbiting glints and a ring that counts down the golden time
   for (const c of creatures) {

@@ -10,7 +10,7 @@
    ========================================================= */
 const SND = { // type: [reach px, loudness, how frightening 0..1, life s]
   slither: [120, .4, .4, .3], squelch: [150, .5, .5, .3], steps: [80, .3, .3, .35], scream: [170, .85, .85, .5], animal: [120, .5, .45, .4],
-  kill: [230, 1, 1, .6], smash: [260, .9, .8, .5], wallSmash: [340, 1, 1, .6], lamp: [220, .7, .6, .5], hiss: [260, 1, 1, .6], splash: [140, .5, .5, .4],
+  kill: [230, 1, 1, .6], smash: [260, .9, .8, .5], wallSmash: [340, 1, 1, .6], lamp: [220, .7, .6, .5], hiss: [260, 1, 1, .6], splash: [140, .5, .5, .4], boom: [560, 1, 1, .8],
 };
 let sounds = [], soundSeq = 0;
 function noise(type, x, y, k = 1, r) { // something made a sound here (cheap: only kept while it's audible)

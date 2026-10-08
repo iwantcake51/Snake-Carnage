@@ -67,7 +67,7 @@ function edUndo(dir) {
   const from = dir < 0 ? ED.undo : ED.redo, to = dir < 0 ? ED.redo : ED.undo; if (!from.length) return;
   to.push(edSnapState()); const s = from.pop(); ED.obs = s.o; ED.lights = s.l; ED.trails = s.t || ED.trails; ED.areas = s.a || []; ED.base = s.b || ''; ED.shapes = s.s || []; ED.materials = s.m || {}; if (s.c && ED.custom) Object.assign(ED.custom, s.c); ED.areas.forEach(polyBounds); ED.sel = []; edFloor(true); edDirty(); edPanel();
 }
-function edDirty() { ED.unshared = true; ED.dirtySave = true; edStatus('Unsaved changes · Ctrl+S to save (autosaves every 5 minutes)'); }
+function edDirty() { ED.unshared = true; ED.dirtySave = true; edStatus('Unsaved changes · saves by itself in a moment (Ctrl+S now)'); }
 const edCleanList = list => list.map(o => { const c = {}; for (const k in o) if (!ED_RUNTIME.has(k) && k[0] !== '_') c[k] = o[k]; return c; }); // only what was authored, not what the game worked out at runtime
 function edCustomDoc() { // the custom map document as it is in the editor right now
   return { ...ED.custom, objects: edCleanList(ED.obs), lights: edCleanList(ED.lights), paths: ED.trails.map(({ _hide, _lock, ...t }) => t), areas: ED.areas.map(a => ({ poly: a.poly, tex: a.tex, sharp: a.sharp || undefined, edge: a.edge })),
@@ -400,7 +400,7 @@ function edBuildUI() {
           <p><kbd>T</kbd> path · <kbd>Y</kbd> water · <kbd>A</kbd> add point · <kbd>E</kbd> end path · <kbd>Alt</kbd>+click a point removes it · double-click a line adds one</p>
           <p><kbd>U</kbd> floor area · <kbd>W</kbd> wall · <kbd>B</kbd> block · <kbd>L</kbd> light · <kbd>N</kbd> night · <kbd>M</kbd> minimap · <kbd>P</kbd> play test · <kbd>Esc</kbd> deselect / exit</p></div></main>
       <aside class="edright2"><div class="edtabs">${[['props', 'Properties'], ['layers', 'Layers']].map(([k, n]) => `<button data-rt="${k}" class="${ED.rtab === k ? 'on' : ''}">${n}</button>`).join('')}</div><div class="edpanel"></div><div class="edlayers"></div></aside></div>
-    <footer class="edstatus"><span class="edst-tool"></span><span class="edst-sel"></span><span class="edcoords"></span><span class="edsp"></span><span class="edstat">Ctrl+S saves (also every 5 minutes)</span>
+    <footer class="edstatus"><span class="edst-tool"></span><span class="edst-sel"></span><span class="edcoords"></span><span class="edsp"></span><span class="edstat">Saves by itself as you work · Ctrl+S saves now</span>
       <span class="edzoom"><button data-cmd="zout">−</button><span class="edzv">100%</span><button data-cmd="zin">+</button><button data-cmd="fit" title="Fit (0)">Fit</button></span></footer>`;
   document.body.appendChild(root);
   ED.cv = root.querySelector('.edmain'); ED.x = ED.cv.getContext('2d'); ED.coords = root.querySelector('.edcoords'); ED.stat = root.querySelector('.edstat'); ED.mm = root.querySelector('.edminimap'); ED.mm.getContext('2d', { willReadFrequently: true });

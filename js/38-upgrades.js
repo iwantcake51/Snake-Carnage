@@ -54,7 +54,7 @@ function hissNpc(s, lv) { // what a hiss does to the crowd (the deciding browser
 const abilCD = {};
 function useAbility(id) {
   if (!upg(id) || state !== 'play' || !snake || !snake.alive || !snake.started) return;
-  const a = ABIL[id]; if ((abilCD[id] || 0) > T) { if (Sfx.ok() && Sfx.gate('deny', .6)) Sfx.deny(); abilityHud(); const b = document.querySelector(`#abil [data-a="${id}"]`); if (b) { b.classList.remove('no'); void b.offsetWidth; b.classList.add('no'); } return; }
+  const a = ABIL[id]; if ((abilCD[id] || 0) > T || (id === 'dash' && snake.boomT > 0)) { /* (no lunging while you're reeling from a blast) */ if (Sfx.ok() && Sfx.gate('deny', .6)) Sfx.deny(); abilityHud(); const b = document.querySelector(`#abil [data-a="${id}"]`); if (b) { b.classList.remove('no'); void b.offsetWidth; b.classList.add('no'); } return; }
   abilCD[id] = T + a.cd; a.go(snake); run.abil = (run.abil || 0) + 1;
   NET.emit({ type: 'ability', id, x: snake.x, y: snake.y, a: snake.angle });
   if (NETM.run && NETM.host) netEmit({ t: 'abil', pid: NETM.me, id, x: Math.round(snake.x), y: Math.round(snake.y) }); // the others hear it (and see the hiss)
@@ -125,6 +125,7 @@ function smashObstacle(o, ang, quiet) { // quiet: catching up on breakage that h
   const i = obstacles.indexOf(o); if (i < 0) return;
   const mine = !NS.remote; // my snake did it (co-op: replays of other players' smashes only rebuild the world and show it)
   const fx = bfxFor(o); // the prop's own "when it breaks" (38b-destruction); null = the classic smash below
+  if (!quiet) smashLook(o, fx, ang); // real pieces of it, the hit, its dust (cut from the map layer before it's redrawn without it)
   obstacles.splice(i, 1);
   const cx = o.t === 'r' ? o.x + o.w / 2 : o.x, cy = o.t === 'r' ? o.y + o.h / 2 : o.y, size = o.t === 'r' ? Math.sqrt(o.w * o.h) : o.r * 1.6;
   if (fx) bfxWreck(bctx, o, fx, ang); else drawWreck(bctx, o, ang); // the broken piece stays on the floor as wreckage

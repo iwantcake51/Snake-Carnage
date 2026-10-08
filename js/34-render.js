@@ -3,7 +3,7 @@ function snakeShadowPath(x, ox, oy) { // round, soft-edged discs per segment, li
   for (let i = 0; i < n; i++) { const g = sg[i], r = segR(i, n) * .95, sx = g.x + ox, sy = g.y + oy; x.moveTo(sx + r, sy); x.arc(sx, sy, r, 0, TAU); }
 }
 function render() {
-  const pxS = Math.max(1, SETTINGS.pixel | 0), wob = snake && ((snake.wallStun > 0 && !SETTINGS.simpleFx) || (snake.ramT > 0 && !SETTINGS.reduceFlash));
+  const bz = boomDaze(), pxS = Math.max(1, SETTINGS.pixel | 0), wob = snake && ((snake.wallStun > 0 && !SETTINGS.simpleFx) || (snake.ramT > 0 && !SETTINGS.reduceFlash) || (bz > .03 && !SETTINGS.simpleFx));
   const direct = pxS <= 1 && !wob; render.src = direct ? cv : sceneC; // no post effect this frame: draw straight to the screen and skip a full-frame copy
   const x = direct ? ctx : sctx, L = light, sh = shake && SETTINGS.shake ? shake * (SETTINGS.shakeK ?? 1) : 0;
   V.sx = sh ? rand(-sh, sh) : 0; V.sy = sh ? rand(-sh, sh) : 0; V.z = 0;
@@ -15,9 +15,11 @@ function render() {
   const uc = !cam && userCam(); if (uc) { V.z = uc.z; V.fx = uc.fx; V.fy = uc.fy; } // the player's zoom/pan (the spawn zoom has priority)
   lookAround();
   const cw = snake && snake.wallStun > 0 ? Math.pow(snake.wallStun / (snake.wallMax || 3.4), .6) * (snake.stunFx || 1) : 0;
+  if (bz > .02 && !SETTINGS.reduceMotion) { V.ox += (Math.sin(T * 1.6) * 4 + Math.sin(T * 3.7) * 1.5) * bz; V.oy += (Math.sin(T * 1.2 + 2) * 3 + Math.sin(T * 3.1) * 1.2) * bz; } // reeling from a blast: the world sways, gentler than after a wall
   if (cw > 0) { V.ox += (Math.sin(T * 1.25) * 7 + Math.sin(T * 2.9) * 2) * cw; V.oy += (Math.sin(T * .95 + 1.2) * 5 + Math.sin(T * 2.3) * 1.5) * cw; } // the room sways after a wall
   const st0 = snake && snake.ramT > 0 ? Math.min(1, Math.pow(snake.ramT / (snake.ramMax || 1), .6) * (snake.stunFx || 1)) : 0;
-  render.olk = (render.olk ?? 1) + ((st0 > 0 ? 0 : 1) - (render.olk ?? 1)) * (st0 > 0 ? .25 : .03); // outlines drop out fast, stay gone while dizzy, then creep back
+  const olOff = st0 > 0 || boomDaze() > .05; // smashed through something, or shaken by a blast
+  render.olk = (render.olk ?? 1) + ((olOff ? 0 : 1) - (render.olk ?? 1)) * (olOff ? .25 : .03); // everything else's outlines drop out fast, stay gone while dizzy, then creep back (yours stays)
   render.dazed = st0 > 0;
   x.setTransform(DPR, 0, 0, DPR, 0, 0);
   x.fillStyle = MAPS[mapIdx].border; x.fillRect(0, 0, W, H);
@@ -38,7 +40,7 @@ function render() {
   for (const c of creatures) if (c.alive) drawCreature(x, c);
   drawFlashBodies(x); drawHitGhosts(x);
   drawGiblets(x); // chunks on the ground sit under the snake
-  drawTrail(x); drawGround(x); drawHoovFx(x); if (NETM.run) netDrawSnakes(x); if (!(snake && snake.netHidden)) drawSnake(x); drawRamCharge(x); drawStreaks(x); drawSnowFx(x);
+  drawTrail(x); drawGround(x); drawHoovFx(x); if (NETM.run) netDrawSnakes(x); if (!(snake && snake.netHidden)) drawSnake(x); drawCorpses(x); drawHats(x); drawClods(x, false); drawRamCharge(x); drawStreaks(x); drawSnowFx(x);
   if ((render.olk ?? 1) > .995 || SETTINGS.mapOutlines === 'Off') x.drawImage(obsC, 0, 0, W, H); else { x.drawImage(plainC, 0, 0, W, H); if (render.olk > .01) { x.globalAlpha = render.olk; x.drawImage(outlineC, 0, 0, W, H); x.globalAlpha = 1; } } drawTrees(x); // outlines only cost extra while they're fading
   drawWaters(x); drawCustomFx(x, 'top');
   for (const b of bucketList) { if (!b.wd) continue; x.globalAlpha = bucketAlpha(b); x.drawImage(b.w, 0, 0, W, H); }
@@ -47,10 +49,12 @@ function render() {
   drawDebris(x); drawMist(x); drawSmoke(x); drawVomit(x);
   drawLighting(x); drawPropGlow(x);
   drawLampBugs(x); drawFireflyGlow(x);
-  drawSparks(x);
+  drawSparks(x); drawImpacts(x);
+  drawAirstrikes(x); // under the fog: a marker you can't see stays hidden
   drawVisionMask(x);
+  drawAirFog(x); // ...but a blast still lights the fog up
   const px = Math.max(1, SETTINGS.pixel | 0);
-  if (px > 1 || render.dazed) { drawGoldenFX(x); x.globalAlpha = render.olk ?? 1; drawTargetOutlines(x); drawSnakeNightRim(x); x.globalAlpha = 1; } // pixelated look: outlines go through the same pixelation
+  if (px > 1 || render.dazed) { drawGoldenFX(x); x.globalAlpha = render.olk ?? 1; drawTargetOutlines(x); x.globalAlpha = 1; drawSnakeNightRim(x); } // pixelated look: outlines go through the same pixelation
   x.setTransform(DPR, 0, 0, DPR, 0, 0);
 
   // pixelation
@@ -66,6 +70,10 @@ function render() {
     const bh = Math.ceil(cv.height / 48), amp = 7 * ws * DPR;
     for (let y = 0; y < cv.height; y += bh) { const o = Math.sin(y / cv.height * 9 + T * 3.1) * amp + Math.sin(T * 1.7 + y * .01) * amp * .4; ctx.drawImage(sceneC, 0, y, cv.width, bh, o, y, cv.width, bh); }
     if (!SETTINGS.reduceFlash && !SETTINGS.simpleFx) chromaSplit(Math.min(1, ws));
+  } else if (bz > .03 && px <= 1 && !SETTINGS.simpleFx) { // close to a blast: the same wobble and double vision as after a wall, softer, and by how close it was
+    const bh = Math.ceil(cv.height / 40), amp = 3.2 * bz * DPR;
+    for (let y = 0; y < cv.height; y += bh) { const o = Math.sin(y / cv.height * 7 + T * 3.6) * amp + Math.sin(T * 2.1 + y * .012) * amp * .4; ctx.drawImage(sceneC, 0, y, cv.width, bh, o, y, cv.width, bh); }
+    if (!SETTINGS.reduceFlash) chromaSplit(.5 * bz);
   }
   if (snake && snake.ramT > 0 && px <= 1 && !SETTINGS.reduceFlash) { const bk = Math.pow(snake.ramT / (snake.ramMax || 1), .6) * (snake.stunFx || 1); concussBloom(bk * (snake.wallStun > 0 ? .26 : .1)); } // any daze blooms; walls much more
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
@@ -75,10 +83,12 @@ function render() {
     ctx.globalCompositeOperation = 'source-over'; ctx.fillStyle = 'rgba(0,12,4,.16)'; ctx.fillRect(0, 0, W, H);
   }
   ctx.save(); applyView(ctx); // crisp overlays above blood and lighting
-  if (px <= 1 && !render.dazed) { drawGoldenFX(ctx); ctx.globalAlpha = render.olk ?? 1; drawTargetOutlines(ctx); drawSnakeNightRim(ctx); ctx.globalAlpha = 1; }
+  if (px <= 1 && !render.dazed) { drawGoldenFX(ctx); ctx.globalAlpha = render.olk ?? 1; drawTargetOutlines(ctx); ctx.globalAlpha = 1; drawSnakeNightRim(ctx); }
   if (nightVision) drawNVHighlights(ctx);
   drawWinStars(ctx); drawScent(ctx); drawHissWave(ctx); drawCrashFlash(ctx);
+  drawShockwaves(ctx, cv); // last: blasts bend the whole picture behind them, outlines and all
   ctx.restore();
+  drawAirFlash(ctx);
   if (NETM.run && !cam) netDrawTags(ctx); // co-op: teammates' names and where they are off screen
   if (!cam) drawBubbles(ctx); // screen space (positions go through the camera), so text stays readable at any zoom
   if (nightVision) drawNightVision(ctx);
@@ -104,8 +114,8 @@ function render() {
   render.stunS = (render.stunS || 0) + (stunRaw - (render.stunS || 0)) * (stunRaw > (render.stunS || 0) ? 1 : .022); // the hit lands instantly, then drains slowly as speed returns // heavy but smooth: eases in, then drains slowly as speed returns
   const stun = render.stunS < .01 ? 0 : render.stunS;
   if (Math.abs(stun - (render.stun || 0)) > .02 || (stun === 0) !== (render.stun === 0)) { render.stun = stun; stage.style.setProperty('--stun', stun.toFixed(2)); stage.classList.toggle('stunned', stun > 0); stage.classList.toggle('wallstun', !!(snake && snake.wallStun > 0)); }
-  const sat = (SETTINGS.desaturate && !nightVision ? clamp(1 - killFlash * .5, .45, 1) : 1) * (1 - .93 * stun) * (1 - .92 * dfxK); // dying drains it to grey
-  const f = nightVision ? `contrast(1.15) brightness(${(.95 - SETTINGS.darkness * .2).toFixed(2)})${dfxK ? ` grayscale(${(.92 * dfxK).toFixed(2)})` : ''}` : `saturate(${sat.toFixed(2)}) brightness(${((1 - SETTINGS.darkness) * (1 - .14 * dfxK)).toFixed(2)}) contrast(${(1.08 + .08 * dfxK).toFixed(2)})`;
+  const sat = (SETTINGS.desaturate && !nightVision ? clamp(1 - killFlash * .5, .45, 1) : 1) * (1 - .93 * stun) * (1 - .92 * dfxK) * (1 - .78 * bz); // dying drains it to grey; so does a blast close by
+  const f = nightVision ? `contrast(1.15) brightness(${((.95 - SETTINGS.darkness * .2) * (1 - .2 * boomDaze())).toFixed(2)})${dfxK ? ` grayscale(${(.92 * dfxK).toFixed(2)})` : ''}` : `saturate(${sat.toFixed(2)}) brightness(${((1 - SETTINGS.darkness) * (1 - .14 * dfxK) * (1 - .2 * boomDaze())).toFixed(2)}) contrast(${(1.08 + .08 * dfxK).toFixed(2)})`;
   if (f !== lastFilter) { cv.style.filter = f; lastFilter = f; }
   const clock = (MAPS[mapIdx].indoor ? '🏢 ' : light.day > .5 ? '☀️ ' : light.day > .05 ? '🌇 ' : '🌙 ') +
     String(Math.floor(tod)).padStart(2, '0') + ':' + String(Math.floor(tod % 1 * 60)).padStart(2, '0');

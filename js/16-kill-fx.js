@@ -17,7 +17,7 @@ let killV = 0, killFlash = 0, desatHold = 0, lastFilter = '';
    filter; the red is a multiply layer over it). Coming back (respawn, or a new run) it returns over about a second. */
 let dfxK = 0;
 function deathFxTick(dt) {
-  const down = NETM.run ? !!NS.deadAt : state === 'dead' && !!snake && !snake.alive, k0 = dfxK;
+  const down = (NETM.run ? !!NS.deadAt : state === 'dead' && !!snake && !snake.alive) && !(typeof corpses !== 'undefined' && corpses.length && snake && snake.netHidden), k0 = dfxK; // blown up: the color stays while you go off
   dfxK += ((down ? 1 : 0) - dfxK) * (1 - Math.exp(-dt * (down ? 7 : 3.2)));
   if (dfxK < .004 && !down) dfxK = 0;
   if (Math.abs(dfxK - k0) < 1e-4 && (dfxK === 0 || dfxK > .999)) return;
@@ -77,16 +77,16 @@ function drawVomit(x) { for (const p of puke) { x.fillStyle = p.c; circ(x, p.x, 
    They roll outward, swell, turn slowly and thin out over 3-4 seconds ---- */
 let smoke = [];
 const SMOKE_SPR = [];
-function smokeSprite(v) {
-  if (SMOKE_SPR[v]) return SMOKE_SPR[v];
+function smokeSprite(v, rgb) { // rgb: tint it (dust in a material's own color)
+  const key = rgb ? v + ':' + rgb.join(',') : v; if (SMOKE_SPR[key]) return SMOKE_SPR[key];
   const S = 64, c = document.createElement('canvas'); c.width = c.height = S; const x = c.getContext('2d'), img = x.createImageData(S, S), d = img.data, o0 = v * 17.3;
   for (let j = 0; j < S; j++) for (let i = 0; i < S; i++) {
     const dx = (i - S / 2) / (S / 2), dy = (j - S / 2) / (S / 2), r = Math.hypot(dx, dy);
     const n = fbm(i / 14 + o0, j / 14 - o0, 4) * .5 + .5, edge = sstep(1, .25, r + (n - .5) * .55); // wispy, broken edge
     const a = edge * clamp(n * 1.5 - .15, 0, 1), lit = 1 - .3 * clamp(dy * .5 + dx * .3 + .3, 0, 1); // lighter on the upper left
-    const k = (j * S + i) * 4, g = 105 + 95 * lit * n; d[k] = g; d[k + 1] = g * .96; d[k + 2] = g * .9; d[k + 3] = Math.min(1, a * 1.25) * 255; // dusty grey-brown
+    const k = (j * S + i) * 4, g = 105 + 95 * lit * n; if (rgb) { const m = g / 165; d[k] = Math.min(255, rgb[0] * m); d[k + 1] = Math.min(255, rgb[1] * m); d[k + 2] = Math.min(255, rgb[2] * m); } else { d[k] = g; d[k + 1] = g * .96; d[k + 2] = g * .9; } d[k + 3] = Math.min(1, a * 1.25) * 255; // dusty grey-brown (or the tint)
   }
-  x.putImageData(img, 0, 0); return SMOKE_SPR[v] = c;
+  x.putImageData(img, 0, 0); return SMOKE_SPR[key] = c;
 }
 function wallSmoke(cx, cy, ang, w, h) {
   const n = Math.round(36 * FX_K());
@@ -108,7 +108,7 @@ function drawSmoke(x) {
   for (const p of smoke) {
     if (p.t < 0) continue;
     const k = p.t / p.life, al = p.a * Math.min(1, p.t * 6) * (1 - k) * (1 - k * .4); // thick at once, then clears
-    x.globalAlpha = al; x.save(); x.translate(p.x, p.y); x.rotate(p.rot); x.drawImage(smokeSprite(p.v), -p.r * 1.3, -p.r * 1.3, p.r * 2.6, p.r * 2.6); x.restore();
+    x.globalAlpha = al; x.save(); x.translate(p.x, p.y); x.rotate(p.rot); x.drawImage(smokeSprite(p.v, p.rgb), -p.r * 1.3, -p.r * 1.3, p.r * 2.6, p.r * 2.6); x.restore();
   }
   x.globalAlpha = 1;
 }

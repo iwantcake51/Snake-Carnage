@@ -101,7 +101,7 @@ for (const [fn, id, label] of [['showPause', 'pMenuBtn', 'Back to editor'], ['sh
 }
 try { if (!localStorage.getItem('snakeCarnageEdDrafts') && localStorage.getItem('snakeCarnageMapEdits')) localStorage.setItem('snakeCarnageEdDrafts', localStorage.getItem('snakeCarnageMapEdits')); } catch (e) {} // edits from before drafts existed
 /* ---- the editor itself: desktop only, loaded on demand ---- */
-const EDITOR_FILES = ['js/editor/ed-core.js', 'js/editor/ed-shapes.js', 'js/editor/ed-materials.js', 'js/editor/ed-custom.js'];
+const EDITOR_FILES = ['js/editor/ed-core.js', 'js/editor/ed-shapes.js', 'js/editor/ed-materials.js', 'js/editor/ed-custom.js', 'js/editor/ed-qol.js'];
 let edLoading = null;
 const editorAllowed = () => { try { return !IS_TOUCH && !document.body.classList.contains('touch') && matchMedia('(pointer: fine)').matches && innerWidth >= 900; } catch (e) { return false; } };
 function loadEditor() { // the editor's scripts, fetched once, in order

@@ -2251,3 +2251,38 @@ body.phone #mpDock{top:auto;bottom:70px;translate:none}
 .ppf .pfhint,.ppf .pfempty{color:#8f8489;margin:12px 0 6px}.ppf .pfon{margin-top:2px}
 #mpPause .ppf{margin-top:10px;border-top:1px solid var(--edge,#2c2226);padding-top:10px;max-height:46vh}
 .panel.pause .pch[hidden],.ppf[hidden]{display:none!important}
+
+/* ---- editor QoL (js/editor/ed-qol.js) ---- */
+.edtoast{position:fixed;left:50%;bottom:104px;z-index:10010;transform:translate(-50%,10px);opacity:0;pointer-events:none;padding:7px 14px;border-radius:8px;background:rgba(18,15,20,.94);border:1px solid #3a3138;color:#eee;font:600 12.5px var(--f-body,system-ui),sans-serif;box-shadow:0 10px 28px rgba(0,0,0,.5);transition:opacity .16s,transform .16s}
+.edtoast.on{opacity:1;transform:translate(-50%,0)}
+.edtoast.out{opacity:0;transform:translate(-50%,-6px);transition:opacity .45s,transform .45s}
+.edcmdk{position:fixed;inset:0;z-index:10006;display:flex;justify-content:center;align-items:flex-start;padding-top:12vh;background:rgba(5,4,7,.45);backdrop-filter:blur(2px);animation:edcmdIn .12s ease-out}
+@keyframes edcmdIn{from{opacity:0}to{opacity:1}}
+.edcmdw{width:min(560px,calc(100vw - 32px));max-height:68vh;display:flex;flex-direction:column;background:#17141a;border:1px solid #3a3138;border-radius:12px;box-shadow:0 28px 70px rgba(0,0,0,.65);overflow:hidden;font:13px/1.4 var(--f-body,system-ui),sans-serif;color:#e7e2ea;animation:edcmdPop .14s cubic-bezier(.2,.8,.2,1)}
+@keyframes edcmdPop{from{transform:translateY(-8px) scale(.98)}to{transform:none}}
+.edcmdw input{all:unset;box-sizing:border-box;width:100%;padding:14px 16px;font-size:15px;border-bottom:1px solid #2b2530;color:#fff}
+.edcmdw input::placeholder{color:#7d7480}
+.edcmdl{overflow-y:auto;padding:6px;scrollbar-width:thin;scrollbar-color:#3d3437 transparent}
+.edcmdi{all:unset;box-sizing:border-box;width:100%;display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:7px;cursor:pointer}
+.edcmdi.on{background:color-mix(in srgb,var(--acc,#d0191f) 22%,#221c24);box-shadow:inset 2px 0 0 var(--acc,#d0191f)}
+.edcmdi canvas{width:28px;height:28px;flex:none;border-radius:5px;background:#100e12}
+.edcmdic{width:28px;height:28px;flex:none;display:grid;place-items:center;border-radius:5px;background:#241f27;font:700 12px var(--f-num,system-ui);font-style:normal;color:#b9aebd}
+.edcmdi span{flex:1;min-width:0;display:flex;flex-direction:column}
+.edcmdi b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.edcmdi small{color:#8d8496;font-size:11px}
+.edcmdi em{font-style:normal;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:#8d8496}
+.edcmdw kbd{display:inline-block;margin-left:4px;padding:0 5px;border-radius:4px;background:rgba(255,255,255,.1);font-size:10.5px;color:#cfc6c0}
+.edcmdl .edhint{padding:14px;margin:0;text-align:center}
+.edcmdf{display:flex;gap:14px;padding:7px 12px;border-top:1px solid #2b2530;color:#8d8496;font-size:11px}
+.edcmdf kbd{margin:0 3px 0 0}
+.edcmdbtn{display:flex;align-items:center;gap:8px;padding:4px 8px 4px 10px!important;min-width:180px;justify-content:space-between;color:#9a90a0!important;border:1px solid #3a3138!important;border-radius:7px!important;background:rgba(0,0,0,.25)!important;cursor:pointer;font-size:12px}
+.edcmdbtn:hover{color:#eee!important;border-color:#55474f!important}
+.edrecent{margin:0 0 4px}
+.edrecent .edpgh{margin-top:6px}
+.edrecl{display:flex;flex-wrap:wrap;gap:4px}
+.edrec{all:unset;cursor:pointer;width:40px;height:40px;border-radius:6px;background:#100e12;border:1px solid #2b2530;display:grid;place-items:center}
+.edrec:hover{border-color:var(--acc,#d0191f)}
+.edrec canvas{width:36px;height:36px}
+.edpanel label:has(input[type=number]),.peside label:has(input[type=number]){cursor:ew-resize}
+.edpanel label:has(input[type=number]) input,.peside label:has(input[type=number]) input{cursor:text}
+body.edscrubbing,body.edscrubbing *{cursor:ew-resize!important;user-select:none!important}
