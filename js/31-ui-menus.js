@@ -65,6 +65,7 @@ function transitionTo(fn) { // animate the current screen out, then show the nex
   setTimeout(go, 450); // fallback
 }
 function showMenu() {
+  if (typeof clearRunHud === 'function') clearRunHud(); // back from a run (or a multiplayer round, straight back to the lobby): the run's modifier strip, chips and challenges go with it
   state = 'menu'; endIntro(true); creatures = []; /* nobody in the background behind the menus */ setTimeout(warmCanopies, 1500);
   if (!thumbs || thumbs.length !== MAPS.length || MAPS.some(m => m.custom)) thumbs = makeThumbs(); // custom maps come and go (cached, so this is cheap)
   MOD = {}; rewardMult = 1; document.body.classList.remove('minimal');
@@ -111,7 +112,7 @@ function modLine(list) { // active modifiers, visible before the run starts
   const ids = list || SETTINGS.mods || [];
   if (!ids.length) return '<span class="mchip dim">No modifiers</span>';
   const mm = modMult(ids);
-  return ids.map(id => { const m = MODS.find(q => q.id === id) || {}; return `<span class="mchip" data-mod="${id}" data-tip="${m.desc} (click to edit)">${MOD_ICON[id] || ''} ${m.name}</span>`; }).join('') +
+  return ids.map(id => { const m = MODS.find(q => q.id === id) || {}; return `<span class="mchip" data-mod="${id}" data-tip="${m.desc} (click to edit)">${m.name}</span>`; }).join('') +
     (Math.abs(mm - 1) > .005 ? `<span class="mchip mult ${mm < 1 ? 'down' : ''}">Rewards x${mm.toFixed(2)}</span>` : ''); // no meaningless x1.00 chip
 }
 const TIME_TIPS = { Cycle: 'Every run starts at a random hour and the day keeps moving.', Day: 'Bright midday the whole run. Nowhere for you to hide.', Dawn: 'Frozen at first light: long shadows, lamps still on.', Dusk: 'Frozen at sunset: half-lit streets and long shadows.', Night: 'Pitch dark the whole run. Lamps, windows and flashlights only.' };

@@ -264,9 +264,10 @@ function drawTargetOutlines(x) { // clean silhouette rim around everything edibl
     const a = playerSees(c.x, c.y); if (a <= .02) continue;
     const hz = c.hz || 0, k = 1 + hz * .045, cy = c.y - hz * .7; // the rim rides up with a hop
     rimX.save(); rimX.translate(c.x, cy); rimX.scale(k, k); rimX.rotate(c.a);
-    shapePath(rimX, c);
-    rimX.globalAlpha = a; rimX.strokeStyle = c.golden ? '#ffcf33' : col; rimX.lineWidth = c.golden ? 3.2 : 2; rimX.stroke();
-    rimX.globalAlpha = 1; rimX.globalCompositeOperation = 'destination-out'; rimX.fill(); rimX.globalCompositeOperation = 'source-over';
+    const sil = creatureSil(c), rw = c.golden ? 3.2 : 2; // the whole silhouette, arms, legs, tails and ears included
+    rimX.globalAlpha = a; rimX.strokeStyle = c.golden ? '#ffcf33' : col; rimX.lineCap = rimX.lineJoin = 'round';
+    rimX.lineWidth = rw; rimX.stroke(sil.f); for (const [w, pa] of sil.lines) { rimX.lineWidth = w + rw; rimX.stroke(pa); } // a rim round every part...
+    rimX.globalAlpha = 1; rimX.globalCompositeOperation = 'destination-out'; rimX.fill(sil.f); for (const [w, pa] of sil.lines) { rimX.lineWidth = w; rimX.stroke(pa); } rimX.globalCompositeOperation = 'source-over'; // ...then the parts themselves cut out, so only the outer edge stays
     rimX.restore();
     if (c.x - 22 < x0) x0 = c.x - 22; if (cy - 22 < y0) y0 = cy - 22; if (c.x + 22 > x1) x1 = c.x + 22; if (cy + 22 > y1) y1 = cy + 22;
   }

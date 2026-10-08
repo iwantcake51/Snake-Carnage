@@ -67,7 +67,8 @@ function netSetReady(v) { const me = netPlayer(NETM.me); if (!me) return; netLob
 function netCta() { // the main menu's big button in a lobby: ready up, unready, or (the host, everyone ready) start
   const me = netMe(); if (NETM.host && me.ready && netAllReady()) return netGo(); netSetReady(!me.ready); Sfx.ui && Sfx.ui(me.ready ? 'on' : 'off');
 }
-const netRowsHtml = (list, small) => list.map(p => `<div class="pr ${p.id === NETM.me ? 'me' : ''} ${p.conn === false ? 'away' : ''}"><i class="mpdot" style="background:${p.color}"></i><b>${esc(p.name)}</b>${p.lvl ? `<em class="mplvl" title="Account level">Lv ${p.lvl | 0}</em>` : ''}${p.host && !small ? '<em class="mptag host">Host</em>' : ''}<span class="sp"></span>${small ? '' : `<span class="mpready ${p.ready ? 'on' : ''}">${p.conn === false ? 'Reconnecting' : p.ready ? 'Ready' : 'Not ready'}</span>`}<i class="rdot ${p.ready ? 'on' : ''}" title="${p.ready ? 'Ready' : 'Not ready'}"></i></div>`).join('');
+const netTitleHtml = p => { const t = p.cos && p.cos.title; return t && t !== 'None' ? `<em class="mptitle" title="Title">${esc(t)}</em>` : ''; }; // the title they wear, as on the main menu
+const netRowsHtml = (list, small) => list.map(p => `<div class="pr ${p.id === NETM.me ? 'me' : ''} ${p.conn === false ? 'away' : ''}"><i class="mpdot" style="background:${p.color}"></i><b>${esc(p.name)}</b>${netTitleHtml(p)}${p.lvl ? `<em class="mplvl" title="Account level">Lv ${p.lvl | 0}</em>` : ''}${p.host && !small ? '<em class="mptag host">Host</em>' : ''}<span class="sp"></span>${small ? '' : `<span class="mpready ${p.ready ? 'on' : ''}">${p.conn === false ? 'Reconnecting' : p.ready ? 'Ready' : 'Not ready'}</span>`}<i class="rdot ${p.ready ? 'on' : ''}" title="${p.ready ? 'Ready' : 'Not ready'}"></i></div>`).join('');
 /* ---- the main menu while you're in a lobby ---- */
 function netPartyMenu() {
   const menu = overlay.querySelector('.menu'); if (!menu) return;
@@ -144,7 +145,7 @@ function netLobbyRender() {
     <p class="mpsub">${host ? 'Send your friends the code or the link. Start when everyone is ready.' : `Waiting for <b>${esc((NETM.players.find(p => p.host) || {}).name || 'the host')}</b> to start.`}</p>
     <div class="mpbody">
       <div class="mpplayers">${plist.map(p => `<div class="mprow ${p.id === NETM.me ? 'me' : ''} ${p.conn === false ? 'away' : ''}">
-          ${teams ? teamBtn(p) : ''}<i class="mpdot" style="background:${p.color}"></i><b>${esc(p.name)}</b>${p.lvl ? `<em class="mplvl" title="Account level">Lv ${p.lvl | 0}</em>` : ''}<i class="rdot ${p.ready ? 'on' : ''}" title="${p.ready ? 'Ready' : 'Not ready'}"></i>${p.host ? '<em class="mptag host">Host</em>' : ''}${p.touch ? '<em class="mptag">Phone</em>' : ''}${p.conn === false ? '<em class="mptag warn">Reconnecting…</em>' : ''}
+          ${teams ? teamBtn(p) : ''}<i class="mpdot" style="background:${p.color}"></i><b>${esc(p.name)}</b>${netTitleHtml(p)}${p.lvl ? `<em class="mplvl" title="Account level">Lv ${p.lvl | 0}</em>` : ''}<i class="rdot ${p.ready ? 'on' : ''}" title="${p.ready ? 'Ready' : 'Not ready'}"></i>${p.host ? '<em class="mptag host">Host</em>' : ''}${p.touch ? '<em class="mptag">Phone</em>' : ''}${p.conn === false ? '<em class="mptag warn">Reconnecting…</em>' : ''}
           <span class="mpping">${p.ping && !p.host ? p.ping + ' ms' : ''}</span>
           <span class="mpready ${p.ready ? 'on' : ''}">${p.ready ? 'Ready' : 'Not ready'}</span>
           ${host && !p.host ? `<button class="ghost mpsm mpkick" data-kick="${esc(p.id)}" title="Remove from the lobby">Kick</button>` : ''}</div>`).join('')}

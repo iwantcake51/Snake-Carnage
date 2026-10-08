@@ -1928,8 +1928,8 @@ body.phone #mpHud{top:46px;right:6px;font-size:11px;min-width:120px}
 .edpgh:first-of-type{margin-top:6px}.edpgh small{font-size:10px;letter-spacing:0;text-transform:none;color:#7d7580;font-weight:400}
 
 /* co-op death: grey and a red wash, driven every frame by --dfx (0..1) */
-#dTint{position:absolute;inset:0;z-index:5;pointer-events:none;opacity:var(--dfx);mix-blend-mode:multiply;background:radial-gradient(ellipse at 50% 50%,rgba(205,45,45,.42) 0%,rgba(140,12,12,.78) 100%)}
-#stage.paused #dTint{opacity:calc(var(--dfx) * .45)}
+#dTint{position:absolute;inset:0;z-index:5;pointer-events:none;opacity:var(--dtint,var(--dfx));mix-blend-mode:multiply;background:radial-gradient(ellipse at 50% 50%,rgba(205,45,45,.42) 0%,rgba(140,12,12,.78) 100%)}
+#stage.paused #dTint{opacity:calc(var(--dtint,var(--dfx)) * .45)}
 
 /* =====================================================================
    MULTIPLAYER SCREENS, in the game's own look: matte panels, square corners, hairlines, condensed caps, mono numbers.
@@ -2286,3 +2286,6 @@ body.phone #mpDock{top:auto;bottom:70px;translate:none}
 .edpanel label:has(input[type=number]),.peside label:has(input[type=number]){cursor:ew-resize}
 .edpanel label:has(input[type=number]) input,.peside label:has(input[type=number]) input{cursor:text}
 body.edscrubbing,body.edscrubbing *{cursor:ew-resize!important;user-select:none!important}
+
+/* the title each player wears, next to their name in the lobby */
+.mptitle{display:inline-block;margin-left:6px;padding:0 7px;border-radius:999px;font:700 10.5px var(--f-body,system-ui),sans-serif;font-style:normal;color:#ffe6a0;background:rgba(255,207,51,.12);border:1px solid rgba(255,207,51,.3);white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis;vertical-align:middle}

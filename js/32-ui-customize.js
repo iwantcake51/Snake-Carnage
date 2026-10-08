@@ -64,7 +64,7 @@ function modBar() { // every active modifier, compact, at the top of the screen;
   const el = document.getElementById('modbar'), ids = runMods || [];
   if (!ids.length) { el.innerHTML = ''; layoutHud(); return; }
   const mm = modMult(ids);
-  el.innerHTML = ids.map((id, i) => { const m = MODS.find(q => q.id === id); return `<span class="mb" style="--i:${i}" data-tip="${m.name}: ${m.desc}${m.mult ? ` (rewards ${m.mult > 0 ? '+' : ''}${Math.round(m.mult * 100)}%)` : ''}">${MOD_ICON[id] || '•'}<em>${m.name}</em></span>`; }).join('') +
+  el.innerHTML = ids.map((id, i) => { const m = MODS.find(q => q.id === id); return `<span class="mb" style="--i:${i}" data-tip="${m.name}: ${m.desc}${m.mult ? ` (rewards ${m.mult > 0 ? '+' : ''}${Math.round(m.mult * 100)}%)` : ''}"><em>${m.name}</em></span>`; }).join('') +
     (Math.abs(mm - 1) > .005 ? `<span class="mb mult ${mm < 1 ? 'down' : ''}" data-tip="All XP, chips and score this run are multiplied by this.">x${mm.toFixed(2)}</span>` : '');
   requestAnimationFrame(layoutHud);
 }
