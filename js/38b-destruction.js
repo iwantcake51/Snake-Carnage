@@ -49,7 +49,7 @@ const bfxRgb = c => { const m = /^#?([\da-f]{2})([\da-f]{2})([\da-f]{2})/i.exec(
 let chunks = [], impacts = [], leafFall = [];
 /* a tree or bush going over: its canopy goes with it, and the leaves come off and flutter down in the season's colors, landing on the ground */
 function treeFall(o, ang, quiet) {
-  if (typeof treeSprites !== 'undefined') { treeSprites = treeSprites.filter(t => t.o !== o); if (typeof treeBake !== 'undefined') treeBake = null; }
+  if (typeof treeSprites !== 'undefined') { treeSprites = treeSprites.filter(t => t.o !== o); if (typeof treeBake !== 'undefined' && treeBake) treeBake.key = ''; } // redrawn into the same canvas, not a new one
   if (quiet) return;
   const sz = typeof SZN === 'function' ? SZN() : { leaves: ['#3f8a2a', '#4c9a30'], full: 1 }, pal = [...sz.leaves, ...(sz.blossom ? ['#f6c6d6', '#ffe0ea', '#f9d4df'] : [])];
   const R = o.r * (o.kind === 'tree' ? 2.1 : 1.15), n = Math.round(clamp(R * R / 10 * ((sz.full ?? 1) + .25), 12, 110) * FX_K());

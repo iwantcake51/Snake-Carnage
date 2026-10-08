@@ -64,7 +64,11 @@ function computeSegs(s) {
     }
     trav += L; px = q.x; py = q.y; lastA = a;
   }
-  if (i < h.length - 2) h.length = i + 2;
+  { // keep a little more of the path than the body uses: when it grows, the new length slides out along where it's really been, instead of bunching up at the tail
+    let qx = px, qy = py, dd = trav, j = i; const keepD = (Math.ceil(Math.max(s.len, lv)) + 30) * sp;
+    for (; j < h.length && dd < keepD; j++) { dd += Math.hypot(h[j].x - qx, h[j].y - qy); qx = h[j].x; qy = h[j].y; }
+    if (j < h.length - 2) h.length = j + 2;
+  }
   while (segs.length < n) segs.push({ x: px, y: py, a: lastA });
   if (frac > 1e-3 && n > 1) { const g = segs[n - 1], p = segs[n - 2]; g.x = p.x + (g.x - p.x) * frac; g.y = p.y + (g.y - p.y) * frac; } // the newest tail piece slides out of the one before it
 }
@@ -121,15 +125,15 @@ function updateSnake(dt) {
 const HOOVER_R = 76, HOOVER_NB = []; let hoovFx = [];
 const hooverMouth = s => { const f = snakeRadius() * .7; return [s.x + Math.cos(s.angle) * f, s.y + Math.sin(s.angle) * f]; };
 function hoover(s, dt) {
-  if (!MOD.hoover) return;
-  const [hx, hy] = hooverMouth(s), R = HOOVER_R * Math.sqrt(s.scale || 1), ca = Math.cos(s.angle), sa = Math.sin(s.angle);
+  const ul = MOD.hoover ? 3 : upg('hoover'); if (!ul) return; // the modifier, or the upgrade (weaker at its first levels)
+  const P = [0, .55, .78, 1][ul], [hx, hy] = hooverMouth(s), R = HOOVER_R * (.6 + .4 * P) * Math.sqrt(s.scale || 1), ca = Math.cos(s.angle), sa = Math.sin(s.angle);
   for (const c of nearbyCreatures(hx, hy, R, HOOVER_NB)) {
     if (!c.alive || c.def.fly) continue;
     const dx = hx - c.x, dy = hy - c.y, d = Math.hypot(dx, dy) || 1;
     const front = clamp(.35 - (dx * ca + dy * sa) / d, 0, 1.35) / 1.35; if (front <= 0) continue; // mostly from in front of the mouth, nothing from behind
     if (T - (c.hvT ?? -1) > .1) { c.hvT = T; c.hvLos = los(c.x, c.y, hx, hy); } // line of sight, re-checked ten times a second
     if (!c.hvLos) continue;
-    const k = Math.pow(1 - d / R, 2.2) * front, acc = (30 + 620 * k) * (c.def.human ? .75 : 1); // a whisper at the edge, a real tug at the lips
+    const k = Math.pow(1 - d / R, 2.2) * front, acc = (30 + 620 * k) * (c.def.human ? .75 : 1) * P; // a whisper at the edge, a real tug at the lips
     const hv = c.hv || (c.hv = { vx: 0, vy: 0 }); hv.vx += dx / d * acc * dt; hv.vy += dy / d * acc * dt;
     if (k > .05 && Math.random() < dt * 30 * k * Math.min(1, FX_K())) { // a few motes of dust (or blood, off a bloody one) streaming into the mouth
       const a = rand(0, TAU), rr = c.def.r * rand(.4, 1.1);

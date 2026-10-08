@@ -2352,3 +2352,8 @@ body.edscrubbing,body.edscrubbing *{cursor:ew-resize!important;user-select:none!
 /* shop previews for the newer UI themes */
 .pvTheme.th-ocean{--acc:#1fa3b8;background:#0e1517}.pvTheme.th-steel{--acc:#7d93ad;background:#121417}.pvTheme.th-rose{--acc:#e8507e;background:#171012}.pvTheme.th-jade{--acc:#22b07d;background:#0f1513}
 .pvTheme.th-ember{--acc:#e8541c;background:#18100c}.pvTheme.th-frost{--acc:#8fd8ff;background:#0f1418}.pvTheme.th-royal{--acc:#7a4fd8;background:#110e18}.pvTheme.th-neon{--acc:#ff2fd0;background:#0d0a12}
+
+/* logo: the splat sits low, behind and under "Carnage" (not across the middle of "Snake"), and lighter on the letters; drips hang from the bottom of "Snake" */
+.logo .l2 .splat{top:22%!important;height:118%!important;left:-6%!important;width:112%!important;opacity:.72}
+.logo .l1 .drip{top:92%}
+.logo .l1{background:radial-gradient(ellipse 9% 7% at 14% 92%,#9e0b10 0 70%,transparent 72%),radial-gradient(ellipse 12% 8% at 47% 94%,#a10d12 0 70%,transparent 72%),radial-gradient(ellipse 7% 6% at 81% 93%,#93090e 0 70%,transparent 72%),linear-gradient(#f1ebe4,#d4cbc2)!important;-webkit-background-clip:text!important;background-clip:text!important}

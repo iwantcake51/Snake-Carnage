@@ -56,7 +56,8 @@ const ADM_ACT = {
 function adminToggle(on = !ADMIN.open) {
   ADMIN.open = on; let el = document.getElementById('admin');
   if (!on) { if (el) el.remove(); return; }
-  if (!el) { el = document.createElement('div'); el.id = 'admin'; document.body.appendChild(el); }
+  if (!el) { el = document.createElement('div'); el.id = 'admin'; document.body.appendChild(el);
+    for (const ev of ['pointerdown', 'pointermove', 'wheel', 'keydown', 'keyup']) el.addEventListener(ev, e => { e.stopPropagation(); }, ev === 'wheel' ? { passive: true } : false); } // the game doesn't steer or zoom through it (added once, not on every redraw)
   adminRender();
 }
 function adminRender() {
@@ -93,7 +94,6 @@ function adminRender() {
     if (a === 'golden') return ADM_ACT.spawn(ADMIN.spawnType || 'human', 1, true);
     if (ADM_ACT[a]) ADM_ACT[a](n);
   });
-  for (const ev of ['pointerdown', 'pointermove', 'wheel', 'keydown', 'keyup']) el.addEventListener(ev, e => { e.stopPropagation(); }, ev === 'wheel' ? { passive: true } : false); // the game doesn't steer or zoom through it
 }
 addEventListener('keydown', e => {
   if ((e.code === 'Backquote' || e.code === 'F10') && !e.repeat) { const t = (e.target.tagName || '').toLowerCase(); if (t === 'textarea' || (t === 'input' && /^(text|search|number|email|password)$/.test(e.target.type))) return; /* typing a name, not ticking a box */ e.preventDefault(); adminToggle(); }

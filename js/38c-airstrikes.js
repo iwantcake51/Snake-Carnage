@@ -238,9 +238,9 @@ function detonate(s) {
     if (dz >= boomSlow(snake)) { snake.boomK = dz; snake.boomT = 1.4 + 1.2 * dz; }
     if (dz > .25) snake.dashT = 0;
   }
-  // you: any part of the body inside the blast
+  // you: any part of the body inside the blast (not a pump going up: that knocks you about, it doesn't kill you)
   const me = snake;
-  if (me && me.alive && !me.netHidden && !(me.graceT > 0) && (state === 'play' || NETM.run) && me.segs) {
+  if (!s.safe && me && me.alive && !me.netHidden && !(me.graceT > 0) && (state === 'play' || NETM.run) && me.segs) {
     const R = r + snakeRadius() * .6;
     if (me.segs.some(g => dist2(g.x, g.y, x, y) < R * R)) bombDeath();
   }
@@ -257,6 +257,11 @@ function detonate(s) {
   if (hit.length) creatures = creatures.filter(c => c.alive);
   noise('boom', x, y);
   airCrowdReact('blast', x, y, r);
+}
+function pumpBlast(x, y) { // a gas pump goes up: a full blast, with the ringing, the muffle and the daze, but it never kills the snake; then the fuel burns
+  detonate({ x, y, r: Math.round(AIR_R * 1.15), safe: true });
+  for (let k = 0; k < 7; k++) { const a = rand(0, TAU), d = rand(0, AIR_R * .8); fires.push({ x: x + Math.cos(a) * d, y: y + Math.sin(a) * d, r: rand(6, 11), t: 0, life: rand(6, 11), ph: rand(0, 99) }); } // burning fuel all round it
+  for (let k = 0; k < 10; k++) { const a = rand(0, TAU), sp = rand(120, 300); boomBits.push({ x, y, z: rand(6, 14), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(200, 420), t: 0, life: rand(1.6, 2.6), s: rand(3, 5.5), tr: true, c: pick(['#d9d9d9', '#b5b5b5', '#c0392b', '#8a8a8a']) }); } // bits of the pump itself
 }
 function bombDeath(by = 'bomb') {
   crashHit = null; run.deathBy = by;

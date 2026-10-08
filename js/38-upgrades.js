@@ -15,6 +15,8 @@ const UPGRADES = [
   { id: 'ram', name: 'Battering Ram', icon: 'ram', max: 4, cost: [300, 850, 1900, 3200], lvl: [4, 10, 16, 22],
     desc: 'Smash through things instead of crashing into them. Each level takes on heavier things; the heavier it is, the harder the knock. Without it, glass still breaks, but going through it knocks you senseless.', tiers: ['Small things: chairs, plants, crates, hay, fences, bins, glass. Barely slows you', 'Big furniture, bushes and small trees: desks, tables, benches, couches, shelves, beds, bars, consoles, speakers, saplings. A harder knock', 'Cars, rocks and the cracked wall sections on some maps: shortcuts, but the hit leaves you seeing stars', 'Thick skull: every concussion is 25% shorter and gentler'] },
   { id: 'gut', name: 'Iron Stomach', icon: 'gut', max: 3, cost: [350, 900, 1700], lvl: [7, 13, 19], desc: 'Combos last longer.', tiers: ['+10% combo time', '+20% combo time', '+30% combo time'] },
+  { id: 'hoover', name: 'Hoover Mouth', icon: 'hoover', max: 3, cost: [500, 1250, 2300], lvl: [6, 14, 21],
+    desc: 'Anything edible right in front of your mouth gets pulled in. Short range, never through walls. (The Hoover Mouth modifier gives you the full pull for one run.)', tiers: ['A gentle tug, close to the mouth', 'Stronger, and reaches a little further', 'The full pull, as far as the modifier reaches'] },
   { id: 'dash', name: 'Lunge', icon: 'dash', max: 3, cost: [250, 900, 1800], lvl: [3, 12, 18], ability: true, key: 'Shift',
     desc: 'A short burst of speed. Great for catching runners.', tiers: ['0.6 s at 1.8x speed, 7 s cooldown', '0.8 s at 1.9x speed, 5 s cooldown, a cleaner wake', 'Pounce: eat something mid-lunge and the cooldown almost resets, and you keep going'] },
   { id: 'scent', name: 'Scent', icon: 'scent', max: 3, cost: [400, 1100, 2000], lvl: [5, 15, 21], ability: true, key: 'E',
@@ -97,6 +99,7 @@ function upIcon(k) { // small hand-drawn SVG glyphs, so the upgrades don't lean 
     speed: '<path d="M3 13h7M5 9h8M3 5h6" stroke-width="2"/><path d="M12 4l6 6-6 6" stroke-width="2.4"/>',
     ram: '<path d="M3 10h9" stroke-width="3"/><path d="M12 4v12M15 6l3-2M15 14l3 2M15 10h4" stroke-width="2"/>',
     gut: '<path d="M6 3c-2 4 6 5 3 9s-5 5 1 6 8-3 6-7" stroke-width="2.2"/>',
+    hoover: '<path d="M3 10c0-3.5 3-6 7-6s7 2.5 7 6-3 6-7 6" stroke-width="2"/><path d="M18 6l-4 2M18 14l-4-2M19 10h-4" stroke-width="1.6"/>',
     dash: '<path d="M2 10h5M4 6h4M4 14h4" stroke-width="1.8"/><path d="M9 4l9 6-9 6 3-6z" stroke-width="1.6" fill="currentColor"/>',
     scent: '<path d="M4 15c3-2 0-5 3-7s1-4 1-4M9 16c3-2 0-5 3-7s1-4 1-4M14 15c3-2 0-5 3-7" stroke-width="1.8"/>',
     camo: '<path d="M2 10s3-5 8-5 8 5 8 5-3 5-8 5-8-5-8-5z" stroke-width="1.8"/><path d="M4 16L16 4" stroke-width="2.2"/>',
@@ -120,7 +123,7 @@ function obstacleHitBy(x, y, r) {
   }
   return null;
 }
-const canRam = o => { const lv = upg('ram'); if (o && TOUCH_KINDS.has(o.kind) && o.kind !== 'border') return true; return lv > 0 && o && o.kind !== 'border' && RAM_KINDS[lv].has(o.kind) && !(o.kind === 'rock' && o.r > 26) && !(o.kind === 'tree' && (o.r > 20 || o.tinfo && o.tinfo.pine && o.r > 16)); }; // only saplings and small trees snap; big trunks still stop you
+const canRam = o => { const lv = upg('ram'); if (o && ((TOUCH_KINDS.has(o.kind) && o.kind !== 'border') || o.pump)) return true; /* a gas pump goes up whatever hits it */ return lv > 0 && o && o.kind !== 'border' && RAM_KINDS[lv].has(o.kind) && !(o.kind === 'rock' && o.r > 26) && !(o.kind === 'tree' && (o.r > 20 || o.tinfo && o.tinfo.pine && o.r > 16)); }; // only saplings and small trees snap; big trunks still stop you
 function smashObstacle(o, ang, quiet) { // quiet: catching up on breakage that happened before you joined (no sound or show)
   const i = obstacles.indexOf(o); if (i < 0) return;
   const mine = !NS.remote; // my snake did it (co-op: replays of other players' smashes only rebuild the world and show it)
@@ -128,6 +131,7 @@ function smashObstacle(o, ang, quiet) { // quiet: catching up on breakage that h
   if (!quiet) smashLook(o, fx, ang); // real pieces of it, the hit, its dust (cut from the map layer before it's redrawn without it)
   obstacles.splice(i, 1);
   if (o.kind === 'tree' || o.kind === 'bush') treeFall(o, ang, quiet); // its canopy goes too, and the leaves come down
+  if (o.pump && !quiet) { const px = o.t === 'r' ? o.x + o.w / 2 : o.x, py = o.t === 'r' ? o.y + o.h / 2 : o.y; later.push({ t: .12, f: () => pumpBlast(px, py) }); } // a gas pump: a beat later, it goes up
   const cx = o.t === 'r' ? o.x + o.w / 2 : o.x, cy = o.t === 'r' ? o.y + o.h / 2 : o.y, size = o.t === 'r' ? Math.sqrt(o.w * o.h) : o.r * 1.6;
   if (fx) bfxWreck(bctx, o, fx, ang); else drawWreck(bctx, o, ang); // the broken piece stays on the floor as wreckage
   if (o.kind === 'speaker') { const sp = clubSpeakers.find(q => q.o === o); if (sp) { sp.alive = false; Sfx.speakerDie(sp); } }

@@ -103,6 +103,11 @@ function composeBeam(f, withShadows) {
   s1.setTransform(LS, 0, 0, LS, 0, 0); s1.clearRect(0, 0, s, s);
   s1.save(); s1.translate(R, R); s1.rotate(f.da); s1.drawImage(BEAM, 0, -hh, R, hh * 2); s1.restore();
   s1.globalAlpha = .5; s1.drawImage(MASK_SPR, R - 22, R - 22, 44, 44); s1.globalAlpha = 1; // spill around the hand
+  { // walls stop it: rays fanned across the cone end at the first wall, and the beam is cut to that shape (every beam, shadowed or not)
+    const N = 24, sp = f.half * 1.2, P = []; let cut = false;
+    for (let k = 0; k <= N; k++) { const a = f.da - sp + 2 * sp * k / N, ca = Math.cos(a), sa = Math.sin(a); let d = 6; while (d < R && !opaque(f.x + ca * d, f.y + sa * d)) d += 5; if (d < R) cut = true; P.push(R + ca * (d + 4), R + sa * (d + 4)); }
+    if (cut) { s1.save(); s1.globalCompositeOperation = 'destination-in'; s1.beginPath(); s1.moveTo(R, R); for (let k = 0; k < P.length; k += 2) s1.lineTo(P[k], P[k + 1]); s1.closePath(); s1.moveTo(R + 16, R); s1.arc(R, R, 16, 0, TAU); s1.fill(); s1.restore(); }
+  }
   if (withShadows) {
     const L = { x: f.x, y: f.y, r: R, h: 11 };
     CONE.length = 0; inCone(f, scast); inCone(f, nearDyn(f.x, f.y, R, f.holder)); // walls + bodies in one pass, softened so the beam stays one smooth shape

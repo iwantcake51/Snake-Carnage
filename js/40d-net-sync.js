@@ -124,8 +124,7 @@ function netHostTick(dt) {
 }
 function netAssign(c) { c.nid = NS.nid++; if (NS.nid > 65000) NS.nid = 1; NS.byId.set(c.nid, c); netEmit({ t: 'sp', id: c.nid, d: netCreatureData(c) }); }
 function netHostRemoteSnakes(dt) { // what a guest's snake does to the world besides eating: noise for a blind crowd, Hoover Mouth's pull
-  if (!MOD.blind && !MOD.hoover) return;
-  const me = snake; try { for (const rs of NS.rs.values()) { if (!rs.alive || !rs.started) continue; snake = rs; UPG_OVR = rs.upgLv; if (MOD.blind) snakeNoise(dt); if (MOD.hoover) hoover(rs, dt); } } finally { snake = me; UPG_OVR = null; }
+  const me = snake; try { for (const rs of NS.rs.values()) { if (!rs.alive || !rs.started) continue; snake = rs; UPG_OVR = rs.upgLv; if (MOD.blind) snakeNoise(dt); hoover(rs, dt); /* the modifier, or that player's own upgrade level */ } } finally { snake = me; UPG_OVR = null; }
 }
 function netUpdateCreatures(dt) { // the host's AI loop: each creature reacts to whichever player is its threat right now
   const me = snake, all = netSnakes().filter(s => s.alive && s.started);

@@ -64,7 +64,22 @@ function buildSolid() {
     }
   }
   buildNav(); // the low-res openness / dead-end cache follows the solid grid (see 27-crowds)
+  buildOpaque();
 }
+/* what stops light at hand height: walls, buildings, hedges, shelves... (not glass, lamp posts, water, trees' trunks or anything low) */
+let opaqueGrid = null;
+const LIGHT_PASS = new Set(['glass', 'lamp', 'water', 'tree', 'bush', 'detail']);
+function buildOpaque() {
+  opaqueGrid = new Uint8Array(GW * GH);
+  for (const o of obstacles) {
+    if (obsFlag(o, 'noCollide') || LIGHT_PASS.has(o.kind) || (HEIGHTS[o.kind] ?? 10) < 14) continue;
+    let x0, y0, x1, y1;
+    if (isRot(o)) { const P = obsCorners(o), xs = P.map(p => p[0]), ys = P.map(p => p[1]); x0 = Math.min(...xs); y0 = Math.min(...ys); x1 = Math.max(...xs); y1 = Math.max(...ys); }
+    else if (o.t === 'r') { x0 = o.x; y0 = o.y; x1 = o.x + o.w; y1 = o.y + o.h; } else { x0 = o.x - o.r; y0 = o.y - o.r; x1 = o.x + o.r; y1 = o.y + o.r; }
+    for (let j = Math.max(0, Math.floor(y0 / SG)); j < Math.min(GH, Math.ceil(y1 / SG)); j++) for (let i = Math.max(0, Math.floor(x0 / SG)); i < Math.min(GW, Math.ceil(x1 / SG)); i++) { const k = j * GW + i; if (solidGrid[k]) opaqueGrid[k] = 1; } // its real shape, from the collision grid
+  }
+}
+const opaque = (x, y) => x < 0 || y < 0 || x >= W || y >= H || (opaqueGrid ? opaqueGrid[(y / SG | 0) * GW + (x / SG | 0)] : 0);
 
 function bakeOutline() {
   mkx.clearRect(0, 0, W, H); mkx.fillStyle = '#000';
