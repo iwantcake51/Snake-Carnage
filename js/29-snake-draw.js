@@ -13,7 +13,7 @@ function tubeEdges(B, grow) { // the flanks at this outset (inset if negative): 
   const { pts, n, N, rad } = B, L = new Float64Array(2 * n), R = new Float64Array(2 * n), BL = new Float64Array(2 * n + 2), BR = new Float64Array(2 * n + 2);
   for (let i = 0; i < n; i++) { const g = pts[i], r = Math.max(.5, rad[i] + grow), nx = N[2 * i] * r, ny = N[2 * i + 1] * r; L[2 * i] = g.x - nx; L[2 * i + 1] = g.y - ny; R[2 * i] = g.x + nx; R[2 * i + 1] = g.y + ny; }
   for (let k = 1; k < n; k++) { BL[2 * k] = (L[2 * k - 2] + L[2 * k]) / 2; BL[2 * k + 1] = (L[2 * k - 1] + L[2 * k + 1]) / 2; BR[2 * k] = (R[2 * k - 2] + R[2 * k]) / 2; BR[2 * k + 1] = (R[2 * k - 1] + R[2 * k + 1]) / 2; }
-  const t = pts[n - 1], tl = (B.tr + grow) * 1.6 + 3, h = pts[0];
+  const t = pts[n - 1], tl = SEG_SNAKE && SEG_SNAKE.stump && SEG_SNAKE.alive ? (B.tr + grow) * .3 : (B.tr + grow) * 1.6 + 3, h = pts[0]; // a shot-off tail ends blunt
   BL[0] = L[0]; BL[1] = L[1]; BR[0] = R[0]; BR[1] = R[1];
   BL[2 * n] = BR[2 * n] = t.x - Math.cos(t.a) * tl; BL[2 * n + 1] = BR[2 * n + 1] = t.y - Math.sin(t.a) * tl;
   return { pts, n, L, R, BL, BR, hx: h.x, hy: h.y, ha: h.a, hr: B.hr + grow };

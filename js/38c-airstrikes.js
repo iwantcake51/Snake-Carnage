@@ -271,39 +271,67 @@ function airHitSnake(i, by) {
   if (me.cutT > 0) return; // the same rounds walking on over the stump don't take another piece a frame later
   airHurt(.8); tailCut(me, i);
 }
-function tailCut(s, i) { // everything from piece i back is blown off and bursts, the stump is left torn and bleeding
+function tailCut(s, i) { // everything from piece i back is blown off and bursts into chunks you can eat back; the stump is left blunt, torn and bleeding
   const lost = s.segs.length - i, cfg = SETTINGS.snake;
   snakeBurst({ segs: s.segs.slice(i), stains: s.stains.slice(i), scale: s.scale, angle: s.segs[i].a }, cfg.color, cfg, 0, true);
   s.len = i; s.lenV = Math.min(s.lenV ?? i, i); if (s.stains.length > i) s.stains.length = i; computeSegs(s);
-  s.cutT = .4; s.stump = { t: 0, life: 14, next: 0, seed: rand(0, 99) };
-  const n = s.segs.length, gore = ['#a50d16', '#7c0710', '#c8161e', '#5e050b'];
-  for (let k = Math.max(0, n - 5); k < n; k++) { const g = s.segs[k], m = k === n - 1 ? 12 : k === n - 2 ? 7 : 3; for (let q = 0; q < m; q++) stainSnake(k, g.x + rand(-7, 7), g.y + rand(-7, 7), rand(1.6, 3.8), pick(gore)); } // soaked toward the wound
+  s.cutT = .4; s.stump = { t: 0, next: 0, seed: rand(1, 99), len0: s.len };
+  const n = s.segs.length, gore = ['#a50d16', '#7c0710', '#c8161e', '#5e050b'], k0 = s.scale || 1;
+  for (let k = Math.max(0, n - 5); k < n; k++) { const g = s.segs[k], rr = segR(k, n), m = k === n - 1 ? 14 : k === n - 2 ? 8 : 3; // soaked toward the wound (marked, so they wash off when it grows back)
+    for (let q = 0; q < m; q++) { const px = g.x + rand(-7, 7), py = g.y + rand(-7, 7); addStain(s.stains[k], { a: Math.atan2(py - g.y, px - g.x) - g.a, d: Math.min(Math.hypot(px - g.x, py - g.y), rr - 1) / k0, r: rand(1.6, 3.8) / k0, c: pick(gore), e: rand(1, 2.2), gore: 1 }, 30); } }
   const t = s.segs[n - 1]; spawnBlood(t.x, t.y, t.a + Math.PI, .45, 2.6, .15, gore); bloodMist(t.x, t.y, t.a + Math.PI, .9, gore);
   shake = Math.max(shake, 16); hitStop = Math.max(hitStop, .05); AIR.rumble = Math.max(AIR.rumble, .5);
-  if (typeof toast === 'function') toast(`Tail blown off: -${lost} length`);
+  if (typeof toast === 'function') toast(`Tail blown off: -${lost} length. Eat the pieces to get some back`);
 }
-function stumpTick(dt) { // the stump keeps pumping blood for a while, leaving a trail, and the wound slowly closes
-  const s = snake, w = s && s.stump; if (s && s.cutT > 0) s.cutT -= dt; if (!w) return;
+function stumpHeal(s) { // it grew: the torn end and the blood soaked into it are gone
+  s.stump = null;
+  for (const l of s.stains || []) { let any = false; for (let j = l.length - 1; j >= 0; j--) if (l[j].gore) { l.splice(j, 1); any = true; } if (any) l.dirty = true; }
+}
+function stumpTick(dt) { // the stump keeps pumping blood for a while, leaving a trail; your blown-off pieces can be eaten back
+  const s = snake; if (!s) return; if (s.cutT > 0) s.cutT -= dt;
+  if (s.alive && !s.netHidden && (state === 'play' || NETM.run) && s.segs && s.segs.length) eatTailBits(s);
+  const w = s.stump; if (!w) return;
   if (!s.alive || !s.segs || !s.segs.length) { s.stump = null; return; }
-  w.t += dt; if (w.t > w.life) { s.stump = null; return; }
-  const bleed = clamp(1 - w.t / 6, 0, 1); if (bleed <= 0) return;
+  if (s.len > w.len0) return stumpHeal(s);
+  w.t += dt; const bleed = clamp(1 - w.t / 6, 0, 1); if (bleed <= 0) return;
   const t = s.segs[s.segs.length - 1];
   if (Math.random() < dt * 26 * bleed) spawnBlood(t.x + rand(-2, 2), t.y + rand(-2, 2), t.a + Math.PI + rand(-.8, .8), .03 + .04 * bleed, 1.6, .1);
   if ((w.next -= dt) <= 0) { w.next = rand(.25, .5) / (.4 + bleed); pools.push({ x: t.x + rand(-3, 3), y: t.y + rand(-3, 3), r: 1.5, c: pick(['#a50d16', '#8e0a12', '#7c0710']), max: rand(3, 6) * (.5 + bleed), ang: rand(0, TAU), lobes: Array.from({ length: randi(6, 9) }, () => ({ dx: rand(-.6, .6), dy: rand(-.6, .6), s: rand(.35, 1) })) }); }
 }
-function drawStump(x) { // the torn end: ragged flesh, a wet red core, a glint of spine, flaps of skin in the snake's colors
+function eatTailBits(s) { // chunks of your own blown-off tail: run over them to swallow them back (all of them together give back 75% of what was lost)
+  let ate = 0, ex = 0, ey = 0; const R = snakeRadius() * 1.6 + 5;
+  for (let i = gibs.length - 1; i >= 0; i--) { const g = gibs[i]; if (!g.food || g.z > 14) continue;
+    if (dist2(g.x, g.y, s.x, s.y) < (R + g.s) ** 2) { s.gibFood = (s.gibFood || 0) + g.food; ex = g.x; ey = g.y; gibs.splice(i, 1); ate++; } }
+  if (!ate) return;
+  let grew = 0; while (s.gibFood >= 1 - 1e-6) { s.gibFood -= 1; s.len++; s.stains.push([]); grew++; }
+  Sfx.gore(ex, false); if (grew) Sfx.eat(ex, false, .35);
+  for (let k = 0; k < 3 * ate; k++) { const i = randi(0, Math.min(3, s.segs.length - 1)), g = s.segs[i]; stainSnake(i, g.x + rand(-6, 6), g.y + rand(-6, 6), rand(1.2, 2.6), pick(['#a50d16', '#7c0710', SETTINGS.snake.color || '#4e7cf6'])); }
+}
+const stumpOn = s => !!(s && s.stump && s.alive); // the tail end is blunt and torn (segR and the tube's tail tip read this)
+function drawStump(x) { // the torn end, really mangled: ragged skin flaps, raw uneven meat, the spine sticking out, strips of skin hanging off and swinging, gashes up the last pieces
   const s = snake, w = s && s.stump; if (!w || !s.alive || s.netHidden) return;
   const pts = s._pts || s.segs, n = pts.length; if (n < 2) return;
-  const g = pts[n - 1], R = segR(n - 1, n) * (s.scale || 1), ca = Math.cos(g.a), sa = Math.sin(g.a), cx = g.x - ca * R * .5, cy = g.y - sa * R * .5;
-  const al = clamp((w.life - w.t) / 3, 0, 1), fresh = clamp(1 - w.t / 6, 0, 1), cfg = SETTINGS.snake, P = cfg.color || '#4e7cf6';
-  x.save(); x.globalAlpha = al; x.translate(cx, cy); x.rotate(g.a);
-  let r0 = w.seed; const rr = () => (r0 = (r0 * 9301 + 49297) % 233280) / 233280;
-  x.fillStyle = shade(P, -.35); for (let k = 0; k < 7; k++) { const a = Math.PI * .5 + k / 6 * Math.PI, d = R * (.75 + .25 * rr()); x.beginPath(); x.moveTo(Math.cos(a) * R * .55, Math.sin(a) * R * .55); x.lineTo(Math.cos(a - .2) * d - R * .25 * rr(), Math.sin(a - .2) * d); x.lineTo(Math.cos(a + .2) * d, Math.sin(a + .2) * d); x.fill(); } // torn skin flaps, hanging back off the end
-  x.fillStyle = '#5e050b'; x.beginPath(); x.ellipse(-R * .1, 0, R * .5, R * .82, 0, 0, TAU); x.fill();
-  x.fillStyle = `rgb(${150 + 60 * fresh | 0},${14 + 10 * fresh | 0},${22 + 8 * fresh | 0})`; x.beginPath(); x.ellipse(-R * .14, 0, R * .36, R * .62, 0, 0, TAU); x.fill(); // wet meat
-  x.fillStyle = 'rgba(255,170,170,' + (.35 * fresh + .1).toFixed(3) + ')'; x.beginPath(); x.ellipse(-R * .2, -R * .18, R * .1, R * .2, 0, 0, TAU); x.fill(); // the shine on it
-  x.fillStyle = '#e9dccb'; x.beginPath(); x.arc(-R * .12, 0, R * .13, 0, TAU); x.fill(); // the spine
-  x.fillStyle = '#7c0710'; for (let k = 0; k < 4; k++) { x.beginPath(); x.arc(-R * (.4 + .5 * rr()), (rr() - .5) * R * 1.2, R * (.08 + .1 * rr()), 0, TAU); x.fill(); } // clots
+  const g = pts[n - 1], R = segR(n - 1, n) * (s.scale || 1), ca = Math.cos(g.a), sa = Math.sin(g.a), cx = g.x - ca * R * .35, cy = g.y - sa * R * .35;
+  const fresh = clamp(1 - w.t / 6, 0, 1), cfg = SETTINGS.snake, P = cfg.color || '#4e7cf6', Q = cfg.color2 || shade(P, .3);
+  let r0 = w.seed * 997; const rr = () => (r0 = (r0 * 9301 + 49297) % 233280) / 233280;
+  x.save();
+  for (let k = 2; k <= Math.min(4, n - 1); k++) { const q = pts[n - k], rq = segR(n - k, n) * (s.scale || 1), qa = q.a + Math.PI / 2 + (rr() - .5) * .9, L = rq * (.7 + .5 * rr()), ox = (rr() - .5) * rq * .6; // gashes up the body
+    const gx = q.x + Math.cos(q.a) * ox, gy = q.y + Math.sin(q.a) * ox, dx = Math.cos(qa) * L * .62, dy = Math.sin(qa) * L * .62, jx = Math.cos(q.a) * rq * .18, jy = Math.sin(q.a) * rq * .18;
+    x.lineCap = 'round'; x.lineJoin = 'round'; const tear = () => { x.beginPath(); x.moveTo(gx - dx, gy - dy); x.lineTo(gx - dx * .3 + jx, gy - dy * .3 + jy); x.lineTo(gx + dx * .3 - jx, gy + dy * .3 - jy); x.lineTo(gx + dx, gy + dy); x.stroke(); }; // a ragged tear, not a clean cut
+    x.strokeStyle = 'rgba(60,2,8,.85)'; x.lineWidth = 1.8; tear(); x.strokeStyle = 'rgba(200,28,44,.9)'; x.lineWidth = .7; tear(); }
+  x.translate(cx, cy); x.rotate(g.a);
+  for (let k = 0; k < 3; k++) { const sw = Math.sin(T * (3 + k) + k * 2.1 + w.seed) * .5, y0 = (k - 1) * R * .6, L = R * (1.4 + rr() * 1.4); // strips of skin and sinew hanging off the back, swinging as it moves
+    x.strokeStyle = k === 1 ? '#7c0710' : shade(k ? Q : P, -.3); x.lineWidth = R * (k === 1 ? .22 : .32); x.lineCap = 'round';
+    x.beginPath(); x.moveTo(-R * .3, y0); x.quadraticCurveTo(-L * .55, y0 + sw * R, -L, y0 + sw * R * 1.6 + (rr() - .5) * R * .4); x.stroke(); }
+  x.fillStyle = shade(P, -.32); x.beginPath(); // the torn rim of skin: a jagged crown around the end
+  for (let k = 0; k <= 14; k++) { const a = Math.PI / 2 + k / 14 * Math.PI, d = R * (k % 2 ? 1.05 + .5 * rr() : .78 + .12 * rr()); const px = Math.cos(a) * d - (k % 2 ? R * .35 * rr() : 0), py = Math.sin(a) * d; k ? x.lineTo(px, py) : x.moveTo(px, py); }
+  x.lineTo(R * .2, -R); x.lineTo(R * .2, R); x.closePath(); x.fill();
+  x.fillStyle = '#4a0308'; x.beginPath(); for (let k = 0; k <= 10; k++) { const a = k / 10 * TAU, d = R * (.62 + .2 * rr()); x.lineTo(Math.cos(a) * d * .7 - R * .12, Math.sin(a) * d); } x.closePath(); x.fill(); // the raw end, uneven
+  x.fillStyle = `rgb(${130 + 80 * fresh | 0},${12 + 12 * fresh | 0},${20 + 10 * fresh | 0})`; x.beginPath(); for (let k = 0; k <= 9; k++) { const a = k / 9 * TAU, d = R * (.45 + .17 * rr()); x.lineTo(Math.cos(a) * d * .65 - R * .16, Math.sin(a) * d); } x.closePath(); x.fill(); // wet meat
+  x.fillStyle = 'rgba(240,150,160,' + (.3 * fresh + .12).toFixed(3) + ')'; x.beginPath(); x.ellipse(-R * .24, -R * .2, R * .09, R * .18, .3, 0, TAU); x.fill(); // the shine on it
+  x.fillStyle = '#e9dccb'; x.strokeStyle = '#8a7d6c'; x.lineWidth = .6; x.beginPath(); x.rect(-R * .95, -R * .09, R * .8, R * .18); x.fill(); x.stroke(); // the spine, snapped and sticking out
+  x.beginPath(); x.arc(-R * .95, 0, R * .15, 0, TAU); x.fill(); x.stroke(); x.beginPath(); x.arc(-R * .45, 0, R * .13, 0, TAU); x.fill(); x.stroke();
+  x.fillStyle = '#6d0610'; for (let k = 0; k < 5; k++) { x.beginPath(); x.arc(-R * (.3 + .7 * rr()), (rr() - .5) * R * 1.3, R * (.07 + .1 * rr()), 0, TAU); x.fill(); } // clots
   x.restore();
 }
 /* ---- the hit on screen: a red flash, then a red vignette pulsing in from the edges twice, like a heartbeat, and easing away ---- */
@@ -400,6 +428,7 @@ function snakeBurst(s, skin, cfg, from, part) { // from: the piece it was hit on
   const n = segs.length, P = cfg.color || skin || '#4e7cf6', Q = cfg.color2 || shade(P, .3), o = clamp(Math.round(from ?? s.burstAt ?? 0), 0, n - 1), steps = Math.max(o + 1, n - o); s.burstAt = undefined;
   const c = { segs: segs.map(g => ({ x: g.x, y: g.y, a: g.a })), stains: segs.map((_, i) => (s.stains && s.stains[i]) || []), scale: s.scale || 1, cfg: { ...cfg, hat: 'None' }, part: !!part,
     n, o, steps, k: 0, t: 0, dur: clamp(.2 + steps * .005, .28, 1) * (part ? .8 : 1), P, Q, cols: [P, P, shade(P, -.2), shade(P, -.4), Q, Q, shade(Q, -.25), '#a50d16', '#c8161e', '#7c0710', '#b8101a'], end: 0 }; // its own two colors, and real red blood
+  if (part) { const step = Math.max(1, Math.round(n / 22)); let cnt = 0; for (let i = 0; i < n; i++) if (i === o || i % step === 0 || i === n - 1) cnt += i === o ? 5 : 2; c.share = .75 * n / Math.max(1, cnt); } // its chunks are food: all of them together are 75% of what was lost
   corpses.push(c);
   if (!part && cfg.hat && cfg.hat !== 'None') dropHat(segs[0].x, segs[0].y, s.angle ?? segs[0].a, s.scale || 1, cfg.hat);
   popSeg(c, o); c.k = 1;
@@ -413,10 +442,10 @@ function popSeg(c, i) {
   bloodMist(g.x, g.y, rand(0, TAU), head ? 1.3 : .6, c.cols);
   if (head || Math.random() < .55) pools.push({ x: g.x + rand(-4, 4), y: g.y + rand(-4, 4), r: 2, c: (q => q < .35 ? pick(['#a50d16', '#8e0a12']) : q < .75 ? c.P : c.Q)(Math.random()), max: rand(5, 9) * (head ? 1.5 : 1) * ba * sc, ang: rand(0, TAU), lobes: Array.from({ length: randi(7, 11) }, () => ({ dx: rand(-.6, .6), dy: rand(-.6, .6), s: rand(.35, 1) })) });
   for (let k = 0; k < (head ? 5 : 2); k++) { // chunks of the body itself
-    if (gibs.length >= GIB_MAX) { const j = gibs.findIndex(q => q.rest > 0); gibs.splice(Math.max(0, j), 1); }
+    if (gibs.length >= GIB_MAX + (c.share ? 40 : 0)) { const j = gibs.findIndex(q => q.rest > 0 && !q.food); gibs.splice(Math.max(0, j), 1); } // (your own tail's pieces aren't cleared away for others)
     const a = rand(0, TAU), sp = rand(80, 260);
     gibs.push({ x: g.x + rand(-3, 3), y: g.y + rand(-3, 3), z: rand(4, 10), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(80, 210), rot: rand(0, TAU), vr: rand(-12, 12),
-      s: rand(2, 3.6) * sc, shape: randi(0, 3), col: Math.random() < .25 ? pick(['#8e0a12', '#b3121c']) : Math.random() < .6 ? pick([c.P, shade(c.P, -.2)]) : pick([c.Q, shade(c.Q, -.2)]), bl: c.cols, landed: false, rest: 0, life: rand(8, 16), age: 0, a: 1 });
+      s: rand(2, 3.6) * sc, shape: randi(0, 3), col: Math.random() < .25 ? pick(['#8e0a12', '#b3121c']) : Math.random() < .6 ? pick([c.P, shade(c.P, -.2)]) : pick([c.Q, shade(c.Q, -.2)]), bl: c.cols, landed: false, rest: 0, life: c.share ? rand(24, 32) : rand(8, 16), age: 0, a: 1, food: c.share || 0 });
   }
   for (const q of nearbyCreatures(g.x, g.y, head ? 140 : 100, [])) { // everyone close gets some of it on them
     if (!q.alive) continue; const a = Math.atan2(q.y - g.y, q.x - g.x);

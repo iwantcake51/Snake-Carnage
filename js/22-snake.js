@@ -33,6 +33,7 @@ function updateSize(s, dt) { s.playT = (s.playT || 0) + dt; const t = sizeTarget
 let SEG_SNAKE = null; // the snake being drawn right now (drawSnake sets it; teammates' snakes go through the same code)
 const segR = (i, n) => { // the tail tapers over its last 6 segments; while the body is growing, the taper follows the fractional length so nothing pops
   const s = SEG_SNAKE || snake, nf = s && s.lenV !== undefined && s.segs && s.segs.length === n ? Math.max(n - 1, Math.min(n, s.lenV)) : n;
+  if (s && s.stump && s.alive) return snakeRadius(); // the tail was shot off: no taper, it ends blunt where it was torn
   return snakeRadius() * (1 - .35 * Math.max(0, (i - (nf - 6)) / 6));
 };
 
