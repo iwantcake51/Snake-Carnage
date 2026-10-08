@@ -25,13 +25,12 @@ function makeThumbs() { // rendered preview of every map (used by the cards, the
 }
 function mapThumb(m) {
   {
-    const k = Math.min(DPR, 480 / (m.custom ? W : MW) * 1.25); // drawn straight at about the card's size, not at full screen resolution
+    const k = Math.min(DPR, 480 / MW * 1.25); // drawn straight at about the card's size, not at full screen resolution
     const mk = () => { const c = document.createElement('canvas'); c.width = Math.ceil(W * k); c.height = Math.ceil(H * k); const x = c.getContext('2d'); x.setTransform(k, 0, 0, k, 0, 0); return [c, x]; };
     const [c, x] = mk(), b = m.build();
     b.floor(x); const [oc, ox] = mk(); drawObstacleLayer(ox, b, [...borderWalls(m.border), ...b.obs], b.lights || m.lights || []); x.drawImage(oc, 0, 0, W, H);
     const t = document.createElement('canvas'); t.width = 480; t.height = 320; const tx = t.getContext('2d'); tx.imageSmoothingQuality = 'high';
-    if (m.custom) tx.drawImage(c, 0, 0, W * k, H * k, 0, (320 - 480 * H / W) / 2, 480, 480 * H / W); // a custom map is shown whole
-    else tx.drawImage(c, XO * k, 0, MW * k, H * k, 0, 0, 480, 320); // the card shows the original middle of the map
+    tx.drawImage(c, XO * k, 0, MW * k, H * k, 0, 0, 480, 320); // every card, built-in or custom, shows the middle of the map: the part every screen width has
     const url = t.toDataURL ? t.toDataURL() : ''; freeCanvas(c, oc, t); return url;
   }
 }
@@ -376,6 +375,7 @@ const SETTING_TABS = {
   Audio: { icon: 'audio', lead: 'Everything you hear.', rows: [
     ['head', 'Volume'],
     ['slider', 'volume', 'Master volume', 'How loud everything is.', 0, 1, .05],
+    ['toggle', 'softHigh', 'Soften high sounds', 'Tones down shrill, high-pitched sounds: jet whine, ear ringing, alarms.'],
     ['head', 'Interface'],
     ['toggle', 'uiSounds', 'Menu sounds', 'Click and hover sounds in menus.']] },
   Controls: { icon: 'controls', lead: 'Click a key to change it, then press the new one. Esc cancels, Backspace puts the default back. On a phone or tablet, drag anywhere on the board to steer.', binds: true, keys: [
@@ -412,6 +412,7 @@ function settingsBody(tab) {
   }).join('');
 }
 function applySetting(k) { // side effects of a setting change
+  if (k === 'softHigh' && Sfx.setSoftHigh) Sfx.setSoftHigh();
   saveSettings();
   if (k === 'reduceMotion') document.body.classList.toggle('calm', !!SETTINGS.reduceMotion);
   if (k === 'uiScale') { applyUiScale(); requestAnimationFrame(() => overlay.querySelectorAll('.seg,.sseg').forEach(sg => placeThumb(sg, true))); }

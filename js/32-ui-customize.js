@@ -105,7 +105,7 @@ function finishStart(opts, sz) {
   if (runMods.length && opts.mystery) modIntro(runMods);
   updateTime(0);
   state = 'intro';
-  cam = { t: 0, dur: SETTINGS.reduceMotion ? .01 : 1.5, z0: 5, hold: true };
+  cam = { t: 0, dur: SETTINGS.reduceMotion ? .01 : 1.5, z0: opts.net ? 1 : 5, hold: true }; // co-op: no zoom on your snake while everyone loads; the whole map, fully out
   if (opts.test || opts.late) { cam.dur = .01; cam.hold = false; endIntro(true); stage.classList.remove('bars'); return; } // editor play test (or rejoining a co-op run): straight in
   if (opts.mystery) { // random map: no picture or name, the world itself is the reveal
     intro.innerHTML = `<div class="iname mys">${timeBadge()}${seasonBadge()}</div>`;
@@ -156,7 +156,8 @@ let boardScale = 1;
 function fit() {
   const small = innerHeight < 560 || innerWidth < 760; document.body.classList.toggle('phone', small); // phones: thin bar, no margins
   const barH = (small ? 0 : 30) + (bar.offsetHeight || 40), pad = small ? 4 : 24; // the real bar height: the board never runs off the bottom
-  const s = boardScale = Math.min((innerWidth - pad) / W, (innerHeight - barH) / H, 2.2); // render the game larger when there's room
+  const vh = (window.visualViewport && visualViewport.height) || innerHeight, top = small ? Math.max(0, cv.getBoundingClientRect().top) : 0; // a phone: measure where the board really starts (the bar is scaled), so it runs exactly to the bottom
+  const s = boardScale = Math.min((innerWidth - pad) / W, small ? (vh - top) / H : (innerHeight - barH) / H, 2.2); // render the game larger when there's room
   cv.style.width = W * s + 'px'; cv.style.height = H * s + 'px'; bar.style.width = W * s + 'px';
   applyUiScale();
 }

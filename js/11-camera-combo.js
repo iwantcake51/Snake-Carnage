@@ -25,7 +25,7 @@ const UCAM_MAX = 2.6;
 const ucamFree = () => !snake || (state !== 'play' && state !== 'held'); // not steering right now: free look
 const baseZoom = () => { const s = snake && snake.scale || 1; return s < .95 ? 1 + (1 - s) * .45 : 1; };
 const ucamBase = () => UCAM.mode === 'follow' ? [snake.x, snake.y] : [UCAM.ax, UCAM.ay]; // what the pan offset is relative to
-function resetUserCam(instant) { UCAM.tz = 1; UCAM.tpx = UCAM.tpy = 0; if (instant) { UCAM.z = 1; UCAM.px = UCAM.py = 0; UCAM.ax = UCAM.fx = W / 2; UCAM.ay = UCAM.fy = H / 2; } }
+function resetUserCam(instant) { UCAM.tz = 1; UCAM.keep = 1; UCAM.tpx = UCAM.tpy = 0; if (instant) { UCAM.z = 1; UCAM.px = UCAM.py = 0; UCAM.ax = UCAM.fx = W / 2; UCAM.ay = UCAM.fy = H / 2; } }
 function userCam() { // -> { z, fx, fy } to draw with, or null when the camera is at its plain full-map view
   const now = performance.now() / 1000, dt = Math.min(.05, Math.max(0, now - (UCAM.lt || now))); UCAM.lt = now;
   const mode = ucamFree() ? 'free' : 'follow';
@@ -47,7 +47,7 @@ function userCam() { // -> { z, fx, fy } to draw with, or null when the camera i
 }
 function zoomAt(cx, cy, factor) { // zoom in on your snake: it's always the centre of the view; with no snake about, toward the pointer
   const z0 = baseZoom(), before = canvasToWorld(cx, cy);
-  UCAM.tz = clamp(UCAM.tz * factor, 1 / z0, UCAM_MAX); UCAM.rate = 0;
+  UCAM.tz = clamp(UCAM.tz * factor, 1 / z0, UCAM_MAX); UCAM.rate = 0; if (snake && snake.alive && !snake.netHidden) UCAM.keep = UCAM.tz; // the zoom you chose: a co-op respawn brings it back
   const z = clamp(UCAM.tz * z0, 1, UCAM_MAX * z0);
   if (z < 1.003) { UCAM.tpx = UCAM.tpy = 0; return; }
   if (snake && state !== 'menu' && state !== 'editor') { const [bx, by] = ucamBase(); UCAM.tpx = snake.x - bx; UCAM.tpy = snake.y - by; return; }

@@ -24,9 +24,11 @@ const Sfx = {
     this.master = c.createGain(); // (fades the whole world out on death)
     if (!this.comp) { const cp = this.comp = c.createDynamicsCompressor(); cp.threshold.value = -16; cp.knee.value = 14; cp.ratio.value = 3.5; cp.attack.value = .004; cp.release.value = .22; const mk = c.createGain(); mk.gain.value = 1.25; cp.connect(mk); mk.connect(c.destination); } // a master compressor: glues the mix, keeps big blasts from clipping, lifts the quiet stuff a little
     this.master.connect(this.comp);
-    this.bus.connect(this.lp); this.lp.connect(this.master); this.head = c.createGain(); this.head.connect(this.master);
+    this.hs = c.createBiquadFilter(); this.hs.type = 'highshelf'; this.hs.frequency.value = 3200; this.setSoftHigh(); // Soften high sounds: a shelf off the top of the whole world
+    this.bus.connect(this.lp); this.lp.connect(this.hs); this.hs.connect(this.master); this.head = c.createGain(); this.head.connect(this.hs);
     this.setMuffle(this.muffled);
   },
+  setSoftHigh() { if (this.hs) this.hs.gain.value = SETTINGS.softHigh ? -16 : 0; },
   hold(on) { // the game paused (or the solo death screen up): the world's sound stops where it is and picks up again on resume
     if (!this.ctx || on === !!this.held) return;
     clearTimeout(this.fadeTO);
@@ -40,7 +42,7 @@ const Sfx = {
   },
   flush() { // cut off every world sound in flight: a fresh output chain; the old one, and everything still feeding it, is let go
     if (!this.bus) return;
-    try { this.bus.disconnect(); this.lp.disconnect(); this.head.disconnect(); this.master.disconnect(); } catch (e) {}
+    try { this.bus.disconnect(); this.lp.disconnect(); this.hs.disconnect(); this.head.disconnect(); this.master.disconnect(); } catch (e) {}
     if (this.sl) { try { this.sl.src.stop(); } catch (e) {} this.sl = null; }
     if (this.fz) { try { this.fz.src.stop(); this.fz.lfo.stop(); } catch (e) {} this.fz = null; } // the Short fuse's hiss
     this.verb = null; this.mus = null; this.flys = []; this.dzF = 0; this.ringUntil = 0; this.chain();

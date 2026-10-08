@@ -880,7 +880,7 @@ Object.assign(Sfx, {
     curve(pn.pan, pan); curve(dry.gain, scaled(gain, vol)); curve(send.gain, scaled(wet, vol));
     const ns = c.createBufferSource(), lp = c.createBiquadFilter(), rg = c.createGain(); ns.buffer = this.noise; ns.loop = true; curve(ns.playbackRate, dop); // the roar: noise, its whole spectrum moved by the Doppler
     lp.type = 'lowpass'; lp.Q.value = .4; curve(lp.frequency, cut); rg.gain.value = .55; ns.connect(lp); lp.connect(rg); rg.connect(mix);
-    for (const [ty, m, a] of [['sawtooth', 2700, .045], ['triangle', 5350, .03], ['sine', 1350, .05]]) { // the turbine whine, pitched by the same Doppler
+    for (const [ty, m, a] of [['sawtooth', 2700, .016], ['triangle', 5350, .006], ['sine', 1350, .035]]) { // the turbine whine, pitched by the same Doppler (kept low: it's shrill)
       const os = c.createOscillator(), f = c.createBiquadFilter(), og = c.createGain(); os.type = ty; curve(os.frequency, scaled(dop, m)); f.type = 'lowpass'; curve(f.frequency, cut); og.gain.value = a;
       os.connect(f); f.connect(og); og.connect(mix); os.start(t0); os.stop(t0 + dur + .1);
     }
@@ -954,7 +954,7 @@ Object.assign(Sfx, {
     const ns = c.createBufferSource(), lp = c.createBiquadFilter(); ns.buffer = this.noise; ns.loop = true; ns.playbackRate.setValueAtTime(.8, t); ns.playbackRate.linearRampToValueAtTime(1.05, end); // the roar, brightening as the air between thins out
     lp.type = 'lowpass'; lp.Q.value = .4; lp.frequency.setValueAtTime(260, t); lp.frequency.exponentialRampToValueAtTime(1500, t + pre); ns.connect(lp); lp.connect(mix);
     const rb = c.createBufferSource(), rl = c.createBiquadFilter(), rg = c.createGain(); rb.buffer = this.noise; rb.loop = true; rl.type = 'lowpass'; rl.frequency.value = 120; rg.gain.value = 1.4; rb.connect(rl); rl.connect(rg); rg.connect(mix); // the rumble that carries furthest
-    const os = c.createOscillator(), of = c.createBiquadFilter(), og = c.createGain(); os.type = 'sawtooth'; os.frequency.setValueAtTime(2400, t); os.frequency.linearRampToValueAtTime(2900, end); of.type = 'lowpass'; of.frequency.setValueAtTime(400, t); of.frequency.exponentialRampToValueAtTime(1800, t + pre); og.gain.value = .05; // the turbine whine, rising with the Doppler
+    const os = c.createOscillator(), of = c.createBiquadFilter(), og = c.createGain(); os.type = 'sawtooth'; os.frequency.setValueAtTime(2400, t); os.frequency.linearRampToValueAtTime(2900, end); of.type = 'lowpass'; of.frequency.setValueAtTime(400, t); of.frequency.exponentialRampToValueAtTime(1500, t + pre); og.gain.value = .02; // the turbine whine, rising with the Doppler
     os.connect(of); of.connect(og); og.connect(mix);
     ns.start(t, Math.random() * .5); rb.start(t, Math.random() * .5); os.start(t); ns.stop(end + .1); rb.stop(end + .1); os.stop(end + .1);
   },

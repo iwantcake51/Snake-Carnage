@@ -3,12 +3,12 @@
    CONFIG
    ========================================================= */
 // Bump by exactly 1 (1.3 -> 1.4 -> ... -> 1.10) with every change you push. See CLAUDE.md.
-const GAME_VERSION = '1.59';
+const GAME_VERSION = '1.60';
 const H = 640, B = 16, TAU = Math.PI * 2;
 /* The world is as wide as the screen's shape allows (960 to 1472, in steps of 128): maps are built for the middle 960 and
    extended on both sides (see 05b-map-extend). Fixed for the session, so every buffer can be sized once. In co-op everyone
    shares the host's size: a player whose screen gives a different one reloads into it (sessionStorage, see 40d-net-sync). */
-let W = (() => { try { const f = +sessionStorage.getItem('snakeCarnageW'); if (f >= 960 && f <= 1472 && f % 128 === 64) return f; } catch (e) {} try { const sw = Math.max(screen.width, screen.height), sh = Math.min(screen.width, screen.height); return 960 + 128 * Math.max(0, Math.min(4, Math.round((640 * sw / Math.max(1, sh - 60) - 960) / 128))); } catch (e) { return 960; } })();
+let W = (() => { try { const f = +sessionStorage.getItem('snakeCarnageW'); if (f >= 960 && f <= 1472 && f % 128 === 64) return f; } catch (e) {} try { const sw = Math.max(screen.width, screen.height), sh = Math.min(screen.width, screen.height), phone = sh < 600 && matchMedia('(pointer: coarse)').matches; if (phone) return 960 + 128 * Math.max(0, Math.min(4, Math.floor((640 * sw / Math.max(1, sh - 28) - 960) / 128))); /* a phone: never wider than the screen minus the thin top bar, so the board always runs top to bottom (any spare room goes to the sides) */ return 960 + 128 * Math.max(0, Math.min(4, Math.round((640 * sw / Math.max(1, sh - 60) - 960) / 128))); } catch (e) { return 960; } })();
 const CONFIG = {
   snakeSpeeds: { Slow: 110, Normal: 140, Fast: 185 },
   turnRate: 17,          // rad/s, max swing speed of the head toward the new 8-way heading
@@ -25,7 +25,7 @@ const SETTINGS_MIGRATE = s => { if (s.noticeSnake && s.mods && !s.mods.includes(
 const SETTINGS = Object.assign({
   darkness: .2, pixel: 1, creatureSpeed: .55, timeMode: 'Cycle', dayMinutes: 4, bloodFade: 'Normal', customHour: 22, volume: .7,
   lightQ: 'Medium', vomit: true, fxLevel: 'Normal', bloodQ: 'High', snowQ: 'Full', season: 'Random', minimalUi: false, shakeK: 1, bloodBlur: true, reduceFlash: false, bloodAmt: 'Full', simpleFx: false, mouseFollow: false, // lighting: High adds the color drain in the dark, slow on many graphics chips, so it's opt-in
-  vignette: true, desaturate: true, shake: true, noticeSnake: false, uiSounds: true, mods: [], reduceMotion: false, bubbleSize: 'Normal', strongOutlines: false, snakeOutline: 'Subtle', uiScale: 'Auto', renderRes: 'Auto', fogQ: 'High', treeQ: 'High', fpsCap: 'VSync', fullscreen: false, autoQ: true, perfHud: 'Off', bloom: true, airstrikes: true,
+  vignette: true, desaturate: true, shake: true, noticeSnake: false, uiSounds: true, softHigh: false, mods: [], reduceMotion: false, bubbleSize: 'Normal', strongOutlines: false, snakeOutline: 'Subtle', uiScale: 'Auto', renderRes: 'Auto', fogQ: 'High', treeQ: 'High', fpsCap: 'VSync', fullscreen: false, autoQ: true, perfHud: 'Off', bloom: true, airstrikes: true,
 }, (() => { try { return SETTINGS_MIGRATE(JSON.parse(localStorage.getItem('snakeCarnageSettings')) || {}); } catch (e) { return {}; } })());
 if (!SETTINGS.mapOutlines) SETTINGS.mapOutlines = SETTINGS.strongOutlines ? 'Strong' : 'Subtle'; // "Strong outlines" became "Map outlines"
 if (!SETTINGS.pxFix) { SETTINGS.pixel = 1; SETTINGS.pxFix = 1; } // old default was a 2x chunky look

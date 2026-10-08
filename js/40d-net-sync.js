@@ -421,7 +421,7 @@ function netLocalDown() {
 }
 function netDeathCam(down) { // dying: the camera eases out to the whole map; back in, your own zoom returns
   if (down) { if (NS.zoomBack === undefined) NS.zoomBack = UCAM.tz; UCAM.rate = 1.6; UCAM.tz = 1 / baseZoom(); UCAM.tpx = UCAM.tpy = 0; }
-  else { UCAM.rate = 3; if (NS.zoomBack !== undefined) UCAM.tz = NS.zoomBack; NS.zoomBack = undefined; UCAM.tpx = UCAM.tpy = 0; }
+  else { UCAM.rate = 3; UCAM.tz = UCAM.keep ?? NS.zoomBack ?? UCAM.tz; NS.zoomBack = undefined; UCAM.tpx = UCAM.tpy = 0; } // back in: the zoom you last chose yourself
 }
 function netDownApply(e) {
   if (!NS.down.has(e.pid)) NS.down.set(e.pid, { out: !!e.out }); // the host's own entry keeps its respawn timer
