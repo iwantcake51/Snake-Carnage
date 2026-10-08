@@ -79,6 +79,7 @@ function showMenu() {
       <button class="play" id="playBtn" data-sfx="none"><span>Play ${MAPS[mapIdx].name}</span><small>Space</small></button>
       <div class="modline" id="modline">${modLine()}</div>
       <div class="seg tseg" role="group" aria-label="Time of day"><i class="sthumb"></i>${Object.keys(TIME_MODES).map(k => `<button data-sfx="tab" data-time="${k}" class="${k === SETTINGS.timeMode ? 'on' : ''}" data-tip="${TIME_TIPS[k]}">${TIME_MODES[k]}</button>`).join('')}</div>
+      <div class="seg tseg seaseg ${MAPS[mapIdx].indoor || MAPS[mapIdx].space ? 'dim' : ''}" role="group" aria-label="Season"><i class="sthumb"></i>${SEASON_PICK.map(k => `<button data-sfx="tab" data-season="${k}" class="${k === (SETTINGS.season || 'Random') ? 'on' : ''}" data-tip="${SEASON_TIPS[k]}">${k}</button>`).join('')}</div>
       <div class="mrow"><button class="ghost" id="upBtn" data-sfx="open">Upgrades${upgradeReady() ? '<i class="dot"></i>' : ''}</button><button class="ghost" id="snakeBtn" data-sfx="open">Shop</button></div>
       <div class="mrow"><button class="ghost" id="modBtn" data-sfx="open">Modifiers</button><button class="ghost" id="chBtn" data-sfx="open">Challenges</button></div>
       <div class="mrow"><button class="ghost" id="setBtn" data-sfx="open">Settings</button></div>
@@ -100,6 +101,9 @@ function showMenu() {
     SETTINGS.timeMode = b.dataset.time; saveSettings(); seg.querySelectorAll('button').forEach(o => o.classList.toggle('on', o === b)); placeThumb(seg);
   });
   placeThumb(seg, true); requestAnimationFrame(() => placeThumb(seg, true));
+  const sseg = overlay.querySelector('.seaseg'); // the season, picked the same way as the time of day
+  if (sseg) { sseg.querySelectorAll('button').forEach(b => b.onclick = () => { SETTINGS.season = b.dataset.season; saveSettings(); sseg.querySelectorAll('button').forEach(o => o.classList.toggle('on', o === b)); placeThumb(sseg); if (state === 'menu') { clearTimeout(selT); selT = setTimeout(() => { if (state === 'menu') loadMap(mapIdx); }, 60); } }); // (the map behind the menu re-dresses for it)
+    placeThumb(sseg, true); requestAnimationFrame(() => placeThumb(sseg, true)); }
   document.getElementById('playBtn').onclick = startGame;
   document.getElementById('setBtn').onclick = () => { settingsFrom = 'menu'; transitionTo(() => showSettings()); };
   document.getElementById('snakeBtn').onclick = () => transitionTo(showCustomize);
@@ -115,6 +119,8 @@ function modLine(list) { // active modifiers, visible before the run starts
   return ids.map(id => { const m = MODS.find(q => q.id === id) || {}; return `<span class="mchip" data-mod="${id}" data-tip="${m.desc} (click to edit)">${m.name}</span>`; }).join('') +
     (Math.abs(mm - 1) > .005 ? `<span class="mchip mult ${mm < 1 ? 'down' : ''}">Rewards x${mm.toFixed(2)}</span>` : ''); // no meaningless x1.00 chip
 }
+const SEASON_PICK = ['Random', 'Spring', 'Summer', 'Autumn', 'Winter'];
+const SEASON_TIPS = { Random: 'A different season each run.', Spring: 'Blossom and fresh green.', Summer: 'Full leaf, long grass.', Autumn: 'Orange leaves everywhere.', Winter: 'Snow on the ground: you carve a groove through it, and blood soaks in.' };
 const TIME_TIPS = { Cycle: 'Every run starts at a random hour and the day keeps moving.', Day: 'Bright midday the whole run. Nowhere for you to hide.', Dawn: 'Frozen at first light: long shadows, lamps still on.', Dusk: 'Frozen at sunset: half-lit streets and long shadows.', Night: 'Pitch dark the whole run. Lamps, windows and flashlights only.' };
 const multLabel = ids => { const m = modMult(ids); return Math.abs(m - 1) < .005 ? 'Normal rewards' : 'Rewards x' + m.toFixed(2); };
 function showModifiers(focus) {
@@ -238,6 +244,7 @@ function selectMap(i) { // updates the menu in place, so nothing else resets. Th
   if (card) { card.classList.remove('picked'); void card.offsetWidth; card.classList.add('picked'); }
   const pb = document.querySelector('#playBtn span');
   if (pb) { pb.textContent = 'Play ' + MAPS[i].name; pb.classList.remove('bump'); void pb.offsetWidth; pb.classList.add('bump'); }
+  const ss = overlay.querySelector('.seaseg'); if (ss) ss.classList.toggle('dim', !!(MAPS[i].indoor || MAPS[i].space)); // seasons only show outdoors
   const mc = document.getElementById('mapch'); if (mc) { mc.innerHTML = mapChallengesHtml(); mc.classList.remove('swap'); void mc.offsetWidth; mc.classList.add('swap'); }
 }
 function randomRoll() { // case-opening roll; the pick stays secret until the game itself reveals it
@@ -309,7 +316,7 @@ const SETTING_TABS = {
     ['toggle', 'airstrikes', 'Air strikes', 'Outdoors, after a minute and a half of a run, the military starts bombing and strafing the path you\'re on. Red rings mark where bombs land, red lanes where a jet will rake with its cannon. The Air raid modifier starts them at once, even with this off. In multiplayer the host\'s setting counts.'],
     ['head', 'Time and weather'],
     ['seg', 'timeMode', 'Time of day', 'Dynamic starts every run at a random hour and lets the day move on. The others stay fixed.', ['Cycle', 'Day', 'Dawn', 'Dusk', 'Night'], null, null, null, TIME_MODES],
-    ['seg', 'season', 'Season', 'Outdoor maps only. Random picks one each run.', ['Random', 'Spring', 'Summer', 'Autumn', 'Winter']]] },
+] },
   Graphics: { icon: 'graphics', lead: 'Look and feel of the picture.', rows: [
     ['head', 'Display'],
     ['toggle', 'fullscreen', 'Fullscreen', 'Fill the whole screen. Esc or F11 leaves it.'],

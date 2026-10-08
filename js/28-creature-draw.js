@@ -81,7 +81,7 @@ function creatureSil(c, lite) { // lite: just the body and head (far away, where
       E(1 + s2, -2, 1.3, .9); E(1 - s2, 2, 1.3, .9); for (const sg of [-1, 1]) E(-1.4, sg * 3, 4.2, 1.6); E(-6.4, 0, 1.6, 1.2); E(8.2, 0, 2.2, 1.2); break; }
     case 'pig': feetSil(5.5, -5.5, 4.4, 1.3); for (const sg of [-1, 1]) Tri(7, sg * 2.2, 6, sg * 6.2, 9.4, sg * 4.2); E(12.6, 0, 1.8, 2.4); Ln(1.2, -9.4, 0, -11, -2.2, -12.4, -.6); break;
     case 'sheep': feetSil(5.5, -5.5, 4.2, 1.2); C(0, 0, 8.4); E(8.6, 0, 3.6, 3); for (const sg of [-1, 1]) E(7.4, sg * 3.4, 2.2, 1); break;
-    case 'rat': { const s2 = Math.sin(c.phase * 1.6) * c.moveAmt, tw = Math.sin(c.phase * .8) * (.6 + c.moveAmt), py = q => Math.sin(q * 2.6 + c.phase * 1.6) * tw * q * 3;
+    case 'rat': { const s2 = Math.sin(c.phase * 1.6) * c.moveAmt, tw = Math.sin(c.phase * .8) * (.6 + c.moveAmt), py = q => Math.sin(q * 2.6 + c.phase * .45) * tw * q * 3;
       for (const [fx, fy, ph] of [[2.6, -2.3, s2], [2.6, 2.3, -s2], [-2.4, -2.8, -s2], [-2.4, 2.8, s2]]) E(fx + ph * 1.2, fy, .9, .6);
       for (const sg of [-1, 1]) C(3.2, sg * 2.2, 1.35);
       const pts = []; for (let n = 0; n <= 6; n++) { const q = n / 6; pts.push(-4.6 - q * 10, py(q)); } Ln(1, ...pts); break; }
@@ -344,7 +344,7 @@ const ANIMALS = {
   },
   rat(x, c, d) { // low and pear-shaped: heavy haunches, a pointed snout, round ears, a long ringed tail
     const s = Math.sin(c.phase * 1.6) * c.moveAmt, col = d.col, dk = shade(col, -.22), lt = shade(col, .14);
-    const tw = Math.sin(c.phase * .8) * (.6 + c.moveAmt); // tail: thick at the root, thin and whippy at the tip
+    const tw = Math.sin(c.phase * .28) * (.55 + .6 * c.moveAmt); // tail: thick at the root, thin at the tip, swaying slowly (it used to whip about far too fast)
     for (let k = 0; k < 9; k++) { const t0 = k / 9, t1 = (k + 1) / 9, px = q => -4.6 - q * 10, py = q => Math.sin(q * 2.6 + c.phase * 1.6) * tw * q * 3;
       x.strokeStyle = shade(d.tcol || '#d99a9a', -.08 * (k % 2)); x.lineWidth = 1.5 - t0 * 1.1; x.lineCap = 'round'; x.beginPath(); x.moveTo(px(t0), py(t0)); x.lineTo(px(t1), py(t1)); x.stroke(); }
     x.fillStyle = '#e3a3a0'; for (const [fx, fy, ph] of [[2.6, -2.3, s], [2.6, 2.3, -s], [-2.4, -2.8, -s], [-2.4, 2.8, s]]) ell(x, fx + ph * 1.2, fy, .9, .6); // paws, stepping in turn

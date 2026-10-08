@@ -58,6 +58,19 @@ function perfShowIfPlaying() { // only during a run: never over the menus, the p
   const on = ['play', 'ready', 'held', 'intro'].includes(state) && !ov && !document.getElementById('mpPause');
   if (PERF.el.hidden === on) PERF.el.hidden = !on;
 }
+function perfDrag(el, handle) { // grab the panel by its top bar (or anywhere on the small one) and put it where you like; it stays there
+  try { const p = JSON.parse(localStorage.getItem('snakePerfPos') || 'null'); if (p) { el.style.left = p.x + 'px'; el.style.top = p.y + 'px'; } } catch (e) {}
+  handle.classList.add('pdrag');
+  handle.addEventListener('pointerdown', e => {
+    if (e.button !== 0 || e.target.closest('button')) return;
+    const r = stage.getBoundingClientRect(), k = stage.offsetWidth / r.width, x0 = el.offsetLeft, y0 = el.offsetTop, mx = e.clientX, my = e.clientY;
+    handle.setPointerCapture(e.pointerId); el.classList.add('moving'); e.preventDefault();
+    const move = ev => { const x = clamp(x0 + (ev.clientX - mx) * k, 0, stage.offsetWidth - el.offsetWidth), y = clamp(y0 + (ev.clientY - my) * k, 0, stage.offsetHeight - el.offsetHeight); el.style.left = Math.round(x) + 'px'; el.style.top = Math.round(y) + 'px'; };
+    const up = () => { handle.removeEventListener('pointermove', move); handle.removeEventListener('pointerup', up); handle.removeEventListener('pointercancel', up); el.classList.remove('moving');
+      try { localStorage.setItem('snakePerfPos', JSON.stringify({ x: el.offsetLeft, y: el.offsetTop })); } catch (e) {} };
+    handle.addEventListener('pointermove', move); handle.addEventListener('pointerup', up); handle.addEventListener('pointercancel', up);
+  });
+}
 function perfBuild() {
   if (PERF.el) PERF.el.remove();
   const el = document.createElement('div'); el.id = 'perfHud'; el.className = PERF.mode === 'Full' ? 'full' : 'mini';
@@ -70,6 +83,7 @@ function perfBuild() {
     : `<b class="pfps">--</b><small>fps</small><span class="pa">-- ms</span><canvas class="pg" width="90" height="22"></canvas>`;
   el.hidden = true; stage.appendChild(el); PERF.el = el; PERF.gfx = el.querySelector('.pg').getContext('2d');
   const q = c => el.querySelector(c);
+  perfDrag(el, q('.ph') || el);
   if (q('.px')) q('.px').onclick = () => { SETTINGS.perfHud = 'Off'; saveSettings(); perfApply(); };
   if (q('.preset')) q('.preset').onclick = () => { PERF.hitches = []; for (const s of PERF.stats.values()) { s.avg = s.pk = s.acc = s.winPeak = 0; } PERF.ft.fill(0); PERF.js.fill(0); };
   if (q('.pfind')) q('.pfind').onclick = () => perfFindSlow();

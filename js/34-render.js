@@ -5,7 +5,7 @@ function snakeShadowPath(x, ox, oy) { // round, soft-edged discs per segment, li
 function render() {
   const bz = boomDaze(), pxS = Math.max(1, SETTINGS.pixel | 0), wob = snake && ((snake.wallStun > 0 && !SETTINGS.simpleFx) || (snake.ramT > 0 && !SETTINGS.reduceFlash) || (bz > .03 && !SETTINGS.simpleFx));
   const direct = pxS <= 1 && !wob; render.src = direct ? cv : sceneC; // no post effect this frame: draw straight to the screen and skip a full-frame copy
-  const x = direct ? ctx : sctx, L = light, sh = shake && SETTINGS.shake ? shake * (SETTINGS.shakeK ?? 1) : 0;
+  const x = direct ? ctx : sctx, L = light, sh = shake && SETTINGS.shake && state !== 'paused' ? shake * (SETTINGS.shakeK ?? 1) : 0; // paused: the picture holds still, even mid-blast
   V.sx = sh ? rand(-sh, sh) : 0; V.sy = sh ? rand(-sh, sh) : 0; V.z = 0;
   if (cam) { // spawn camera: starts tight on the snake, eases out to the full map
     const q = cam.hold ? 0 : Math.min(1, cam.t / cam.dur), p = q < .5 ? 4 * q * q * q : 1 - Math.pow(-2 * q + 2, 3) / 2, fp = Math.pow(p, 2.5);

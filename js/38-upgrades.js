@@ -23,7 +23,7 @@ const UPGRADES = [
   { id: 'camo', name: 'Camouflage', icon: 'camo', max: 3, cost: [600, 1400, 2400], lvl: [8, 17, 23], ability: true, key: 'Q',
     desc: 'Your scales take on the ground under you. People only notice you up close.', tiers: ['5 s, 20 s cooldown', '8 s, 16 s cooldown, better blending', 'Ambush: 10 s, 14 s cooldown. Hold a straight line to fade almost completely; turns only dim it a little. Every kill while hidden adds 2 s, and people right next to you don\'t notice you'] },
   { id: 'hoover', name: 'Hoover Mouth', icon: 'hoover', max: 3, cost: [500, 1250, 2300], lvl: [6, 14, 21], ability: true, key: 'C',
-    desc: 'Open wide and inhale: for a couple of seconds everything in front of you, people included, gets dragged toward your mouth. Never through walls. (The Hoover Mouth modifier is a weaker pull that never stops.)', tiers: ['1.5 s of pull, 16 s cooldown', '2 s, stronger and wider, 13 s cooldown', 'Vortex: 2.5 s, 10 s cooldown. A huge pull that drags in even people running for their lives'] },
+    desc: 'Open wide and inhale: for a couple of seconds everything in front of you, people included, gets dragged toward your mouth. Never through walls. (The Hoover Mouth modifier is a weaker pull that never stops.)', tiers: ['1.5 s of pull in a narrow 60° cone, 16 s cooldown', '2 s, a 115° cone, stronger and further, 13 s cooldown', 'Vortex: 2.5 s, a 170° cone, 10 s cooldown. A huge pull that drags in even people running for their lives'] },
   { id: 'hiss', name: 'Hiss', icon: 'hiss', max: 3, cost: [700, 1600, 2600], lvl: [11, 18, 24], ability: true, key: 'R',
     desc: 'A blood-curdling hiss you can see rippling out: everything nearby panics and scatters.', tiers: ['190 px radius, 15 s cooldown', 'Wider, and it rattles them: slowed for 4 s, half-deaf and slurring for 10 s', 'Shockwave: the blast knocks people off their feet and blows groups apart'] },
 ];
@@ -134,6 +134,9 @@ function smashObstacle(o, ang, quiet) { // quiet: catching up on breakage that h
   const fx = bfxFor(o); // the prop's own "when it breaks" (38b-destruction); null = the classic smash below
   if (!quiet) smashLook(o, fx, ang); // real pieces of it, the hit, its dust (cut from the map layer before it's redrawn without it)
   obstacles.splice(i, 1);
+  if (typeof bucketList !== 'undefined') { const bb = o.t === 'r' ? [o.x - 2, o.y - 2, o.w + 4, o.h + 4] : [o.x - o.r - 2, o.y - o.r - 2, o.r * 2 + 4, o.r * 2 + 4]; // the blood that was on it goes with it (from every blood layer, old and new)
+    for (const b of bucketList) { const w = b.wx; w.save(); w.beginPath(); if (o.t === 'r') w.rect(o.x - 1, o.y - 1, o.w + 2, o.h + 2); else w.arc(o.x, o.y, o.r + 1, 0, TAU); w.clip(); w.clearRect(...bb); w.restore(); }
+    markW(); }
   if (o.kind === 'tree' || o.kind === 'bush') treeFall(o, ang, quiet); // its canopy goes too, and the leaves come down
   if (o.pump && !quiet) { const px = o.t === 'r' ? o.x + o.w / 2 : o.x, py = o.t === 'r' ? o.y + o.h / 2 : o.y; later.push({ t: .12, f: () => pumpBlast(px, py) }); } // a gas pump: a beat later, it goes up
   const cx = o.t === 'r' ? o.x + o.w / 2 : o.x, cy = o.t === 'r' ? o.y + o.h / 2 : o.y, size = o.t === 'r' ? Math.sqrt(o.w * o.h) : o.r * 1.6;

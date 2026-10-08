@@ -151,6 +151,7 @@ function finishLine(t, c, ctx) {
 const URG = { airTargetSnake: 4, airCivilianRisk: 4, jetNear: 2, jetFar: 1, blastClose: 4, blastNear: 3, blastFar: 1, strafeClose: 4, strafeFar: 2, heard: 2, heardKill: 3, touched: 4, idle: 0, mutter: 0, relief: 1, escaped: 1, crash: 1, bloodNearby: 1, jokeReact: 1, convoBreak: 1, stunned: 2, hissed: 2, deaf: 2, firstSight: 2, bloodySnake: 2, crowd: 2, warned: 2, answer: 2, follow: 3, panic: 3, witnessAnimal: 2, witnessHuman: 3, multiDeath: 3, wallSmash: 3, bloodOnMe: 3, spit: 3, chased: 4 };
 const CUT = [[.6, .95], [.6, .95], [.3, .8], [.1, .6], [0, .5]]; // how far into a sentence each urgency lets you get
 function bub(c, o) {
+  if (!o.act && (MOD.mute || c.deafT > T || c.blastDeafT > T)) return { text: '', cps: 30, t: 0, delay: 0, mute: true }; // deafened (a blast going off close by, or a Hiss), or the Mute modifier: no words at all, only what they do
   const b = c.bubbles || (c.bubbles = []), len = o.text.length;
   const cps = o.act ? 0 : (o.yell ? rand(30, 42) : rand(16, 24)) * ((c.talkK || 1) > 1.4 ? 1.2 : 1) * (o.fast ? 1.3 : 1);
   const nb = { text: o.text, yell: !!o.yell, act: !!o.act, t: 0, delay: o.delay || 0, cps, urg: o.urg || 0, convo: o.convo, li: o.li,
@@ -337,7 +338,7 @@ function updateConvos(dt) {
   for (let i = convos.length - 1; i >= 0; i--) {
     const v = convos[i];
     const scared = !v.survivor && (startled(v.a) || startled(v.b)); // a scream, a death, the snake, a crash: whatever made either of them flinch
-    const broke = !v.a.alive || !v.b.alive || v.a.blastDeafT > T || v.b.blastDeafT > T || dist2(v.a.x, v.a.y, v.b.x, v.b.y) > 150 * 150 || scared;
+    const broke = !v.a.alive || !v.b.alive || v.a.blastDeafT > T || v.b.blastDeafT > T || v.a.deafT > T || v.b.deafT > T || dist2(v.a.x, v.a.y, v.b.x, v.b.y) > 150 * 150 || scared; // can't talk to someone who can't hear you
     if (broke) {
       if (scared && v.a.alive && v.b.alive) {
         suspendConvo(v);
@@ -349,7 +350,7 @@ function updateConvos(dt) {
     if ((v.t -= dt) > 0) continue;
     if (v.i >= v.lines.length) { v.a.convo = v.b.convo = null; v.a.susp = v.b.susp = null; convos.splice(i, 1); continue; }
     const [sp, text, tid] = v.lines[v.i], who = sp ? v.b : v.a, other = sp ? v.a : v.b;
-    if (v.lines[v.i].cutIn) interrupt(other, 1); // talks over the end of their sentence
+    const wait = Math.max(busyUntil(who), busyUntil(other)); if (wait > 0) { v.t = wait + rand(.3, .6); continue; } // one at a time: nobody starts while either of them is still mid-sentence
     v.topic = tid ? talkPool().find(t => t.id === tid) || v.topic : v.topic;
     const nb = speakIn(v, who, text, v.survivor ? 'relief' : 'idle', tid);
     who.a = Math.atan2(other.y - who.y, other.x - who.x); other.a = Math.atan2(who.y - other.y, who.x - other.x); // they face each other
@@ -357,10 +358,7 @@ function updateConvos(dt) {
     if (other.state === 'wander' || other.state === 'idle') { other.state = 'idle'; other.timer = Math.max(other.timer, 2.5); } // stay put while it lasts
     v.i++;
     const typeT = nb.text.length / nb.cps;
-    const next = v.lines[v.i];
-    if (next && next[0] !== sp && Math.random() < .08 && typeT > 1 && !/\?$/.test(nb.text)) { // the other one jumps in before they finish
-      v.t = typeT * rand(.7, .9); next.cutIn = true;
-    } else v.t = typeT + rand(.45, 1.15) / Math.max(.6, other.talkK || 1);
+    v.t = typeT + rand(.45, 1.15) / Math.max(.6, other.talkK || 1); // they take turns: the reply comes after the line is finished
   }
   if ((resumeT -= dt) <= 0) { resumeT = rand(.8, 1.4); resumeConvos(); }
   if ((mutterT -= dt) <= 0) { mutterT = rand(3.5, 7); mutter(); }
@@ -428,6 +426,7 @@ function say(c, ctxRaw) {
   c.voice = c.voice || { heat: rand(.2, 1), swears: Math.random() < .7 }; c.recent = c.recent || [];
   if (hasTrait(c, 'quiet') && !HOT_CTX.has(ctx) && ctx !== 'answer' && ctx !== 'follow' && Math.random() < .55) return; // the quiet ones mostly keep it to themselves
   const urg = URG[ctx] ?? 2;
+  if (c.convo && urg < 3 && ctx !== 'act' && ctx !== 'answer') return; // mid-conversation: small remarks wait, only something urgent cuts in
   if (ctx === 'act') { bub(c, { text: name, act: true }); return; }
   // already talking? more urgent news cuts in; anything else waits its turn or is dropped
   let delay = 0; const cur = c.bubbles && c.bubbles.filter(b => b.delay > 0 || (b.cps && shownLen(b) < b.text.length - 1));

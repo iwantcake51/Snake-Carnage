@@ -92,10 +92,10 @@ function drawGiblets(x) {
     else if (g.shape === 1) { x.moveTo(-s, -s * .5); x.lineTo(s * .9, -s * .7); x.lineTo(s * .6, s * .7); x.lineTo(-s * .8, s * .5); x.closePath(); }
     else { x.arc(-s * .35, 0, s * .6, 0, TAU); x.moveTo(s * .9, s * .1); x.arc(s * .4, s * .1, s * .5, 0, TAU); }
     x.fill(); x.strokeStyle = g.gold ? 'rgba(110,80,10,.8)' : g.bl === ALIEN_BLOOD ? 'rgba(20,60,8,.8)' : 'rgba(70,0,6,.75)'; x.lineWidth = .7; x.stroke(); // thin dark edge
-    if (g.food) { x.strokeStyle = `rgba(255,214,170,${(.3 + .25 * Math.sin(T * 6 + g.s * 9)).toFixed(3)})`; x.lineWidth = 1.2; x.stroke(); } // a piece of your own tail: it glints, you can eat it back
     if (g.gold) { x.fillStyle = 'rgba(255,250,220,.55)'; circ(x, s * .2, -s * .25, s * .22); } // a metallic glint
     x.fillStyle = 'rgba(255,255,255,.18)'; circ(x, -s * .25, -s * .2, s * .28); // tiny wet highlight
     x.restore();
   }
   x.globalAlpha = 1;
+  if (typeof drawTailBits === 'function') drawTailBits(x); // pieces of a shot-off tail (38c-airstrikes): big and glinting, anyone can eat them
 }

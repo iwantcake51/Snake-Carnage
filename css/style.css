@@ -2364,3 +2364,8 @@ body.edscrubbing,body.edscrubbing *{cursor:ew-resize!important;user-select:none!
 .panel.chal2 .ach .ab .tier,.panel.chal2 .pmc .tier{margin-right:0!important;padding-left:calc(6px + .1em)!important}
 .panel.chal2 .ach .prv .pvCombo{width:max-content;height:auto;min-height:0;display:block}
 .panel.chal2 .ach .prv .pvCombo .cbox{margin:0}
+/* v1.48: the death wash colors the greyed-out world red (color blend keeps its light and dark, takes the red hue), so it reads even fully desaturated */
+#dTint{mix-blend-mode:color;background:radial-gradient(ellipse at 50% 50%,rgba(205,38,38,.36) 0%,rgba(175,12,12,.78) 100%)}
+#overlay.sumMode{backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)} /* the death screen keeps the red wash behind it (no extra desaturating) */
+.seg.tseg.seaseg{margin-top:6px}.seg.tseg.seaseg.dim{opacity:.45} /* the season picker, under the time of day (dimmed on indoor maps) */
+#perfHud .pdrag,#perfHud.mini.pdrag{pointer-events:auto;cursor:grab;touch-action:none}#perfHud.moving .pdrag,#perfHud.moving.pdrag{cursor:grabbing} /* drag the performance panel by its top bar */

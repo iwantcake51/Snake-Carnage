@@ -128,11 +128,11 @@ const hooverMouth = s => { const f = snakeRadius() * .7; return [s.x + Math.cos(
 function hoover(s, dt) {
   if (s.hoovT > 0) s.hoovT -= dt;
   const sk = s.hoovT > 0 ? clamp(s.hoovLv || upg('hoover') || 1, 1, 3) : 0; if (!sk && !MOD.hoover) return; // the skill while it lasts, or the modifier's steady pull
-  const P = sk ? [0, 1.5, 1.9, 2.6][sk] : 1, [hx, hy] = hooverMouth(s), R = HOOVER_R * (sk ? [0, 1.6, 1.95, 2.4][sk] : 1) * Math.sqrt(s.scale || 1), ca = Math.cos(s.angle), sa = Math.sin(s.angle), cone = sk ? .75 : .35;
+  const P = sk ? [0, 1.5, 1.9, 2.6][sk] : 1, [hx, hy] = hooverMouth(s), R = HOOVER_R * (sk ? [0, 1.6, 1.95, 2.4][sk] : 1) * Math.sqrt(s.scale || 1), ca = Math.cos(s.angle), sa = Math.sin(s.angle), cone = .35, half = [0, .55, 1.0, 1.5][sk], ch = Math.cos(half); // the skill's pull is a cone in front of the mouth: about 30, 57 and 86 degrees either side by level
   for (const c of nearbyCreatures(hx, hy, R, HOOVER_NB)) {
     if (!c.alive || c.def.fly) continue;
     const dx = hx - c.x, dy = hy - c.y, d = Math.hypot(dx, dy) || 1;
-    const front = clamp(cone - (dx * ca + dy * sa) / d, 0, 1 + cone) / (1 + cone); if (front <= 0) continue; // mostly from in front of the mouth, nothing from behind
+    const cs = -(dx * ca + dy * sa) / d, front = sk ? clamp((cs - ch) / (1 - ch) * 1.6, 0, 1) : clamp(cone + cs, 0, 1 + cone) / (1 + cone); if (front <= 0) continue; // mostly from in front of the mouth, nothing from behind
     if (T - (c.hvT ?? -1) > .1) { c.hvT = T; c.hvLos = los(c.x, c.y, hx, hy); } // line of sight, re-checked ten times a second
     if (!c.hvLos) continue;
     const k = Math.pow(1 - d / R, sk ? 1.4 : 2.2) * front, acc = (30 + 620 * k) * (c.def.human && !sk ? .75 : 1) * P; // the skill drags people as hard as anything else // a whisper at the edge, a real tug at the lips
@@ -154,8 +154,9 @@ function updateHoovFx(dt) {
 }
 function drawHoovFx(x) {
   const s = snake; if (s && s.hoovT > 0 && s.alive && !s.netHidden) { // the skill: air spiralling into the open mouth
-    const [hx, hy] = hooverMouth(s), lv = clamp(s.hoovLv || 1, 1, 3), R = HOOVER_R * [0, 1.6, 1.95, 2.4][lv] * .55, k = Math.min(1, s.hoovT * 3) * Math.min(1, (ABIL.hoover.dur - s.hoovT) * 6 + .2);
+    const [hx, hy] = hooverMouth(s), lv = clamp(s.hoovLv || 1, 1, 3), R = HOOVER_R * [0, 1.6, 1.95, 2.4][lv] * .55, k = Math.min(1, s.hoovT * 3) * Math.min(1, (ABIL.hoover.dur - s.hoovT) * 6 + .2), half = [0, .55, 1.0, 1.5][lv];
     x.save(); x.lineCap = 'round';
+    { const RR = R / .55, g = x.createRadialGradient(hx, hy, 4, hx, hy, RR); g.addColorStop(0, `rgba(230,222,205,${(.16 * k).toFixed(3)})`); g.addColorStop(1, 'rgba(230,222,205,0)'); x.fillStyle = g; x.beginPath(); x.moveTo(hx, hy); x.arc(hx, hy, RR, s.angle - half, s.angle + half); x.closePath(); x.fill(); } // the reach of the pull, faintly
     for (let i = 0; i < 9; i++) { const ph = ((T * 1.6 + i / 9) % 1), r = R * (1 - ph), a0 = s.angle + i * 2.4 - T * 7 + ph * 3; x.strokeStyle = `rgba(230,222,205,${(.32 * k * Math.sin(ph * Math.PI)).toFixed(3)})`; x.lineWidth = 1 + 1.6 * (1 - ph); x.beginPath(); x.arc(hx, hy, Math.max(2, r), a0, a0 + 1.1); x.stroke(); }
     x.restore();
   }
