@@ -13,6 +13,17 @@ function drawHitGhosts(x) { // the eaten body squashes, flashes and gets knocked
   }
 }
 let killV = 0, killFlash = 0, desatHold = 0, lastFilter = '';
+/* DYING: the picture drains to grey under a red wash within about half a second (render folds the grey into the canvas
+   filter; the red is a multiply layer over it). Coming back (respawn, or a new run) it returns over about a second. */
+let dfxK = 0;
+function deathFxTick(dt) {
+  const down = NETM.run ? !!NS.deadAt : state === 'dead' && !!snake && !snake.alive, k0 = dfxK;
+  dfxK += ((down ? 1 : 0) - dfxK) * (1 - Math.exp(-dt * (down ? 7 : 3.2)));
+  if (dfxK < .004 && !down) dfxK = 0;
+  if (Math.abs(dfxK - k0) < 1e-4 && (dfxK === 0 || dfxK > .999)) return;
+  let tint = document.getElementById('dTint'); if (!tint && dfxK > 0) { tint = document.createElement('div'); tint.id = 'dTint'; stage.appendChild(tint); }
+  stage.style.setProperty('--dfx', dfxK.toFixed(3)); stage.classList.toggle('dying', dfxK > 0); if (tint && dfxK === 0) tint.remove(); // .dying: the canvas filter follows frame by frame, no CSS easing on top
+}
 function killFx(x, y, amount) {
   killV = Math.min(.5, killV + .12 + .18 * amount); // only a whisper on screen; the impact is on the target itself
   killFlash = 0; desatHold = 0;
@@ -22,9 +33,10 @@ let mist = [];
 const FX_K = () => ({ Low: .4, Normal: 1, High: 1.5 })[SETTINGS.fxLevel] || 1;
 function bloodMist(x, y, dirA, amount, cols) {
   const n = Math.round((5 + amount * 7) * FX_K() * Math.max(.3, BQ().mist));
-  for (let k = 0; k < n && mist.length < 80; k++) {
+  const cap = 80 * Math.min(1, BQ().mist), lifeK = BQ().detail ? 1 : .7; // low quality: fewer, shorter-lived puffs (still animated every frame)
+  for (let k = 0; k < n && mist.length < cap; k++) {
     const a = dirA + gauss() * 1.1, sp = rand(20, 90) * (.6 + amount * .5);
-    mist.push({ x: x + rand(-4, 4), y: y + rand(-4, 4), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: rand(4, 9) * (.7 + amount * .5), g: rand(14, 30), t: 0, life: rand(.35, .7), c: pick(cols), a: rand(.18, .32) });
+    mist.push({ x: x + rand(-4, 4), y: y + rand(-4, 4), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: rand(4, 9) * (.7 + amount * .5), g: rand(14, 30), t: 0, life: rand(.35, .7) * lifeK, c: pick(cols), a: rand(.18, .32) });
   }
 }
 function updateMist(dt) {
@@ -43,6 +55,7 @@ function drawMist(x) {
 let puke = [];
 const VOMIT = ['#b8a641', '#a39233', '#c9b95a', '#8c7d2a'];
 function vomit(c) {
+  if (NETM.run && NETM.host && c.nid) netEmit({ t: 'vom', id: c.nid });
   if (SETTINGS.vomit === false || c.type === 'astronaut' || c.def.alien) return;
   c.pukeT = .7; c.pukeA = c.a; c.pukeRun = false;
 }

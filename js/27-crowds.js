@@ -4,11 +4,65 @@
    ========================================================= */
 const CC = 80, CGW = Math.ceil(W / CC), CGH = Math.ceil(H / CC), crowdGrid = new Uint8Array(CGW * CGH);
 let groups = [];
-function updateCrowd() { // creatures per 80px cell, rebuilt every frame (cheap)
-  crowdGrid.fill(0);
-  if (snake && snake.segs.length) goreLvl = clamp(snakeGore() / (snake.segs.length * 9), 0, 1); // ~9 stains per segment = drenched
-  for (const c of creatures) if (c.alive) { const i = clamp(c.x / CC | 0, 0, CGW - 1), j = clamp(c.y / CC | 0, 0, CGH - 1); if (crowdGrid[j * CGW + i] < 255) crowdGrid[j * CGW + i]++; }
+/* ---- spatial neighbors: every living creature bucketed into 40px cells, built ONCE per simulation tick ----
+   Anything that wants "who's near this point" asks nearbyCreatures / nearbyHumans instead of scanning the whole
+   crowd, so the cost of a query follows how busy that patch of map is, not how many creatures exist.
+   Results land in a small ring of reusable arrays (no garbage per query): a result stays valid until 8 more queries
+   have been made, so copy it (or pass your own `out`) if you need it across other queries. */
+const NB = 40, NBW = Math.ceil(W / NB) + 1, NBH = Math.ceil(H / NB) + 1, nbHead = new Int32Array(NBW * NBH).fill(-1);
+let nbNext = new Int32Array(512), nbArr = [];
+const NB_RING = Array.from({ length: 8 }, () => []); let nbRingI = 0;
+function buildNeighbors() {
+  nbHead.fill(-1); nbArr.length = 0; crowdGrid.fill(0);
+  if (nbNext.length < creatures.length) nbNext = new Int32Array(creatures.length * 2);
+  for (const c of creatures) {
+    if (!c.alive) continue;
+    const i = nbArr.length, cell = clamp(c.y / NB | 0, 0, NBH - 1) * NBW + clamp(c.x / NB | 0, 0, NBW - 1);
+    nbArr.push(c); nbNext[i] = nbHead[cell]; nbHead[cell] = i;
+    const ci = clamp(c.x / CC | 0, 0, CGW - 1), cj = clamp(c.y / CC | 0, 0, CGH - 1); if (crowdGrid[cj * CGW + ci] < 255) crowdGrid[cj * CGW + ci]++;
+  }
 }
+function nearbyCreatures(x, y, r, out, filter) { // every living creature within r of (x, y); filter(o) can narrow it further
+  if (!out) { out = NB_RING[nbRingI]; nbRingI = (nbRingI + 1) & 7; } out.length = 0;
+  const pad = r + 8, i0 = Math.max(0, (x - pad) / NB | 0), i1 = Math.min(NBW - 1, (x + pad) / NB | 0), j0 = Math.max(0, (y - pad) / NB | 0), j1 = Math.min(NBH - 1, (y + pad) / NB | 0), r2 = r * r; // pad: things move a few px after the grid is built
+  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++)
+    for (let k = nbHead[j * NBW + i]; k >= 0; k = nbNext[k]) { const o = nbArr[k], dx = o.x - x, dy = o.y - y; if (dx * dx + dy * dy <= r2 && o.alive && (!filter || filter(o))) out.push(o); }
+  return out;
+}
+const isHuman = o => o.def.human;
+const nearbyHumans = (x, y, r, out) => nearbyCreatures(x, y, r, out, isHuman);
+function countNearby(x, y, r, filter, skip) { // how many, without collecting them
+  const pad = r + 8, i0 = Math.max(0, (x - pad) / NB | 0), i1 = Math.min(NBW - 1, (x + pad) / NB | 0), j0 = Math.max(0, (y - pad) / NB | 0), j1 = Math.min(NBH - 1, (y + pad) / NB | 0), r2 = r * r; let n = 0;
+  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++)
+    for (let k = nbHead[j * NBW + i]; k >= 0; k = nbNext[k]) { const o = nbArr[k]; if (o === skip || !o.alive) continue; const dx = o.x - x, dy = o.y - y; if (dx * dx + dy * dy <= r2 && (!filter || filter(o))) n++; }
+  return n;
+}
+function updateCrowd() { // once per tick, before anything moves: the neighbor grid and the 80px crowd counts
+  if (snake && snake.segs.length) goreLvl = clamp(snakeGore() / (snake.segs.length * 9), 0, 1); // ~9 stains per segment = drenched
+  buildNeighbors();
+}
+/* ---- static navigation cache: low-res facts about the map's fixed geometry, worked out once per layout ----
+   openness (how many of 8 directions are clear 40px out), reach (how far you can run before hitting something:
+   a short reach in most directions = a dead end or a cramped corner) and walkability. Rebuilt with the solid grid
+   (map load, a smashed wall, a broken lamp), never per creature. Deaths and the snake stay runtime penalties. */
+const NV = 16, NVW = Math.ceil(W / NV), NVH = Math.ceil(H / NV);
+const navOpen = new Uint8Array(NVW * NVH), navReach = new Uint8Array(NVW * NVH), navWalk = new Uint8Array(NVW * NVH);
+const NAV_DIRS = Array.from({ length: 8 }, (_, k) => [Math.cos(k * TAU / 8), Math.sin(k * TAU / 8)]);
+function buildNav() {
+  for (let j = 0; j < NVH; j++) for (let i = 0; i < NVW; i++) {
+    const x = i * NV + NV / 2, y = j * NV + NV / 2, k = j * NVW + i;
+    navWalk[k] = free(x, y, 8) ? 1 : 0;
+    let open = 0, reach = 0;
+    for (const [dx, dy] of NAV_DIRS) {
+      if (!solid(x + dx * 40, y + dy * 40)) open++;
+      let L = 0; for (let d = 12; d <= 132; d += 12) { if (solid(x + dx * d, y + dy * d)) break; L = d; }
+      reach += L;
+    }
+    navOpen[k] = open; navReach[k] = Math.min(255, reach / 8 | 0); // average clear run, px
+  }
+}
+const navCell = (x, y) => clamp(y / NV | 0, 0, NVH - 1) * NVW + clamp(x / NV | 0, 0, NVW - 1);
+const navReachAt = (x, y) => navReach[navCell(x, y)];
 function crowdAt(x, y) { // how many are in this cell and its neighbors
   const ci = x / CC | 0, cj = y / CC | 0; let n = 0;
   for (let j = cj - 1; j <= cj + 1; j++) for (let i = ci - 1; i <= ci + 1; i++) if (i >= 0 && j >= 0 && i < CGW && j < CGH) n += crowdGrid[j * CGW + i];
@@ -80,13 +134,15 @@ function groupTick(c, dt) { // called from perceive: join, stay or drift away
   if (g) {
     const ctr = grpCenter(g), far = !ctr || dist2(c.x, c.y, ctr.x, ctr.y) > 140 * 140;
     const calm = !nervous && (c.calmT = (c.calmT || 0) + dt) > 3; if (nervous) c.calmT = 0;
-    if ((g.t -= dt / g.members.length) <= 0 || far || calm || (ctr && !los(c.x, c.y, ctr.x, ctr.y)) || Math.random() < dt * .05) leaveGroup(c); // timer, distance, walls, safety, or just breaking off
+    const lost = MOD.blind ? ctr && dist2(c.x, c.y, ctr.x, ctr.y) > 60 * 60 : ctr && !los(c.x, c.y, ctr.x, ctr.y); // blind: they lose each other once nobody's within arm's reach and earshot
+    if ((g.t -= dt / g.members.length) <= 0 || far || calm || lost || Math.random() < dt * .05) leaveGroup(c); // timer, distance, walls, safety, or just breaking off
     return;
   }
   if (c.loner || c.grpCD > 0 || !nervous || Math.random() > (c.state === 'uneasy' ? .12 : .35)) return;
-  for (const o of creatures) { // latch onto someone nearby who's in the same mood
-    if (o === c || !o.alive || !o.def.human || o.loner || dist2(c.x, c.y, o.x, o.y) > 100 * 100) continue;
-    if ((o.state === 'wander' || o.state === 'idle') || !los(c.x, c.y, o.x, o.y)) continue;
+  const blind = MOD.blind; // blind: only someone close enough to hear breathing or grab hold of, and nobody can tell from a look who's scared
+  for (const o of nearbyHumans(c.x, c.y, blind ? 45 : 100)) { // latch onto someone nearby who's in the same mood
+    if (o === c || o.loner) continue;
+    if (blind ? !(o.state === 'panic' || o.state === 'uneasy') : (o.state === 'wander' || o.state === 'idle') || !los(c.x, c.y, o.x, o.y)) continue;
     const og = grpOf(o);
     if (og) { if (og.members.length < 5) { og.members.push(c); c.grp = og; } }
     else if (!o.grpCD) { const ng = { members: [c, o], t: rand(6, 14), goal: null, goalT: -9 }; groups.push(ng); c.grp = o.grp = ng; }
@@ -101,7 +157,8 @@ function groupSteer(c) { // light cohesion; separation is handled by personal sp
 }
 function groupAlarm(c, x, y) { // one member panics: the others react a beat later
   const g = grpOf(c); if (!g) return;
-  for (const m of g.members) if (m !== c && m.alive && m.state !== 'panic' && !m.warn && Math.random() < .85) m.warn = { x, y, t: rand(.12, .45) };
+  for (const m of g.members) if (m !== c && m.alive && m.state !== 'panic' && !m.warn && Math.random() < .85)
+    m.warn = MOD.blind ? { x: c.x + rand(-25, 25), y: c.y + rand(-25, 25), t: rand(.2, .6), heard: true } : { x, y, t: rand(.12, .45) }; // blind: all they get is their friend yelping beside them, not where the danger is
 }
 function groupGoal(c, goal) { // members roughly share an escape route while they stay close
   const g = grpOf(c); if (!g) return goal;

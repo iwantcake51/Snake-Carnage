@@ -13,15 +13,15 @@ function keyAngle() {
   return dx || dy ? Math.atan2(dy, dx) : null;
 }
 function predictUTurn(side, final, boost) { // play the whole turn forward, plus the run back alongside the body: any wall or body contact?
-  const s = snake, R = CONFIG.snakeR, sl = upg('speed'), v = s.speed * (s.dashV || 1);
+  const s = snake, R = snakeRadius(), sl = upg('speed'), v = s.speed * (s.dashV || 1);
   let x = s.x, y = s.y, ang = s.angle, dir = side, bad = 0, after = -1; const path = [];
   for (let k = 0; k < 150; k++) { const dt = 1 / 60, mx = CONFIG.turnRate * dt * (1 + (sl >= 2 ? .18 : 0) + (sl >= 4 ? .18 : 0) + (sl >= 5 ? .12 : 0)) * boost, d = angDiff(ang, dir);
     ang += Math.abs(d) < .002 ? d : clamp(d * Math.min(1, dt * CONFIG.turnEase) + Math.sign(d) * mx * .18, -mx, mx);
     if (dir !== final && Math.abs(angDiff(ang, dir)) < .5) dir = final;
     x += Math.cos(ang) * v * dt; y += Math.sin(ang) * v * dt;
-    if (hitObstacle(x, y, R * .75) || x < B || y < B || x > W - B || y > H - B) bad += 10; // a wall
+    if (hitObstacle(x, y, snakeHitRadius()) || x < B || y < B || x > W - B || y > H - B) bad += 10; // a wall
     { // your own body, where it will be by then: it follows the head round the turn, so walk back along the path the head will have drawn
-      const sp = CONFIG.segSpacing, minD = sp * 8, maxD = sp * s.len; let px = x, py = y, acc = 0, hitB = false;
+      const sp = snakeSegmentSpacing(), minD = sp * 8, maxD = sp * s.len; let px = x, py = y, acc = 0, hitB = false;
       const step = (qx, qy) => { acc += Math.hypot(qx - px, qy - py); px = qx; py = qy; if (acc >= minD && acc <= maxD && dist2(x, y, qx, qy) < (R * 1.35) ** 2) hitB = true; return acc > maxD || hitB; };
       let done = false;
       for (let j = path.length - 1; j >= 0 && !done; j--) done = step(path[j][0], path[j][1]);
@@ -117,10 +117,7 @@ addEventListener('keyup', e => {
 addEventListener('blur', () => held.clear());
 
 /* ---- mouse steering (free movement) ---- */
-function boardPoint(cx, cy) { // client px -> world coords (ignores the tiny camera lean)
-  const r = cv.getBoundingClientRect();
-  return { x: (cx - r.left) / r.width * W + V.ox, y: (cy - r.top) / r.height * H + V.oy };
-}
+function boardPoint(cx, cy) { const c = clientToCanvas(cx, cy); return canvasToWorld(c.x, c.y); } // client px -> world coords, through the same camera the frame was drawn with
 cv.addEventListener('pointermove', e => {
   if (e.pointerType !== 'mouse' || !snake) return;
   const p = boardPoint(e.clientX, e.clientY);
@@ -133,6 +130,45 @@ cv.addEventListener('pointerdown', e => {
   if (state === 'ready' || state === 'held') { if (steer.mouse !== null) setHeading(steer.mouse); goInput(); }
 });
 
+/* ---- camera: mouse wheel zooms toward the cursor; drag pans (middle button any time; left button unless the left
+   button steers, i.e. Free movement with mouse steering); double-click resets. Touch: two fingers pinch and pan. ---- */
+const camOK = () => ['play', 'ready', 'held', 'paused', 'dead', 'intro'].includes(state) && !(state === 'paused' && overlay.style.display !== 'none') && !(state === 'dead' && overlay.style.display !== 'none' && overlay.innerHTML);
+document.getElementById('stage').addEventListener('wheel', e => {
+  if (!camOK() || (e.target.closest && e.target.closest('#overlay,#hudLo .chip,#abil,#notes'))) return;
+  e.preventDefault();
+  const c = clientToCanvas(e.clientX, e.clientY), dy = e.deltaMode === 1 ? e.deltaY * 32 : e.deltaY;
+  zoomAt(c.x, c.y, Math.exp(-clamp(dy, -240, 240) * .0018)); // smooth, proportional to how far the wheel moved
+}, { passive: false });
+const panDrag = { id: null, x: 0, y: 0, moved: false };
+cv.addEventListener('pointerdown', e => {
+  if (e.pointerType !== 'mouse' || !camOK()) return;
+  const leftSteers = MOD.freeMove && SETTINGS.mouseFollow;
+  if (e.button === 1 || (e.button === 0 && !leftSteers)) { panDrag.id = e.pointerId; panDrag.x = e.clientX; panDrag.y = e.clientY; panDrag.moved = false; panDrag.mid = e.button === 1; if (e.button === 1) e.preventDefault(); }
+});
+addEventListener('pointermove', e => {
+  if (e.pointerId !== panDrag.id) return;
+  const r = cv.getBoundingClientRect(), dx = (e.clientX - panDrag.x) / r.width * W, dy = (e.clientY - panDrag.y) / r.height * H;
+  if (!panDrag.moved && Math.hypot(e.clientX - panDrag.x, e.clientY - panDrag.y) < 5) return; // a click isn't a drag
+  if (!panDrag.moved) { panDrag.moved = true; try { cv.setPointerCapture(e.pointerId); } catch (er) {} cv.style.cursor = 'grabbing'; }
+  panDrag.x = e.clientX; panDrag.y = e.clientY; panBy(dx, dy);
+});
+const panEnd = e => { if (e.pointerId !== panDrag.id) return; panDrag.id = null; cv.style.cursor = ''; };
+addEventListener('pointerup', panEnd); addEventListener('pointercancel', panEnd);
+cv.addEventListener('dblclick', () => { if (camOK()) resetUserCam(); });
+cv.addEventListener('auxclick', e => { if (e.button === 1) e.preventDefault(); });
+/* two-finger pinch on the touch layer: zoom around the middle of the fingers and pan with them. It takes over from the
+   stick the moment a second finger lands, and the stick stays off until both are lifted, so it never steers by accident. */
+const pinch = { pts: new Map(), on: false, d0: 0, z0: 1, mx: 0, my: 0 };
+function pinchStart() {
+  const [a, b] = [...pinch.pts.values()]; pinch.on = true; pinch.d0 = Math.hypot(a.x - b.x, a.y - b.y) || 1; pinch.z0 = UCAM.tz;
+  const m = clientToCanvas((a.x + b.x) / 2, (a.y + b.y) / 2); pinch.mx = m.x; pinch.my = m.y;
+  if (stick.id !== null) stickUp({ pointerId: stick.id }); // the stick lets go
+}
+function pinchMove() {
+  const [a, b] = [...pinch.pts.values()], d = Math.hypot(a.x - b.x, a.y - b.y) || 1, m = clientToCanvas((a.x + b.x) / 2, (a.y + b.y) / 2);
+  panBy(m.x - pinch.mx, m.y - pinch.my); pinch.mx = m.x; pinch.my = m.y;
+  const want = clamp(pinch.z0 * d / pinch.d0, 1 / baseZoom(), UCAM_MAX); zoomAt(m.x, m.y, want / UCAM.tz);
+}
 /* ---- touch: a floating stick anywhere on the board, plus a few buttons ---- */
 const touchEl = document.getElementById('touch');
 function buildTouch() {
@@ -157,6 +193,9 @@ touchEl.addEventListener('pointerdown', e => {
   if (e.pointerType === 'mouse' || e.target.closest('button')) return;
   enableTouch();
   Sfx.init();
+  pinch.pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pinch.pts.size === 2 && camOK()) { try { touchEl.setPointerCapture(e.pointerId); } catch (er) {} pinchStart(); e.preventDefault(); return; }
+  if (pinch.on || pinch.pts.size > 1) return; // still pinching: no stick until every finger is up
   if (state === 'intro') { endIntro(); return; }
   if (!['play', 'ready', 'held'].includes(state) || stick.id !== null) return;
   stick.id = e.pointerId; const r = touchEl.getBoundingClientRect(), u = 1;
@@ -164,7 +203,13 @@ touchEl.addEventListener('pointerdown', e => {
   const el = touchEl.querySelector('.stick'); el.style.left = (e.clientX - r.left) / u + 'px'; el.style.top = (e.clientY - r.top) / u + 'px'; el.classList.add('on');
   touchEl.setPointerCapture(e.pointerId); e.preventDefault();
 });
-touchEl.addEventListener('pointermove', e => { if (e.pointerId === stick.id) { stickMove(e.clientX, e.clientY); e.preventDefault(); } });
+touchEl.addEventListener('pointermove', e => {
+  const p = pinch.pts.get(e.pointerId); if (p) { p.x = e.clientX; p.y = e.clientY; }
+  if (pinch.on && pinch.pts.size >= 2) { pinchMove(); e.preventDefault(); return; }
+  if (e.pointerId === stick.id) { stickMove(e.clientX, e.clientY); e.preventDefault(); }
+});
+const pinchUp = e => { pinch.pts.delete(e.pointerId); if (!pinch.pts.size) pinch.on = false; };
+touchEl.addEventListener('pointerup', pinchUp); touchEl.addEventListener('pointercancel', pinchUp);
 const stickUp = e => {
   if (e.pointerId !== stick.id) return;
   stick.id = null; steer.touch = null;

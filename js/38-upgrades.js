@@ -26,7 +26,8 @@ const UPGRADES = [
     desc: 'A blood-curdling hiss you can see rippling out: everything nearby panics and scatters.', tiers: ['190 px radius, 15 s cooldown', 'Wider, and it rattles them: slowed for 4 s, half-deaf and slurring for 10 s', 'Shockwave: the blast knocks people off their feet and blows groups apart'] },
 ];
 PROG.upg = PROG.upg || {}; PROG.upgOff = PROG.upgOff || {};
-const upg = id => edTestSkills && edTesting !== null ? Math.min(edTestSkills[id] || 0, (UPGRADES.find(u => u.id === id) || { max: 9 }).max) : PROG.upgOff[id] ? 0 : Math.min(PROG.upg[id] || 0, (UPGRADES.find(u => u.id === id) || { max: 9 }).max); // owned and switched on
+let UPG_OVR = null; // co-op: while the host's AI deals with another player's snake, upgrade levels are that player's
+const upg = id => UPG_OVR ? Math.min(UPG_OVR[id] || 0, 9) : edTestSkills && edTesting !== null ? Math.min(edTestSkills[id] || 0, (UPGRADES.find(u => u.id === id) || { max: 9 }).max) : PROG.upgOff[id] ? 0 : Math.min(PROG.upg[id] || 0, (UPGRADES.find(u => u.id === id) || { max: 9 }).max); // owned and switched on
 const ABIL = { // cd/dur read the owned level each time
   dash: { get cd() { return upg('dash') > 1 ? 5 : 7; }, get dur() { return upg('dash') > 1 ? .8 : .6; }, go(s) { s.dashT = this.dur; s.dashK = upg('dash') > 1 ? 1.9 : 1.8; s.lk = Math.max(s.lk || 0, .25); Sfx.dash(); camF.kv.x += Math.cos(s.angle) * 160; camF.kv.y += Math.sin(s.angle) * 160; } },
   scent: { cd: 1, dur: 1, go(s) { s.scentOn = !s.scentOn; if (s.scentOn) Sfx.sniff(); else Sfx.ui && Sfx.ui('off'); } }, // always on; the key switches it off and on again
@@ -34,19 +35,29 @@ const ABIL = { // cd/dur read the owned level each time
   hiss: { cd: 15, dur: .8, go(s) {
     const lv = upg('hiss'), R = lv > 2 ? 270 : lv > 1 ? 240 : 190; s.hissLv = lv;
     Sfx.hiss(); shake = Math.max(shake, lv > 1 ? 8 : 5); s.hissT = this.dur; s.hissR = R;
-    for (const c of creatures) if (c.alive && dist2(c.x, c.y, s.x, s.y) < R * R) {
-      panic(c, s.x, s.y, rand(3, 5) * (lv > 1 ? 1.5 : 1), 'hissed'); c.alert = 1;
+    if (netIsGuest()) { netSend({ t: 'abil', id: 'hiss', lv }); return; } // co-op guest: the host scares its crowd for us
+    crHiss(hissNpc(s, lv));
+  } },
+};
+function hissNpc(s, lv) { // what a hiss does to the crowd (the deciding browser only); returns how many people it scared
+    const R = lv > 2 ? 270 : lv > 1 ? 240 : 190; noise('hiss', s.x, s.y, 1, R * 1.4);
+    let hn = 0;
+    for (const c of nearbyCreatures(s.x, s.y, R, [])) {
+      if (c.def.human && c.state !== 'panic') hn++;
+      const at = MOD.blind && c.def.human ? guessAt(c, s.x, s.y, R * 1.4) : s; // the blind only know it came from over there, somewhere
+      panic(c, at.x, at.y, rand(3, 5) * (lv > 1 ? 1.5 : 1), 'hissed'); c.alert = 1;
       if (lv > 1) { c.slowT = T + 4; c.deafT = T + 10; c.adren = 0; if (c.def.human && !c.def.alien) c.reply = { t: rand(.8, 1.6), ctx: 'deaf' }; }
       if (lv > 2) { const d = Math.hypot(c.x - s.x, c.y - s.y) || 1, f = (1 - d / R) * 260 + 60; c.kb = { vx: (c.x - s.x) / d * f, vy: (c.y - s.y) / d * f, t: .35 }; c.slowT = T + 5; if (typeof leaveGroup === 'function') leaveGroup(c); } // knocked flat, the group blown apart
     }
-  } },
-};
+    return hn;
+}
 const abilCD = {};
 function useAbility(id) {
   if (!upg(id) || state !== 'play' || !snake || !snake.alive || !snake.started) return;
   const a = ABIL[id]; if ((abilCD[id] || 0) > T) { if (Sfx.ok() && Sfx.gate('deny', .6)) Sfx.deny(); abilityHud(); const b = document.querySelector(`#abil [data-a="${id}"]`); if (b) { b.classList.remove('no'); void b.offsetWidth; b.classList.add('no'); } return; }
   abilCD[id] = T + a.cd; a.go(snake); run.abil = (run.abil || 0) + 1;
   NET.emit({ type: 'ability', id, x: snake.x, y: snake.y, a: snake.angle });
+  if (NETM.run && NETM.host) netEmit({ t: 'abil', pid: NETM.me, id, x: Math.round(snake.x), y: Math.round(snake.y) }); // the others hear it (and see the hiss)
   abilityHud(true);
 }
 function resetAbilities() { for (const k in abilCD) delete abilCD[k]; for (const u of UPGRADES) if (u.ability) abilCD[u.id] = T + ABIL[u.id].cd; abilCD.scent = T; if (snake) snake.scentOn = upg('scent') > 0; abilityHud(true); } // every skill starts the round recharging
@@ -95,6 +106,7 @@ function upIcon(k) { // small hand-drawn SVG glyphs, so the upgrades don't lean 
 }
 
 /* ---- breaking through furniture (Battering Ram) ---- */
+const RAM_TOUCH = ['glass'], TOUCH_KINDS = new Set(RAM_TOUCH); // breaks for anyone who hits it, no Battering Ram needed
 const RAM_SMALL = ['chair', 'plant', 'bush', 'crate', 'hay', 'barrier', 'bin', 'fence'], RAM_LARGE = ['tree', 'desk', 'table', 'bench', 'couch', 'shelf', 'bed', 'bar', 'booth', 'console', 'speaker'], RAM_HEAVY = ['car', 'rock', 'bwall'];
 const RAM_KINDS = [null, new Set(RAM_SMALL), new Set([...RAM_SMALL, ...RAM_LARGE]), new Set([...RAM_SMALL, ...RAM_LARGE, ...RAM_HEAVY])];
 RAM_KINDS.push(RAM_KINDS[3]); // tier 4: same targets, softer landings
@@ -108,39 +120,47 @@ function obstacleHitBy(x, y, r) {
   }
   return null;
 }
-const canRam = o => { const lv = upg('ram'); return lv > 0 && o && o.kind !== 'border' && RAM_KINDS[lv].has(o.kind) && !(o.kind === 'rock' && o.r > 26) && !(o.kind === 'tree' && (o.r > 20 || o.tinfo && o.tinfo.pine && o.r > 16)); }; // only saplings and small trees snap; big trunks still stop you
-function smashObstacle(o, ang) {
+const canRam = o => { const lv = upg('ram'); if (o && TOUCH_KINDS.has(o.kind) && o.kind !== 'border') return true; return lv > 0 && o && o.kind !== 'border' && RAM_KINDS[lv].has(o.kind) && !(o.kind === 'rock' && o.r > 26) && !(o.kind === 'tree' && (o.r > 20 || o.tinfo && o.tinfo.pine && o.r > 16)); }; // only saplings and small trees snap; big trunks still stop you
+function smashObstacle(o, ang, quiet) { // quiet: catching up on breakage that happened before you joined (no sound or show)
   const i = obstacles.indexOf(o); if (i < 0) return;
+  const mine = !NS.remote; // my snake did it (co-op: replays of other players' smashes only rebuild the world and show it)
+  const fx = bfxFor(o); // the prop's own "when it breaks" (38b-destruction); null = the classic smash below
   obstacles.splice(i, 1);
   const cx = o.t === 'r' ? o.x + o.w / 2 : o.x, cy = o.t === 'r' ? o.y + o.h / 2 : o.y, size = o.t === 'r' ? Math.sqrt(o.w * o.h) : o.r * 1.6;
-  drawWreck(bctx, o, ang); // the broken piece stays on the floor as wreckage
+  if (fx) bfxWreck(bctx, o, fx, ang); else drawWreck(bctx, o, ang); // the broken piece stays on the floor as wreckage
   if (o.kind === 'speaker') { const sp = clubSpeakers.find(q => q.o === o); if (sp) { sp.alive = false; Sfx.speakerDie(sp); } }
-  for (const q of obstacles) if (q.group && q.group === o.group) q.cracked = true; // the rest of a long object cracks but stands
-  for (let k = 0; k < 18 + size / 3; k++) { const a = ang + rand(-1.2, 1.2), sp = rand(60, 230); debris.push({ x: cx + rand(-size / 3, size / 3), y: cy + rand(-size / 3, size / 3), z: rand(4, 16), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(60, 170), t: 0, s: rand(1.6, 3.6), c: pick([o.color, shade(o.color, -.2), shade(o.color, .15)]) }); }
+  // the rest of a long object (a split table, a glass wall's other panes) stands as it was: no crack lines on the neighbours
+  if (!quiet && fx) bfxBurst(o, fx, ang);
+  else if (!quiet) for (let k = 0; k < 18 + size / 3; k++) { const a = ang + rand(-1.2, 1.2), sp = rand(60, 230); debris.push({ x: cx + rand(-size / 3, size / 3), y: cy + rand(-size / 3, size / 3), z: rand(4, 16), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(60, 170), t: 0, s: rand(1.6, 3.6), c: pick([o.color, shade(o.color, -.2), shade(o.color, .15)]) }); }
   drawObstacleLayer();
   bakeOutline(); buildSolid(); shadowKey = ''; bakeShadows(); bakeLightMasks({ x: cx, y: cy, r: size });
   const wall = o.kind === 'bwall', hard = wall || o.kind === 'rock'; // rocks knock you silly just like walls
-  Sfx.smash(cx, wall ? size * 2.5 : size); shake = Math.max(shake, hard ? 16 : 6);
+  if (!quiet) { if (fx) Sfx.breakFx(fx.sound, cx, wall ? size * 2.5 : size, fx.vol); else Sfx.smash(cx, wall ? size * 2.5 : size); }
+  if (mine && fx && fx.stun !== 'default') { shake = Math.max(shake, 8 * fx.shake); bfxStun(fx); }
+  else if (mine) { shake = Math.max(shake, (hard ? 16 : 6) * (fx ? fx.shake : 1));
   const lng = (snake.dashV || 1) > 1.25, cls = ramClass(o), dur = (hard ? 4 : cls === 3 ? 2.2 : cls === 2 ? 1.6 : 1.3) + (lng ? 1 : 0); // big furniture knocks you a bit longer // lunging in: it hits harder on screen and lasts longer, but you keep more of your speed
   const res = upg('ram') >= 4 ? .75 : 1; // thick skull
   const keepMo = upg('speed') >= 5 ? .5 : 1; // Speed Demon V: momentum survives the hit
   if (!hard && snake.wallStun > 0) snake.ramT = Math.max(snake.ramT, Math.min(snake.ramMax, dur * res)); // already seeing stars from a wall: furniture doesn't reset it
   else { snake.ramT = snake.ramMax = dur * res; snake.ramDeep = (hard ? .62 : cls === 3 ? .45 : cls === 2 ? .38 : .18) * (lng ? .6 : 1) * res * keepMo; /* small things barely slow you, same daze */ snake.wallStun = snake.wallMax = hard ? dur * res : 0; snake.stunFx = (lng ? 1.5 : 1) * res; }
-  if (hard) { snake.dashT = 0; snake.dashV = 1; snake.lk = 0; } // a wall stops a lunge dead // dazed: slower, colours drain, edges blur, all easing back as speed returns
-  if (wall) { // a wall: bricks and plaster everywhere, a cloud of dust, and the snake sees stars
+  if (hard) { snake.dashT = 0; snake.dashV = 1; snake.lk = 0; } } // a wall stops a lunge dead // dazed: slower, colours drain, edges blur, all easing back as speed returns
+  if (wall && !quiet && !fx) { // a wall: bricks and plaster everywhere, a cloud of dust, and the snake sees stars
     for (let k = 0; k < 40; k++) { const a = ang + rand(-.9, .9), sp = rand(80, 300); debris.push({ x: cx + rand(-o.w / 2, o.w / 2), y: cy + rand(-o.h / 2, o.h / 2), z: rand(6, 20), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(80, 220), t: 0, s: rand(2.4, 5), c: pick([o.color, shade(o.color, -.25), shade(o.color, .2), '#8a7f74']) }); }
     for (let k = 0; k < 14; k++) mist.push({ x: cx + rand(-10, 10), y: cy + rand(-10, 10), vx: Math.cos(ang + rand(-1.4, 1.4)) * rand(20, 90), vy: Math.sin(ang + rand(-1.4, 1.4)) * rand(20, 90), r: rand(6, 14), g: rand(10, 24), t: 0, life: rand(1, 1.8), c: '#aaa096', a: rand(.25, .4) });
     wallSmoke(cx, cy, ang, o.w, o.h);
-    for (const q of obstacles) if (q.bgroup === o.bgroup) q.cracked = true;
-    run.walls = (run.walls || 0) + 1;
-  }
-  for (const c of creatures) if (c.alive && dist2(c.x, c.y, cx, cy) < 230 * 230) {
-    if (wall && c.def.human) { panic(c, cx, cy, rand(3, 5), 'wallSmash'); if (Math.random() < .45) c.reply = { t: rand(1.4, 2.6), ctx: 'stunned' }; continue; } // through the WALL
+    if (mine) run.walls = (run.walls || 0) + 1;
+  } else if (wall && mine && !quiet) run.walls = (run.walls || 0) + 1;
+  const nk = fx ? fx.noise : 1, scare = fx ? fx.scare : wall; // how far it carries, and whether it sends people running
+  if (AUTH() && nk > 0) { noise(wall ? 'wallSmash' : 'smash', cx, cy, clamp(size / 40, .6, 1.2) * nk);
+  for (const c of nearbyCreatures(cx, cy, 230 * nk, [])) {
+    if (MOD.blind && c.def.human) continue; // they hear the crash (above) and work out roughly where it was
+    if (scare && c.def.human) { panic(c, cx, cy, rand(3, 5), 'wallSmash'); if (Math.random() < .45) c.reply = { t: rand(1.4, 2.6), ctx: 'stunned' }; continue; } // through the WALL
     if (c.state === 'wander' || c.state === 'idle') { c.state = 'uneasy'; c.fx = cx; c.fy = cy; c.timer = rand(1, 2); if (Math.random() < .4) say(c, 'crash'); }
     else if (c.def.human && Math.random() < .35) c.reply = { t: rand(.3, .9), ctx: 'stunned' };
-  }
-  run.smashed = (run.smashed || 0) + 1; PROG.smashed = (PROG.smashed || 0) + 1;
-  NET.emit({ type: 'smash', kind: o.kind, x: cx, y: cy });
+  } }
+  if (!mine) return;
+  run.smashed = (run.smashed || 0) + 1; cr.smashed++; PROG.smashed = (PROG.smashed || 0) + 1;
+  NET.emit({ type: 'smash', kind: o.kind, x: cx, y: cy }); netBroke(o, 'smash', ang);
 }
 function drawWreck(x, o, ang) { // a flattened, broken version of the object instead of it vanishing
   if (o.kind === 'speaker') return brokenSpeaker(x, o, ang);
@@ -174,9 +194,10 @@ function splitBreakables(list) { // long furniture breaks a section at a time, n
   let g = 0;
   for (const o of list) {
     const L = Math.max(o.w || 0, o.h || 0);
-    if (o.t !== 'r' || !RAM_KINDS[2].has(o.kind) || L < 110 || o.kind === 'desk') { out.push(o); continue; }
+    if (o.t !== 'r' || !(RAM_KINDS[2].has(o.kind) || TOUCH_KINDS.has(o.kind)) || L < 110 || o.kind === 'desk') { out.push(o); continue; } // a long glass wall breaks a pane at a time
     const hz = o.w >= o.h, n = Math.ceil(L / 64), step = L / n; g++;
-    for (let k = 0; k < n; k++) out.push(hz ? { ...o, x: o.x + k * step, w: step, group: g } : { ...o, y: o.y + k * step, h: step, group: g });
+    const whole = { x: o.x, y: o.y, w: o.w, h: o.h }; // each section draws its slice of the whole thing, so it reads as one piece (no seams) until a part breaks off
+    for (let k = 0; k < n; k++) out.push(hz ? { ...o, x: o.x + k * step, w: step, group: g, whole, gk: k } : { ...o, y: o.y + k * step, h: step, group: g, whole, gk: k });
   }
   return out;
 }
@@ -245,7 +266,7 @@ function scentTargets(s, n) { // what's worth hunting: big and close first, gold
     const d = Math.hypot(c.x - s.x, c.y - s.y);
     let val = c.def.human ? 2 : (c.def.score || 1) * (1 + c.def.r / 12); // bigger animals are a bigger meal
     if (c.golden) val *= c.def.human ? 5 : 4; // gold people above gold animals
-    if (c.def.human) { let g = 0; for (const o of creatures) if (o !== c && o.alive && o.def.human && dist2(o.x, o.y, c.x, c.y) < 70 * 70) g++; val *= 1 + g * .45; } // a group means a combo
+    if (c.def.human) val *= 1 + countNearby(c.x, c.y, 70, isHuman, c) * .45; // a group means a combo
     if (c.state === 'wander' || c.state === 'idle') val *= 1.3; else if (c.state === 'panic') val *= .75; // unaware prey smells strongest; runners are harder
     if (c.fl && c.fl.on) val *= .85; // flashlights spot you first
     out.push({ c, d, sc: val / (d + 90) });
@@ -312,7 +333,7 @@ function drawHissWave(x) {
 }
 function drawRamCharge(x) {
   const s = snake; if (!s || !s.alive || !upg('ram') || state !== 'play') return;
-  const ca = Math.cos(s.angle), sa = Math.sin(s.angle), o = obstacleHitBy(s.x + ca * 22, s.y + sa * 22, CONFIG.snakeR * .8);
+  const ca = Math.cos(s.angle), sa = Math.sin(s.angle), o = obstacleHitBy(s.x + ca * 22 * s.scale, s.y + sa * 22 * s.scale, snakeHitRadius() * 1.1);
   s.ramGlow = (s.ramGlow || 0) + (((o && canRam(o)) ? 1 : 0) - (s.ramGlow || 0)) * .3;
   if (s.ramGlow < .03) return;
   const g = s.ramGlow, hx = s.x + ca * 9, hy = s.y + sa * 9; // a bow wave of force bunching up ahead of the head
@@ -339,10 +360,10 @@ function brokenSpeaker(x, o, ang) { // still standing, but gutted: cones blown o
 
 /* ---- tier 3 ram: authored wall sections that can be smashed open (shortcuts and escape routes) ---- */
 const BREAK_WALLS = {
-  Office: [[560, 326, 60, 14], [706, 362, 14, 52], [690, 236, 52, 14]],
-  'Alien Facility': [[316, 110, 14, 60], [520, 384, 60, 14], [470, 480, 14, 60]],
-  'Space Station': [[250, 46, 14, 54], [840, 436, 60, 14], [80, 190, 56, 14]],
-  Bunker: [[330, 130, 14, 60], [640, 130, 14, 60], [390, 510, 14, 60], [700, 470, 14, 60]], // one in every wall between neighbouring rooms: break through and the rooms loop into each other
+  Office: [[560, 326, 60, 14], [706, 560, 14, 52], [690, 236, 60, 14]], // each opens a second way in: open plan <-> corridor, open plan <-> kitchen, corridor <-> corner office
+  'Alien Facility': [[316, 110, 14, 60], [630, 110, 14, 60], [470, 480, 14, 60]], // lab | control | cryo, and hangar | reactor: break both top ones and the north rooms loop
+  'Space Station': [[100, 190, 60, 14], [800, 190, 60, 14], [100, 436, 60, 14], [800, 436, 60, 14]], // each bay's hall-side wall: a second way out of every bay
+  Bunker: [[330, 130, 14, 60], [640, 108, 14, 60], [390, 510, 14, 60], [700, 470, 14, 60]], // one in every wall between neighbouring rooms: break through and the rooms loop into each other
 };
 function addBreakWalls(list, mapName) { // cut each marked section out of the wall it sits in, as its own breakable piece
   let secs = BREAK_WALLS[mapName] || [];

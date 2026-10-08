@@ -22,6 +22,30 @@ function spawnGiblets(c, dirA) {
       rot: rand(0, TAU), vr: rand(-14, 14), s: rand(2.2, 3.6) * (d.human ? 1 : .9), shape: randi(0, 2), col, bl, gold: !!c.golden, landed: false, rest: 0, life: rand(5, 15), age: 0, a: 1 });
   }
 }
+/* a snake bursting (a multiplayer death): blood sprays out all along the body, chunks of it and coils of gut fly, and a few
+   pools spread where it was. Everything goes through the usual blood code, so Blood quality, Amount of blood and Particles
+   scale it (and its caps keep it cheap), and the drops stain whoever and whatever they hit: people, walls, other snakes. */
+const GUTS = ['#c96a78', '#d9858f', '#b5525f', '#e3a0a6'];
+function snakeBurst(s, skin) {
+  const segs = s && s.segs; if (!segs || !segs.length) return;
+  const n = segs.length, ba = { Minimal: .3, Reduced: .6 }[SETTINGS.bloodAmt] || 1, pts = clamp(Math.round(n / 4), 3, 9), sc = s.scale || 1;
+  for (let k = 0; k < pts; k++) {
+    const g = segs[Math.min(n - 1, Math.round(k * (n - 1) / Math.max(1, pts - 1)))], a = rand(0, TAU), head = k === 0;
+    spawnBlood(g.x, g.y, a, (head ? .95 : .6) * Math.min(1.4, sc), 2.4, .05);
+    if (k % 2 === 0) bloodMist(g.x, g.y, a, head ? 1.2 : .7, CONFIG.bloodColors);
+    if (k % 3 === 0) pools.push({ x: g.x, y: g.y, r: 2, c: BLOOD, max: rand(6, 10) * ba * Math.min(1.3, sc), ang: a, lobes: Array.from({ length: randi(7, 11) }, () => ({ dx: rand(-.6, .6), dy: rand(-.6, .6), s: rand(.35, 1) })) });
+  }
+  const gn = Math.round(clamp(6 + n * .22, 8, 18) * ba);
+  for (let k = 0; k < gn; k++) {
+    if (gibs.length >= GIB_MAX) { const j = gibs.findIndex(q => q.rest > 0); gibs.splice(Math.max(0, j), 1); }
+    const g = segs[randi(0, n - 1)], a = rand(0, TAU), sp = rand(70, 240), gut = k % 3 === 0;
+    gibs.push({ x: g.x + rand(-3, 3), y: g.y + rand(-3, 3), z: rand(4, 10), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(70, 190),
+      rot: rand(0, TAU), vr: rand(-12, 12), s: (gut ? rand(2.6, 3.8) : rand(2, 3.4)) * Math.min(1.3, sc), shape: gut ? 3 : randi(0, 2),
+      col: gut ? pick(GUTS) : Math.random() < .45 ? (skin || '#4e7cf6') : pick(GIB_FLESH), bl: CONFIG.bloodColors, landed: false, rest: 0, life: rand(8, 16), age: 0, a: 1 });
+  }
+  addBloodAmount(1.2 * ba); bleedIntoWater(segs[0].x, segs[0].y, 1, BLOOD);
+  Sfx.crash(segs[0].x); if (Sfx.eat) Sfx.eat(segs[0].x, true, 1, '');
+}
 function gibBlocked(x, y, z) { // walls stop chunks; water is low, so they fly (or skid) right into it
   if (z >= 30 || !solid(x, y)) return false;
   const o = obstacleAt(x, y); return !(o && o.kind === 'water');
@@ -82,6 +106,11 @@ function drawGiblets(x) {
     x.globalAlpha = g.a; x.fillStyle = g.col;
     x.save(); x.translate(g.x, y); x.rotate(g.rot);
     x.beginPath();
+    if (g.shape === 3) { // a coil of gut: a fat, wet, curling tube
+      x.lineCap = 'round'; x.beginPath(); x.moveTo(-s * 1.3, s * .2); x.bezierCurveTo(-s * .7, -s * 1.1, s * .1, s * 1.1, s * 1.3, -s * .2);
+      x.strokeStyle = 'rgba(70,0,6,.8)'; x.lineWidth = s * 1.05; x.stroke(); x.strokeStyle = g.col; x.lineWidth = s * .8; x.stroke();
+      x.strokeStyle = 'rgba(255,230,230,.28)'; x.lineWidth = s * .22; x.stroke(); x.lineCap = 'butt'; x.restore(); continue;
+    }
     if (g.shape === 0) x.ellipse(0, 0, s, s * .65, 0, 0, TAU);
     else if (g.shape === 1) { x.moveTo(-s, -s * .5); x.lineTo(s * .9, -s * .7); x.lineTo(s * .6, s * .7); x.lineTo(-s * .8, s * .5); x.closePath(); }
     else { x.arc(-s * .35, 0, s * .6, 0, TAU); x.moveTo(s * .9, s * .1); x.arc(s * .4, s * .1, s * .5, 0, TAU); }

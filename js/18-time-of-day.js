@@ -10,8 +10,8 @@ const TIME_MODES = { Cycle: 'Dynamic', Day: 'Daytime', Dawn: 'Dawn', Dusk: 'Dusk
 const VISIBLE = .35;
 /* Light colors by source, and how high each source hangs (decides shadow length). */
 const LCOL = { street: '255,156,58', fluor: '226,238,255', pool: '80,215,255', emerg: '255,40,36', fire: '255,150,60', window: '255,196,110', fixed: '255,214,150', alien: '170,255,215',
-  red: '255,46,30', reactor: '120,255,200', bar: '255,170,90', booth: '255,80,170', dj: '120,90,255', disco: '255,60,200', flood: '235,240,255' };
-const LIGHT_H = { street: 55, fluor: 70, fixed: 50, fire: 6, pool: 0, emerg: 45, window: 0, alien: 70, red: 55, reactor: 30, bar: 40, booth: 40, dj: 30, disco: 0, flood: 90 };
+  red: '255,46,30', reactor: '120,255,200', bar: '255,170,90', booth: '255,80,170', dj: '120,90,255', disco: '255,60,200', flood: '235,240,255', skylight: '225,236,255' };
+const LIGHT_H = { skylight: 0, street: 55, fluor: 70, fixed: 50, fire: 6, pool: 0, emerg: 45, window: 0, alien: 70, red: 55, reactor: 30, bar: 40, booth: 40, dj: 30, disco: 0, flood: 90 };
 let tod = 16, light = null, shadowKey = '', lights = [], windows = [], beams = [], dropped = [], debris = [], scast = [];
 let lightFrame = 0; const lightCache = { x: NaN, y: NaN, f: -1, v: 0 };
 
@@ -47,6 +47,7 @@ function computeLight() {
 const [tmpSC, tsx] = makeLayer();
 function bakeShadows() { // sun shadows: sharp at the base, softer the further they reach (drawn as two passes: crisp core, blurred tail)
   const L = light; tsx.clearRect(0, 0, W, H); tsx.fillStyle = '#000'; shx.clearRect(0, 0, W, H);
+  if (!shadowsOn()) return; // Off: no sun shadows at all (and the layer isn't drawn either)
   for (const o of obstacles) {
     const h = HEIGHTS[o.kind] ?? 10; if (!h) continue;
     const ox = L.sdx * h, oy = L.sdy * h, n = Math.max(1, Math.ceil(Math.hypot(ox, oy) / 2.5));
@@ -63,7 +64,7 @@ function bakeShadows() { // sun shadows: sharp at the base, softer the further t
 }
 const contactC = document.createElement('canvas'); contactC.width = W / 2; contactC.height = H / 2; const ccx = contactC.getContext('2d');
 function bakeContactShadows(x, list) { // a soft dark rim where every object meets the floor, day or night (blurred at half size: it's soft anyway, and full-res blur stalled map loads)
-  if (!('filter' in ccx)) return;
+  if (!('filter' in ccx) || !shadowsOn()) return;
   ccx.setTransform(1, 0, 0, 1, 0, 0); ccx.clearRect(0, 0, W / 2, H / 2); ccx.setTransform(.5, 0, 0, .5, 0, 0); ccx.filter = 'blur(1.5px)'; ccx.fillStyle = '#000';
   for (const o of list) { const h = HEIGHTS[o.kind] ?? 10; if (!h || o.kind === 'border') continue; const g = Math.min(4, 1 + h * .1); if (o.poly || obsFlag(o, 'noShadow')) continue; fillObs(ccx, o, 0, 0, g); }
   ccx.filter = 'none';
@@ -93,6 +94,7 @@ function buildLights(extra) {
 function lightTarget(l) {
   if (l.dead) return 0;
   if (l.kind === 'emerg') return 1;
+  if (l.kind === 'skylight') return light ? clamp(light.day * 1.2, 0, 1) : 0; // a window in an indoor map: daylight comes in, nothing at night
   if (l.kind === 'street') return light && 1 - light.day > l.thr ? 1 : 0; // each streetlight has its own sensor
   return light ? light.lampsOn : 0;
 }

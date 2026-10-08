@@ -1,5 +1,6 @@
 /* BLOOD BUCKETS: blood is drawn into time-slice layers. A layer stays fully opaque for a long hold time,
    then fades smoothly via globalAlpha (no 8-bit leftovers). Old layers are recycled. */
+const GLOSS_NB = []; // reused result array for the pool reflections
 const FADE = { Never: null, Slow: { hold: 90, fade: 60 }, Normal: { hold: 40, fade: 35 }, Fast: { hold: 15, fade: 20 } }; // seconds
 const fadeCfg = () => SETTINGS.bloodQ === 'Extreme' ? { hold: 9, fade: 6 } : FADE[SETTINGS.bloodFade]; // Extreme draws a lot more blood, so it always clears quickly // Extreme draws a lot more blood, so it always clears after half a minute or so
 const BLOOD_BUCKETS = 4; // each layer is two full-screen canvases drawn every frame, so keep this small
@@ -16,7 +17,7 @@ function bloodQualityChanged() { // switching quality: what's on the ground fade
   const k = bloodRes(); bucketPool = bucketPool.filter(b => b.k === k);
   for (const b of bucketList) if (b.ff === undefined || b.ff > T - (BLOOD_FF - 1.1)) b.ff = T - (BLOOD_FF - 1.1);
   newBucket(); bucketList[bucketList.length - 1].ff = undefined;
-  parts.length = Math.min(parts.length, CONFIG.maxParticles * BQ().n | 0);
+  parts.length = Math.min(parts.length, partCap());
 }
 const BLOOD_LIMIT = 14, BLOOD_FF = 6; // ~14 big kills on screen at once; past that, the oldest blood fades out over 6s
 function bucketAlpha(b) {
@@ -82,14 +83,16 @@ const grassColAt = (x, y) => grassCol[(y / GM | 0) * GMW + (x / GM | 0)] || [110
 
 function spawnBlood(x, y, dirA, amount, spread, backFrac, gold) { // gold: a golden target, mostly gold blood with some red mixed in
   const ba = { Minimal: .2, Reduced: .5 }[SETTINGS.bloodAmt] || 1, pq = SETTINGS.fxLevel === 'Low' ? .55 : 1;
-  const bq = BQ(), n = Math.round(95 * amount * (parts.length > 500 ? .5 : 1) * ba * pq * bq.n); // fewer drops simulated, not just hidden (lower quality: fewer, slightly bigger drops)
-  for (let i = 0; i < n && parts.length < CONFIG.maxParticles; i++) {
+  const bq = BQ(), cap = partCap(), n = Math.round(95 * amount * (parts.length > cap * .55 ? .5 : 1) * ba * pq * bq.n); // fewer drops simulated, not just hidden (lower quality: fewer, slightly bigger drops)
+  for (let i = 0; i < n && parts.length < cap; i++) {
     let a, sp; const r = Math.random();
     if (r < backFrac) { a = dirA + Math.PI + gauss() * .9; sp = rand(60, 220); }       // back-spray onto the snake
     else if (r < backFrac + .2) { a = rand(0, TAU); sp = rand(20, 140); }             // radial burst
     else { a = dirA + gauss() * spread; sp = rand(120, 480) * (.6 + amount * .4); }   // main forward jet
-    parts.push({ x: x + rand(-3, 3), y: y + rand(-3, 3), z: rand(4, 12), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
-                 vz: rand(20, 200), r: (Math.random() < .15 ? rand(3, 5) : rand(1.2, 3)) * bq.size, c: gold === true ? pick(GOLD_BLOOD) : gold ? pick(gold) : pick(CONFIG.bloodColors), ox: x, oy: y }); // gold: golden target; an array: that creature's own blood colors
+    const p = PART_POOL.pop() || {}; // drops are recycled, not reallocated every kill
+    p.x = x + rand(-3, 3); p.y = y + rand(-3, 3); p.z = rand(4, 12); p.vx = Math.cos(a) * sp; p.vy = Math.sin(a) * sp; p.vz = rand(20, 200); p.hc = p.hs = p.hr = 0;
+    p.r = (Math.random() < .15 ? rand(3, 5) : rand(1.2, 3)) * bq.size; p.c = gold === true ? pick(GOLD_BLOOD) : gold ? pick(gold) : pick(CONFIG.bloodColors); p.ox = x; p.oy = y; // gold: golden target; an array: that creature's own blood colors
+    parts.push(p);
   }
 }
 
@@ -101,7 +104,8 @@ function stainCreature(c, px, py, r, col, va = 0, sp = 0) { // stretched along t
 function stainSnake(i, px, py, r, col) {
   const g = snake.segs[i]; if (!g) return;
   const rr = segR(i, snake.segs.length);
-  addStain(snake.stains[i], { a: Math.atan2(py - g.y, px - g.x) - g.a, d: Math.min(Math.hypot(px - g.x, py - g.y), rr - 1), r, c: col, e: rand(1, 2.2) }, 30);
+  const k = snake.scale || 1; // kept in the body's own (unscaled) units, so the stain sprite fits whatever size the snake is
+  addStain(snake.stains[i], { a: Math.atan2(py - g.y, px - g.x) - g.a, d: Math.min(Math.hypot(px - g.x, py - g.y), rr - 1) / k, r: r / k, c: col, e: rand(1, 2.2) }, 30);
 }
 
 const SEGC = 32, SGW = Math.ceil(W / SEGC), SGH = Math.ceil(H / SEGC);
@@ -114,11 +118,18 @@ function rebuildSegGrid() { // bucket snake segments so blood drops only test ne
     segGrid[j * SGW + i].push(k);
   });
 }
-function killPart(i) { parts[i] = parts[parts.length - 1]; parts.pop(); }
-let bloodAcc = 0, bloodTick = 0;
-function updateBlood(dt) {
-  const st = BQ().step; if (st > 1) { bloodAcc += dt; if (++bloodTick % st) return; dt = bloodAcc; bloodAcc = 0; } // Low: blood physics runs at half rate
+const PART_POOL = [];
+function killPart(i) { const p = parts[i]; parts[i] = parts[parts.length - 1]; parts.pop(); if (PART_POOL.length < 1200) PART_POOL.push(p); }
+const DROP_NB = [];
+function stainRemote(rs, i, px, py, r, col) { // another player's snake (multiplayer): their body wears the blood too
+  const g = rs.segs[i]; if (!g || !rs.stains[i]) return; const rr = segR(i, rs.segs.length), k = rs.scale || 1;
+  addStain(rs.stains[i], { a: Math.atan2(py - g.y, px - g.x) - g.a, d: Math.min(Math.hypot(px - g.x, py - g.y), rr - 1) / k, r: r / k, c: col, e: rand(1, 2.2) }, 30);
+}
+const RS_BB = [];
+function updateBlood(dt) { // every live drop moves every frame at every quality: smoothness is never what quality trades away
   if (parts.length) rebuildSegGrid();
+  RS_BB.length = 0;
+  if (parts.length && NETM.run) for (const rs of NS.rs.values()) { if (!rs.alive || rs.hidden || !rs.segs || !rs.segs.length) continue; let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; for (const g of rs.segs) { if (g.x < x0) x0 = g.x; if (g.x > x1) x1 = g.x; if (g.y < y0) y0 = g.y; if (g.y > y1) y1 = g.y; } RS_BB.push([rs, x0 - 10, y0 - 10, x1 + 10, y1 + 10, (CONFIG.snakeR * (rs.scale || 1) + 1) ** 2]); }
   for (let i = parts.length - 1; i >= 0; i--) {
     const p = parts[i];
     p.vz -= 430 * GRAV() * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; // falls a little slower, so it carries further
@@ -134,8 +145,7 @@ function updateBlood(dt) {
     }
     if (p.z < 30 && !p.hc) { // airborne drops stain anyone they fly into
       let hit = false;
-      for (const c of creatures) {
-        if (!c.alive) continue;
+      for (const c of nearbyCreatures(p.x, p.y, 12, DROP_NB)) { // only who's actually there (spatial grid), not the whole crowd per drop
         const rr = c.def.r + 1;
         if (Math.abs(p.x - c.x) < rr && Math.abs(p.y - c.y) < rr && dist2(p.x, p.y, c.x, c.y) < rr * rr) {
           stainCreature(c, p.x, p.y, p.r * 1.4, p.c, Math.atan2(p.vy, p.vx), Math.hypot(p.vx, p.vy)); p.hc = 1;
@@ -154,9 +164,16 @@ function updateBlood(dt) {
         const ii = ci + di, jj = cj + dj; if (ii < 0 || jj < 0 || ii >= SGW || jj >= SGH) continue;
         for (const k of segGrid[jj * SGW + ii]) {
           const g = snake.segs[k];
-          if (dist2(p.x, p.y, g.x, g.y) < CONFIG.snakeR ** 2) { stainSnake(k, p.x, p.y, p.r * 1.3, p.c); p.hs = 1; hit = Math.random() < .5; break outer; }
+          if (dist2(p.x, p.y, g.x, g.y) < snakeRadius() ** 2) { stainSnake(k, p.x, p.y, p.r * 1.3, p.c); p.hs = 1; hit = Math.random() < .5; break outer; }
         }
       }
+      if (hit) { killPart(i); continue; }
+    }
+    if (p.z < 14 && !p.hr && RS_BB.length) { // other players' snakes
+      let hit = false;
+      for (const [rs, x0, y0, x1, y1, R2] of RS_BB) { if (p.x < x0 || p.x > x1 || p.y < y0 || p.y > y1) continue;
+        for (let k = 0; k < rs.segs.length; k++) { const g = rs.segs[k]; if (dist2(p.x, p.y, g.x, g.y) < R2) { stainRemote(rs, k, p.x, p.y, p.r * 1.3, p.c); p.hr = 1; hit = Math.random() < .5; break; } }
+        if (p.hr) break; }
       if (hit) { killPart(i); continue; }
     }
     if (p.z <= 0) { if (!snowStain(p.x, p.y, p.r * p.r * .35, p.c)) splat(fctx, p.x, p.y, p.vx, p.vy, p.r, p.c, false); addWet(p.x, p.y, p.r * .15, p.c); if (p.r > 2) Sfx.splat(p.x, false); killPart(i); }
@@ -175,7 +192,7 @@ function updateBlood(dt) {
     if (pl.r > pl.max * .985) {
       if (snowAt(pl.x, pl.y) < .12) { // settled: a few drops around the edge, and it stays glossy for a while
         fctx.fillStyle = pl.c || BLOOD;
-        for (let k = 0; k < randi(4, 9); k++) { const a = (pl.ang || 0) + rand(-1.6, 1.6), d = pl.r * rand(1.05, 1.7), dr = rand(.6, 1.8); circ(fctx, pl.x + Math.cos(a) * d, pl.y + Math.sin(a) * d, dr); if (dr > 1.2 && Math.random() < .5) { fctx.lineWidth = dr * .8; fctx.strokeStyle = pl.c || BLOOD; fctx.beginPath(); fctx.moveTo(pl.x + Math.cos(a) * pl.r * .8, pl.y + Math.sin(a) * pl.r * .8); fctx.lineTo(pl.x + Math.cos(a) * d, pl.y + Math.sin(a) * d); fctx.stroke(); } }
+        for (let k = Math.round(randi(4, 9) * BQ().sat); k > 0; k--) { const a = (pl.ang || 0) + rand(-1.6, 1.6), d = pl.r * rand(1.05, 1.7), dr = rand(.6, 1.8); circ(fctx, pl.x + Math.cos(a) * d, pl.y + Math.sin(a) * d, dr); if (dr > 1.2 && Math.random() < .5) { fctx.lineWidth = dr * .8; fctx.strokeStyle = pl.c || BLOOD; fctx.beginPath(); fctx.moveTo(pl.x + Math.cos(a) * pl.r * .8, pl.y + Math.sin(a) * pl.r * .8); fctx.lineTo(pl.x + Math.cos(a) * d, pl.y + Math.sin(a) * d); fctx.stroke(); } }
         if (pl.max > 7) { gloss.push({ x: pl.x, y: pl.y, r: pl.r, c: pl.c || BLOOD, t: T, l: pl.lobes }); if (gloss.length > 30) gloss.shift(); }
       }
       pools.splice(i, 1);
@@ -204,7 +221,7 @@ function drawGloss(x) { // fresh pools are little mirrors: the sky, nearby lamps
     // 2. things standing over the pool show as dark, slightly offset reflections
     x.fillStyle = `rgba(0,0,0,${.14 * wetK})`;
     if (snake) { const n = snake.segs.length; for (let k = 0; k < n; k += 2) { const sgm = snake.segs[k]; if (dist2(sgm.x, sgm.y, g.x, g.y) < (R + 14) ** 2) circ(x, sgm.x + 2, sgm.y + 4, segR(k, n) * .9); } }
-    for (const c of creatures) if (c.alive && dist2(c.x, c.y, g.x, g.y) < (R + 12) ** 2) circ(x, c.x + 1.5, c.y + 4, c.def.r * .8);
+    for (const c of nearbyCreatures(g.x, g.y, R + 12, GLOSS_NB)) if (c.alive) circ(x, c.x + 1.5, c.y + 4, c.def.r * .8); // the spatial grid, not every creature for every pool
     // 3. lamps nearby: a bright highlight on the side of the pool facing each one, in the light's own color
     if (L && q >= 1) for (const l of lights) {
       if (l.kind === 'window' && q < 3) continue; const k = lightK(l); if (k < .05) continue;

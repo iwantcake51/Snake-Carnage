@@ -66,7 +66,7 @@ function dirtTrails(x, list) { // worn dirt paths: uneven width and edges, packe
   }
   dx.restore();
   hx.globalCompositeOperation = 'source-in'; hx.fillStyle = 'rgba(118,96,50,1)'; hx.fillRect(0, 0, W, H); // worn, thinning grass along the edges
-  x.save(); x.globalAlpha = .28; x.drawImage(hc, 0, 0, W, H); x.globalAlpha = 1; x.drawImage(dc, 0, 0, W, H); x.restore();
+  x.save(); x.globalAlpha = .28; x.drawImage(hc, 0, 0, W, H); x.globalAlpha = 1; x.drawImage(dc, 0, 0, W, H); x.restore(); freeCanvas(hc, dc);
 }
 const dirtTrail = (x, pts, w, seed) => dirtTrails(x, [[pts, w, seed]]);
 function flowers(x, n, cols, seed, clusters = 9) { // wildflowers grow in patches, not evenly
@@ -111,6 +111,7 @@ function fixture(x, l) {
   else if (k === 'pool') { x.fillStyle = '#e9fbff'; circ(x, l.x, l.y, 3.2); x.strokeStyle = '#7fb6c6'; x.lineWidth = 1; x.beginPath(); x.arc(l.x, l.y, 4.2, 0, TAU); x.stroke(); }
 }
 const DETAIL = (d, x, y, w, h) => R(x, y, w, h, '#888888', 'detail', { d, noCollide: true, noOutline: true, noShadow: true }); // flat street details, not obstacles
+const CORD_MAT = { v: 1, layers: [{ t: 'solid', c: 'rgba(15,12,10,.75)' }] }; // a rubber cable on the floor
 const LAMP = (x, y, ex) => C(x, y, 5, '#3a3a3a', 'lamp', ex);
 const MAST = (x, y) => C(x, y, 6, '#5a6068', 'lamp', { mast: true, lr: 175 }); // floodlight mast (moon/mars, sports)
 const TREE = (x, y, r, col = '#3d7a2a') => C(x, y, r, col);
@@ -166,7 +167,7 @@ function buildMaze() {
 let bunkerLock = false, bunkerCache = null;
 function bunkerLights() { // built once per run (loadMap clears the cache), so every system shares the same light objects
   if (bunkerCache) return bunkerCache;
-  const P = [[170, 140, 160, 1], [480, 130, 170], [800, 140, 160, 1], [120, 320, 120], [480, 320, 120], [840, 320, 120], [200, 500, 150, 1], [560, 500, 160], [830, 500, 150]];
+  const P = [[170, 140, 160, 1], [480, 130, 170], [800, 140, 160, 1], [120, 320, 120], [480, 320, 120], [840, 320, 120], [200, 500, 150, 1], [560, 500, 160], [860, 474, 150]]; // the med bay's lamp hangs over the aisle between the cots
   bunkerCache = bunkerLock
     ? P.map(([x, y, r], k) => ({ x, y, r, kind: k % 3 === 1 ? 'emerg' : 'red', fix: 'cage' })) // lockdown: red cages and rotating alarm beacons
     : P.map(([x, y, r, f]) => ({ x, y, r: r * 1.05, kind: 'fluor', fix: 'cage', flick: !!f })); // normal shift: cold white work lamps, a couple on their way out
@@ -200,7 +201,7 @@ const MAPS = [
       const main = [[-10, 470], [150, 470], [300, 430], [430, 370], [520, 330], [575, 292], [606, 276]], south = [[300, 430], [330, 540], [420, 660]], camp = [[430, 370], [470, 300], [500, 255]];
       return {
         obs: [ // a wood along the north and west edges (touching the border, so no gaps to get caught in), a few lone trees in the open
-          TREE(60, 56, 40), TREE(124, 40, 30), TREE(176, 52, 24), TREE(46, 126, 30), TREE(40, 176, 22),
+          TREE(60, 56, 40), TREE(128, 36, 30), TREE(180, 50, 24), TREE(46, 126, 30), TREE(40, 176, 22),
           TREE(910, 600, 34), TREE(930, 500, 26), TREE(780, 612, 22),
           TREE(640, 520, 18, '#46802f'),
           C(690, 230, 78, '#4aa3df', 'water'),
@@ -347,7 +348,10 @@ const MAPS = [
     pop: [['human', 5], ['chicken', 7, { x: 300, y: 90, w: 380, h: 120 }], ['sheep', 6, { x: 580, y: 350, w: 350, h: 260 }],
           ['pig', 4, { x: 60, y: 200, w: 240, h: 80 }], ['dog', 1]], walkers: 2,
     build: () => ({
-      paths: [[[300, 240], [500, 240], [751, 240], [751, 140]], [[751, 240], [751, 332]]], // the yard road: pig pen gate -> farmhouse door, with a branch to the paddock gate // red barn and silo, the farmhouse, a coop, the sheep paddock, pig pen and the crop field
+      // the yard road: pig pen gate -> farmhouse door, with a branch to the paddock gate; a lane from the barn doors along the pen to the road,
+      // and the shed's track down to it. Yard lights where a farm has them: over the barn doors, the lane corner, the farmhouse door, the paddock gate
+      paths: [[[300, 240], [500, 240], [751, 240], [751, 140]], [[751, 240], [751, 332]], [[122, 150], [220, 160], [318, 162], [318, 240]], [[458, 76], [458, 240]]],
+      lights: [{ x: 121, y: 148, r: 120, kind: 'fixed', fix: 'cage' }], // the lamp over the barn doors
       obs: [
         R(16, 16, 210, 124, '#a83a2c', 'barn'), C(262, 52, 36, '#b8b8c0', 'silo'),
         R(760, 16, 184, 120, '#c9b18a', 'building', { roof: 'gable', rc: '#5a3d2a' }), R(420, 20, 76, 52, '#b56a3a', 'building', { roof: 'gable', rc: '#7a3a22' }),
@@ -357,11 +361,12 @@ const MAPS = [
         R(16, 180, 6, 110, '#8b6b45', 'fence'), R(16, 180, 284, 6, '#8b6b45', 'fence'), R(294, 180, 6, 40, '#8b6b45', 'fence'), R(294, 260, 6, 30, '#8b6b45', 'fence'), R(16, 284, 124, 6, '#8b6b45', 'fence'), R(200, 284, 100, 6, '#8b6b45', 'fence'),
         C(736, 482, 24, '#e3c565', 'hay'), C(690, 560, 18, '#e3c565', 'hay'), R(640, 410, 40, 16, '#7d8a90', 'crate', { trough: true }),
         TREE(916, 256, 32),
-        LAMP(250, 190), LAMP(712, 150), LAMP(545, 320)
+        LAMP(338, 208), LAMP(712, 150), LAMP(806, 318)
       ],
       floor(x) {
         checker(x, ...GRASS, 32);
         x.fillStyle = '#c8a26a'; x.fillRect(300, 226, 476, 28); x.fillRect(726, 136, 50, 200); // dirt yard roads: from the pen gate along to the farmhouse, and down to the paddock gate
+        x.fillRect(96, 140, 52, 14); x.fillRect(96, 150, 234, 22); x.fillRect(306, 150, 24, 80); x.fillRect(446, 72, 24, 156); // the barn's apron and lane to the road, the shed's track
         speckle(x, 400, ['#b18c58', '#d6b47e'], 3);
         x.fillStyle = '#8b5e34'; x.fillRect(40, 320, 440, 290); // the crop field
         x.fillStyle = '#6f9a35'; for (let y = 332; y < 600; y += 18) { x.fillRect(48, y, 424, 6); for (let i = 52; i < 470; i += 9) circ(x, i, y + 3, 2.6); }
@@ -372,7 +377,9 @@ const MAPS = [
   {
     name: 'Park', icon: '🌳', border: '#4f7a33', start: { x: 120, y: 330, a: 0 }, times: { afternoon: 2, sunset: 2.5, evening: 1.5 }, open: true,
     pop: [['human', 9], ['dog', 1], ['duck', 4, { x: 500, y: 200, w: 220, h: 200 }], ['rabbit', 3]], walkers: 5, grass: 90,
-    build: () => { // a city park: a loop path round the duck pond, paths in from three gates, a playground, a bandstand. Trees stay at the edges.
+    build: () => { // a city park: a loop path round the duck pond, paths in from three gates, a playground, a bandstand.
+      // Lamps stand at the path edges (each gate, the junctions, the playground, the bandstand); benches sit along the paths, the two on the
+      // loop turned to face the pond; two small groves give dark cover between the lit paths; picnic tables on the lawn by the playground.
       const loop = []; for (let k = 0; k <= 24; k++) { const a = k / 24 * TAU; loop.push([600 + Math.cos(a) * 140, 300 + Math.sin(a) * 120]); }
       const play = [[200, 330], [186, 380], [172, 420]], west = [[-10, 330], [180, 330], [330, 310], [460, 300]], south = [[600, 420], [570, 540], [540, 660]], east = [[740, 300], [860, 300], [970, 330]], band = [[330, 310], [270, 220], [254, 186]];
       return {
@@ -380,9 +387,13 @@ const MAPS = [
           C(600, 300, 84, '#4aa3df', 'water'),
           C(250, 150, 30, '#e9e2d0', 'gazebo'),
           TREE(56, 56, 40), TREE(120, 42, 26), TREE(40, 170, 26), TREE(904, 56, 40), TREE(930, 160, 24), TREE(904, 584, 36), TREE(800, 612, 24), TREE(60, 590, 34), TREE(160, 612, 22),
-          R(368, 280, 40, 12, '#7a5a38', 'bench'), R(616, 452, 40, 12, '#7a5a38', 'bench'), R(722, 180, 12, 40, '#7a5a38', 'bench'),
+          TREE(380, 150, 22, '#3a7228'), TREE(408, 178, 18), TREE(420, 520, 22), TREE(450, 548, 18, '#3a7228'), // the groves: dark patches between the lit paths
+          R(368, 280, 40, 12, '#7a5a38', 'bench'), R(230, 290, 40, 12, '#7a5a38', 'bench', { rot: -8 }), // along the west path, on its north edge
+          R(458, 187, 40, 12, '#7a5a38', 'bench', { rot: -45 }), R(702, 187, 40, 12, '#7a5a38', 'bench', { rot: 45 }), // outside the loop, facing the pond
+          R(612, 468, 12, 40, '#7a5a38', 'bench'), R(252, 450, 12, 40, '#7a5a38', 'bench'), // beside the south path; by the sandpit for the parents
+          C(318, 480, 14, '#9a6c3e', 'table'), C(330, 566, 14, '#9a6c3e', 'table'), // picnic tables
           R(150, 468, 44, 12, '#c0392b', 'slide'),
-          LAMP(232, 356), LAMP(470, 330), LAMP(740, 420), LAMP(600, 160), LAMP(590, 560)
+          LAMP(40, 352), LAMP(338, 334), LAMP(600, 158), LAMP(628, 436), LAMP(930, 342), LAMP(212, 412), LAMP(296, 200), LAMP(594, 560)
         ],
         paths: [loop, west, south, east, band, play],
         floor(x) {
@@ -400,20 +411,24 @@ const MAPS = [
   {
     name: 'Pool', icon: '🏊', border: '#5a7f8f', start: { x: 480, y: 100, a: 0 }, times: { midday: 2, afternoon: 2.5, sunset: 2, evening: 2, night: 1.5 },
     pop: [['human', 16], ['dog', 1], ['duck', 3, { x: 60, y: 380, w: 220, h: 200 }]],
-    build: () => ({ // the pool and its deck, a lawn with a fountain, the changing rooms and the snack bar; nothing fences you in
+    build: () => ({ // the pool and its deck, a lawn with a fountain, the changing rooms and the snack bar; nothing fences you in.
+      // Paved paths: changing rooms -> deck, snack bar -> deck, the walkway north-south through the deck, and a branch to the fountain plaza.
+      // Lamps stand beside the paths, never on them; the sunbathing lawn gets its towels.
       obs: [
         R(300, 180, 360, 170, '#3fb4e0', 'water'),
         Object.assign(C(160, 480, 48, '#4aa3df', 'water'), { fountain: true }),
         R(16, 16, 220, 110, '#c99a5a', 'building', { roof: 'flat' }), R(740, 16, 204, 100, '#5f97a8', 'building', { roof: 'flat' }),
         C(800, 470, 16, '#e85d5d', 'table', { umbrella: true }), C(880, 560, 16, '#4f81bd', 'table', { umbrella: true }), C(770, 580, 15, '#f2c230', 'table', { umbrella: true }),
         C(40, 300, 20, '#3d7a2a', 'bush'), C(920, 300, 20, '#3d7a2a', 'bush'),
-        LAMP(270, 160), LAMP(690, 160), LAMP(270, 370), LAMP(690, 370), LAMP(110, 320), LAMP(850, 330), LAMP(480, 600)
+        LAMP(270, 160), LAMP(690, 160), LAMP(270, 370), LAMP(690, 370), LAMP(440, 512), LAMP(818, 198), LAMP(520, 600)
       ],
       lights: [{ x: 345, y: 194, r: 56, kind: 'pool', fix: 'pool' }, { x: 480, y: 194, r: 56, kind: 'pool', fix: 'pool' }, { x: 615, y: 194, r: 56, kind: 'pool', fix: 'pool' },
                { x: 345, y: 336, r: 56, kind: 'pool', fix: 'pool' }, { x: 480, y: 336, r: 56, kind: 'pool', fix: 'pool' }, { x: 615, y: 336, r: 56, kind: 'pool', fix: 'pool' }],
       floor(x) {
         checker(x, ...GRASS, 32);
         x.fillStyle = '#e8e2d6'; x.fillRect(250, 140, 460, 250); x.fillRect(16, 126, 240, 40); x.fillRect(450, 16, 60, 130); x.fillRect(450, 390, 60, 234);
+        x.fillRect(760, 116, 40, 70); x.fillRect(706, 156, 94, 30); x.fillRect(236, 462, 218, 36); // the snack bar's path to the deck; the branch to the fountain plaza
+        x.strokeStyle = 'rgba(150,140,120,.35)'; x.lineWidth = 1; for (const r of [[760, 116, 40, 70], [706, 156, 94, 30], [236, 462, 218, 36]]) x.strokeRect(r[0] + .5, r[1] + .5, r[2] - 1, r[3] - 1);
         x.strokeStyle = '#d6cfc0'; x.lineWidth = 1;
         for (let i = 250; i <= 710; i += 23) { x.beginPath(); x.moveTo(i, 140); x.lineTo(i, 390); x.stroke(); }
         for (let j = 140; j <= 390; j += 23) { x.beginPath(); x.moveTo(250, j); x.lineTo(710, j); x.stroke(); }
@@ -423,6 +438,8 @@ const MAPS = [
       decor(x) { // sun loungers lie flat on the deck: you slide right over them
         for (const [lx, ly] of [[320, 360], [380, 360], [540, 360], [600, 360], [320, 150], [600, 150]]) { x.fillStyle = 'rgba(0,0,0,.12)'; x.fillRect(lx + 2, ly + 2, 40, 16); x.fillStyle = '#f4f4f4'; x.fillRect(lx, ly, 40, 16); x.fillStyle = '#4fa3c7'; x.fillRect(lx + 2, ly + 2, 26, 12); x.fillStyle = '#e7e7e7'; x.fillRect(lx + 30, ly + 2, 8, 12); }
         x.fillStyle = '#c9c9c9'; for (const lx of [312, 640]) { x.fillRect(lx, 178, 3, 10); x.fillRect(lx + 8, 178, 3, 10); } // ladders
+        for (const [tx, ty, c1, c2] of [[822, 458, '#e85d5d', '#fff'], [896, 528, '#4f81bd', '#fff'], [788, 552, '#f2c230', '#e85d5d']]) { // beach towels laid out by each umbrella
+          x.fillStyle = 'rgba(0,0,0,.1)'; x.fillRect(tx + 1.5, ty + 1.5, 16, 32); x.fillStyle = c1; x.fillRect(tx, ty, 16, 32); x.fillStyle = c2; for (let k = 4; k < 32; k += 8) x.fillRect(tx, ty + k, 16, 3); }
       }
     })
   },
@@ -431,17 +448,17 @@ const MAPS = [
     pop: [['human', 17], ['cat', 1], ['rat', 1]],
     lights: [{ x: 160, y: 120, r: 165 }, { x: 476, y: 110, r: 150 }, { x: 790, y: 120, r: 160 },
              { x: 240, y: 288, r: 130, fix: 'strip' }, { x: 720, y: 288, r: 130, fix: 'strip', flick: true },
-             { x: 150, y: 420, r: 150 }, { x: 390, y: 420, r: 150 }, { x: 150, y: 560, r: 150 }, { x: 390, y: 560, r: 150 }, { x: 600, y: 490, r: 150 }, { x: 826, y: 470, r: 160 },
+             { x: 202, y: 410, r: 150 }, { x: 382, y: 410, r: 150 }, { x: 202, y: 540, r: 150 }, { x: 382, y: 540, r: 150 }, { x: 610, y: 475, r: 150 }, { x: 826, y: 470, r: 160 }, // panels over the aisles between the desk pods; a pendant over the kitchen table
              { x: 945, y: 288, r: 70, kind: 'emerg', fix: 'exit' }, { x: 15, y: 288, r: 70, kind: 'emerg', fix: 'exit' }],
     build: () => {
       const wc = '#6d6875', desk = '#9c7550', glass = '#a9d4e6';
       const pod = (px, py) => [R(px, py, 84, 30, desk, 'desk'), R(px, py + 30, 84, 30, desk, 'desk', { flip: true })]; // two desks back to back
       return {
         obs: [ // reception, glass meeting room and the corner office up top, a corridor, then the open-plan floor and the kitchen
-          R(16, 236, 164, 14, wc), R(270, 236, 160, 14, wc), R(520, 236, 240, 14, wc), R(850, 236, 94, 14, wc),
+          R(16, 236, 164, 14, wc), R(270, 236, 160, 14, wc), R(520, 236, 320, 14, wc), R(924, 236, 20, 14, wc), // the corner office's door is at the corridor's east end, 840-924 (the stub carries the wall on into a wider world)
           R(316, 16, 14, 220, glass, 'glass'), R(636, 16, 14, 220, glass, 'glass'),
           R(16, 326, 84, 14, wc), R(190, 326, 190, 14, wc), R(470, 326, 330, 14, wc), R(890, 326, 54, 14, wc),
-          R(706, 340, 14, 90, wc), R(706, 520, 14, 104, wc),
+          R(706, 340, 14, 50, wc), R(706, 480, 14, 144, wc), // kitchen divider: the door near the corridor, the breakable section down the far end
           R(60, 70, 110, 34, '#7a5a48', 'desk', { reception: true }), C(250, 60, 14, '#3d7a2a', 'plant'), C(40, 210, 12, '#3d7a2a', 'plant'),
           R(205, 150, 90, 34, '#6a7fa6', 'couch'),
           R(396, 80, 160, 70, '#6d4a2e', 'table'),
@@ -506,7 +523,7 @@ const MAPS = [
         R(150, 500, 52, 28, '#e0dcd6', 'car', { rover: true }),
         ROCK(760, 520, 30, '#7a3418'), ROCK(820, 470, 18, '#7a3418'), ROCK(130, 150, 22, '#7a3418'), ROCK(420, 520, 26, '#7a3418'),
         ROCK(560, 120, 20, '#7a3418'), ROCK(890, 330, 20, '#7a3418'), ROCK(330, 140, 14, '#7a3418'),
-        MAST(330, 420), MAST(600, 230), MAST(700, 450)
+        MAST(330, 420), MAST(600, 230), MAST(590, 386) // floodlights along the rover route from the garage to the rocket
       ],
       floor(x) {
         x.fillStyle = '#b0532c'; x.fillRect(0, 0, W, H); speckle(x, 1200, ['#c86a3a', '#8e3a1a', '#a84a24'], 5);
@@ -521,7 +538,7 @@ const MAPS = [
     name: 'Alien Facility', icon: '👽', border: '#1b2428', start: { x: 120, y: 320, a: 0 }, indoor: true, ambient: .55,
     pop: [['alien', 15]],
     lights: [ // even ceiling strips in every room and along the hall
-      { x: 160, y: 130, r: 170, kind: 'alien', fix: 'strip' }, { x: 480, y: 130, r: 170, kind: 'alien', fix: 'strip' }, { x: 800, y: 130, r: 170, kind: 'alien', fix: 'strip' },
+      { x: 160, y: 130, r: 170, kind: 'alien', fix: 'strip' }, { x: 480, y: 94, r: 170, kind: 'alien', fix: 'strip' }, { x: 800, y: 130, r: 170, kind: 'alien', fix: 'strip' },
       { x: 150, y: 320, r: 150, kind: 'alien', fix: 'strip' }, { x: 480, y: 320, r: 150, kind: 'alien', fix: 'strip' }, { x: 810, y: 320, r: 150, kind: 'alien', fix: 'strip' },
       { x: 130, y: 500, r: 170, kind: 'alien', fix: 'strip' }, { x: 360, y: 500, r: 170, kind: 'alien', fix: 'strip' }, { x: 714, y: 505, r: 190, kind: 'reactor', fix: 'none' }],
     build: () => {
@@ -553,16 +570,17 @@ const MAPS = [
   {
     name: 'Space Station', icon: '🛰️', border: '#20242c', start: { x: 300, y: 196, a: 0 }, indoor: true, space: true, ambient: .25,
     pop: [['human', 14]],
-    lights: [{ x: 160, y: 100, r: 150, fix: 'strip' }, { x: 480, y: 110, r: 150, fix: 'strip' }, { x: 800, y: 100, r: 150, fix: 'strip' },
-             { x: 160, y: 540, r: 150, fix: 'strip' }, { x: 480, y: 530, r: 150, fix: 'strip' }, { x: 800, y: 540, r: 150, fix: 'strip' },
+    lights: [{ x: 130, y: 168, r: 150, fix: 'strip' }, { x: 480, y: 110, r: 150, fix: 'strip' }, { x: 864, y: 150, r: 150, fix: 'strip' }, // over the aisles: below the plant racks, below the bunks
+             { x: 130, y: 490, r: 150, fix: 'strip' }, { x: 480, y: 530, r: 150, fix: 'strip' }, { x: 800, y: 540, r: 150, fix: 'strip' }, // galley: between the door and the table
              { x: 100, y: 320, r: 120, fix: 'strip', flick: true }, { x: 860, y: 320, r: 120, fix: 'strip' }, { x: 480, y: 320, r: 120, kind: 'emerg', fix: 'cage' }],
     build: () => {
       const wc = '#2e3440';
       return {
-        obs: [ // command module in the middle, a corridor ring around it, and four bays: hydroponics, quarters, galley, airlock
+        obs: [ // command module in the middle, a corridor ring around it, and four enclosed bays: hydroponics, quarters, galley, airlock.
+          // Each bay: a full wall on its side-hall side (with a weak section mid-way) and a 100 px door at the inner end of its other wall
           R(340, 230, 280, 180, '#4a525e', 'module', { command: true }),
-          R(16, 190, 150, 14, wc), R(16, 436, 150, 14, wc), R(794, 190, 150, 14, wc), R(794, 436, 150, 14, wc),
-          R(250, 16, 14, 110, wc), R(696, 16, 14, 110, wc), R(250, 514, 14, 110, wc), R(696, 514, 14, 110, wc),
+          R(16, 190, 248, 14, wc), R(696, 190, 248, 14, wc), R(16, 436, 248, 14, wc), R(696, 436, 248, 14, wc),
+          R(250, 16, 14, 74, wc), R(696, 16, 14, 74, wc), R(250, 550, 14, 74, wc), R(696, 550, 14, 74, wc),
           R(16, 16, 30, 130, '#3c6a3a', 'shelf', { plants: true }), R(86, 16, 30, 130, '#3c6a3a', 'shelf', { plants: true }), R(156, 16, 30, 130, '#3c6a3a', 'shelf', { plants: true }),
           R(784, 16, 160, 26, '#5a6170', 'bed'), R(784, 82, 160, 26, '#5a6170', 'bed'),
           R(60, 520, 120, 40, '#7a8494', 'table'), R(16, 602, 160, 22, '#6a7280', 'bar'),
@@ -574,7 +592,7 @@ const MAPS = [
           starfield(x, 300, 18, 140, 26, 60, 3); starfield(x, 520, 18, 140, 26, 60, 9); starfield(x, 300, 596, 140, 26, 60, 4); starfield(x, 520, 596, 140, 26, 60, 12);
           starfield(x, 18, 250, 26, 140, 60, 6); starfield(x, 916, 250, 26, 140, 60, 8);
           x.fillStyle = '#e0702a'; for (let i = 350; i < 610; i += 24) { x.fillRect(i, 216, 12, 4); x.fillRect(i, 420, 12, 4); } // hazard tape round the module
-          hazard(x, 794, 450, 150, 8); // airlock edge
+          hazard(x, 710, 450, 234, 8); // airlock edge
           x.fillStyle = '#4c6b44'; x.fillRect(16, 16, 234, 174); x.fillStyle = 'rgba(0,0,0,.12)'; for (let j = 20; j < 190; j += 10) x.fillRect(16, j, 234, 4); // hydroponics grating
         }
       };
@@ -604,17 +622,18 @@ const MAPS = [
           // COMMS: the radio desk along the back wall, a side console, the map table in the middle
           R(404, 600, 230, 24, '#2c3034', 'console'), R(404, 398, 16, 76, '#2c3034', 'console'), C(560, 470, 18, '#4a4a40', 'table'),
           // MED BAY: two cots and the supply cabinet
-          R(820, 424, 80, 30, '#c9c9c4', 'bed', { med: true }), R(820, 494, 80, 30, '#c9c9c4', 'bed', { med: true }), R(880, 574, 64, 50, '#c9c9c4', 'shelf')
+          R(820, 424, 80, 30, '#c9c9c4', 'bed', { med: true }), R(820, 494, 80, 30, '#c9c9c4', 'bed', { med: true }), R(880, 574, 64, 50, '#c9c9c4', 'shelf'),
+          DETAIL('hazard', 16, 284, W - 32, 86) // the corridor's painted floor: a prop, so the editor can move, resize, turn or copy it
         ],
         floor(x) {
           x.fillStyle = '#3a3532'; x.fillRect(0, 0, W, H); speckle(x, 1600, ['#332e2b', '#423c38', '#2c2826'], 6, 2);
           x.strokeStyle = 'rgba(0,0,0,.25)'; x.lineWidth = 1; for (let i = 0; i <= W; i += 80) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i, H); x.stroke(); } for (let j = 0; j <= H; j += 80) { x.beginPath(); x.moveTo(0, j); x.lineTo(W, j); x.stroke(); } // poured concrete slabs
-          x.fillStyle = '#2f2a28'; x.fillRect(16, 284, W - 32, 86); x.fillStyle = '#c9a227'; for (let i = 20; i < W - 20; i += 40) x.fillRect(i, 325, 20, 3); // corridor + painted line
-          hazard(x, 16, 284, W - 32, 5); hazard(x, 16, 365, W - 32, 5);
           x.fillStyle = 'rgba(40,10,8,.35)'; x.beginPath(); x.ellipse(160, 520, 90, 60, 0, 0, TAU); x.fill(); // oil stain by the generators
           x.fillStyle = '#2c2a2e'; x.fillRect(724, 400, 210, 210); x.strokeStyle = 'rgba(180,200,200,.07)'; for (let i = 724; i < 934; i += 15) { x.beginPath(); x.moveTo(i, 400); x.lineTo(i, 610); x.stroke(); } // med bay: tiled, easy to hose down
-          x.strokeStyle = 'rgba(15,12,10,.6)'; x.lineWidth = 3; x.beginPath(); x.moveTo(180, 470); x.bezierCurveTo(260, 470, 300, 440, 380, 455); x.moveTo(300, 545); x.bezierCurveTo(340, 560, 360, 520, 390, 540); x.stroke(); x.lineWidth = 1; // cables from the generators toward comms
-        }
+        },
+        shapes: [ // cables from the generators toward comms: editable paths (drag them, bend them, delete them in the editor)
+          { kind: 'path', curve: 'bezier', nodes: [[180, 470, 0, 0, 80, 0], [380, 455, -80, -15, 0, 0]], w: 3, use: 'floor', fill: CORD_MAT, name: 'Generator cord' },
+          { kind: 'path', curve: 'bezier', nodes: [[300, 545, 0, 0, 40, 15], [390, 540, -30, -20, 0, 0]], w: 3, use: 'floor', fill: CORD_MAT, name: 'Generator cord' }]
       };
     }
   },

@@ -16,7 +16,11 @@ function showPause() {
     ${ids.length ? `<div class="modline center">${modLine(ids)}</div>` : ''}
     <div class="pbtns"><button class="btn" id="resBtn" data-sfx="confirm">Resume</button><button class="btn alt" id="pSetBtn" data-sfx="open">Settings</button><button class="btn alt" id="pMenuBtn" data-sfx="close">Quit to menu</button></div>
     <p class="small">${IS_TOUCH ? 'Tap Resume to continue' : 'Esc or Space to resume'}</p></div>
-    <div class="pr"><h3>Challenges</h3><div class="pch">${challengeRows()}</div></div></div>`;
+    <div class="pr"><div class="ptabs"><button class="on" data-pt="ch" data-sfx="tab">Challenges</button><button data-pt="pf" data-sfx="tab">Performance</button></div><div class="pch">${challengeRows()}</div><div class="ppf" hidden>${perfRunHtml()}</div></div></div>`;
+  const pr = overlay.querySelector('.pause .pr'), tab = t => { pr.querySelectorAll('[data-pt]').forEach(b => b.classList.toggle('on', b.dataset.pt === t)); pr.querySelector('.pch').hidden = t !== 'ch'; pr.querySelector('.ppf').hidden = t !== 'pf'; showPause.tab = t; };
+  pr.querySelectorAll('[data-pt]').forEach(b => b.onclick = () => tab(b.dataset.pt));
+  const on = document.getElementById('pfOn'); if (on) on.onclick = () => { SETTINGS.perfHud = 'Full'; saveSettings(); perfApply(); pr.querySelector('.ppf').innerHTML = perfRunHtml(); toast('Full performance stats on'); };
+  if (showPause.tab === 'pf') tab('pf'); // reopens on the tab you left it on
   document.getElementById('resBtn').onclick = resumeGame;
   document.getElementById('pSetBtn').onclick = () => { settingsFrom = 'pause'; transitionTo(() => showSettings()); };
   document.getElementById('pMenuBtn').onclick = returnToMenu;
@@ -42,7 +46,7 @@ function returnToMenu() { // ends the run on purpose; only now is the game reset
   hideResume(); clearNotes();
   document.getElementById('chhud').innerHTML = ''; document.getElementById('modhud').innerHTML = ''; runMods = []; modBar();
   endCombo(true); evt = null; showEvent(); document.getElementById('rewards').innerHTML = '';
-  nightVision = false; cam = null; camF.x = camF.y = camF.k.x = camF.k.y = camF.kv.x = camF.kv.y = 0;
+  nightVision = false; cam = null; camF.x = camF.y = camF.k.x = camF.k.y = camF.kv.x = camF.kv.y = 0; resetUserCam(true);
   MOD = {}; loadMap(mapIdx);
   transitionTo(showMenu);
 }
@@ -69,24 +73,26 @@ function startGame(opts = {}) {
   MOD = Object.fromEntries(runMods.map(id => [id, true])); rewardMult = modMult(runMods);
   document.body.classList.toggle('minimal', !!MOD.minimal);
   setTimeout(() => { if (MAPS[mapIdx].name === 'Bunker' && bunkerLock && state !== 'menu') notify({ kind: 'reset', title: 'Lockdown', sub: 'The alarms are going. Red lights only down here today.', dur: 4 }); }, 3200);
-  tod = SETTINGS.timeMode === 'Cycle' ? pickStartTime(MAPS[mapIdx]) : FIXED_TIMES[SETTINGS.timeMode] ?? 12; // dynamic runs start at a different hour, weighted per map
+  if (opts.net) { if (NS.prevTime === undefined) NS.prevTime = SETTINGS.timeMode; SETTINGS.timeMode = opts.net.time; } // co-op: the host's clock settings, for this session only
+  tod = opts.net ? opts.net.tod : SETTINGS.timeMode === 'Cycle' ? pickStartTime(MAPS[mapIdx]) : FIXED_TIMES[SETTINGS.timeMode] ?? 12; // dynamic runs start at a different hour, weighted per map
   nightVision = false; endCombo(true); document.getElementById('rewards').innerHTML = ''; hideResume(); clearNotes();
-  camF.x = camF.y = camF.k.x = camF.k.y = camF.kv.x = camF.kv.y = 0;
-  const sz = pickSeason(MAPS[mapIdx]), myst = !!opts.mystery, gen = startGame.gen = (startGame.gen || 0) + 1;
+  camF.x = camF.y = camF.k.x = camF.k.y = camF.kv.x = camF.kv.y = 0; resetUserCam(true);
+  const sz = opts.net ? opts.net.season : pickSeason(MAPS[mapIdx]), myst = !!opts.mystery, gen = startGame.gen = (startGame.gen || 0) + 1;
   state = 'loading'; cam = null;
   hideOverlay(); cv.style.translate = '0px 0px'; cv.style.scale = '1';
   if (document.activeElement) document.activeElement.blur();
   setTimeout(() => overlay.querySelectorAll('.casebox').forEach(b => b.remove()), 600);
   introTimers.forEach(clearTimeout); introTimers = [];
   stage.classList.add('bars');
-  if (myst || opts.test) { intro.innerHTML = ''; intro.className = 'run ghost'; } // play tests from the editor skip the intro
+  if (myst || opts.test || opts.late) { intro.innerHTML = ''; intro.className = 'run ghost'; } // play tests from the editor skip the intro
   else { intro.innerHTML = introHtml(sz); intro.className = 'run'; } // up on screen straight away; the map loads behind it
   requestAnimationFrame(() => requestAnimationFrame(() => { if (startGame.gen === gen) finishStart(opts, sz); }));
 }
 function finishStart(opts, sz) {
   const t0 = performance.now();
   newRun();
-  loadMap(mapIdx, sz); run.startPop = creatures.length;
+  if (opts.net) { netWithSeed(opts.net.seed, () => loadMap(mapIdx, sz)); netAfterLoad(); } else loadMap(mapIdx, sz); // co-op: the same world on every screen
+  run.startPop = creatures.length;
   const animals = [...new Set(creatures.filter(c => !c.def.human).map(c => c.type))];
   runMod = { lastType: null, lastCat: null, varStreak: 0, same: 0, chain: 0, humanRun: 0, ask: null, askIn: 3, avoid: animals.length ? pick(animals) : null };
   modHud(); challengeHud(true); modBar(); resetAbilities();
@@ -94,7 +100,7 @@ function finishStart(opts, sz) {
   updateTime(0);
   state = 'intro';
   cam = { t: 0, dur: SETTINGS.reduceMotion ? .01 : 1.5, z0: 5, hold: true };
-  if (opts.test) { cam.dur = .01; cam.hold = false; endIntro(true); stage.classList.remove('bars'); return; } // editor play test: straight in
+  if (opts.test || opts.late) { cam.dur = .01; cam.hold = false; endIntro(true); stage.classList.remove('bars'); return; } // editor play test (or rejoining a co-op run): straight in
   if (opts.mystery) { // random map: no picture or name, the world itself is the reveal
     intro.innerHTML = `<div class="iname mys">${timeBadge()}${seasonBadge()}</div>`;
     introTimers = [setTimeout(endIntro, SETTINGS.reduceMotion ? 200 : 650)];
@@ -150,7 +156,7 @@ function fit() {
 }
 const UI_SCALES = { Small: .85, Medium: 1, Large: 1.15, 'Extra Large': 1.3 };
 function applyUiScale() { // zoom every HUD/menu layer; overlay is shrunk by the same factor first so percentages still fit
-  const u = UI_SCALES[SETTINGS.uiScale] || clamp(boardScale * .92, document.body.classList.contains('phone') ? .62 : .8, 1.45);
+  const phone = document.body.classList.contains('phone'), u = UI_SCALES[SETTINGS.uiScale] || clamp(boardScale * (phone ? .92 : .82), phone ? .62 : .8, 1.4); // desktop menus get a little more room to lay out in, so most fit without scrolling
   document.documentElement.style.setProperty('--ui', u.toFixed(3));
   const lw = W * boardScale / u, lh = H * boardScale / u; // how much room the menus actually get, in their own units
   document.body.classList.toggle('compact', lw < 820 || lh < 600); document.body.classList.toggle('narrow', lw < 640);

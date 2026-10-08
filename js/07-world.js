@@ -41,6 +41,12 @@ function buildSolid() {
   solidGrid = new Uint8Array(GW * GH);
   for (const o of obstacles) {
     if (obsFlag(o, 'noCollide')) continue; // walk-through props
+    const hp = typeof propHitPoly === 'function' && propHitPoly(o); // a prop with its own collision shape (separate from its drawing)
+    if (hp === 'none') continue;
+    if (hp) { const xs = hp.map(p => p[0]), ys = hp.map(p => p[1]);
+      for (let j = Math.max(0, Math.floor(Math.min(...ys) / SG)); j < Math.min(GH, Math.ceil(Math.max(...ys) / SG)); j++) for (let i = Math.max(0, Math.floor(Math.min(...xs) / SG)); i < Math.min(GW, Math.ceil(Math.max(...xs) / SG)); i++)
+        if (pointInPoly(hp, i * SG + 2, j * SG + 2)) solidGrid[j * GW + i] = 1;
+      continue; }
     if (isRot(o)) { const P = obsCorners(o), xs = P.map(p => p[0]), ys = P.map(p => p[1]);
       for (let j = Math.floor(Math.min(...ys) / SG); j < Math.ceil(Math.max(...ys) / SG); j++) for (let i = Math.floor(Math.min(...xs) / SG); i < Math.ceil(Math.max(...xs) / SG); i++)
         if (i >= 0 && j >= 0 && i < GW && j < GH && pointInPoly(P, i * SG + 2, j * SG + 2)) solidGrid[j * GW + i] = 1;
@@ -57,6 +63,7 @@ function buildSolid() {
           if (i >= 0 && j >= 0 && i < GW && j < GH && dist2(i * SG + 2, j * SG + 2, o.x, o.y) <= o.r * o.r) solidGrid[j * GW + i] = 1;
     }
   }
+  buildNav(); // the low-res openness / dead-end cache follows the solid grid (see 27-crowds)
 }
 
 function bakeOutline() {
@@ -81,7 +88,7 @@ function drawObstacleLayer(x = octx, b = curBuild, list = obstacles, ls = (b && 
   if (b && b.decor) b.decor(x);
   if (x === octx) snowCaps(x, list);
   for (const l of ls) fixture(x, l);
-  if (x === octx) outlineBreakables(x);
+  if (x === octx) { outlineBreakables(x); bakePropGlow(list); } // glowing buttons and screens follow whatever is standing
 }
 /* ---- placement rules, applied to every map as it loads ----
    street furniture never stands in a road (it's pushed back to the curb), a lamp is only moved off a walkway when it is really in it
@@ -127,6 +134,7 @@ const GAP_MIN = 40;
 const HUG_KINDS = new Set(['bed', 'shelf', 'console', 'crate', 'bar', 'cryo', 'generator', 'speaker', 'booth', 'couch', 'desk', 'dj', 'barrier', 'solar']);
 const FREE_KINDS = new Set(['tree', 'bush', 'rock', 'plant', 'hay', 'table', 'bench', 'pod', 'chess', 'tent', 'holo', 'pillar']);
 const POLE_KINDS = new Set(['lamp', 'bin', 'detail']);
+const FLAT_DETAILS = new Set(['hazard', 'zebra', 'manhole', 'drain']); // painted on the ground itself, under anything drawn on top of it
 const obox = o => o.t === 'r' ? [o.x, o.y, o.x + o.w, o.y + o.h] : [o.x - o.r, o.y - o.r, o.x + o.r, o.y + o.r];
 function gapAndDir(a, b) { // shortest gap between two shapes and the unit direction pushing a away from b
   if (a.t === 'c' && b.t === 'c') { const dx = a.x - b.x, dy = a.y - b.y, d = Math.hypot(dx, dy) || 1; return [d - a.r - b.r, dx / d, dy / d]; }
@@ -162,42 +170,51 @@ function settleGaps(list, roads, paths) {
   }
   return list.filter(o => !dropped.has(o));
 }
+const mapShapes = (b, ov) => ov && ov.shapesV ? ov.shapes || [] : [...(b.shapes || []), ...((ov && ov.shapes) || [])]; // a built-in map's own shapes (Bunker's cords), plus any drawn in the editor; once the editor has saved a map's full list, that list is it
 function loadMap(idx, sz) {
   mapIdx = idx; season = sz || null; // a season only for runs on outdoor maps; menus show the plain map
   bunkerCache = null; if (MAPS[idx].name === 'Bunker') bunkerLock = Math.random() < .35; // some runs the bunker is in lockdown
+  if (!MAPS[idx].custom) { mapMaterials = {}; if (Object.keys(mapPropDefs).length) { mapPropDefs = {}; propApply(); } } // a built-in map: no custom map's materials or props hanging around
   const m = MAPS[idx], b = m.build(); curBuild = b;
   Sfx.setMuffle(!!m.space && !m.indoor); // thin air on the surface; inside a pressurized station sound is normal
   const ov = mapOverride(m.name); // edits made in the map editor replace the map's own objects and lights as they are
-  if (ov) { b.obs = JSON.parse(JSON.stringify(ov.obs)); b.lights = JSON.parse(JSON.stringify(ov.lights)); }
+  if (ov) { b.obs = carryCorridors(JSON.parse(JSON.stringify(ov.obs))); b.lights = JSON.parse(JSON.stringify(ov.lights)); } // edits saved before the corridor ran on into the wide map's wings get it too
   if (ov && ov.trails) { // walkers follow the edited paths (and keep any sidewalk routes that weren't painted trails)
     const old = captureTrails(m.build()), near = (p, q) => Math.abs(p[0] - q[0]) < 2 && Math.abs(p[1] - q[1]) < 2;
     b.paths = [...(b.paths || []).filter(p => !old.some(t => t.pts.some(q => near(p[0], q)))), ...ov.trails.map(t => t.pts)];
   }
+  let ovShapes = null; // shapes drawn on a built-in map in the editor (see 09c)
+  if (ov && ov.materials) mapMaterials = { ...mapMaterials, ...ov.materials };
+  const shapeList = mapShapes(b, ov);
+  if (shapeList.length) { ovShapes = compileVecShapes(shapeList); b.obs = [...b.obs, ...ovShapes.obs]; if (ovShapes.top.length) { const d0 = b.decor; b.decor = x => { if (d0) d0(x); paintVecFloor(x, ovShapes.top); }; } }
+  customFx = (ovShapes && ovShapes.anim) || b.customFx || { floor: [], top: [] };
   if (state !== 'editor') b.obs = b.obs.filter(o => o.chance == null || Math.random() * 100 < o.chance); // props with a spawn chance only sometimes show up
   let pre = [...borderWalls(m.border), ...b.obs];
   if (!ov) { nudgeLamps(pre, b.paths || [], b.roads || []); tidyPlacement(pre, b.roads || []); pre = settleGaps(pre, b.roads || [], b.paths || []); }
   curPre = pre.filter(o => o.kind !== 'border'); curMapLights = b.lights || m.lights || []; // spacing works on whole objects, before long ones are split into breakable sections
   obstacles = splitBreakables(addBreakWalls(pre, m.name));
   buildSolid();
-  b.obs = b.obs.filter(o => !o.dropped); bctx.clearRect(0, 0, W, H); if (ov) { trailMute = !!ov.trails; try { if (ov.base) paintBase(bctx, ov.base); else b.floor(bctx); } finally { trailMute = false; } if (ov.areas) paintAreas(bctx, ov.areas); if (ov.trails) paintTrails(bctx, ov.trails); } else b.floor(bctx); /* edited paths replace the map's painted trails */ for (const o of b.obs) if (o.kind === 'detail' && !o.dropped) drawObstacle(bctx, o); bakeContactShadows(bctx, b.obs); resetBuckets(); gctx.clearRect(0, 0, W, H); groundParts = []; trail = []; floaters = [];
+  b.obs = b.obs.filter(o => !o.dropped); bctx.clearRect(0, 0, W, H); if (ov) { trailMute = !!ov.trails; try { if (ov.base) paintBase(bctx, ov.base); else b.floor(bctx); } finally { trailMute = false; } if (ov.areas) paintAreas(bctx, ov.areas); if (ov.trails) paintTrails(bctx, ov.trails); } else b.floor(bctx); for (const o of b.obs) if (o.kind === 'detail' && !o.dropped && FLAT_DETAILS.has(o.d)) drawObstacle(bctx, o); if (ovShapes) paintVecFloor(bctx, ovShapes.floor); /* edited paths replace the map's painted trails */ for (const o of b.obs) if (o.kind === 'detail' && !o.dropped && !FLAT_DETAILS.has(o.d)) drawObstacle(bctx, o); bakeContactShadows(bctx, b.obs); resetBuckets(); gctx.clearRect(0, 0, W, H); groundParts = []; trail = []; floaters = [];
   buildGrassMask(); gradeGround(); seasonDetails(bctx);
   curBuild = b; drawObstacleLayer(); buildTrees();
   bakeOutline();
   buildSnow();
   buildLights(curMapLights); setupSpeakers();
   wet = new Float32Array(WW * WH); fresh = new Float32Array(WW * WH); wetC = new Float32Array(WW * WH * 3);
-  creatures = []; parts = []; pools = []; respawnQ = []; gibs = []; splashes = []; groups = []; mist = []; smoke = []; wisps = []; gloss = []; crashHit = null; ringPops = []; hitGhosts = []; hitStop = 0; puke = []; convos = []; lastDead = null;
+  creatures = []; parts = []; pools = []; respawnQ = []; gibs = []; splashes = []; groups = []; mist = []; smoke = []; wisps = []; gloss = []; crashHit = null; ringPops = []; hitGhosts = []; hitStop = 0; puke = []; convos = []; lastDead = null; sounds = []; hoovFx = [];
   score = 0; kills = { h: 0, a: 0 }; shake = 0;
   killV = killFlash = desatHold = 0;
   light = computeLight(); shadowKey = ''; bakeShadows();
   snake = newSnake(b.start || m.start);
   curRoads = b.roads || []; curCross = b.crossings || [];
+  netReseed(1); // co-op: spawning happens on the host only, so it gets dice of its own (see 40d-net-sync)
   for (const [type, n, zone] of m.pop) { // run modifiers can change the crowd
     const k = type === 'human' ? (MOD.overcrowded ? 2.1 : 1) : (MOD.noAnimals ? 0 : 1);
     for (let i = 0; i < Math.round(n * k); i++) spawn(type, zone);
   }
   makeFlies(m.fireflies || 0);
-  curPaths = b.paths || []; curRoads = b.roads || []; curCross = b.crossings || []; spawnWalkers(m.walkers || 0); if (state === 'menu') creatures = []; /* the map behind the menus is empty: nobody milling about */ makeGrass(m.grass || 0); makeWeather();
+  curPaths = b.paths || []; curRoads = b.roads || []; curCross = b.crossings || []; spawnWalkers(m.walkers || 0); if (state === 'menu') creatures = []; /* the map behind the menus is empty: nobody milling about */ netReseed(2); makeGrass(m.grass || 0); makeWeather();
   deaths = []; if (typeof run === 'object') run.startPop = creatures.length;
+  buildNeighbors(); // neighbour queries never see the previous map's crowd, even before the first tick
   updateHud();
 }

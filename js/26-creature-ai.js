@@ -1,35 +1,41 @@
-function openness(x, y) {
-  let n = 0;
-  for (let k = 0; k < 8; k++) { const a = k * TAU / 8; if (!solid(x + Math.cos(a) * 40, y + Math.sin(a) * 40)) n++; }
-  return n;
-}
+const openness = (x, y) => navOpen[navCell(x, y)]; // how many of 8 directions are clear 40px out: cached per 16px cell (see buildNav)
 const edgeD = (x, y) => Math.min(x - B, W - B - x, y - B, H - B - y);
 const cornerish = (x, y, m = 140) => (x - B < m || W - B - x < m) && (y - B < m || H - B - y < m); // near two edges at once
+const FLEE_C = Array.from({ length: 14 }, () => ({ x: 0, y: 0, sc: 0 })); // reused candidate slots: no garbage per pick
 function pickFleeGoal(c) { // an open spot away from the threat, away from bodies, ideally in the direction already running
+  // static geometry (openness, dead ends) comes from the nav cache; only deaths, the threat and the crowd are scored live,
+  // and the line-of-sight test (the expensive part) only runs on the few best candidates
   const ta = Math.atan2(c.fy - c.y, c.fx - c.x), trapped = openness(c.x, c.y) <= 5 && crowdAt(c.x, c.y) >= 5; // boxed into a crowded corner
-  const cornered = cornerish(c.x, c.y, 120);
-  let best = null, bs = -1e9;
-  const fails = c.failed ? c.failed.filter(f => T - f.t < 8) : null; // routes that didn't work out recently
+  const cornered = cornerish(c.x, c.y, 120), blind = MOD.blind && c.def.human; // the blind only know where they THINK it is (c.fx, c.fy), never where it actually is
+  const panicky = c.state === 'panic', fl = c.failed, nf = fl ? fl.length : 0;
+  let n = 0;
   for (let k = 0; k < 14; k++) {
     const a = Math.random() < .7 ? ta + Math.PI + rand(-1.6, 1.6) : rand(0, TAU), d = rand(110, 300), x = c.x + Math.cos(a) * d, y = c.y + Math.sin(a) * d;
     if (!free(x, y, c.def.r + 6)) continue;
-    let sc = Math.hypot(x - c.fx, y - c.fy) * 1.2 + openness(x, y) * 22 + Math.cos(angDiff(c.a, a)) * 40;
+    let sc = Math.sqrt(dist2(x, y, c.fx, c.fy)) * 1.2 + openness(x, y) * 22 + navReachAt(x, y) * .9 + Math.cos(angDiff(c.a, a)) * 40; // reach: long clear runs beat dead ends
     if (Math.cos(a - ta) > (cornered ? .65 : .2)) sc -= 400; // cornered: running sideways past the threat is allowed
     const e = edgeD(x, y); if (e < 110) sc -= (110 - e) * 4.5; // the map edge is a trap, not a hiding place
     if (cornerish(x, y)) sc -= 380;
-    if (!los(c.x, c.y, x, y)) sc -= c.state === 'panic' ? 260 : 140; // panicking people want a route they can actually see
-    if (fails) for (const f of fails) if (dist2(x, y, f.x, f.y) < 70 * 70) sc -= 320;
-    for (const dd of deaths) { const q = Math.hypot(x - dd.x, y - dd.y); if (q < 160) sc -= (160 - q) * 1.5; }
-    if (snake) { const q = Math.hypot(x - snake.x, y - snake.y); if (q < 120) sc -= (120 - q) * 3; }
+    for (let i = 0; i < nf; i++) { const f = fl[i]; if (T - f.t < 8 && dist2(x, y, f.x, f.y) < 70 * 70) sc -= 320; } // routes that didn't work out recently
+    for (const dd of deaths) { const q2 = dist2(x, y, dd.x, dd.y); if (q2 < 160 * 160) sc -= (160 - Math.sqrt(q2)) * 1.5; }
+    if (snake && !blind) { const q2 = dist2(x, y, snake.x, snake.y); if (q2 < 120 * 120) sc -= (120 - Math.sqrt(q2)) * 3; }
     sc += spotScore(c, x, y) + (trapped ? openness(x, y) * 30 : 0); // open escape routes beat the map edge
-    if (sc > bs) { bs = sc; best = { x, y }; }
+    const s0 = FLEE_C[n++]; s0.x = x; s0.y = y; s0.sc = sc;
+  }
+  let best = null, bs = -1e9;
+  if (n) {
+    for (let i = 1; i < n; i++) { const v = FLEE_C[i]; let j = i - 1; while (j >= 0 && FLEE_C[j].sc < v.sc) { FLEE_C[j + 1] = FLEE_C[j]; j--; } FLEE_C[j + 1] = v; } // best first
+    for (let i = 0; i < Math.min(4, n); i++) { // panicking people want a route they can actually see (or, blind, one they can feel their way down)
+      const q = FLEE_C[i], sc = q.sc - (los(c.x, c.y, q.x, q.y) ? 0 : panicky ? 260 : 140);
+      if (sc > bs) { bs = sc; best = { x: q.x, y: q.y }; }
+    }
   }
   if (!best) best = { x: c.x - Math.cos(ta) * 100, y: c.y - Math.sin(ta) * 100 };
   best = groupGoal(c, best); best.fx = c.fx; best.fy = c.fy;
   c.goal = best; c.goalT = rand(1.5, 2.5); c.stuck = 0; c.goalD = Infinity; c.goalP = 0;
 }
 function steerDir(c, want) {
-  const probe = c.def.r + 8 + (c.state === 'wander' ? 0 : 16); // look further ahead when running, so turns start early
+  const probe = c.def.r + 8 + (c.state === 'wander' ? 0 : MOD.blind && c.def.human ? 4 : 16); // look further ahead when running, so turns start early (the blind only find a wall when they're at it)
   for (const off of [0, .35, .7, 1.1, 1.6, 2.2, 2.8]) {
     for (const sgn of off ? [c.side, -c.side] : [1]) {
       const a = want + off * sgn;
@@ -42,17 +48,20 @@ function steerDir(c, want) {
 function updateCreature(c, dt) {
   const d = c.def;
   if (c.golden && (c.goldT -= dt) <= 0) ungoldify(c); // the gold wears off: back to a normal person or animal
-  c.pt -= dt; if (c.pt <= 0) { c.pt = (MOD.skittish ? .08 : .15) + Math.random() * .1; perceive(c); }
+  if ((c.pt -= dt) <= 0) { // perception ~5-8 times a second, each creature on its own random beat so they never all think on one frame;
+    const far = (c.state === 'wander' || c.state === 'idle') && (!snake || !snake.started || dist2(c.x, c.y, snake.x, snake.y) > 420 * 420); // calm and nowhere near the action: a slower beat
+    c.pt = (MOD.skittish ? .08 : .125) + Math.random() * .07 + (far && !MOD.skittish ? .16 + Math.random() * .1 : 0); perceive(c);
+  }
   c.timer -= dt;
   c.dance = MAPS[mapIdx].club && !!c.zone && (c.state === 'idle' || c.state === 'wander') && c.alert < .3;
   if (d.fly) { c.hz = 3.5 + Math.sin(T * 3 + c.pt * 50) * 1.5; if (c.state === 'wander' && Math.random() < dt * 2) c.wa += rand(-1.2, 1.2); } // fireflies drift and bob
   if (c.bubbles) for (let i = c.bubbles.length - 1; i >= 0; i--) {
     const b = c.bubbles[i];
-    if (b.delay > 0) { if ((b.delay -= dt) <= 0 && b.yell) Sfx.shout(c.x); }
+    if (b.delay > 0) { if ((b.delay -= dt) <= 0 && b.yell) Sfx.vocal(c.x, b.prof || 'shout', c.vox || 1); }
     else if ((b.t += dt) > b.life) c.bubbles.splice(i, 1);
   }
   if (c.state === 'panic' && c.def.human && c.timer > 1 && (c.sayCD -= dt) <= 0) { // keep reacting while still in danger
-    const near = snake && dist2(c.x, c.y, snake.x, snake.y) < 90 * 90;
+    const near = MOD.blind ? c.ear && T - c.ear.t < 1 && dist2(c.x, c.y, c.ear.x, c.ear.y) < 70 * 70 : snake && dist2(c.x, c.y, snake.x, snake.y) < 90 * 90; // blind: only when it sounds right on top of them
     if (near) say(c, 'chased'); else if (Math.random() < .45) say(c, 'panic'); else c.sayCD = rand(2, 4);
   }
   if (c.reply && (c.reply.t -= dt) <= 0) { const r = c.reply; c.reply = null; say(c, r.ctx); }
@@ -70,7 +79,7 @@ function updateCreature(c, dt) {
     if (c.timer <= 0) { c.state = 'wander'; c.timer = rand(2, 5); c.wa = pickWander(c); }
     else if (!c.convo && solid(c.x + Math.cos(c.a) * 16, c.y + Math.sin(c.a) * 16)) { const a = openDir(c); c.a += clamp(angDiff(c.a, a), -dt * 3, dt * 3); } // nobody stands with their nose to a wall
   } else if (c.state === 'wander') {
-    spd = d.walk * (c.alert > .3 ? 1.7 : 1) * (c.dance ? .22 : 1); // cautious people walk briskly; dancers barely move
+    spd = d.walk * (c.alert > .3 ? 1.7 : 1) * (c.dance ? .22 : 1) * (MOD.blind && d.human ? .72 : 1); // cautious people walk briskly; dancers barely move; the blind feel their way
     if (c.timer <= 0) {
       if (Math.random() < (c.alert > .3 ? .08 : .35)) { c.state = 'idle'; c.timer = rand(1, 3) * (c.alert > .3 ? .5 : 1); }
       else { c.timer = rand(1.5, 4); c.wa = pickWander(c); }
@@ -81,8 +90,10 @@ function updateCreature(c, dt) {
     if (z && (c.x < z.x || c.x > z.x + z.w || c.y < z.y || c.y > z.y + z.h)) c.wa = Math.atan2(z.y + z.h / 2 - c.y, z.x + z.w / 2 - c.x);
     if (c.detour) { if ((c.detour.t -= dt) <= 0) c.detour = null; else c.wa = c.detour.a; } // walking away from whatever it got stuck on
     want = Math.atan2(Math.sin(c.wa) + c.avy * .8, Math.cos(c.wa) + c.avx * .8);
+  } else if (c.listenT > T && c.state === 'uneasy') { // blind and heard something: stand still, head turned toward it, listening
+    const a = Math.atan2(c.fy - c.y, c.fx - c.x); c.a += clamp(angDiff(c.a, a), -dt * 5, dt * 5);
   } else {
-    spd = c.state === 'uneasy' ? d.walk * 2.2 : d.run * (c.state === 'panic' ? 1 : .9);
+    spd = c.state === 'uneasy' ? d.walk * (MOD.blind && d.human ? 1.3 : 2.2) : d.run * (c.state === 'panic' ? 1 : .9); // the blind back away from a noise carefully, they don't hurry blind
     const gd = c.goal ? Math.hypot(c.goal.x - c.x, c.goal.y - c.y) : 0;
     if (c.goal) { c.goalP += dt; if (gd < c.goalD - 4) { c.goalD = gd; c.goalP = 0; } } // progress watchdog stops orbiting
     if (c.goal && (c.stuck > .4 || c.goalP > .9)) { // that route failed: remember it, and turn around if this is a dead end
@@ -99,6 +110,7 @@ function updateCreature(c, dt) {
     }
   }
   if (c.adren > 0) c.adren -= dt;
+  c.runFor = c.state === 'panic' ? (c.runFor || 0) + dt : 0; // how long they've been running flat out (winded voices)
   if (c.pukeT > 0) spd *= c.pukeRun ? .7 : 0; // bent double, or stumbling on
   spd *= SETTINGS.creatureSpeed * (d.human && MOD.fastHumans ? 1.3 : 1) * (c.spdK || 1) * (c.adren > 0 ? 1.45 : 1) * (c.slowT > T ? .5 : 1); // a Hiss II victim staggers // some people are just faster; fear gives a short burst
   // smooth the desired heading so it can't flip back and forth (no spinning in place)
@@ -123,11 +135,19 @@ function updateCreature(c, dt) {
   }
   if (!free(c.x, c.y, d.r * .6)) unstick(c, dt); // ended up inside something (shoved, spawned, a door shut): walk out of it
   else if ((c.stuck || 0) > 1.4) { const a = escapeDir(c); if (a !== null) { c.a = a; c.steerA = a; c.steerT = .5; c.detour = { a, t: .8 }; } c.stuck = .5; } // long stuck: pick the clearest way out and commit
+  if (c.hv) { // Hoover Mouth's drift: capped, damped, and blocked by walls like any other movement
+    const hv = c.hv, sp = Math.hypot(hv.vx, hv.vy), cap = 150; if (sp > cap) { hv.vx *= cap / sp; hv.vy *= cap / sp; }
+    const nx = c.x + hv.vx * dt, ny = c.y + hv.vy * dt, rr = d.r * .8;
+    if (free(nx, ny, rr)) { c.x = nx; c.y = ny; } else if (free(nx, c.y, rr)) { c.x = nx; hv.vy *= .3; } else if (free(c.x, ny, rr)) { c.y = ny; hv.vx *= .3; } else { hv.vx = hv.vy = 0; }
+    const damp = Math.exp(-dt * 5); hv.vx *= damp; hv.vy *= damp; if (Math.abs(hv.vx) + Math.abs(hv.vy) < 1) c.hv = null;
+  }
   if (c.kb && c.kb.t > 0) { c.kb.t -= dt; const nx = c.x + c.kb.vx * dt, ny = c.y + c.kb.vy * dt; if (free(nx, ny, d.r * .8)) { c.x = nx; c.y = ny; } c.kb.vx *= .9; c.kb.vy *= .9; } // thrown back by a Hiss shockwave
   c.spd = dt > 0 ? moved / dt : 0;
   c.moveAmt += ((moved > 0 ? 1 : 0) - c.moveAmt) * Math.min(1, dt * 8);
   c.phase += moved * (d.human ? .3 : .5) / Math.max(.7, d.r / 7); // steps scale with body size: big animals stride, small ones patter
   footprints(c, moved);
+  if (c.snowCover > 0 && moved > 0 && c.state === 'panic') c.snowCover = Math.max(0, c.snowCover - moved * .0025); // running shakes the snow off (it never comes back)
+  if (moved > 0 && c.state === 'panic' && MOD.blind && (c.stepN = (c.stepN || 0) + moved) > 40) { c.stepN = 0; noise(d.human ? 'steps' : 'animal', c.x, c.y, d.human ? 1 : .5); } // running feet: something the blind can hear (and nothing more)
   updateFlash(c, dt);
 }
 

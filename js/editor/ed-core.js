@@ -14,7 +14,7 @@ const ED_PROPS = [ // palette: [label, kind, shape, size..., color, extra]
   ['Bed', 'bed', 'r', 90, 24, '#4e5a42'], ['Console', 'console', 'r', 100, 22, '#28343a'], ['Counter / bar', 'bar', 'r', 160, 30, '#8a8f99'], ['Pillar', 'pillar', 'c', 14, 0, '#2e2a36'],
   ['Barrier', 'barrier', 'r', 8, 24, '#c9a227'], ['Tent', 'tent', 'r', 44, 30, '#c9763a'], ['Generator', 'generator', 'r', 80, 70, '#3c4044'], ['Speaker', 'speaker', 'r', 60, 64, '#141218'],
   ['Booth', 'booth', 'r', 40, 100, '#5a1a3a'], ['Campfire', 'campfire', 'c', 14, 0, '#6d6a63'],
-  ['Mailbox', 'detail', 'r', 6, 7, '#888888', { d: 'mailbox', noCollide: true, noOutline: true, noShadow: true }], ['Hydrant', 'detail', 'r', 5.2, 5.2, '#888888', { d: 'hydrant', noCollide: true, noOutline: true, noShadow: true }], ['Stop sign', 'detail', 'r', 6.4, 6.4, '#888888', { d: 'stopsign', noCollide: true, noOutline: true, noShadow: true }], ['Bus stop sign', 'detail', 'r', 8, 11, '#888888', { d: 'busstop', noCollide: true, noOutline: true, noShadow: true }], ['Crosswalk', 'detail', 'r', 16, 64, '#888888', { d: 'zebra', noCollide: true, noOutline: true, noShadow: true }], ['Manhole', 'detail', 'r', 12, 12, '#888888', { d: 'manhole', noCollide: true, noOutline: true, noShadow: true }], ['Storm drain', 'detail', 'r', 12, 4, '#888888', { d: 'drain', noCollide: true, noOutline: true, noShadow: true }], ['Utility pole', 'detail', 'r', 4.8, 4.8, '#888888', { d: 'pole', noCollide: true, noOutline: true, noShadow: true }], ['Price board', 'detail', 'r', 12, 12, '#888888', { d: 'priceboard', noCollide: true, noOutline: true, noShadow: true }], ['Ice chest', 'detail', 'r', 8, 10, '#888888', { d: 'icechest', noCollide: true, noOutline: true, noShadow: true }], ['Shopping carts', 'detail', 'r', 23, 6, '#888888', { d: 'carts', noCollide: true, noOutline: true, noShadow: true }], ['Cross', 'detail', 'r', 12, 14, '#888888', { d: 'cross', noCollide: true, noOutline: true, noShadow: true }], ['Grave', 'detail', 'r', 6, 4, '#888888', { d: 'grave', noCollide: true, noOutline: true, noShadow: true }], ['Pod', 'pod', 'c', 20, 0, '#7fffc8'], ['Cryo tube', 'cryo', 'r', 36, 70, '#a9c4cc'], ['Silo', 'silo', 'c', 36, 0, '#b8b8c0'],
+  ['Hazard corridor', 'detail', 'r', 240, 86, '#888888', { d: 'hazard', noCollide: true, noOutline: true, noShadow: true }], ['Mailbox', 'detail', 'r', 6, 7, '#888888', { d: 'mailbox', noCollide: true, noOutline: true, noShadow: true }], ['Hydrant', 'detail', 'r', 5.2, 5.2, '#888888', { d: 'hydrant', noCollide: true, noOutline: true, noShadow: true }], ['Stop sign', 'detail', 'r', 6.4, 6.4, '#888888', { d: 'stopsign', noCollide: true, noOutline: true, noShadow: true }], ['Bus stop sign', 'detail', 'r', 8, 11, '#888888', { d: 'busstop', noCollide: true, noOutline: true, noShadow: true }], ['Crosswalk', 'detail', 'r', 16, 64, '#888888', { d: 'zebra', noCollide: true, noOutline: true, noShadow: true }], ['Manhole', 'detail', 'r', 12, 12, '#888888', { d: 'manhole', noCollide: true, noOutline: true, noShadow: true }], ['Storm drain', 'detail', 'r', 12, 4, '#888888', { d: 'drain', noCollide: true, noOutline: true, noShadow: true }], ['Utility pole', 'detail', 'r', 4.8, 4.8, '#888888', { d: 'pole', noCollide: true, noOutline: true, noShadow: true }], ['Price board', 'detail', 'r', 12, 12, '#888888', { d: 'priceboard', noCollide: true, noOutline: true, noShadow: true }], ['Ice chest', 'detail', 'r', 8, 10, '#888888', { d: 'icechest', noCollide: true, noOutline: true, noShadow: true }], ['Shopping carts', 'detail', 'r', 23, 6, '#888888', { d: 'carts', noCollide: true, noOutline: true, noShadow: true }], ['Cross', 'detail', 'r', 12, 14, '#888888', { d: 'cross', noCollide: true, noOutline: true, noShadow: true }], ['Grave', 'detail', 'r', 6, 4, '#888888', { d: 'grave', noCollide: true, noOutline: true, noShadow: true }], ['Pod', 'pod', 'c', 20, 0, '#7fffc8'], ['Cryo tube', 'cryo', 'r', 36, 70, '#a9c4cc'], ['Silo', 'silo', 'c', 36, 0, '#b8b8c0'],
 ];
 const ED_KINDS = [...new Set(ED_PROPS.map(p => p[1]).concat(['barn', 'module', 'tube', 'solar', 'dome', 'lander', 'gazebo', 'slide', 'chess', 'dj', 'holo', 'saucer', 'reactor']))].sort();
 const ED_VARIANTS = { // looks a kind can take: [flag, name]; '' is the plain one
@@ -26,10 +26,14 @@ const ED_VARIANTS = { // looks a kind can take: [flag, name]; '' is the plain on
   water: [['', 'Pond / pool'], ['fountain', 'Fountain'], ['tank', 'Specimen tank']], building: [['', 'Building'], ['market', 'Supermarket'], ['diner', 'Diner']],
   dome: [['', 'Dome'], ['green', 'Greenhouse']], lander: [['', 'Lander'], ['rocket', 'Rocket']], module: [['', 'Module'], ['command', 'Command module']],
 };
-const ED_DETAILS = {'mailbox': 'Mailbox', 'hydrant': 'Hydrant', 'stopsign': 'Stop sign', 'busstop': 'Bus stop sign', 'zebra': 'Crosswalk', 'manhole': 'Manhole', 'drain': 'Storm drain', 'pole': 'Utility pole', 'priceboard': 'Price board', 'icechest': 'Ice chest', 'carts': 'Shopping carts', 'cross': 'Cross', 'grave': 'Grave'};
+const ED_DETAILS = {'hazard': 'Hazard corridor', 'mailbox': 'Mailbox', 'hydrant': 'Hydrant', 'stopsign': 'Stop sign', 'busstop': 'Bus stop sign', 'zebra': 'Crosswalk', 'manhole': 'Manhole', 'drain': 'Storm drain', 'pole': 'Utility pole', 'priceboard': 'Price board', 'icechest': 'Ice chest', 'carts': 'Shopping carts', 'cross': 'Cross', 'grave': 'Grave'};
+const edPropGroups = () => { // the palette, in sections: things that stand, then what's painted on the floor, then small street furniture
+  const flat = p => p[1] === 'detail' && FLAT_DETAILS.has(p[6].d), all = ED_PROPS.map((p, i) => [p, i]);
+  return [['Props', '', all.filter(([p]) => p[1] !== 'detail')], ['Floor markings', 'painted on the ground, walk-over', all.filter(([p]) => flat(p))], ['Street details', 'small, walk-over', all.filter(([p]) => p[1] === 'detail' && !flat(p))]];
+};
 const edVariant = o => { if (o.kind === 'detail') return [o.d, ED_DETAILS[o.d] || 'Detail']; const v = ED_VARIANTS[o.kind]; if (!v) return null; return v.find(([f]) => f && o[f]) || v[0]; };
 const ED_FIX = ['panel', 'strip', 'cage', 'spot', 'pool', 'exit', 'none'];
-const ED = { open: false };
+const ED_SHAPES = ['rect', 'circle', 'ellipse', 'triangle', 'line', 'ring', 'cross'];
 const ED_RUNTIME = new Set(['tinfo', 'wb', 'iceC', 'iceK', 'group', 'cracked', 'src', 'snk', 'z', 'cx', 'cy', 'br', 'dropped', 'ext', 'mask', 'tint', 'size', 'cur', 'fl', 'dead', 'dynNow', 'enc', 'o', 'c0']);
 const edHex = c => { if (!c) return '#ffffff'; if (c[0] === '#') return c.length === 4 ? '#' + [...c.slice(1)].map(h => h + h).join('') : c.slice(0, 7); const m = c.match(/\d+/g) || [255, 255, 255]; return '#' + m.slice(0, 3).map(v => (+v).toString(16).padStart(2, '0')).join(''); };
 const edRgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)).join(',');
@@ -37,12 +41,13 @@ const edClone = v => JSON.parse(JSON.stringify(v));
 const edLightCol = l => l.c || LCOL[l.kind || (MAPS[ED.map].indoor ? 'fluor' : 'fixed')] || '255,214,150';
 
 function openEditor(idx = mapIdx) {
+  PE.hist = null; // prop undo history lasts one editor session
   ED.map = idx; ED.open = true; ED.tool = 'select'; ED.sel = []; ED.undo = []; ED.redo = []; ED.snaps = edLoadSnaps(); ED.grid = ED.snaps.move.step; ED.showGrid = true; ED.lit = false; ED.help = true; ED.pal = null; ED.pathW = 20; ED.pathStyle = 'dirt'; ED.draft = null; ED.fitted = false;
   state = 'editor'; overlay.style.display = 'none'; season = null;
   loadMap(idx); creatures = [];
-  ED.obs = edClone(curPre); ED.lights = edClone(curMapLights);
-  const b = MAPS[idx].build(), ov = mapOverride(MAPS[idx].name);
-  ED.trails = ov && ov.trails ? edClone(ov.trails) : captureTrails(b); ED.areas = ov && ov.areas ? edClone(ov.areas) : []; ED.base = ov && ov.base || '';
+  const b = MAPS[idx].build(), ov = mapOverride(MAPS[idx].name), cm = MAPS[idx].custom ? MAPS[idx].data : null; ED.custom = cm ? edClone(cm) : null; // a custom map edits its own document; a built-in map edits an override of itself
+  if (cm) { const dx = Math.round((W - (cm.w || W)) / 2); ED.dx = dx; ED.obs = edClone(cm.objects || []); ED.lights = edClone(cm.lights || []); ED.trails = edClone(cm.paths || []); ED.areas = edClone(cm.areas || []); ED.base = cm.base || ''; ED.shapes = edClone(cm.shapes || []); ED.materials = edClone(cm.materials || {}); }
+  else { ED.obs = edClone(curPre.filter(o => !o.fromShape)); ED.lights = edClone(curMapLights); ED.trails = ov && ov.trails ? edClone(ov.trails) : captureTrails(b); ED.areas = ov && ov.areas ? edClone(ov.areas) : []; ED.base = ov && ov.base || ''; ED.shapes = edClone(mapShapes(b, ov)); ED.materials = edClone(ov && ov.materials || {}); }
   ED.areas.forEach(polyBounds); // the map's painted trails, as editable paths
   ED.floorBase = makeLayer()[0]; { const x = ED.floorBase.getContext('2d'); x.setTransform(DPR, 0, 0, DPR, 0, 0); trailMute = true; try { b.floor(x); } finally { trailMute = false; } }
   ED.floor = makeLayer()[0]; edFloor(true); ED.decorFn = b.decor || null; // signs, crosses, hydrants...: painted over the objects, as in the game
@@ -56,15 +61,23 @@ function closeEditor(play) {
   if (play) { mapIdx = ED.map; edTesting = ED.map; showMenu(); startGame({ test: true }); } else { mapIdx = ED.map; loadMap(ED.map); showMenu(); }
 }
 /* ---- edits: undo history, saving ---- */
-function edPush() { ED.undo.push(edClone({ o: ED.obs, l: ED.lights, t: ED.trails, a: ED.areas, b: ED.base })); if (ED.undo.length > 200) ED.undo.shift(); ED.redo = []; edDirty(); }
+const edSnapState = () => edClone({ o: ED.obs, l: ED.lights, t: ED.trails, a: ED.areas, b: ED.base, s: ED.shapes, m: ED.materials, c: ED.custom && { ...ED.custom, objects: undefined, lights: undefined, paths: undefined, areas: undefined, shapes: undefined } });
+function edPush() { ED.undo.push(edSnapState()); if (ED.undo.length > 200) ED.undo.shift(); ED.redo = []; edDirty(); }
 function edUndo(dir) {
   const from = dir < 0 ? ED.undo : ED.redo, to = dir < 0 ? ED.redo : ED.undo; if (!from.length) return;
-  to.push(edClone({ o: ED.obs, l: ED.lights, t: ED.trails, a: ED.areas, b: ED.base })); const s = from.pop(); ED.obs = s.o; ED.lights = s.l; ED.trails = s.t || ED.trails; ED.areas = s.a || []; ED.base = s.b || ''; ED.areas.forEach(polyBounds); ED.sel = []; edFloor(true); edDirty(); edPanel();
+  to.push(edSnapState()); const s = from.pop(); ED.obs = s.o; ED.lights = s.l; ED.trails = s.t || ED.trails; ED.areas = s.a || []; ED.base = s.b || ''; ED.shapes = s.s || []; ED.materials = s.m || {}; if (s.c && ED.custom) Object.assign(ED.custom, s.c); ED.areas.forEach(polyBounds); ED.sel = []; edFloor(true); edDirty(); edPanel();
 }
 function edDirty() { ED.unshared = true; ED.dirtySave = true; edStatus('Unsaved changes · Ctrl+S to save (autosaves every 5 minutes)'); }
+const edCleanList = list => list.map(o => { const c = {}; for (const k in o) if (!ED_RUNTIME.has(k) && k[0] !== '_') c[k] = o[k]; return c; }); // only what was authored, not what the game worked out at runtime
+function edCustomDoc() { // the custom map document as it is in the editor right now
+  return { ...ED.custom, objects: edCleanList(ED.obs), lights: edCleanList(ED.lights), paths: ED.trails.map(({ _hide, _lock, ...t }) => t), areas: ED.areas.map(a => ({ poly: a.poly, tex: a.tex, sharp: a.sharp || undefined, edge: a.edge })),
+    base: ED.base || ED.custom.base, shapes: ED.shapes.map(({ _hide, _lock, ...v }) => v), materials: edUsedMaterials(), props: edMapProps() };
+}
+function edMapProps() { const used = new Set(ED.obs.map(o => o.kind)), all = propDefs(), out = {}; for (const k of used) if (all[k] && all[k].custom) out[k] = all[k]; return out; } // custom props travel with the map
 function edSave() {
-  const all = edDrafts(); const clean = list => list.map(o => { const c = {}; for (const k in o) if (!ED_RUNTIME.has(k)) c[k] = o[k]; return c; }); // only what was authored, not what the game worked out at runtime
-  all[mapEditKey(MAPS[ED.map].name)] = { obs: clean(ED.obs), lights: clean(ED.lights), trails: ED.trails, areas: ED.areas.map(a => ({ poly: a.poly, tex: a.tex, sharp: a.sharp || undefined, edge: a.edge })), base: ED.base || undefined };
+  if (ED.custom) { const ok = saveCustomMap(edCustomDoc()); ED.dirtySave = !ok; edStatus(ok ? `Saved ${new Date().toLocaleTimeString()} · it's in the map list with the others` : 'Could not save (storage full?)'); return; }
+  const all = edDrafts(); const clean = edCleanList;
+  all[mapEditKey(MAPS[ED.map].name)] = { obs: clean(ED.obs), lights: clean(ED.lights), trails: ED.trails, areas: ED.areas.map(a => ({ poly: a.poly, tex: a.tex, sharp: a.sharp || undefined, edge: a.edge })), base: ED.base || undefined, shapes: ED.shapes.length ? ED.shapes.map(({ _hide, _lock, ...v }) => v) : undefined, shapesV: 1, materials: Object.keys(edUsedMaterials()).length ? edUsedMaterials() : undefined }; // shapesV: this is the map's whole list (its own cords included)
   try { localStorage.setItem('snakeCarnageEdDrafts', JSON.stringify(all)); ED.dirtySave = false; edStatus(`Saved ${new Date().toLocaleTimeString()} · in the editor only (File → Use in my game to play it normally)`); } catch (e) { edStatus('Could not save (storage full?)'); }
 }
 function edReset() {
@@ -80,7 +93,7 @@ function edExport() {
   edStatus('Exported 05c-map-overrides.js: put it in the js folder to ship these edits');
 }
 function edImport(file) {
-  file.text().then(t => {
+  file.text().then(t => { PE.hist = null; if (PE.box) peHistUI(); // imported props would be lost by undoing past them
     if (/^SNAKE CARNAGE EDITS/.test(t)) { const d = JSON.parse(t.slice(t.indexOf('{'))); localStorage.setItem('snakeCarnageEdDrafts', JSON.stringify({ ...edDrafts(), ...(d.maps || {}) })); localStorage.setItem('snakeCarnagePropDefs', JSON.stringify({ ...edLocalProps(), ...(d.props || {}) })); propApply();
       const ov = mapOverride(MAPS[ED.map].name); if (ov) { edPush(); ED.obs = edClone(ov.obs); ED.lights = edClone(ov.lights); if (ov.trails) ED.trails = edClone(ov.trails); edFloor(true); } edPreviews(); edPanel(); return edStatus(`Imported ${Object.keys(d.maps || {}).length} map(s) and ${Object.keys(d.props || {}).length} prop(s)`); } const m = t.match(/MAP_OVERRIDES = (\{[\s\S]*?\});\n/), pm = t.match(/PROP_OVERRIDES = (\{[\s\S]*?\});/); const data = JSON.parse(m ? m[1] : t);
     if (pm) { try { localStorage.setItem('snakeCarnagePropDefs', JSON.stringify({ ...propDefs(), ...JSON.parse(pm[1]) })); propApply(); } catch (e) {} }
@@ -97,22 +110,24 @@ const edSnap = (v, force) => edSnapOn('move') || force ? Math.round(v / ED.snaps
 /* ---- hit testing ---- */
 const edBox = o => { if (isRot(o)) { const P = obsCorners(o), xs = P.map(p => p[0]), ys = P.map(p => p[1]); return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]; } return o.t === 'r' ? [o.x, o.y, o.x + o.w, o.y + o.h] : [o.x - o.r, o.y - o.r, o.x + o.r, o.y + o.r]; };
 function edHit(wx, wy) {
-  const pad = 4 / ED.z;
-  for (let i = ED.lights.length - 1; i >= 0; i--) { const l = ED.lights[i]; if (l._hide || l._lock) continue; if (Math.hypot(wx - l.x, wy - l.y) < 9 / ED.z + 3) return { t: 'l', i }; }
+  const pad = Math.max(7 / ED.z, 2); // a little more forgiving than the drawing, so thin walls and small props are easy to grab
+  for (let i = ED.lights.length - 1; i >= 0; i--) { const l = ED.lights[i]; if (l._hide || l._lock) continue; if (Math.hypot(wx - l.x, wy - l.y) < 12 / ED.z + 3) return { t: 'l', i }; }
   for (let i = ED.obs.length - 1; i >= 0; i--) { const o = ED.obs[i]; if (o._hide || o._lock) continue;
     if (o.poly) { if (pointInPoly(polyShape(o), wx, wy)) return { t: 'o', i }; continue; }
     if (isRot(o)) { if (pointInPoly(obsCorners({ ...o, x: o.x - pad, y: o.y - pad, w: o.w + pad * 2, h: o.h + pad * 2 }), wx, wy)) return { t: 'o', i }; continue; }
     if (o.t === 'r' ? wx >= o.x - pad && wx <= o.x + o.w + pad && wy >= o.y - pad && wy <= o.y + o.h + pad : Math.hypot(wx - o.x, wy - o.y) <= o.r + pad) return { t: 'o', i }; }
+  const sh = edShapeHit(wx, wy); if (sh) return sh; // drawn shapes sit between objects and floor areas
   for (let i = ED.areas.length - 1; i >= 0; i--) { const a = ED.areas[i]; if (a._hide || a._lock) continue; if (pointInPoly(polyShape(a), wx, wy) && !(ED.trails.some(t => !t._hide && trailPoints(t.pts).some(([u, v]) => Math.hypot(wx - u, wy - v) < t.w / 2)))) return { t: 'a', i }; }
   if (ED.layerPaths !== false) for (let i = ED.trails.length - 1; i >= 0; i--) { const t = ED.trails[i]; if (t._hide || t._lock) continue; if (trailPoints(t.pts).some(([a, b]) => Math.hypot(wx - a, wy - b) < t.w / 2 + 3 / ED.z)) return { t: 'p', i }; }
   return null;
 }
-const edItem = s => s.t === 'o' ? ED.obs[s.i] : s.t === 'p' ? ED.trails[s.i] : s.t === 'a' ? ED.areas[s.i] : ED.lights[s.i];
+const edItem = s => s.t === 'o' ? ED.obs[s.i] : s.t === 'p' ? ED.trails[s.i] : s.t === 'a' ? ED.areas[s.i] : s.t === 's' ? ED.shapes[s.i] : ED.lights[s.i];
 const edSame = (a, b) => a.t === b.t && a.i === b.i;
 function edHandles() { // resize handles for a single selected object or light
   if (ED.sel.length !== 1) return [];
   const s = ED.sel[0], o = edItem(s);
   if (s.t === 'p') return o.pts.map(([x, y], i) => ({ k: 'pt', i, x, y }));
+  if (s.t === 's' && (o.nodes || o.rot)) return []; // points and Bezier handles are their own (ed-shapes); rectangles and ellipses use the box handles
   if (o.poly) return o.poly.map(([x, y], i) => ({ k: 'pt', i, x, y }));
   if (s.t === 'l') return [{ k: 'lr', x: o.x + o.r, y: o.y }];
   if (o.t === 'c') return [{ k: 'r', x: o.x + o.r, y: o.y }];
@@ -130,11 +145,12 @@ function edLoop() {
   x.imageSmoothingEnabled = ED.z < 3;
   x.fillStyle = ED.border; x.fillRect(0, 0, W, H);
   if (ED.floorDirty && performance.now() - (ED.floorT || 0) > 90) edFloor(true);
-  x.drawImage(ED.floor, 0, 0, W, H);
+  x.drawImage(ED.floor, 0, 0, W, H); edDrawShapes(x, 'floor');
   x.fillStyle = ED.border; x.fillRect(0, 0, W, B); x.fillRect(0, H - B, W, B); x.fillRect(0, 0, B, H); x.fillRect(W - B, 0, B, H);
   for (const o of ED.obs) { if (o._hide) continue; try { drawObstacle(x, o); } catch (e) { x.fillStyle = o.color || '#888'; o.t === 'r' ? x.fillRect(o.x, o.y, o.w, o.h) : circ(x, o.x, o.y, o.r); }
     if (o.kind === 'tree' || o.kind === 'bush') { x.globalAlpha = .55; x.fillStyle = o.color; circ(x, o.x, o.y, o.r); x.globalAlpha = 1; } }
   if (ED.decorFn) try { ED.decorFn(x); } catch (e) {}
+  edDrawShapes(x, 'top');
   for (const o of ED.obs) if (o.chance != null && !o._hide) { const b = edBox(o); x.save(); x.setLineDash([4 / ED.z, 3 / ED.z]); x.strokeStyle = '#ffd34d'; x.lineWidth = 1.5 / ED.z; x.strokeRect(b[0] - 2, b[1] - 2, b[2] - b[0] + 4, b[3] - b[1] + 4); x.fillStyle = '#ffd34d'; x.font = `${10 / ED.z}px sans-serif`; x.fillText(o.chance + '%', b[0], b[1] - 4 / ED.z); x.restore(); }
   for (const l of ED.lights) if (!l._hide) try { fixture(x, l); } catch (e) {}
   if (ED.lit) { // night preview: darkness with every light's pool cut out in its own color
@@ -168,7 +184,7 @@ function edLoop() {
     x.strokeStyle = '#fff'; x.lineWidth = px * 1.5; x.setLineDash([5 * px, 4 * px]); x.beginPath(); pts.forEach(([a, b], k) => k ? x.lineTo(a, b) : x.moveTo(a, b)); x.stroke(); x.setLineDash([]);
     for (const [k, [a, b]] of d.pts.entries()) { x.fillStyle = k === 0 && d.kind === 'water' && d.pts.length > 2 ? '#7aff9a' : '#fff'; x.beginPath(); x.arc(a, b, 5 * px, 0, TAU); x.fill(); } }
   for (const h of edHandles()) { x.fillStyle = '#fff'; x.strokeStyle = '#ff4d6a'; x.lineWidth = px * 1.5; if (h.k === 'pt') { x.beginPath(); x.arc(h.x, h.y, 5 * px, 0, TAU); x.fill(); x.stroke(); } else { x.fillRect(h.x - 4 * px, h.y - 4 * px, 8 * px, 8 * px); x.strokeRect(h.x - 4 * px, h.y - 4 * px, 8 * px, 8 * px); } }
-  edGizmoDraw(x, px);
+  edShapeOverlay(x, px); edGizmoDraw(x, px);
   const dr = ED.drag;
   if (dr && (dr.k === 'box' || dr.k === 'wall' || dr.k === 'rect')) { const [ax, ay, bx, by] = [Math.min(dr.x0, dr.x1), Math.min(dr.y0, dr.y1), Math.max(dr.x0, dr.x1), Math.max(dr.y0, dr.y1)];
     x.fillStyle = dr.k === 'box' ? 'rgba(120,170,255,.12)' : 'rgba(255,77,106,.25)'; x.fillRect(ax, ay, bx - ax, by - ay); x.strokeStyle = dr.k === 'box' ? '#7aaaff' : '#ff4d6a'; x.lineWidth = px; x.strokeRect(ax, ay, bx - ax, by - ay);
@@ -183,6 +199,7 @@ function edDown(e) {
   ED.cv.setPointerCapture(e.pointerId); ED.noSnap = e.altKey;
   const now = performance.now(), dbl = ED.lastDown && now - ED.lastDown[0] < 350 && Math.hypot(sx - ED.lastDown[1], sy - ED.lastDown[2]) < 6; ED.lastDown = dbl ? null : [now, sx, sy]; // pointer events don't count clicks
   if (e.button === 1 || e.button === 2 || ED.space || ED.tool === 'pan') { ED.drag = { k: 'pan', sx, sy, px: ED.px, py: ED.py, btn: e.button, cx: e.clientX, cy: e.clientY, wx, wy }; return; }
+  if (edShapeDown(e, sx, sy, wx, wy, dbl)) return; // the vector shape tools (ed-shapes)
   if (ED.tool === 'wall' || ED.tool === 'rect') { ED.drag = { k: ED.tool, x0: edSnap(wx), y0: edSnap(wy), x1: edSnap(wx), y1: edSnap(wy) }; return; }
   if (ED.tool === 'path' || ED.tool === 'water' || ED.tool === 'area') { const pt = [edSnap(wx), edSnap(wy)];
     if (!ED.draft) { ED.draft = { kind: ED.tool, pts: [], w: ED.pathW, style: ED.pathStyle };
@@ -196,12 +213,14 @@ function edDown(e) {
     const o = p[2] === 'r' ? R(edSnap(wx - p[3] / 2), edSnap(wy - p[4] / 2), p[3], p[4], p[5], p[1], p[6] && edClone(p[6])) : C(edSnap(wx), edSnap(wy), p[3], p[5], p[1], p[6] && edClone(p[6]));
     ED.obs.push(o); ED.sel = [{ t: 'o', i: ED.obs.length - 1 }]; edPanel(); if (!e.shiftKey) edTool('select'); return; }
   ED.invSnap = e.ctrlKey || e.metaKey;
+  if (ED.tool === 'select' && edShapeHandleDown(e, wx, wy)) return;
   if (ED.tool === 'select' && edGizmoDown(sx, sy, wx, wy)) return;
-  for (const h of edHandles()) if (Math.abs(wx - h.x) < 7 / ED.z && Math.abs(wy - h.y) < 7 / ED.z) {
+  for (const h of edHandles()) if (Math.abs(wx - h.x) < 9 / ED.z && Math.abs(wy - h.y) < 9 / ED.z) {
     if (h.k === 'pt') { const o = edItem(ED.sel[0]), arr = o.pts || o.poly;
       if (e.altKey || e.button === 2) { if (arr.length > (o.pts ? 2 : 3)) { edPush(); arr.splice(h.i, 1); edShapeChanged(o); } return; } // Alt-click a point: remove it
       edPush(); ED.drag = { k: 'pt', o, i: h.i }; return; }
     edPush(); ED.drag = { k: 'resize', h: h.k, s: ED.sel[0], o0: edClone(edItem(ED.sel[0])) }; return; }
+  if (dbl && ED.sel.length === 1 && ED.sel[0].t === 's' && edShapeAddPoint(edItem(ED.sel[0]), wx, wy)) return;
   if (dbl && ED.sel.length === 1) { const o = edItem(ED.sel[0]), arr = o && (o.pts || o.poly); // double-click on the line: add a point there
     if (arr) { let best = -1, bd = 1e9; const n = arr.length, segs = o.pts ? n - 1 : n;
       for (let i = 0; i < segs; i++) { const [ax, ay] = arr[i], [bx, by] = arr[(i + 1) % n], L2 = (bx - ax) ** 2 + (by - ay) ** 2 || 1, t = clamp(((wx - ax) * (bx - ax) + (wy - ay) * (by - ay)) / L2, 0, 1), d = Math.hypot(wx - ax - t * (bx - ax), wy - ay - t * (by - ay)); if (d < bd) { bd = d; best = i; } }
@@ -213,7 +232,7 @@ function edDown(e) {
     else if (!on) ED.sel = [hit];
     edPanel(); if (!ED.sel.length) return;
     if (e.altKey && !on) { /* alt-drag duplicates */ }
-    ED.drag = { k: 'move', wx, wy, pushed: false, start: ED.sel.map(s => { const o = edItem(s); return o.pts ? [0, 0, edClone(o.pts)] : o.poly ? [o.x, o.y, edClone(o.poly)] : [o.x, o.y]; }) };
+    ED.drag = { k: 'move', wx, wy, pushed: false, start: ED.sel.map(s => { const o = edItem(s); return s.t === 's' ? [0, 0, null, edClone(o)] : o.pts ? [0, 0, edClone(o.pts)] : o.poly ? [o.x, o.y, edClone(o.poly)] : [o.x, o.y]; }) };
     if (e.altKey) { edDuplicate(0); ED.drag.start = ED.sel.map(s => { const o = edItem(s); return [o.x, o.y]; }); ED.drag.pushed = true; }
     return;
   }
@@ -223,7 +242,8 @@ function edDown(e) {
 function edMove(e) {
   const r = ED.cv.getBoundingClientRect(), sx = e.clientX - r.left, sy = e.clientY - r.top, [wx, wy] = edW(sx, sy);
   ED.mouse = [sx, sy]; ED.noSnap = e.altKey && ED.drag && ED.drag.k !== 'move';
-  const d = ED.drag; if (!d) { const h = edHandles().find(h => Math.abs(wx - h.x) < 7 / ED.z && Math.abs(wy - h.y) < 7 / ED.z); ED.cv.style.cursor = ED.space || ED.tool === 'pan' ? 'grab' : h ? (h.k === 'r' || h.k === 'lr' || h.k === 'e' || h.k === 'w' ? 'ew-resize' : h.k === 'n' || h.k === 's' ? 'ns-resize' : h.k === 'nw' || h.k === 'se' ? 'nwse-resize' : 'nesw-resize') : ED.tool === 'select' ? (edHit(wx, wy) ? 'move' : 'default') : 'crosshair'; return; }
+  if (edShapeMove(e, wx, wy)) return;
+  const d = ED.drag; if (!d) { const h = edHandles().find(h => Math.abs(wx - h.x) < 9 / ED.z && Math.abs(wy - h.y) < 9 / ED.z); ED.cv.style.cursor = ED.space || ED.tool === 'pan' ? 'grab' : h ? (h.k === 'r' || h.k === 'lr' || h.k === 'e' || h.k === 'w' ? 'ew-resize' : h.k === 'n' || h.k === 's' ? 'ns-resize' : h.k === 'nw' || h.k === 'se' ? 'nwse-resize' : 'nesw-resize') : ED.tool === 'select' ? (edHit(wx, wy) ? 'move' : 'default') : 'crosshair'; return; }
   if (d.k === 'pan') { ED.px = d.px + sx - d.sx; ED.py = d.py + sy - d.sy; return; }
   if (d.k === 'gizmo') { ED.invSnap = e.ctrlKey || e.metaKey; edGizmoMove(d, sx, sy, wx, wy, e); return; }
   if (d.k === 'box' || d.k === 'wall' || d.k === 'rect') { d.x1 = d.k === 'box' ? wx : edSnap(wx); d.y1 = d.k === 'box' ? wy : edSnap(wy); return; }
@@ -232,7 +252,7 @@ function edMove(e) {
     if (!d.pushed) { edPush(); d.pushed = true; } d.moved = true;
     if (e.shiftKey) { if (Math.abs(dx) > Math.abs(dy)) dy = 0; else dx = 0; } // lock to an axis
     ED.invSnap = e.ctrlKey || e.metaKey; const [fx, fy] = d.start[0], snapOn = edSnapOn('move') && !d.start[0][2], nx = snapOn ? edSnap(fx + dx, true) - fx : edSnapOn('move') ? Math.round(dx / ED.snaps.move.step) * ED.snaps.move.step : dx, ny = snapOn ? edSnap(fy + dy, true) - fy : edSnapOn('move') ? Math.round(dy / ED.snaps.move.step) * ED.snaps.move.step : dy;
-    ED.sel.forEach((s, k) => { const o = edItem(s), st = d.start[k]; if (st[2]) { const arr = st[2].map(([a, b]) => [a + nx, b + ny]); if (o.pts) o.pts = arr; else { o.poly = arr; polyBounds(o); if (o.tex) ED.floorDirty = true; } if (o.pts) ED.floorDirty = true; } else { o.x = st[0] + nx; o.y = st[1] + ny; } }); edPanelVals(); return;
+    ED.sel.forEach((s, k) => { const o = edItem(s), st = d.start[k]; if (st[3]) { edShapeMoveBy(o, nx, ny, st[3]); return; } if (st[2]) { const arr = st[2].map(([a, b]) => [a + nx, b + ny]); if (o.pts) o.pts = arr; else { o.poly = arr; polyBounds(o); if (o.tex) ED.floorDirty = true; } if (o.pts) ED.floorDirty = true; } else { o.x = st[0] + nx; o.y = st[1] + ny; } }); edPanelVals(); return;
   }
   if (d.k === 'pt') { const arr = d.o.pts || d.o.poly; arr[d.i] = [edSnap(wx), edSnap(wy)]; edShapeChanged(d.o, true); return; }
   if (d.k === 'resize') {
@@ -246,6 +266,7 @@ function edMove(e) {
   }
 }
 function edUp(e) {
+  if (edShapeUp()) return;
   const d = ED.drag; ED.drag = null; if (!d) return;
   if (d.k === 'pan' && d.btn === 2 && e && Math.hypot(e.clientX - d.cx, e.clientY - d.cy) < 4) return edContext(d.cx, d.cy, d.wx, d.wy); // a right-click that didn't pan
   if (d.k === 'box') { const [ax, ay, bx, by] = [Math.min(d.x0, d.x1), Math.min(d.y0, d.y1), Math.max(d.x0, d.x1), Math.max(d.y0, d.y1)]; if (bx - ax < 2 && by - ay < 2) return;
@@ -263,17 +284,17 @@ function edUp(e) {
   if (d.k === 'move' && d.moved && ED.sel.some(s => s.t === 'p' || s.t === 'a')) edFloor(true);
 }
 /* ---- commands ---- */
-function edDelete() { if (!ED.sel.length) return; edPush(); const ob = new Set(ED.sel.filter(s => s.t === 'o').map(s => s.i)), li = new Set(ED.sel.filter(s => s.t === 'l').map(s => s.i)), pa = new Set(ED.sel.filter(s => s.t === 'p').map(s => s.i)), ar = new Set(ED.sel.filter(s => s.t === 'a').map(s => s.i)); if (pa.size) ED.trails = ED.trails.filter((_, i) => !pa.has(i)); if (ar.size) ED.areas = ED.areas.filter((_, i) => !ar.has(i)); if (pa.size || ar.size) edFloor(true);
+function edDelete() { if (!ED.sel.length) return; edPush(); const ob = new Set(ED.sel.filter(s => s.t === 'o').map(s => s.i)), li = new Set(ED.sel.filter(s => s.t === 'l').map(s => s.i)), pa = new Set(ED.sel.filter(s => s.t === 'p').map(s => s.i)), ar = new Set(ED.sel.filter(s => s.t === 'a').map(s => s.i)), sh = new Set(ED.sel.filter(s => s.t === 's').map(s => s.i)); if (sh.size) ED.shapes = ED.shapes.filter((_, i) => !sh.has(i)); if (pa.size) ED.trails = ED.trails.filter((_, i) => !pa.has(i)); if (ar.size) ED.areas = ED.areas.filter((_, i) => !ar.has(i)); if (pa.size || ar.size) edFloor(true);
   ED.obs = ED.obs.filter((_, i) => !ob.has(i)); ED.lights = ED.lights.filter((_, i) => !li.has(i)); ED.sel = []; edPanel(); }
 function edDuplicate(off = 16) { if (!ED.sel.length) return; edPush(); const out = [];
-  for (const s of ED.sel) { const c = edClone(edItem(s)); if (s.t === 'p') { c.pts = c.pts.map(([a, b]) => [a + off, b + off]); ED.trails.push(c); out.push({ t: 'p', i: ED.trails.length - 1 }); edFloor(true); continue; } if (s.t === 'a') { c.poly = c.poly.map(([a, b]) => [a + off, b + off]); polyBounds(c); ED.areas.push(c); out.push({ t: 'a', i: ED.areas.length - 1 }); edFloor(true); continue; } c.x += off; c.y += off; if (c.poly) c.poly = c.poly.map(([a, b]) => [a + off, b + off]); if (s.t === 'o') { ED.obs.push(c); out.push({ t: 'o', i: ED.obs.length - 1 }); } else { ED.lights.push(c); out.push({ t: 'l', i: ED.lights.length - 1 }); } }
+  for (const s of ED.sel) { const c = edClone(edItem(s)); if (s.t === 's') { edShapeMoveBy(c, off, off); ED.shapes.push(c); out.push({ t: 's', i: ED.shapes.length - 1 }); continue; } if (s.t === 'p') { c.pts = c.pts.map(([a, b]) => [a + off, b + off]); ED.trails.push(c); out.push({ t: 'p', i: ED.trails.length - 1 }); edFloor(true); continue; } if (s.t === 'a') { c.poly = c.poly.map(([a, b]) => [a + off, b + off]); polyBounds(c); ED.areas.push(c); out.push({ t: 'a', i: ED.areas.length - 1 }); edFloor(true); continue; } c.x += off; c.y += off; if (c.poly) c.poly = c.poly.map(([a, b]) => [a + off, b + off]); if (s.t === 'o') { ED.obs.push(c); out.push({ t: 'o', i: ED.obs.length - 1 }); } else { ED.lights.push(c); out.push({ t: 'l', i: ED.lights.length - 1 }); } }
   ED.sel = out; edPanel(); }
 function edCopy() { ED.clip = ED.sel.map(s => ({ t: s.t, v: edClone(edItem(s)) })); edStatus(`Copied ${ED.clip.length}`); }
 function edPaste() { if (!ED.clip || !ED.clip.length) return; edPush(); const [mx, my] = ED.mouse ? edW(...ED.mouse) : [W / 2, H / 2];
   const cx = ED.clip.reduce((a, c) => a + c.v.x, 0) / ED.clip.length, cy = ED.clip.reduce((a, c) => a + c.v.y, 0) / ED.clip.length; ED.sel = [];
   for (const c of ED.clip) { const v = edClone(c.v); v.x = edSnap(v.x - cx + mx); v.y = edSnap(v.y - cy + my); if (c.t === 'o') { ED.obs.push(v); ED.sel.push({ t: 'o', i: ED.obs.length - 1 }); } else { ED.lights.push(v); ED.sel.push({ t: 'l', i: ED.lights.length - 1 }); } } edPanel(); }
-function edNudge(dx, dy) { if (!ED.sel.length) return; edPush(); for (const s of ED.sel) { const o = edItem(s); if (o.tex) ED.floorDirty = true; if (o.pts) { o.pts = o.pts.map(([a, b]) => [a + dx, b + dy]); ED.floorDirty = true; continue; } o.x += dx; o.y += dy; if (o.poly) o.poly = o.poly.map(([a, b]) => [a + dx, b + dy]); } edPanelVals(); }
-function edScale(f, shape) { if (!ED.sel.length) return; edPush(); for (const s of ED.sel) { const o = edItem(s); if (o.pts && !shape) { o.w = clamp(Math.round(o.w * f), 4, 200); ED.floorDirty = true; continue; } const arr = o.pts || o.poly; if (arr) { const cx = arr.reduce((a, p) => a + p[0], 0) / arr.length, cy = arr.reduce((a, p) => a + p[1], 0) / arr.length; arr.forEach(p => { p[0] = cx + (p[0] - cx) * f; p[1] = cy + (p[1] - cy) * f; }); edShapeChanged(o); continue; } if (s.t === 'l' || o.t === 'c') o.r = Math.max(2, Math.round(o.r * f)); else { const cx = o.x + o.w / 2, cy = o.y + o.h / 2; o.w = Math.max(2, Math.round(o.w * f)); o.h = Math.max(2, Math.round(o.h * f)); o.x = cx - o.w / 2; o.y = cy - o.h / 2; } } edPanelVals(); }
+function edNudge(dx, dy) { if (!ED.sel.length) return; edPush(); for (const s of ED.sel) { const o = edItem(s); if (s.t === 's') { edShapeMoveBy(o, dx, dy); continue; } if (o.tex) ED.floorDirty = true; if (o.pts) { o.pts = o.pts.map(([a, b]) => [a + dx, b + dy]); ED.floorDirty = true; continue; } o.x += dx; o.y += dy; if (o.poly) o.poly = o.poly.map(([a, b]) => [a + dx, b + dy]); } edPanelVals(); }
+function edScale(f, shape) { if (!ED.sel.length) return; edPush(); for (const s of ED.sel) { const o = edItem(s); if (s.t === 's') { const [x0, y0, x1, y1] = vecBox(o), cx = (x0 + x1) / 2, cy = (y0 + y1) / 2; edShapeXf(o, edClone(o), (x, y) => [cx + (x - cx) * f, cy + (y - cy) * f], { rot: 0, kx: f, ky: f }); continue; } if (o.pts && !shape) { o.w = clamp(Math.round(o.w * f), 4, 200); ED.floorDirty = true; continue; } const arr = o.pts || o.poly; if (arr) { const cx = arr.reduce((a, p) => a + p[0], 0) / arr.length, cy = arr.reduce((a, p) => a + p[1], 0) / arr.length; arr.forEach(p => { p[0] = cx + (p[0] - cx) * f; p[1] = cy + (p[1] - cy) * f; }); edShapeChanged(o); continue; } if (s.t === 'l' || o.t === 'c') o.r = Math.max(2, Math.round(o.r * f)); else { const cx = o.x + o.w / 2, cy = o.y + o.h / 2; o.w = Math.max(2, Math.round(o.w * f)); o.h = Math.max(2, Math.round(o.h * f)); o.x = cx - o.w / 2; o.y = cy - o.h / 2; } } edPanelVals(); }
 let edRotate = function () { if (!ED.sel.length) return; edPush(); for (const s of ED.sel) { const o = edItem(s); const arr = o.pts || o.poly; if (arr) { const cx = arr.reduce((a, p) => a + p[0], 0) / arr.length, cy = arr.reduce((a, p) => a + p[1], 0) / arr.length; arr.forEach(p => { const dx = p[0] - cx, dy = p[1] - cy; p[0] = cx - dy; p[1] = cy + dx; }); edShapeChanged(o); continue; } if (s.t === 'o' && o.t === 'r') { const cx = o.x + o.w / 2, cy = o.y + o.h / 2; [o.w, o.h] = [o.h, o.w]; o.x = cx - o.w / 2; o.y = cy - o.h / 2; if (o.kind === 'desk') o.flip = !o.flip; } } edPanelVals(); }
 function edOrder(top) { if (!ED.sel.length) return; edPush(); const ids = ED.sel.filter(s => s.t === 'o').map(s => s.i), picked = ids.map(i => ED.obs[i]), rest = ED.obs.filter((_, i) => !ids.includes(i));
   ED.obs = top ? [...rest, ...picked] : [...picked, ...rest]; ED.sel = picked.map(o => ({ t: 'o', i: ED.obs.indexOf(o) })); edPanel(); }
@@ -283,10 +304,11 @@ function edAlign(how) { const os = ED.sel.filter(s => s.t === 'o').map(edItem); 
     if (how === 'l') o.x = v.l + off; if (how === 'r') o.x = v.r - w + off; if (how === 't') o.y = v.t + (o.t === 'r' ? 0 : o.r); if (how === 'b') o.y = v.b - h + (o.t === 'r' ? 0 : o.r);
     if (how === 'cx') o.x = (v.l + v.r) / 2 - w / 2 + off; if (how === 'cy') o.y = (v.t + v.b) / 2 - h / 2 + (o.t === 'r' ? 0 : o.r); });
   edPanelVals(); }
-function edTool(t, prop) { if (ED.draft && t !== ED.draft.kind) edFinishDraft(); ED.tool = t; ED.ghost = t === 'prop' ? prop : null; ED.root.querySelectorAll('[data-tool]').forEach(b => b.classList.toggle('on', b.dataset.tool === t)); ED.root.querySelectorAll('.edprop').forEach(b => b.classList.toggle('on', t === 'prop' && b.dataset.p == ED_PROPS.indexOf(prop))); }
+function edTool(t, prop) { if (ED.draft && t !== ED.draft.kind) edFinishDraft(); if (ED.sdraft && t !== ED.tool) edFinishShape(); ED.tool = t; ED.ghost = t === 'prop' ? prop : null; ED.root.querySelectorAll('[data-tool]').forEach(b => b.classList.toggle('on', b.dataset.tool === t)); ED.root.querySelectorAll('.edprop').forEach(b => b.classList.toggle('on', t === 'prop' && b.dataset.p == ED_PROPS.indexOf(prop))); }
 /* ---- keys ---- */
 function edKey(e) {
   if (!ED.open) return;
+  if (peKey(e)) return; // the prop editor has focus: its keys first, and the map's shortcuts stay off until the map is clicked
   const tag = (e.target.tagName || '').toLowerCase(); if (tag === 'input' || tag === 'select' || tag === 'textarea') { if (e.key === 'Escape') e.target.blur(); return; }
   e.stopPropagation(); const k = e.key.toLowerCase(), mod = e.ctrlKey || e.metaKey, step = e.shiftKey ? 10 : 1;
   if (e.type === 'keyup') { if (e.code === 'Space') ED.space = false; return; }
@@ -295,11 +317,15 @@ function edKey(e) {
   if (mod && k === 'd') { e.preventDefault(); edDuplicate(); return; } if (mod && k === 'c') { edCopy(); return; } if (mod && k === 'v') { edPaste(); return; }
   if (mod && k === 's') { e.preventDefault(); e.shiftKey ? edSaveAs() : edSave(); return; }
   if (mod && k === 'o') { e.preventDefault(); edLibrary(); return; }
+  if (mod && k === 'n') { e.preventDefault(); edCmd('newmap'); return; }
   if (mod && k === 'l') { e.preventDefault(); edFlagSel('_lock'); return; } if (mod && k === 'h') { e.preventDefault(); edFlagSel('_hide'); return; } if (mod && k === 'a') { e.preventDefault(); ED.sel = ED.obs.map((_, i) => ({ t: 'o', i })); edPanel(); return; }
   if (k === 'delete' || k === 'backspace') { e.preventDefault(); edDelete(); return; }
   if (k === 'escape' && document.querySelector('.edpop')) { document.querySelectorAll('.edpop').forEach(p => p.remove()); return; }
   if (k === 'enter' && ED.draft) { edFinishDraft(); return; }
   if (k === 'escape' && ED.draft) { ED.draft = null; return; }
+  if (k === 'enter' && ED.sdraft) { edFinishShape(); return; }
+  if (k === 'escape' && ED.sdraft) { ED.sdraft = null; return; }
+  if (e.shiftKey && !mod) { const st = SHAPE_TOOLS.find(t => t[2].toLowerCase() === k); if (st) { e.preventDefault(); edTool(st[0]); return; } } // Shift+letter: the shape tools
   if (k === 'escape') { if (ED.sel.length || ED.tool !== 'select') { ED.sel = []; edTool('select'); edPanel(); } else closeEditor(); return; }
   if (k.startsWith('arrow')) { e.preventDefault(); const st = ED.snaps.move.on ? ED.snaps.move.step * (e.shiftKey ? 4 : 1) : step; edNudge(k === 'arrowleft' ? -st : k === 'arrowright' ? st : 0, k === 'arrowup' ? -st : k === 'arrowdown' ? st : 0); return; }
   const map = { v: () => edTool('select'), w: () => edTool('wall'), b: () => edTool('rect'), l: () => edTool('light'), h: () => edToggle('help'), m: () => edToggle('mini'), g: () => edToggle('showGrid'), s: () => { ED.snaps.move.on = !ED.snaps.move.on; edSaveSnaps(); const c = ED.root.querySelector('[data-sn="move"]'); c.checked = ED.snaps.move.on; c.parentElement.classList.toggle('on', ED.snaps.move.on); }, n: () => edToggle('lit'), o: () => edToggle('lightsLayer'),
@@ -320,6 +346,7 @@ const ED_ICON = { // small line icons for the toolbar and menus
   grid: 'M4 4h16v16H4zM4 10h16M4 16h16M10 4v16M16 4v16', night: 'M20 14A8 8 0 0110 4a8 8 0 1010 10z', reach: 'M12 12m-8 0a8 8 0 1016 0 8 8 0 10-16 0M12 12m-3 0a3 3 0 106 0 3 3 0 10-6 0', help: 'M12 21a9 9 0 110-18 9 9 0 010 18zM9.5 9a2.5 2.5 0 115 .5c0 1.5-2.5 2-2.5 3.5M12 17h.01',
   undo: 'M9 14L4 9l5-5M4 9h11a5 5 0 010 10h-3', redo: 'M15 14l5-5-5-5M20 9H9a5 5 0 000 10h3', play: 'M7 4l13 8-13 8z', share: 'M4 12v7a1 1 0 001 1h14a1 1 0 001-1v-7M16 6l-4-4-4 4M12 2v13', exit: 'M15 4h4a1 1 0 011 1v14a1 1 0 01-1 1h-4M10 17l-5-5 5-5M5 12h11',
   props: 'M4 7l8-4 8 4-8 4zM4 7v10l8 4 8-4V7', layers: 'M12 3l9 5-9 5-9-5zM3 13l9 5 9-5', eye: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 12m-3 0a3 3 0 106 0 3 3 0 10-6 0', lock: 'M6 11h12v9H6zM8 11V8a4 4 0 018 0v3', map: 'M9 4L3 6v14l6-2 6 2 6-2V4l-6 2zM9 4v14M15 6v14', mini: 'M3 5h18v14H3zM13 11h6v6h-6z',
+  dockL: 'M4 4h16v16H4zM9 4v16M5.5 8h2M5.5 11h2', dockR: 'M4 4h16v16H4zM15 4v16M16.5 8h2M16.5 11h2', float: 'M3 9h12v11H3zM8 9V4h13v11h-6',
 };
 const edSvg = (k, s = 16) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="${ED_ICON[k]}"/></svg>`;
 const ED_TOOLS = [['select', 'Select / move', 'V'], ['wall', 'Draw wall', 'W'], ['rect', 'Draw block', 'B'], ['path', 'Draw path', 'T'], ['water', 'Draw water', 'Y'], ['area', 'Floor area', 'U'], ['light', 'Add light', 'L'], ['pan', 'Pan', 'Space']];
@@ -332,8 +359,8 @@ const ED_MENUS = {
 function edCmd(c) {
   if (c.startsWith('tool:')) return edTool(c.slice(5)); if (c.startsWith('tg:')) return edToggle(c.slice(3));
   const A = { apply: edApply, unapply: edUnapply, saveas: edSaveAs, library: edLibrary, dlmap: edDownloadMap, openfile: () => edOpenFile(), save: edSave, share: () => edShare(), export: edExport, import: () => ED.root.querySelector('.edimp input').click(), reset: edReset, play: () => closeEditor(true), exit: () => closeEditor(),
-    undo: () => edUndo(-1), redo: () => edUndo(1), copy: edCopy, paste: edPaste, dup: () => edDuplicate(), del: edDelete, all: () => { ED.sel = [...ED.obs.map((o, i) => ({ t: 'o', i })), ...ED.lights.map((l, i) => ({ t: 'l', i })), ...ED.trails.map((t, i) => ({ t: 'p', i }))].filter(s => !edItem(s)._lock && !edItem(s)._hide); edPanel(); }, none: () => { ED.sel = []; edPanel(); },
-    lock: () => edFlagSel('_lock'), hide: () => edFlagSel('_hide'), unhideall: () => { edPush(); for (const o of [...ED.obs, ...ED.lights, ...ED.trails]) delete o._hide; edFloor(true); edLayers(); },
+    undo: () => edUndo(-1), redo: () => edUndo(1), copy: edCopy, paste: edPaste, dup: () => edDuplicate(), del: edDelete, all: () => { ED.sel = [...ED.obs.map((o, i) => ({ t: 'o', i })), ...ED.lights.map((l, i) => ({ t: 'l', i })), ...ED.trails.map((t, i) => ({ t: 'p', i })), ...ED.shapes.map((t, i) => ({ t: 's', i }))].filter(s => !edItem(s)._lock && !edItem(s)._hide); edPanel(); }, none: () => { ED.sel = []; edPanel(); },
+    lock: () => edFlagSel('_lock'), hide: () => edFlagSel('_hide'), unhideall: () => { edPush(); for (const o of [...ED.obs, ...ED.lights, ...ED.trails, ...ED.areas, ...ED.shapes]) delete o._hide; edFloor(true); edLayers(); },
     fit: edFit, focus: edFocus, zin: () => edZoomC(1.25), zout: () => edZoomC(.8), propEd: () => openPropEditor(ED.sel.length === 1 && ED.sel[0].t === 'o' ? edItem(ED.sel[0]).kind : 'tree') };
   if (A[c]) A[c]();
 }
@@ -354,8 +381,8 @@ function edBuildUI() {
       <div class="edtgrp">${[['showGrid', 'grid', 'Grid (G)'], ['lit', 'night', 'Night preview (N)'], ['lightsLayer', 'reach', 'Light reach (O)'], ['mini', 'mini', 'Minimap (M)'], ['help', 'help', 'Controls (H)']].map(([t, ic, n]) => `<button data-tg="${t}" class="edtool icon ${ED[t] ? 'on' : ''}" title="${n}">${edSvg(ic)}</button>`).join('')}</div>
       <div class="edtgrp edsnaps"><span class="edlbl">Snap</span>${[['move', 'Move', 'px'], ['rot', 'Rotate', '°'], ['scale', 'Scale', '%']].map(([k, n, u]) => `<label class="edsn ${ED.snaps[k].on ? 'on' : ''}" title="${n} snapping: tick to turn it on and set the step. Ctrl flips it while dragging"><input type="checkbox" data-sn="${k}" ${ED.snaps[k].on ? 'checked' : ''}>${n}<input type="number" data-snv="${k}" value="${ED.snaps[k].step}" min="${k === 'move' ? 1 : .5}" max="${k === 'rot' ? 180 : 200}" step="${k === 'move' ? 1 : .5}"><i>${u}</i></label>`).join('')}</div>
       <div class="edtgrp"><button class="edpe edghost" title="Change a whole kind of prop">${edSvg('props', 14)} Prop editor</button></div></div>
-    <div class="edbody"><aside class="edleft"><div class="edtabs">${[['props', 'Props'], ['paths', 'Paths'], ['walls', 'Walls'], ['water', 'Water'], ['floor', 'Floor']].map(([k, n]) => `<button data-lt="${k}" class="${ED.ltab === k ? 'on' : ''}">${n}</button>`).join('')}</div>
-        <div class="edlt" data-lt="props"><input class="edsearch edpsearch" placeholder="Search props…"><div class="edprops">${ED_PROPS.map((p, i) => `<button class="edprop" data-p="${i}" title="${p[0]}: click, then click the map (Shift keeps placing)"><canvas width="68" height="68"></canvas><span>${p[0]}</span></button>`).join('')}</div></div>
+    <div class="edbody"><aside class="edleft"><div class="edtabs">${[['props', 'Props'], ['shapes', 'Shapes'], ['paths', 'Paths'], ['walls', 'Walls'], ['water', 'Water'], ['floor', 'Floor']].map(([k, n]) => `<button data-lt="${k}" class="${ED.ltab === k ? 'on' : ''}">${n}</button>`).join('')}</div><div class="edlt" data-lt="shapes"></div>
+        <div class="edlt" data-lt="props"><input class="edsearch edpsearch" placeholder="Search props…">${edPropGroups().map(([g, hint, list]) => `<h5 class="edpgh" data-g="${g}">${g}${hint ? `<small>${hint}</small>` : ''}</h5><div class="edprops">${list.map(([p, i]) => `<button class="edprop" data-p="${i}" title="${p[0]}: click it, then click the map (Shift keeps placing).${p[1] === 'detail' ? ' Drag the cubes to resize, the ring to turn. Walk-over: it never blocks anyone.' : ''}"><canvas width="68" height="68"></canvas><span>${p[0]}</span></button>`).join('')}</div>`).join('')}</div>
         <div class="edlt" data-lt="paths"><p class="edhint">Press <kbd>T</kbd> (or pick a style), then click points. <kbd>A</kbd> adds a point at the cursor, <kbd>E</kbd> or Enter ends it. Start on a path's end to extend it. Paths of one style merge where they meet.</p><div class="edrow"><label>Style <button class="edpick edps-btn"></button></label><label>Width <input type="number" class="edpw" value="${ED.pathW}" min="4" max="200"></label></div><button class="edghost edwide" data-tool="path">${edSvg('path', 14)} Draw a path</button></div>
         <div class="edlt" data-lt="walls"><p class="edhint">Press <kbd>W</kbd> and drag along the wall's length. Thickness stays fixed. <kbd>B</kbd> draws a free-size block.</p><div class="edrow"><label>Kind <select class="edwk">${['wall', 'fence', 'hedge', 'glass', 'building'].map(k => `<option ${k === ED.wallKind ? 'selected' : ''}>${k}</option>`).join('')}</select></label>
           <label>Thickness <input type="number" class="edwt" value="${ED.wallT}" min="2" max="80"></label><label>Color <input type="color" class="edwc" value="${edHex(ED.wallCol)}"></label></div><button class="edghost edwide" data-tool="wall">${edSvg('wall', 14)} Draw a wall</button></div>
@@ -391,7 +418,7 @@ function edBuildUI() {
   root.querySelectorAll('.edtabs [data-lt]').forEach(b => b.onclick = () => setL(b.dataset.lt)); setL(ED.ltab);
   const setR = k => { ED.rtab = k; root.querySelectorAll('[data-rt]').forEach(b => b.classList.toggle('on', b.dataset.rt === k)); root.querySelector('.edpanel').style.display = k === 'props' ? '' : 'none'; root.querySelector('.edlayers').style.display = k === 'layers' ? '' : 'none'; if (k === 'layers') edLayers(); };
   root.querySelectorAll('[data-rt]').forEach(b => b.onclick = () => setR(b.dataset.rt)); ED.setR = setR; setR(ED.rtab);
-  root.querySelector('.edpsearch').oninput = e => { const q = e.target.value.toLowerCase(); root.querySelectorAll('.edprop').forEach(b => { const p = ED_PROPS[+b.dataset.p]; b.style.display = (p[0] + ' ' + p[1]).toLowerCase().includes(q) ? '' : 'none'; }); };
+  root.querySelector('.edpsearch').oninput = e => { const q = e.target.value.toLowerCase(); root.querySelectorAll('.edprop').forEach(b => { const p = ED_PROPS[+b.dataset.p]; b.style.display = (p[0] + ' ' + p[1] + ' ' + ((p[6] && p[6].d) || '')).toLowerCase().includes(q) ? '' : 'none'; }); root.querySelectorAll('.edpgh').forEach(h => { const any = [...h.nextElementSibling.children].some(b => b.style.display !== 'none'); h.style.display = h.nextElementSibling.style.display = any ? '' : 'none'; }); };
   root.querySelectorAll('.edprop').forEach(b => b.onclick = () => edTool('prop', ED_PROPS[+b.dataset.p]));
   const atb = root.querySelector('.edat-btn'), atSet = () => edPickBtn(atb, 'floor', ED.areaTex || 'grass'); atSet(); atb.onclick = () => edPicker(atb, 'floor', ED.areaTex || 'grass', v => { ED.areaTex = v; atSet(); edTool('area'); });
   const bab = root.querySelector('.edbase-btn'), baSet = () => edPickBtn(bab, 'base', ED.base || ''); baSet(); bab.onclick = () => edPicker(bab, 'base', ED.base || '', v => { edPush(); ED.base = v; baSet(); edFloor(true); });
@@ -408,6 +435,7 @@ function edBuildUI() {
   root.querySelector('.edmap').onchange = e => { if (ED.dirtySave) edSave(); const i = +e.target.value; cancelAnimationFrame(ED.raf); root.remove(); removeEventListener('keydown', edKey, true); removeEventListener('keyup', edKey, true); openEditor(i); };
   addEventListener('keydown', edKey, true); addEventListener('keyup', edKey, true);
   root.querySelector('.edpe').onclick = () => edCmd('propEd');
+  PE.rootL = 0; if (PE.box && PE.box.isConnected) { peLayout(); peHistUI(); } // a prop editor left open while switching maps keeps its dock
   { // the controls panel: drag it by its title, resize it from the corner; both remembered
     const h = root.querySelector('.edhelp'), t = h.querySelector('b'); t.classList.add('edhdrag'); t.title = 'Drag to move';
     try { const g = JSON.parse(localStorage.getItem('snakeEdHelpBox')); if (g) { h.style.left = g.l + 'px'; h.style.setProperty('top', g.t + 'px', 'important'); h.style.width = g.w + 'px'; if (g.h) h.style.height = g.h + 'px'; } } catch (e) {}
@@ -421,7 +449,7 @@ function edBuildUI() {
   }
   root.querySelector('.edhelpx').onclick = () => edToggle('help'); root.querySelector('.edhelpbtn').onclick = () => edToggle('help');
   try { if (localStorage.getItem('snakeEdHelp') === '0') { ED.help = true; edToggle('help'); } else root.querySelector('.edhelpbtn').style.display = 'none'; } catch (e) {}
-  edPreviews(); edTool('select'); edPanel();
+  edShapeSidebar(); edPreviews(); edTool('select'); edPanel();
 }
 /* properties of the selection */
 function edPanel() {
@@ -434,6 +462,7 @@ function edPanel() {
     edPanelBtns(p); p.querySelector('.edallc').oninput = e => { if (!p._pushed) { edPush(); p._pushed = true; } for (const s of ED.sel) if (s.t === 'o') edItem(s).color = e.target.value; else edItem(s).c = edRgb(e.target.value); };
     p.querySelectorAll('[data-al]').forEach(b => b.onclick = () => edAlign(b.dataset.al)); return; }
   const s0 = ED.sel[0];
+  if (s0.t === 's') { edShapePanel(p, edItem(s0)); return; }
   if (s0.t === 'p') { const t = edItem(s0);
     p.innerHTML = `<h4>Path</h4><label>Style <button class="edpick pst"></button></label>
       <label>Width <input type="range" class="pwr" min="4" max="200" value="${t.w}"><output>${t.w}</output></label>
@@ -467,7 +496,7 @@ function edPanel() {
   } else {
     const lamp = o.kind === 'lamp';
     const vr = edVariant(o), vlist = o.kind === 'detail' ? Object.entries(ED_DETAILS) : ED_VARIANTS[o.kind];
-    p.innerHTML = `<h4>${vr ? vr[1] : o.kind}${vr && vr[0] && o.kind !== 'detail' ? ` <small>(a ${o.kind})</small>` : o.kind === 'detail' ? ' <small>(street detail · walk-over)</small>' : ''}</h4><label>Kind <button class="edpick okind"></button></label>${vlist ? `<label>Type <select class="ovar">${vlist.map(([f, n]) => `<option value="${f}" ${vr && vr[0] === f ? 'selected' : ''}>${n}</option>`).join('')}</select></label>` : ''}
+    p.innerHTML = `<h4>${vr ? vr[1] : o.kind}${vr && vr[0] && o.kind !== 'detail' ? ` <small>(a ${o.kind})</small>` : o.kind === "detail" ? " <small>(floor detail · walk-over)</small>" : ''}</h4><label>Kind <button class="edpick okind"></button></label>${vlist ? `<label>Type <select class="ovar">${vlist.map(([f, n]) => `<option value="${f}" ${vr && vr[0] === f ? 'selected' : ''}>${n}</option>`).join('')}</select></label>` : ''}
       <div class="edgrid2">${num('x', 'X')}${num('y', 'Y')}${o.t === 'r' ? num('w', 'Width', 2) + num('h', 'Height', 2) : num('r', 'Radius', 2)}</div>
       <label>Size <input type="range" min="25" max="400" value="100" class="edsz"><output>100%</output></label>
       <label>Color <input type="color" data-c value="${edHex(o.color)}"></label>
@@ -503,69 +532,6 @@ function edPanelVals(keepSize) { // refresh the numbers while dragging, without 
   if (ED.sel.length !== 1) return; const o = edItem(ED.sel[0]);
   ED.root.querySelectorAll('.edpanel input[data-k]').forEach(inp => { if (document.activeElement !== inp) inp.value = Math.round((o[inp.dataset.k] ?? 0) * 10) / 10; });
 }
-/* the menu entry */
-// edTesting (declared in 05c): the map being play-tested from the editor: quitting goes back to the editor
-const _edShowMenu = showMenu;
-showMenu = function () {
-  _edShowMenu.apply(this, arguments);
-  if (edTesting !== null && state === 'menu' && !ED.open && ED.leaving) { const i = edTesting; edTesting = null; ED.leaving = false; const was = edTestData; openEditor(i); if (was) { ED.dirtySave = ED.unshared = true; edStatus('Back from the play test: your unsaved changes are still here (Ctrl+S to save)'); } edTestData = null; return; }
-  if (edTesting === null) edTestData = null;
-  const row = document.getElementById('setBtn'); if (!row || document.getElementById('edBtn')) return;
-  const b = document.createElement('button'); b.className = 'ghost'; b.id = 'edBtn'; b.dataset.sfx = 'open'; b.textContent = 'Map editor';
-  b.onclick = () => openEditor(mapIdx); row.parentElement.appendChild(b);
-};
-
-/* =========================================================
-   PROP EDITOR
-   Changes a whole kind of prop everywhere: its color, whether (and how hard) the Battering Ram breaks it, extra
-   shapes painted on top, or replacing its drawing entirely. Saved in this browser; Export ships it in 05c.
-   ========================================================= */
-const RAM_DEFAULT = { small: [...RAM_SMALL], large: [...RAM_LARGE], heavy: [...RAM_HEAVY] };
-const ED_SHAPES = ['rect', 'circle', 'ellipse', 'triangle', 'line', 'ring', 'cross'];
-function propApply() { // rebuild the Battering Ram's lists from the defaults plus every kind's setting
-  const d = propDefs(), lists = { small: RAM_SMALL, large: RAM_LARGE, heavy: RAM_HEAVY };
-  for (const [k, arr] of Object.entries(lists)) { arr.length = 0; arr.push(...RAM_DEFAULT[k]); }
-  for (const [kind, p] of Object.entries(d)) if (p.breakable && p.breakable !== 'default') { for (const arr of Object.values(lists)) { const i = arr.indexOf(kind); if (i >= 0) arr.splice(i, 1); } if (lists[p.breakable]) lists[p.breakable].push(kind); }
-  RAM_KINDS[1] = new Set(RAM_SMALL); RAM_KINDS[2] = new Set([...RAM_SMALL, ...RAM_LARGE]); RAM_KINDS[3] = RAM_KINDS[4] = new Set([...RAM_SMALL, ...RAM_LARGE, ...RAM_HEAVY]);
-  propCache = d;
-}
-const breakClass = kind => RAM_DEFAULT.heavy.includes(kind) ? 'heavy' : RAM_DEFAULT.large.includes(kind) ? 'large' : RAM_DEFAULT.small.includes(kind) ? 'small' : 'never';
-function drawPropShapes(x, o, shapes) { // shapes live in the object's box: 0..1 across and down
-  const [x0, y0, x1, y1] = o.t === 'r' ? [o.x, o.y, o.x + o.w, o.y + o.h] : [o.x - o.r, o.y - o.r, o.x + o.r, o.y + o.r], bw = x1 - x0, bh = y1 - y0;
-  for (const s of shapes) {
-    const cx = x0 + s.x * bw, cy = y0 + s.y * bh, w = Math.max(.5, s.w * bw), h = Math.max(.5, s.h * bh);
-    x.save(); x.globalAlpha *= s.a ?? 1; x.translate(cx, cy); x.rotate((s.rot || 0) * Math.PI / 180); x.fillStyle = x.strokeStyle = (s.base && propCache[o.kind] && propCache[o.kind].color) || s.c || '#ffffff'; x.lineWidth = Math.max(.5, (s.lw ?? .08) * Math.min(bw, bh)); x.lineCap = 'round';
-    x.beginPath();
-    if (s.type === 'rect') x.rect(-w / 2, -h / 2, w, h);
-    else if (s.type === 'circle') x.arc(0, 0, Math.min(w, h) / 2, 0, TAU);
-    else if (s.type === 'ellipse') x.ellipse(0, 0, w / 2, h / 2, 0, 0, TAU);
-    else if (s.type === 'poly' && s.pts) { s.pts.forEach(([u, v], k) => { const px = (u - .5) * w, py = (v - .5) * h; k ? x.lineTo(px, py) : x.moveTo(px, py); }); if (s.closed !== false) x.closePath(); }
-    else if (s.type === 'triangle') { x.moveTo(0, -h / 2); x.lineTo(w / 2, h / 2); x.lineTo(-w / 2, h / 2); x.closePath(); }
-    if (s.type === 'poly' && s.stroke) { x.lineJoin = 'round'; x.stroke(); }
-    else if (s.type === 'line') { x.moveTo(-w / 2, 0); x.lineTo(w / 2, 0); x.stroke(); }
-    else if (s.type === 'ring') { x.arc(0, 0, Math.min(w, h) / 2, 0, TAU); x.stroke(); }
-    else if (s.type === 'cross') { x.moveTo(-w / 2, 0); x.lineTo(w / 2, 0); x.moveTo(0, -h / 2); x.lineTo(0, h / 2); x.stroke(); }
-    else x.fill();
-    x.restore();
-  }
-}
-const _drawObstacle = drawObstacle;
-drawObstacle = function (x, o) { // every obstacle drawing goes through here, so a kind's changes show everywhere
-  if (o && o.rot && !o.poly && o.rot % 360) { // turned: draw it upright about its centre, inside a rotated frame
-    const cx = o.t === 'r' ? o.x + o.w / 2 : o.x, cy = o.t === 'r' ? o.y + o.h / 2 : o.y;
-    x.save(); x.translate(cx, cy); x.rotate(o.rot * Math.PI / 180); x.translate(-cx, -cy); try { drawObstacleUpright(x, o); } finally { x.restore(); } return;
-  }
-  return drawObstacleUpright(x, o);
-};
-function drawObstacleUpright(x, o) {
-  const p = o && propCache[o.kind];
-  if (!p) return _drawObstacle(x, o);
-  const q = p.color ? { ...o, color: p.color } : o;
-  if (!p.hideBase) _drawObstacle(x, q);
-  else if (p.shapes && p.shapes.length === 0) { x.fillStyle = q.color; o.t === 'r' ? x.fillRect(o.x, o.y, o.w, o.h) : circ(x, o.x, o.y, o.r); }
-  if (p.shapes && p.shapes.length) drawPropShapes(x, o, p.shapes);
-}
-propApply();
 /* ---- previews ---- */
 function edSample(p, X, Y) { return p[2] === 'r' ? R(X, Y, p[3], p[4], p[5], p[1], p[6] && edClone(p[6])) : C(X, Y, p[3], p[5], p[1], p[6] && edClone(p[6])); }
 function drawPreview(cv, o) { // fits one object into a small canvas
@@ -576,22 +542,27 @@ function drawPreview(cv, o) { // fits one object into a small canvas
 }
 function edPreviews() { if (!ED.root) return; ED.root.querySelectorAll('.edprop').forEach(b => { const p = ED_PROPS[+b.dataset.p]; drawPreview(b.querySelector('canvas'), edSample(p, 0, 0)); }); }
 const kindSample = kind => { const p = ED_PROPS.find(p => p[1] === kind && (kind !== 'detail' || p[6].d === 'mailbox')); if (p) return p; const o = (ED.obs || []).find(o => o.kind === kind); return o ? (o.t === 'r' ? ['', kind, 'r', o.w, o.h, o.color] : ['', kind, 'c', o.r, 0, o.color]) : ['', kind, 'r', 60, 40, '#888888']; };
-/* ---- the window ---- */
+/* ---- the window: floats over the map, or docks to its left or right side (the map shrinks to make room), so every
+   change shows on the map as you make it. Drag the title bar to move it; drop it on a screen edge to dock it. ---- */
 function openPropEditor(kind) {
-  const old = document.getElementById('propEd'); if (old) old.remove();
+  const old = document.querySelector('#propEd.pewnd'); if (old) old.remove();
   const kinds = [...new Set([...ED_PROPS.map(p => p[1]), ...ED_KINDS, ...(ED.obs || []).map(o => o.kind)])].filter(k => k !== 'border' && k !== 'water').sort();
-  const box = document.createElement('div'); box.id = 'propEd';
-  box.innerHTML = `<div class="pewin"><div class="pehead">${edSvg('props', 18)}<b>Prop editor</b><span class="edmuted">Pick a kind of prop on the left. Changes apply to every one of them, on every map.</span>
-      <button class="peshareall edghost">${edSvg('share', 14)} Share…</button><button class="peclose edprimary">Done</button></div>
+  const box = document.createElement('div'); box.id = 'propEd'; box.className = 'pewnd';
+  box.innerHTML = `<div class="pehint"></div><div class="pewin"><div class="pehead" title="Drag to move. Drop on the left or right edge of the screen to dock it there. Double-click to dock or float"><span class="pettlbar">${edSvg('props', 18)}<b>Prop editor</b></span>
+      <span class="pehist"><button class="peundo" title="Undo prop change (Ctrl+Z)">${edSvg('undo', 15)}</button><button class="peredo" title="Redo prop change (Ctrl+Y or Ctrl+Shift+Z)">${edSvg('redo', 15)}</button></span>
+      <span class="edmuted">Pick a kind of prop. Changes apply to every one of them, on every map, and show on the map as you make them.</span>
+      <button class="peshareall edghost">${edSvg('share', 14)} Share…</button>
+      <span class="pedocks"><button data-dock="left" title="Dock to the left">${edSvg('dockL', 15)}</button><button data-dock="float" title="Float">${edSvg('float', 15)}</button><button data-dock="right" title="Dock to the right">${edSvg('dockR', 15)}</button></span>
+      <button class="peclose edprimary">Done</button></div>
     <div class="pebody"><div class="pelistw"><input class="edsearch pesearch" placeholder="Search props…"><div class="edchips"><button data-pf="all" class="on">All</button><button data-pf="edited">Edited</button></div>
         <div class="pelist">${kinds.map(k => `<button data-k="${k}"><canvas width="44" height="44"></canvas><span>${(ED_PROPS.find(p => p[1] === k) || [k])[0]}</span><i class="ped">●</i></button>`).join('')}</div></div>
       <div class="pemain"><div class="pestage"><canvas class="pebig" width="560" height="380"></canvas><div class="pecmp"><span>Before</span><canvas class="pebefore" width="120" height="90"></canvas></div></div>
         <div class="pebgs"><span>Preview on</span><button data-bg="#2a2a30" class="on">Dark</button><button data-bg="#93bf55">Grass</button><button data-bg="#b9b3a7">Pavement</button><button data-bg="#d9d4c8">Tiles</button><button data-bg="#3a3532">Concrete</button></div>
-        <p class="edhint">Tip: drag a shape in the preview to move it. Everything here can be undone with Reset.</p></div>
-      <div class="peside"></div></div></div>`;
+        <p class="edhint">Tip: drag a shape in the preview to move it. Ctrl+Z undoes, Ctrl+Y redoes; Reset goes back to the original.</p></div>
+      <div class="peside"></div></div><div class="peedge" title="Drag to resize"></div><div class="pegrip" title="Drag to resize"></div></div>`;
   document.body.appendChild(box);
-  PE.kind = kinds.includes(kind) ? kind : kinds[0]; PE.bg = '#2a2a30'; PE.box = box; PE.selShape = -1; PE.filter = 'all';
-  box.querySelector('.peclose').onclick = () => { box.remove(); edPreviews(); if (ED.open) { edFloor(true); edPanel(); } };
+  PE.kind = kinds.includes(kind) ? kind : kinds[0]; PE.bg = '#2a2a30'; PE.box = box; PE.selShape = -1; PE.filter = 'all'; PE.win = PE.win || peLoadWin();
+  box.querySelector('.peclose').onclick = peClose;
   box.querySelector('.peshareall').onclick = () => edShare('p:' + PE.kind);
   const filt = () => { const q = box.querySelector('.pesearch').value.toLowerCase(), loc = edLocalProps(); box.querySelectorAll('.pelist button').forEach(b => { b.style.display = (b.textContent.toLowerCase().includes(q) || b.dataset.k.includes(q)) && (PE.filter === 'all' || loc[b.dataset.k]) ? '' : 'none'; }); };
   box.querySelector('.pesearch').oninput = filt;
@@ -599,16 +570,101 @@ function openPropEditor(kind) {
   box.querySelectorAll('.pelist button').forEach(b => { b.onclick = () => { PE.kind = b.dataset.k; PE.selShape = -1; peSide(); peDraw(); peList(); }; });
   box.querySelectorAll('[data-bg]').forEach(b => b.onclick = () => { PE.bg = b.dataset.bg; box.querySelectorAll('[data-bg]').forEach(c => c.classList.toggle('on', c === b)); peDraw(); });
   const big = box.querySelector('.pebig'); big.onpointerdown = peDown; big.onpointermove = peMove; big.onpointerup = () => { PE.drag = null; };
-  box.onkeydown = e => e.stopPropagation();
-  peSide(); peDraw(); peList(); const cur = box.querySelector(`.pelist [data-k="${PE.kind}"]`); if (cur) cur.scrollIntoView({ block: 'center' });
+  box.querySelector('.peundo').onclick = () => peUndo(-1); box.querySelector('.peredo').onclick = () => peUndo(1);
+  const head = box.querySelector('.pehead'); head.onpointerdown = peHeadDown; head.ondblclick = e => { if (e.target.closest('button,input,select')) return; const L = PE.win; L.mode = L.mode === 'float' ? L.last || 'right' : (L.last = L.mode, 'float'); peLayout(); peSaveWin(); };
+  box.querySelectorAll('[data-dock]').forEach(b => b.onclick = () => { const L = PE.win; if (L.mode !== 'float') L.last = L.mode; L.mode = b.dataset.dock; peLayout(); peSaveWin(); });
+  box.querySelector('.pegrip').onpointerdown = e => peResizeDown(e, 'corner'); box.querySelector('.peedge').onpointerdown = e => peResizeDown(e, 'edge');
+  box.onkeydown = e => { peKey(e); e.stopPropagation(); };
+  if (!PE.listen) { PE.listen = true; // focus follows the last click: the prop editor or the map gets the keyboard
+    addEventListener('pointerdown', e => { if (!PE.box || !PE.box.isConnected || (e.target.closest && e.target.closest('.edmodal,#matEd'))) return; const inside = PE.box.contains(e.target); peFocus(inside); if (inside && PE.hist) PE.hist.src = null; }, true);
+    addEventListener('resize', () => { if (PE.box && PE.box.isConnected) peLayout(); }); }
+  peLayout(); peFocus(true); peHistUI();
+  peSide(); peDraw(); peList(true); const cur = box.querySelector(`.pelist [data-k="${PE.kind}"]`); if (cur) cur.scrollIntoView({ block: 'nearest', inline: 'center' });
 }
 const PE = {};
+function peClose() { const box = PE.box; if (box) box.remove(); PE.active = false; peLayout(); edPreviews(); if (ED.open) { edFloor(true); edPanel(); } }
+/* where the window sits, kept between sessions: docked left or right (dw wide), or floating at x, y (w by h) */
+function peLoadWin() { const d = { mode: 'right', last: 'right', dw: 400, w: Math.min(960, innerWidth - 80), h: Math.min(660, innerHeight - 80) }; d.x = (innerWidth - d.w) / 2; d.y = 40;
+  try { const s = JSON.parse(localStorage.getItem('snakeEdPropWin')); if (s) Object.assign(d, s); } catch (e) {} return d; }
+function peSaveWin() { try { localStorage.setItem('snakeEdPropWin', JSON.stringify(PE.win)); } catch (e) {} }
+function peLayout() {
+  const open = PE.box && PE.box.isConnected, L = PE.win, vw = innerWidth, vh = innerHeight;
+  let left = 0, right = 0;
+  if (open) {
+    const win = PE.box.querySelector('.pewin'); PE.box.dataset.mode = L.mode;
+    if (L.mode === 'float') { L.w = clamp(L.w, 360, vw); L.h = clamp(L.h, 280, vh); L.x = clamp(L.x, 120 - L.w, vw - 120); L.y = clamp(L.y, 0, vh - 44);
+      Object.assign(win.style, { left: L.x + 'px', top: L.y + 'px', right: '', width: L.w + 'px', height: L.h + 'px' }); }
+    else { L.dw = clamp(L.dw, 320, Math.max(320, vw * .7)); Object.assign(win.style, { top: '0', height: '100%', width: L.dw + 'px', left: L.mode === 'left' ? '0' : '', right: L.mode === 'right' ? '0' : '' });
+      if (L.mode === 'left') left = L.dw; else right = L.dw; }
+    win.classList.toggle('narrow', (L.mode === 'float' ? L.w : L.dw) < 820);
+    PE.box.querySelectorAll('[data-dock]').forEach(b => b.classList.toggle('on', b.dataset.dock === L.mode));
+  }
+  if (ED.open && ED.root) { // the map makes room for a docked window, and stays put on screen while it does
+    if (ED.px != null) ED.px -= left - (PE.rootL || 0); PE.rootL = left;
+    ED.root.style.left = left ? left + 'px' : ''; ED.root.style.right = right ? right + 'px' : ''; }
+}
+function peHeadDown(e) { // drag the window by its title bar; near a screen edge it docks there
+  if (e.button !== 0 || e.target.closest('button,input,select,label')) return;
+  const L = PE.win, win = PE.box.querySelector('.pewin'), hint = PE.box.querySelector('.pehint'), r = win.getBoundingClientRect(), fx = (e.clientX - r.left) / r.width, oy = Math.min(e.clientY - r.top, 24);
+  let moved = false, zone = null; e.preventDefault();
+  const move = ev => {
+    if (!moved) { if (Math.hypot(ev.clientX - e.clientX, ev.clientY - e.clientY) < 5) return; moved = true; if (L.mode !== 'float') { L.last = L.mode; L.mode = 'float'; } win.classList.add('pemoving'); }
+    L.x = ev.clientX - fx * L.w; L.y = ev.clientY - oy;
+    zone = ev.clientX < 40 ? 'left' : ev.clientX > innerWidth - 40 ? 'right' : null;
+    hint.className = 'pehint' + (zone ? ' on ' + zone : ''); hint.style.width = L.dw + 'px'; peLayout();
+  };
+  const up = () => { removeEventListener('pointermove', move); removeEventListener('pointerup', up); hint.className = 'pehint'; win.classList.remove('pemoving');
+    if (!moved) return; if (zone) L.mode = zone; peLayout(); peSaveWin(); peDraw(); };
+  addEventListener('pointermove', move); addEventListener('pointerup', up);
+}
+function peResizeDown(e, how) { // 'corner' resizes a floating window, 'edge' the inner side of a docked one
+  e.preventDefault(); e.stopPropagation(); const L = PE.win, x0 = e.clientX, y0 = e.clientY, w0 = L.w, h0 = L.h, d0 = L.dw;
+  const move = ev => { if (how === 'edge') L.dw = d0 + (L.mode === 'left' ? 1 : -1) * (ev.clientX - x0); else { L.w = w0 + ev.clientX - x0; L.h = h0 + ev.clientY - y0; } peLayout(); };
+  const up = () => { removeEventListener('pointermove', move); removeEventListener('pointerup', up); peSaveWin(); peDraw(); };
+  addEventListener('pointermove', move); addEventListener('pointerup', up);
+}
+function peFocus(on) { PE.active = on; if (PE.box) PE.box.querySelector('.pewin').classList.toggle('peactive', on); }
+function peKey(e) { // the prop editor's keys while it has focus; true when the map editor should leave the key alone
+  if (e.__pe || !PE.active || !PE.box || !PE.box.isConnected || document.querySelector('.edmodal,#matEd')) return false;
+  e.__pe = true; if (e.type !== 'keydown') return false;
+  const t = e.target, tag = (t.tagName || '').toLowerCase(), k = e.key.toLowerCase(), mod = e.ctrlKey || e.metaKey;
+  if (tag === 'textarea' || (tag === 'input' && /^(text|search|number)$/.test(t.type))) { if (k === 'escape') t.blur(); return true; } // typing: the field's own keys, its own undo included
+  if (mod && (k === 'z' || k === 'y')) { e.preventDefault(); peUndo(k === 'y' || e.shiftKey ? 1 : -1); return true; }
+  if ((k === 'delete' || k === 'backspace') && tag !== 'select') { e.preventDefault(); const q = peGet(); if (q.shapes && q.shapes[PE.selShape]) { q.shapes.splice(PE.selShape, 1); PE.selShape = -1; peSet(q); peSide(); } return true; }
+  if (k === 'escape') { if (PE.selShape >= 0) { PE.selShape = -1; peSide(); peDraw(); } else { if (t.blur) t.blur(); peFocus(false); } return true; }
+  if (mod && k === 's') return false; // saving the map still works from here
+  return true;
+}
+/* ---- undo / redo: every change to any prop is one step; one drag or one pull of a slider is one step ---- */
+const peRaw = () => { try { return localStorage.getItem('snakeCarnagePropDefs') || '{}'; } catch (e) { return '{}'; } };
+function peHistNote(before, src) { // call before a change, with how every prop was
+  const h = PE.hist || (PE.hist = { undo: [], redo: [] }), now = performance.now();
+  if (src && src === h.src && now - h.t < 1500) { h.t = now; return; }
+  h.undo.push({ s: before, kind: PE.kind, sel: PE.selShape }); if (h.undo.length > 200) h.undo.shift(); h.redo = []; h.src = src; h.t = now; peHistUI();
+}
+const peCustomSig = () => JSON.stringify(Object.entries(propDefs()).filter(([, p]) => p.custom).map(([k, p]) => [k, p.name]));
+function peUndo(dir) {
+  const h = PE.hist; if (!h) return; const from = dir < 0 ? h.undo : h.redo, to = dir < 0 ? h.redo : h.undo; if (!from.length) return;
+  const sig = peCustomSig(); to.push({ s: peRaw(), kind: PE.kind, sel: PE.selShape }); const st = from.pop(); h.src = null;
+  try { localStorage.setItem('snakeCarnagePropDefs', st.s); } catch (e) {}
+  propApply(); if (typeof edSyncCustomProps === 'function') edSyncCustomProps();
+  if (peCustomSig() !== sig) openPropEditor(st.kind); // a custom prop came or went (or was renamed): rebuild the list
+  else { if (PE.box.querySelector(`.pelist [data-k="${st.kind}"]`)) PE.kind = st.kind; PE.selShape = st.sel; peSide(); peDraw(); peList(true); }
+  edPreviews(); peHistUI(); edStatus(`${dir < 0 ? 'Undid' : 'Redid'} a prop change`);
+}
+function peHistUI() { if (!PE.box) return; const h = PE.hist || { undo: [], redo: [] }, u = PE.box.querySelector('.peundo'), r = PE.box.querySelector('.peredo'); if (u) u.disabled = !h.undo.length; if (r) r.disabled = !h.redo.length; }
+function peLive() { // the map behind already redraws every frame; the palette's thumbnails of this kind catch up once a frame
+  if (PE.liveQ || !ED.open || !ED.root) return;
+  PE.liveQ = requestAnimationFrame(() => { PE.liveQ = 0; ED.root.querySelectorAll('.edprop').forEach(b => { const p = ED_PROPS[+b.dataset.p]; if (p && p[1] === PE.kind) drawPreview(b.querySelector('canvas'), edSample(p, 0, 0)); }); });
+}
 const peGet = () => edClone(propDefs()[PE.kind] || {});
-function peSet(p) { let loc = {}; try { loc = JSON.parse(localStorage.getItem('snakeCarnagePropDefs')) || {}; } catch (e) {}
-  const empty = !p.color && (!p.breakable || p.breakable === 'default') && !p.hideBase && !p.noCollide && !p.noOutline && !p.noShadow && !(p.shapes && p.shapes.length);
+function peSet(p) { const before = peRaw(); let loc = {}; try { loc = JSON.parse(before) || {}; } catch (e) {}
+  const empty = !p.custom && !p.hit && !p.interact && !p.pivot && !p.color && (!p.breakable || p.breakable === 'default') && !p.hideBase && !p.noCollide && !p.noOutline && !p.noShadow && !(p.shapes && p.shapes.length) && !p.destruct;
   if (empty) { delete loc[PE.kind]; if (PROP_OVERRIDES[PE.kind]) loc[PE.kind] = {}; } else loc[PE.kind] = p;
-  try { localStorage.setItem('snakeCarnagePropDefs', JSON.stringify(loc)); } catch (e) {} propApply(); peDraw(); peList(); }
-function peList() { const loc = edLocalProps(); PE.box.querySelectorAll('.pelist button').forEach(b => { b.classList.toggle('on', b.dataset.k === PE.kind); b.classList.toggle('edited', !!loc[b.dataset.k]); drawPreview(b.querySelector('canvas'), edSample(kindSample(b.dataset.k), 0, 0)); }); }
+  const after = JSON.stringify(loc), a = (window.event && window.event.target) || document.activeElement; // the slider or color being pulled (it may not have focus yet)
+  if (after !== before) { peHistNote(before, PE.drag || (a && a.matches && a.matches('#propEd input:not([type=checkbox])') ? a : null)); try { localStorage.setItem('snakeCarnagePropDefs', after); } catch (e) {} }
+  propApply(); peDraw(); peList(); peLive(); }
+function peList(all) { const loc = edLocalProps(); PE.box.querySelectorAll('.pelist button').forEach(b => { b.classList.toggle('on', b.dataset.k === PE.kind); b.classList.toggle('edited', !!loc[b.dataset.k]); if (all || b.dataset.k === PE.kind) drawPreview(b.querySelector('canvas'), edSample(kindSample(b.dataset.k), 0, 0)); }); }
 function peObj() { const p = kindSample(PE.kind); return edSample(p, p[2] === 'r' ? -p[3] / 2 : 0, p[2] === 'r' ? -p[4] / 2 : 0); }
 function peView() { const c = PE.box.querySelector('.pebig'), o = peObj(), [x0, y0, x1, y1] = o.t === 'r' ? [o.x, o.y, o.x + o.w, o.y + o.h] : [o.x - o.r, o.y - o.r, o.x + o.r, o.y + o.r];
   const s = Math.min((c.width - 80) / (x1 - x0), (c.height - 80) / (y1 - y0), 12); return { c, o, s, ox: c.width / 2, oy: c.height / 2, x0, y0, bw: x1 - x0, bh: y1 - y0 }; }
@@ -628,7 +684,6 @@ function peMove(e) { if (!PE.drag) return; const p = peGet(), s = p.shapes[PE.se
   const ux = ((mx - v.ox) / v.s - v.x0) / v.bw, uy = ((my - v.oy) / v.s - v.y0) / v.bh; s.x = Math.round((PE.drag.x + ux - PE.drag.ux) * 100) / 100; s.y = Math.round((PE.drag.y + uy - PE.drag.uy) * 100) / 100; peSet(p); peSideVals(); }
 function peSide() {
   const p = peGet(), el = PE.box.querySelector('.peside'), def = breakClass(PE.kind), sh = p.shapes || [];
-  const bn = { default: `Default (${def === 'never' ? "can't break" : def})`, never: "Can't break", small: 'Breakable: small (Ram I)', large: 'Breakable: large (Ram II)', heavy: 'Breakable: heavy (Ram III)' };
   const name = (ED_PROPS.find(q => q[1] === PE.kind) || [PE.kind])[0], base = edHex(kindSample(PE.kind)[5]), edited = !!edLocalProps()[PE.kind];
   const SW = ['#ffffff', '#1d1d22', '#c0392b', '#e67e22', '#f1c40f', '#27ae60', '#2f6fb0', '#8e44ad', '#7a5a38', '#95a5a6'];
   const sw = (cls, cur) => `<div class="peswatch">${SW.map(c => `<button class="${cls}" data-c="${c}" style="background:${c}" ${edHex(cur) === c ? 'aria-pressed="true"' : ''}></button>`).join('')}</div>`;
@@ -637,8 +692,9 @@ function peSide() {
   el.innerHTML = `<div class="pettl"><h3>${name}</h3>${edited ? '<span class="pebadge">Edited</span>' : '<span class="pebadge off">Default</span>'}</div>
     <section><h4>Color</h4><div class="pecolrow"><label class="petog sm"><span><b>Recolor every ${name.toLowerCase()}</b></span><input type="checkbox" class="pecol" ${p.color ? 'checked' : ''}><i></i></label><input type="color" class="pecolv" value="${edHex(p.color || base)}" ${p.color ? '' : 'disabled'}></div>${p.color ? sw('pecs', p.color) : ''}</section>
     <section><h4>Behaviour</h4>${tog('noCollide', !p.noCollide, 'Solid', 'Blocks the snake and people. Off: walk right through it.')}${tog('noOutline', !p.noOutline, 'Outline', 'The dark edge drawn around things you can crash into.')}${tog('noShadow', !p.noShadow, 'Shadows', 'Casts sun and lamp shadows.')}</section>
-    <section><h4>Battering Ram</h4><div class="peseg">${[['default', 'Default'], ['never', 'Never'], ['small', 'Ram I'], ['large', 'Ram II'], ['heavy', 'Ram III']].map(([k, n]) => `<button data-brk="${k}" class="${k === (p.breakable || 'default') ? 'on' : ''}">${n}</button>`).join('')}</div>
-      <p class="edhint">${(p.breakable || 'default') === 'default' ? `Default for this prop: ${def === 'never' ? "can't be broken" : `breaks from ${{ small: 'Ram I', large: 'Ram II', heavy: 'Ram III' }[def]}`}.` : (p.breakable === 'never' ? "Nothing can break it." : `Breaks once you have ${{ small: 'Ram I', large: 'Ram II', heavy: 'Ram III' }[p.breakable]}.`)} Very large trees and boulders always hold.</p></section>
+    <section><h4>Breaks</h4><div class="peseg">${[['default', 'Default'], ['never', 'Never'], ['touch', 'Anyone'], ['small', 'Ram I'], ['large', 'Ram II'], ['heavy', 'Ram III']].map(([k, n]) => `<button data-brk="${k}" class="${k === (p.breakable || 'default') ? 'on' : ''}">${n}</button>`).join('')}</div>
+      <p class="edhint">${(p.breakable || 'default') === 'default' ? `Default for this prop: ${def === 'never' ? "can't be broken" : def === 'touch' ? 'anyone breaks it just by hitting it' : `breaks with the Battering Ram from ${{ small: 'Ram I', large: 'Ram II', heavy: 'Ram III' }[def]}`}.` : p.breakable === 'never' ? "Nothing can break it." : p.breakable === 'touch' ? 'Anyone breaks it just by hitting it, no upgrade needed (like glass).' : `Breaks once you have the Battering Ram at ${{ small: 'Ram I', large: 'Ram II', heavy: 'Ram III' }[p.breakable]}.`} Very large trees and boulders always hold.</p></section>
+    ${peBreakFx(p, def)}
     <section><h4>Extra shapes <small>painted on top of the prop</small></h4><div class="peadd">${ED_SHAPES.map(t => `<button data-add="${t}" title="Add a ${t}"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round">${SHI[t]}</svg><span>${t}</span></button>`).join('')}</div>
       <button class="pebreak edghost edwide" title="Turns the prop's own drawing into shapes you can move, recolor, resize or delete">${edSvg('layers', 14)} ${p.hideBase && sh.length ? 'Shapes are the drawing now' : 'Edit the original drawing'}</button>
       <p class="edhint">${p.hideBase && sh.length ? `The original drawing was split into ${sh.length} shapes. Click one in the list (or in the preview) to change it.` : 'Splits the prop\'s own look into its pieces, so you can change the original shapes instead of adding on top.'}</p>
@@ -653,6 +709,7 @@ function peSide() {
     const baseC = edHex(kindSample(PE.kind)[5]); for (const sh of parts) if (sh.c === baseC) sh.base = true; // pieces in the prop's main color follow 'Recolor every…'
     q.shapes = [...parts, ...(q.shapes || [])]; q.hideBase = true; PE.selShape = -1; peSet(q); peSide(); };
   el.querySelectorAll('[data-brk]').forEach(b => b.onclick = () => { const q = peGet(); q.breakable = b.dataset.brk; peSet(q); peSide(); });
+  peBreakFxWire(el);
   el.querySelectorAll('.pecs').forEach(b => b.onclick = () => { const q = peGet(); q.color = b.dataset.c; peSet(q); peSide(); });
   el.querySelector('.peshare1').onclick = () => edLocalProps()[PE.kind] ? edShare('p:' + PE.kind) : edModal('Nothing to share', `<p>You haven't changed the ${PE.kind} yet.</p>`, [['OK', null, 'edprimary']]);
   el.querySelector('.pehide').onchange = e => { const q = peGet(); q.hideBase = e.target.checked; peSet(q); peSide(); };
@@ -674,24 +731,54 @@ function peSide() {
     if (b.dataset.sa === 'up' && i < a.length - 1) { [a[i], a[i + 1]] = [a[i + 1], a[i]]; PE.selShape = i + 1; } if (b.dataset.sa === 'down' && i > 0) { [a[i], a[i - 1]] = [a[i - 1], a[i]]; PE.selShape = i - 1; }
     peSet(q); peSide(); });
 }
+/* ---- "When it breaks": the prop's destruction effect (38b-destruction), from a preset to every last setting ---- */
+function peBreakFx(p, def) {
+  const d = p.destruct, kindDef = BFX_KIND_DEFAULT[PE.kind], cur = d ? d.preset : 'default', fx = d && d.preset !== 'default' ? { ...BFX_BASE, ...d } : null;
+  const breaks = (p.breakable && p.breakable !== 'default' ? p.breakable : def) !== 'never';
+  const presets = [['default', `Default${kindDef ? ` (${BFX_PRESETS[kindDef].name})` : ''}`], ...Object.entries(BFX_PRESETS).map(([k, v]) => [k, v.name])];
+  const sl = (k, lab, min, max, st, tip) => `<label title="${tip || ''}">${lab}<input type="range" data-bx="${k}" min="${min}" max="${max}" step="${st}" value="${fx[k]}"><output>${fx[k]}</output></label>`;
+  const sel = (k, lab, opts, names) => `<label>${lab}<select data-bs="${k}">${opts.map(o => `<option value="${o}" ${fx[k] === o ? 'selected' : ''}>${(names && names[o]) || o[0].toUpperCase() + o.slice(1)}</option>`).join('')}</select></label>`;
+  const tg = (k, t, dsc) => `<label class="petog sm"><span><b>${t}</b>${dsc ? `<small>${dsc}</small>` : ''}</span><input type="checkbox" data-bt="${k}" ${fx[k] ? 'checked' : ''}><i></i></label>`;
+  const col = (k, lab) => `<label class="pebcol">${lab}<input type="color" data-bc="${k}" value="${edHex(fx[k])}"></label>`;
+  const slot = i => { const c = (fx.cols || [])[i] || 'auto', auto = c === 'auto'; return `<span class="pebslot"><input type="color" data-bcol="${i}" value="${auto ? edHex(kindSample(PE.kind)[5]) : edHex(c)}" ${auto ? 'class="auto"' : ''} title="${auto ? "The prop's own color: pick one to change it" : 'Debris color'}"><button data-bauto="${i}" class="${auto ? 'on' : ''}" title="Use the prop's own color">Auto</button></span>`; };
+  return `<section class="pebfx"><h4>When it breaks <small>${breaks ? 'debris, dust, sound and what it leaves behind' : "it can't break yet: pick who breaks it above"}</small></h4>
+    <div class="peseg pebpre">${presets.map(([k, n]) => `<button data-bpre="${k}" class="${k === cur ? 'on' : ''}">${n}</button>`).join('')}</div>
+    <button class="pebtry edghost edwide" ${breaks || fx || kindDef ? '' : 'disabled'}>${edSvg('play', 14)} Try it</button>
+    ${!fx ? `<p class="edhint">${kindDef ? `Breaks with the ${BFX_PRESETS[kindDef].name.toLowerCase()} effect.` : 'Breaks the classic way.'} Pick a look above to start from, then change anything you like.</p>` : `
+    <div class="pebgrid">
+      <h5>Debris</h5>${sl('n', 'Pieces', 0, 160, 1)}${sel('shape', 'Shape', BFX_SHAPES)}${sl('size', 'Size', .3, 3, .1)}${sl('speed', 'Speed', .2, 2.5, .05)}${sl('spread', 'Spread', 0, 3.14, .02, 'How wide it sprays around the hit (3.14 = every way)')}${sl('lift', 'Height', .2, 2.5, .05, 'How high pieces fly')}${sl('slide', 'Slide', 0, 1, .05, 'How far pieces skid across the floor after landing')}
+      ${tg('scale', 'Bigger props, more pieces')}${tg('glint', 'Glints', 'Pieces catch the light as they fly')}
+      <div class="pebcols"><span>Colors</span>${[0, 1, 2].map(slot).join('')}</div>
+      <h5>Dust and sparks</h5>${sl('dust', 'Dust', 0, 40, 1)}${col('dustC', 'Dust color')}${sl('sparks', 'Sparks', 0, 80, 1)}${col('sparkC', 'Spark color')}
+      <h5>Afterwards</h5>${sel('wreck', 'Leaves behind', BFX_WRECKS, { default: 'Its broken self', shards: 'Shards', splinters: 'Splinters', rubble: 'Rubble', scorch: 'A scorch mark', confetti: 'Confetti', none: 'Nothing' })}
+      <h5>Sound and feel</h5>${sel('sound', 'Sound', BFX_SOUNDS, { default: 'Classic smash' })}${sl('vol', 'Volume', 0, 1.5, .05)}${sl('shake', 'Screen shake', 0, 3, .1)}
+      ${sel('stun', 'Snake staggers', BFX_STUNS, { default: 'As usual', none: 'Not at all', light: 'A little', heavy: 'Seeing stars' })}${sl('noise', 'Heard from', 0, 3, .05, 'How far away people hear it (x the usual)')}
+      ${tg('scare', 'Scares people', 'Anyone nearby runs, instead of just looking over')}
+    </div>`}</section>`;
+}
+function peBreakFxWire(el) {
+  const upd = f => { const q = peGet(); q.destruct = { ...BFX_BASE, ...(q.destruct || {}) }; f(q.destruct); peSet(q); };
+  el.querySelectorAll('[data-bpre]').forEach(b => b.onclick = () => { const q = peGet(), k = b.dataset.bpre; if (k === 'default') delete q.destruct; else q.destruct = bfxPreset(k); peSet(q); peSide(); });
+  el.querySelectorAll('[data-bx]').forEach(r => r.oninput = () => { r.nextElementSibling.textContent = r.value; upd(d => { d[r.dataset.bx] = +r.value; }); });
+  el.querySelectorAll('[data-bs]').forEach(s => s.onchange = () => upd(d => { d[s.dataset.bs] = s.value; }));
+  el.querySelectorAll('[data-bt]').forEach(c => c.onchange = () => upd(d => { d[c.dataset.bt] = c.checked; }));
+  el.querySelectorAll('[data-bc]').forEach(c => c.oninput = () => upd(d => { d[c.dataset.bc] = c.value; }));
+  el.querySelectorAll('[data-bcol]').forEach(c => c.oninput = () => { c.classList.remove('auto'); const b = c.nextElementSibling; if (b) b.classList.remove('on'); upd(d => { d.cols = [...(d.cols || ['auto', 'auto', 'auto'])]; d.cols[+c.dataset.bcol] = c.value; }); });
+  el.querySelectorAll('[data-bauto]').forEach(b => b.onclick = () => { upd(d => { d.cols = [...(d.cols || ['auto', 'auto', 'auto'])]; d.cols[+b.dataset.bauto] = 'auto'; }); peSide(); });
+  const t = el.querySelector('.pebtry'); if (t) t.onclick = () => { // the effect, played in the big preview
+    const v = peView(), fx = bfxFor(v.o) || bfxPreset("classic");
+    bfxPreview(v.c, v.o, fx, (x, o) => drawObstacle(x, o)); setTimeout(() => { if (PE.box && PE.box.isConnected) peDraw(); }, 2700);
+  };
+}
 function peSideVals() { const s = (peGet().shapes || [])[PE.selShape]; if (!s) return; PE.box.querySelectorAll('[data-sk]').forEach(r => { r.value = s[r.dataset.sk] ?? 0; r.nextElementSibling.textContent = r.value; }); }
 
-/* play test: Quit and Menu go back to the editor, Retry stays a play test */
-const _edStart = startGame;
-startGame = function (opts = {}) { if (edTesting !== null && !opts.test && !opts.mystery) opts = { ...opts, test: true }; return _edStart.call(this, opts); };
-const _edToMenu = returnToMenu;
-returnToMenu = function () { if (edTesting !== null) ED.leaving = true; return _edToMenu.apply(this, arguments); };
-for (const [fn, id, label] of [['showPause', 'pMenuBtn', 'Back to editor'], ['showDead', 'menuBtn2', 'Editor']]) {
-  const orig = window[fn];
-  window[fn] = function () { const r = orig.apply(this, arguments); if (edTesting !== null) { const b = document.getElementById(id); if (b) b.textContent = label; } return r; };
-}
 /* sending edits back: everything as one block of text, ready to paste into a chat or save as a file */
 function edShareText() {
   return `/* =========================================================\n   MAP EDITS (exported from the map editor)\n   Maps changed in the map editor (40b-editor). Each entry replaces that map's objects and lights at one world width.\n   ========================================================= */\nconst MAP_OVERRIDES = ${JSON.stringify({ ...MAP_OVERRIDES, ...localMapEdits(), ...edDrafts() })};\nconst PROP_OVERRIDES = ${JSON.stringify(propDefs())}; // per kind: { color, breakable, hideBase, shapes }\nconst mapEditKey = name => name + '@' + W;\nfunction localMapEdits() { try { return JSON.parse(localStorage.getItem('snakeCarnageMapEdits')) || {}; } catch (e) { return {}; } }\nfunction mapOverride(name) { const k = mapEditKey(name); return localMapEdits()[k] || MAP_OVERRIDES[k] || null; }\nfunction propDefs() { let loc = {}; try { loc = JSON.parse(localStorage.getItem('snakeCarnagePropDefs')) || {}; } catch (e) {} return { ...PROP_OVERRIDES, ...loc }; }\n`;
 }
 function edShare() {
   edSave(); const text = edShareText(), maps = Object.keys({ ...MAP_OVERRIDES, ...localMapEdits(), ...edDrafts() }), props = Object.keys(propDefs());
-  const box = document.createElement('div'); box.id = 'propEd';
+  const box = document.createElement('div'); box.id = 'propEd'; box.style.zIndex = 10001; // over a docked prop editor
   box.innerHTML = `<div class="pewin" style="height:auto;max-height:90vh;width:min(760px,94vw)"><div class="pehead"><b>Share your edits</b><button class="peclose">Close</button></div>
     <div style="padding:14px;display:flex;flex-direction:column;gap:10px;overflow:auto">
       <p>${maps.length} map edit${maps.length === 1 ? '' : 's'}${maps.length ? ` (${maps.join(', ')})` : ''} and ${props.length} prop change${props.length === 1 ? '' : 's'}${props.length ? ` (${props.join(', ')})` : ''}.</p>
@@ -730,7 +817,7 @@ const edSnapRot = a => edSnapOn('rot') ? Math.round(a / ED.snaps.rot.step) * ED.
 const edSnapScale = f => { if (!edSnapOn('scale')) return Math.max(.05, f); const st = ED.snaps.scale.step / 100; return Math.max(st, Math.round(f / st) * st); };
 /* ---- transform gizmo: arrows move along an axis, the square moves freely, cubes scale, the ring rotates ---- */
 function edSelCenter() {
-  const bx = ED.sel.map(s => { const o = edItem(s); if (!o) return null; if (s.t === 'l') return [o.x, o.y, o.x, o.y]; const arr = o.pts || null; if (arr) { const xs = arr.map(p => p[0]), ys = arr.map(p => p[1]); return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]; } return edBox(o); }).filter(Boolean);
+  const bx = ED.sel.map(s => { const o = edItem(s); if (!o) return null; if (s.t === 'l') return [o.x, o.y, o.x, o.y]; if (s.t === 's') return vecBox(o); const arr = o.pts || null; if (arr) { const xs = arr.map(p => p[0]), ys = arr.map(p => p[1]); return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]; } return edBox(o); }).filter(Boolean);
   if (!bx.length) return null; const x0 = Math.min(...bx.map(b => b[0])), y0 = Math.min(...bx.map(b => b[1])), x1 = Math.max(...bx.map(b => b[2])), y1 = Math.max(...bx.map(b => b[3]));
   return { cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, rr: Math.hypot(x1 - x0, y1 - y0) / 2 };
 }
@@ -775,6 +862,7 @@ function edApplyXf(starts, t) { // move / rotate / scale every selected thing ab
   const a = t.rot * Math.PI / 180, c = Math.cos(a), sn = Math.sin(a);
   const tp = (x, y) => { const u = (x - t.cx) * t.kx, v = (y - t.cy) * t.ky; return [t.cx + u * c - v * sn + t.dx, t.cy + u * sn + v * c + t.dy]; };
   ED.sel.forEach((s, i) => { const o0 = starts[i], o = edItem(s); if (!o || !o0) return;
+    if (s.t === 's') { edShapeXf(o, o0, tp, t); return; }
     if (s.t === 'p') { o.pts = o0.pts.map(([x, y]) => tp(x, y).map(v => Math.round(v * 10) / 10)); ED.floorDirty = true; return; }
     if (o0.poly) { o.poly = o0.poly.map(([x, y]) => tp(x, y).map(v => Math.round(v * 10) / 10)); polyBounds(o); if (o.tex) ED.floorDirty = true; return; }
     if (s.t === 'l') { [o.x, o.y] = tp(o0.x, o0.y); o.r = Math.max(10, Math.round(o0.r * (t.kx + t.ky) / 2)); return; }
@@ -835,19 +923,23 @@ const ED_KEYS = { // the keys that matter for each tool, shown in the corner of 
   area: [['Click', 'place point'], ['A', 'point at cursor'], ['Click first point', 'fill'], ['Enter', 'fill'], ['Esc', 'cancel']],
   light: [['Click', 'add a light'], ['V', 'back to select'], ['Esc', 'cancel']],
   prop: [['Click', 'place'], ['Shift+click', 'keep placing'], ['Alt', 'no snap'], ['Esc', 'cancel']],
+  's-free': [['Drag', 'draw freehand'], ['Esc', 'cancel']], 's-line': [['Click', 'place point'], ['Enter / dbl-click', 'finish'], ['Esc', 'cancel']], 's-poly': [['Click', 'place point'], ['Click first point', 'close'], ['Enter', 'close'], ['Esc', 'cancel']],
+  's-rect': [['Drag', 'draw'], ['Shift', 'square']], 's-ellipse': [['Drag', 'draw'], ['Shift', 'circle']], 's-bez': [['Click', 'corner point'], ['Drag', 'curve point'], ['Enter / dbl-click', 'finish'], ['Click first point', 'close']],
+  selShape: [['Drag point', 'reshape'], ['Drag handle', 'bend'], ['Dbl-click edge', 'add point'], ['Alt+click point', 'remove point'], ['Del', 'delete']],
+  spawn: [['Click', 'set the start']], zone: [['Drag', 'draw a spawn zone']],
   pan: [['Drag', 'pan'], ['Wheel', 'zoom'], ['0', 'fit'], ['V', 'back to select']],
   view: [['Wheel', 'zoom'], ['Space+drag', 'pan'], ['Right-click', 'actions'], ['Ctrl+Z', 'undo']],
 };
 function edKeyTips() {
   const el = ED.root && ED.root.querySelector('.edkeys'); if (!el) return;
-  let k = ED.tool; if (k === 'select' && ED.sel.length === 1) { const s0 = ED.sel[0], o = edItem(s0); if (s0.t === 'p') k = 'selPath'; else if (o && o.poly) k = 'selPoly'; }
+  let k = ED.tool; if (k === 'select' && ED.sel.length === 1) { const s0 = ED.sel[0], o = edItem(s0); if (s0.t === 'p') k = 'selPath'; else if (s0.t === 's' && o && o.nodes) k = 'selShape'; else if (o && o.poly) k = 'selPoly'; }
   const list = [...(ED_KEYS[k] || []), ...ED_KEYS.view], key = k + ':' + ED.sel.length; if (el._k === key) return; el._k = key;
   el.innerHTML = list.map(([a, b]) => `<span><kbd>${a}</kbd>${b}</span>`).join('');
 }
 function edStatusBar(r) {
   edKeyTips();
   const R = ED.root; if (!R) return; const t = ED_TOOLS.find(q => q[0] === ED.tool);
-  R.querySelector('.edst-tool').textContent = ED.draft ? (ED.draft.kind === 'path' ? `Drawing a path · ${ED.draft.pts.length} points · A add point · E/Enter end · Esc cancel` : `Drawing ${ED.draft.kind === 'area' ? 'a floor area' : 'water'} · ${ED.draft.pts.length} points · click the first point or Enter to fill`) : ED.tool === 'prop' && ED.ghost ? `Placing: ${ED.ghost[0]} (Shift keeps placing)` : (t ? t[1] : '');
+  R.querySelector('.edst-tool').textContent = ED.sdraft && !ED.sdraft.box ? `Drawing a shape · ${(ED.sdraft.nodes || []).length} points · Enter or double-click finishes · click the first point to close · Esc cancels` : edShapeTool(ED.tool) ? `${(SHAPE_TOOLS.find(q => q[0] === ED.tool) || [, ''])[1]} · makes: ${SHAPE_USES[ED.shapeDef.use]}` : ED.tool === 'spawn' ? 'Click where the snake starts' : ED.tool === 'zone' ? 'Drag a box where these creatures spawn' : ED.draft ? (ED.draft.kind === 'path' ? `Drawing a path · ${ED.draft.pts.length} points · A add point · E/Enter end · Esc cancel` : `Drawing ${ED.draft.kind === 'area' ? 'a floor area' : 'water'} · ${ED.draft.pts.length} points · click the first point or Enter to fill`) : ED.tool === 'prop' && ED.ghost ? `Placing: ${ED.ghost[0]} (Shift keeps placing)` : (t ? t[1] : '');
   R.querySelector('.edst-sel').textContent = ED.sel.length ? `${ED.sel.length} selected` : `${ED.obs.length} objects · ${ED.lights.length} lights · ${ED.trails.length} paths`;
   if (ED.mouse) { const [mx, my] = edW(...ED.mouse); ED.coords.textContent = `x ${Math.round(mx)}  y ${Math.round(my)}`; }
   R.querySelector('.edzv').textContent = Math.round(ED.z * 100 / (Math.min(r.width / W, r.height / H) * .95)) + '%';
@@ -862,14 +954,14 @@ function edMinimap(r) {
   x.strokeStyle = '#fff'; x.lineWidth = 1.5; x.strokeRect(a0 * s, b0 * s, (a1 - a0) * s, (b1 - b0) * s);
 }
 /* ---- layers ---- */
-function edLayerName(t, o) { const v = t === 'o' && edVariant(o); return t === 'a' ? `Floor · ${FLOOR_TEX[o.tex] || o.tex}` : t === 'l' ? `Light · ${o.kind || 'fixed'}` : t === 'p' ? `Path · ${PATH_STYLES[o.style || 'dirt']}` : o.poly ? 'Water (shape)' : v && v[0] ? v[1] : ((ED_PROPS.find(p => p[1] === o.kind) || [o.kind])[0]); }
+function edLayerName(t, o) { const v = t === 'o' && edVariant(o); if (t === 's') return `Shape · ${o.kind} · ${SHAPE_USES[o.use || 'floor'] || o.use}`; return t === 'a' ? `Floor · ${FLOOR_TEX[o.tex] || o.tex}` : t === 'l' ? `Light · ${o.kind || 'fixed'}` : t === 'p' ? `Path · ${PATH_STYLES[o.style || 'dirt']}` : o.poly ? 'Water (shape)' : v && v[0] ? v[1] : ((ED_PROPS.find(p => p[1] === o.kind) || [o.kind])[0]); }
 function edLayers() {
   const el = ED.root && ED.root.querySelector('.edlayers'); if (!el || el.style.display === 'none') return;
   const q = (ED.layQ || '').toLowerCase(), f = ED.layF || 'all';
-  const rows = [...ED.obs.map((o, i) => ['o', i, o]), ...ED.lights.map((o, i) => ['l', i, o]), ...ED.trails.map((o, i) => ['p', i, o]), ...ED.areas.map((o, i) => ['a', i, o])]
-    .filter(([t, i, o]) => (f === 'all' || (f === 'props' && t === 'o' && !o.poly) || (f === 'lights' && t === 'l') || (f === 'paths' && t === 'p') || (f === 'water' && t === 'o' && o.poly) || (f === 'floor' && t === 'a')) && edLayerName(t, o).toLowerCase().includes(q)).reverse();
-  el.innerHTML = `<input class="edsearch edlq" placeholder="Search layers…" value="${q}"><div class="edchips">${['all', 'props', 'lights', 'paths', 'water', 'floor'].map(k => `<button data-lf="${k}" class="${f === k ? 'on' : ''}">${k}</button>`).join('')}</div>
-    <div class="edlrows">${rows.slice(0, 400).map(([t, i, o]) => { const on = ED.sel.some(s => s.t === t && s.i === i); return `<div class="edlrow ${on ? 'on' : ''} ${o._hide ? 'hid' : ''}" data-t="${t}" data-i="${i}"><i class="sw" style="background:${t === 'a' ? '#7a9a5a' : t === 'l' ? `rgb(${edLightCol(o)})` : t === 'p' ? (EDGE_COL[o.style] || '#b79a68') : o.poly ? '#4aa3df' : o.color}"></i><span>${edLayerName(t, o)}</span>
+  const rows = [...ED.obs.map((o, i) => ['o', i, o]), ...ED.lights.map((o, i) => ['l', i, o]), ...ED.trails.map((o, i) => ['p', i, o]), ...ED.areas.map((o, i) => ['a', i, o]), ...(ED.shapes || []).map((o, i) => ['s', i, o])]
+    .filter(([t, i, o]) => (f === 'all' || (f === 'shapes' && t === 's') || (f === 'props' && t === 'o' && !o.poly) || (f === 'lights' && t === 'l') || (f === 'paths' && t === 'p') || (f === 'water' && t === 'o' && o.poly) || (f === 'floor' && t === 'a')) && edLayerName(t, o).toLowerCase().includes(q)).reverse();
+  el.innerHTML = `<input class="edsearch edlq" placeholder="Search layers…" value="${q}"><div class="edchips">${['all', 'props', 'lights', 'paths', 'shapes', 'water', 'floor'].map(k => `<button data-lf="${k}" class="${f === k ? 'on' : ''}">${k}</button>`).join('')}</div>
+    <div class="edlrows">${rows.slice(0, 400).map(([t, i, o]) => { const on = ED.sel.some(s => s.t === t && s.i === i); return `<div class="edlrow ${on ? 'on' : ''} ${o._hide ? 'hid' : ''}" data-t="${t}" data-i="${i}"><i class="sw" style="background:${t === 's' ? edShapeSwatch(o) : t === 'a' ? '#7a9a5a' : t === 'l' ? `rgb(${edLightCol(o)})` : t === 'p' ? (EDGE_COL[o.style] || '#b79a68') : o.poly ? '#4aa3df' : o.color}"></i><span>${edLayerName(t, o)}</span>
       <button class="lv ${o._hide ? '' : 'on'}" title="Show / hide in the editor">${edSvg('eye', 13)}</button><button class="lk ${o._lock ? 'on' : ''}" title="Lock: can't be clicked on the map">${edSvg('lock', 13)}</button></div>`; }).join('')}${rows.length > 400 ? `<p class="edhint">${rows.length - 400} more… search to narrow it down</p>` : ''}${rows.length ? '' : '<p class="edhint">Nothing here.</p>'}</div>`;
   const lq = el.querySelector('.edlq'); lq.oninput = () => { ED.layQ = lq.value; edLayers(); const n = ED.root.querySelector('.edlq'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); };
   el.querySelectorAll('[data-lf]').forEach(b => b.onclick = () => { ED.layF = b.dataset.lf; edLayers(); });
@@ -903,10 +995,11 @@ function edModal(title, body, buttons) { // a small dialog; buttons: [label, fn,
 }
 const _edClose = closeEditor;
 closeEditor = function (play) {
+  if (play && ED.custom) { edTestSkills = edSkillsGet(); MAPS[ED.map] = compileCustomMap(edCustomDoc()); edTestData = null; return _edClose(true); } // a custom map: play exactly what's in the editor (saved or not)
   if (play) { edTestSkills = edSkillsGet();
     const k = mapEditKey(MAPS[ED.map].name), all = {}; const keep = edDrafts; // build the test copy from the editor as it is now
     const clean = list => list.map(o => { const c = {}; for (const q in o) if (!ED_RUNTIME.has(q)) c[q] = o[q]; return c; });
-    edTestData = { k, d: edClone({ obs: clean(ED.obs), lights: clean(ED.lights), trails: ED.trails, areas: ED.areas.map(a => ({ poly: a.poly, tex: a.tex, sharp: a.sharp, edge: a.edge })), base: ED.base || undefined }) };
+    edTestData = { k, d: edClone({ obs: clean(ED.obs), lights: clean(ED.lights), trails: ED.trails, areas: ED.areas.map(a => ({ poly: a.poly, tex: a.tex, sharp: a.sharp, edge: a.edge })), base: ED.base || undefined, shapes: ED.shapes, shapesV: 1, materials: edUsedMaterials() }) };
     return _edClose(true); }
   if (ED.dirtySave) return edModal('Save your changes?', `<p>You have unsaved changes to ${MAPS[ED.map].name}.</p>`, [['Cancel', null, ''], ["Don't save", () => { ED.dirtySave = false; closeEditor(); }, 'warn'], ['Save', () => { edSave(); closeEditor(); }, 'edprimary']]);
   clearInterval(ED.autoT);
@@ -1016,7 +1109,6 @@ function edApply() {
   edModal('Using your version', `<p>Normal runs on ${MAPS[ED.map].name} now use your edited map (in this browser). <b>File → Go back to the original in my game</b> undoes it.</p>`, [['OK', null, 'edprimary']]);
 }
 function edUnapply() { const all = localMapEdits(); delete all[mapEditKey(MAPS[ED.map].name)]; localStorage.setItem('snakeCarnageMapEdits', JSON.stringify(all)); edStatus(`Normal runs on ${MAPS[ED.map].name} use the original map again (your editor copy is kept)`); }
-try { if (!localStorage.getItem('snakeCarnageEdDrafts') && localStorage.getItem('snakeCarnageMapEdits')) localStorage.setItem('snakeCarnageEdDrafts', localStorage.getItem('snakeCarnageMapEdits')); } catch (e) {} // edits from before drafts existed
 
 /* ---- skills for play tests: any upgrade at any level, only while testing; your real upgrades are untouched ---- */
 function edSkillsGet() { try { const s = JSON.parse(localStorage.getItem('snakeEdSkills')); if (s) return s; } catch (e) {} const o = {}; for (const u of UPGRADES) o[u.id] = PROG.upgOff[u.id] ? 0 : PROG.upg[u.id] || 0; return o; }

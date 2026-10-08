@@ -74,6 +74,20 @@ const Sfx = {
     const t = this.ctx.currentTime; this.lastShout = t;
     this.voice(this.out(x, .35), t, rand(280, 420), rand(380, 520), rand(.25, .4), 'sawtooth', rand(750, 1000), 7, .2);
   },
+  /* panic voices: the same synthesized vocal, shaped into a few reaction profiles. p = this person's pitch (about .8 .. 1.25).
+     shout: the usual yell. yelp: a short, high, startled squeak (rare: see voiceProfile). scream: strained and raspy, it cracks.
+     low: a deep, chesty bark. breath: winded gasps with a weak voice behind them. */
+  vocal(x, prof = 'shout', p = 1) {
+    if (!this.ok() || this.ctx.currentTime - this.lastShout < .18) return;
+    const t = this.ctx.currentTime; this.lastShout = t; const o = this.out(x, .35);
+    switch (prof) {
+      case 'yelp': { const f = rand(820, 1150) * p; this.voice(o, t, f, f * rand(1.25, 1.45), rand(.08, .13), 'triangle', f * 1.6, 0, .17); this.voice(o, t + .1, f * 1.3, f * .75, .09, 'sine', f * 1.4, 18, .08); break; } // up, then it breaks off
+      case 'scream': { const f = rand(560, 760) * p, d = rand(.45, .7); this.voice(o, t, f, f * rand(.75, .9), d, 'sawtooth', rand(1500, 2100), rand(9, 14), .2); this.burst(o, t + .03, d * .9, 2400, .9, .05); if (Math.random() < .5) this.voice(o, t + d * .55, f * 1.25, f * 1.1, d * .3, 'sawtooth', 2300, 16, .09); break; } // raspy, and the voice cracks up
+      case 'low': { const f = rand(150, 210) * p; this.voice(o, t, f, f * rand(1.05, 1.2), rand(.22, .32), 'sawtooth', rand(480, 650), 5, .24); break; }
+      case 'breath': { for (let k = 0; k < 3; k++) this.burst(o, t + k * rand(.14, .2), rand(.06, .09), rand(900, 1300), .8, .09, 'bandpass'); this.voice(o, t + .2, rand(300, 380) * p, rand(250, 300) * p, .22, 'sawtooth', 800, 4, .07); break; }
+      default: this.voice(o, t, rand(280, 420) * p, rand(380, 520) * p, rand(.25, .4), 'sawtooth', rand(750, 1000), 7, .2);
+    }
+  },
   tone(o, t, f0, f1, dur, type, g) {
     const c = this.ctx, os = c.createOscillator(), gg = c.createGain();
     os.type = type; os.frequency.setValueAtTime(f0, t); os.frequency.exponentialRampToValueAtTime(f1, t + dur);

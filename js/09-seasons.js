@@ -12,7 +12,7 @@ const SEASONS = {
 };
 let season = null; // { id, late, name } for this run; null indoors / in space / in menus
 function pickSeason(m) {
-  if (!m || !SEASON_MAPS.has(m.name)) return null;
+  if (!m || !(SEASON_MAPS.has(m.name) || (m.custom && m.seasons))) return null; // custom outdoor maps get seasons too (unless switched off)
   const forced = SETTINGS.season && SETTINGS.season !== 'Random' ? SETTINGS.season.toLowerCase() : null;
   const id = forced && SEASONS[forced] ? forced : pick(Object.keys(SEASONS));
   const late = id === 'autumn' && Math.random() < .4;
@@ -20,7 +20,7 @@ function pickSeason(m) {
 }
 const seasonId = () => season ? season.id : 'summer';
 const SZN = () => SEASONS[seasonId()];
-const snowy = () => !!season && (season.id === 'winter' || season.late);
+const snowy = () => !!season && (season.id === 'winter' || season.late) && MAPS[mapIdx].snow !== false && SETTINGS.snowQ !== 'Off'; // a custom map can say no to snow; so can the Snow setting
 
 /* ---- Perlin noise (2D gradient noise) and fractal sums of it ---- */
 const PERM = (() => { const p = Array.from({ length: 256 }, (_, i) => i), r = seeded(1337); for (let i = 255; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [p[i], p[j]] = [p[j], p[i]]; } return Uint8Array.from([...p, ...p]); })();

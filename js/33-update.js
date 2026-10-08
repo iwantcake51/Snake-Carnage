@@ -4,28 +4,31 @@
 let UT = 0, rotT = 0, abilT = 0; // UI clock keeps running while the world is paused
 function update(dt) {
   UT += dt;
+  if (NETM.on) netTick(dt); // co-op: send and receive, whatever state the game is in
   if ((rotT -= dt) <= 0) { rotT = .5; checkRotation(); updateRotClocks(); }
   Sfx.musicUpdate(!!MAPS[mapIdx].music && ['play', 'ready', 'intro', 'held'].includes(state));
   if (state === 'menu' || state === 'paused' || state === 'held' || state === 'loading') return; // time stops: no AI, movement, blood or sounds
   if (state === 'dead') { // the world is frozen; only the camera settles and the death screen arrives
     shake *= Math.exp(-dt * 8); if (shake < .2) shake = 0;
     killV *= Math.exp(-dt * 1.4); killFlash *= Math.exp(-dt * 7);
-    if (deadT > 0) { deadT -= dt; if (deadT <= 0 || performance.now() - deadAt > 900) { deadT = 0; showDead(); } } // real time, not frame time: a slow frame can't hold the crash screen back
+    if (deadT > 0) { deadT -= dt; if (deadT <= 0 || performance.now() - deadAt > deathDelay() * 1000) { deadT = 0; showDead(); } } // real time, not frame time: a slow frame can't hold the crash screen back
     return;
   }
   if (hitStop > 0) { hitStop -= dt; return; } // hit-stop: the world holds its breath for a few frames
   T += dt;
   if (!snake || !snake.started) for (const k in abilCD) abilCD[k] += dt; // frozen opening: cooldowns don't tick until you first move
-  if (state === 'play') { updateSnake(dt); run.time += dt; crTick(dt); progressTick(dt); }
-  updateCrowd(); updateConvos(dt);
-  for (const c of creatures) if (c.alive) updateCreature(c, dt);
+  updateCrowd(); // the neighbor grid, once per tick, before anything moves or asks who's near
+  if (state === 'play') { updateSnake(dt); if (AUTH()) snakeNoise(dt); run.time += dt; crTick(dt); progressTick(dt); }
+  if (AUTH()) { updateSounds(); updateConvos(dt); } // the crowd's ears and chatter live on the deciding browser
+  if (NETM.run) { if (NETM.host) netUpdateCreatures(dt); else netClientCreatures(dt); } // co-op: the host's AI reacts to every player; guests show what the host says
+  else for (const c of creatures) if (c.alive) updateCreature(c, dt);
   updateBlood(dt); updateGiblets(dt); updateSplashes(dt); updateMist(dt); updateSmoke(dt); updateFlies(dt); updateVomit(dt);
   if ((fadeT -= dt) <= 0) { fadeT = 2; fadeBlood(); }
-  updateTrail(dt);
+  updateTrail(dt); updateHoovFx(dt);
   if (snake) { const dk = snake.ramT > 0 ? Math.pow(snake.ramT / (snake.ramMax || 1), .6) * (snake.stunFx || 1) : 0; Sfx.daze(dk, snake.wallStun > 0); }
   updateScent(dt);
   updateGround(dt); updateSnow(dt); updateWeather(dt);
-  for (let i = respawnQ.length - 1; i >= 0; i--) { if ((respawnQ[i].t -= dt) <= 0) { spawn(respawnQ[i].type, respawnQ[i].zone); respawnQ.splice(i, 1); } }
+  if (AUTH()) for (let i = respawnQ.length - 1; i >= 0; i--) { if ((respawnQ[i].t -= dt) <= 0) { spawn(respawnQ[i].type, respawnQ[i].zone); respawnQ.splice(i, 1); } }
   shake *= Math.exp(-dt * 8); if (shake < .2) shake = 0;
   killV *= Math.exp(-dt * 1.4);
   if (desatHold > 0) desatHold -= dt; else killFlash *= Math.exp(-dt * 7);
@@ -39,6 +42,7 @@ function update(dt) {
     chT = .5;
     const pan = creatures.filter(c => c.alive && c.def.human && c.state === 'panic').length;
     run.maxPanic = Math.max(run.maxPanic, pan); cr.maxPanic = Math.max(cr.maxPanic, pan);
+    if (T - cr.lastEat > 10) cr.quiet = Math.max(cr.quiet, pan); // panic spread without a kill in the last 10 seconds
     const bloody = snake.stains.filter(l => l.length >= 3).length; cr.maxGore = Math.max(cr.maxGore, Math.round(bloody / snake.stains.length * 100));
     checkChallenges();
   }
@@ -95,8 +99,6 @@ function drawTrail(x) {
   }
   x.globalAlpha = 1;
 }
-const OLC = document.createElement('canvas'), OLX = OLC.getContext('2d');
-OLC.width = OLC.height = 80;
 const fogR = a => 1 + .11 * Math.sin(3 * a + T * .23) + .07 * Math.sin(5 * a - T * .37 + 1.3) + .04 * Math.sin(9 * a + T * .61 + 4); // the fog's edge billows: lobes that slowly drift and change shape
 function fogBlob(x, cx, cy, r, ph) { x.beginPath(); for (let k = 0; k <= 48; k++) { const a = k / 48 * TAU, rr = r * fogR(a + ph); k ? x.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr) : x.moveTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); } x.closePath(); x.fill(); }
 /* ---- heavy fog: a volumetric-looking layer ----
@@ -196,11 +198,11 @@ function fillOutside(x, style) { // paints everything around the 0..W x 0..H wor
 }
 const [snOC, snx] = makeLayer();
 function drawSnakeNightRim(x) { // white rim at night, readable over dark ground and blood, with or without night vision
-  if (!snake || !snake._pts || light.dark <= .3 || (SETTINGS.snakeOutline || 'Subtle') === 'Off') return;
+  if (!snake || !snake._pts || light.dark <= .3 || (SETTINGS.snakeOutline || 'Subtle') === 'Off' || snake.netHidden || !snake.alive) { if (snake && snake._rimBox) { const b = snake._rimBox; snx.clearRect(b[0], b[1], b[2] - b[0], b[3] - b[1]); snake._rimBox = null; } return; } // dead (or burst, in multiplayer): no rim left hanging in the air
   const strong = SETTINGS.snakeOutline === 'Strong', pts = snake._pts, n = pts.length;
   let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
   for (const g of pts) { if (g.x < x0) x0 = g.x; if (g.x > x1) x1 = g.x; if (g.y < y0) y0 = g.y; if (g.y > y1) y1 = g.y; }
-  const pad = CONFIG.snakeR + 6, prev = snake._rimBox; x0 -= pad; y0 -= pad; x1 += pad; y1 += pad;
+  const pad = snakeRadius() + 6, prev = snake._rimBox; x0 -= pad; y0 -= pad; x1 += pad; y1 += pad;
   if (prev) snx.clearRect(prev[0], prev[1], prev[2] - prev[0], prev[3] - prev[1]); else snx.clearRect(-60, -60, W + 120, H + 120);
   snake._rimBox = [x0, y0, x1, y1]; snx.beginPath();
   for (let i = 0; i < n; i++) { const g = pts[i], r = segR(i, n) + .4; snx.moveTo(g.x + r, g.y); snx.arc(g.x, g.y, r, 0, TAU); }
@@ -240,46 +242,54 @@ function goldenBanner(animal, c) { // each golden target gets its own note; seve
   const who = c && c.def.alien ? 'ALIEN' : c && c.type === 'astronaut' ? 'ASTRONAUT' : 'HUMAN';
   notify({ kind: 'goldH', title: 'GOLDEN ' + who, sub: 'Find them before the gold wears off.', dur: 5.5, bar: true }); Sfx.golden();
 }
+const [rimC, rimX] = makeLayer();
 function drawTargetOutlines(x) { // clean silhouette rim around everything edible: black by day, white at night
-  const night = light.dark > .3, col = night ? 'rgba(255,255,255,.78)' : 'rgba(0,0,0,.6)';
+  // every rim goes into one layer (stroke the outline, then cut the body out of it: only the outer rim stays, no lines
+  // across heads or arms) and the layer is drawn once. A scratch canvas per creature meant a round trip to the graphics
+  // chip for each of them, every frame.
+  const night = light.dark > .3, col = night ? 'rgba(255,255,255,.78)' : 'rgba(0,0,0,.6)', prev = drawTargetOutlines.box;
+  if (prev) rimX.clearRect(prev[0], prev[1], prev[2] - prev[0], prev[3] - prev[1]);
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
   for (const c of creatures) {
-    if (!c.alive) continue;
-    let a = 1;
-    a = playerSees(c.x, c.y); if (a <= .02) continue;
-    // stroke the outline, then cut the body out of it: leaves only the outer rim, no lines across the head or arms
-    if (c.def.fly) continue;
-    const hz = c.hz || 0, sc = 2 * (1 + hz * .045);
-    OLX.setTransform(1, 0, 0, 1, 0, 0); OLX.clearRect(0, 0, 80, 80); OLX.setTransform(sc, 0, 0, sc, 40, 40); OLX.rotate(c.a);
-    shapePath(OLX, c);
-    OLX.strokeStyle = c.golden ? '#ffcf33' : col; OLX.lineWidth = c.golden ? 3.2 : 2; OLX.stroke();
-    OLX.globalCompositeOperation = 'destination-out'; OLX.fill(); OLX.globalCompositeOperation = 'source-over';
-    x.globalAlpha = a * (render.olk ?? 1); x.drawImage(OLC, c.x - 20, c.y - 20 - hz * .7, 40, 40); x.globalAlpha = 1; // the rim rides up with a hop
+    if (!c.alive || c.def.fly) continue;
+    const a = playerSees(c.x, c.y); if (a <= .02) continue;
+    const hz = c.hz || 0, k = 1 + hz * .045, cy = c.y - hz * .7; // the rim rides up with a hop
+    rimX.save(); rimX.translate(c.x, cy); rimX.scale(k, k); rimX.rotate(c.a);
+    shapePath(rimX, c);
+    rimX.globalAlpha = a; rimX.strokeStyle = c.golden ? '#ffcf33' : col; rimX.lineWidth = c.golden ? 3.2 : 2; rimX.stroke();
+    rimX.globalAlpha = 1; rimX.globalCompositeOperation = 'destination-out'; rimX.fill(); rimX.globalCompositeOperation = 'source-over';
+    rimX.restore();
+    if (c.x - 22 < x0) x0 = c.x - 22; if (cy - 22 < y0) y0 = cy - 22; if (c.x + 22 > x1) x1 = c.x + 22; if (cy + 22 > y1) y1 = cy + 22;
   }
+  if (x1 < x0) { drawTargetOutlines.box = null; return; }
+  x0 = Math.max(0, Math.floor(x0)); y0 = Math.max(0, Math.floor(y0)); x1 = Math.min(W, Math.ceil(x1)); y1 = Math.min(H, Math.ceil(y1)); drawTargetOutlines.box = [x0, y0, x1, y1];
+  x.globalAlpha = render.olk ?? 1;
+  x.drawImage(rimC, x0 * DPR, y0 * DPR, (x1 - x0) * DPR, (y1 - y0) * DPR, x0, y0, x1 - x0, y1 - y0); x.globalAlpha = 1; // only the part that has rims in it
 }
 function drawBubbles(x) {
   const fs = { Small: 8.5, Normal: 10, Large: 12.5 }[SETTINGS.bubbleSize] || 10, bh = fs + 5;
   x.textAlign = 'center'; x.textBaseline = 'middle';
+  const segC = []; if (snake) for (let i = 0; i < Math.min(snake.segs.length, 24); i += 2) segC.push(worldToCanvas(snake.segs[i].x, snake.segs[i].y)); // drawn in screen space: the same size at any zoom
   for (const c of creatures) { // stacked bubbles: newest next to the head, older ones pushed up
     if (!c.alive || !c.bubbles || !c.bubbles.length) continue;
     let seeA = playerSees(c.x, c.y); // hidden in fog, and fading out with distance so far-off chatter doesn't clutter the screen
     if (snake && !pregame()) { const d = Math.hypot(c.x - snake.x, c.y - snake.y), k = clamp(1 - (d - 130) / 220, 0, 1); seeA *= k * k * (3 - 2 * k); } // before the run starts, you can hear the whole map
     if (seeA <= .02) continue;
-    const vis = c.bubbles.filter(b => b.delay <= 0).slice(-3);
-    let cy = c.y - 14 - bh / 2;
+    const vis = c.bubbles.filter(b => b.delay <= 0).slice(-3), P = worldToCanvas(c.x, c.y - 12);
+    if (P.x < -60 || P.x > W + 60 || P.y < -20 || P.y > H + 60) continue; // zoomed in: off screen
+    let cy = P.y - 2 - bh / 2;
     for (let k = vis.length - 1; k >= 0; k--) {
       const b = vis[k];
       const txt = b.act ? `*${b.text}*` : b.cps ? b.text.slice(0, Math.max(1, shownLen(b))) : b.text;
       x.font = b.act ? `italic 600 ${fs * .92}px "Segoe UI", sans-serif` : `${b.yell ? 800 : 600} ${fs}px "Segoe UI", sans-serif`;
       const w = x.measureText(txt).width + 9, pop = Math.min(1, b.t / .14), sc = .6 + .4 * (1 - Math.pow(1 - pop, 3));
-      const bx = clamp(c.x + (vis.length - 1 - k) * 5, w / 2 + 2, W - w / 2 - 2), by = Math.max(bh, cy);
+      const bx = clamp(P.x + (vis.length - 1 - k) * 5, w / 2 + 2, W - w / 2 - 2), by = Math.max(bh, cy);
       let near = false; // fade bubbles the snake is under, so they never hide the action
-      if (snake) for (let i = 0; i < Math.min(snake.segs.length, 24) && !near; i += 2) {
-        const g = snake.segs[i]; near = Math.abs(g.x - bx) < w / 2 + 22 && Math.abs(g.y - by) < bh / 2 + 22;
-      }
+      for (let i = 0; i < segC.length && !near; i++) { const g = segC[i]; near = Math.abs(g.x - bx) < w / 2 + 22 && Math.abs(g.y - by) < bh / 2 + 22; }
       b.fa = (b.fa ?? 1) + ((near ? .18 : 1) - (b.fa ?? 1)) * .25;
       x.save(); x.globalAlpha = Math.min(1, (b.life - b.t) * 3) * b.fa * seeA; x.translate(bx + (b.yell ? Math.sin(T * 47 + k * 3 + c.x) * .7 : 0), by + (b.yell ? Math.cos(T * 53 + c.y) * .6 : 0)); x.scale(sc, sc); // shouting shakes
       x.fillStyle = b.act ? 'rgba(30,24,28,.82)' : b.yell ? '#fff' : 'rgba(244,244,244,.95)'; rrect(x, -w / 2, -bh / 2, w, bh, 5); x.fill();
-      if (k === vis.length - 1 && !b.act) { x.beginPath(); x.moveTo(c.x - bx - 4, bh / 2 - 1); x.lineTo(c.x - bx + 1, bh / 2 + 5); x.lineTo(c.x - bx + 4, bh / 2 - 1); x.fill(); }
+      if (k === vis.length - 1 && !b.act) { x.beginPath(); x.moveTo(P.x - bx - 4, bh / 2 - 1); x.lineTo(P.x - bx + 1, bh / 2 + 5); x.lineTo(P.x - bx + 4, bh / 2 - 1); x.fill(); }
       x.fillStyle = b.act ? '#e8dcd2' : b.yell ? '#a10000' : '#3a3236'; x.fillText(txt, 0, .5);
       x.restore();
       cy -= bh + 2;
@@ -287,27 +297,26 @@ function drawBubbles(x) {
   }
   x.globalAlpha = 1; x.textBaseline = 'alphabetic';
 }
-const V = { sx: 0, sy: 0, z: 0, fx: 0, fy: 0, ox: 0, oy: 0 };
 function applyView(x) { // shake, spawn zoom and look-ahead, shared by the scene and every overlay pass
   x.translate(V.sx, V.sy);
   if (V.z) { x.translate(W / 2, H / 2); x.scale(V.z, V.z); x.translate(-V.fx, -V.fy); }
   x.translate(-V.ox, -V.oy);
 }
-const NEAR_IDS = ['chhud', 'modhud', 'combo', 'rewards', 'modbar', 'abil', 'notes', 'lvlup', 'evt'];
+const NEAR_IDS = ['chhud', 'modhud', 'combo', 'rewards', 'modbar', 'abil', 'notes', 'lvlup', 'evt', 'mpHud']; // mpHud: the multiplayer score panel, only there during a run
 let nearRects = null, nearRectT = 0;
 function hudNear() { // corner UI turns half see-through while the snake is close to it
   if (!snake) return;
   const cr = cv.getBoundingClientRect(); if (!cr.width) return;
   if (!nearRects || UT - nearRectT > .25) { // measure the HUD boxes in board units (twice a second is plenty)
-    nearRectT = UT; nearRects = NEAR_IDS.map(id => { const el = document.getElementById(id), r = el.getBoundingClientRect();
+    nearRectT = UT; nearRects = NEAR_IDS.map(id => document.getElementById(id)).filter(Boolean).map(el => { const r = el.getBoundingClientRect();
       return { el, x0: (r.left - cr.left) / cr.width * W, y0: (r.top - cr.top) / cr.height * H, x1: (r.right - cr.left) / cr.width * W, y1: (r.bottom - cr.top) / cr.height * H, empty: !r.width }; });
   }
   document.getElementById('chhud').classList.toggle('dim', state === 'play' && run.time > 4); // the checklist steps back once you're playing
   const pts = snake.segs.filter((g, i) => i % 3 === 0), pad = 30, ah = Math.cos(snake.angle), av = Math.sin(snake.angle); // the whole body, not just the head
   pts.push({ x: snake.x + ah * 90, y: snake.y + av * 90 }); // where the head is about to be: fade before it gets there
   for (const b of nearRects) {
-    const near = !b.empty && state !== 'menu' && pts.some(g => g.x - V.ox > b.x0 - pad && g.x - V.ox < b.x1 + pad && g.y - V.oy > b.y0 - pad && g.y - V.oy < b.y1 + pad);
-    if (near) b.nearT = UT; const on = near || UT - (b.nearT ?? -9) < .7; // stays faded a moment after the body clears
+    const near = !b.empty && state !== 'menu' && pts.some(g => { const q = worldToCanvas(g.x, g.y); return q.x > b.x0 - pad && q.x < b.x1 + pad && q.y > b.y0 - pad && q.y < b.y1 + pad; });
+    if (near) b.el.nearT = UT; const on = near || UT - (b.el.nearT ?? -9) < .7; // stays faded a moment after the body clears
     if (b.el.classList.contains('near') !== on) b.el.classList.toggle('near', on);
   }
 }

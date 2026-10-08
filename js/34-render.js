@@ -12,6 +12,7 @@ function render() {
     V.z = Math.pow(cam.z0, 1 - p); V.fx = snake.x + (W / 2 - snake.x) * fp; V.fy = snake.y + (H / 2 - snake.y) * fp;
   }
   V.ox = camF.x + camF.k.x; V.oy = camF.y + camF.k.y;
+  const uc = !cam && userCam(); if (uc) { V.z = uc.z; V.fx = uc.fx; V.fy = uc.fy; } // the player's zoom/pan (the spawn zoom has priority)
   lookAround();
   const cw = snake && snake.wallStun > 0 ? Math.pow(snake.wallStun / (snake.wallMax || 3.4), .6) * (snake.stunFx || 1) : 0;
   if (cw > 0) { V.ox += (Math.sin(T * 1.25) * 7 + Math.sin(T * 2.9) * 2) * cw; V.oy += (Math.sin(T * .95 + 1.2) * 5 + Math.sin(T * 2.3) * 1.5) * cw; } // the room sways after a wall
@@ -24,26 +25,27 @@ function render() {
   x.drawImage(baseC, 0, 0, W, H);
   x.drawImage(groundC, 0, 0, W, H);
   if (MAPS[mapIdx].club) drawDanceFloor(x);
+  drawCustomFx(x, 'floor'); // moving materials on the ground (custom maps and edited shapes only; empty otherwise)
   drawGrass(x);
   for (const b of bucketList) { if (!b.fd) continue; x.globalAlpha = bucketAlpha(b); x.drawImage(b.f, 0, 0, W, H); }
   x.globalAlpha = 1; drawSnow(x); // (no fake pool reflections: the pools are just blood)
-  x.globalAlpha = L.salpha; x.drawImage(shadowC, 0, 0, W, H); x.globalAlpha = 1;
-  x.fillStyle = `rgba(0,0,0,${L.salpha})`; x.beginPath(); // creature + snake shadows as one shape
-  for (const c of creatures) if (c.alive) { const r = c.def.r * .85, sx = c.x + L.sdx * 5, sy = c.y + L.sdy * 5; x.moveTo(sx + r, sy); x.arc(sx, sy, r, 0, TAU); }
-  snakeShadowPath(x, L.sdx * 6, L.sdy * 6);
-  x.fill();
+  if (shadowsOn()) { x.globalAlpha = L.salpha; x.drawImage(shadowC, 0, 0, W, H); x.globalAlpha = 1; } // baked sun shadows (Static and Full)
+  if (movingShadows()) { x.fillStyle = `rgba(0,0,0,${L.salpha})`; x.beginPath(); // creature + snake shadows as one shape (Full only)
+    for (const c of creatures) if (c.alive) { const r = c.def.r * .85, sx = c.x + L.sdx * 5, sy = c.y + L.sdy * 5; x.moveTo(sx + r, sy); x.arc(sx, sy, r, 0, TAU); }
+    snakeShadowPath(x, L.sdx * 6, L.sdy * 6);
+    x.fill(); }
   drawAO(x); drawLeashes(x);
   for (const c of creatures) if (c.alive) drawCreature(x, c);
   drawFlashBodies(x); drawHitGhosts(x);
   drawGiblets(x); // chunks on the ground sit under the snake
-  drawTrail(x); drawGround(x); drawSnake(x); drawRamCharge(x); drawStreaks(x); drawSnowFx(x);
+  drawTrail(x); drawGround(x); drawHoovFx(x); if (NETM.run) netDrawSnakes(x); if (!(snake && snake.netHidden)) drawSnake(x); drawRamCharge(x); drawStreaks(x); drawSnowFx(x);
   if ((render.olk ?? 1) > .995 || SETTINGS.mapOutlines === 'Off') x.drawImage(obsC, 0, 0, W, H); else { x.drawImage(plainC, 0, 0, W, H); if (render.olk > .01) { x.globalAlpha = render.olk; x.drawImage(outlineC, 0, 0, W, H); x.globalAlpha = 1; } } drawTrees(x); // outlines only cost extra while they're fading
-  drawWaters(x);
+  drawWaters(x); drawCustomFx(x, 'top');
   for (const b of bucketList) { if (!b.wd) continue; x.globalAlpha = bucketAlpha(b); x.drawImage(b.w, 0, 0, W, H); }
   x.globalAlpha = 1;
   drawDrops(x);
   drawDebris(x); drawMist(x); drawSmoke(x); drawVomit(x);
-  drawLighting(x);
+  drawLighting(x); drawPropGlow(x);
   drawLampBugs(x); drawFireflyGlow(x);
   drawSparks(x);
   drawVisionMask(x);
@@ -76,8 +78,9 @@ function render() {
   if (px <= 1 && !render.dazed) { drawGoldenFX(ctx); ctx.globalAlpha = render.olk ?? 1; drawTargetOutlines(ctx); drawSnakeNightRim(ctx); ctx.globalAlpha = 1; }
   if (nightVision) drawNVHighlights(ctx);
   drawWinStars(ctx); drawScent(ctx); drawHissWave(ctx); drawCrashFlash(ctx);
-  if (!cam) drawBubbles(ctx);
   ctx.restore();
+  if (NETM.run && !cam) netDrawTags(ctx); // co-op: teammates' names and where they are off screen
+  if (!cam) drawBubbles(ctx); // screen space (positions go through the camera), so text stays readable at any zoom
   if (nightVision) drawNightVision(ctx);
   if (toastT > 0) {
     toastT -= 1 / 60;
@@ -101,8 +104,8 @@ function render() {
   render.stunS = (render.stunS || 0) + (stunRaw - (render.stunS || 0)) * (stunRaw > (render.stunS || 0) ? 1 : .022); // the hit lands instantly, then drains slowly as speed returns // heavy but smooth: eases in, then drains slowly as speed returns
   const stun = render.stunS < .01 ? 0 : render.stunS;
   if (Math.abs(stun - (render.stun || 0)) > .02 || (stun === 0) !== (render.stun === 0)) { render.stun = stun; stage.style.setProperty('--stun', stun.toFixed(2)); stage.classList.toggle('stunned', stun > 0); stage.classList.toggle('wallstun', !!(snake && snake.wallStun > 0)); }
-  const sat = (SETTINGS.desaturate && !nightVision ? clamp(1 - killFlash * .5, .45, 1) : 1) * (1 - .93 * stun);
-  const f = nightVision ? `contrast(1.15) brightness(${(.95 - SETTINGS.darkness * .2).toFixed(2)})` : `saturate(${sat.toFixed(2)}) brightness(${(1 - SETTINGS.darkness).toFixed(2)}) contrast(1.08)`;
+  const sat = (SETTINGS.desaturate && !nightVision ? clamp(1 - killFlash * .5, .45, 1) : 1) * (1 - .93 * stun) * (1 - .92 * dfxK); // dying drains it to grey
+  const f = nightVision ? `contrast(1.15) brightness(${(.95 - SETTINGS.darkness * .2).toFixed(2)})${dfxK ? ` grayscale(${(.92 * dfxK).toFixed(2)})` : ''}` : `saturate(${sat.toFixed(2)}) brightness(${((1 - SETTINGS.darkness) * (1 - .14 * dfxK)).toFixed(2)}) contrast(${(1.08 + .08 * dfxK).toFixed(2)})`;
   if (f !== lastFilter) { cv.style.filter = f; lastFilter = f; }
   const clock = (MAPS[mapIdx].indoor ? '🏢 ' : light.day > .5 ? '☀️ ' : light.day > .05 ? '🌇 ' : '🌙 ') +
     String(Math.floor(tod)).padStart(2, '0') + ':' + String(Math.floor(tod % 1 * 60)).padStart(2, '0');
@@ -138,7 +141,7 @@ function drawNVHighlights(x) { // drawn after the green tint, so the rings stay 
     x.beginPath(); x.arc(c.x, c.y, r, 0, TAU); x.stroke(); x.setLineDash([]);
   }
   x.globalAlpha = 1;
-  if (snake) { x.strokeStyle = 'rgba(255,255,255,.9)'; x.lineWidth = 1.6; x.beginPath(); x.arc(snake.x, snake.y, CONFIG.snakeR + 4, 0, TAU); x.stroke(); }
+  if (snake && !snake.netHidden) { x.strokeStyle = 'rgba(255,255,255,.9)'; x.lineWidth = 1.6; x.beginPath(); x.arc(snake.x, snake.y, snakeRadius() + 4, 0, TAU); x.stroke(); }
   x.restore();
 }
 function drawNightVision(x) {
@@ -155,7 +158,7 @@ function drawNightVision(x) {
   x.restore();
 }
 let last = performance.now();
-let frameMs = 16, lowFx = false, fastT = 0; // adaptive quality: if frames run slow, lighting gets cheaper (with hysteresis)
+let frameMs = 16, lowFx = 0, fastT = 0, slowT = 0, lowFxSaid = false; // adaptive quality: 1 = cheaper lighting while frames run slow (with hysteresis); 2 = lighting off and snow simplified for the rest of the run (Automatic quality)
 const blurTmp = document.createElement('canvas');
 function bakeBlurBg() { // blur the frozen frame into its own pixels once, so the menu on top can scroll without anything re-blurring
   try { blurTmp.width = cv.width; blurTmp.height = cv.height; const t = blurTmp.getContext('2d'); t.drawImage(cv, 0, 0);
@@ -165,16 +168,21 @@ function frame(now) {
   const cap = +SETTINGS.fpsCap; // VSync -> NaN: draw every refresh
   if (cap && now - last < 1000 / cap - 2) { requestAnimationFrame(frame); return; }
   const raw = now - last; if (raw < 200) frameMs += (raw - frameMs) * .03;
-  if (!lowFx && frameMs > 24) { lowFx = true; fastT = 0; }
-  else if (lowFx && frameMs < 15) { if ((fastT += raw) > 8000) lowFx = false; } else fastT = 0; // only back to full quality after 8s of clearly fast frames
+  if (!lowFx && frameMs > 24) { lowFx = 1; fastT = 0; }
+  else if (lowFx === 1 && frameMs < 15) { if ((fastT += raw) > 8000) lowFx = 0; } else fastT = 0; // only back to full quality after 8s of clearly fast frames
+  if (lowFx === 1 && SETTINGS.autoQ !== false && state === 'play' && frameMs > 30) { if ((slowT += raw) > 4000) { lowFx = 2; slowT = 0; if (!lowFxSaid) { lowFxSaid = true; notify({ kind: 'info', title: 'Graphics simplified', sub: 'Lighting and snow, to keep this run smooth. Settings › Graphics.', dur: 3.5 }); } } } else slowT = 0; // still too slow: the expensive layers go, until the next run
+  if (lowFx === 2 && (state === 'menu' || SETTINGS.autoQ === false)) lowFx = 0;
   const dt = Math.min(.033, raw / 1000); last = now;
   requestAnimationFrame(frame); // scheduled first: nothing below can ever stop the loop
+  deathFxTick(dt);
+  if (PERF.el) perfShowIfPlaying();
   if (state === 'editor') return; // the map editor draws itself
   const menu = state === 'menu'; // menus show a CSS backdrop instead of the map: the game costs nothing there
   if (menu !== !!frame.cov) { frame.cov = menu; stage.classList.toggle('menuBg', menu); }
   if (menu) { UT += dt; return; }
   try { update(dt); } catch (e) { loopError(e, 'update'); }
   try { render(); } catch (e) { loopError(e, 'render'); }
+  perfRunTick(now); if (PERF.mode !== 'Off') perfFrame(now);
 }
 
 let plxQ = null; // mouse parallax: main menu only, at most once a frame. Over the blurred pause/death backdrop every nudge re-blurs the whole screen, so it stays still there
@@ -264,7 +272,7 @@ function lookAround() {
   let gx = clamp(px, half, W - half), gy = clamp(py, halfH, H - halfH);
   if (pre) { gx = clamp(gx, snake.x - half + 50, snake.x + half - 50); gy = clamp(gy, snake.y - halfH + 50, snake.y + halfH - 50); gx = clamp(gx, half, W - half); gy = clamp(gy, halfH, H - halfH); } // your snake never leaves the frame
   look.fx += (gx - look.fx) * k; look.fy += (gy - look.fy) * k;
-  if (V.z || look.z < 1.002) return; // the spawn zoom has the camera, or we're back to normal
+  if (V.z || look.z < 1.002) return; // the spawn zoom or the player's own zoom has the camera, or we're back to normal
   V.z = look.z; V.fx = look.fx; V.fy = look.fy;
 }
 
@@ -276,7 +284,7 @@ function drawCrashFlash(x) { // whatever you hit pops out with a red and white f
   const o = crashHit.o, g = crashHit.seg != null && snake ? snake.segs[crashHit.seg] : null;
   const cx = o ? (o.t === 'r' ? o.x + o.w / 2 : o.x) : g ? g.x : 0, cy = o ? (o.t === 'r' ? o.y + o.h / 2 : o.y) : g ? g.y : 0;
   x.translate(cx, cy); x.scale(pop, pop);
-  const path = () => { x.beginPath(); if (o && o.t === 'r') x.rect(-o.w / 2, -o.h / 2, o.w, o.h); else x.arc(0, 0, o ? o.r : CONFIG.snakeR + 1, 0, TAU); };
+  const path = () => { x.beginPath(); if (o && o.t === 'r') x.rect(-o.w / 2, -o.h / 2, o.w, o.h); else x.arc(0, 0, o ? o.r : snakeRadius() + 1, 0, TAU); };
   path(); x.strokeStyle = 'rgba(0,0,0,.6)'; x.lineWidth = 6 / pop; x.stroke();
   path(); x.strokeStyle = col; x.lineWidth = 3 / pop; x.stroke();
   x.restore();

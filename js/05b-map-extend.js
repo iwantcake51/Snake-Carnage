@@ -169,7 +169,7 @@ const MAP_EXT = {
   Bunker: (st, k, e) => indoorWing(st, k, e, {
     floorTop: x => { x.fillStyle = '#3a3532'; x.fillRect(0, 0, W, H); speckle(x, 1600, ['#332e2b', '#423c38', '#2c2826'], 36, 2); },
     floorBot: x => { x.fillStyle = '#36322f'; x.fillRect(0, 0, W, H); speckle(x, 1600, ['#332e2b', '#423c38', '#2c2826'], 37, 2); },
-    corridor: [284, 86, x => { x.fillStyle = '#2f2a28'; x.fillRect(0, 284, W, 86); x.fillStyle = '#c9a227'; for (let i = 20 + XO % 40; i < W; i += 40) x.fillRect(i - 40, 325, 20, 3); hazard(x, 0, 284, W, 5); hazard(x, 0, 365, W, 5); }],
+    corridor: [284, 86, () => {}], // the corridor floor is the map's Hazard corridor prop, stretched to the new edges (see extendBuild)
     top: [16, 270], bot: [384, 624], wall: '#4a3c38',
     rooms: st.s < 0 ? [
       (k, r, e) => e.obs.push(k.R(0, r[0], Math.min(120, r.w - 40), 26, '#4a4a40', 'shelf'), k.R(0, r[0] + 80, 40, 40, '#5a4a32', 'crate')), // armory
@@ -223,9 +223,15 @@ function indoorWing(st, k, e, o) {
     const r = Object.assign([y0, y1], { w: w - (o.noSeam ? 0 : 14) });
     if (!o.noSeam) { const door = 88, dy = i ? y0 : y1 - door; /* the door sits near the corridor, where people come from */ if (dy > y0) e.obs.push(k.R(w - 14, y0, 14, dy - y0, o.wall)); if (y1 > dy + door) e.obs.push(k.R(w - 14, dy + door, 14, y1 - dy - door, o.wall)); }
     o.rooms[i](k, r, e);
-    e.lights.push(o.light(k.X(r.w * .5), (y0 + y1) / 2));
+    const [lx, ly] = clearSpot(e.obs, k.X(r.w * .5), (y0 + y1) / 2, y0 + 20, y1 - 20); e.lights.push(o.light(lx, ly)); // a ceiling light over the floor, not over the furniture
   }
   e.lights.push(o.light(k.X(w * .5), cy + ch / 2));
+}
+function clearSpot(obs, x, y, ymin, ymax) { // nearest point (up/down/sideways) not over a piece of furniture
+  const over = (px, py) => obs.some(o => !EXT_WALLS.has(o.kind) && (o.t === 'r' ? px > o.x - 14 && px < o.x + o.w + 14 && py > o.y - 10 && py < o.y + o.h + 10 : Math.hypot(px - o.x, py - o.y) < o.r + 14));
+  if (!over(x, y)) return [x, y];
+  for (let d = 8; d < 120; d += 8) for (const [dx, dy] of [[0, d], [0, -d], [d, 0], [-d, 0], [d, d], [-d, -d], [d, -d], [-d, d]]) { const nx = x + dx, ny = y + dy; if (ny >= ymin && ny <= ymax && nx > B + 10 && nx < W - B - 10 && !over(nx, ny)) return [nx, ny]; }
+  return [x, y];
 }
 /* ---- carry-ons for anything that met the old edge ---- */
 function carryWalls(obs, sideOf, gateU) { // walls and fences that met the old edge run on to the new one, with a doorway partway
@@ -249,10 +255,19 @@ function carryPath(p) { // a trail that ran off the old edge carries on, with a 
   else if (L[0] <= B + 4) g.push([XO * .5, bend(gl, .5)], [-10, bend(gl, 1)]);
   return g;
 }
+function carryCorridors(list) { // a painted corridor (Hazard corridor) that meets the old map's edge runs on to the new one, as one piece you can edit
+  if (!XO) return list;
+  for (const o of list) if (o.kind === 'detail' && o.d === 'hazard' && o.w > o.h && !o.rot) {
+    if (Math.abs(o.x - (XO + B)) <= 2) { o.w += o.x - B; o.x = B; }
+    if (Math.abs(o.x + o.w - (W - XO - B)) <= 2) o.w = W - B - o.x;
+  }
+  return list;
+}
 function extendBuild(m, idx) {
   if (!XO || m.native) return m.build0();
   const WF = W; W = MW; let b; try { b = m.build0(); } finally { W = WF; }
   b.obs.forEach(o => { o.x += XO; });
+  carryCorridors(b.obs);
   const lights = (b.lights || m.lights || []).map(l => ({ ...l, x: l.x + XO }));
   for (const l of lights) if (l.fix === 'exit') l.x = l.x < W / 2 ? 15 : W - 15; // EXIT signs belong at the corridor's real ends
   const roads = (b.roads || []).map(([x, y, w, h]) => { let x0 = x + XO, x1 = x0 + w; if (x <= B) x0 = B; if (x + w >= MW - B) x1 = W - B; return [x0, y, x1 - x0, h]; });
@@ -271,7 +286,8 @@ function extendBuild(m, idx) {
   const walls = carryWalls(b.obs, null, gateU); walls.forEach(o => { o.ext = true; });
   const floor0 = b.floor, decor0 = b.decor, trails = paths.filter((p, i) => edgeTrails.length && (b.paths || []).length > i && edgeTrails.includes(b.paths[i]));
   const local = (x, fn) => { const WF2 = W; W = MW; x.save(); x.beginPath(); x.rect(XO, 0, MW, H); x.clip(); x.translate(XO, 0); try { fn(); } finally { x.restore(); W = WF2; } };
-  return { ...b, obs: [...b.obs, ...walls, ...extObs], lights, paths, roads, crossings,
+  const shapes = (b.shapes || []).map(s => ({ ...s, x: s.x != null ? s.x + XO : s.x, nodes: s.nodes && s.nodes.map(n => [n[0] + XO, ...n.slice(1)]) })); // the map's own drawn shapes move with it
+  return { ...b, obs: [...b.obs, ...walls, ...extObs], lights, paths, roads, crossings, shapes,
     start: b.start && { ...b.start, x: b.start.x + XO },
     floor(x) {
       if (m.tileFloor) { floor0.call(b, x); for (const { e } of strips) e.cover.forEach(f => f(x)); } // a ground drawn for any width (it reads W)

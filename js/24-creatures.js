@@ -7,7 +7,8 @@ function makeCreature(type, x, y, zone) {
            stains: [], feet: 0, step: 0, fs: 1, side: Math.random() < .5 ? -1 : 1, pt: rand(0, .2), zone, alive: true, avx: 0, avy: 0,
            look: def.human ? humanLook(type) : null, alert: 0, adren: 0, seed: Math.random(), // seed: a stable per-creature number for its looks (pt is the perception timer and changes every frame)
            male: Math.random() < .45, sizeK: rand(.88, 1.12), toneK: rand(-.12, .1), antK: rand(.8, 1.25),
-           spdK: def.human ? (Math.random() < .12 ? rand(1.2, 1.32) : rand(.86, 1.12)) : rand(.92, 1.08) }; // natural speed differences
+           spdK: def.human ? (Math.random() < .12 ? rand(1.2, 1.32) : rand(.86, 1.12)) : rand(.92, 1.08), // natural speed differences
+           snowCover: def.human && !def.alien && type !== 'astronaut' && snowOn && seasonId() === 'winter' && !MAPS[mapIdx].indoor && Math.random() < .75 ? rand(.3, 1) : 0 }; // been out in the snow a while: set once, here
 }
 function goldify(c) { // golden target: worth a fortune, gone (back to normal) when the ring runs out
   const def = c.def; c.golden = true; c.goldAt = T; c.goldT = c.goldMax = def.human ? 35 : 28;
@@ -15,6 +16,7 @@ function goldify(c) { // golden target: worth a fortune, gone (back to normal) w
   else { c.plainDef = def; c.def = { ...def, col: '#e0b52c', hcol: def.hcol ? '#c99a1a' : undefined, tcol: def.tcol ? '#b8901c' : undefined }; }
 }
 function ungoldify(c) {
+  if (NETM.run && NETM.host && c.nid) netEmit({ t: 'ungold', id: c.nid });
   c.golden = false; c.goldT = 0;
   if (c.plainLook) { c.look = c.plainLook; c.plainLook = null; }
   if (c.plainDef) { c.def = c.plainDef; c.plainDef = null; }
@@ -24,6 +26,7 @@ function ungoldify(c) {
 let ringPops = [];
 function giveFlash(c) { if (c.def.human && Math.random() < flashChance(c)) c.fl = newFlash(c); return c; }
 function spawn(type, zone) {
+  if (netIsGuest()) return; // co-op: only the host spawns; guests get the creatures from it
   const def = TYPES[type], z = zone || { x: B, y: B, w: W - 2 * B, h: H - 2 * B };
   for (let k = 0; k < 300; k++) {
     const x = rand(z.x + def.r, z.x + z.w - def.r), y = rand(z.y + def.r, z.y + z.h - def.r);
@@ -44,6 +47,7 @@ function spawn(type, zone) {
 /* ---- strollers: some people start the run already walking a path, back and forth, a few with a dog on a lead ---- */
 let curPaths = [];
 function spawnWalkers(n) {
+  if (netIsGuest()) return;
   if (!curPaths.length) return;
   for (let k = 0; k < n; k++) {
     const pts = pick(curPaths); let i = randi(0, pts.length - 1);
@@ -82,10 +86,13 @@ function makeGrass(n) {
 function drawGrass(x) {
   if (!grass.length) return;
   x.lineCap = 'round'; x.lineWidth = 1.1;
-  for (const g of grass) {
-    const w = Math.sin(T * 1.7 + g.x * .018 + g.y * .01) * 1.6 + Math.sin(T * 3.1 + g.ph) * .4; // a gust rolls across the field
-    x.strokeStyle = g.c; x.beginPath();
-    for (const o of [-1.6, 0, 1.6]) { x.moveTo(g.x + o, g.y); x.quadraticCurveTo(g.x + o + w * .4, g.y - g.h * .6, g.x + o * 1.4 + w, g.y - g.h - (o ? -1 : 0)); }
+  if (!grass.byCol) { grass.byCol = new Map(); for (const g of grass) { let b = grass.byCol.get(g.c); if (!b) grass.byCol.set(g.c, b = []); b.push(g); } } // one stroke per color, not one per tuft: far fewer draw calls for the graphics chip
+  for (const [col, list] of grass.byCol) {
+    x.strokeStyle = col; x.beginPath();
+    for (const g of list) {
+      const w = Math.sin(T * 1.7 + g.x * .018 + g.y * .01) * 1.6 + Math.sin(T * 3.1 + g.ph) * .4; // a gust rolls across the field
+      for (let o = -1.6; o <= 1.7; o += 1.6) { x.moveTo(g.x + o, g.y); x.quadraticCurveTo(g.x + o + w * .4, g.y - g.h * .6, g.x + o * 1.4 + w, g.y - g.h - (o ? -1 : 0)); }
+    }
     x.stroke();
   }
 }

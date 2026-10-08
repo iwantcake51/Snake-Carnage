@@ -7,6 +7,7 @@ function armPos(c) {
   if (c.state === 'panic' && c.flail) { const f = Math.sin(T * 25 + c.side) * 2; return [5.5 + f, -sw + 1.5, 5.5 - f, sw - 1.5]; } // the jumpy ones flap their arms
   if (run) { const p = s * (c.armK || 1) * 5.6; return [1.4 - p, -sw + .8, 1.4 + p, sw - .8]; } // running: elbows in, arms pumping against the legs
   if (c.dance) { const b = Math.sin(T * CLUB_BPM / 60 * Math.PI * 2 + (c.seed ?? .5) * 30); return [3 + b * 2.5, -sw - 1.5, 3 - b * 2.5, sw + 1.5]; } // hands up
+  if (MOD.blind && c.def.human && !c.def.alien && !c.dance) return c.fl && c.fl.on && !c.fl.helmet ? [4.5 + s * 1.2, -sw + 1.2, 6 + s * .8, sw - 2] : [4.5 + s * 1.5, -sw + 1.2, 4.5 - s * 1.5, sw - 1.2]; // blind: hands out in front, feeling the way
   if (c.fl && c.fl.on && !c.fl.helmet) return [-s * 4, -sw, 6 + s * .8, sw - 2]; // right hand held out in front with the flashlight
   return [-s * 4, -sw, s * 4, sw];
 }
@@ -29,7 +30,39 @@ const ANIMAL_SHAPE = { rabbit: [6.6, 4.8, -1, 5, 3.3], deer: [11.2, 6.2, -1, 12,
 function drawHuman(x, c) { // a little bob with each step and a sway side to side, so walking doesn't look like sliding
   if (c.strideK === undefined) { c.strideK = rand(.85, 1.15); c.armK = rand(.75, 1.2); c.flail = hasTrait(c, 'jumpy') || hasTrait(c, 'nervous') || Math.random() < .15; }
   const m = c.moveAmt, run = c.state === 'panic' || c.state === 'flee', bob = 1 + (1 - Math.cos(c.phase * 2)) * .5 * .045 * m * (run ? 1.4 : 1);
-  x.save(); x.translate(0, Math.sin(c.phase) * .55 * m * (run ? 1.3 : 1)); x.scale(bob, bob); drawHumanBody(x, c); x.restore();
+  x.save(); x.translate(0, Math.sin(c.phase) * .55 * m * (run ? 1.3 : 1)); x.scale(bob, bob); drawHumanBody(x, c); if (c.snowCover > .03) drawSnowCover(x, c); x.restore();
+}
+/* a light dusting of snow on shoulders, head and hat. It's drawing state, not a layer: c.snowCover (0..1) is set once
+   when they spawn in the snow and only ever goes down (running shakes it off, blood stains it); the patch layout comes
+   from the person's own seed, so it's the same every frame and never stacks up. */
+function drawSnowCover(x, c) {
+  const L = c.look, k = c.snowCover, r = seeded(((c.seed ?? .5) * 1e6 | 0) + 7);
+  if (!c.snowP) { c.snowP = []; for (let i = 0; i < 9; i++) { const onHead = i < 3, a = r() * TAU; c.snowP.push(onHead ? [.6 + Math.cos(a) * 2.2 - 1, Math.sin(a) * 2.6, 1.4 + r() * 1.4] : [-L.d * (.1 + r() * .6), (r() < .5 ? -1 : 1) * L.w * (.35 + r() * .5), 1.5 + r() * 1.8]); } }
+  const stained = c.stains.length > 6;
+  x.save(); x.beginPath(); x.ellipse(0, 0, L.d + .4, L.w + .4, 0, 0, TAU); x.moveTo(5.6, 0); x.arc(.6, 0, 5, 0, TAU); x.clip(); // only on the body and the head
+  for (let i = 0; i < c.snowP.length; i++) { const p = c.snowP[i]; if (i / c.snowP.length > k + .15) break; // thinner cover: fewer patches
+    x.fillStyle = stained && i % 3 === 0 ? 'rgba(190,120,125,.75)' : `rgba(238,243,252,${(.55 + .35 * k).toFixed(2)})`; circ(x, p[0], p[1], p[2]); }
+  x.fillStyle = `rgba(255,255,255,${(.25 * k).toFixed(2)})`; circ(x, -.8, -1.4, 1.6); // a brighter crest where the light catches it
+  x.restore();
+}
+function drawLegs(x, L, a0, c1x, c1y, e1x, e1y, b0, c2x, c2y, e2x, e2y) { // two strides, hip -> foot, dressed by style (see LEG_STYLES)
+  const st = L.legs || 'plain', P = [[-.6, a0, c1x, c1y, e1x, e1y], [-.6, b0, c2x, c2y, e2x, e2y]];
+  const path = (k0, k1) => { x.beginPath(); for (const [hx, hy, cx, cy, ex, ey] of P) { // the part of each leg from k0 to k1 (0 hip, 1 foot), cut out of the same curve
+    const q = t => { const u = 1 - t; return [u * u * hx + 2 * u * t * cx + t * t * ex, u * u * hy + 2 * u * t * cy + t * t * ey]; };
+    const [sx, sy] = q(k0), [mx, my] = q((k0 + k1) / 2), [fx, fy] = q(k1); x.moveTo(sx, sy); x.quadraticCurveTo(2 * mx - (sx + fx) / 2, 2 * my - (sy + fy) / 2, fx, fy); }
+  };
+  if (st === 'shorts' || st === 'skirt') { // bare legs (or tights) from the hem down
+    x.strokeStyle = st === 'skirt' && L.tights ? L.tights : L.skin; x.lineWidth = st === 'skirt' ? 2.8 : 3; path(0, 1); x.stroke();
+    if (st === 'shorts') { x.fillStyle = L.pants; x.beginPath(); x.ellipse(-2.4, 0, L.d * .72, L.w * .62, 0, 0, TAU); x.fill(); x.strokeStyle = L.pants; x.lineWidth = 4; path(0, .45); x.stroke(); return; }
+    const rx = L.d + 1.4, ry = L.w * .82; // the skirt flares out a little past the body, front and back
+    x.fillStyle = L.pants; x.beginPath(); x.ellipse(-.3, 0, rx, ry, 0, 0, TAU); x.fill();
+    x.fillStyle = 'rgba(0,0,0,.2)'; x.beginPath(); x.ellipse(-.3, 0, rx, ry, 0, Math.PI * .7, Math.PI * 1.3); x.fill(); return;
+  }
+  if (st !== 'plain') { x.fillStyle = L.pants; x.beginPath(); x.ellipse(-2.4, 0, L.d * .72, L.w * (st === 'leggings' ? .5 : .6), 0, 0, TAU); x.fill(); } // the seat of the trousers shows just behind the shoulders
+  x.strokeStyle = L.pants; x.lineWidth = st === 'leggings' ? 2.9 : st === 'cargo' ? 4 : 3.6; path(0, 1); x.stroke();
+  if (st === 'jeans') { x.strokeStyle = 'rgba(255,255,255,.16)'; x.lineWidth = .7; path(.1, .85); x.stroke(); if (L.cuff) { x.strokeStyle = shade(L.pants, .3); x.lineWidth = 3.8; path(.82, .97); x.stroke(); } }
+  else if (st === 'joggers') { x.strokeStyle = L.stripe || '#f2f2f2'; x.lineWidth = .8; path(.05, .9); x.stroke(); x.strokeStyle = shade(L.pants, -.25); x.lineWidth = 3.9; path(.86, .98); x.stroke(); } // a side stripe, cuffed at the ankle
+  else if (st === 'cargo') { x.strokeStyle = shade(L.pants, -.28); x.lineWidth = 4.6; path(.58, .74); x.stroke(); } // a pocket low on each leg
 }
 function drawHumanBody(x, c) { // top-down person, +x = facing direction
   const L = c.look, s = Math.sin(c.phase) * c.moveAmt, [a1, b1, a2, b2] = armPos(c), O = 'rgba(0,0,0,.3)', fy = L.w * .38;
@@ -38,7 +71,7 @@ function drawHumanBody(x, c) { // top-down person, +x = facing direction
   const run = c.state === 'panic' || c.state === 'flee', stride = (run ? 7.8 : 5.2) * (c.strideK || 1);
   const cp = Math.cos(c.phase) * c.moveAmt, l1 = Math.max(0, cp), l2 = Math.max(0, -cp); // the foot swinging forward lifts a little (bigger from above), the planted one stays flat
   const f1 = s * stride, f2 = -s * stride, y1 = -fy - l1 * .5, y2 = fy + l2 * .5;
-  x.beginPath(); x.moveTo(-.6, -fy * .8); x.quadraticCurveTo(f1 * .5, -fy - l1 * .4, f1, y1); x.moveTo(-.6, fy * .8); x.quadraticCurveTo(f2 * .5, fy + l2 * .4, f2, y2); x.stroke();
+  drawLegs(x, L, -fy * .8, f1 * .5, -fy - l1 * .4, f1, y1, fy * .8, f2 * .5, fy + l2 * .4, f2, y2);
   x.fillStyle = L.shoes; ell(x, f1 + 1.1, y1, 2.5 * (1 + l1 * .14), 1.7 * (1 + l1 * .1)); ell(x, f2 + 1.1, y2, 2.5 * (1 + l2 * .14), 1.7 * (1 + l2 * .1));
   x.rotate(-s * .07); // shoulders twist against the hips
   if (run) x.translate(1.3 * c.moveAmt, 0); // leaning into the run: everything above the legs pitches forward
@@ -241,8 +274,8 @@ const ANIMALS = {
   sheep(x, c, d) {
     feet(x, c, d, 5.5, -5.5, 4.2, '#222', 1.2);
     x.fillStyle = shade(d.col, -.14); circ(x, 0, 0, 8);
-    const r = seeded(Math.round((c.seed ?? .5) * 1e4)); // a fluffy fleece of overlapping curls
-    for (let k = 0; k < 11; k++) { const a = k * TAU / 11, rr = 5.6 + r() * 1.2; x.fillStyle = shade(d.col, -.05 + r() * .08); circ(x, Math.cos(a) * rr * .95, Math.sin(a) * rr * .8, 3.2); }
+    if (!c.fleece) { const r = seeded(Math.round((c.seed ?? .5) * 1e4)); c.fleece = []; for (let k = 0; k < 11; k++) { const a = k * TAU / 11, rr = 5.6 + r() * 1.2; c.fleece.push([Math.cos(a) * rr * .95, Math.sin(a) * rr * .8, shade(d.col, -.05 + r() * .08)]); } } // a fluffy fleece of overlapping curls, worked out once
+    for (const [fx, fy, fc] of c.fleece) { x.fillStyle = fc; circ(x, fx, fy, 3.2); }
     x.fillStyle = d.col; circ(x, -.4, -.4, 5.4); x.fillStyle = 'rgba(255,255,255,.45)'; circ(x, -2, -2, 2.4);
     const hc = d.hcol || '#333'; x.fillStyle = hc; ell(x, 8.6, 0, 3.6, 3); for (const sg of [-1, 1]) ell(x, 7.4, sg * 3.4, 2.2, 1);
     x.fillStyle = shade(d.col, .02); circ(x, 7, 0, 1.8); // woolly topknot
@@ -273,14 +306,14 @@ const hiFx = () => SETTINGS.lightQ === 'High' && !lowFx;
 const AO_SPR = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 6, 32, 32, 32); gr.addColorStop(0, 'rgba(0,0,0,.55)'); gr.addColorStop(.55, 'rgba(0,0,0,.22)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return c; })();
 const VOL_SPR = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), gr = g.createRadialGradient(24, 22, 2, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,.2)'); gr.addColorStop(.45, 'rgba(255,255,255,0)'); gr.addColorStop(.8, 'rgba(0,0,0,.12)'); gr.addColorStop(1, 'rgba(0,0,0,.34)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return c; })();
 function drawAO(x) { // soft contact darkness where bodies meet the ground
-  if (!hiFx()) return;
+  if (!hiFx() || !shadowsOn()) return;
   x.globalAlpha = .5;
   for (const c of creatures) if (c.alive && !c.def.fly) { const R = c.def.r * 1.9; x.drawImage(AO_SPR, c.x - R, c.y - R, R * 2, R * 2); }
-  if (snake && snake.alive) { const P = snake._pts || snake.segs; for (let i = 0; i < P.length; i += 3) { const R = CONFIG.snakeR * 1.8; x.drawImage(AO_SPR, P[i].x - R, P[i].y - R, R * 2, R * 2); } }
+  if (snake && snake.alive) { const P = snake._pts || snake.segs; for (let i = 0; i < P.length; i += 3) { const R = snakeRadius() * 1.8; x.drawImage(AO_SPR, P[i].x - R, P[i].y - R, R * 2, R * 2); } }
   x.globalAlpha = 1;
 }
 function drawCreature(x, c, portrait) {
-  if (c.hz > .3) { const k = clamp(1 - c.hz / 14, .45, 1); x.fillStyle = `rgba(0,0,0,${(.24 * k).toFixed(3)})`; ell(x, c.x, c.y, c.def.r * .95 * k, c.def.r * .75 * k); } // the shadow shrinks as it leaves the ground
+  if (c.hz > .3 && shadowsOn()) { const k = clamp(1 - c.hz / 14, .45, 1); x.fillStyle = `rgba(0,0,0,${(.24 * k).toFixed(3)})`; ell(x, c.x, c.y, c.def.r * .95 * k, c.def.r * .75 * k); } // the shadow shrinks as it leaves the ground
   x.save(); x.translate(c.x, c.y - (c.hz || 0) * .7); x.rotate(c.a); if (c.hz) x.scale(1 + c.hz * .045, 1 + c.hz * .045); // ...and the body gets bigger, closer to you
   if (c.dance) { const b = Math.abs(Math.sin(T * CLUB_BPM / 60 * Math.PI + (c.seed ?? .5) * 30)); x.scale(1 + b * .05, 1 + b * .05); x.rotate(Math.sin(T * 2 + (c.seed ?? .5) * 9) * .12); }
   if (!c.def.human && c.moveAmt > .02 && !c.hz) { // animals: a little weight shift each step, side to side, the body yawing against the legs
@@ -301,7 +334,9 @@ function drawCreature(x, c, portrait) {
     const p = clamp((T - c.markT) / .28, 0, 1), sc = p < .5 ? .3 + 2.6 * p : 1.6 - .6 * Math.min(1, (p - .5) * 2), my = c.y - 13 - (c.hz || 0) * .7; // springs in, settles small
     x.save(); x.translate(c.x, my); x.scale(sc, sc); x.font = '900 10px "Segoe UI",sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
     x.lineWidth = 2.6; x.strokeStyle = 'rgba(0,0,0,.65)'; x.strokeText(mk, 0, 0);
-    x.fillStyle = c.state === 'panic' ? '#ff3b30' : c.state === 'flee' ? '#ff9f1a' : '#f2f2f2'; x.fillText(mk, 0, 0); x.restore(); x.textBaseline = 'alphabetic';
+    x.fillStyle = c.state === 'panic' ? '#ff3b30' : c.state === 'flee' ? '#ff9f1a' : '#f2f2f2'; x.fillText(mk, 0, 0);
+    if (c.listenT > T) { const w = .5 + .5 * Math.sin(T * 9); x.strokeStyle = `rgba(242,242,242,${(.45 + .4 * w).toFixed(2)})`; x.lineWidth = 1.1; for (const sd of [-1, 1]) for (const r of [6, 9]) { x.beginPath(); x.arc(0, 0, r, sd > 0 ? -.6 : Math.PI - .6, sd > 0 ? .6 : Math.PI + .6); x.stroke(); } } // blind and listening: little sound rings either side of the "?"
+    x.restore(); x.textBaseline = 'alphabetic';
   } else c.markK = null;
 }
 
@@ -345,7 +380,7 @@ function patternStripes(x, pts, n, cfg) { // patterns that run the length of the
   if (cfg.pattern === 'Neon') { x.save(); x.strokeStyle = cfg.color2; x.globalAlpha = .55 + .25 * Math.sin(T * 4); x.lineWidth = 2.4; tubePath(x, pts, n, -1.2); x.stroke(); x.globalAlpha = .25; x.lineWidth = 5; x.stroke(); x.restore(); return; } // a glowing tube edge in your second color
   if (cfg.pattern !== 'Garter') return;
   const run = (off, w, col) => { x.strokeStyle = col; x.lineWidth = w; x.beginPath(); for (let i = 0; i < n; i++) { const g = pts[i], r = segR(i, n), px = g.x - Math.sin(g.a) * r * off, py = g.y + Math.cos(g.a) * r * off; i ? x.lineTo(px, py) : x.moveTo(px, py); } x.stroke(); };
-  x.lineCap = 'round'; x.lineJoin = 'round'; run(0, CONFIG.snakeR * .38, cfg.color2); run(-.72, CONFIG.snakeR * .2, shade(cfg.color2, -.12)); run(.72, CONFIG.snakeR * .2, shade(cfg.color2, -.12)); // the yellow dorsal stripe and two side stripes
+  x.lineCap = 'round'; x.lineJoin = 'round'; const R0 = snakeRadius(); run(0, R0 * .38, cfg.color2); run(-.72, R0 * .2, shade(cfg.color2, -.12)); run(.72, R0 * .2, shade(cfg.color2, -.12)); // the yellow dorsal stripe and two side stripes
 }
 function patternOverlay(x, g, r, i, cfg) {
   switch (cfg.pattern) {
