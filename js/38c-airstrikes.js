@@ -5,18 +5,20 @@
    crosses over, the bomb whistles down, and the blast kills any snake with any part of its body inside the ring.
    It kills people and animals caught in it, scares everyone else and leaves a black scorch mark on the ground.
    Strikes get more frequent, faster and come in salvos as the run goes on.
-   Dying to one (and any death in multiplayer) sets the snake off like a fuse: a spark runs from the head to the tail
-   and every bit of body it reaches bursts in the snake's own colors, staining everyone around. The hat falls off,
-   lands where you died and fades.
+   The blast: a white flash, rolling fireballs, a shockwave that warps the picture as it races out, flying dirt and
+   embers, a dust skirt, smoke, fire left burning in the crater, and at night it lights up the whole sky for a moment.
+   Close to one, your ears ring and the world goes muffled for a few seconds.
+   Dying to one (and any death in multiplayer) bursts the snake from the head down to the tail, quickly, into blood in
+   its own two colors that stains everyone around. The hat falls off, lands where you died and fades.
    Co-op: the host decides where bombs fall (an 'air' event); every screen counts down, draws and detonates them
    itself and checks only its own snake. Only the host kills the crowd.
    ========================================================= */
-const AIR = { warned: false, nextT: 0, flash: 0 };
+const AIR = { warned: false, nextT: 0, flash: 0, sky: 0 }; // flash: the white-out on screen; sky: how much a blast is lighting up the night
 const AIR_START = 90, AIR_R = 44; // seconds into the run before the first strike; blast radius
-let strikes = [], booms = [], boomBits = [], corpses = [], fallenHats = [], jets = [];
+let strikes = [], booms = [], boomBits = [], corpses = [], fallenHats = [], jets = [], shocks = [], fires = [];
 const airMap = () => { const m = MAPS[mapIdx]; return !!m && !m.indoor && !m.space; }; // outdoors, on Earth
-function airReset() { strikes = []; booms = []; boomBits = []; corpses = []; fallenHats = []; jets = []; AIR.warned = false; AIR.nextT = 0; AIR.flash = 0; }
-const airBusy = () => strikes.length || booms.length || boomBits.length || corpses.length || fallenHats.length || jets.length;
+function airReset() { strikes = []; booms = []; boomBits = []; corpses = []; fallenHats = []; jets = []; shocks = []; fires = []; AIR.warned = false; AIR.nextT = 0; AIR.flash = 0; AIR.sky = 0; }
+const airBusy = () => strikes.length || booms.length || boomBits.length || corpses.length || fallenHats.length || jets.length || shocks.length || fires.length;
 /* ---- calling them in (the deciding browser only) ---- */
 function airSchedule(dt) {
   if (SETTINGS.airstrikes === false || !airMap() || state !== 'play') return;
@@ -56,25 +58,36 @@ function airTick(dt) {
   }
   for (let i = jets.length - 1; i >= 0; i--) { const j = jets[i]; j.u += dt; if (!j.heard && j.u > j.over - .7) { j.heard = true; Sfx.jet(j.x); } if (j.u > j.over + 2.5) jets.splice(i, 1); }
   for (let i = booms.length - 1; i >= 0; i--) { const b = booms[i]; b.t += dt; if (b.t > b.dur) booms.splice(i, 1); }
+  for (let i = shocks.length - 1; i >= 0; i--) { const w = shocks[i]; w.t += dt; if (w.t > w.dur) shocks.splice(i, 1); }
+  for (let i = fires.length - 1; i >= 0; i--) { const f = fires[i]; f.t += dt; if (f.t > f.life) { fires.splice(i, 1); continue; }
+    if (Math.random() < dt * 14) boomBits.push({ ember: true, x: f.x + rand(-f.r, f.r), y: f.y + rand(-f.r, f.r) * .6, z: rand(2, 8), vx: rand(-15, 15), vy: rand(-30, -8), vz: rand(30, 70), t: 0, life: rand(.5, 1.1), g: .15 }); } // sparks lifting off the flames
   for (let i = boomBits.length - 1; i >= 0; i--) {
     const p = boomBits[i]; p.t += dt; if (p.t > p.life) { boomBits[i] = boomBits[boomBits.length - 1]; boomBits.pop(); continue; }
-    p.vz -= 520 * dt; p.z += p.vz * dt; const f = Math.exp(-dt * (p.spark ? 2.5 : 1.2)); p.vx *= f; p.vy *= f;
+    p.vz -= 520 * (p.g ?? 1) * dt; p.z += p.vz * dt; const f = Math.exp(-dt * (p.spark ? 2.5 : p.ember ? .9 : 1.2)); p.vx *= f; p.vy *= f;
     const nx = p.x + p.vx * dt, ny = p.y + p.vy * dt; if (p.z < 20 && solid(nx, ny)) { p.vx *= -.3; p.vy *= -.3; } else { p.x = nx; p.y = ny; }
-    if (p.z <= 0) { if (p.spark) { boomBits[i] = boomBits[boomBits.length - 1]; boomBits.pop(); continue; } p.z = 0; p.vz = Math.abs(p.vz) > 60 ? -p.vz * .3 : 0; p.vx *= .6; p.vy *= .6; }
+    if (p.z <= 0) { if (p.spark || p.ember) { boomBits[i] = boomBits[boomBits.length - 1]; boomBits.pop(); continue; } p.z = 0; p.vz = Math.abs(p.vz) > 60 ? -p.vz * .3 : 0; p.vx *= .6; p.vy *= .6; }
   }
-  AIR.flash *= Math.exp(-dt * 9);
+  AIR.flash *= Math.exp(-dt * 9); AIR.sky *= Math.exp(-dt * 2.1);
   updateCorpses(dt); updateHats(dt);
 }
 function detonate(s) {
-  const { x, y, r } = s, near = snake ? Math.hypot(snake.x - x, snake.y - y) : 999;
-  booms.push({ x, y, r, t: 0, dur: 1 });
+  const { x, y, r } = s, near = snake ? Math.hypot(snake.x - x, snake.y - y) : 999, fx = FX_K();
+  booms.push({ x, y, r, t: 0, dur: 1.1 }); // the flash and the core fireball
+  for (let k = 0; k < 7; k++) { const a = rand(0, TAU), d = rand(.15, .75) * r; booms.push({ puff: true, x: x + Math.cos(a) * d, y: y + Math.sin(a) * d, r: r * rand(.45, .85), t: -rand(0, .22), dur: rand(.7, 1.15) }); } // fire rolling out of it
+  shocks.push({ x, y, R: r * 5.2, t: 0, dur: .62 });
   scorch(x, y, r);
-  for (let k = 0; k < 26; k++) { const a = rand(0, TAU), sp = rand(80, 340); boomBits.push({ x: x + rand(-6, 6), y: y + rand(-6, 6), z: rand(2, 10), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(80, 260), t: 0, life: rand(1.5, 3), s: rand(1.5, 3.4), c: pick(['#3b2f25', '#4a3b2c', '#2a2420', '#5e5246', '#6b6157']) }); } // dirt and stones
-  for (let k = 0; k < 34; k++) { const a = rand(0, TAU), sp = rand(150, 520); boomBits.push({ spark: true, x, y, z: rand(4, 16), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(40, 220), t: 0, life: rand(.25, .7) }); }
-  const ns = Math.round(14 * FX_K());
-  for (let k = 0; k < ns; k++) { const a = rand(0, TAU), sp = rand(30, 140); smoke.push({ x: x + rand(-r * .4, r * .4), y: y + rand(-r * .4, r * .4), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: rand(14, 26), g: rand(18, 36), rot: rand(0, TAU), vr: rand(-.6, .6), t: -rand(0, .15), life: rand(2.2, 3.6), v: k % 4, a: rand(.8, 1) }); }
-  shake = Math.max(shake, 16 * clamp(1 - near / 520, .25, 1)); AIR.flash = Math.max(AIR.flash, clamp(1 - near / 700, .2, 1) * (SETTINGS.reduceFlash ? .25 : .7));
+  for (let k = 0; k < 4; k++) { const a = rand(0, TAU), d = rand(0, .55) * r; fires.push({ x: x + Math.cos(a) * d, y: y + Math.sin(a) * d, r: rand(5, 10), t: 0, life: rand(2.5, 5), ph: rand(0, 99) }); } // the crater keeps burning
+  for (let k = 0; k < 40; k++) { const a = rand(0, TAU), sp = rand(90, 420); boomBits.push({ x: x + rand(-6, 6), y: y + rand(-6, 6), z: rand(2, 10), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(120, 380), t: 0, life: rand(1.6, 3.2), s: rand(1.5, 4.2), c: pick(['#3b2f25', '#4a3b2c', '#2a2420', '#5e5246', '#6b6157']) }); } // dirt and stones, thrown high
+  for (let k = 0; k < 48; k++) { const a = rand(0, TAU), sp = rand(180, 620); boomBits.push({ spark: true, x, y, z: rand(4, 16), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(40, 260), t: 0, life: rand(.25, .75) }); }
+  for (let k = 0; k < Math.round(40 * fx); k++) { const a = rand(0, TAU), sp = rand(40, 260); boomBits.push({ ember: true, x: x + rand(-8, 8), y: y + rand(-8, 8), z: rand(6, 20), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(60, 240), t: 0, life: rand(1.2, 2.8), g: .35 }); } // glowing embers that drift down
+  for (let k = 0; k < Math.round(18 * fx); k++) { const a = rand(0, TAU), sp = rand(30, 140); smoke.push({ x: x + rand(-r * .4, r * .4), y: y + rand(-r * .4, r * .4), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: rand(16, 30), g: rand(20, 40), rot: rand(0, TAU), vr: rand(-.6, .6), t: -rand(.05, .5), life: rand(2.8, 4.5), v: k % 4, a: rand(.85, 1) }); } // the cloud, rising behind the fire
+  for (let k = 0; k < Math.round(16 * fx); k++) { const a = k / 16 * TAU + rand(-.2, .2), sp = rand(220, 330); smoke.push({ x: x + Math.cos(a) * r * .7, y: y + Math.sin(a) * r * .7, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: rand(10, 16), g: rand(14, 26), rot: rand(0, TAU), vr: rand(-.6, .6), t: 0, life: rand(1.2, 2), v: k % 4, a: rand(.5, .75) }); } // a skirt of dust racing out along the ground
+  const kk = clamp(1 - near / 520, .25, 1);
+  shake = Math.max(shake, 24 * kk); AIR.flash = Math.max(AIR.flash, clamp(1 - near / 700, .2, 1) * (SETTINGS.reduceFlash ? .25 : .8)); AIR.sky = 1;
+  if (near < 260) hitStop = Math.max(hitStop, .06); // the world catches its breath
+  if (snake && near > 1) { const k = 260 * kk; camF.kv.x += (snake.x - x) / near * k; camF.kv.y += (snake.y - y) / near * k; } // the camera gets shoved away from it
   Sfx.boom(x, clamp(1.2 - near / 900, .5, 1.2));
+  if (near < 230 && (state === 'play' || state === 'dead' || NETM.run)) Sfx.tinnitus(clamp(1.15 - near / 230, .25, 1)); // too close: your ears ring
   // you: any part of the body inside the blast
   const me = snake;
   if (me && me.alive && !me.netHidden && !(me.graceT > 0) && (state === 'play' || NETM.run) && me.segs) {
@@ -123,50 +136,46 @@ function scorch(x, y, r) {
   const s = r * 2.6, a = rand(0, TAU);
   bctx.save(); bctx.translate(x, y); bctx.rotate(a); bctx.globalAlpha = .88; bctx.drawImage(scorchSprite(randi(0, 3)), -s / 2, -s / 2, s, s); bctx.restore();
 }
-/* ---- a snake going up like a fuse: head first, a spark running down to the tail ---- */
+/* ---- a snake bursting, head first, quickly down to the tail: blood and body in its own two colors, no fire ---- */
 function snakeBurst(s, skin, cfg) {
   const segs = s && s.segs; if (!segs || !segs.length) return;
   cfg = cfg || { ...SETTINGS.snake, color: skin || SETTINGS.snake.color, pattern: 'Solid' };
   const n = segs.length, P = cfg.color || skin || '#4e7cf6', Q = cfg.color2 || shade(P, .3);
   const c = { segs: segs.map(g => ({ x: g.x, y: g.y, a: g.a })), stains: segs.map((_, i) => (s.stains && s.stains[i]) || []), scale: s.scale || 1, cfg: { ...cfg, hat: 'None' },
-    n, k: 0, t: 0, dur: clamp(.22 + n * .0055, .3, 1.1), cols: [P, P, shade(P, -.25), shade(P, -.45), shade(P, .2), Q], end: 0 };
+    n, k: 0, t: 0, dur: clamp(.2 + n * .005, .28, 1), P, Q, cols: [P, P, P, shade(P, -.2), shade(P, -.4), Q, Q, shade(Q, -.25)], end: 0 };
   corpses.push(c);
   if (cfg.hat && cfg.hat !== 'None') dropHat(segs[0].x, segs[0].y, s.angle ?? segs[0].a, s.scale || 1, cfg.hat);
   popSeg(c, 0); c.k = 1;
-  addBloodAmount(1.2 * ({ Minimal: .3, Reduced: .6 }[SETTINGS.bloodAmt] || 1)); bleedIntoWater(segs[0].x, segs[0].y, 1, P);
-  Sfx.crash(segs[0].x); Sfx.boom(segs[0].x, .55);
+  addBloodAmount(1.4 * ({ Minimal: .3, Reduced: .6 }[SETTINGS.bloodAmt] || 1)); bleedIntoWater(segs[0].x, segs[0].y, 1, P);
+  Sfx.crash(segs[0].x); Sfx.gore(segs[0].x, true);
 }
 function popSeg(c, i) {
-  const g = c.segs[i], n = c.n, sc = Math.min(1.4, c.scale), head = i === 0, step = Math.max(1, Math.round(n / 22));
-  spawnBlood(g.x, g.y, rand(0, TAU), clamp(5 / n, .06, .3) * (head ? 3 : 1) * sc, 3.2, .05, c.cols); // a ring of the snake's own colors: drops stain anyone they reach
-  if (head || i % step === 0 || i === n - 1) {
-    booms.push({ x: g.x, y: g.y, r: (head ? 22 : 13) * sc, t: 0, dur: head ? .55 : .38, mini: true, col: c.cols[0] });
-    bloodMist(g.x, g.y, rand(0, TAU), head ? 1.1 : .5, c.cols);
-    for (let k = 0; k < (head ? 4 : 1); k++) { // chunks of the body itself
-      if (gibs.length >= GIB_MAX) { const j = gibs.findIndex(q => q.rest > 0); gibs.splice(Math.max(0, j), 1); }
-      const a = rand(0, TAU), sp = rand(80, 250), gut = Math.random() < .25;
-      gibs.push({ x: g.x + rand(-3, 3), y: g.y + rand(-3, 3), z: rand(4, 10), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(80, 200), rot: rand(0, TAU), vr: rand(-12, 12),
-        s: (gut ? rand(2.6, 3.8) : rand(2, 3.4)) * sc, shape: gut ? 3 : randi(0, 2), col: gut ? pick(GUTS) : pick(c.cols), bl: c.cols, landed: false, rest: 0, life: rand(8, 16), age: 0, a: 1 });
-    }
-    for (const q of nearbyCreatures(g.x, g.y, head ? 130 : 95, [])) { // everyone close gets some of it on them
-      if (!q.alive) continue; const a = Math.atan2(q.y - g.y, q.x - g.x);
-      for (let k = randi(2, head ? 6 : 4); k > 0; k--) stainCreature(q, q.x - Math.cos(a) * q.def.r * rand(0, .9) + rand(-3, 3), q.y - Math.sin(a) * q.def.r * rand(0, .9) + rand(-3, 3), rand(1.4, 3.2), pick(c.cols), a, 280);
-    }
-    for (let k = 0; k < 6; k++) { const a = rand(0, TAU), sp = rand(90, 260); boomBits.push({ spark: true, x: g.x, y: g.y, z: rand(3, 10), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(40, 160), t: 0, life: rand(.2, .45) }); }
-    Sfx.fusePop(g.x, head);
+  const g = c.segs[i], n = c.n, sc = Math.min(1.4, c.scale), head = i === 0, step = Math.max(1, Math.round(n / 22)), ba = { Minimal: .3, Reduced: .6 }[SETTINGS.bloodAmt] || 1;
+  spawnBlood(g.x, g.y, rand(0, TAU), clamp(6 / n, .07, .34) * (head ? 3 : 1) * sc, 3.2, .05, c.cols); // blood in the snake's colors, flung every way: it stains anyone it reaches
+  if (!(head || i % step === 0 || i === n - 1)) return;
+  bloodMist(g.x, g.y, rand(0, TAU), head ? 1.3 : .6, c.cols);
+  if (head || Math.random() < .55) pools.push({ x: g.x + rand(-4, 4), y: g.y + rand(-4, 4), r: 2, c: Math.random() < .62 ? c.P : c.Q, max: rand(5, 9) * (head ? 1.5 : 1) * ba * sc, ang: rand(0, TAU), lobes: Array.from({ length: randi(7, 11) }, () => ({ dx: rand(-.6, .6), dy: rand(-.6, .6), s: rand(.35, 1) })) });
+  for (let k = 0; k < (head ? 5 : 2); k++) { // chunks of the body itself
+    if (gibs.length >= GIB_MAX) { const j = gibs.findIndex(q => q.rest > 0); gibs.splice(Math.max(0, j), 1); }
+    const a = rand(0, TAU), sp = rand(80, 260);
+    gibs.push({ x: g.x + rand(-3, 3), y: g.y + rand(-3, 3), z: rand(4, 10), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(80, 210), rot: rand(0, TAU), vr: rand(-12, 12),
+      s: rand(2, 3.6) * sc, shape: randi(0, 3), col: Math.random() < .6 ? pick([c.P, shade(c.P, -.2)]) : pick([c.Q, shade(c.Q, -.2)]), bl: c.cols, landed: false, rest: 0, life: rand(8, 16), age: 0, a: 1 });
   }
+  for (const q of nearbyCreatures(g.x, g.y, head ? 140 : 100, [])) { // everyone close gets some of it on them
+    if (!q.alive) continue; const a = Math.atan2(q.y - g.y, q.x - g.x);
+    for (let k = randi(2, head ? 7 : 4); k > 0; k--) stainCreature(q, q.x - Math.cos(a) * q.def.r * rand(0, .9) + rand(-3, 3), q.y - Math.sin(a) * q.def.r * rand(0, .9) + rand(-3, 3), rand(1.4, 3.4), pick(c.cols), a, 280);
+  }
+  Sfx.gore(g.x, head);
 }
 function updateCorpses(dt) {
   for (let i = corpses.length - 1; i >= 0; i--) {
     const c = corpses[i]; c.t += dt;
     const want = Math.min(c.n, Math.floor(c.t / c.dur * c.n) + 1);
     while (c.k < want) { popSeg(c, c.k); c.k++; }
-    if (c.k >= c.n) { if ((c.end += dt) > .15) corpses.splice(i, 1); continue; }
-    if (Math.random() < .7) { const f = fusePoint(c); boomBits.push({ spark: true, x: f.x, y: f.y, z: 3, vx: rand(-90, 90), vy: rand(-90, 90), vz: rand(30, 120), t: 0, life: rand(.12, .3) }); } // the fuse fizzing
+    if (c.k >= c.n && (c.end += dt) > .9) corpses.splice(i, 1); // kept a moment after the tail goes (not drawn): the color stays until the blood has landed
   }
 }
-function fusePoint(c) { const f = Math.min(c.n - 1, c.t / c.dur * c.n), i = Math.floor(f), a = c.segs[i], b = c.segs[Math.min(c.n - 1, i + 1)], u = f - i; return { x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u }; }
-function drawCorpses(x) { // what's left of the body, still lying there as the spark eats down it
+function drawCorpses(x) { // what's left of the body, still lying there as the bursting runs down it
   for (const c of corpses) {
     if (c.k >= c.n) continue;
     const segs = c.segs.slice(c.k), body = { x: segs[0].x, y: segs[0].y, angle: segs[0].a, segs, stains: c.stains.slice(c.k), scale: c.scale, cut: true, wv: 0, netMoving: false };
@@ -196,20 +205,27 @@ function drawHats(x) {
 function drawAirstrikes(x) {
   for (const j of jets) drawJet(x, j);
   for (const s of strikes) drawStrikeMark(x, s);
-  if (booms.length || boomBits.length || corpses.length) {
+  if (booms.length || boomBits.length || fires.length) {
     x.save(); x.globalCompositeOperation = 'lighter';
+    for (const f of fires) drawFire(x, f);
     for (const b of booms) drawBoom(x, b);
     x.lineCap = 'round';
-    for (const p of boomBits) if (p.spark) { const a = 1 - p.t / p.life, py = p.y - p.z * .3; x.strokeStyle = `rgba(255,${190 + 50 * a | 0},${90 + 90 * a | 0},${a.toFixed(3)})`; x.lineWidth = 1.5; x.beginPath(); x.moveTo(p.x - p.vx * .025, py - p.vy * .025); x.lineTo(p.x, py); x.stroke(); }
-    for (const c of corpses) if (c.k < c.n) { // the spark itself, running down the body
-      const f = fusePoint(c), fl = .75 + .25 * Math.sin(T * 60);
-      const g = x.createRadialGradient(f.x, f.y, 0, f.x, f.y, 16 * c.scale); g.addColorStop(0, `rgba(255,255,230,${fl})`); g.addColorStop(.3, 'rgba(255,200,90,.55)'); g.addColorStop(1, 'rgba(255,120,30,0)');
-      x.fillStyle = g; circ(x, f.x, f.y, 16 * c.scale); x.fillStyle = '#fffbe6'; star(x, f.x, f.y, 5 * fl * c.scale, T * 20);
+    for (const p of boomBits) {
+      if (p.spark) { const a = 1 - p.t / p.life, py = p.y - p.z * .3; x.strokeStyle = `rgba(255,${190 + 50 * a | 0},${90 + 90 * a | 0},${a.toFixed(3)})`; x.lineWidth = 1.5; x.beginPath(); x.moveTo(p.x - p.vx * .025, py - p.vy * .025); x.lineTo(p.x, py); x.stroke(); }
+      else if (p.ember) { const a = 1 - p.t / p.life, fl = .6 + .4 * Math.sin(T * 30 + p.life * 50); x.fillStyle = `rgba(255,${120 + 100 * a | 0},${30 + 40 * a | 0},${(a * fl).toFixed(3)})`; circ(x, p.x, p.y - p.z * .3, 1.1 + a); }
     }
     x.restore();
   }
-  for (const p of boomBits) if (!p.spark) { const al = clamp((p.life - p.t) / .5, 0, 1); x.globalAlpha = al; x.fillStyle = p.c; x.fillRect(p.x - p.s / 2, p.y - p.z * .3 - p.s / 2, p.s, p.s * .8); }
+  for (const p of boomBits) if (!p.spark && !p.ember) { const al = clamp((p.life - p.t) / .5, 0, 1); x.globalAlpha = al; x.fillStyle = p.c; x.fillRect(p.x - p.s / 2, p.y - p.z * .3 - p.s / 2, p.s, p.s * .8); }
   x.globalAlpha = 1;
+}
+function drawFire(x, f) { // a patch of ground still burning in the crater: flickering tongues of flame
+  const a = clamp(Math.min(f.t * 4, (f.life - f.t) / 1.2), 0, 1) * (.75 + .25 * Math.sin(T * 23 + f.ph));
+  for (let k = 0; k < 3; k++) {
+    const fl = Math.sin(T * (11 + k * 4) + f.ph + k * 2), rr = f.r * (1 - k * .25) * (.85 + .15 * fl), ox = Math.sin(T * 7 + f.ph + k) * 1.5, oy = -k * f.r * .35 - Math.abs(fl) * 1.5;
+    const g = x.createRadialGradient(f.x + ox, f.y + oy, 0, f.x + ox, f.y + oy, rr); g.addColorStop(0, `rgba(255,${k ? 200 : 240},${k ? 80 : 170},${a})`); g.addColorStop(.5, `rgba(255,110,20,${a * .6})`); g.addColorStop(1, 'rgba(160,30,0,0)');
+    x.fillStyle = g; circ(x, f.x + ox, f.y + oy, rr);
+  }
 }
 function drawStrikeMark(x, s) {
   const p = clamp(1 - s.t / s.dur, 0, 1), on = Math.sin(s.ph) > 0, R = s.r, rot = s.rot + T * .7;
@@ -238,21 +254,56 @@ function drawStrikeMark(x, s) {
   x.restore();
 }
 function drawBoom(x, b) {
+  if (b.t < 0) return;
   const u = b.t / b.dur, R = b.r;
-  if (b.mini) { // a bit of snake going off
-    const f = Math.min(1, u * 3), a = (1 - u) ** 1.4, rr = R * (.5 + .9 * f);
-    const g = x.createRadialGradient(b.x, b.y, 0, b.x, b.y, rr); g.addColorStop(0, `rgba(255,250,225,${a})`); g.addColorStop(.45, `rgba(255,170,60,${a * .8})`); g.addColorStop(1, 'rgba(255,90,20,0)');
-    x.fillStyle = g; circ(x, b.x, b.y, rr);
-    x.globalAlpha = a * .8; x.strokeStyle = b.col; x.lineWidth = 3 * (1 - u); x.beginPath(); x.arc(b.x, b.y, R * (.6 + 1.6 * f), 0, TAU); x.stroke(); x.globalAlpha = 1;
-    return;
+  if (b.puff) { // a ball of fire rolling up out of the blast, cooling from white-yellow to deep orange as it goes
+    const f = 1 - (1 - Math.min(1, u * 2)) ** 2, a = (1 - u) ** 1.3, rr = R * (.5 + .8 * f);
+    const g = x.createRadialGradient(b.x, b.y - f * 6, 0, b.x, b.y - f * 6, rr);
+    g.addColorStop(0, `rgba(255,${235 - 90 * u | 0},${150 - 120 * u | 0},${a})`); g.addColorStop(.55, `rgba(240,${100 - 50 * u | 0},20,${a * .65})`); g.addColorStop(1, 'rgba(90,20,5,0)');
+    x.fillStyle = g; circ(x, b.x, b.y - f * 6, rr); return;
   }
-  if (b.t < .09) { x.fillStyle = `rgba(255,255,245,${(1 - b.t / .09) * .9})`; circ(x, b.x, b.y, R * 1.8); } // the flash
-  const f = 1 - (1 - Math.min(1, u * 2.4)) ** 3, a = (1 - u) ** 1.6, rr = R * (.6 + .9 * f);
+  if (b.t < .12) { x.fillStyle = `rgba(255,255,245,${(1 - b.t / .12) * .95})`; circ(x, b.x, b.y, R * 2.4); } // the flash
+  const f = 1 - (1 - Math.min(1, u * 2.4)) ** 3, a = (1 - u) ** 1.6, rr = R * (.7 + 1.1 * f);
   const g = x.createRadialGradient(b.x, b.y, 0, b.x, b.y, rr); // the fireball
   g.addColorStop(0, `rgba(255,252,230,${a})`); g.addColorStop(.3, `rgba(255,205,90,${a * .95})`); g.addColorStop(.65, `rgba(240,100,25,${a * .7})`); g.addColorStop(1, 'rgba(120,30,10,0)');
   x.fillStyle = g; circ(x, b.x, b.y, rr);
-  const w = 1 - (1 - Math.min(1, u * 1.6)) ** 2; // the shockwave
-  x.strokeStyle = `rgba(255,235,200,${(.55 * (1 - u)).toFixed(3)})`; x.lineWidth = 7 * (1 - u) + .5; x.beginPath(); x.arc(b.x, b.y, R * (1 + 2.6 * w), 0, TAU); x.stroke();
+  const w = 1 - (1 - Math.min(1, u * 1.6)) ** 2; // the blast front
+  x.strokeStyle = `rgba(255,235,200,${(.6 * (1 - u)).toFixed(3)})`; x.lineWidth = 9 * (1 - u) + .5; x.beginPath(); x.arc(b.x, b.y, R * (1 + 3 * w), 0, TAU); x.stroke();
+}
+/* ---- the shockwave: a ring racing out that bends the picture behind it like a lens (the scene inside the ring is
+   pushed outward, just inside it is pulled in), with a faint bright edge. Simplified effects turns the warp off. ---- */
+function drawShockwaves(x) {
+  if (!shocks.length || SETTINGS.simpleFx) return;
+  const m = x.getTransform();
+  for (const w of shocks) {
+    const u = w.t / w.dur, e = 1 - (1 - u) ** 2.2, rr = w.R * (.08 + .92 * e), band = 10 + 22 * (1 - u), amp = .11 * (1 - u) ** 1.4;
+    if (amp < .004) continue;
+    const out = rr + band, inn = Math.max(0, rr - band);
+    const gr = grabScene(m.transformPoint({ x: w.x - out - 4, y: w.y - out - 4 }), m.transformPoint({ x: w.x + out + 4, y: w.y + out + 4 })); if (!gr) continue;
+    const C = m.transformPoint({ x: w.x, y: w.y });
+    const mo = rr + band * .5, mi = Math.max(0, rr - band * .5);
+    for (const [r0, r1, k] of [[mo, out, 1 + amp * .45], [rr, mo, 1 + amp], [mi, rr, 1 - amp * .7], [inn, mi, 1 - amp * .3]]) { // graded, so the lens has soft edges
+      x.save(); x.beginPath(); x.arc(w.x, w.y, r1, 0, TAU); if (r0 > 0) x.arc(w.x, w.y, r0, 0, TAU, true); x.clip();
+      x.setTransform(1, 0, 0, 1, 0, 0);
+      x.drawImage(grabC, 0, 0, gr.sw, gr.sh, C.x + (gr.sx - C.x) * k, C.y + (gr.sy - C.y) * k, gr.sw * k, gr.sh * k);
+      x.restore();
+    }
+    x.strokeStyle = `rgba(255,250,235,${(.35 * (1 - u)).toFixed(3)})`; x.lineWidth = 1.5; x.beginPath(); x.arc(w.x, w.y, rr + band * .3, 0, TAU); x.stroke();
+  }
+}
+/* ---- at night a blast lights everything up: the whole sky for a moment, and a warm, flickering pool round it while it
+   burns (called from drawLighting, on the darkness layer: destination-out reveals, source-over tints) ---- */
+function airLightHoles(lg, dark) {
+  if (AIR.sky > .01) { lg.globalCompositeOperation = 'destination-out'; lg.globalAlpha = Math.min(.85, AIR.sky * .8); lg.fillRect(0, 0, W, H); } // the sky goes bright
+  const src = [];
+  for (const b of booms) if (!b.puff && b.t >= 0) src.push([b.x, b.y, b.r * 7, clamp(1.2 - b.t / b.dur, 0, 1) * (.9 + .1 * Math.sin(T * 40))]);
+  for (const f of fires) src.push([f.x, f.y, 70 + f.r * 4, clamp(Math.min(f.t * 4, (f.life - f.t) / 1.2), 0, 1) * (.55 + .2 * Math.sin(T * 17 + f.ph))]);
+  if (!src.length) { lg.globalAlpha = 1; return; }
+  lg.globalCompositeOperation = 'destination-out';
+  for (const [x, y, r, k] of src) { const g = lg.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, `rgba(0,0,0,${k})`); g.addColorStop(.5, `rgba(0,0,0,${k * .55})`); g.addColorStop(1, 'rgba(0,0,0,0)'); lg.globalAlpha = 1; lg.fillStyle = g; lg.fillRect(x - r, y - r, r * 2, r * 2); }
+  lg.globalCompositeOperation = 'source-over';
+  for (const [x, y, r, k] of src) { const g = lg.createRadialGradient(x, y, 0, x, y, r * .8); g.addColorStop(0, `rgba(255,150,50,${k * .3})`); g.addColorStop(1, 'rgba(255,120,40,0)'); lg.fillStyle = g; lg.fillRect(x - r, y - r, r * 2, r * 2); } // firelight orange
+  lg.globalAlpha = 1;
 }
 function drawJet(x, j) { // only its shadow: it's far up, crossing the screen over the target at the moment it lets go
   const v = 1150, d = (j.u - j.over) * v, px = j.x + Math.cos(j.a) * d + 60, py = j.y + Math.sin(j.a) * d + 90;
@@ -284,10 +335,23 @@ Object.assign(Sfx, {
     const f = this.burst(o, t, 1.6, 600, .7, .35); f.frequency.setValueAtTime(250, t); f.frequency.exponentialRampToValueAtTime(1600, t + .6); f.frequency.exponentialRampToValueAtTime(300, t + 1.6);
     this.tone(o, t, 180, 90, 1.5, 'sawtooth', .025);
   },
-  boom(x, k = 1) { // a deep thump, a long rumble, the crack, then stuff coming down
-    if (!this.ok()) return; const t = this.ctx.currentTime, o = this.out(x, 1.15);
-    this.tone(o, t, 75, 22, 1.4, 'sine', 1 * k); this.burst(o, t, 1.7, 360, .6, .85 * k, 'lowpass'); this.burst(o, t, .14, 1800, .8, .55 * k);
-    for (let i = 0; i < 8; i++) this.burst(o, t + .12 + Math.random() * .7, rand(.03, .08), rand(700, 3200), 2, rand(.05, .13) * k);
+  boom(x, k = 1) { // the crack, a chest-thumping low end, a long rumble, debris coming down, and the blast echoing back
+    if (!this.ok()) return; const c = this.ctx, t = c.currentTime, o = this.out(x, 1.2);
+    this.burst(o, t, .16, 2200, .7, .7 * k); this.burst(o, t, .05, 5000, 1, .4 * k, 'highpass');
+    this.tone(o, t, 90, 24, 1.6, 'sine', 1.1 * k); this.tone(o, t, 48, 30, 2.2, 'sine', .7 * k); // sub
+    this.burst(o, t, 2.2, 320, .5, .95 * k, 'lowpass'); this.burst(o, t + .05, 1.2, 900, .6, .35 * k, 'lowpass');
+    for (let i = 0; i < 14; i++) this.burst(o, t + .15 + Math.random() * 1.4, rand(.03, .09), rand(600, 3400), 2, rand(.05, .14) * k); // stuff landing
+    const e = this.out(x, .5); this.burst(e, t + .38, 1.2, 260, .6, .4 * k, 'lowpass'); this.burst(e, t + .85, 1.4, 200, .6, .22 * k, 'lowpass'); // the echo rolling back off the far side
   },
-  fusePop(x, big) { if (!this.ok() || !this.gate(big ? 'fpopB' : 'fpop', big ? .1 : .045)) return; const t = this.ctx.currentTime, o = this.out(x, big ? .9 : .5); this.tone(o, t, big ? 120 : 220, 50, big ? .3 : .12, 'sine', big ? .6 : .3); this.burst(o, t, big ? .2 : .07, 1400, .9, big ? .5 : .3, 'lowpass'); },
+  tinnitus(k = 1) { // your ears ring: a high whine that bypasses everything (it's inside your head), while the world goes muffled and slowly comes back
+    if (!this.ok()) return; const c = this.ctx, t = c.currentTime, g = c.createGain(); g.connect(c.destination);
+    const v = SETTINGS.volume * .05 * k; g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(.0002, v), t + .3); g.gain.setValueAtTime(Math.max(.0002, v), t + 1.2); g.gain.exponentialRampToValueAtTime(.0001, t + 3.2 + 1.5 * k);
+    for (const [f, a] of [[3900, 1], [3912, .6]]) { const os = c.createOscillator(), og = c.createGain(); os.type = 'sine'; os.frequency.setValueAtTime(f, t); os.frequency.linearRampToValueAtTime(f - 160, t + 4.5); og.gain.value = a; os.connect(og); og.connect(g); os.start(t); os.stop(t + 4.8 + 1.5 * k); } // two close tones: it wavers
+    if (this.lp && !this.muffled) { const lf = this.lp.frequency; lf.cancelScheduledValues(t); lf.setValueAtTime(Math.max(200, lf.value), t); lf.exponentialRampToValueAtTime(500 + 1500 * (1 - k), t + .06); lf.setTargetAtTime(20000, t + .7 + k, .9); this.dzF = 0; }
+  },
+  gore(x, big) { // a wet burst: a body coming apart
+    if (!this.ok() || !this.gate(big ? 'goreB' : 'gore', big ? .1 : .05)) return; const t = this.ctx.currentTime, o = this.out(x, big ? 1 : .55);
+    this.tone(o, t, big ? 130 : 180, 45, big ? .3 : .14, 'sine', big ? .7 : .35); this.burst(o, t, big ? .3 : .12, 700, .8, big ? .7 : .4, 'lowpass'); this.burst(o, t + .02, big ? .2 : .08, 1500, 1.2, big ? .35 : .2);
+    if (big) for (let i = 0; i < 6; i++) this.burst(o, t + .06 + Math.random() * .35, rand(.02, .06), rand(500, 1300), 3, rand(.12, .25)); // pieces slapping down
+  },
 });

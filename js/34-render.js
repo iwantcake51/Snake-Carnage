@@ -48,6 +48,7 @@ function render() {
   drawLighting(x); drawPropGlow(x);
   drawLampBugs(x); drawFireflyGlow(x);
   drawSparks(x);
+  drawShockwaves(x); // blasts bend the picture behind them
   drawVisionMask(x);
   const px = Math.max(1, SETTINGS.pixel | 0);
   if (px > 1 || render.dazed) { drawAirstrikes(x); drawGoldenFX(x); x.globalAlpha = render.olk ?? 1; drawTargetOutlines(x); drawSnakeNightRim(x); x.globalAlpha = 1; } // pixelated look: outlines go through the same pixelation
