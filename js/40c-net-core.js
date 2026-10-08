@@ -122,13 +122,15 @@ function netBecomeHost(peer, keep) { // fresh lobby, or taking over one whose ho
   clearInterval(NETM.hbT); NETM.hbT = setInterval(netHeartbeat, 1000);
   netLobbyChanged();
 }
-function netDefaultCfg() { return { map: mapIdx, mods: [...(SETTINGS.mods || [])], time: SETTINGS.timeMode, w: W, lives: 0, mode: 'coop', teams: 2, len: 0, respawn: 5 }; }
+function netDefaultCfg() { return { map: mapIdx, mods: [...(SETTINGS.mods || [])], time: SETTINGS.timeMode, w: W, lives: 0, mode: 'coop', teams: 2, len: 0, respawn: 5, respawns: -1 }; }
 /* modes: co-op (one team against the crowd), free for all (everyone for themselves, the best score wins) and teams
    (2-4 teams, the team with the most score wins). It's never PvP: snakes pass through each other and only race for the crowd. */
 const NET_MODES = { coop: 'Co-op', ffa: 'Free for all', teams: 'Teams' };
 const NET_TEAMS = [{ n: 'Red', c: '#e8433a' }, { n: 'Blue', c: '#3a8ee8' }, { n: 'Gold', c: '#f2c230' }, { n: 'Green', c: '#3cc46a' }];
 const NET_LENS = [0, 3, 5, 8, 10]; // round length in minutes; 0 = until everyone is out (or the host ends it)
 const NET_RESPAWNS = [3, 5, 8, 10, 15]; // seconds down after dying, before you're back in
+const NET_LIVES = [-1, 0, 1, 2, 3, 5, 10, 999]; // how many times each player can come back (-1: the mode's own default, 999: unlimited); in co-op and Teams they go into the shared pool
+const netLivesLabel = n => n < 0 ? 'Default' : n === 0 ? 'None' : n >= 999 ? 'Unlimited' : n + ' each';
 function netBalanceTeams() { // host: everyone on a team that exists; newcomers and the players of a team that just went away join the smallest
   const cfg = NETM.cfg; if (!cfg || cfg.mode !== 'teams') return;
   const n = cfg.teams = Math.max(2, Math.min(4, cfg.teams || 2)), size = Array(n).fill(0);

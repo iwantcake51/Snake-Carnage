@@ -136,9 +136,10 @@ function netLobbyRender() {
   const mode = cfg.mode || 'coop', nT = cfg.teams || 2, teams = mode === 'teams';
   const plist = teams ? [...NETM.players].sort((a, b) => (a.team - b.team) || (a.slot - b.slot)) : NETM.players;
   const teamBtn = p => { const t = NET_TEAMS[p.team] || NET_TEAMS[0], mine = p.id === NETM.me; return `<button class="mpteam ${host || mine ? '' : 'ro'}" data-team-of="${esc(p.id)}" style="--tc:${t.c}" title="${host || mine ? 'Switch team' : ''}" ${host || mine ? '' : 'disabled'}>${t.n}</button>`; };
-  const hint = mode === 'ffa' ? 'Everyone for themselves: the best score wins. You each get 3 lives. Nobody can hurt anyone else; you just race each other for the crowd.'
-    : teams ? `Tap a team to switch. Each team shares its lives (2 plus one per player); the team with the most score wins. Nobody can hurt anyone else.`
-    : 'Everyone plays with the same modifiers. Each death costs the team a life; with none left you watch the others.';
+  const per = cfg.respawns ?? -1, perTxt = per >= 999 ? 'unlimited respawns' : per === 0 ? 'no respawns' : per + (per === 1 ? ' respawn' : ' respawns'); // the Respawns setting, in words
+  const hint = mode === 'ffa' ? `Everyone for themselves: the best score wins. You each get ${per < 0 ? '3 lives' : perTxt}. Nobody can hurt anyone else; you just race each other for the crowd.`
+    : teams ? `Tap a team to switch. Each team shares its lives (${per < 0 ? '2 plus one per player' : per >= 999 || per === 0 ? perTxt : perTxt + ' per player'}); the team with the most score wins. Nobody can hurt anyone else.`
+    : `Everyone plays with the same modifiers. Each death costs the team a life${per < 0 ? '' : ` (${per >= 999 || per === 0 ? perTxt : perTxt + ' per player, shared'})`}; with none left you watch the others.`;
   if (!thumbs || thumbs.length !== MAPS.length) thumbs = makeThumbs();
   box.innerHTML = `<div class="mphead"><h2>${esc(NET_MODES[mode])} lobby</h2><span class="mpcode" title="Lobby code">${esc(NETM.code)}</span>
       <button class="ghost mpsm" id="mpCopy">Copy invite link</button>${navigator.share ? '<button class="ghost mpsm" id="mpShare">Share…</button>' : ''}</div>
@@ -158,6 +159,7 @@ function netLobbyRender() {
         ${teams ? `<div class="mpline"><b>Teams</b>${host ? '' : `<span>${nT} teams</span>`}${host ? `<select id="mpTeams">${[2, 3, 4].map(n => `<option value="${n}" ${n === nT ? 'selected' : ''}>${n} teams</option>`).join('')}</select>` : ''}</div>` : ''}
         <div class="mpline"><b>Length</b>${host ? '' : `<span>${cfg.len ? cfg.len + ' minutes' : 'No time limit'}</span>`}${host ? `<select id="mpLen">${NET_LENS.map(n => `<option value="${n}" ${n === (cfg.len || 0) ? 'selected' : ''}>${n ? n + ' minutes' : 'No time limit'}</option>`).join('')}</select>` : ''}</div>
         <div class="mpline"><b>Respawn</b>${host ? '' : `<span>${cfg.respawn || 5} seconds</span>`}${host ? `<select id="mpResp">${NET_RESPAWNS.map(n => `<option value="${n}" ${n === (cfg.respawn || 5) ? 'selected' : ''}>${n} seconds</option>`).join('')}</select>` : ''}</div>
+        <div class="mpline"><b>Respawns</b>${host ? '' : `<span>${netLivesLabel(cfg.respawns ?? -1)}</span>`}${host ? `<select id="mpLives" title="How many times each player can come back after dying. In co-op and Teams they're pooled for the team.">${NET_LIVES.map(n => `<option value="${n}" ${n === (cfg.respawns ?? -1) ? 'selected' : ''}>${netLivesLabel(n)}</option>`).join('')}</select>` : ''}</div>
         <div class="mpline"><b>Modifiers</b><span>${mods.length ? esc(mods.join(', ')) : 'None'}</span>${host ? '<button class="ghost mpsm" id="mpMods">Change</button>' : ''}</div>
       </div>
     </div>
@@ -183,6 +185,7 @@ function netLobbyRender() {
     $('mpMode').onchange = e => { cfg.mode = e.target.value; if (cfg.mode !== 'coop' && !cfg.len) cfg.len = 5; netLobbyChanged(); }; // a race needs a finish line: 5 minutes unless the host picks another
     $('mpLen').onchange = e => { cfg.len = +e.target.value; netLobbyChanged(); };
     $('mpResp').onchange = e => { cfg.respawn = +e.target.value; netLobbyChanged(); };
+    $('mpLives').onchange = e => { cfg.respawns = +e.target.value; netLobbyChanged(); };
     if ($('mpTeams')) $('mpTeams').onchange = e => { cfg.teams = +e.target.value; netLobbyChanged(); };
     $('mpMods').onclick = () => { SETTINGS.mods = [...(cfg.mods || [])]; transitionTo(() => showModifiers()); };
     box.querySelectorAll('.mppick .card').forEach(b => b.onclick = () => { cfg.map = +b.dataset.map; netPick = null; netLobbyChanged(); });
@@ -235,7 +238,7 @@ function netDrawTags(x) { // screen space: names over teammates, and an arrow at
   x.restore();
 }
 /* ---- the score panel: the team (co-op), the standings (free for all) or every team (Teams), with lives and the round clock ---- */
-const netHearts = (n, title) => `<span class="mplives" title="${title}">${'♥'.repeat(Math.min(12, n))}${n > 12 ? '+' : ''}${n ? '' : '<i>no lives left</i>'}</span>`;
+const netHearts = (n, title) => `<span class="mplives" title="${title}">${n >= 999 ? '♥ ∞' : '♥'.repeat(Math.min(12, n)) + (n > 12 ? '+' : '')}${n ? '' : '<i>no lives left</i>'}</span>`;
 function netHud() {
   let el = document.getElementById('mpHud');
   if (!NETM.run) { if (el) el.remove(); return; }

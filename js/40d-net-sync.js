@@ -196,7 +196,7 @@ function netSyncPlayerGone(p, why) { if (!NETM.run) return; if (why === 'left' |
 function netPlayerDown(pid, x, y) {
   if (!NETM.run || !NETM.host || NS.down.get(pid)) return;
   const p = netPlayer(pid); if (p) p.deaths = (p.deaths || 0) + 1;
-  const k = netPool(pid), back = !MOD.oneLife && (NS.pools[k] || 0) > 0; if (back) NS.pools[k]--; // One life: nobody comes back
+  const k = netPool(pid), back = !MOD.oneLife && (NS.pools[k] || 0) > 0; if (back && NS.pools[k] < 999) NS.pools[k]--; /* 999: unlimited */ // One life: nobody comes back
   NS.down.set(pid, { at: performance.now() + (back ? (NS.cfg && NS.cfg.respawn) || 5 : 0) * 1000, out: !back }); // real time, like the round clock
   const ev = [{ t: 'down', pid, x, y, out: !back }, { t: 'lives', k, n: NS.pools[k] || 0 }];
   for (const e of ev) netEmit(e); netClientEvent({ k: 'ev', e: ev }, true);
@@ -235,9 +235,10 @@ function netStartRun() { // host: everyone loads the same world
   const sz = pickSeason(m), t = cfg.time === 'Cycle' ? pickStartTime(m) : FIXED_TIMES[cfg.time] ?? 12;
   const players = NETM.players.filter(p => p.conn !== false);
   const mode = cfg.mode || 'coop', teamOf = {}, pools = {};
-  if (mode === 'teams') { netBalanceTeams(); for (const p of players) teamOf[p.id] = p.team; for (let i = 0; i < cfg.teams; i++) { const n = players.filter(p => p.team === i).length; if (n) pools['t' + i] = 2 + n; } }
-  else if (mode === 'ffa') for (const p of players) pools['p:' + p.id] = 3;
-  else pools.all = 3 + players.length;
+  const per = cfg.respawns ?? -1, pool = (n, def) => per < 0 ? def : per >= 999 ? 999 : per * n; // the lobby's Respawns setting: each player's share goes into their pool
+  if (mode === 'teams') { netBalanceTeams(); for (const p of players) teamOf[p.id] = p.team; for (let i = 0; i < cfg.teams; i++) { const n = players.filter(p => p.team === i).length; if (n) pools['t' + i] = pool(n, 2 + n); } }
+  else if (mode === 'ffa') for (const p of players) pools['p:' + p.id] = pool(1, 3);
+  else pools.all = pool(players.length, 3 + players.length);
   NS.cfg = { seed: Math.floor(Math.random() * 2 ** 31), map: cfg.map, mapName: m.name, mods: cfg.mods, time: cfg.time, tod: t, season: sz ? { ...sz } : null, w: W, mode, teams: cfg.teams || 2, teamOf, pools, len: cfg.len || 0, respawn: cfg.respawn || 5, t0: Date.now() };
   NETM.phase = 'run';
   for (const p of NETM.players) { p.ready = false; p.stats = null; p.deaths = 0; } // everyone readies up again for the next one, the host too
