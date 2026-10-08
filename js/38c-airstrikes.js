@@ -488,7 +488,12 @@ function strafeHit(s, d) {
   const pal = groundPalette(x, y, 5), soil = soilCol(x, y);
   for (let k = 0; k < 5; k++) { const b = s.a + rand(-1, 1), v = rand(40, 200); boomBits.push({ x, y, z: 1, vx: Math.cos(b) * v, vy: Math.sin(b) * v, vz: rand(90, 260), t: 0, life: rand(.7, 1.4), s: rand(1.2, 2.6), c: pick(pal) }); } // dirt kicked up the way the rounds were going
   if (Math.random() < .4 * fx) smoke.push({ x, y, vx: s.ca * 30 + rand(-15, 15), vy: s.sa * 30 + rand(-15, 15), r: rand(6, 10), g: rand(14, 24), rot: rand(0, TAU), vr: rand(-.6, .6), t: 0, life: rand(.9, 1.6), v: randi(0, 3), a: rand(.45, .65) });
-  const fc = floorColAt(x, y); bulletHole(bctx, x, y, s.a + rand(-.25, .25), soil, !grassAt(x, y), '#' + fc.map(v => clamp(v | 0, 0, 255).toString(16).padStart(2, '0')).join('')); // the hole it leaves
+  const fc = floorColAt(x, y), gr = grassAt(x, y), dust = (gr ? [150, 120, 90] : fc.map(v => Math.min(255, v * 1.2 + 45))).map(v => Math.round(v / 24) * 24); // the impact: a puff of whatever it hit (pale concrete dust, brown earth), quantized so the tinted sprites stay few
+  smoke.push({ x, y, vx: s.ca * rand(20, 50) + rand(-12, 12), vy: s.sa * rand(20, 50) + rand(-12, 12), r: rand(3.5, 6), g: rand(10, 18), rot: rand(0, TAU), vr: rand(-1, 1), t: 0, life: rand(.5, 1), v: randi(0, 3), a: rand(.55, .75), rgb: dust });
+  mist.push({ x, y, vx: s.ca * 40, vy: s.sa * 40, r: rand(2, 3), g: 26, t: 0, life: rand(.18, .28), c: `rgb(${dust.map(v => Math.min(255, v + 30)).join(',')})`, a: .6 }); // the pop as it lands
+  const chip = gr ? ['#5a3f28', '#4a3524', '#6e8a3c'] : [shade('#' + fc.map(v => clamp(v | 0, 0, 255).toString(16).padStart(2, '0')).join(''), .35), '#bdb6ad', '#8f8880'];
+  for (let k = 0; k < 3; k++) { const b = s.a + rand(-1.4, 1.4), v = rand(70, 240); boomBits.push({ x, y, z: 1, vx: Math.cos(b) * v, vy: Math.sin(b) * v, vz: rand(120, 300), t: 0, life: rand(.5, 1), s: rand(.8, 1.6), c: pick(chip) }); } // chips of concrete, clods of dirt
+  bulletHole(bctx, x, y, s.a + rand(-.25, .25), soil, !grassAt(x, y), '#' + fc.map(v => clamp(v | 0, 0, 255).toString(16).padStart(2, '0')).join('')); // the hole it leaves
 }
 function bulletHole(b, x, y, a, soil, hard, surf = soil) { // a round punched in at a slant: dust sprayed on ahead, a ragged dark crater, a lit far lip, a black hole at its heart; hairline cracks on hard ground
   const r = rand(2, 2.9), base = hard ? surf : soil, dk = shade(base, -.62), mid = shade(base, -.3), lt = shade(base, hard ? .45 : .3); // its colours come from the ground it hit: pale grit thrown out of asphalt and paving, dark earth out of grass
