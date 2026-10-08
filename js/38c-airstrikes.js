@@ -38,11 +38,51 @@ const STRAFE_V = 1050, STRAFE_HW = 13, STRAFE_LEN = 820; // how fast the rounds 
 let strikes = [], booms = [], boomBits = [], corpses = [], fallenHats = [], jets = [], shocks = [], fires = [], soots = [], hazes = [], later = [], clods = [], strafes = [], tracers = [];
 const airMap = () => { const m = MAPS[mapIdx]; return !!m && !m.indoor && !m.space; }; // outdoors, on Earth
 const airOn = () => airMap() && (MOD.airRaid || SETTINGS.airstrikes !== false); // the Air raid modifier turns them on whatever the setting says
-function airReset() { strikes = []; booms = []; boomBits = []; corpses = []; fallenHats = []; jets = []; shocks = []; fires = []; soots = []; hazes = []; later = []; clods = []; strafes = []; tracers = []; AIR.warned = false; AIR.nextT = 0; AIR.flash = 0; AIR.sky = 0; AIR.rumble = 0; AIR.d0 = 0; AIR.muf = 0; AIR.mufH = 0; if (Sfx.lp) Sfx.daze(0); }
+function airReset() { strikes = []; booms = []; boomBits = []; corpses = []; fallenHats = []; jets = []; shocks = []; fires = []; soots = []; hazes = []; later = []; clods = []; strafes = []; tracers = []; AIR.crowdTalk = null; AIR.warned = false; AIR.nextT = 0; AIR.flash = 0; AIR.sky = 0; AIR.rumble = 0; AIR.d0 = 0; AIR.muf = 0; AIR.mufH = 0; if (Sfx.lp) Sfx.daze(0); }
 /* reeling from a blast: full strength for the first second, then it fades over the next 1.2 */
 const boomSlow = s => s && s.boomT > 0 ? (s.boomK || 0) * clamp(s.boomT / 1.2, 0, 1) : 0;
 const boomDaze = () => snake && snake.alive ? boomSlow(snake) : 0;
 const airBusy = () => strikes.length || booms.length || boomBits.length || corpses.length || fallenHats.length || jets.length || shocks.length || fires.length || soots.length || hazes.length || later.length || clods.length || strafes.length || tracers.length;
+/* Host-only perception, using the existing voice/interruption and bubble replication.
+   No knowledge of target rings: react only to a passing aircraft or actual impacts. */
+function airCrowdReact(kind, x, y, r = AIR_R, seen) {
+  if (!AUTH() || state !== 'play') return;
+  const reach = kind === 'jet' ? 650 : kind === 'strafe' ? 420 : 560;
+  const listeners = nearbyCreatures(x, y, reach, []).filter(c => c.alive);
+  listeners.sort((a, b) => dist2(a.x, a.y, x, y) - dist2(b.x, b.y, x, y));
+  const talk = AIR.crowdTalk && T - AIR.crowdTalk.t < 1.2 ? AIR.crowdTalk : (AIR.crowdTalk = { t: T, n: 0 });
+  let spoken = 0;
+  for (const c of listeners) {
+    if (seen && seen.has(c)) continue;
+    const d = Math.hypot(c.x - x, c.y - y), visible = !MOD.blind && (kind === 'jet' || los(c.x, c.y, x, y));
+    const hearing = (c.deafT > T ? .3 : 1) * (kind === 'jet' || visible || los(c.x, c.y, x, y) ? 1 : .55);
+    if (!visible && d > reach * hearing) continue;
+    if (seen) seen.add(c);
+    const close = d < (kind === 'jet' ? 180 : kind === 'strafe' ? 110 : r + 85);
+    const near = d < r + 250;
+    const ctx = kind === 'jet' ? (close ? 'jetNear' : 'jetFar') : kind === 'strafe' ? (close ? 'strafeClose' : 'strafeFar') : close ? 'blastClose' : near ? 'blastNear' : 'blastFar';
+    const urgency = URG[ctx], danger = kind !== 'jet' && (close || near);
+    if (danger) {
+      const source = MOD.blind ? guessAt(c, x, y, reach) : { x, y }, was = c.state === 'panic';
+      c.alert = Math.max(c.alert || 0, c.def.human ? 1 : .6);
+      c.state = 'panic'; c.fx = source.x; c.fy = source.y; c.timer = Math.max(c.timer || 0, rand(close ? 5 : 3, close ? 8 : 5));
+      if (c.def.human && !was) groupAlarm(c, source.x, source.y);
+    }
+    if (!c.def.human || MOD.mute || spoken >= 3 || talk.n >= 3) continue;
+    // A genuinely closer call can interrupt a distant remark, but repeated bombs cannot.
+    if (T < (c.airTalkUntil ?? -1) && (urgency <= (c.airUrg || 0) || T - c.airTalkAt < 1.2)) continue;
+    if (urgency < 3 && (busyUntil(c) > 0 || c.sayCD > 0)) continue;
+    if (Math.random() > (close ? .9 : .55) * Math.min(1.2, c.talkK || 1)) continue;
+    c.airTalkAt = T; c.airTalkUntil = T + rand(6, 10); c.airUrg = urgency;
+    say(c, ctx); spoken++; talk.n++;
+  }
+}
+function airJetReact(j, dt) {
+  if (!AUTH() || (j.reactT = (j.reactT || 0) - dt) > 0) return;
+  j.reactT = .25;
+  const d = (j.u - j.over) * 1150;
+  airCrowdReact('jet', j.x + Math.cos(j.a) * d, j.y + Math.sin(j.a) * d, AIR_R, j.listeners || (j.listeners = new Set()));
+}
 /* ---- calling them in (the deciding browser only) ---- */
 function airSchedule(dt) {
   if (!airOn() || state !== 'play') return;
@@ -123,7 +163,7 @@ function airTick(dt) {
     if (s.front >= s.len && (s.done += dt) > .8) strafes.splice(i, 1);
   }
   for (let i = tracers.length - 1; i >= 0; i--) if ((tracers[i].t += dt) > tracers[i].life) tracers.splice(i, 1);
-  for (let i = jets.length - 1; i >= 0; i--) { const j = jets[i]; j.u += dt; if (!j.dropped && j.u >= j.over) { j.dropped = true; Sfx.release(j.x); } if (j.u > j.over + 2.5) jets.splice(i, 1); } // right over the target: the bombs come off the rack
+  for (let i = jets.length - 1; i >= 0; i--) { const j = jets[i]; j.u += dt; airJetReact(j, dt); if (!j.dropped && j.u >= j.over) { j.dropped = true; Sfx.release(j.x); } if (j.u > j.over + 2.5) jets.splice(i, 1); } // right over the target: the bombs come off the rack
   for (let i = later.length - 1; i >= 0; i--) { const l = later[i]; if ((l.t -= dt) <= 0) { later.splice(i, 1); l.f(); } } // secondary blasts going off a beat after the main one
   for (let i = soots.length - 1; i >= 0; i--) { const p = soots[i]; p.t += dt; if (p.t > p.life) { soots.splice(i, 1); continue; } if (p.t < 0) continue; const f = Math.exp(-dt * 1.3); p.vx *= f; p.vy *= f; p.x += p.vx * dt; p.y += p.vy * dt; p.r += p.g * dt * (1 - p.t / p.life * .7); p.rot += p.vr * dt; }
   for (let i = hazes.length - 1; i >= 0; i--) { if ((hazes[i].t += dt) > hazes[i].life) hazes.splice(i, 1); }
@@ -194,7 +234,7 @@ function detonate(s) {
   }
   if (hit.length) creatures = creatures.filter(c => c.alive);
   noise('boom', x, y);
-  if (!MOD.blind) for (const c of nearbyCreatures(x, y, 420, [])) if (c.alive && c.state !== 'panic') panic(c, x, y, rand(4, 7), 'none');
+  airCrowdReact('blast', x, y, r);
 }
 function bombDeath(by = 'bomb') {
   crashHit = null; run.deathBy = by;
@@ -236,7 +276,7 @@ function strafeSweep(s, a0, a1) {
   for (const c of nearbyCreatures(mx, my, (a1 - a0) / 2 + s.hw + 30, [])) if (c.alive && inLane(c.x, c.y, c.def.r * .7)) hit.push(c);
   for (const c of hit) { if (!c.alive) continue; const ang = s.a + rand(-.4, .4), amt = c.def.blood; eatWorld(c, ang, amt, null); if (NETM.run) netKillEvent(c, 'air', ang, amt); }
   if (hit.length) creatures = creatures.filter(c => c.alive);
-  if (Math.random() < .25) { noise('boom', mx, my); if (!MOD.blind) for (const c of nearbyCreatures(mx, my, 300, [])) if (c.alive && c.state !== 'panic') panic(c, mx, my, rand(3, 6), 'none'); }
+  if ((s.crowdNext ?? 0) <= a1) { s.crowdNext = a1 + 100; noise('boom', mx, my); airCrowdReact('strafe', mx, my); }
 }
 /* ---- the mark it leaves: a black starburst burnt into the ground (the map's own floor layer, so it stays all run) ---- */
 const SCORCH = [];
