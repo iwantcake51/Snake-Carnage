@@ -84,10 +84,11 @@ function updateSnake(dt) {
   if (s.uturnT > 0) { s.uturnT -= dt; if (s.uturnTo !== undefined && Math.abs(angDiff(s.angle, s.dir)) < .5) { s.dir = s.uturnTo; s.uturnTo = undefined; } } // second half of the U-turn
   const stunK = MOD.quickRecovery ? 2 : MOD.heavyImpact ? .5 : 1; // Quick recovery / Heavy impact: dazes wear off twice as fast, or half as fast
   if (s.wallStun > 0) { const k = s.wallStun / (s.wallMax || 3.4); s.wallStun -= dt * stunK; s.angle += (Math.sin(T * 4.7) * 1.5 + Math.sin(T * 2.3 + 1.3)) * k * dt; } // seeing stars: it can't hold a line
-  for (const k of ['dashT', 'camoT', 'scentT', 'hissT', 'ramT', 'boomT']) if (s[k] > 0) s[k] -= dt * (k === 'ramT' && sl >= 3 ? 1.33 : 1) * (k === 'ramT' || k === 'boomT' ? stunK : 1); // Speed Demon III shakes off dazes faster
+  for (const k of ['dashT', 'camoT', 'hissT', 'ramT', 'boomT']) if (s[k] > 0) s[k] -= dt * (k === 'ramT' && sl >= 3 ? 1.33 : 1) * (k === 'ramT' || k === 'boomT' ? stunK : 1); // Speed Demon III shakes off dazes faster
   if (s.camoT > 0) { const turning = Math.abs(angDiff(s.angle, s.dir)) > .05 || s.dashT > 0; s.still = clamp((s.still || 0) + (turning ? -dt * (upg('camo') > 2 ? 1.2 : 4) : dt * 1.1), 0, 1); } else s.still = 0; // camouflage settles in on a straight line
   const dk = s.dashT > 0 ? s.dashK || 1.8 : 1; s.dashV = dk >= (s.dashV || 1) ? dk : 1 + ((s.dashV || 1) - 1) * Math.exp(-dt * 3.2); // lunge hits at once, then the speed bleeds off over about a second
-  const v = s.speed * s.dashV * (s.ramT > 0 ? 1 - (s.ramDeep || .5) * (s.ramT / (s.ramMax || 1)) : 1) * (1 - .55 * boomSlow(s)); // ... or reeling from a blast // a lunge, or a stagger after smashing through something
+  if (s.dashT > 0 && (s.wallStun > 0 || s.boomT > 0)) s.dashT = 0; // concussed: no lunging
+  const v = s.speed * s.dashV * (s.camoT > 0 && upg('camo') > 1 ? 1.15 : 1) * /* Stalker: faster while hidden */ (s.ramT > 0 ? 1 - (s.ramDeep || .5) * (s.ramT / (s.ramMax || 1)) : 1) * (1 - .55 * boomSlow(s)); // ... or reeling from a blast // a lunge, or a stagger after smashing through something
   // unit vector * speed => identical speed in all 8 directions
   if (MOD.slippery) s.mvA = s.mvA === undefined ? s.angle : s.mvA + angDiff(s.mvA, s.angle) * (1 - Math.exp(-dt * 2.8)); else s.mvA = s.angle; // Slippery: the body keeps sliding the old way a moment after you turn
   const vq = v * (MOD.quickTurn ? .9 : 1);
@@ -290,14 +291,14 @@ function eatWorld(c, ang, amount, s) {
   if (s && s !== snake && s.drip !== undefined) { s.drip = 2.5 * amount; s.dripCol = bloodOf(c); }
   if (AUTH()) { // the crowd: who saw it, where to avoid now, who comes to take their place
     deaths.push({ x: c.x, y: c.y }); if (deaths.length > 25) deaths.shift();
-    witness(c.x, c.y, c);
+    witness(c.x, c.y, c, !!(s && s.camoT > 0)); // a kill from camouflage is silent
     respawnQ.push({ type: c.type, zone: c.zone, t: rand(2, 5) });
   }
   return amount;
 }
 function eatReward(c, amount, ang) {
   const s = snake, sx = Math.cos(ang), sy = Math.sin(ang);
-  if (s.camoT > 0 && upg('camo') > 2) s.camoT = Math.min(12, s.camoT + 2); // Ambush: each kill buys more time hidden
+  if (s.camoT > 0) s.camoT = Math.min(s.camoMax || 8, s.camoT + 1); // every kill while hidden keeps you hidden a second longer
   if (s.dashT > 0 && upg('dash') > 2) { abilCD.dash = Math.min(abilCD.dash || 0, T + 1.2); s.dashT = Math.max(s.dashT, .3); } // pounce: straight into the next one
   for (let k = 0; k < 14 * amount; k++) {
     const i = randi(0, Math.min(3, s.segs.length - 1)), g = s.segs[i], R = snakeRadius();
@@ -310,11 +311,12 @@ function eatReward(c, amount, ang) {
   addCombo(c); combo.t = Math.max(.6, combo.t + mb.ct);
   const gold = c.golden ? (MOD.rareAppetite ? 9 : 5) : 1, frenzy = evt && evt.type === 'frenzy' ? 2 : 1;
   const cm = MOD.comboFocus ? 1 + (combo.n - 1) * .12 : MOD.comboCushion ? 1 + Math.floor((combo.n - 1) / 4) * .15 : 1 + Math.floor((combo.n - 1) / 3) * .25;
-  const pts = Math.max(1, Math.round(c.def.score * gold * frenzy * rewardMult * cm * mb.m * (1 + (run.bonus || 0))));
+  const ph = s.camoT > 0 && upg('camo') > 2 ? 1.25 : 1; // Phantom: hidden kills pay more
+  const pts = Math.max(1, Math.round(c.def.score * gold * frenzy * rewardMult * cm * mb.m * ph * (1 + (run.bonus || 0))));
   score += pts; run.score = score;
   c.def.human ? (kills.h++, run.humans++) : (kills.a++, run.animals++);
   run.byType[c.type] = (run.byType[c.type] || 0) + 1; run.killed++; if (c.golden) { run.goldens++; c.def.human ? PROG.goldH = (PROG.goldH || 0) + 1 : PROG.goldA = (PROG.goldA || 0) + 1; } // lifetime golden tally
-  const kxp = Math.round((c.def.human ? 12 : c.def.score * 4) * gold * rewardMult * mb.m);
+  const kxp = Math.round((c.def.human ? 12 : c.def.score * 4) * gold * rewardMult * mb.m * ph);
   crEat(c, pts, kxp); statEat(c); progressEat(c);
   gainXP(kxp, Math.max(1, Math.round(c.def.score * .6 * gold * rewardMult * mb.m)));
   modHud();

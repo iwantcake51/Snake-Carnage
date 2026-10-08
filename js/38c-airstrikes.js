@@ -38,7 +38,7 @@ const STRAFE_V = 560, STRAFE_HW = 13, STRAFE_LEN = 820; // how fast the rounds w
 let strikes = [], booms = [], boomBits = [], corpses = [], fallenHats = [], jets = [], shocks = [], fires = [], soots = [], hazes = [], later = [], clods = [], strafes = [], tracers = [];
 const airMap = () => { const m = MAPS[mapIdx]; return !!m && !m.indoor && !m.space; }; // outdoors, on Earth
 const airOn = () => airMap() && !MOD.noAir && (MOD.airRaid || SETTINGS.airstrikes !== false); // Clear skies: none at all // the Air raid modifier turns them on whatever the setting says
-function airReset() { tailBits = []; strikes = []; booms = []; boomBits = []; corpses = []; fallenHats = []; jets = []; shocks = []; fires = []; soots = []; hazes = []; later = []; clods = []; strafes = []; tracers = []; AIR.crowdTalk = null; AIR.warned = false; AIR.nextT = 0; AIR.flash = 0; AIR.sky = 0; AIR.rumble = 0; AIR.d0 = 0; AIR.muf = 0; AIR.mufH = 0; if (Sfx.lp) Sfx.daze(0); }
+function airReset() { tailBits = []; strikes = []; booms = []; boomBits = []; corpses = []; fallenHats = []; jets = []; shocks = []; fires = []; soots = []; hazes = []; later = []; clods = []; strafes = []; tracers = []; AIR.crowdTalk = null; NM.t = 0; NM.n = 0; AIR.warned = false; AIR.nextT = 0; AIR.flash = 0; AIR.sky = 0; AIR.rumble = 0; AIR.d0 = 0; AIR.muf = 0; AIR.mufH = 0; if (Sfx.lp) Sfx.daze(0); }
 /* reeling from a blast: full strength for the first second, then it fades over the next 1.2 */
 const boomSlow = s => s && s.boomT > 0 ? (s.boomK || 0) * clamp(s.boomT / 1.2, 0, 1) : 0;
 const boomDaze = () => snake && snake.alive ? boomSlow(snake) : 0;
@@ -248,6 +248,7 @@ function detonate(s) {
   if (!s.safe && me && me.alive && !me.netHidden && !(me.graceT > 0) && (state === 'play' || NETM.run) && me.segs) {
     const R = r + snakeRadius() * .6, i = me.segs.findIndex(g => dist2(g.x, g.y, x, y) < R * R);
     if (i >= 0) airHitSnake(i, s.by || 'bomb');
+    else if (s.by !== 'fuse') { let dm = Infinity; for (const g of me.segs) dm = Math.min(dm, dist2(g.x, g.y, x, y)); if (Math.sqrt(dm) < R + 46) nearMiss('bomb'); } // it landed right next to you
   }
   if (!AUTH()) return;
   // the crowd: anyone in it is blown apart, everyone around runs
@@ -430,6 +431,21 @@ function drawHurt(x) {
     g.addColorStop(0, 'rgba(120,0,6,0)'); g.addColorStop(.55, `rgba(150,4,12,${(.38 * vig).toFixed(3)})`); g.addColorStop(1, `rgba(90,0,4,${(.85 * vig).toFixed(3)})`); x.fillStyle = g; x.fillRect(0, 0, W2, H2); }
   x.restore();
 }
+/* ---- near misses: a bomb landing right by you or a strafing run tearing past, and you're still alive: XP for the nerve ---- */
+const NM = { at: -9, n: 0, t: 0, txt: '' };
+function nearMiss(kind) {
+  if (!snake || !snake.alive || state !== 'play') return;
+  const now = performance.now(), chain = now - NM.at < 4000 ? NM.n + 1 : 1; NM.at = now; NM.n = chain; NM.t = 1; NM.t0 = now;
+  const xp = Math.round((kind === 'strafe' ? 14 : 18) * (1 + .25 * Math.min(4, chain - 1)) * rewardMult);
+  NM.txt = (chain > 1 ? `NEAR MISS x${chain}` : 'NEAR MISS'); run.nearMiss = (run.nearMiss || 0) + 1;
+  gainXP(xp, Math.max(1, Math.round(2 * rewardMult)));
+  if (Sfx.ok() && Sfx.gate('nm', .3)) Sfx.tone(Sfx.out(undefined, .5), Sfx.ctx.currentTime, 660, 1320, .16, 'triangle', .07);
+}
+function drawNearMiss(x) { // screen-space: rises and fades just above the middle (where the camera keeps you)
+  if (!(NM.t > 0)) return; NM.t = 1 - (performance.now() - NM.t0) / 1100; const k = clamp(NM.t, 0, 1), W2 = x.canvas.width, H2 = x.canvas.height, sc = Math.min(W2, H2) / 900;
+  x.save(); x.setTransform(1, 0, 0, 1, 0, 0); x.globalAlpha = Math.min(1, k * 2.2); x.textAlign = 'center'; x.font = `900 ${Math.round(30 * sc * (1 + .25 * Math.max(0, k - .8) * 5))}px system-ui, sans-serif`;
+  const y = H2 * .38 - (1 - k) * 40 * sc; x.lineWidth = 5 * sc; x.strokeStyle = 'rgba(0,0,0,.75)'; x.strokeText(NM.txt, W2 / 2, y); x.fillStyle = '#ffd34a'; x.fillText(NM.txt, W2 / 2, y); x.restore();
+}
 function bombDeath(by = 'bomb') {
   crashHit = null; run.deathBy = by;
   if (NETM.run) return netLocalDown();
@@ -464,7 +480,7 @@ function strafeSweep(s, a0, a1) {
   if (me && me.alive && me.segs) {
     const dx = me.x - s.x0, dy = me.y - s.y0, al = dx * s.ca + dy * s.sa, pd = Math.abs(dy * s.ca - dx * s.sa);
     if (al >= a0 - 6 && al <= a1 && pd < 140) { shake = Math.max(shake, 7 * (1 - pd / 140)); AIR.rumble = Math.max(AIR.rumble, .3 * (1 - pd / 140)); } // rounds tearing past right next to you
-    if (!me.netHidden && !(me.graceT > 0) && (state === 'play' || NETM.run)) { const i = me.segs.findIndex(g => inLane(g.x, g.y, snakeRadius() * .5)); if (i >= 0) airHitSnake(i, 'strafe'); }
+    if (!me.netHidden && !(me.graceT > 0) && (state === 'play' || NETM.run)) { const i = me.segs.findIndex(g => inLane(g.x, g.y, snakeRadius() * .5)); if (i >= 0) { airHitSnake(i, 'strafe'); s.nm = true; } else if (!s.nm && me.segs.some(g => inLane(g.x, g.y, snakeRadius() * .5 + 30))) { s.nm = true; nearMiss('strafe'); } } // the rounds tore past a hair's breadth away
   }
   if (!AUTH()) return;
   const mid = (a0 + a1) / 2, mx = s.x0 + s.ca * mid, my = s.y0 + s.sa * mid, hit = [];
@@ -790,7 +806,7 @@ function drawJet(x, j) { // only its shadow: it's far up, crossing the screen ov
   x.lineTo(-23, 8); x.lineTo(-20, 8); x.lineTo(-15, 2.5); x.lineTo(-7, 3); x.lineTo(-11, 19); x.lineTo(-6, 19); x.lineTo(2, 3); x.lineTo(14, 2.2); x.closePath(); x.fill();
   x.restore();
 }
-function drawAirFlash(x) { drawHurt(x); if (AIR.flash > .01) { x.save(); x.setTransform(1, 0, 0, 1, 0, 0); x.fillStyle = `rgba(255,236,200,${(AIR.flash * .45).toFixed(3)})`; x.fillRect(0, 0, x.canvas.width, x.canvas.height); x.restore(); } }
+function drawAirFlash(x) { drawHurt(x); drawNearMiss(x); if (AIR.flash > .01) { x.save(); x.setTransform(1, 0, 0, 1, 0, 0); x.fillStyle = `rgba(255,236,200,${(AIR.flash * .45).toFixed(3)})`; x.fillRect(0, 0, x.canvas.width, x.canvas.height); x.restore(); } }
 /* ---- the sound ---- */
 Object.assign(Sfx, {
   siren() { // a real air raid siren far off over the town: a rotor winding up into a two-tone wail, a long hold, a slow wind down, the chopping of the rotor, and the whole sky carrying it

@@ -22,12 +22,14 @@ const xpNeed = l => Math.round(l < 5 ? 160 + 110 * Math.pow(l - 1, 1.5) : 820 + 
 let MOD = {}, rewardMult = 1;
 let floaters = [];
 let lvlAnim = false, lastLevelBonus = 0;
+const XP_GAIN = 1.5; // every source of XP pays half as much again (v1.56: levels come quicker)
 function gainXP(xp, coins) {
+  xp = Math.round(xp * XP_GAIN);
   PROG.xp += xp; PROG.coins += coins; PROG.earned = (PROG.earned || 0) + coins; rewardPopup(xp, coins);
   if (typeof run === 'object' && (state === 'play' || state === 'dead' || state === 'held')) { run.xpGained = (run.xpGained || 0) + xp; run.coinsGained = (run.coinsGained || 0) + coins; }
   const from = PROG.level;
   let bonus = 0;
-  while (PROG.xp >= xpNeed(PROG.level)) { PROG.xp -= xpNeed(PROG.level); PROG.level++; const b = 10 + PROG.level * 2; PROG.coins += b; bonus += b; }
+  while (PROG.xp >= xpNeed(PROG.level)) { PROG.xp -= xpNeed(PROG.level); PROG.level++; const b = 15 + PROG.level * 3; PROG.coins += b; bonus += b; }
   if (bonus) lastLevelBonus = bonus; // a later reward in the same moment must not wipe the banner's number
   saveProg();
   if (PROG.level > from) celebrateLevel(from, PROG.level); else updateHud();

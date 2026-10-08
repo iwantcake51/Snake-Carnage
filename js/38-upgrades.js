@@ -16,12 +16,12 @@ const UPGRADES = [
     desc: 'Smash through things instead of crashing into them. Each level takes on heavier things; the heavier it is, the harder the knock. Without it, glass still breaks, but going through it knocks you senseless.', tiers: ['Small things: chairs, plants, crates, hay, fences, bins, glass. Barely slows you', 'Big furniture, bushes and small trees: desks, tables, benches, couches, shelves, beds, bars, consoles, speakers, saplings. A harder knock', 'Cars, rocks and the cracked wall sections on some maps: shortcuts, but the hit leaves you seeing stars', 'Thick skull: every concussion is 25% shorter and gentler'] },
   { id: 'gut', name: 'Iron Stomach', icon: 'gut', max: 3, cost: [350, 900, 1700], lvl: [7, 13, 19], desc: 'Combos last longer.', tiers: ['+10% combo time', '+20% combo time', '+30% combo time'] },
   { id: 'dash', name: 'Lunge', icon: 'dash', max: 3, cost: [250, 900, 1800], lvl: [3, 12, 18], ability: true, key: 'Shift',
-    desc: 'A short burst of speed. Great for catching runners.', tiers: ['0.6 s at 1.8x speed, 7 s cooldown', '0.8 s at 1.9x speed, 5 s cooldown, a cleaner wake', 'Pounce: eat something mid-lunge and the cooldown almost resets, and you keep going'] },
-  { id: 'scent', name: 'Scent', icon: 'scent', max: 3, cost: [400, 1100, 2000], lvl: [5, 15, 21], ability: true, key: 'E',
-    desc: 'Always tasting the air (E switches it off and on). A scent trail leads the way you would actually have to go, around walls and through doorways, to the best meal near you: big animals close by, golden targets, and crowds over lone targets. Unaware prey smells strongest. It is strongest by your head and fades out further along.',
-    tiers: ['One trail', 'Trails are colored by what is at the end, and you see who can spot you', 'Bloodhound: three trails at once, they reach further, and golden targets always get one'] },
+    desc: 'A short burst of speed. Great for catching runners. You can\'t lunge while you\'re concussed.', tiers: ['0.6 s at 1.8x speed, 7 s cooldown', '0.8 s at 1.9x speed, 5 s cooldown, a cleaner wake', 'Pounce: 2.7x speed and a 3 s cooldown. Eat something mid-lunge and it\'s ready again almost at once, and you keep going'] },
+  { id: 'scent', name: '3rd Eye', icon: 'scent', max: 3, cost: [400, 1100, 2000], lvl: [5, 15, 21], ability: true, key: 'E',
+    desc: 'A sixth sense, always on. Five times a second it lays the best way through whatever is coming, around walls and through doorways: out from under bombs and strafing lanes before they land, to the nearest meal when your combo is about to die, and otherwise to the best meal near you. E is Focus: the world slows right down for a moment (in multiplayer, where it can\'t, it lights up everyone near you instead).',
+    tiers: ['Escape routes out of bombs and strafing lanes, a lifeline when your combo is dying, a trail to the best meal. Focus: 1.2 s, 16 s cooldown', 'Gold sense: a way to golden targets even through a raid, routed round the danger, and you see who can spot you. Focus: 1.6 s, 13 s cooldown', 'Crowd sense: it leads you to big crowds out in the open, where a lunge tears through them. Focus: 2 s, 10 s cooldown'] },
   { id: 'camo', name: 'Camouflage', icon: 'camo', max: 3, cost: [600, 1400, 2400], lvl: [8, 17, 23], ability: true, key: 'Q',
-    desc: 'Your scales take on the ground under you. People only notice you up close.', tiers: ['5 s, 20 s cooldown', '8 s, 16 s cooldown, better blending', 'Ambush: 10 s, 14 s cooldown. Hold a straight line to fade almost completely; turns only dim it a little. Every kill while hidden adds 2 s, and people right next to you don\'t notice you'] },
+    desc: 'Vanish on the spot. Nobody sees you unless you\'re right on top of them, anyone already onto you loses you, and kills while hidden are silent: no scream carries, nobody further than a body length away sees it. Every kill while hidden keeps you hidden 1 s longer, so a fast chain keeps you invisible.', tiers: ['4 s, 14 s cooldown', 'Stalker: 5 s, 12 s cooldown, 15% faster while hidden', 'Phantom: 6 s, 10 s cooldown. Your combo doesn\'t drain while hidden, and hidden kills pay 25% more'] },
   { id: 'hoover', name: 'Hoover Mouth', icon: 'hoover', max: 3, cost: [500, 1250, 2300], lvl: [6, 14, 21], ability: true, key: 'C',
     desc: 'Open wide and inhale: for a couple of seconds everything in front of you, people included, gets dragged toward your mouth. Never through walls. (The Hoover Mouth modifier is a weaker pull that never stops.)', tiers: ['1.5 s of pull in a narrow 60° cone, 16 s cooldown', '2 s, a 115° cone, stronger and further, 13 s cooldown', 'Vortex: 2.5 s, a 170° cone, 10 s cooldown. A huge pull that drags in even people running for their lives'] },
   { id: 'hiss', name: 'Hiss', icon: 'hiss', max: 3, cost: [700, 1600, 2600], lvl: [11, 18, 24], ability: true, key: 'R',
@@ -31,10 +31,13 @@ PROG.upg = PROG.upg || {}; PROG.upgOff = PROG.upgOff || {};
 let UPG_OVR = null; // co-op: while the host's AI deals with another player's snake, upgrade levels are that player's
 const ABILITY_IDS = new Set(UPGRADES.filter(u => u.ability).map(u => u.id));
 const upg = id => MOD.noUpgrades || (MOD.noAbilities && ABILITY_IDS.has(id)) ? 0 : UPG_OVR ? Math.min(UPG_OVR[id] || 0, 9) : edTestSkills && edTesting !== null ? Math.min(edTestSkills[id] || 0, (UPGRADES.find(u => u.id === id) || { max: 9 }).max) : PROG.upgOff[id] ? 0 : Math.min(PROG.upg[id] || 0, (UPGRADES.find(u => u.id === id) || { max: 9 }).max); // owned and switched on
+const lv3 = id => Math.min(3, upg(id)); // level 0..3 (co-op overrides can say more)
 const ABIL = { // cd/dur read the owned level each time
-  dash: { get cd() { return upg('dash') > 1 ? 5 : 7; }, get dur() { return upg('dash') > 1 ? .8 : .6; }, go(s) { s.dashT = this.dur; s.dashK = upg('dash') > 1 ? 1.9 : 1.8; s.lk = Math.max(s.lk || 0, .25); Sfx.dash(); camF.kv.x += Math.cos(s.angle) * 160; camF.kv.y += Math.sin(s.angle) * 160; } },
-  scent: { cd: 1, dur: 1, go(s) { s.scentOn = !s.scentOn; if (s.scentOn) Sfx.sniff(); else Sfx.ui && Sfx.ui('off'); } }, // always on; the key switches it off and on again
-  camo: { get cd() { const l = upg('camo'); return l > 2 ? 14 : l > 1 ? 16 : 20; }, get dur() { const l = upg('camo'); return l > 2 ? 10 : l > 1 ? 8 : 5; }, go(s) { s.camoT = this.dur; Sfx.camo(); } },
+  dash: { get cd() { return [7, 7, 5, 3][lv3('dash')]; }, get dur() { return [.6, .6, .8, .55][lv3('dash')]; }, go(s) { const l = lv3('dash'); s.dashT = this.dur; s.dashK = [1.8, 1.8, 1.9, 2.7][l]; s.lk = Math.max(s.lk || 0, .25); Sfx.dash(); const k = l > 2 ? 240 : 160; camF.kv.x += Math.cos(s.angle) * k; camF.kv.y += Math.sin(s.angle) * k; } }, // Pounce: much faster, much shorter cooldown
+  scent: { get cd() { return [16, 16, 13, 10][lv3('scent')]; }, get dur() { return [1.2, 1.2, 1.6, 2][lv3('scent')]; }, go(s) { // Focus: the world slows down (solo), and everyone near you lights up
+    const now = performance.now(); FOCUS.t0 = now; FOCUS.until = now + this.dur * 1000; s.pingT = this.dur + 1.5; updateScent.t = 0; Sfx.focus(this.dur); } },
+  camo: { get cd() { return [14, 14, 12, 10][lv3('camo')]; }, get dur() { return [4, 4, 5, 6][lv3('camo')]; }, go(s) { s.camoT = this.dur; s.camoMax = this.dur + 4; Sfx.camo();
+    if (AUTH()) for (const c of nearbyCreatures(s.x, s.y, 420, [])) if (c.alive && c.def.human) c.alert = Math.min(c.alert || 0, .2); } }, // anyone onto you loses you
   hoover: { get cd() { return [16, 16, 13, 10][upg('hoover')]; }, get dur() { return [1.5, 1.5, 2, 2.5][upg('hoover')]; }, go(s) {
     const lv = upg('hoover'); s.hoovT = this.dur; s.hoovLv = lv; Sfx.vacuum(this.dur, lv);
     if (netIsGuest()) netSend({ t: 'abil', id: 'hoover', lv }); // co-op guest: the host pulls its crowd for us
@@ -59,23 +62,23 @@ function hissNpc(s, lv) { // what a hiss does to the crowd (the deciding browser
     return hn;
 }
 const abilCD = {};
-const abilCd = id => ABIL[id].cd * (id === 'scent' ? 1 : MOD.slowRecharge ? 2 : MOD.quickRecharge ? .5 : 1); // Slow recharge / Quick recharge (Scent is a switch, not a cooldown)
+const abilCd = id => ABIL[id].cd * (MOD.slowRecharge ? 2 : MOD.quickRecharge ? .5 : 1); // Slow recharge / Quick recharge
 function useAbility(id) {
   if (!upg(id) || state !== 'play' || !snake || !snake.alive || !snake.started) return;
-  const a = ABIL[id]; if ((abilCD[id] || 0) > T || (id === 'dash' && snake.boomT > 0)) { /* (no lunging while you're reeling from a blast) */ if (Sfx.ok() && Sfx.gate('deny', .6)) Sfx.deny(); abilityHud(); const b = document.querySelector(`#abil [data-a="${id}"]`); if (b) { b.classList.remove('no'); void b.offsetWidth; b.classList.add('no'); } return; }
+  const a = ABIL[id]; if ((abilCD[id] || 0) > T || (id === 'dash' && (snake.boomT > 0 || snake.ramT > 0 || snake.wallStun > 0))) { /* (no lunging while you're concussed: a blast, a smash, a wall) */ if (Sfx.ok() && Sfx.gate('deny', .6)) Sfx.deny(); abilityHud(); const b = document.querySelector(`#abil [data-a="${id}"]`); if (b) { b.classList.remove('no'); void b.offsetWidth; b.classList.add('no'); } return; }
   abilCD[id] = T + abilCd(id); a.go(snake); run.abil = (run.abil || 0) + 1;
   NET.emit({ type: 'ability', id, x: snake.x, y: snake.y, a: snake.angle });
   if (NETM.run && NETM.host) netEmit({ t: 'abil', pid: NETM.me, id, x: Math.round(snake.x), y: Math.round(snake.y) }); // the others hear it (and see the hiss)
   abilityHud(true);
 }
-function resetAbilities() { for (const k in abilCD) delete abilCD[k]; for (const u of UPGRADES) if (u.ability) abilCD[u.id] = T + abilCd(u.id); abilCD.scent = T; if (snake) snake.scentOn = upg('scent') > 0; abilityHud(true); } // every skill starts the round recharging
+function resetAbilities() { for (const k in abilCD) delete abilCD[k]; for (const u of UPGRADES) if (u.ability) abilCD[u.id] = T + abilCd(u.id); FOCUS.until = 0; if (snake) snake.pingT = 0; abilityHud(true); } // every skill starts the round recharging
 const speedMult = () => 1 + .05 * upg('speed');
 const comboGutMult = () => 1 + .1 * upg('gut');
 
 /* ---- abilities HUD: bottom-center icons with a cooldown sweep ---- */
 function abilityHud(rebuild) {
   const el = document.getElementById('abil'); if (!el) return;
-  const list = UPGRADES.filter(u => u.ability && upg(u.id));
+  const list = state === 'menu' || state === 'loading' || state === 'editor' ? [] : UPGRADES.filter(u => u.ability && upg(u.id)); // only in a run (never in the menus or a lobby)
   if (rebuild || el.dataset.n !== String(list.length)) {
     el.dataset.n = list.length;
     el.innerHTML = list.map(u => `<div class="ab" data-a="${u.id}" data-tip="${u.name} (${abilKey(u.id)}): ${u.tiers[0]}">${upIcon(u.icon)}<i class="cd"></i><kbd>${abilKey(u.id) === 'Shift' ? '⇧' : abilKey(u.id)}</kbd></div>`).join('');
@@ -85,7 +88,7 @@ function abilityHud(rebuild) {
     const left = Math.max(0, (abilCD[u.id] || 0) - T), k = left / abilCd(u.id);
     for (const host of [el, document.querySelector('#touch .tabil')]) {
       const b = host && host.querySelector(`[data-a="${u.id}"]`); if (!b) continue;
-      b.classList.toggle('ready', k <= 0); b.style.setProperty('--cd', (k * 360).toFixed(0) + 'deg'); if (u.id === 'scent') b.classList.toggle('off', !(snake && snake.scentOn));
+      b.classList.toggle('ready', k <= 0); b.style.setProperty('--cd', (k * 360).toFixed(0) + 'deg');
     }
   }
 }
@@ -97,7 +100,7 @@ function abilityTick() { // every frame: just slide the cooldown rings, so they 
 }
 function refreshTouchAbilities() {
   const host = document.querySelector('#touch .tabil'); if (!host) return;
-  host.innerHTML = UPGRADES.filter(u => u.ability && upg(u.id)).map(u => `<button class="tb ab" data-a="${u.id}" data-sfx="none" aria-label="${u.name}">${upIcon(u.icon)}<i class="cd"></i></button>`).join('');
+  host.innerHTML = (state === 'menu' || state === 'loading' || state === 'editor' ? [] : UPGRADES.filter(u => u.ability && upg(u.id))).map(u => `<button class="tb ab" data-a="${u.id}" data-sfx="none" aria-label="${u.name}">${upIcon(u.icon)}<i class="cd"></i></button>`).join('');
   host.querySelectorAll('[data-a]').forEach(b => b.onpointerdown = e => { e.stopPropagation(); useAbility(b.dataset.a); });
 }
 function upIcon(k) { // small hand-drawn SVG glyphs, so the upgrades don't lean on emoji
@@ -270,101 +273,162 @@ function buyUpgrade(id) {
 const upgradeReady = () => UPGRADES.some(u => { const lv = PROG.upg[u.id] || 0; return lv < u.max && PROG.level >= u.lvl[lv] && PROG.coins >= u.cost[lv]; }); // something you can buy right now
 
 function canSeeSnake(c) {
-  const s = snake, d = Math.hypot(c.x - s.x, c.y - s.y), sight = c.def.sight * (MOD.skittish ? 1.5 : MOD.oblivious ? .6 : 1) * (MOD.fog ? .55 : 1) * (s.camoT > 0 ? .25 - (upg('camo') > 2 ? .15 * (s.still || 0) : 0) : 1);
-  return d < 40 || (d < sight && lightAt(s.x, s.y) > VISIBLE && los(c.x, c.y, s.x, s.y));
+  const s = snake, d = Math.hypot(c.x - s.x, c.y - s.y), sight = c.def.sight * (MOD.skittish ? 1.5 : MOD.oblivious ? .6 : 1) * (MOD.fog ? .55 : 1) * (s.camoT > 0 ? 0 : 1);
+  return d < (s.camoT > 0 ? 24 : 40) || (d < sight && lightAt(s.x, s.y) > VISIBLE && los(c.x, c.y, s.x, s.y));
 }
-/* ---- Scent: a trail of scent laid out the way you'd actually have to go (around walls, through doorways) to the best meal near you.
-   Motes stream along it away from your head; it's strong close to you and fades out further along, so it points the way without being a map line ---- */
+/* ---- 3rd Eye: a sixth sense for the fight. Five times a second it reads the danger round you (bomb markers by how soon they land,
+   strafing lanes the rounds haven't reached yet) and lays the best way through it, around walls and through doorways:
+   out of trouble first, then to gold, to the crowds out in the open, to the next meal. E is Focus: the world slows for a moment ---- */
 let wisps = []; // (old name kept: other code clears it between runs)
 let scentTrails = [];
 const NAV = 16; let navGrid = null, navKey = '', navT = 0;
+const EYE_COL = { out: '120,235,255', life: '255,170,60', gold: '255,214,70', crowd: '255,110,200' };
 function navBuild() { // which 16 px cells the snake can't get through (any solid in them)
   const gw = Math.ceil(W / NAV), gh = Math.ceil(H / NAV), key = gw + 'x' + gh + ':' + obstacles.length;
   if (navGrid && navKey === key && T - navT < 3) return navGrid; navKey = key; navT = T;
-  const g = new Uint8Array(gw * gh), k = NAV / SG;
+  const g = new Uint8Array(gw * gh), k = NAV / SG, n = gw * gh;
   for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) { let b = 0; for (let v = 0; v < k && !b; v++) for (let u = 0; u < k; u++) { const gx = i * k + u, gy = j * k + v; if (gx < GW && gy < GH && solidGrid[gy * GW + gx]) { b = 1; break; } } g[j * gw + i] = b; }
-  return navGrid = { g, gw, gh, dist: new Int16Array(gw * gh), q: new Int32Array(gw * gh) };
+  const old = navGrid && navGrid.g.length === n ? navGrid : null; // the work arrays survive a rebuild of the same size
+  return navGrid = { g, gw, gh, dang: old ? old.dang : new Float32Array(n), cost: old ? old.cost : new Float32Array(n), par: old ? old.par : new Int32Array(n), hk: old ? old.hk : new Float32Array(n * 4), hv: old ? old.hv : new Int32Array(n * 4) };
 }
-function scentPath(sx, sy, tx, ty) { // breadth-first out from the prey, then walk downhill from your head; smoothed into a curve
-  const N = navBuild(), { g, gw, gh, dist, q } = N, cell = (x, y) => clamp(y / NAV | 0, 0, gh - 1) * gw + clamp(x / NAV | 0, 0, gw - 1);
-  dist.fill(-1); let t0 = cell(tx, ty), h = 0, e = 0; dist[t0] = 0; q[e++] = t0;
-  while (h < e) { const c = q[h++], ci = c % gw, cj = c / gw | 0, d = dist[c] + 1;
-    if (ci > 0 && dist[c - 1] < 0 && !g[c - 1]) { dist[c - 1] = d; q[e++] = c - 1; } if (ci < gw - 1 && dist[c + 1] < 0 && !g[c + 1]) { dist[c + 1] = d; q[e++] = c + 1; }
-    if (cj > 0 && dist[c - gw] < 0 && !g[c - gw]) { dist[c - gw] = d; q[e++] = c - gw; } if (cj < gh - 1 && dist[c + gw] < 0 && !g[c + gw]) { dist[c + gw] = d; q[e++] = c + gw; } }
-  let c = cell(sx, sy);
-  if (dist[c] < 0) { let best = -1; for (let r = 1; r <= 2 && best < 0; r++) for (let v = -r; v <= r; v++) for (let u = -r; u <= r; u++) { const i = (c % gw) + u, j = (c / gw | 0) + v; if (i < 0 || j < 0 || i >= gw || j >= gh) continue; const k = j * gw + i; if (dist[k] >= 0 && (best < 0 || dist[k] < dist[best])) best = k; } if (best < 0) return null; c = best; } // your head is up against a wall: start from the nearest open cell
-  const pts = [sx, sy];
-  for (let n = 0; n < 400 && dist[c] > 0; n++) { let nb = c; const ci = c % gw, cj = c / gw | 0;
-    for (let v = -1; v <= 1; v++) for (let u = -1; u <= 1; u++) { if (!u && !v) continue; const i = ci + u, j = cj + v; if (i < 0 || j < 0 || i >= gw || j >= gh) continue; const k = j * gw + i;
-      if (dist[k] < 0 || dist[k] >= dist[nb]) continue; if (u && v && (g[cj * gw + i] || g[j * gw + ci])) continue; nb = k; } // no cutting corners past a wall
-    if (nb === c) break; c = nb; pts.push((c % gw + .5) * NAV, ((c / gw | 0) + .5) * NAV); }
-  pts.push(tx, ty);
-  let P = pts; for (let it = 0; it < 2; it++) { const o = [P[0], P[1]]; for (let i = 0; i < P.length - 2; i += 2) { const ax = P[i], ay = P[i + 1], bx = P[i + 2], by = P[i + 3]; o.push(ax * .75 + bx * .25, ay * .75 + by * .25, ax * .25 + bx * .75, ay * .25 + by * .75); } o.push(P[P.length - 2], P[P.length - 1]); P = o; } // Chaikin: a smooth curve, no stair steps
+function eyeDanger(N) { // how deadly each cell is about to be: 1 = a bomb about to land, the lane right in front of the rounds
+  const { gw, gh, dang } = N, pad = snakeRadius() * .6 + 10; dang.fill(0); let any = false;
+  const mark = (x0, y0, x1, y1, f) => { const i0 = clamp(x0 / NAV | 0, 0, gw - 1), i1 = clamp(x1 / NAV | 0, 0, gw - 1), j0 = clamp(y0 / NAV | 0, 0, gh - 1), j1 = clamp(y1 / NAV | 0, 0, gh - 1);
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const w = f((i + .5) * NAV, (j + .5) * NAV); if (w > dang[j * gw + i]) { dang[j * gw + i] = w; any = true; } } };
+  if (typeof strikes !== 'undefined') {
+    for (const s of strikes) { const r = s.r + pad, w = clamp(1.4 - s.t / 3, .55, 1); mark(s.x - r, s.y - r, s.x + r, s.y + r, (x, y) => dist2(x, y, s.x, s.y) < r * r ? w : 0); }
+    for (const s of strafes) { if (s.front >= s.len) continue; const hw = s.hw + pad, a0 = Math.max(0, s.front - 10), w = s.t < -2.5 ? .6 : 1;
+      const xa = s.x0 + s.ca * a0, ya = s.y0 + s.sa * a0, xb = s.x0 + s.ca * s.len, yb = s.y0 + s.sa * s.len;
+      mark(Math.min(xa, xb) - hw, Math.min(ya, yb) - hw, Math.max(xa, xb) + hw, Math.max(ya, yb) + hw, (x, y) => { const dx = x - s.x0, dy = y - s.y0, al = dx * s.ca + dy * s.sa; return al >= a0 && al <= s.len && Math.abs(dy * s.ca - dx * s.sa) < hw ? w : 0; }); }
+  }
+  return any;
+}
+function eyeSearch(N, sx, sy) { // cheapest way to every cell from your head (Dijkstra; danger is very expensive to cross, never forbidden: sometimes the only way out is through)
+  const { g, gw, gh, dang, cost, par, hk, hv } = N, cap = hk.length;
+  cost.fill(Infinity); let c = clamp(sy / NAV | 0, 0, gh - 1) * gw + clamp(sx / NAV | 0, 0, gw - 1);
+  if (g[c]) { let best = -1; for (let r = 1; r <= 2 && best < 0; r++) for (let v = -r; v <= r && best < 0; v++) for (let u = -r; u <= r; u++) { const i = (c % gw) + u, j = (c / gw | 0) + v; if (i >= 0 && j >= 0 && i < gw && j < gh && !g[j * gw + i]) { best = j * gw + i; break; } } if (best < 0) return -1; c = best; } // your head is up against a wall
+  let n = 0; const push = (k, v) => { if (n >= cap) return; let i = n++; while (i > 0) { const p = (i - 1) >> 1; if (hk[p] <= k) break; hk[i] = hk[p]; hv[i] = hv[p]; i = p; } hk[i] = k; hv[i] = v; };
+  const pop = () => { const v = hv[0], k = hk[--n], w = hv[n]; let i = 0; for (;;) { let m = 2 * i + 1; if (m >= n) break; if (m + 1 < n && hk[m + 1] < hk[m]) m++; if (hk[m] >= k) break; hk[i] = hk[m]; hv[i] = hv[m]; i = m; } hk[i] = k; hv[i] = w; return v; };
+  cost[c] = 0; par[c] = -1; push(0, c); const limit = 150; // about 2400 px of path: anything further is not worth pointing at
+  while (n) { const k0 = hk[0], q = pop(); if (k0 > cost[q] || k0 > limit) continue; const qi = q % gw, qj = q / gw | 0;
+    for (let v = -1; v <= 1; v++) for (let u = -1; u <= 1; u++) { if (!u && !v) continue; const i = qi + u, j = qj + v; if (i < 0 || j < 0 || i >= gw || j >= gh) continue; const k = j * gw + i; if (g[k]) continue;
+      if (u && v && (g[qj * gw + i] || g[j * gw + qi])) continue; // no cutting corners past a wall
+      const nc = k0 + (u && v ? 1.414 : 1) * (1 + 16 * dang[k]); if (nc < cost[k]) { cost[k] = nc; par[k] = q; push(nc, k); } } }
+  return c;
+}
+function eyePath(N, sx, sy, to, tx, ty) { // the route found above, walked back from the target, smoothed into a curve
+  const { gw, par, cost } = N; if (!(cost[to] < Infinity)) return null;
+  const cells = []; for (let c = to, n = 0; c >= 0 && n < 600; c = par[c], n++) cells.push(c);
+  const pts = [sx, sy]; for (let i = cells.length - 2; i >= 0; i--) pts.push((cells[i] % gw + .5) * NAV, ((cells[i] / gw | 0) + .5) * NAV);
+  if (tx !== undefined) pts.push(tx, ty);
+  let P = pts; for (let it = 0; it < 2; it++) { const o = [P[0], P[1]]; for (let i = 0; i < P.length - 2; i += 2) { const ax = P[i], ay = P[i + 1], bx = P[i + 2], by = P[i + 3]; o.push(ax * .75 + bx * .25, ay * .75 + by * .25, ax * .25 + bx * .75, ay * .25 + by * .75); } o.push(P[P.length - 2], P[P.length - 1]); P = o; } // Chaikin: no stair steps
   const L = new Float32Array(P.length / 2); for (let i = 1; i < L.length; i++) L[i] = L[i - 1] + Math.hypot(P[2 * i] - P[2 * i - 2], P[2 * i + 1] - P[2 * i - 1]);
   return { P, L, len: L[L.length - 1] };
 }
-function scentTargets(s, n) { // what's worth hunting: big and close first, gold animals, gold people, and a crowd beats a loner
-  const out = [];
-  for (const c of creatures) {
-    if (!c.alive || c.def.fly || c.def.glow) continue;
-    const d = Math.hypot(c.x - s.x, c.y - s.y);
-    let val = c.def.human ? 2 : (c.def.score || 1) * (1 + c.def.r / 12); // bigger animals are a bigger meal
-    if (c.golden) val *= c.def.human ? 5 : 4; // gold people above gold animals
-    if (c.def.human) val *= 1 + countNearby(c.x, c.y, 70, isHuman, c) * .45; // a group means a combo
-    if (c.state === 'wander' || c.state === 'idle') val *= 1.3; else if (c.state === 'panic') val *= .75; // unaware prey smells strongest; runners are harder
-    if (c.fl && c.fl.on) val *= .85; // flashlights spot you first
-    if (scentTrails.some(t => t.c === c)) val *= 1.5; // keep following the one you're on: no flicking between two that score about the same
-    out.push({ c, d, sc: val / (d + 90) });
-  }
-  out.sort((a, b) => b.sc - a.sc); const top = out.slice(0, n);
-  if (n > 1) for (const g of out) if (g.c.golden && !top.includes(g)) top.push(g); // bloodhound: gold always gets a trail
-  return top;
+const eyeCell = (N, x, y) => clamp(y / NAV | 0, 0, N.gh - 1) * N.gw + clamp(x / NAV | 0, 0, N.gw - 1);
+function eyeOpen(N, x, y) { // how open the ground round a spot is (0 boxed in, 1 wide open)
+  const ci = clamp(x / NAV | 0, 0, N.gw - 1), cj = clamp(y / NAV | 0, 0, N.gh - 1); let s = 0, n = 0;
+  for (let v = -4; v <= 4; v++) for (let u = -4; u <= 4; u++) { const i = ci + u, j = cj + v; n++; if (i < 0 || j < 0 || i >= N.gw || j >= N.gh || N.g[j * N.gw + i]) s++; }
+  return 1 - s / n;
 }
-const wispCol = c => c.golden ? '255,214,70' : c.def.alien ? '140,255,120' : c.def.human ? '255,120,110' : '150,235,255';
+function eyePlan(s) { // what to show: a way out if you're in a pickle, a lifeline if your combo is dying, gold, a crowd in the open, the next meal
+  const lv = upg('scent'), N = navBuild(), hot = eyeDanger(N), start = eyeSearch(N, s.x, s.y), want = {};
+  if (start < 0) return want;
+  const { dang, cost, gw, gh } = N, at = (x, y) => eyeCell(N, x, y);
+  let danger = 0; if (hot) { const n = s.segs ? Math.max(3, Math.ceil(s.segs.length * .3)) + 2 : 1; for (let i = 0; i < n && s.segs && i < s.segs.length; i += 2) danger = Math.max(danger, dang[at(s.segs[i].x, s.segs[i].y)]); danger = Math.max(danger, dang[start]);
+    if (!danger) { const ax = s.x + Math.cos(s.angle) * 70, ay = s.y + Math.sin(s.angle) * 70; danger = dang[at(ax, ay)] * .8; } } // about to head straight into one counts too
+  if (danger > 0) { // a way out: the cheapest cell far enough from every danger that the front of your body clears it too
+    const dd = N.dd || (N.dd = new Int16Array(gw * gh)), q = N.q || (N.q = new Int32Array(gw * gh)); let h = 0, e = 0;
+    for (let k = 0; k < dd.length; k++) if (dang[k] > 0) { dd[k] = 0; q[e++] = k; } else dd[k] = 32767;
+    while (h < e) { const c = q[h++], ci = c % gw, cj = c / gw | 0, d = dd[c] + 1; if (d > 12) continue; // distance (in cells) to the nearest danger
+      for (let v = -1; v <= 1; v++) for (let u = -1; u <= 1; u++) { const i = ci + u, j = cj + v; if (i < 0 || j < 0 || i >= gw || j >= gh) continue; const k = j * gw + i; if (dd[k] > d) { dd[k] = d; q[e++] = k; } } }
+    let fl = 0; if (s.segs) { const n = Math.max(3, Math.ceil(s.segs.length * .3)); for (let i = 1; i < n && i < s.segs.length; i++) fl += Math.hypot(s.segs[i].x - s.segs[i - 1].x, s.segs[i].y - s.segs[i - 1].y); }
+    const m = clamp(Math.round(fl / NAV), 2, 9);
+    let best = -1, bc = Infinity;
+    for (let k = 0; k < cost.length; k++) { const c = cost[k]; if (c < bc && dd[k] > m && !N.g[k]) { bc = c; best = k; } }
+    if (best >= 0 && bc > 1.5) /* (already clear: the body follows the head out) */ want.out = { cell: best, x: (best % gw + .5) * NAV, y: ((best / gw | 0) + .5) * NAV, k: danger };
+  }
+  const reach = c => { const k = at(c.x, c.y); return cost[k] < Infinity ? cost[k] * NAV : Infinity; };
+  const safeAt = c => 1 - dang[at(c.x, c.y)]; // walking into a bomb for a meal is not a plan
+  const cur = kind => (scentTrails.find(t => t.kind === kind && !t.dying) || {}).c;
+  if (combo && typeof comboDur === 'function' && combo.t / comboDur() < .35) { // your combo is about to die: the nearest thing you can eat in time
+    let best = null, bd = Infinity; for (const c of creatures) { if (!c.alive || c.def.fly || c.def.glow) continue; const d = reach(c) / Math.max(.15, safeAt(c)); if (d < bd) { bd = d; best = c; } }
+    if (best && bd < 900) want.life = { c: best };
+  }
+  if (lv > 1) { let best = null, bs = 0; for (const c of creatures) { if (!c.alive || !c.golden) continue; const d = reach(c); if (d === Infinity) continue; const sc = (c.def.human ? 2 : 1) * safeAt(c) * (c === cur('gold') ? 1.4 : 1) / (d + 120); if (sc > bs) { bs = sc; best = c; } } if (best) want.gold = { c: best }; } // gold, even with bombs coming down: the way round them
+  if (lv > 2) { const pc = cur('crowd'); let best = null, bs = 0; for (const c of creatures) { if (!c.alive || !c.def.human || c === (want.gold && want.gold.c)) continue; // big crowds out in the open, where a lunge can tear through them
+      const n = countNearby(c.x, c.y, 95, isHuman, c); if (n < 3) continue; const d = reach(c); if (d === Infinity || d > 1800) continue; const op = eyeOpen(N, c.x, c.y); if (op < .7) continue;
+      const sc = Math.pow(n + 1, 1.4) * op * safeAt(c) * (pc && pc.alive && dist2(c.x, c.y, pc.x, pc.y) < 120 * 120 ? 1.6 : 1) / (d + 260); /* the same crowd as before: stay on it */ if (sc > bs) { bs = sc; best = c; } }
+    if (best && pc && pc.alive && best !== pc && dist2(best.x, best.y, pc.x, pc.y) < 120 * 120 && reach(pc) < Infinity) best = pc; // still the same crowd: keep the same trail
+    if (best) want.crowd = { c: best }; }
+  if (!want.out && !want.life) { const pref = cur('meal'); let best = null, bs = 0; // the next meal: big and close, unaware, a crowd over a loner
+    for (const c of creatures) { if (!c.alive || c.def.fly || c.def.glow || c === (want.gold && want.gold.c) || c === (want.crowd && want.crowd.c)) continue; const d = reach(c); if (d === Infinity) continue;
+      let val = c.def.human ? 2 : (c.def.score || 1) * (1 + c.def.r / 12); if (c.golden) val *= 4;
+      if (c.def.human) val *= 1 + countNearby(c.x, c.y, 70, isHuman, c) * .45;
+      if (c.state === 'wander' || c.state === 'idle') val *= 1.3; else if (c.state === 'panic') val *= .75;
+      const sc = val * safeAt(c) * (c === pref ? 1.6 : 1) / (d + 90); if (sc > bs) { bs = sc; best = c; } }
+    if (best) want.meal = { c: best }; }
+  return want;
+}
+function eyeCol(t) { return EYE_COL[t.kind] || (t.c ? (t.c.golden ? '255,214,70' : t.c.def.alien ? '140,255,120' : t.c.def.human ? '255,120,110' : '150,235,255') : '235,225,205'); }
+const FOCUS = { until: 0, t0: 0 };
+function timeScale() { // Focus: the world slows right down for a moment (solo only: co-op shares one clock)
+  if (NETM.run || state !== 'play') return 1; const now = performance.now(); if (now >= FOCUS.until) return 1;
+  const a = (now - FOCUS.t0) / 140, b = (FOCUS.until - now) / 220; return 1 - .62 * clamp(Math.min(a, b, 1), 0, 1);
+}
 function updateScent(dt) {
   const s = snake; wisps.length = 0;
-  if (!s || !s.alive || !s.scentOn || !upg('scent') || state !== 'play' || !solidGrid) { for (const t of scentTrails) t.fade = Math.min(t.fade, 1) - dt * 3; scentTrails = scentTrails.filter(t => t.fade > 0); return; }
-  const lv = upg('scent');
-  if ((updateScent.t = (updateScent.t || 0) - dt) <= 0) { updateScent.t = .25; // pick the targets and lay the trails four times a second
-    const want = scentTargets(s, lv > 2 ? 3 : 1).map(g => g.c);
-    for (const t of scentTrails) if (!want.includes(t.c) || !t.c.alive) t.dying = true;
-    for (const c of want) { let t = scentTrails.find(q => q.c === c && !q.dying); if (!t) scentTrails.push(t = { c, fade: 0, off: Math.random() * 40 });
-      const p = scentPath(s.x, s.y, c.x, c.y); if (p) Object.assign(t, p); else t.dying = true; }
+  if (!s || !s.alive || !upg('scent') || state !== 'play' || !solidGrid) { for (const t of scentTrails) t.fade = Math.min(t.fade, 1) - dt * 3; scentTrails = scentTrails.filter(t => t.fade > 0); return; }
+  if (s.pingT > 0) s.pingT -= dt;
+  const sig = (typeof strikes !== 'undefined' ? strikes.length * 31 + strafes.length : 0) + (combo ? 1000 : 0); // a new bomb or lane: look again right away
+  if ((updateScent.t = (updateScent.t || 0) - dt) <= 0 || sig !== updateScent.sig) { updateScent.t = .2; updateScent.sig = sig; // five times a second
+    const want = eyePlan(s), wasOut = scentTrails.some(t => t.kind === 'out' && !t.dying);
+    for (const t of scentTrails) if (!want[t.kind] || t.c !== (want[t.kind].c || null) || (t.c && !t.c.alive)) t.dying = true;
+    for (const kind in want) { const w = want[kind], N = navGrid;
+      let t = scentTrails.find(q => q.kind === kind && !q.dying); if (!t) scentTrails.push(t = { kind, c: w.c || null, fade: 0, off: Math.random() * 40 });
+      const p = w.c ? eyePath(N, s.x, s.y, eyeCell(N, w.c.x, w.c.y), w.c.x, w.c.y) : eyePath(N, s.x, s.y, w.cell); if (p) Object.assign(t, p, { k: w.k || 0, ex: w.x, ey: w.y }); else t.dying = true; }
+    if (want.out && !wasOut && Sfx.ok() && Sfx.gate('eye', 1.2)) Sfx.eye();
   }
-  for (const t of scentTrails) { t.fade = t.dying ? t.fade - dt * 2.5 : Math.min(1, t.fade + dt * 2.5); if (t.P) { t.P[0] = s.x; t.P[1] = s.y; } t.off = (t.off + dt * 95) % 1e5; } // the trail stays stuck to your head between re-plans
+  for (const t of scentTrails) { t.fade = t.dying ? t.fade - dt * 3 : Math.min(1, t.fade + dt * 4); if (t.P) { t.P[0] = s.x; t.P[1] = s.y; } t.off = (t.off + dt * (t.kind === 'out' ? 170 : 95)) % 1e5; } // the trail stays stuck to your head between re-plans
   scentTrails = scentTrails.filter(t => t.fade > 0);
 }
 function drawScent(x) {
   const s = snake; if (!s) return;
   x.save(); x.lineCap = 'round'; x.lineJoin = 'round';
-  const lv = upg('scent'), reach = lv > 2 ? 720 : 520, fx = Math.min(1, FX_K());
+  const lv = upg('scent'), fx = Math.min(1, FX_K()), foc = timeScale() < 1 || s.pingT > 0 ? 1.35 : 1;
   for (const t of scentTrails) { if (!t.P || t.fade <= 0) continue;
-    const P = t.P, L = t.L, n = L.length, col = lv > 1 ? wispCol(t.c) : '235,225,205', end = Math.min(t.len, reach), a0 = .55 * t.fade;
+    const out = t.kind === 'out', P = t.P, L = t.L, n = L.length, col = eyeCol(t), reach = out ? Math.max(260, t.len + 40) : t.kind === 'meal' ? 560 : 900, end = Math.min(t.len, reach), a0 = Math.min(1, (out ? .95 : .6) * t.fade * foc);
     for (let i = 1; i < n && L[i - 1] < end; i++) { const f = 1 - L[i] / reach; if (f <= 0) break; // a soft band, strong by your head and thinning out along the way
-      x.strokeStyle = `rgba(${col},${(a0 * .32 * f).toFixed(3)})`; x.lineWidth = 7 * f + 2; x.beginPath(); x.moveTo(P[2 * i - 2], P[2 * i - 1]); x.lineTo(P[2 * i], P[2 * i + 1]); x.stroke(); }
-    const gap = 26 / Math.max(.4, fx); let j = 1; // motes drifting along it toward the meal
+      x.strokeStyle = `rgba(${col},${(a0 * (out ? .4 : .3) * f).toFixed(3)})`; x.lineWidth = (out ? 11 : 7) * f + 2; x.beginPath(); x.moveTo(P[2 * i - 2], P[2 * i - 1]); x.lineTo(P[2 * i], P[2 * i + 1]); x.stroke(); }
+    const gap = (out ? 22 : 26) / Math.max(.4, fx); let j = 1; // marks streaming along it: chevrons on a way out, motes toward a meal
     for (let d = t.off % gap; d < end; d += gap) { while (j < n - 1 && L[j] < d) j++; const u = (d - L[j - 1]) / Math.max(.001, L[j] - L[j - 1]), px = P[2 * j - 2] + (P[2 * j] - P[2 * j - 2]) * u, py = P[2 * j - 1] + (P[2 * j + 1] - P[2 * j - 1]) * u, f = 1 - d / reach;
-      if (d < 14) continue; x.fillStyle = `rgba(${col},${(a0 * 1.6 * f * Math.min(1, d / 40)).toFixed(3)})`; x.beginPath(); x.arc(px, py, 1.3 + 1.6 * f, 0, TAU); x.fill(); }
-    if (t.len < reach && t.c.alive) { const f = 1 - t.len / reach, r = t.c.def.r + 7 + 2.5 * Math.sin(T * 5); x.strokeStyle = `rgba(${col},${(a0 * 1.4 * (.4 + .6 * f)).toFixed(3)})`; x.lineWidth = 1.6; x.beginPath(); x.arc(t.c.x, t.c.y, r, 0, TAU); x.stroke(); } // the meal itself, once you're close
+      if (d < 16) continue; const al = (a0 * 1.6 * f * Math.min(1, d / 40)).toFixed(3);
+      if (out) { const a = Math.atan2(P[2 * j + 1] - P[2 * j - 1], P[2 * j] - P[2 * j - 2]), z = 5 + 2 * f; x.strokeStyle = `rgba(${col},${al})`; x.lineWidth = 2.4; x.beginPath(); x.moveTo(px - Math.cos(a - .7) * z, py - Math.sin(a - .7) * z); x.lineTo(px, py); x.lineTo(px - Math.cos(a + .7) * z, py - Math.sin(a + .7) * z); x.stroke(); }
+      else { x.fillStyle = `rgba(${col},${al})`; x.beginPath(); x.arc(px, py, 1.3 + 1.6 * f, 0, TAU); x.fill(); } }
+    if (out && t.ex !== undefined) { const r = 12 + 3 * Math.sin(T * 8); x.strokeStyle = `rgba(${col},${(a0 * .9).toFixed(3)})`; x.lineWidth = 2; x.setLineDash([4, 4]); x.lineDashOffset = -T * 40; x.beginPath(); x.arc(t.ex, t.ey, r, 0, TAU); x.stroke(); x.setLineDash([]); } // the safe spot
+    else if (t.c && t.c.alive && t.len < reach) { const f = 1 - t.len / reach, big = t.kind === 'crowd' ? 22 : 7, r = t.c.def.r + big + 2.5 * Math.sin(T * 5); x.strokeStyle = `rgba(${col},${(a0 * 1.4 * (.4 + .6 * f)).toFixed(3)})`; x.lineWidth = t.kind === 'crowd' ? 2.2 : 1.6; x.beginPath(); x.arc(t.c.x, t.c.y, r, 0, TAU); x.stroke(); } // what's at the end, once you're close
   }
-  if (s.scentOn && upg('scent') && state === 'play') { // golden targets always get a dotted gold line, the moment they appear
-    x.lineWidth = 1.6; x.setLineDash([3, 5]); x.lineDashOffset = -T * 30;
-    for (const c of creatures) { if (!c.alive || !c.golden) continue;
-      const age = T - (c.goldAt ?? 0), pop = age < .6 ? 1 + (1 - age / .6) * 1.5 : 1; // a brighter, thicker line right when it shows up
-      x.beginPath(); x.moveTo(s.x, s.y); x.lineTo(c.x, c.y); x.strokeStyle = `rgba(0,0,0,${Math.min(.9, .6 * pop)})`; x.lineWidth = 1.6 * pop + 2.4; x.stroke(); // a dark edge so it reads on any ground
-      x.strokeStyle = `rgba(255,214,70,${Math.min(1, .8 * pop)})`; x.lineWidth = 1.6 * pop; x.stroke(); }
-    x.setLineDash([]);
-  }
-  if (s.scentOn && upg('scent') > 1) { // who can see you right now
-    const k = .8; x.lineWidth = 1.4;
+  if (lv && s.pingT > 0) { const k = Math.min(1, s.pingT); x.lineWidth = 1.5; // Focus: everyone close by lights up for a moment, through the dark
+    for (const c of creatures) { if (!c.alive || c.def.fly) continue; const d = Math.hypot(c.x - s.x, c.y - s.y); if (d > 900) continue;
+      x.strokeStyle = `rgba(${c.golden ? '255,214,70' : c.def.human ? '255,140,120' : '170,230,255'},${(.7 * k * (1 - d / 1000)).toFixed(3)})`; x.beginPath(); x.arc(c.x, c.y, c.def.r + 5, 0, TAU); x.stroke(); } }
+  if (lv > 1) { // who can see you right now
+    x.lineWidth = 1.4;
     for (const c of creatures) {
       if (!c.alive || !c.def.human) continue;
       const scared = c.state === 'panic' || c.state === 'flee', sees = !scared && canSeeSnake(c); if (!sees) continue;
-      x.strokeStyle = `rgba(255,70,60,${.8 * k})`; x.beginPath(); x.arc(c.x, c.y, c.def.r + 6 + Math.sin(T * 6 + (c.seed ?? .5) * 20) * 1.2, 0, TAU); x.stroke();
-      x.fillStyle = `rgba(255,70,60,${.1 * k})`; x.beginPath(); x.moveTo(c.x, c.y); x.arc(c.x, c.y, Math.min(90, c.def.sight * .6), c.a - .6, c.a + .6); x.closePath(); x.fill();
+      x.strokeStyle = 'rgba(255,70,60,.8)'; x.beginPath(); x.arc(c.x, c.y, c.def.r + 6 + Math.sin(T * 6 + (c.seed ?? .5) * 20) * 1.2, 0, TAU); x.stroke();
+      x.fillStyle = 'rgba(255,70,60,.08)'; x.beginPath(); x.moveTo(c.x, c.y); x.arc(c.x, c.y, Math.min(90, c.def.sight * .6), c.a - .6, c.a + .6); x.closePath(); x.fill();
     }
   }
   x.restore();
+}
+/* ---- screen edges: a blur round the edges mid-lunge, a cold vignette while Focus slows the world ---- */
+function edgeFxTick() {
+  const el = document.getElementById('edgeFx'); if (!el) return;
+  const s = snake, live = state === 'play' && s && s.alive, lb = live && !SETTINGS.reduceMotion ? clamp(s.lk || 0, 0, 1) : 0, fk = live ? 1 - (timeScale() - .38) / .62 : 0;
+  const key = (lb * 20 | 0) + ':' + (fk * 20 | 0); if (key === el.dataset.k) return; el.dataset.k = key;
+  el.style.display = lb > .03 || fk > .03 ? '' : 'none';
+  el.style.setProperty('--lb', lb.toFixed(2)); el.style.setProperty('--fk', clamp(fk, 0, 1).toFixed(2));
 }
 /* ---- Hiss: a visible soundwave rolling out; Battering Ram: a pressure wedge at the head just before impact ---- */
 function drawHissWave(x) {

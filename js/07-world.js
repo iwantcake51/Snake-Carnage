@@ -96,13 +96,20 @@ function bakeOutline() {
   nvx.clearRect(0, 0, W, H); nvx.drawImage(outlineC, 0, 0, W, H); // bright copy used by night vision
   nvx.globalCompositeOperation = 'source-in'; nvx.fillStyle = '#ffffff'; nvx.fillRect(0, 0, W, H); nvx.globalCompositeOperation = 'source-over';
 }
-let curBuild = null, curPre = [], curMapLights = [];
+let curBuild = null, curPre = [], curMapLights = [], fixList = [];
+function drawFixtures(x) { // ceiling lights hang above everything: one the snake is under fades out so it never hides you
+  const segs = snake && snake.alive && !snake.netHidden && snake.segs; if (!fixList.length) return; x.save();
+  for (const l of fixList) { if (l.fix === 'none') continue; let want = 1;
+    if (segs && segs.length) { const h = segs[0]; if (Math.abs(h.x - l.x) + Math.abs(h.y - l.y) < 60 + segs.length * 9) { let d = 1e9; for (let i = 0; i < segs.length; i += 2) { const g = segs[i]; d = Math.min(d, (g.x - l.x) ** 2 + (g.y - l.y) ** 2); } want = clamp((Math.sqrt(d) - 22) / 46, .15, 1); } }
+    l.fa = (l.fa ?? 1) + (want - (l.fa ?? 1)) * .18; if (l.fa < .995) { x.globalAlpha = l.fa; fixture(x, l); x.globalAlpha = 1; } else fixture(x, l); }
+  x.restore();
+}
 const [plainC, plainX] = makeLayer();
 function drawObstacleLayer(x = octx, b = curBuild, list = obstacles, ls = (b && b.lights) || MAPS[mapIdx].lights || []) { // walls and objects, then the details on top of them
   x.clearRect(0, 0, W, H); list.forEach(o => { if (o.kind !== 'detail') drawObstacle(x, o); }); // street details are painted into the ground (see loadMap)
   if (b && b.decor) b.decor(x);
   if (x === octx) snowCaps(x, list);
-  for (const l of ls) fixture(x, l);
+  if (x === octx) fixList = ls; else for (const l of ls) fixture(x, l); // the run's own fixtures are drawn every frame (drawFixtures), so they can fade over the snake
   if (x === octx) { outlineBreakables(x); bakePropGlow(list); } // glowing buttons and screens follow whatever is standing
 }
 /* ---- placement rules, applied to every map as it loads ----

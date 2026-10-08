@@ -2427,3 +2427,8 @@ body.phone .mods2 .m2body,body.narrow .mods2 .m2body{grid-template-columns:1fr}b
 .binds .bfoot{background:none;border:0;padding:6px 0 0;font:500 12px var(--f-body,system-ui);color:#9a8f94}
 .binds{grid-column:1/-1;grid-template-columns:1fr 1fr;gap:6px 14px}.binds .sgrp,.binds .bfoot{grid-column:1/-1}
 .binds .bfoot .btn{font-size:12px!important;padding:7px 14px!important;white-space:nowrap;min-width:0;flex:none}
+/* screen edges: blurred mid-lunge (--lb), a cold vignette while 3rd Eye's Focus slows the world (--fk) */
+#edgeFx{position:absolute;inset:0;pointer-events:none;border-radius:inherit;--lb:0;--fk:0;
+  backdrop-filter:blur(calc(var(--lb) * 6px)) saturate(calc(1 - var(--fk) * .45));-webkit-backdrop-filter:blur(calc(var(--lb) * 6px)) saturate(calc(1 - var(--fk) * .45));
+  -webkit-mask-image:radial-gradient(ellipse 72% 68% at 50% 50%,transparent 42%,#000 100%);mask-image:radial-gradient(ellipse 72% 68% at 50% 50%,transparent 42%,#000 100%);
+  background:radial-gradient(ellipse at center,transparent 40%,rgba(90,190,255,calc(var(--fk) * .28)) 100%)}

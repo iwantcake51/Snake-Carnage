@@ -41,7 +41,7 @@ function render() {
   drawFlashBodies(x); drawHitGhosts(x);
   drawGiblets(x); // chunks on the ground sit under the snake
   drawTrail(x); drawGround(x); drawHoovFx(x); if (NETM.run) netDrawSnakes(x); if (!(snake && snake.netHidden)) drawSnake(x); drawCorpses(x); drawHats(x); drawClods(x, false); drawRamCharge(x); drawStreaks(x); drawSnowFx(x);
-  if ((render.olk ?? 1) > .995 || SETTINGS.mapOutlines === 'Off') x.drawImage(obsC, 0, 0, W, H); else { x.drawImage(plainC, 0, 0, W, H); if (render.olk > .01) { x.globalAlpha = render.olk; x.drawImage(outlineC, 0, 0, W, H); x.globalAlpha = 1; } } drawTrees(x); // outlines only cost extra while they're fading
+  if ((render.olk ?? 1) > .995 || SETTINGS.mapOutlines === 'Off') x.drawImage(obsC, 0, 0, W, H); else { x.drawImage(plainC, 0, 0, W, H); if (render.olk > .01) { x.globalAlpha = render.olk; x.drawImage(outlineC, 0, 0, W, H); x.globalAlpha = 1; } } drawFixtures(x); drawTrees(x); // outlines only cost extra while they're fading
   drawWaters(x); drawCustomFx(x, 'top');
   for (const b of bucketList) { if (!b.wd) continue; x.globalAlpha = bucketAlpha(b); x.drawImage(b.w, 0, 0, W, H); }
   x.globalAlpha = 1;
@@ -187,11 +187,12 @@ function frame(now) {
   deathFxTick(dt);
   Sfx.hold(state === 'paused' || (state === 'dead' && !NETM.run && !(deadT > 0))); // paused, or the solo death screen up: the world's sound waits too (in the menu it's let go)
   if (PERF.el) perfShowIfPlaying();
+  edgeFxTick(); // lunge blur, Focus vignette (off everywhere but a live run)
   if (state === 'editor') return; // the map editor draws itself
   const menu = state === 'menu'; // menus show a CSS backdrop instead of the map: the game costs nothing there
   if (menu !== !!frame.cov) { frame.cov = menu; stage.classList.toggle('menuBg', menu); }
   if (menu) { UT += dt; return; }
-  try { update(dt); } catch (e) { loopError(e, 'update'); }
+  try { update(dt * timeScale()); } catch (e) { loopError(e, 'update'); } // (3rd Eye's Focus slows the world)
   try { render(); } catch (e) { loopError(e, 'render'); }
   perfRunTick(now); if (PERF.mode !== 'Off') perfFrame(now);
 }

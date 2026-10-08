@@ -543,14 +543,15 @@ function flee(c, x, y, t) {
   c.state = 'flee'; c.fx = x; c.fy = y; c.timer = Math.max(c.state === 'flee' ? c.timer : 0, t);
 }
 const WIT_NB = [];
-function witness(x, y, victim) { // a kill happened at x,y
+function witness(x, y, victim, quiet) { // a kill happened at x,y (quiet: from camouflage, nothing carries)
   if (victim.def.human && victim.name) lastDead = victim.name;
-  noise('kill', x, y); // the crunch (and the cut-off scream) carries: that's all a blind crowd ever gets of it
+  if (!quiet) noise('kill', x, y); // the crunch (and the cut-off scream) carries: that's all a blind crowd ever gets of it
   const lit = lightAt(x, y) > VISIBLE, R = MOD.doublePanic ? 2 : 1;
   for (const c of nearbyCreatures(x, y, 320 * R, WIT_NB)) { // nobody further than this can see it
     if (!c.alive) continue;
     const d = Math.hypot(c.x - x, c.y - y);
     if (MOD.blind && c.def.human) continue; // they can't see it: the 'kill' sound above reaches them when they next listen
+    if (quiet && d > 45) continue; // silent: only someone right there sees it
     const sees = lit ? (c.def.human ? d < 320 * R && (d < 120 * R || los(c.x, c.y, x, y)) : d < 200 * R) : d < (c.def.human ? 45 : 60) * R;
     if (!sees) { if (c.fl && c.fl.on && d < 300) c.fl.look = { x, y, t: rand(1.2, 2.2) }; continue; } // heard it: point the light there
     if (!c.def.human) { panic(c, x, y, rand(2, 4)); continue; }
@@ -589,8 +590,8 @@ function perceive(c) {
   }
   if (state !== 'play' || !s.started) return;
   if (MOD.blind && hum) return blindPerceive(c, hum); // no eyes: hearing and touch only (see 27b-hearing)
-  const dist = Math.hypot(c.x - s.x, c.y - s.y), sight = c.def.sight * (MOD.skittish ? 1.5 : MOD.oblivious ? .6 : 1) * (MOD.fog ? .55 : 1) * (s.camoT > 0 ? .25 - (upg('camo') > 2 ? .15 * (s.still || 0) : 0) : 1) * (hasTrait(c, 'distracted') ? .7 : hasTrait(c, 'curious') ? 1.15 : 1); // camouflage: only up close
-  const seen = (dist < (s.camoT > 0 ? (upg('camo') > 2 ? 9 : 22) : 40) || (dist < sight * (c.alert > .3 ? 1.25 : 1) && lightAt(s.x, s.y) > VISIBLE && los(c.x, c.y, s.x, s.y)));
+  const dist = Math.hypot(c.x - s.x, c.y - s.y), sight = c.def.sight * (MOD.skittish ? 1.5 : MOD.oblivious ? .6 : 1) * (MOD.fog ? .55 : 1) * (s.camoT > 0 ? 0 : 1) * (hasTrait(c, 'distracted') ? .7 : hasTrait(c, 'curious') ? 1.15 : 1); // camouflage: only up close
+  const seen = (dist < (s.camoT > 0 ? 24 : 40) || (dist < sight * (c.alert > .3 ? 1.25 : 1) && lightAt(s.x, s.y) > VISIBLE && los(c.x, c.y, s.x, s.y)));
   if (hum && c.state === 'panic' && dist < 62 && Math.random() < .06) adrenFrom(c, s.x, s.y); // a burst of fear, only with the snake right on their heels
   if (dist < 75 && (seen || dist < 40)) c.closeCall = true; // the snake came right past them...
   else if (c.closeCall && dist > 140) { c.closeCall = false; if (hum && Math.random() < .6) say(c, 'relief'); } // ...and kept going

@@ -37,7 +37,7 @@ const MODS = [ // g = group shown in the panel; not = can't be combined with
   { g: 'Snake', id: 'heavyImpact', name: 'Heavy impact', desc: 'Stuns from crashes, smashes and explosions last twice as long.', mult: .15, not: ['quickRecovery'] },
   { g: 'Snake', id: 'slowRecharge', name: 'Slow recharge', desc: 'Skill cooldowns are doubled.', mult: .1, not: ['quickRecharge', 'noAbilities'] },
   { g: 'Snake', id: 'quickRecharge', name: 'Quick recharge', desc: 'Skill cooldowns are halved.', mult: -.1, not: ['slowRecharge', 'noAbilities'] },
-  { g: 'Snake', id: 'noAbilities', name: 'No abilities', desc: 'Lunge, Scent, Camouflage, Hiss and Hoover Mouth are switched off.', mult: .15, not: ['slowRecharge', 'quickRecharge'] },
+  { g: 'Snake', id: 'noAbilities', name: 'No abilities', desc: 'Lunge, 3rd Eye, Camouflage, Hiss and Hoover Mouth are switched off.', mult: .15, not: ['slowRecharge', 'quickRecharge'] },
   { g: 'Snake', id: 'noUpgrades', name: 'No upgrades', desc: "Play with the snake's base stats: every upgrade you own is off for the run.", mult: .25 },
   { g: 'Snake', id: 'hoover', name: 'Hoover Mouth', desc: 'Anything edible right in front of your mouth gets pulled in. Short range, never through walls.', mult: -.1 },
   { g: 'Scoring', id: 'variety', name: 'Variety', desc: 'Switching target types builds a bonus. The same type over and over pays less.', mult: 0 },

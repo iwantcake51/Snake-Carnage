@@ -291,13 +291,14 @@ function drawBubbles(x) {
     const vis = c.bubbles.filter(b => b.delay <= 0).slice(-3), P = worldToCanvas(c.x, c.y - 12);
     if (P.x < -60 || P.x > W + 60 || P.y < -20 || P.y > H + 60) continue; // zoomed in: off screen
     let cy = P.y - 2 - bh / 2;
+    const Pc = worldToCanvas(c.x, c.y), under = segC.some(g => Math.abs(g.x - Pc.x) < 48 && Math.abs(g.y - Pc.y) < 48); // the snake right on (or under) the speaker: all their bubbles fade too
     for (let k = vis.length - 1; k >= 0; k--) {
       const b = vis[k];
       const txt = b.act ? `*${b.text}*` : b.cps ? b.text.slice(0, Math.max(1, shownLen(b))) : b.text;
       x.font = b.act ? `italic 600 ${fs * .92}px "Segoe UI", sans-serif` : `${b.yell ? 800 : 600} ${fs}px "Segoe UI", sans-serif`;
       const w = x.measureText(txt).width + 9, pop = Math.min(1, b.t / .14), sc = .6 + .4 * (1 - Math.pow(1 - pop, 3));
       const bx = clamp(P.x + (vis.length - 1 - k) * 5, w / 2 + 2, W - w / 2 - 2), by = Math.max(bh, cy);
-      let near = false; // fade bubbles the snake is under, so they never hide the action
+      let near = under; // fade bubbles the snake is under, so they never hide the action
       for (let i = 0; i < segC.length && !near; i++) { const g = segC[i]; near = Math.abs(g.x - bx) < w / 2 + 22 && Math.abs(g.y - by) < bh / 2 + 22; }
       b.fa = (b.fa ?? 1) + ((near ? .18 : 1) - (b.fa ?? 1)) * .25;
       x.save(); x.globalAlpha = Math.min(1, (b.life - b.t) * 3) * b.fa * seeA; x.translate(bx + (b.yell ? Math.sin(T * 47 + k * 3 + c.x) * .7 : 0), by + (b.yell ? Math.cos(T * 53 + c.y) * .6 : 0)); x.scale(sc, sc); // shouting shakes

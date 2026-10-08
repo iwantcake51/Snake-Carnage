@@ -48,7 +48,7 @@ const ADM_ACT = {
   bombRun() { const s = adminSnake(); if (s) strafeRun(s, .6, 'bombs'); },
   airRaid(on) { MOD.airRaid = on; if (on && !AIR.warned) AIR.nextT = 0; },
   chips(n) { PROG.coins += n; PROG.earned = (PROG.earned || 0) + n; saveProg(); typeof updateHud === 'function' && updateHud(); },
-  level() { gainXP(Math.max(1, xpNeed(PROG.level) - PROG.xp), 0); saveProg(); },
+  level() { gainXP(Math.max(1, Math.ceil((xpNeed(PROG.level) - PROG.xp) / XP_GAIN)), 0); saveProg(); },
   maxUpg() { for (const u of UPGRADES) PROG.upg[u.id] = u.max; saveProg(); if (state !== 'menu') { resetAbilities(); abilityHud(true); refreshTouchAbilities(); } },
 };
 

@@ -7,7 +7,7 @@
 /* ---- key bindings: every action has a default key; Settings › Controls can rebind any of them (SETTINGS.keys keeps only the changed ones).
    The arrow keys always move too, unless you've bound one of them to something else. Esc, Space and Enter stay fixed. ---- */
 const BIND_DEFAULT = { up: 'KeyW', down: 'KeyS', left: 'KeyA', right: 'KeyD', lunge: 'ShiftLeft', camo: 'KeyQ', scent: 'KeyE', hiss: 'KeyR', hoover: 'KeyC', nv: 'KeyF' };
-const BIND_LABEL = { up: 'Move up', down: 'Move down', left: 'Move left', right: 'Move right', lunge: 'Lunge', camo: 'Camouflage', scent: 'Scent (on / off)', hiss: 'Hiss', hoover: 'Hoover Mouth', nv: 'Night vision' };
+const BIND_LABEL = { up: 'Move up', down: 'Move down', left: 'Move left', right: 'Move right', lunge: 'Lunge', camo: 'Camouflage', scent: '3rd Eye: Focus', hiss: 'Hiss', hoover: 'Hoover Mouth', nv: 'Night vision' };
 const BIND_GROUPS = [['Moving', ['up', 'down', 'left', 'right']], ['Skills', ['lunge', 'camo', 'scent', 'hiss', 'hoover']], ['Seeing', ['nv']]];
 const BIND_FIXED = new Set(['Escape', 'Space', 'Enter', 'F3', 'F10', 'Backquote', 'F11']); // pause, start, the performance panel, the admin panel, fullscreen
 const ABIL_BIND = { dash: 'lunge', camo: 'camo', scent: 'scent', hiss: 'hiss', hoover: 'hoover' }; // upgrade id -> action

@@ -12,7 +12,7 @@ const PERF_SECTIONS = [ // [function, label, group] (several functions can share
   ['updateCreature', 'Crowd AI', 'u'], ['netUpdateCreatures', 'Crowd AI', 'u'], ['netClientCreatures', 'Crowd AI', 'u'], ['perceive', 'Crowd sight', 'u'], ['pickFleeGoal', 'Flee planning', 'u'],
   ['updateBlood', 'Blood drops', 'u'], ['fadeBlood', 'Blood fading', 'u'], ['updateGiblets', 'Gibs', 'u'], ['updateSplashes', 'Gibs', 'u'],
   ['updateMist', 'Mist and smoke', 'u'], ['updateSmoke', 'Mist and smoke', 'u'], ['updateFlies', 'Flies', 'u'], ['updateVomit', 'Vomit', 'u'],
-  ['updateTrail', 'Trail', 'u'], ['updateHoovFx', 'Hoover Mouth', 'u'], ['updateScent', 'Scent', 'u'], ['updateGround', 'Grass and footprints', 'u'],
+  ['updateTrail', 'Trail', 'u'], ['updateHoovFx', 'Hoover Mouth', 'u'], ['updateScent', '3rd Eye', 'u'], ['updateGround', 'Grass and footprints', 'u'],
   ['updateSnow', 'Snow', 'u'], ['updateWeather', 'Weather', 'u'], ['updateTime', 'Time of day', 'u'], ['updateLights', 'Lamps', 'u'], ['updateLampBugs', 'Lamps', 'u'],
   ['updateWaters', 'Water', 'u'], ['updateBeams', 'Flashlights', 'u'], ['updateEnclosures', 'Doors and pens', 'u'],
   ['updateCombo', 'HUD', 'u'], ['abilityHud', 'HUD', 'u'], ['hudNear', 'HUD', 'u'], ['updateHud', 'HUD', 'u'], ['updateEvents', 'Events', 'u'], ['abilityTick', 'Abilities', 'u'], ['airTick', 'Air strikes', 'u'],

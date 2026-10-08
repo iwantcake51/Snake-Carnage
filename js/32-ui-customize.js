@@ -58,6 +58,7 @@ function hideOverlay() {
 let runMods = [];
 function clearRunHud() { // the run's own HUD (modifier strip, live modifier chips, challenges): gone when the run is, menu or multiplayer lobby alike
   for (const id of ['chhud', 'modhud', 'modintro']) { const el = document.getElementById(id); if (el) el.innerHTML = ''; }
+  const ab = document.getElementById('abil'), tab = document.querySelector('#touch .tabil'); if (ab) { ab.innerHTML = ''; ab.dataset.n = ''; } if (tab) tab.innerHTML = ''; // the skill bar too: no skills sitting in the lobby
   runMods = []; modBar();
 }
 function modBar() { // every active modifier, compact, at the top of the screen; hover for what it does

@@ -321,6 +321,10 @@ const Sfx = {
     this.tone(o, t, 70, 120, d, 'sine', .18); this.tone(o, t + d - .12, 260, 90, .14, 'sine', .25); // the low pull, and a gulp as it closes
   },
   sniff() { if (!this.ok()) return; const t = this.ctx.currentTime, o = this.out(undefined, .6); for (let k = 0; k < 3; k++) this.burst(o, t + k * .12, .09, 2600, 1.5, .18, 'bandpass'); },
+  eye() { if (!this.ok()) return; const t = this.ctx.currentTime, o = this.out(undefined, .5); this.tone(o, t, 990, 1480, .22, 'sine', .07); this.tone(o, t + .09, 1480, 1980, .3, 'sine', .05); }, // 3rd Eye: a way out just showed up
+  focus(dur = 1.5) { if (!this.ok()) return; const t = this.ctx.currentTime, o = this.out(undefined, .8); // Focus: the world drops into slow motion, then snaps back
+    this.tone(o, t, 180, 55, .7, 'sine', .32); const f = this.burst(o, t, .5, 1800, .8, .14); f.frequency.setValueAtTime(2600, t); f.frequency.exponentialRampToValueAtTime(260, t + .45);
+    this.tone(o, t + dur * .9, 70, 190, .35, 'sine', .16); },
   camo() { if (!this.ok()) return; const t = this.ctx.currentTime, o = this.out(undefined, .6); const f = this.burst(o, t, .6, 2400, .7, .12); f.frequency.setValueAtTime(3000, t); f.frequency.exponentialRampToValueAtTime(300, t + .55); },
   hiss() { if (!this.ok()) return; const t = this.ctx.currentTime, o = this.out(snake && snake.x, 1); this.burst(o, t, .9, 5200, .6, .45, 'highpass'); this.burst(o, t, .7, 3200, 1.4, .25); this.tone(o, t, 70, 45, .6, 'sawtooth', .08); },
   smash(x, size) { // wood and plastic giving way
