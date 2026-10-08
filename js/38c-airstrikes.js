@@ -112,7 +112,10 @@ function airSchedule(dt) {
   if (!targets.length) return;
   const s = pick(targets);
   if (t - t0 > (MOD.airRaid ? 12 : 20) && Math.random() < .24 + .16 * k) return strafeRun(s, k);
-  const n = Math.min(10, 1 + Math.floor(Math.random() * (1.5 + 2.5 * g))), warn = 2.5 - .6 * k, sp = (s.speed || CONFIG.snakeSpeeds.Normal) * (s.dashV || 1);
+  airSalvo(s, g);
+}
+function airSalvo(s, g) { // a salvo of bombs walked along this snake's path (g: how far into the raid: bigger, faster salvos)
+  const k = Math.min(1, g), n = Math.min(10, 1 + Math.floor(Math.random() * (1.5 + 2.5 * g))), warn = 2.5 - .6 * k, sp = (s.speed || CONFIG.snakeSpeeds.Normal) * (s.dashV || 1);
   const jetA = s.angle + (Math.random() < .5 ? 1 : -1) * rand(.9, 2.2); // the jet crosses your path
   for (let j = 0; j < n; j++) { // a salvo walks along the path
     const b = bombKind(), r = Math.round(AIR_R * b.r), fs = b.f; // each bomb its own size and speed
@@ -130,8 +133,8 @@ function bombKind() { // a size and a falling speed: mostly ordinary, some big o
   const q = Math.random(), r = q < .2 ? rand(1.15, 1.35) : q < .42 ? rand(.72, .88) : rand(.92, 1.08), v = Math.random();
   return { r, f: v < .22 ? rand(1.35, 1.8) : v < .4 ? rand(.6, .78) : rand(.9, 1.12) };
 }
-function strafeRun(s, k) { // the deciding browser: line a gun run (or now and then a bombing run) up across where this snake is about to be
-  if (Math.random() < .4) return bombRun(s, k);
+function strafeRun(s, k, kind) { // the deciding browser: line a gun run (or now and then a bombing run) up across where this snake is about to be
+  if (kind === 'bombs' || (kind !== 'guns' && Math.random() < .4)) return bombRun(s, k);
   const sp = (s.speed || CONFIG.snakeSpeeds.Normal) * (s.dashV || 1), warn = +(2.3 - .5 * k).toFixed(2), a = s.angle + (Math.random() < .5 ? 1 : -1) * rand(.35, 1.15); // raking across your path at a slant
   const lead = warn + STRAFE_LEN / 2 / STRAFE_V + rand(-.15, .05), x = clamp(s.x + Math.cos(s.angle) * sp * lead, 40, W - 40), y = clamp(s.y + Math.sin(s.angle) * sp * lead, 40, H - 40);
   airStrafe(x, y, +a.toFixed(3), warn); netEmit({ t: 'airs', x: Math.round(x), y: Math.round(y), a: +a.toFixed(3), w: warn });
@@ -204,7 +207,9 @@ function detonate(s) {
   booms.push({ x, y, r, t: 0, dur: 1.1 }); // the flash and the core fireball
   for (let k = 0; k < 7; k++) { const a = rand(0, TAU), d = rand(.15, .75) * r; booms.push({ puff: true, x: x + Math.cos(a) * d, y: y + Math.sin(a) * d, r: r * rand(.45, .85), t: -rand(0, .22), dur: rand(.7, 1.15) }); } // fire rolling out of it
   shocks.push({ x, y, R: r * 5.2, t: 0, dur: .62 });
+  const snowy = typeof snowAt === 'function' && snowAt(x, y) > .15;
   throwClods(x, y, r); // (cut from the ground before the crater is burnt into it)
+  if (typeof blastSnow === 'function' && blastSnow(x, y, r * 1.15) > 0 && snowy) for (let k = 0; k < Math.round(60 * fx); k++) { const a = rand(0, TAU), sp = rand(60, 360); boomBits.push({ x: x + rand(-r * .4, r * .4), y: y + rand(-r * .4, r * .4), z: rand(2, 10), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(140, 420), t: 0, life: rand(1.2, 2.4), s: rand(1.4, 3.4), tr: false, c: pick(['#eef3f8', '#dfe8f2', '#f7fbff', '#c9d6e4']) }); } // the snow there is blown off: a white burst, bare ground underneath
   scorch(x, y, r);
   for (let k = 0; k < Math.round(12 * fx); k++) { const a = rand(0, TAU), sp = rand(20, 90); soots.push({ x: x + rand(-r * .3, r * .3), y: y + rand(-r * .3, r * .3), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: r * rand(.35, .6), g: rand(18, 34), rot: rand(0, TAU), vr: rand(-.5, .5), t: -rand(.08, .35), life: rand(2.6, 4.2), a: rand(.55, .8) }); } // black, oily smoke boiling up through the fire, lit orange from inside at first
   hazes.push({ x, y, r: r * 1.3, t: 0, life: 4.5 }); // heat shimmer over the crater
@@ -228,8 +233,8 @@ function detonate(s) {
   if (snake && near > 1) { const k = 260 * kk; camF.kv.x += (snake.x - x) / near * k; camF.kv.y += (snake.y - y) / near * k; } // the camera gets shoved away from it
   Sfx.boom(x, clamp(1.2 - near / 900, .5, 1.2));
   if (near < 230 && (state === 'play' || state === 'dead' || NETM.run)) Sfx.tinnitus(clamp(1.15 - near / 230, .25, 1)); // too close: your ears ring
-  if (snake && snake.alive && near < 520) { // close enough to knock you about: slowed, drained of colour, dimmed, reeling, everything else's outlines gone; all of it by how close it was
-    const dz = Math.pow(1 - near / 520, 1.1); AIR.rumble = Math.max(AIR.rumble, dz);
+  if (snake && snake.alive && near < 320) { // close enough to knock you about: slowed, drained of colour, dimmed, reeling, everything else's outlines gone; all of it by how close it was
+    const dz = Math.pow(1 - near / 320, 1.1); AIR.rumble = Math.max(AIR.rumble, dz);
     if (dz >= boomSlow(snake)) { snake.boomK = dz; snake.boomT = 1.4 + 1.2 * dz; }
     if (dz > .25) snake.dashT = 0;
   }
@@ -273,6 +278,7 @@ function strafeHit(s, d) {
   for (let k = 0; k < (hard ? 6 : 3); k++) { const b = s.a + rand(-1.3, 1.3) + (hard && Math.random() < .5 ? Math.PI : 0), v = rand(150, 420); boomBits.push({ spark: true, x, y, z: rand(1, 4), vx: Math.cos(b) * v, vy: Math.sin(b) * v, vz: rand(20, 160), t: 0, life: rand(.12, .35) }); }
   if (AUTH()) { let hit = false; for (const c of nearbyCreatures(x, y, 20, [])) if (c.alive && dist2(c.x, c.y, x, y) < (c.def.r + 5) ** 2) { hit = true; const ang = s.a + rand(-.4, .4), amt = c.def.blood; eatWorld(c, ang, amt, null); if (NETM.run) netKillEvent(c, 'air', ang, amt); } if (hit) creatures = creatures.filter(c => c.alive); } // a round landing on someone
   if (hard) return;
+  if (typeof blastSnow === 'function') blastSnow(x, y, 4, false); // each round punches a hole through any snow
   const pal = groundPalette(x, y, 5), soil = soilCol(x, y);
   for (let k = 0; k < 5; k++) { const b = s.a + rand(-1, 1), v = rand(40, 200); boomBits.push({ x, y, z: 1, vx: Math.cos(b) * v, vy: Math.sin(b) * v, vz: rand(90, 260), t: 0, life: rand(.7, 1.4), s: rand(1.2, 2.6), c: pick(pal) }); } // dirt kicked up the way the rounds were going
   if (Math.random() < .4 * fx) smoke.push({ x, y, vx: s.ca * 30 + rand(-15, 15), vy: s.sa * 30 + rand(-15, 15), r: rand(6, 10), g: rand(14, 24), rot: rand(0, TAU), vr: rand(-.6, .6), t: 0, life: rand(.9, 1.6), v: randi(0, 3), a: rand(.45, .65) });

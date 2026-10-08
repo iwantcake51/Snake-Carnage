@@ -347,7 +347,7 @@ const SETTING_TABS = {
     ['#Steering and camera'], ['Mouse', 'Steer with the cursor (Free movement modifier + Mouse steering)'], 
     ['Wheel', 'Zoom the camera in or out, always on your snake'], ['Drag', 'Pan the camera (middle mouse, or left mouse when not steering with it)'], ['Double-click', 'Camera back on the snake'],
     ['Pinch', 'On a touch screen: two fingers zoom and pan; one finger still steers'],
-    ['#Menus'], ['Space', 'Start, skip the intro, play again. In a multiplayer lobby: ready up, and the host starts once everyone is ready'], ['Esc', 'Pause, back, close settings'], ['F3', 'Performance stats: off, frame rate, full']] },
+    ['` or F10', 'Admin panel: god mode, speed, time of day, spawning, air strikes, chips and upgrades (single player, or the host)'], ['#Menus'], ['Space', 'Start, skip the intro, play again. In a multiplayer lobby: ready up, and the host starts once everyone is ready'], ['Esc', 'Pause, back, close settings'], ['F3', 'Performance stats: off, frame rate, full']] },
   Accessibility: { icon: 'access', lead: 'Make the game easier to see and use.', rows: [
     ['head', 'Interface'],
     ['seg', 'uiScale', 'UI scale', 'Size of menus, HUD, notifications and buttons. Auto follows the size of the game.', ['Small', 'Medium', 'Large', 'Extra Large', 'Auto']],

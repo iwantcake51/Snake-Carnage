@@ -15,9 +15,12 @@ function drawHitGhosts(x) { // the eaten body squashes, flashes and gets knocked
 let killV = 0, killFlash = 0, desatHold = 0, lastFilter = '';
 /* DYING: the picture drains to grey under a red wash within about half a second (render folds the grey into the canvas
    filter; the red is a multiply layer over it). Coming back (respawn, or a new run) it returns over about a second. */
-let dfxK = 0, dtK = 0; // dfxK: the grey drain; dtK: the red wash
+let dfxK = 0, dtK = 0, dfxSince = 0; // dfxK: the grey drain; dtK: the red wash; dfxSince: when you went down
 function deathFxTick(dt) {
-  const dead = NETM.run ? !!NS.deadAt : (state === 'dead' || state === 'play') && !!snake && !snake.alive;
+  const gone = NETM.run ? !!NS.deadAt : (state === 'dead' || state === 'play') && !!snake && !snake.alive;
+  stage.classList.toggle('snakedown', gone); // (your skills step aside while you're down)
+  if (!gone) dfxSince = 0; else if (!dfxSince) dfxSince = performance.now();
+  const dead = gone && performance.now() - dfxSince < 10000; // ten seconds down (spectating with no lives left, say): the red and grey ease off and you just watch
   const down = dead && !(typeof corpses !== 'undefined' && corpses.length && snake && snake.netHidden), k0 = dfxK, t0 = dtK; // blown up: the color stays while you go off
   dfxK += ((down ? 1 : 0) - dfxK) * (1 - Math.exp(-dt * (down ? 7 : 3.2)));
   if (dfxK < .004 && !down) dfxK = 0;

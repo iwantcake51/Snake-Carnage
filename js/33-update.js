@@ -25,6 +25,7 @@ function update(dt) {
   if (NETM.run) { if (NETM.host) netUpdateCreatures(dt); else netClientCreatures(dt); } // co-op: the host's AI reacts to every player; guests show what the host says
   else for (const c of creatures) if (c.alive) updateCreature(c, dt);
   updateChunks(dt); // broken pieces of things (38b-destruction)
+  if (typeof adminTick === 'function') adminTick(); // the admin panel's overrides (40f-admin)
   airTick(dt); // air strikes, and snakes going up (before the blood moves, so a blast's spray flies this frame)
   updateBlood(dt); updateGiblets(dt); updateSplashes(dt); updateMist(dt); updateSmoke(dt); updateFlies(dt); updateVomit(dt);
   if ((fadeT -= dt) <= 0) { fadeT = 2; fadeBlood(); }

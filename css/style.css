@@ -2289,3 +2289,29 @@ body.edscrubbing,body.edscrubbing *{cursor:ew-resize!important;user-select:none!
 
 /* the title each player wears, next to their name in the lobby */
 .mptitle{display:inline-block;margin-left:6px;padding:0 7px;border-radius:999px;font:700 10.5px var(--f-body,system-ui),sans-serif;font-style:normal;color:#ffe6a0;background:rgba(255,207,51,.12);border:1px solid rgba(255,207,51,.3);white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis;vertical-align:middle}
+.panel.mpinvite{width:min(460px,94%)}
+.mpinvite .mpname{display:flex;flex-direction:column;gap:6px;margin:14px 0 18px}
+.mpinvite .mpname input{width:100%;box-sizing:border-box}
+.mpinvite .mpfoot{display:flex;gap:10px;justify-content:flex-end}
+.mpinvite .mpinvcode{letter-spacing:.12em;color:#fff}
+
+/* down: "You died" fades after ten seconds, and the skill buttons step aside while you're dead */
+#mpDown{transition:opacity 1.4s ease}
+#mpDown.fade{opacity:0}
+#stage.snakedown #abil{opacity:0!important;visibility:hidden;pointer-events:none;transition:opacity .25s,visibility 0s .25s}
+
+/* admin panel (40f-admin): ` or F10 */
+#admin{position:fixed;right:14px;top:70px;z-index:10050;width:330px;max-height:calc(100vh - 90px);overflow-y:auto;background:rgba(16,13,17,.96);border:1px solid #3a3138;border-radius:10px;box-shadow:0 18px 50px rgba(0,0,0,.6);color:#e7e2ea;font:12.5px/1.35 var(--f-body,system-ui),sans-serif;scrollbar-width:thin}
+#admin .adm-h{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid #2b2530;position:sticky;top:0;background:inherit}
+#admin .adm-h b{font:700 13px var(--f-head,system-ui);letter-spacing:.12em;text-transform:uppercase;color:#ff6b6b}
+#admin .adm-h span{flex:1;color:#8d8496;font-size:11px}
+#admin .adm-h button{all:unset;cursor:pointer;color:#aaa;padding:2px 6px;border-radius:4px}#admin .adm-h button:hover{background:#2b2530;color:#fff}
+#admin .adm-b{padding:4px 12px 12px}#admin .adm-b.off{opacity:.4;pointer-events:none}
+#admin h4{margin:12px 0 6px;font:700 10.5px var(--f-body,system-ui);letter-spacing:.1em;text-transform:uppercase;color:#a89fab}#admin h4 small{text-transform:none;letter-spacing:0;color:#7d7480}
+#admin .adm-row{display:flex;flex-wrap:wrap;gap:5px;margin:5px 0}
+#admin button[data-a]{background:#221d25;color:#e7e2ea;border:1px solid #3a3138;border-radius:6px;padding:5px 8px;font:600 11.5px inherit;cursor:pointer}
+#admin button[data-a]:hover{border-color:var(--acc,#d0191f);background:#2b2430}#admin button[data-a]:disabled{opacity:.4;cursor:default}
+#admin .adm-tg{display:flex;align-items:center;gap:6px;padding:4px 8px;border:1px solid #3a3138;border-radius:6px;cursor:pointer}
+#admin .adm-tg input{accent-color:var(--acc,#d0191f);margin:0}
+#admin .adm-sl{display:flex;align-items:center;gap:8px;margin:6px 0}#admin .adm-sl input{flex:1;accent-color:var(--acc,#d0191f)}#admin .adm-sl em{font-style:normal;min-width:46px;text-align:right;color:#cfc6c0;font-variant-numeric:tabular-nums}
+#admin select{background:#121015;color:#eee;border:1px solid #3a3340;border-radius:6px;padding:4px 6px;flex:1;min-width:90px}

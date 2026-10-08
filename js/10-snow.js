@@ -111,6 +111,16 @@ function carveSnow(px, py, rr, ang, keep, push, wear = 0) { // press a soft roun
   }
   return moved;
 }
+function blastSnow(x, y, r, rim = true) { // a blast: every bit of snow in the impact zone is blown off to bare ground (blood in it too); some lands in a thin ring just outside
+  if (!snowOn || !snowD) return 0;
+  const ci = x / SN, cj = y / SN, R = r / SN; let moved = 0;
+  for (let j = Math.max(0, Math.floor(cj - R)); j <= Math.min(SNH - 1, Math.ceil(cj + R)); j++) for (let i = Math.max(0, Math.floor(ci - R)); i <= Math.min(SNW - 1, Math.ceil(ci + R)); i++) {
+    const k = j * SNW + i; if (snowD[k] <= 0 && snowS[k] <= 0) continue; if (Math.hypot(i + .5 - ci, j + .5 - cj) > R) continue;
+    moved += snowD[k]; snowD[k] = 0; snowS[k] = 0; snowW[k] = 1; markSnow(i, j);
+  }
+  if (rim && moved > 0) { const n = 36, v = Math.min(.5, moved / (n * 60)); for (let q = 0; q < n; q++) { const a = q / n * TAU + rand(-.08, .08), d = r * rand(1.05, 1.4); softAdd(x + Math.cos(a) * d, y + Math.sin(a) * d, v * rand(.6, 1.4), 0, 0, 0, 0); } }
+  return moved;
+}
 function snowStain(x, y, amt, col) { // blood landing on snow soaks in instead of sitting on top
   if (!snowOn || snowAt(x, y) < .12) return false;
   const c = rgbOf2(col || BLOOD); soaks.push({ x, y, a: amt, c, r: 1 + Math.sqrt(amt) * 2.2, t: 0, life: rand(.8, 1.6) });

@@ -255,9 +255,9 @@ updateHud = function () { const r = _netUpdateHud.apply(this, arguments); if (NE
 function netDownBanner(out) {
   let el = document.getElementById('mpDown');
   if (out === null || out === undefined) { if (el) el.remove(); return; }
-  if (!el) { el = document.createElement('div'); el.id = 'mpDown'; (document.getElementById('stage') || document.body).appendChild(el); }
+  if (!el) { el = document.createElement('div'); el.id = 'mpDown'; (document.getElementById('stage') || document.body).appendChild(el); el._t0 = performance.now(); }
   const mode = netMode(), timed = NS.cfg && NS.cfg.len > 0;
-  el.className = out ? 'out' : '';
+  el.className = out ? 'out' : ''; clearTimeout(el._ft); el._ft = setTimeout(() => el.classList.add('fade'), Math.max(0, 10000 - (performance.now() - el._t0))); // "You died" fades away after ten seconds
   el.innerHTML = out ? `<b>You died</b><span>Out of lives. ${mode === 'ffa' ? 'Watching the others.' : 'Watching your team.'} The run ends ${timed ? "when time's up or " : 'when '}everyone is down.</span>` : '<b>You died</b><span class="cd">Back in <i></i></span>';
   netDownTick();
 }
@@ -371,11 +371,27 @@ netLobbyRender = function () {
   if (!NETM.host && NETM.on && !NETM.run && NETM.phase === 'lobby' && overlay.querySelector('.mpres')) { stage.classList.remove('paused'); state = 'menu'; showMenu(); return; }
   return _netLobbyRender.apply(this, arguments);
 };
+/* ---- arriving from an invite link: pick the name everyone will see, then in ---- */
+function netAskName(code, go) {
+  let name = ''; try { name = localStorage.getItem('snakeCarnageName') || ''; } catch (e) {}
+  overlay.className = 'menuMode'; overlay.style.display = 'flex';
+  overlay.innerHTML = `<div class="panel mpcoop mpinvite"><h2>You're invited</h2>
+    <p class="mpsub">Joining lobby <b class="mpinvcode">${esc(String(code).toUpperCase())}</b>. Pick the name the others will see.</p>
+    <label class="mpname">Your name <input id="mpName" maxlength="16" value="${esc(name)}" placeholder="Snake" autocomplete="nickname"></label>
+    <div class="mpfoot"><button class="ghost" id="backBtn">Not now</button><button class="play" id="mpJoin"><span>Join</span></button></div></div>`;
+  const nm = document.getElementById('mpName'), ok = () => { try { localStorage.setItem('snakeCarnageName', netName(nm.value)); } catch (e) {} go(); };
+  nm.onkeydown = e => { e.stopPropagation(); if (e.key === 'Enter') ok(); };
+  document.getElementById('mpJoin').onclick = ok;
+  document.getElementById('backBtn').onclick = () => transitionTo(showMenu);
+  setTimeout(() => { nm.focus(); nm.select(); }, 60);
+}
 /* ---- arriving from an invite link, or reloading mid-session ---- */
 addEventListener('load', () => setTimeout(() => {
   const q = new URLSearchParams(location.search), code = q.get('join'), ses = netSession();
   if (code) { const u = new URL(location.href); u.searchParams.delete('join'); history.replaceState(null, '', u.toString());
-    overlay.style.display = 'flex'; netShowCoop('Joining…'); netJoin(code, ses && ses.code === code.toUpperCase() ? { token: ses.token } : {}).then(netJoined).catch(e => netShowCoop(e.message)); return; }
+    const again = ses && ses.code === code.toUpperCase(), go = () => { overlay.style.display = 'flex'; netShowCoop('Joining…'); netJoin(code, again ? { token: ses.token } : {}).then(netJoined).catch(e => netShowCoop(e.message)); };
+    if (again) return go(); // coming back into a lobby you were already in (a reload): the name's already picked
+    return netAskName(code, go); }
   if (ses && !ses.host && ses.code) { netShowCoop('Reconnecting…'); netJoin(ses.code, { token: ses.token }).then(netJoined).catch(e => { netSaveSession(null); netShowCoop(e.message); }); }
 }, 120));
 

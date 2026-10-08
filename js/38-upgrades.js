@@ -13,7 +13,7 @@ const UPGRADES = [
   { id: 'speed', name: 'Speed Demon', icon: 'speed', max: 5, cost: [150, 380, 750, 1300, 2100], lvl: [2, 5, 9, 14, 20],
     desc: 'Faster, and quicker to recover.', tiers: ['+5% speed', '+10% speed, snappier turns', '+15% speed, shake off dazes a third faster', '+20% speed, even sharper turns', '+25% speed, sharper turns. Smashing through things keeps your momentum, and pressing the opposite way whips you round in a tight U-turn'] },
   { id: 'ram', name: 'Battering Ram', icon: 'ram', max: 4, cost: [300, 850, 1900, 3200], lvl: [4, 10, 16, 22],
-    desc: 'Smash through things instead of crashing into them. Each level takes on heavier things; the heavier it is, the harder the knock.', tiers: ['Small things: chairs, plants, bushes, crates, hay, fences, bins. Barely slows you', 'Big furniture and small trees: desks, tables, benches, couches, shelves, beds, bars, consoles, speakers, saplings. A harder knock', 'Cars, rocks and the cracked wall sections on some maps: shortcuts, but the hit leaves you seeing stars', 'Thick skull: every concussion is 25% shorter and gentler'] },
+    desc: 'Smash through things instead of crashing into them. Each level takes on heavier things; the heavier it is, the harder the knock. Without it, glass still breaks, but going through it knocks you senseless.', tiers: ['Small things: chairs, plants, crates, hay, fences, bins, glass. Barely slows you', 'Big furniture, bushes and small trees: desks, tables, benches, couches, shelves, beds, bars, consoles, speakers, saplings. A harder knock', 'Cars, rocks and the cracked wall sections on some maps: shortcuts, but the hit leaves you seeing stars', 'Thick skull: every concussion is 25% shorter and gentler'] },
   { id: 'gut', name: 'Iron Stomach', icon: 'gut', max: 3, cost: [350, 900, 1700], lvl: [7, 13, 19], desc: 'Combos last longer.', tiers: ['+10% combo time', '+20% combo time', '+30% combo time'] },
   { id: 'dash', name: 'Lunge', icon: 'dash', max: 3, cost: [250, 900, 1800], lvl: [3, 12, 18], ability: true, key: 'Shift',
     desc: 'A short burst of speed. Great for catching runners.', tiers: ['0.6 s at 1.8x speed, 7 s cooldown', '0.8 s at 1.9x speed, 5 s cooldown, a cleaner wake', 'Pounce: eat something mid-lunge and the cooldown almost resets, and you keep going'] },
@@ -107,7 +107,7 @@ function upIcon(k) { // small hand-drawn SVG glyphs, so the upgrades don't lean 
 
 /* ---- breaking through furniture (Battering Ram) ---- */
 const RAM_TOUCH = ['glass'], TOUCH_KINDS = new Set(RAM_TOUCH); // breaks for anyone who hits it, no Battering Ram needed
-const RAM_SMALL = ['chair', 'plant', 'bush', 'crate', 'hay', 'barrier', 'bin', 'fence'], RAM_LARGE = ['tree', 'desk', 'table', 'bench', 'couch', 'shelf', 'bed', 'bar', 'booth', 'console', 'speaker'], RAM_HEAVY = ['car', 'rock', 'bwall'];
+const RAM_SMALL = ['chair', 'plant', 'crate', 'hay', 'barrier', 'bin', 'fence', 'glass'], RAM_LARGE = ['tree', 'bush', 'desk', 'table', 'bench', 'couch', 'shelf', 'bed', 'bar', 'booth', 'console', 'speaker'], RAM_HEAVY = ['car', 'rock', 'bwall'];
 const RAM_KINDS = [null, new Set(RAM_SMALL), new Set([...RAM_SMALL, ...RAM_LARGE]), new Set([...RAM_SMALL, ...RAM_LARGE, ...RAM_HEAVY])];
 RAM_KINDS.push(RAM_KINDS[3]); // tier 4: same targets, softer landings
 const ramClass = o => RAM_HEAVY.includes(o.kind) ? 3 : RAM_LARGE.includes(o.kind) ? 2 : 1;
@@ -144,7 +144,8 @@ function smashObstacle(o, ang, quiet) { // quiet: catching up on breakage that h
   const keepMo = upg('speed') >= 5 ? .5 : 1; // Speed Demon V: momentum survives the hit
   if (!hard && snake.wallStun > 0) snake.ramT = Math.max(snake.ramT, Math.min(snake.ramMax, dur * res)); // already seeing stars from a wall: furniture doesn't reset it
   else { snake.ramT = snake.ramMax = dur * res; snake.ramDeep = (hard ? .62 : cls === 3 ? .45 : cls === 2 ? .38 : .18) * (lng ? .6 : 1) * res * keepMo; /* small things barely slow you, same daze */ snake.wallStun = snake.wallMax = hard ? dur * res : 0; snake.stunFx = (lng ? 1.5 : 1) * res; }
-  if (hard) { snake.dashT = 0; snake.dashV = 1; snake.lk = 0; } } // a wall stops a lunge dead // dazed: slower, colours drain, edges blur, all easing back as speed returns
+  if (hard) { snake.dashT = 0; snake.dashV = 1; snake.lk = 0; } } // a wall stops a lunge dead
+  if (mine && o.kind === 'glass' && upg('ram') < 1) { snake.ramT = snake.ramMax = 4; snake.ramDeep = .7; snake.wallStun = snake.wallMax = 4; snake.stunFx = 1.5; snake.dashT = 0; snake.dashV = 1; snake.lk = 0; shake = Math.max(shake, 18); } // no Battering Ram: you go through the glass, but face first // dazed: slower, colours drain, edges blur, all easing back as speed returns
   if (wall && !quiet && !fx) { // a wall: bricks and plaster everywhere, a cloud of dust, and the snake sees stars
     for (let k = 0; k < 40; k++) { const a = ang + rand(-.9, .9), sp = rand(80, 300); debris.push({ x: cx + rand(-o.w / 2, o.w / 2), y: cy + rand(-o.h / 2, o.h / 2), z: rand(6, 20), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(80, 220), t: 0, s: rand(2.4, 5), c: pick([o.color, shade(o.color, -.25), shade(o.color, .2), '#8a7f74']) }); }
     for (let k = 0; k < 14; k++) mist.push({ x: cx + rand(-10, 10), y: cy + rand(-10, 10), vx: Math.cos(ang + rand(-1.4, 1.4)) * rand(20, 90), vy: Math.sin(ang + rand(-1.4, 1.4)) * rand(20, 90), r: rand(6, 14), g: rand(10, 24), t: 0, life: rand(1, 1.8), c: '#aaa096', a: rand(.25, .4) });

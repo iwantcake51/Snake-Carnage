@@ -13,9 +13,9 @@ function wPath(x, S, inset = 0) {
 }
 function inWater(o, px, py) { if (o.poly) return pointInPoly(polyShape(o), px, py); const S = wShape(o); return S.round ? dist2(px, py, S.cx, S.cy) < S.hw * S.hw : Math.abs(px - S.cx) < S.hw && Math.abs(py - S.cy) < S.hh; }
 function waterBlood(o, px, py, q, vx = 0, vy = 0, col = BLOOD) { // q ~ drop size; clouds are what you see spread, tint is the long-term stain
-  const b = o.wb || (o.wb = { tint: 0, shown: 0, clouds: [], rings: [] });
+  const b = o.wb || (o.wb = { tint: 0, shown: 0, gold: 0, clouds: [], rings: [] });
   const c = rgbOf2(col), w = q / (b.tint + q + .001); b.mix = b.mix ? b.mix.map((v, n) => v + (c[n] - v) * w) : c; // the water takes on the mix of what bled into it
-  b.tint += q;
+  b.tint += q; if (c[0] > 150 && c[1] > 110 && c[2] < 110) b.gold = (b.gold || 0) + q; // gold blood: it shimmers through whatever else is in there
   const near = b.clouds.find(c => dist2(c.x, c.y, px, py) < Math.max(16, c.r * .7) ** 2); // nearby drops feed one cloud
   if (near) { near.a = Math.min(.32, near.a + q * .8); return; }
   if (b.clouds.length > 30) b.clouds.shift();
@@ -29,7 +29,7 @@ function updateWaters(dt) {
   if (!obstacles) return;
   for (const o of obstacles) {
     const b = o.kind === 'water' && o.wb; if (!b) continue;
-    b.tint *= Math.exp(-dt / 900);                       // the filter very slowly cleans it
+    // (it never clears: once the water's red, it stays red for the rest of the run)
     b.shown += (b.tint - b.shown) * Math.min(1, dt * .5); // diffusion lag: the color creeps in
     const S = wShape(o);
     for (let i = b.clouds.length - 1; i >= 0; i--) {
@@ -44,10 +44,10 @@ function updateWaters(dt) {
 }
 function bloodTint(o, S) { // 0..1 strength and color, diluted by the size of the water
   const b = o.wb; if (!b || b.shown < .01) return null;
-  const area = S.round ? Math.PI * S.hw * S.hw : 4 * S.hw * S.hh, k = b.shown / Math.max(.3, area / 9000);
+  const area = S.round ? Math.PI * S.hw * S.hw : 4 * S.hw * S.hh, k = b.shown / Math.max(.3, area / 6000);
   const s = 1 - Math.exp(-k / 1.6), m = clamp(k / 2.2, 0, 1);
   const red = [Math.round(232 - 92 * m), Math.round(118 - 110 * m), Math.round(140 - 120 * m)], mx = b.mix || [140, 10, 10], dev = Math.abs(mx[0] - 140) + Math.abs(mx[1] - 10) + Math.abs(mx[2] - 10);
-  return { a: .88 * s, rgb: dev < 40 ? red : mx.map(v => Math.round(v + (255 - v) * .25 * (1 - m))) }; // gold or green blood tints the water its own colour
+  return { a: .88 * s, rgb: dev < 40 ? red : mx.map(v => Math.round(v + (255 - v) * .25 * (1 - m))), g: clamp((b.gold || 0) / (b.tint + .001), 0, 1) }; // gold or green blood tints the water its own colour; g: how much of it is gold
 }
 function drawWater(x, o, t) {
   const S = wShape(o), { cx, cy, hw, hh, rim } = S, base = o.color, M = Math.max(hw, hh) * 1.25, tint = bloodTint(o, S);
@@ -78,13 +78,22 @@ function drawWater(x, o, t) {
   }
   if (tint) { // diffused blood: faint pink first, deep red once there's a lot
     x.fillStyle = `rgba(${tint.rgb},${tint.a.toFixed(3)})`; x.fillRect(cx - hw, cy - hh, hw * 2, hh * 2);
+    if (tint.g > .03) { // gold swirling through it: slow metallic bands and glints catching the light
+      const ga = Math.min(.75, tint.a * (.35 + tint.g)), sw = Math.max(hw, hh);
+      for (let k = 0; k < 3; k++) { const a = t * (.12 + k * .05) + k * 2.1, px = cx + Math.cos(a) * hw * .45, py = cy + Math.sin(a * 1.3) * hh * .45, r = sw * (.55 + .15 * k);
+        const gg = x.createRadialGradient(px, py, 0, px, py, r); gg.addColorStop(0, `rgba(236,201,92,${(ga * .7).toFixed(3)})`); gg.addColorStop(.6, `rgba(201,162,39,${(ga * .35).toFixed(3)})`); gg.addColorStop(1, 'rgba(201,162,39,0)');
+        x.fillStyle = gg; x.beginPath(); x.arc(px, py, r, 0, TAU); x.fill(); }
+      x.fillStyle = `rgba(255,240,180,${(ga * .9).toFixed(3)})`;
+      for (let k = 0; k < Math.round(6 + 14 * tint.g); k++) { const fx = cx + Math.sin(k * 12.9898 + t * .2) * hw * .9, fy = cy + Math.sin(k * 78.233 - t * .17) * hh * .9, tw = Math.max(0, Math.sin(t * 2.3 + k * 1.7)); if (tw > .15) { x.globalAlpha = tw; x.beginPath(); x.arc(fx, fy, .7 + tw * .9, 0, TAU); x.fill(); } }
+      x.globalAlpha = 1;
+    }
   }
   if (o.wb) for (const c of o.wb.clouds) { // fresh blood still spreading: soft wisps with a darker heart, thinning out as they grow
     for (const p of c.puffs) {
       const px = c.x + p.dx, py = c.y + p.dy, r = c.r * p.s, a = c.a * (.55 + .45 * p.s);
       const cg = x.createRadialGradient(px, py, 0, px, py, r);
       const cc = c.c || [130, 6, 16]; cg.addColorStop(0, `rgba(${cc},${(a * .7).toFixed(3)})`); cg.addColorStop(.5, `rgba(${cc.map(v => Math.min(255, v + 30))},${(a * .4).toFixed(3)})`); cg.addColorStop(1, `rgba(${cc},0)`);
-      x.fillStyle = cg; x.fillRect(px - r, py - r, r * 2, r * 2);
+      x.fillStyle = cg; x.beginPath(); x.arc(px, py, r, 0, TAU); x.fill(); // a round wisp, no square edge
     }
   }
   if (o.wb) for (const g of o.wb.rings) { x.strokeStyle = `rgba(255,220,220,${(.5 * (1 - g.t / .7)).toFixed(3)})`; x.lineWidth = 1; x.beginPath(); x.arc(g.x, g.y, 1.5 + g.t * 14, 0, TAU); x.stroke(); }
@@ -92,7 +101,8 @@ function drawWater(x, o, t) {
   x.lineWidth = 1.4; x.lineCap = 'round';
   const step = Math.max(4, M / 11), gap = Math.max(9, Math.min(M / 5, 30));
   for (let set = 0; set < 2; set++) {
-    x.strokeStyle = set ? 'rgba(255,255,255,.10)' : 'rgba(190,240,255,.14)';
+    const bk = tint ? 1 - .85 * Math.min(1, tint.a / .6) : 1; // in bloody water the light lines fade (bright on dark red they read as a grid)
+    x.strokeStyle = set ? `rgba(255,255,255,${(.10 * bk).toFixed(3)})` : `rgba(190,240,255,${(.14 * bk).toFixed(3)})`;
     const dir = set ? -1 : 1, sp = t * (set ? .55 : .4);
     x.beginPath();
     for (let ly = -M + ((t * 6 * dir) % gap + gap) % gap - gap; ly < M + gap; ly += gap) {
