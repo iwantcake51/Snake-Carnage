@@ -26,6 +26,7 @@ function guessAt(c, x, y, reach = 260) { // where a listener thinks a sound at (
   return { x: clamp(c.x + Math.cos(a) * dd, B, W - B), y: clamp(c.y + Math.sin(a) * dd, B, H - B) };
 }
 function hear(c) { // fold every new sound this listener can hear into their guess; returns how scary the worst one was
+  if (c.blastDeafT > T) { c.hearId = soundSeq; return null; } // unheard events cannot replay when hearing returns
   let worst = 0, worstS = null;
   const last = c.hearId || 0;
   for (const s of sounds) {

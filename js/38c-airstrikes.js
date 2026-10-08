@@ -55,8 +55,8 @@ function airCrowdReact(kind, x, y, r = AIR_R, seen) {
   for (const c of listeners) {
     if (seen && seen.has(c)) continue;
     const d = Math.hypot(c.x - x, c.y - y), visible = !MOD.blind && (kind === 'jet' || los(c.x, c.y, x, y));
-    const hearing = (c.deafT > T ? .3 : 1) * (kind === 'jet' || visible || los(c.x, c.y, x, y) ? 1 : .55);
-    if (!visible && d > reach * hearing) continue;
+    const hearing = c.blastDeafT > T ? 0 : (c.deafT > T ? .3 : 1) * (kind === 'jet' || visible || los(c.x, c.y, x, y) ? 1 : .55);
+    if (!visible && (hearing === 0 || d > reach * hearing)) continue;
     if (seen) seen.add(c);
     const close = d < (kind === 'jet' ? 180 : kind === 'strafe' ? 110 : r + 85);
     const near = d < r + 250;
@@ -85,7 +85,7 @@ function airCrowdReact(kind, x, y, r = AIR_R, seen) {
       c.state = 'panic'; c.fx = source.x; c.fy = source.y; c.timer = Math.max(c.timer || 0, rand(close ? 5 : 3, close ? 8 : 5));
       if (c.def.human && !was) groupAlarm(c, source.x, source.y);
     }
-    if (!c.def.human || MOD.mute || spoken >= 3 || talk.n >= 3) continue;
+    if (!c.def.human || MOD.mute || c.blastDeafT > T || spoken >= 3 || talk.n >= 3) continue;
     // A genuinely closer call can interrupt a distant remark, but repeated bombs cannot.
     if (T < (c.airTalkUntil ?? -1) && (urgency <= (c.airUrg || 0) || T - c.airTalkAt < 1.2)) continue;
     if (urgency < 3 && (busyUntil(c) > 0 || c.sayCD > 0)) continue;
@@ -257,6 +257,32 @@ function detonate(s) {
   if (hit.length) creatures = creatures.filter(c => c.alive);
   noise('boom', x, y);
   airCrowdReact('blast', x, y, r);
+  airCrowdConcuss(x, y, r);
+}
+// Survivors close to the blast lose their footing and hearing. Expiry times refresh, never add up.
+function airCrowdConcuss(x, y, r) {
+  if (!AUTH()) return;
+  const reach = r + 160;
+  for (const c of nearbyCreatures(x, y, reach, [])) {
+    if (!c.alive) continue;
+    const d = Math.hypot(c.x - x, c.y - y);
+    if (d >= reach) continue;
+    const k = clamp(1 - Math.max(0, d - r) / 160, 0, 1) * (los(c.x, c.y, x, y) ? 1 : .45);
+    c.blastStunT = Math.max(c.blastStunT || 0, T + .35 + 1.15 * k);
+    c.blastDeafT = Math.max(c.blastDeafT || 0, T + 2 + 3 * k);
+    c.deafT = Math.max(c.deafT || 0, c.blastDeafT); // existing ringing/strained voice presentation
+    c.adren = 0; c.warn = null; c.reply = null; c.ear = null;
+    c.goal = null; c.stuck = 0; c.goalP = 0;
+    // Even a blind/deaf survivor feels the impact, without gaining an exact threat location.
+    const source = MOD.blind ? guessAt(c, x, y, reach) : { x, y };
+    c.state = 'panic'; c.alert = Math.max(c.alert || 0, c.def.human ? 1 : .6);
+    c.fx = source.x; c.fy = source.y;
+    c.timer = Math.max(c.timer || 0, 4 + 3 * k);
+    if (c.def.human && !c.def.alien && T >= (c.blastComplaintT || 0) && Math.random() < .4) {
+      c.reply = { t: c.blastStunT - T + rand(.15, .5), ctx: 'deaf' };
+      c.blastComplaintT = T + 8;
+    }
+  }
 }
 function pumpBlast(x, y) { // a gas pump goes up: a full blast, with the ringing, the muffle and the daze, but it never kills the snake; then the fuel burns
   detonate({ x, y, r: Math.round(AIR_R * 1.15), safe: true });

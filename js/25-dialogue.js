@@ -337,7 +337,7 @@ function updateConvos(dt) {
   for (let i = convos.length - 1; i >= 0; i--) {
     const v = convos[i];
     const scared = !v.survivor && (startled(v.a) || startled(v.b)); // a scream, a death, the snake, a crash: whatever made either of them flinch
-    const broke = !v.a.alive || !v.b.alive || dist2(v.a.x, v.a.y, v.b.x, v.b.y) > 150 * 150 || scared;
+    const broke = !v.a.alive || !v.b.alive || v.a.blastDeafT > T || v.b.blastDeafT > T || dist2(v.a.x, v.a.y, v.b.x, v.b.y) > 150 * 150 || scared;
     if (broke) {
       if (scared && v.a.alive && v.b.alive) {
         suspendConvo(v);
@@ -367,10 +367,10 @@ function updateConvos(dt) {
   if ((convoT -= dt) > 0) return; convoT = rand(5, 10);
   if (convos.length >= (pregame() ? 3 : 2)) return;
   for (const c of creatures.slice().sort(() => Math.random() - .5)) { // two people standing close, both calm (or both just survived), start talking
-    if (!c.alive || !c.def.human || c.def.alien || c.convo || c.susp || !c.topics || busyUntil(c) > 0 || Math.random() > .1 * (c.talkK || 1) * (c.state === 'wander' && c.alert > .3 ? 3 : 1)) continue; // rarer, unless something just happened worth talking about
+    if (!c.alive || !c.def.human || c.def.alien || c.blastDeafT > T || c.convo || c.susp || !c.topics || busyUntil(c) > 0 || Math.random() > .1 * (c.talkK || 1) * (c.state === 'wander' && c.alert > .3 ? 3 : 1)) continue; // rarer, unless something just happened worth talking about
     const surv = c.state === 'wander' && c.alert > .3 && (!snake || dist2(c.x, c.y, snake.x, snake.y) > 220 * 220);
     if (!surv && (c.state !== 'wander' && c.state !== 'idle' || c.alert > .3)) continue;
-    const o = nearbyHumans(c.x, c.y, 70).find(o => o !== c && !o.def.alien && o.topics && !o.convo && !o.susp && busyUntil(o) <= 0 && (o.state === 'wander' || o.state === 'idle') && (MOD.blind || los(c.x, c.y, o.x, o.y)));
+    const o = nearbyHumans(c.x, c.y, 70).find(o => o !== c && !o.def.alien && !(o.blastDeafT > T) && o.topics && !o.convo && !o.susp && busyUntil(o) <= 0 && (o.state === 'wander' || o.state === 'idle') && (MOD.blind || los(c.x, c.y, o.x, o.y)));
     if (!o) continue;
     const [A, B] = (o.talkK || 1) > (c.talkK || 1) ? [o, c] : [c, o]; // the chattier one starts
     const { out: lines, v: st } = buildTalk(A, B, surv); if (!lines.length) continue;
@@ -383,7 +383,7 @@ function resumeConvos() { // after the danger: pick the talk back up, admit it's
     const s = c.susp; if (!s || s.a !== c) continue;
     const a = s.a, b = s.b, age = T - s.T;
     if (!a.alive || !b.alive || age > 60) { a.susp = b.susp = null; continue; }
-    if (age < 5 || a.convo || b.convo || startled(a) || startled(b) || busyUntil(a) > 0 || busyUntil(b) > 0) continue;
+    if (age < 5 || a.convo || b.convo || a.blastDeafT > T || b.blastDeafT > T || startled(a) || startled(b) || busyUntil(a) > 0 || busyUntil(b) > 0) continue;
     if (snake && snake.started && !MOD.blind && (dist2(a.x, a.y, snake.x, snake.y) < 220 * 220 || dist2(b.x, b.y, snake.x, snake.y) < 220 * 220)) continue; // not while it's still right there
     a.susp = b.susp = null;
     if (dist2(a.x, a.y, b.x, b.y) > 110 * 110 || T < resumeCD) continue; // they got separated (or someone just did this): it's simply dropped
@@ -470,14 +470,14 @@ function say(c, ctxRaw) {
 function reactToJoke(c) { // someone nearby doesn't appreciate it (or kind of does)
   if (Math.random() > .45) return;
   for (const o of nearbyHumans(c.x, c.y, 140)) {
-    if (o === c || o.def.alien || o.reply) continue;
+    if (o === c || o.def.alien || o.reply || o.blastDeafT > T) continue;
     o.reply = { t: rand(1.3, 2.2), ctx: 'jokeReact' }; return;
   }
 }
 function askAround(c, tag) { // someone close by who has already seen the snake answers the question
   if (!ANSWERS[tag]) return;
   for (const o of nearbyHumans(c.x, c.y, 160)) {
-    if (o === c || o.def.alien || o.reply || !o.sawSnake) continue;
+    if (o === c || o.def.alien || o.reply || !o.sawSnake || o.blastDeafT > T) continue;
     if (Math.random() < .7) { o.reply = { t: rand(.7, 1.3), ctx: 'answer:' + tag }; c.mem = null; } // answered: no need to follow up themselves
     return;
   }
@@ -523,7 +523,7 @@ function scream(c, ctx = 'panic') {
   const R = 170 * (MOD.doublePanic ? 1.6 : 1);
   let n = 0;
   for (const o of nearbyHumans(c.x, c.y, R)) { // people who hear it panic a moment later and pass it on
-    if (o === c || o.state === 'panic' || o.warn) continue;
+    if (o === c || o.state === 'panic' || o.warn || o.blastDeafT > T) continue;
     if (dist2(c.x, c.y, o.x, o.y) < 90 * 90 || los(c.x, c.y, o.x, o.y)) { o.warn = { x: c.fx, y: c.fy, t: rand(.25, .7) / (o.panicK || 1) }; n++; }
   }
   if (state === 'play') { crScream(n); if (n) netEmit({ t: 'scr', n }); } // a team challenge in co-op: everyone's counter moves
