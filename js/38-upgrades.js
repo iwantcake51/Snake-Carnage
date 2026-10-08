@@ -23,7 +23,7 @@ const UPGRADES = [
   { id: 'camo', name: 'Camouflage', icon: 'camo', max: 3, cost: [600, 1400, 2400], lvl: [8, 17, 23], ability: true, key: 'Q',
     desc: 'Vanish on the spot. Nobody sees you unless you\'re right on top of them, anyone already onto you loses you, and kills while hidden are silent: no scream carries, nobody further than a body length away sees it. Every kill while hidden keeps you hidden 1 s longer, so a fast chain keeps you invisible.', tiers: ['4 s, 14 s cooldown', 'Stalker: 5 s, 12 s cooldown, 15% faster while hidden', 'Phantom: 6 s, 10 s cooldown. Your combo doesn\'t drain while hidden, and hidden kills pay 25% more'] },
   { id: 'hoover', name: 'Hoover Mouth', icon: 'hoover', max: 3, cost: [500, 1250, 2300], lvl: [6, 14, 21], ability: true, key: 'C',
-    desc: 'Open wide and inhale: for a couple of seconds everything in front of you, people included, gets dragged toward your mouth. Never through walls. (The Hoover Mouth modifier is a weaker pull that never stops.)', tiers: ['1.5 s of pull in a narrow 60° cone, 16 s cooldown', '2 s, a 115° cone, stronger and further, 13 s cooldown', 'Vortex: 2.5 s, a 170° cone, 10 s cooldown. A huge pull that drags in even people running for their lives'] },
+    desc: 'Open wide and inhale: for a couple of seconds everything in front of you, people included, gets dragged toward your mouth. Never through walls. (The Hoover Mouth modifier is a weaker pull that never stops.)', tiers: ['1.5 s of pull in a narrow 60° cone, 24 s cooldown', '2 s, a 115° cone, stronger and further, 20 s cooldown', 'Vortex: 2.5 s, a 170° cone, 16 s cooldown. A huge pull that drags in even people running for their lives'] },
   { id: 'hiss', name: 'Hiss', icon: 'hiss', max: 3, cost: [700, 1600, 2600], lvl: [11, 18, 24], ability: true, key: 'R',
     desc: 'A blood-curdling hiss you can see rippling out: everything nearby panics and scatters.', tiers: ['190 px radius, 15 s cooldown', 'Wider, and it rattles them: slowed for 4 s, half-deaf and slurring for 10 s', 'Shockwave: the blast knocks people off their feet and blows groups apart'] },
 ];
@@ -38,7 +38,7 @@ const ABIL = { // cd/dur read the owned level each time
     const now = performance.now(); FOCUS.t0 = now; FOCUS.until = now + this.dur * 1000; s.pingT = this.dur + 1.5; updateScent.t = 0; Sfx.focus(this.dur); } },
   camo: { get cd() { return [14, 14, 12, 10][lv3('camo')]; }, get dur() { return [4, 4, 5, 6][lv3('camo')]; }, go(s) { s.camoT = this.dur; s.camoMax = this.dur + 4; Sfx.camo();
     if (AUTH()) for (const c of nearbyCreatures(s.x, s.y, 420, [])) if (c.alive && c.def.human) c.alert = Math.min(c.alert || 0, .2); } }, // anyone onto you loses you
-  hoover: { get cd() { return [16, 16, 13, 10][upg('hoover')]; }, get dur() { return [1.5, 1.5, 2, 2.5][upg('hoover')]; }, go(s) {
+  hoover: { get cd() { return [24, 24, 20, 16][Math.min(3, upg('hoover'))]; }, get dur() { return [1.5, 1.5, 2, 2.5][upg('hoover')]; }, go(s) {
     const lv = upg('hoover'); s.hoovT = this.dur; s.hoovLv = lv; Sfx.vacuum(this.dur, lv);
     if (netIsGuest()) netSend({ t: 'abil', id: 'hoover', lv }); // co-op guest: the host pulls its crowd for us
   } },
@@ -155,14 +155,14 @@ function smashObstacle(o, ang, quiet) { // quiet: catching up on breakage that h
   const wall = o.kind === 'bwall', hard = wall || o.kind === 'rock'; // rocks knock you silly just like walls
   if (!quiet) { if (fx) Sfx.breakFx(fx.sound, cx, wall ? size * 2.5 : size, fx.vol); else Sfx.smash(cx, wall ? size * 2.5 : size); }
   if (mine && fx && fx.stun !== 'default') { shake = Math.max(shake, 8 * fx.shake); bfxStun(fx); }
-  else if (mine) { shake = Math.max(shake, (hard ? 16 : 6) * (fx ? fx.shake : 1));
-  const lng = (snake.dashV || 1) > 1.25, cls = ramClass(o), dur = (hard ? 4 : cls === 3 ? 2.2 : cls === 2 ? 1.6 : 1.3) + (lng ? 1 : 0); // big furniture knocks you a bit longer // lunging in: it hits harder on screen and lasts longer, but you keep more of your speed
+  else if (mine) { shake = Math.max(shake, (hard ? 10 : ramClass(o) === 3 ? 4 : 2) * (fx ? fx.shake : 1));
+  const lng = (snake.dashV || 1) > 1.25, cls = ramClass(o), dur = (hard ? 2.2 : cls === 3 ? 1 : cls === 2 ? .6 : .3) + (lng ? (hard ? .5 : .2) : 0); // big furniture knocks you a bit longer // lunging in: it hits harder on screen and lasts longer, but you keep more of your speed
   const res = upg('ram') >= 4 ? .75 : 1; // thick skull
   const keepMo = upg('speed') >= 5 ? .5 : 1; // Speed Demon V: momentum survives the hit
   if (!hard && snake.wallStun > 0) snake.ramT = Math.max(snake.ramT, Math.min(snake.ramMax, dur * res)); // already seeing stars from a wall: furniture doesn't reset it
-  else { snake.ramT = snake.ramMax = dur * res; snake.ramDeep = (hard ? .62 : cls === 3 ? .45 : cls === 2 ? .38 : .18) * (lng ? .6 : 1) * res * keepMo; /* small things barely slow you, same daze */ snake.wallStun = snake.wallMax = hard ? dur * res : 0; snake.stunFx = (lng ? 1.5 : 1) * res; }
+  else { snake.ramT = snake.ramMax = dur * res; snake.ramDeep = (hard ? .5 : cls === 3 ? .35 : cls === 2 ? .22 : .08) * (lng ? .6 : 1) * res * keepMo; /* small things barely slow you, same daze */ snake.wallStun = snake.wallMax = hard ? dur * res : 0; snake.stunFx = (hard ? .8 : cls === 3 ? .5 : cls === 2 ? .3 : .15) * (lng ? 1.2 : 1) * res; } /* (v1.57: much lighter dazes, the smallest things barely register) */
   if (hard) { snake.dashT = 0; snake.dashV = 1; snake.lk = 0; } } // a wall stops a lunge dead
-  if (mine && o.kind === 'glass' && upg('ram') < 1) { snake.ramT = snake.ramMax = 4; snake.ramDeep = .7; snake.wallStun = snake.wallMax = 4; snake.stunFx = 1.5; snake.dashT = 0; snake.dashV = 1; snake.lk = 0; shake = Math.max(shake, 18); } // no Battering Ram: you go through the glass, but face first // dazed: slower, colours drain, edges blur, all easing back as speed returns
+  if (mine && o.kind === 'glass' && upg('ram') < 1) { snake.ramT = snake.ramMax = 2; snake.ramDeep = .5; snake.wallStun = snake.wallMax = 2; snake.stunFx = .9; snake.dashT = 0; snake.dashV = 1; snake.lk = 0; shake = Math.max(shake, 11); } // no Battering Ram: you go through the glass, but face first // dazed: slower, colours drain, edges blur, all easing back as speed returns
   if (wall && !quiet && !fx) { // a wall: bricks and plaster everywhere, a cloud of dust, and the snake sees stars
     for (let k = 0; k < 40; k++) { const a = ang + rand(-.9, .9), sp = rand(80, 300); debris.push({ x: cx + rand(-o.w / 2, o.w / 2), y: cy + rand(-o.h / 2, o.h / 2), z: rand(6, 20), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(80, 220), t: 0, s: rand(2.4, 5), c: pick([o.color, shade(o.color, -.25), shade(o.color, .2), '#8a7f74']) }); }
     for (let k = 0; k < 14; k++) mist.push({ x: cx + rand(-10, 10), y: cy + rand(-10, 10), vx: Math.cos(ang + rand(-1.4, 1.4)) * rand(20, 90), vy: Math.sin(ang + rand(-1.4, 1.4)) * rand(20, 90), r: rand(6, 14), g: rand(10, 24), t: 0, life: rand(1, 1.8), c: '#aaa096', a: rand(.25, .4) });

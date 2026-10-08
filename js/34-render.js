@@ -18,9 +18,9 @@ function render() {
   if (bz > .02 && !SETTINGS.reduceMotion) { V.ox += (Math.sin(T * 1.6) * 4 + Math.sin(T * 3.7) * 1.5) * bz; V.oy += (Math.sin(T * 1.2 + 2) * 3 + Math.sin(T * 3.1) * 1.2) * bz; } // reeling from a blast: the world sways, gentler than after a wall
   if (cw > 0) { V.ox += (Math.sin(T * 1.25) * 7 + Math.sin(T * 2.9) * 2) * cw; V.oy += (Math.sin(T * .95 + 1.2) * 5 + Math.sin(T * 2.3) * 1.5) * cw; } // the room sways after a wall
   const st0 = snake && snake.ramT > 0 ? Math.min(1, Math.pow(snake.ramT / (snake.ramMax || 1), .6) * (snake.stunFx || 1)) : 0;
-  const olOff = st0 > 0 || boomDaze() > .05; // smashed through something, or shaken by a blast
+  const olOff = st0 > .3 || boomDaze() > .05; // (a light knock leaves them) // smashed through something, or shaken by a blast
   render.olk = (render.olk ?? 1) + ((olOff ? 0 : 1) - (render.olk ?? 1)) * (olOff ? .25 : .03); // everything else's outlines drop out fast, stay gone while dizzy, then creep back (yours stays)
-  render.dazed = st0 > 0;
+  render.dazed = st0 > .3;
   x.setTransform(DPR, 0, 0, DPR, 0, 0);
   x.fillStyle = MAPS[mapIdx].border; x.fillRect(0, 0, W, H);
   applyView(x);
@@ -85,7 +85,7 @@ function render() {
   ctx.save(); applyView(ctx); // crisp overlays above blood and lighting
   if (px <= 1 && !render.dazed) { drawGoldenFX(ctx); ctx.globalAlpha = render.olk ?? 1; drawTargetOutlines(ctx); ctx.globalAlpha = 1; drawSnakeNightRim(ctx); }
   if (nightVision) drawNVHighlights(ctx);
-  drawWinStars(ctx); drawScent(ctx); drawHissWave(ctx); drawCrashFlash(ctx);
+  drawWinStars(ctx); drawScent(ctx); drawNearMiss(ctx); drawHissWave(ctx); drawCrashFlash(ctx);
   drawShockwaves(ctx, cv); // last: blasts bend the whole picture behind them, outlines and all
   ctx.restore();
   drawAirFlash(ctx);
@@ -111,7 +111,7 @@ function render() {
   const wantStart = state === 'ready' && !cam;
   if (wantStart !== !!render.startShown) { render.startShown = wantStart; wantStart ? showResume('to begin') : hideResume(); }
   const stunRaw = snake && snake.ramT > 0 ? Math.min(1, Math.pow(snake.ramT / (snake.ramMax || 1), .45) * (snake.stunFx || 1)) : 0; // dazed after smashing through something
-  render.stunS = (render.stunS || 0) + (stunRaw - (render.stunS || 0)) * (stunRaw > (render.stunS || 0) ? 1 : .022); // the hit lands instantly, then drains slowly as speed returns // heavy but smooth: eases in, then drains slowly as speed returns
+  render.stunS = (render.stunS || 0) + (stunRaw - (render.stunS || 0)) * (stunRaw > (render.stunS || 0) ? 1 : .06); // the hit lands instantly, then drains slowly as speed returns // heavy but smooth: eases in, then drains slowly as speed returns
   const stun = render.stunS < .01 ? 0 : render.stunS;
   if (Math.abs(stun - (render.stun || 0)) > .02 || (stun === 0) !== (render.stun === 0)) { render.stun = stun; stage.style.setProperty('--stun', stun.toFixed(2)); stage.classList.toggle('stunned', stun > 0); stage.classList.toggle('wallstun', !!(snake && snake.wallStun > 0)); }
   const sat = (SETTINGS.desaturate && !nightVision ? clamp(1 - killFlash * .5, .45, 1) : 1) * (1 - .93 * stun) * (1 - .92 * dfxK) * (1 - .78 * bz); // dying drains it to grey; so does a blast close by

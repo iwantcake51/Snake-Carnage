@@ -206,8 +206,8 @@ Object.assign(Sfx, {
 /* ---- what it does to the snake that broke it ---- */
 function bfxStun(fx, s = snake) {
   if (!s || fx.stun === 'none') return;
-  if (fx.stun === 'light') { if (!(s.wallStun > 0)) { s.ramT = s.ramMax = .55; s.ramDeep = .14; s.stunFx = .5; } return; }
-  if (fx.stun === 'heavy') { s.ramT = s.ramMax = 3; s.ramDeep = .6; s.wallStun = s.wallMax = 3; s.stunFx = 1.2; s.dashT = 0; s.dashV = 1; s.lk = 0; }
+  if (fx.stun === 'light') { if (!(s.wallStun > 0)) { s.ramT = s.ramMax = .3; s.ramDeep = .08; s.stunFx = .15; } return; }
+  if (fx.stun === 'heavy') { s.ramT = s.ramMax = 1.8; s.ramDeep = .45; s.wallStun = s.wallMax = 1.8; s.stunFx = .8; s.dashT = 0; s.dashV = 1; s.lk = 0; }
 }
 
 /* ---- the prop editor's preview: the same burst, played in a little world of its own ---- */
