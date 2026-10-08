@@ -123,48 +123,70 @@ const SEASON_PICK = ['Random', 'Spring', 'Summer', 'Autumn', 'Winter'];
 const SEASON_TIPS = { Random: 'A different season each run.', Spring: 'Blossom and fresh green.', Summer: 'Full leaf, long grass.', Autumn: 'Orange leaves everywhere.', Winter: 'Snow on the ground: you carve a groove through it, and blood soaks in.' };
 const TIME_TIPS = { Cycle: 'Every run starts at a random hour and the day keeps moving.', Day: 'Bright midday the whole run. Nowhere for you to hide.', Dawn: 'Frozen at first light: long shadows, lamps still on.', Dusk: 'Frozen at sunset: half-lit streets and long shadows.', Night: 'Pitch dark the whole run. Lamps, windows and flashlights only.' };
 const multLabel = ids => { const m = modMult(ids); return Math.abs(m - 1) < .005 ? 'Normal rewards' : 'Rewards x' + m.toFixed(2); };
+const MOD_GROUP_INFO = { Conditions: 'The world you play in: light, weather, air strikes, what breaks', Crowd: 'How people and animals behave, and how many there are', Snake: 'Your body, your skills and your upgrades', Scoring: 'How kills pay, and how the combo works', Style: 'Looks only', Controls: 'How you steer' };
+const modKind = m => m.mult > 0 ? ['hard', 'Harder'] : m.mult < 0 ? ['easy', 'Easier'] : ['even', 'Different'];
+const modPct = m => m.mult ? (m.mult > 0 ? '+' : '') + Math.round(m.mult * 100) + '%' : '±0%';
 function showModifiers(focus) {
   const ids = new Set(SETTINGS.mods || []);
   overlay.className = 'menuMode';
-  let lastG = '';
-  overlay.innerHTML = `<div class="panel mods"><div class="chhead"><h1>Modifiers</h1><span class="mcount" id="mcount"></span><span class="coinpill" id="mm">${multLabel([...ids])}</span></div>
-    <p class="lead">Change how the next run plays. Hover any modifier for exactly what it does. Harder ones pay more XP, chips and score.</p>
-    <div class="modgrid">${MODS.map((m, i) => { const head = m.g !== lastG ? `<h3 class="mg">${(lastG = m.g)}</h3>` : '';
-      return `${head}<button class="mtile ${ids.has(m.id) ? 'on' : ''}" data-sfx="none" data-m="${m.id}" role="switch" aria-checked="${ids.has(m.id)}" style="--i:${i}" data-tiph="${attr(modTip(m))}">
-        <span class="mtx"><b>${m.name}</b><small>${m.desc}</small></span><em class="mpct ${m.mult > 0 ? 'up' : m.mult < 0 ? 'down' : ''}">${m.mult ? (m.mult > 0 ? '+' : '') + Math.round(m.mult * 100) + '%' : ''}</em><span class="mck"></span></button>`; }).join('')}</div>
+  const groups = [...new Set(MODS.map(m => m.g))];
+  overlay.innerHTML = `<div class="panel mods mods2"><div class="chhead"><h1>Modifiers</h1><span class="mcount" id="mcount"></span><span class="coinpill" id="mm">${multLabel([...ids])}</span></div>
+    <p class="lead">Change how the next run plays. Harder ones pay more XP, chips and score; easier ones pay less. Point at one to read exactly what it does.</p>
+    <div class="m2body"><div class="m2list">${groups.map(g => `<section class="m2grp"><h3>${g}<small>${MOD_GROUP_INFO[g] || ''}</small></h3><div class="m2cards">${MODS.filter(m => m.g === g).map((m, i) => { const [k, kl] = modKind(m);
+      return `<button class="m2c ${k}" data-sfx="none" data-m="${m.id}" role="switch" aria-checked="${ids.has(m.id)}" style="--i:${i}">
+        <span class="m2top"><b>${m.name}</b><em class="m2pct">${modPct(m)}</em><i class="m2ck"></i></span>
+        <span class="m2d">${m.desc}</span>
+        <span class="m2tags"><i class="m2k">${kl}</i>${(m.not || []).length ? `<i class="m2not">Not with ${m.not.map(o => (MODS.find(q => q.id === o) || {}).name).filter(Boolean).join(', ')}</i>` : ''}</span></button>`; }).join('')}</div></section>`).join('')}</div>
+      <aside class="m2info" id="m2info"></aside></div>
     <div class="mbtns"><label class="mfollow ${ids.has('freeMove') ? '' : 'dim'}" data-tip="Free movement only: the snake heads toward your mouse cursor while it's over the game."><button class="tgl ${SETTINGS.mouseFollow ? 'on' : ''}" id="mfTgl" data-sfx="none" role="switch" aria-checked="${!!SETTINGS.mouseFollow}"></button>Mouse steering</label>
       <span class="sp"></span><button class="btn alt" id="shufBtn" data-sfx="select">Shuffle</button><button class="btn alt" id="clrBtn" data-sfx="off">Clear</button><button class="btn" id="backBtn" data-sfx="confirm">Done</button></div></div>`;
-  const blocker = id => modBlockReason(id, ids);
+  const blocker = id => modBlockReason(id, ids), info = document.getElementById('m2info');
+  let shown = null;
+  const showInfo = id => { // the side panel: everything about the one you're pointing at, or a summary of what's on
+    shown = id; const m = id && MODS.find(q => q.id === id);
+    if (!m) { const on = [...ids].map(i => MODS.find(q => q.id === i)).filter(Boolean);
+      info.innerHTML = `<h4>This run</h4><p class="m2sum">${on.length ? on.length + ' modifier' + (on.length > 1 ? 's' : '') + ' on' : 'No modifiers: the game as it comes.'}</p>${on.length ? `<ul class="m2on">${on.map(q => `<li><span>${modName(q.id, ids)}</span><em class="${modKind(q)[0]}">${modPct(q)}</em></li>`).join('')}</ul>` : ''}<p class="m2tot">${multLabel([...ids])}</p><p class="m2hint">Point at a modifier to see exactly what it does.</p>`; return; }
+    const [k, kl] = modKind(m), by = !ids.has(m.id) && blocker(m.id), not = (m.not || []).map(o => (MODS.find(q => q.id === o) || {}).name).filter(Boolean);
+    info.innerHTML = `<span class="m2g">${m.g}</span><h4>${modName(m.id, ids)}</h4><span class="m2badge ${k}">${kl} · rewards ${modPct(m)}</span>
+      <p class="m2how">${MOD_HOW[m.id] || m.desc}</p>
+      ${not.length ? `<p class="m2line"><b>Can't combine with</b> ${not.join(', ')}</p>` : ''}
+      ${by ? `<p class="m2line bad"><b>Unavailable</b> ${by}</p>` : `<p class="m2line"><b>Status</b> ${ids.has(m.id) ? 'On for the next run' : 'Off'}</p>`}`;
+  };
   const sync = () => {
     for (const id of [...ids]) if (modBlockReason(id, ids) && !(MODS.find(q => q.id === id).not || []).some(o => ids.has(o))) ids.delete(id); // a newer pick made this one pointless: it switches itself off
     SETTINGS.mods = [...ids]; saveSettings();
-    overlay.querySelectorAll('.mtile').forEach(t => {
+    overlay.querySelectorAll('.m2c').forEach(t => {
       const id = t.dataset.m, on = ids.has(id), by = on ? null : blocker(id), m = MODS.find(q => q.id === id);
       t.classList.toggle('on', on); t.setAttribute('aria-checked', on); t.classList.toggle('blocked', !!by); // conflicts are greyed out with the reason
-      t.querySelector('small').textContent = by || m.desc; t.querySelector('b').textContent = modName(id, ids);
+      t.querySelector('.m2d').textContent = by || m.desc; t.querySelector('b').textContent = modName(id, ids);
     });
     document.getElementById('mm').textContent = multLabel([...ids]);
     document.getElementById('mcount').textContent = ids.size ? ids.size + ' active' : '';
     overlay.querySelector('.mfollow').classList.toggle('dim', !ids.has('freeMove'));
+    showInfo(shown);
   };
-  overlay.querySelectorAll('.mtile').forEach(t => t.onclick = () => {
-    const m = MODS.find(q => q.id === t.dataset.m);
-    if (!ids.has(m.id) && blocker(m.id)) { Sfx.deny(); t.classList.remove('nope'); void t.offsetWidth; t.classList.add('nope'); return; }
-    if (ids.has(m.id)) { ids.delete(m.id); Sfx.ui('off'); } else { ids.add(m.id); (m.not || []).forEach(n => ids.delete(n)); MODS.forEach(q => (q.not || []).includes(m.id) && ids.delete(q.id)); Sfx.ui('on'); }
-    t.classList.remove('pop'); void t.offsetWidth; t.classList.add('pop');
-    sync();
+  overlay.querySelectorAll('.m2c').forEach(t => {
+    t.onmouseenter = t.onfocus = () => showInfo(t.dataset.m);
+    t.onclick = () => {
+      const m = MODS.find(q => q.id === t.dataset.m); shown = m.id;
+      if (!ids.has(m.id) && blocker(m.id)) { Sfx.deny(); t.classList.remove('nope'); void t.offsetWidth; t.classList.add('nope'); showInfo(m.id); return; }
+      if (ids.has(m.id)) { ids.delete(m.id); Sfx.ui('off'); } else { ids.add(m.id); (m.not || []).forEach(n => ids.delete(n)); MODS.forEach(q => (q.not || []).includes(m.id) && ids.delete(q.id)); Sfx.ui('on'); }
+      t.classList.remove('pop'); void t.offsetWidth; t.classList.add('pop');
+      sync();
+    };
   });
+  overlay.querySelector('.m2list').onmouseleave = () => showInfo(null);
   document.getElementById('mfTgl').onclick = e => { const b = e.currentTarget; SETTINGS.mouseFollow = !SETTINGS.mouseFollow; b.classList.toggle('on', SETTINGS.mouseFollow); b.setAttribute('aria-checked', SETTINGS.mouseFollow); Sfx.ui(SETTINGS.mouseFollow ? 'on' : 'off'); saveSettings(); };
   document.getElementById('shufBtn').onclick = () => {
     const keep = [...ids].filter(id => { const g = (MODS.find(m => m.id === id) || {}).g; return g === 'Style' || g === 'Controls'; }); // your own style/control picks stay
     ids.clear(); keep.forEach(id => ids.add(id)); randomMods(randi(9, 14)).forEach(id => ids.add(id)); // a properly different run
-    overlay.querySelectorAll('.mtile').forEach((t, i) => { t.classList.remove('shuf'); void t.offsetWidth; t.style.setProperty('--d', (i * 12) + 'ms'); t.classList.add('shuf'); });
-    sync();
+    overlay.querySelectorAll('.m2c').forEach((t, i) => { t.classList.remove('shuf'); void t.offsetWidth; t.style.setProperty('--d', (i * 10) + 'ms'); t.classList.add('shuf'); });
+    shown = null; sync();
   };
-  document.getElementById('clrBtn').onclick = () => { ids.clear(); sync(); };
+  document.getElementById('clrBtn').onclick = () => { ids.clear(); shown = null; sync(); };
   document.getElementById('backBtn').onclick = () => transitionTo(showMenu);
   sync();
-  if (focus) requestAnimationFrame(() => { const t = overlay.querySelector(`.mtile[data-m="${focus}"]`); if (!t) return; t.scrollIntoView({ block: 'center', behavior: SETTINGS.reduceMotion ? 'auto' : 'smooth' }); t.classList.add('focus'); setTimeout(() => t.classList.remove('focus'), 1600); });
+  if (focus) requestAnimationFrame(() => { const t = overlay.querySelector(`.m2c[data-m="${focus}"]`); if (!t) return; showInfo(focus); t.scrollIntoView({ block: 'center', behavior: SETTINGS.reduceMotion ? 'auto' : 'smooth' }); t.classList.add('flash'); });
 }
 let chTab = 'profile', chMap = null;
 const TIER_ORDER = { easy: 0, medium: 1, hard: 2, rare: 3 };
@@ -312,18 +334,23 @@ const SETTING_TABS = {
   Gameplay: { icon: 'gameplay', lead: 'How the world behaves around you.', rows: [
     ['head', 'World'],
     ['slider', 'creatureSpeed', 'Creature speed', 'How fast people and animals move.', .3, 1.2, .05],
-    ['seg', 'bloodFade', 'Blood fades', 'How long blood stays on the ground and walls.', ['Never', 'Slow', 'Normal', 'Fast']],
     ['toggle', 'airstrikes', 'Air strikes', 'Outdoors, after a minute and a half of a run, the military starts bombing and strafing the path you\'re on. Red rings mark where bombs land, red lanes where a jet will rake with its cannon. The Air raid modifier starts them at once, even with this off. In multiplayer the host\'s setting counts.'],
-    ['head', 'Time and weather'],
-    ['seg', 'timeMode', 'Time of day', 'Dynamic starts every run at a random hour and lets the day move on. The others stay fixed.', ['Cycle', 'Day', 'Dawn', 'Dusk', 'Night'], null, null, null, TIME_MODES],
-] },
-  Graphics: { icon: 'graphics', lead: 'Look and feel of the picture.', rows: [
-    ['head', 'Display'],
+    ['head', 'Time'],
+    ['seg', 'timeMode', 'Time of day', 'Dynamic starts every run at a random hour and lets the day move on. The others stay fixed.', ['Cycle', 'Day', 'Dawn', 'Dusk', 'Night'], null, null, null, TIME_MODES]] },
+  Display: { icon: 'display', lead: 'The screen, the interface on it, and what it tells you.', rows: [
+    ['head', 'Screen'],
     ['toggle', 'fullscreen', 'Fullscreen', 'Fill the whole screen. Esc or F11 leaves it.'],
     ['seg', 'renderRes', 'Render resolution', 'How many pixels the game draws, compared with the automatic choice for your screen. Lower is much faster and a bit softer. Changing it reloads the game.', ['50%', '75%', '100%', '125%', 'Auto']],
     ['seg', 'fpsCap', 'Frame rate', 'VSync matches your screen. A cap saves battery and heat.', ['30', '60', '120', 'VSync']],
+    ['head', 'Interface'],
+    ['seg', 'uiScale', 'UI scale', 'Size of menus, HUD, notifications and buttons. Auto follows the size of the game.', ['Small', 'Medium', 'Large', 'Extra Large', 'Auto']],
+    ['seg', 'bubbleSize', 'Speech bubble size', 'Text size of what people shout.', ['Small', 'Normal', 'Large']],
+    ['toggle', 'minimalUi', 'Minimal UI', 'Hides reward pop-ups, the combo breakdown and the challenge list during a run.'],
+    ['head', 'Diagnostics'],
+    ['seg', 'perfHud', 'Performance stats', 'A panel with the frame rate, a frame-time graph, and how long each part of the game takes per frame, so you can see what is slowing a map down. F3 cycles it during a run.', ['Off', 'FPS', 'Full']]] },
+  Graphics: { icon: 'graphics', lead: 'How good the picture looks, and what it costs.', rows: [
+    ['head', 'Quality'],
     ['toggle', 'autoQ', 'Automatic quality', 'When the game runs slowly it simplifies the lighting and snow by itself, for that run, to keep it smooth.'],
-    ['head', 'Light and shadow'],
     ['seg', 'lightQ', 'Lighting', 'The biggest cost on screen. High: everything, including colors draining away in the dark (slow on many graphics chips). Medium: no color drain, fewer lamp shadows. Low: half-resolution light, no tinted pools, updated every other frame. Off: no light layer, just a dim tint at night, the fastest. Who can see you works the same at every setting.', ['Off', 'Low', 'Medium', 'High']],
     ['seg', 'shadows', 'Shadows', 'Full: everything casts shadows, including people, animals and the snake under lamps and flashlights. Static: only the fixed ones (buildings, walls, furniture in sunlight and lamplight). Off: no shadows at all and none are worked out, the fastest. Light and darkness work the same either way.', ['Off', 'Static', 'Full']],
     ['toggle', 'bloom', 'Bloom', 'A soft glow round things that light up: console buttons, screens, warning lamps, reactor cores.'],
@@ -331,45 +358,40 @@ const SETTING_TABS = {
     ['seg', 'snowQ', 'Snow', 'Winter maps. Full: deep snow that you and everyone else plough through, with powder and footprints. Simple: snow on the ground that stays as it is, almost free. Off: no snow on the ground at all.', ['Off', 'Simple', 'Full']],
     ['seg', 'treeQ', 'Tree detail', 'High: every branch sways on its own. Medium: whole trees lean in the wind (cheaper). Low: no sway, all trees drawn as one picture (cheapest).', ['Low', 'Medium', 'High']],
     ['seg', 'fogQ', 'Fog detail', 'Heavy fog modifier. High: drifting billows, torn edges, lamps glowing through it. Medium: billows only. Low: plain soft fog, cheapest.', ['Low', 'Medium', 'High']],
-    ['head', 'Diagnostics'],
-    ['seg', 'perfHud', 'Performance stats', 'A panel with the frame rate, a frame-time graph, and how long each part of the game takes per frame, so you can see what is slowing a map down. F3 cycles it during a run.', ['Off', 'FPS', 'Full']]] },
+    ['head', 'Look'],
+    ['slider', 'darkness', 'Darkness', 'Overall dimness of the scene.', 0, .7, .05],
+    ['slider', 'pixel', 'Pixelation', 'Chunky pixel look. Off shows full detail.', 1, 8, 1]] },
   Effects: { icon: 'effects', lead: 'Blood, particles and the jolts that sell a kill.', rows: [
     ['head', 'Blood'],
     ['seg', 'bloodQ', 'Blood quality', 'How much blood is simulated and how finely it is drawn. Low: fewer, chunkier, plainer drops and short trails (still smooth: every drop moves every frame), the fastest. Extreme: the most drops, smooth motion blur, mist and long-lasting trails.', ['Low', 'Medium', 'High', 'Extreme']],
     ['toggle', 'bloodBlur', 'Blood motion blur', 'Fast drops stretch and smear along their path. Off: plain round drops.'],
+    ['seg', 'bloodFade', 'Blood fades', 'How long blood stays on the ground and walls.', ['Never', 'Slow', 'Normal', 'Fast']],
     ['head', 'Particles'],
     ['seg', 'fxLevel', 'Particles', 'How many particles are simulated: blood mist, smoke, sparks, snow powder, scent wisps, insects. Low simulates far fewer.', ['Low', 'Normal', 'High']],
-    ['head', 'Screen'],
-    ['slider', 'darkness', 'Darkness', 'Overall dimness of the scene.', 0, .7, .05],
-    ['slider', 'pixel', 'Pixelation', 'Chunky pixel look. Off shows full detail.', 1, 8, 1],
+    ['head', 'Kill feedback'],
     ['toggle', 'vignette', 'Kill vignette', 'A red pulse at the screen edges when you eat.'],
     ['toggle', 'desaturate', 'Color drain', 'Briefly drains color after a kill.'],
-    ['toggle', 'shake', 'Screen shake', 'Shake the camera on kills and crashes.']] },
+    ['toggle', 'shake', 'Screen shake', 'Shake the camera on kills and crashes.'],
+    ['slider', 'shakeK', 'Shake strength', 'How hard the screen shakes, from none to full.', 0, 1, .1]] },
   Audio: { icon: 'audio', lead: 'Everything you hear.', rows: [
     ['head', 'Volume'],
     ['slider', 'volume', 'Master volume', 'All game sounds.', 0, 1, .05],
     ['head', 'Interface'],
     ['toggle', 'uiSounds', 'Menu sounds', 'Hover and click sounds in menus.']] },
-  Controls: { icon: 'controls', lead: 'Keys you can use while playing. On a phone or tablet, drag anywhere on the board to steer.', keys: [
-    ['#Moving'], ['W A S D', 'Move. Hold two keys to go diagonal. Let go to keep going straight.'], ['Arrows', 'Also move'],
-    ['#Abilities'], ['F', 'Night vision'], ['Shift', 'Lunge (upgrade)'], ['Q', 'Camouflage (upgrade)'], ['E', 'Scent (upgrade)'], ['R', 'Hiss (upgrade)'],
+  Controls: { icon: 'controls', lead: 'Click a key to change it, then press the new one. Esc cancels, Backspace puts the default back. On a phone or tablet, drag anywhere on the board to steer.', binds: true, keys: [
     ['#Steering and camera'], ['Mouse', 'Steer with the cursor (Free movement modifier + Mouse steering)'], 
     ['Wheel', 'Zoom the camera in or out, always on your snake'], ['Drag', 'Pan the camera (middle mouse, or left mouse when not steering with it)'], ['Double-click', 'Camera back on the snake'],
     ['Pinch', 'On a touch screen: two fingers zoom and pan; one finger still steers'],
     ['` or F10', 'Admin panel: god mode, speed, time of day, spawning, air strikes, chips and upgrades (single player, or the host)'], ['#Menus'], ['Space', 'Start, skip the intro, play again. In a multiplayer lobby: ready up, and the host starts once everyone is ready'], ['Esc', 'Pause, back, close settings'], ['F3', 'Performance stats: off, frame rate, full']] },
-  Accessibility: { icon: 'access', lead: 'Make the game easier to see and use.', rows: [
-    ['head', 'Interface'],
-    ['seg', 'uiScale', 'UI scale', 'Size of menus, HUD, notifications and buttons. Auto follows the size of the game.', ['Small', 'Medium', 'Large', 'Extra Large', 'Auto']],
-    ['seg', 'bubbleSize', 'Speech bubble size', 'Text size of what people shout.', ['Small', 'Normal', 'Large']],
-    ['toggle', 'reduceMotion', 'Reduce motion', 'Turns off menu animations, floating buttons and the intro zoom.'],
+  Accessibility: { icon: 'access', lead: 'Make the game easier to see, and gentler to play.', rows: [
     ['head', 'Visibility'],
     ['seg', 'snakeOutline', 'Snake outline', 'A thin rim that keeps the snake easy to spot on any ground.', ['Off', 'Subtle', 'Strong']],
     ['seg', 'mapOutlines', 'Map outlines', 'Dark edges around walls and everything else you can crash into.', ['Off', 'Subtle', 'Strong']],
+    ['head', 'Comfort'],
+    ['toggle', 'reduceMotion', 'Reduce motion', 'Turns off menu animations, floating buttons and the intro zoom.'],
     ['toggle', 'reduceFlash', 'Reduce flashes', 'No bloom, double vision or color drain flashes after kills and hits.'],
-    ['toggle', 'minimalUi', 'Minimal UI', 'Hides reward pop-ups, the combo breakdown and the challenge list during a run.'],
     ['toggle', 'simpleFx', 'Simplified effects', 'Plain versions of skill and impact effects: no warping, wakes or ghosting.'],
-    ['head', 'Comfort and content'],
-    ['slider', 'shakeK', 'Shake strength', 'How hard the screen shakes, from none to full.', 0, 1, .1],
+    ['head', 'Content'],
     ['seg', 'bloodAmt', 'Amount of blood', 'Fewer drops, smaller pools and fewer chunks. Purely visual.', ['Minimal', 'Reduced', 'Full']],
     ['toggle', 'vomit', 'Show vomit', 'People who see too much throw up, and it stays on the floor. Turn off to skip it.']] },
 };
@@ -377,6 +399,7 @@ let settingsTab = 'Gameplay';
 function settingsBody(tab) {
   const t = SETTING_TABS[tab];
   let html = `<h2>${tab}</h2><p class="lead">${t.lead}</p>`;
+  if (t.binds) html += `<div class="binds">${BIND_GROUPS.map(([g, acts]) => `<h3 class="sgrp">${g}</h3>` + acts.map(a => `<div class="brow"><span>${BIND_LABEL[a]}</span><button class="bkey ${SETTINGS.keys && SETTINGS.keys[a] ? 'changed' : ''}" data-bind="${a}" data-sfx="tab">${keyName(bindOf(a))}</button></div>`).join('')).join('')}<div class="brow bfoot"><span>Arrow keys always move too, unless you bind one of them to something else.</span><button class="btn alt" id="bindReset" data-sfx="off">Reset all keys</button></div></div>`;
   if (t.keys) return html + `<div class="keylist">${t.keys.map(([k, d], i) => k[0] === '#' ? `<h3 class="sgrp" style="--i:${i * 2}">${k.slice(1)}</h3>` : `<kbd style="--i:${i * 2}">${k}</kbd><span style="--i:${i * 2 + 1}">${d}</span>`).join('')}</div>`;
   return html + t.rows.map(([type, k, label, desc, a, b, c, when, names], i) => {
     if (type === 'head') return `<h3 class="sgrp" style="--i:${i}">${k}</h3>`; // a category inside the tab
@@ -403,7 +426,31 @@ function applySetting(k) { // side effects of a setting change
   if (k === 'minimalUi') document.body.classList.toggle('minimal', !!SETTINGS.minimalUi && state !== 'menu');
   if (k === 'timeMode') { const t = SETTING_TABS.Gameplay.rows; overlay.querySelectorAll('[data-row]').forEach(r => { const row = t.find(x => x[1] === r.dataset.row); if (row && row[7]) r.classList.toggle('dim', !row[7]()); }); }
 }
+let bindWait = null; // the action waiting for its new key
+function wireBinds(body) {
+  const paint = () => body.querySelectorAll('[data-bind]').forEach(b => { const a = b.dataset.bind; b.textContent = bindWait === a ? 'Press a key…' : keyName(bindOf(a)); b.classList.toggle('wait', bindWait === a); b.classList.toggle('changed', !!(SETTINGS.keys && SETTINGS.keys[a])); });
+  body.querySelectorAll('[data-bind]').forEach(b => b.onclick = () => { bindWait = bindWait === b.dataset.bind ? null : b.dataset.bind; paint(); });
+  const r = body.querySelector('#bindReset'); if (r) r.onclick = () => { SETTINGS.keys = {}; saveSettings(); bindWait = null; paint(); abilityHud(true); toast('Keys back to the defaults'); };
+  wireBinds.paint = paint;
+}
+addEventListener('keydown', e => { // capture: while a key is being rebound, the next key press is the new key and nothing else sees it
+  if (!bindWait) return;
+  e.preventDefault(); e.stopImmediatePropagation();
+  const a = bindWait; bindWait = null; const keys = SETTINGS.keys = SETTINGS.keys || {};
+  if (e.code === 'Escape') { if (wireBinds.paint) wireBinds.paint(); return; }
+  if (e.code === 'Backspace') { delete keys[a]; }
+  else if (BIND_FIXED.has(e.code)) { Sfx.deny(); toast(keyName(e.code) + ' is taken (pause, start, panels): pick another key'); }
+  else {
+    const other = Object.keys(BIND_DEFAULT).find(o => o !== a && bindOf(o) === e.code); // already used: the two swap
+    if (other) { const mine = bindOf(a); if (mine === BIND_DEFAULT[other]) delete keys[other]; else keys[other] = mine; }
+    if (e.code === BIND_DEFAULT[a]) delete keys[a]; else keys[a] = e.code;
+    if (other) toast(`${BIND_LABEL[other]} moved to ${keyName(bindOf(other))}`);
+    Sfx.ui('on');
+  }
+  saveSettings(); if (wireBinds.paint) wireBinds.paint(); if (typeof abilityHud === 'function') abilityHud(true);
+}, true);
 function wireSettings(body) {
+  bindWait = null; if (body.querySelector('[data-bind]')) wireBinds(body);
   body.querySelectorAll('.tgl').forEach(b => b.onclick = () => {
     const k = b.dataset.k; SETTINGS[k] = !SETTINGS[k]; Sfx.ui(SETTINGS[k] ? 'on' : 'off'); b.classList.toggle('on', SETTINGS[k]); b.setAttribute('aria-checked', SETTINGS[k]); applySetting(k);
   });

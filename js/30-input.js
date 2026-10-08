@@ -4,7 +4,27 @@
    Free movement (modifier): any angle; holding a direction turns you toward it, letting go keeps the heading.
    Mouse steering (free movement only) and a touch stick feed the same "steer" target.
    ========================================================= */
-const KEYMAP = { ArrowUp: 'u', KeyW: 'u', ArrowDown: 'd', KeyS: 'd', ArrowLeft: 'l', KeyA: 'l', ArrowRight: 'r', KeyD: 'r' };
+/* ---- key bindings: every action has a default key; Settings › Controls can rebind any of them (SETTINGS.keys keeps only the changed ones).
+   The arrow keys always move too, unless you've bound one of them to something else. Esc, Space and Enter stay fixed. ---- */
+const BIND_DEFAULT = { up: 'KeyW', down: 'KeyS', left: 'KeyA', right: 'KeyD', lunge: 'ShiftLeft', camo: 'KeyQ', scent: 'KeyE', hiss: 'KeyR', hoover: 'KeyC', nv: 'KeyF' };
+const BIND_LABEL = { up: 'Move up', down: 'Move down', left: 'Move left', right: 'Move right', lunge: 'Lunge', camo: 'Camouflage', scent: 'Scent (on / off)', hiss: 'Hiss', hoover: 'Hoover Mouth', nv: 'Night vision' };
+const BIND_GROUPS = [['Moving', ['up', 'down', 'left', 'right']], ['Skills', ['lunge', 'camo', 'scent', 'hiss', 'hoover']], ['Seeing', ['nv']]];
+const BIND_FIXED = new Set(['Escape', 'Space', 'Enter', 'F3', 'F10', 'Backquote', 'F11']); // pause, start, the performance panel, the admin panel, fullscreen
+const ABIL_BIND = { dash: 'lunge', camo: 'camo', scent: 'scent', hiss: 'hiss', hoover: 'hoover' }; // upgrade id -> action
+const DIR_OF = { up: 'u', down: 'd', left: 'l', right: 'r' }, ARROWS = { ArrowUp: 'u', ArrowDown: 'd', ArrowLeft: 'l', ArrowRight: 'r' };
+const bindOf = a => (SETTINGS.keys && SETTINGS.keys[a]) || BIND_DEFAULT[a];
+function actionOf(code) { // which action this key does now
+  for (const a in BIND_DEFAULT) if (bindOf(a) === code) return a;
+  if (code === 'ShiftRight' && bindOf('lunge') === 'ShiftLeft') return 'lunge'; // either Shift
+  return null;
+}
+const dirOf = code => { const a = actionOf(code); return a ? DIR_OF[a] || null : ARROWS[code] || null; };
+function keyName(code) { // a readable name for a key code
+  if (!code) return '—';
+  const m = code.match(/^(Key|Digit|Numpad)(.+)$/); if (m) return (m[1] === 'Numpad' ? 'Num ' : '') + m[2];
+  return { ShiftLeft: 'Shift', ShiftRight: 'R Shift', ControlLeft: 'Ctrl', ControlRight: 'R Ctrl', AltLeft: 'Alt', AltRight: 'R Alt', MetaLeft: 'Meta', ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→', Space: 'Space', Tab: 'Tab', CapsLock: 'Caps', Backspace: 'Bksp', Minus: '-', Equal: '=', BracketLeft: '[', BracketRight: ']', Semicolon: ';', Quote: "'", Comma: ',', Period: '.', Slash: '/', Backslash: '\\' }[code] || code;
+}
+const abilKey = id => keyName(bindOf(ABIL_BIND[id] || id)); // the key shown on a skill's button
 const held = new Set(); let relTimer = null;
 const steer = { touch: null, mouse: null, mouseT: 0 }; // analog targets (radians) from the stick / cursor
 const FREE_TURN = 4.2; // rad/s: how fast free movement swings toward the held direction
@@ -73,7 +93,7 @@ function goInput() { // any steering input: starts the run, or continues after a
 addEventListener('keydown', e => {
   Sfx.init();
   if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) return;
-  const k = KEYMAP[e.code];
+  const k = dirOf(e.code), act = actionOf(e.code);
   if (k) {
     if (state === 'ready' || state === 'play' || state === 'held') e.preventDefault();
     held.add(k);
@@ -93,13 +113,10 @@ addEventListener('keydown', e => {
     else if (state === 'dead' && document.getElementById('againBtn')) returnToMenu();
     else if (state === 'menu' && !overlay.querySelector('.menu') && !overlay.querySelector('.casebox')) transitionTo(showMenu);
   }
-  else if (e.code === 'KeyF' && !e.repeat) toggleNV();
+  else if (act === 'nv' && !e.repeat) toggleNV();
   else if (e.repeat) return; // holding a skill key fires it once, not a stream of sounds
-  else if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') useAbility('dash');
-  else if (e.code === 'KeyQ') useAbility('camo');
-  else if (e.code === 'KeyE') useAbility('scent');
-  else if (e.code === 'KeyR') useAbility('hiss');
-  else if (e.code === 'KeyC') useAbility('hoover');
+  else if (act === 'lunge') useAbility('dash');
+  else if (act === 'camo' || act === 'scent' || act === 'hiss' || act === 'hoover') useAbility(act);
 });
 function toggleNV() { // night vision only while actually playing
   if (!['play', 'ready', 'held'].includes(state)) return;
@@ -110,7 +127,7 @@ function toggleNV() { // night vision only while actually playing
   const tb = document.querySelector('#touch .tb-nv'); if (tb) tb.classList.toggle('on', nightVision);
 }
 addEventListener('keyup', e => {
-  const k = KEYMAP[e.code]; if (!k) return;
+  const k = dirOf(e.code); if (!k) return;
   held.delete(k);
   // short grace so releasing a diagonal pair doesn't snap to one axis
   clearTimeout(relTimer); relTimer = setTimeout(() => { if (held.size && state === 'play') applyDir(); }, 70);

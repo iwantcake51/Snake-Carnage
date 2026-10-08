@@ -78,7 +78,7 @@ function abilityHud(rebuild) {
   const list = UPGRADES.filter(u => u.ability && upg(u.id));
   if (rebuild || el.dataset.n !== String(list.length)) {
     el.dataset.n = list.length;
-    el.innerHTML = list.map(u => `<div class="ab" data-a="${u.id}" data-tip="${u.name} (${u.key}): ${u.tiers[0]}">${upIcon(u.icon)}<i class="cd"></i><kbd>${u.key === 'Shift' ? '⇧' : u.key}</kbd></div>`).join('');
+    el.innerHTML = list.map(u => `<div class="ab" data-a="${u.id}" data-tip="${u.name} (${abilKey(u.id)}): ${u.tiers[0]}">${upIcon(u.icon)}<i class="cd"></i><kbd>${abilKey(u.id) === 'Shift' ? '⇧' : abilKey(u.id)}</kbd></div>`).join('');
     refreshTouchAbilities();
   }
   for (const u of list) {
@@ -239,7 +239,7 @@ function upCard(u, i) {
   const lv = PROG.upg[u.id] || 0, next = lv < u.max ? lv : -1, off = !!PROG.upgOff[u.id];
   const need = next >= 0 ? u.lvl[next] : 0, cost = next >= 0 ? u.cost[next] : 0, lockedLv = next >= 0 && PROG.level < need, poor = next >= 0 && PROG.coins < cost;
   const pips = Array.from({ length: u.max }, (_, k) => `<i class="${k < lv ? 'on' : ''}${k === lv - 1 ? ' last' : ''}"></i>`).join('');
-  return `<div class="upc ${lv ? 'own' : ''} ${off ? 'off' : ''}" style="--i:${i}"><div class="uph"><span class="upicon">${upIcon(u.icon)}</span><div><b>${u.name}</b>${u.ability ? `<em class="ukey">${u.key}</em>` : ''}<small>${u.desc}</small></div></div>
+  return `<div class="upc ${lv ? 'own' : ''} ${off ? 'off' : ''}" style="--i:${i}"><div class="uph"><span class="upicon">${upIcon(u.icon)}</span><div><b>${u.name}</b>${u.ability ? `<em class="ukey">${abilKey(u.id)}</em>` : ''}<small>${u.desc}</small></div></div>
     <ul class="uptiers">${u.tiers.map((t, k) => `<li class="${k < lv ? 'got' : k === next ? 'next' : ''}">${t}</li>`).join('')}</ul>
     <div class="upf"><span class="pips">${pips}</span>${lv ? `<button class="tgl sm ${off ? '' : 'on'}" data-off="${u.id}" data-sfx="none" role="switch" aria-checked="${!off}" data-tip="${off ? 'Switched off' : 'Switched on'}"></button>` : ''}
     ${next >= 0 ? `<button class="btn ${lockedLv || poor ? 'alt' : ''}" data-buy="${u.id}" data-sfx="none" ${lockedLv ? 'disabled' : ''}>${lockedLv ? `Level ${need}` : `<i class="pc"></i> ${cost}`}</button>` : '<span class="maxed">Maxed</span>'}</div></div>`;

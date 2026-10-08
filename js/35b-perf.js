@@ -1,5 +1,5 @@
 /* =========================================================
-   PERFORMANCE STATS: Settings › Graphics › Performance stats (or F3 during a run).
+   PERFORMANCE STATS: Settings › Display › Performance stats (or F3 during a run).
    FPS: a small chip with the frame rate and a frame-time sparkline.
    Full: the frame-time graph, and how many milliseconds each part of the game takes per frame, from the most expensive
    down, so a slow map shows what is slowing it. Hitches (frames far slower than usual) are logged with what spiked.
