@@ -22,6 +22,8 @@
    marked first (a red strip with chevrons showing which way it's coming), then the rounds walk down it in a spray of
    dirt, sparks and tracers, with the tearing BRRRT arriving a beat after the impacts. Anything in the lane dies.
    Some of these runs drop bombs instead: a string of them across your path, landing one after another down the line.
+   Bombs vary: some are bigger or smaller, some fall faster (less warning) or slower, and they scatter around your
+   path rather than all landing on it. Later in a run they come much faster.
    Bombs in a salvo never land together: each one comes down a moment after the last.
    The Air raid modifier starts all of this from the first seconds of the run.
    Heavy fog and tunnel vision hide the markers like anything else, but a blast lights the fog up from inside.
@@ -48,22 +50,28 @@ function airSchedule(dt) {
   if (!AIR.warned) { AIR.warned = true; AIR.d0 = cr.dist; airWarn(); netEmit({ t: 'airw' }); AIR.nextT = 3.5; return; }
   if ((AIR.nextT -= dt) > 0) return;
   const g = Math.max((t - t0) / 180, (cr.dist - AIR.d0) / 2500), k = Math.min(1, g); // how far you've come since they started: it never stops climbing
-  AIR.nextT = Math.max(.8, 7 / (1 + 1.4 * g)) * rand(.8, 1.25);
+  AIR.nextT = Math.max(.3, 6 / (1 + 2.4 * g)) * rand(.6, 1.3); // later on they come thick and fast
   const targets = netSnakes().filter(s => s.alive && s.started && !s.hidden && !s.netHidden && !(s.graceT > 0) && s.segs && s.segs.length);
   if (!targets.length) return;
   const s = pick(targets);
   if (t - t0 > (MOD.airRaid ? 12 : 20) && Math.random() < .24 + .16 * k) return strafeRun(s, k);
-  const n = Math.min(7, 1 + Math.floor(Math.random() * (1.3 + 1.6 * g))), warn = 2.5 - .6 * k, sp = (s.speed || CONFIG.snakeSpeeds.Normal) * (s.dashV || 1);
+  const n = Math.min(10, 1 + Math.floor(Math.random() * (1.5 + 2.5 * g))), warn = 2.5 - .6 * k, sp = (s.speed || CONFIG.snakeSpeeds.Normal) * (s.dashV || 1);
   const jetA = s.angle + (Math.random() < .5 ? 1 : -1) * rand(.9, 2.2); // the jet crosses your path
   for (let j = 0; j < n; j++) { // a salvo walks along the path
-    const lead = warn * rand(.62, .78) + j * .42, side = gauss() * 14;
-    const x = clamp(s.x + Math.cos(s.angle) * sp * lead - Math.sin(s.angle) * side, 24, W - 24), y = clamp(s.y + Math.sin(s.angle) * sp * lead + Math.cos(s.angle) * side, 24, H - 24);
-    let w = warn + j * rand(.17, .27) + rand(.02, .08); // one after another, never two at once
+    const b = bombKind(), r = Math.round(AIR_R * b.r), fs = b.f; // each bomb its own size and speed
+    let w = warn / Math.sqrt(fs) + j * rand(.17, .27) + rand(.02, .08); // a fast one gives less warning; one after another, never two at once
     for (let q = 0; q < 6; q++) { const o = strikes.find(o => Math.abs(o.t - w) < .11); if (!o) break; w = o.t + .11 + rand(0, .05); }
-    w = +w.toFixed(2); const ja = j === 0 ? +jetA.toFixed(3) : undefined;
-    airStrike(x, y, w, AIR_R, ja);
-    netEmit({ t: 'air', x: Math.round(x), y: Math.round(y), w, r: AIR_R, j: ja });
+    w = +w.toFixed(2);
+    const lead = w * rand(.4, 1.05), side = gauss() * (Math.random() < .15 ? 230 : 100); // aimed roughly where you'll be, but they scatter: some way off, the odd one wide
+    const x = clamp(s.x + Math.cos(s.angle) * sp * lead - Math.sin(s.angle) * side, 24, W - 24), y = clamp(s.y + Math.sin(s.angle) * sp * lead + Math.cos(s.angle) * side, 24, H - 24);
+    const ja = j === 0 ? +jetA.toFixed(3) : undefined, f = +(.5 / fs).toFixed(2);
+    airStrike(x, y, w, r, ja, f);
+    netEmit({ t: 'air', x: Math.round(x), y: Math.round(y), w, r, j: ja, f });
   }
+}
+function bombKind() { // a size and a falling speed: mostly ordinary, some big ones, some small, some that come down fast or slow
+  const q = Math.random(), r = q < .2 ? rand(1.15, 1.35) : q < .42 ? rand(.72, .88) : rand(.92, 1.08), v = Math.random();
+  return { r, f: v < .22 ? rand(1.35, 1.8) : v < .4 ? rand(.6, .78) : rand(.9, 1.12) };
 }
 function strafeRun(s, k) { // the deciding browser: line a gun run (or now and then a bombing run) up across where this snake is about to be
   if (Math.random() < .4) return bombRun(s, k);
@@ -78,15 +86,16 @@ function bombRun(s, k) { // a jet flying a line across your path, letting a stri
   let jet = +a.toFixed(3);
   for (let i = 0; i < n; i++) {
     const o = (i - (n - 1) / 2) * gap, x = px + Math.cos(a) * o, y = py + Math.sin(a) * o; if (x < 24 || y < 24 || x > W - 24 || y > H - 24) continue;
-    const w = +(warn + i * gap / walk).toFixed(2); airStrike(Math.round(x), Math.round(y), w, r, jet); netEmit({ t: 'air', x: Math.round(x), y: Math.round(y), w, r, j: jet }); jet = undefined; // one jet, flying the line
+    const w = +(warn + i * gap / walk).toFixed(2), rr = Math.round(r * rand(.88, 1.14)), f = +(.5 / rand(.85, 1.25)).toFixed(2);
+    airStrike(Math.round(x), Math.round(y), w, rr, jet, f); netEmit({ t: 'air', x: Math.round(x), y: Math.round(y), w, r: rr, j: jet, f }); jet = undefined; // one jet, flying the line
   }
 }
 function airWarn() {
   notify({ kind: 'bad', icon: '✈️', title: MOD.airRaid ? 'AIR RAID' : 'AIR STRIKE INBOUND', sub: 'The military is bombing and strafing your path. Stay out of the red rings and lanes.', dur: 4.2, key: 'air' });
   Sfx.siren();
 }
-function airStrike(x, y, w, r = AIR_R, jetA) { // every screen: mark the spot and start its clock
-  strikes.push({ x, y, t: w, dur: w, r, rot: rand(0, TAU), ph: 0, whistled: false });
+function airStrike(x, y, w, r = AIR_R, jetA, f = .5) { // every screen: mark the spot and start its clock (f: how long the bomb takes to fall into view and land; shorter is faster)
+  strikes.push({ x, y, t: w, dur: w, r, f: clamp(f || .5, .2, 1), rot: rand(0, TAU), ph: 0, whistled: false });
   if (jetA !== undefined) { const j = { x, y, a: jetA, u: 0, over: Math.max(.3, w - .65), dropped: false }; jets.push(j); Sfx.flyby(j); }
   Sfx.lockOn(x);
 }
@@ -101,7 +110,7 @@ function airTick(dt) {
   if (AUTH()) airSchedule(dt);
   for (let i = strikes.length - 1; i >= 0; i--) {
     const s = strikes[i]; s.t -= dt; s.ph += dt * (3 + 11 * (1 - s.t / s.dur) ** 2) * TAU; // flashes faster as it comes down
-    if (!s.whistled && s.t < .9) { s.whistled = true; Sfx.whistle(s.x, Math.max(.2, s.t)); }
+    if (!s.whistled && s.t < s.f * 1.8) { s.whistled = true; Sfx.whistle(s.x, Math.max(.2, s.t)); }
     if (s.t <= 0) { strikes.splice(i, 1); detonate(s); }
   }
   for (let i = strafes.length - 1; i >= 0; i--) {
@@ -267,7 +276,7 @@ function snakeBurst(s, skin, cfg) {
   cfg = cfg || { ...SETTINGS.snake, color: skin || SETTINGS.snake.color, pattern: 'Solid' };
   const n = segs.length, P = cfg.color || skin || '#4e7cf6', Q = cfg.color2 || shade(P, .3);
   const c = { segs: segs.map(g => ({ x: g.x, y: g.y, a: g.a })), stains: segs.map((_, i) => (s.stains && s.stains[i]) || []), scale: s.scale || 1, cfg: { ...cfg, hat: 'None' },
-    n, k: 0, t: 0, dur: clamp(.2 + n * .005, .28, 1), P, Q, cols: [P, P, P, shade(P, -.2), shade(P, -.4), Q, Q, shade(Q, -.25)], end: 0 };
+    n, k: 0, t: 0, dur: clamp(.2 + n * .005, .28, 1), P, Q, cols: [P, P, shade(P, -.2), shade(P, -.4), Q, Q, shade(Q, -.25), '#a50d16', '#c8161e', '#7c0710', '#b8101a'], end: 0 }; // its own two colors, and real red blood
   corpses.push(c);
   if (cfg.hat && cfg.hat !== 'None') dropHat(segs[0].x, segs[0].y, s.angle ?? segs[0].a, s.scale || 1, cfg.hat);
   popSeg(c, 0); c.k = 1;
@@ -279,12 +288,12 @@ function popSeg(c, i) {
   spawnBlood(g.x, g.y, rand(0, TAU), clamp(6 / n, .07, .34) * (head ? 3 : 1) * sc, 3.2, .05, c.cols); // blood in the snake's colors, flung every way: it stains anyone it reaches
   if (!(head || i % step === 0 || i === n - 1)) return;
   bloodMist(g.x, g.y, rand(0, TAU), head ? 1.3 : .6, c.cols);
-  if (head || Math.random() < .55) pools.push({ x: g.x + rand(-4, 4), y: g.y + rand(-4, 4), r: 2, c: Math.random() < .62 ? c.P : c.Q, max: rand(5, 9) * (head ? 1.5 : 1) * ba * sc, ang: rand(0, TAU), lobes: Array.from({ length: randi(7, 11) }, () => ({ dx: rand(-.6, .6), dy: rand(-.6, .6), s: rand(.35, 1) })) });
+  if (head || Math.random() < .55) pools.push({ x: g.x + rand(-4, 4), y: g.y + rand(-4, 4), r: 2, c: (q => q < .35 ? pick(['#a50d16', '#8e0a12']) : q < .75 ? c.P : c.Q)(Math.random()), max: rand(5, 9) * (head ? 1.5 : 1) * ba * sc, ang: rand(0, TAU), lobes: Array.from({ length: randi(7, 11) }, () => ({ dx: rand(-.6, .6), dy: rand(-.6, .6), s: rand(.35, 1) })) });
   for (let k = 0; k < (head ? 5 : 2); k++) { // chunks of the body itself
     if (gibs.length >= GIB_MAX) { const j = gibs.findIndex(q => q.rest > 0); gibs.splice(Math.max(0, j), 1); }
     const a = rand(0, TAU), sp = rand(80, 260);
     gibs.push({ x: g.x + rand(-3, 3), y: g.y + rand(-3, 3), z: rand(4, 10), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(80, 210), rot: rand(0, TAU), vr: rand(-12, 12),
-      s: rand(2, 3.6) * sc, shape: randi(0, 3), col: Math.random() < .6 ? pick([c.P, shade(c.P, -.2)]) : pick([c.Q, shade(c.Q, -.2)]), bl: c.cols, landed: false, rest: 0, life: rand(8, 16), age: 0, a: 1 });
+      s: rand(2, 3.6) * sc, shape: randi(0, 3), col: Math.random() < .25 ? pick(['#8e0a12', '#b3121c']) : Math.random() < .6 ? pick([c.P, shade(c.P, -.2)]) : pick([c.Q, shade(c.Q, -.2)]), bl: c.cols, landed: false, rest: 0, life: rand(8, 16), age: 0, a: 1 });
   }
   for (const q of nearbyCreatures(g.x, g.y, head ? 140 : 100, [])) { // everyone close gets some of it on them
     if (!q.alive) continue; const a = Math.atan2(q.y - g.y, q.x - g.x);
@@ -461,8 +470,8 @@ function drawStrikeMark(x, s) {
   for (let q = 0; q < 4; q++) { const sx = q & 1 ? 1 : -1, sy = q & 2 ? 1 : -1, cx = sx * d * .72, cy = sy * d * .72; x.beginPath(); x.moveTo(cx - sx * b, cy); x.lineTo(cx, cy); x.lineTo(cx, cy - sy * b); x.stroke(); }
   x.strokeStyle = 'rgba(255,255,255,.9)'; x.lineWidth = 3; x.beginPath(); x.arc(0, 0, R - 6, -Math.PI / 2, -Math.PI / 2 + TAU * (1 - p)); x.stroke(); // time left
   x.fillStyle = on ? '#fff' : '#ff4a3a'; circ(x, 0, 0, 2.6); x.strokeStyle = '#ff3b30'; x.lineWidth = 1.5; x.beginPath(); x.arc(0, 0, 6, 0, TAU); x.stroke();
-  if (s.t < .5) { // the bomb coming down: its shadow grows under it as it falls into view
-    const u = 1 - s.t / .5, h = 320 * (1 - u) ** 2;
+  if (s.t < s.f) { // the bomb coming down: its shadow grows under it as it falls into view (quicker for a fast one)
+    const u = 1 - s.t / s.f, h = 320 * (1 - u) ** 2;
     x.fillStyle = `rgba(0,0,0,${.2 + .35 * u})`; ell(x, 0, 0, 3 + 8 * u, 2 + 5 * u);
     x.save(); x.translate(0, -h); const k = .7 + .5 * u; x.scale(k, k);
     x.strokeStyle = 'rgba(255,255,255,.35)'; x.lineWidth = 1; for (const o of [-3, 0, 3]) { x.beginPath(); x.moveTo(o, -14); x.lineTo(o, -30 - Math.abs(o) * 2); x.stroke(); } // speed lines
@@ -545,12 +554,17 @@ function drawJet(x, j) { // only its shadow: it's far up, crossing the screen ov
 function drawAirFlash(x) { if (AIR.flash > .01) { x.save(); x.setTransform(1, 0, 0, 1, 0, 0); x.fillStyle = `rgba(255,236,200,${(AIR.flash * .45).toFixed(3)})`; x.fillRect(0, 0, x.canvas.width, x.canvas.height); x.restore(); } }
 /* ---- the sound ---- */
 Object.assign(Sfx, {
-  siren() { // an air raid siren, rising and falling twice
-    if (!this.ok()) return; const c = this.ctx, t = c.currentTime, o = this.out(undefined, .5), os = c.createOscillator(), f = c.createBiquadFilter(), g = c.createGain();
-    os.type = 'sawtooth'; f.type = 'lowpass'; f.frequency.value = 1400; os.frequency.setValueAtTime(260, t);
-    for (let k = 0; k < 2; k++) { os.frequency.linearRampToValueAtTime(820, t + k * 1.6 + .9); os.frequency.linearRampToValueAtTime(300, t + k * 1.6 + 1.6); }
-    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.09, t + .4); g.gain.setValueAtTime(.09, t + 2.8); g.gain.exponentialRampToValueAtTime(.001, t + 3.3);
-    os.connect(f); f.connect(g); g.connect(o); os.start(t); os.stop(t + 3.4);
+  siren() { // a real air raid siren far off over the town: a rotor winding up into a two-tone wail, a long hold, a slow wind down, the chopping of the rotor, and the whole sky carrying it
+    if (!this.ok()) return; const c = this.ctx, t = c.currentTime, o = this.out(undefined, .55), dur = 5.6;
+    const g = c.createGain(), send = c.createGain(), f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 2200; f.Q.value = .3;
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.075, t + 1.1); g.gain.setValueAtTime(.075, t + 3.4); g.gain.exponentialRampToValueAtTime(.001, t + dur);
+    send.gain.value = SETTINGS.volume * .35; f.connect(g); g.connect(o); g.connect(send); send.connect(this.airVerb());
+    const chop = c.createGain(), lfo = c.createOscillator(), lg = c.createGain(); chop.gain.value = .8; lfo.type = 'sine'; lfo.frequency.setValueAtTime(5, t); lfo.frequency.linearRampToValueAtTime(14, t + 1.6); lfo.frequency.setValueAtTime(14, t + 3.4); lfo.frequency.linearRampToValueAtTime(6, t + dur); lg.gain.value = .2; lfo.connect(lg); lg.connect(chop.gain); chop.connect(f); // the rotor chopping the air
+    const pitch = (prm, k) => { prm.setValueAtTime(110 * k, t); prm.exponentialRampToValueAtTime(330 * k, t + 1.3); prm.linearRampToValueAtTime(352 * k, t + 1.9); prm.setValueAtTime(352 * k, t + 3.4); prm.exponentialRampToValueAtTime(150 * k, t + dur); }; // winds up, wails, winds down
+    const vib = c.createOscillator(), vg = c.createGain(); vib.frequency.value = 4.5; vg.gain.setValueAtTime(0, t); vg.gain.setValueAtTime(0, t + 1.6); vg.gain.linearRampToValueAtTime(18, t + 2.2); vib.connect(vg); vib.start(t); vib.stop(t + dur + .1); // a slight waver on the hold
+    for (const [k, ty, a, det] of [[1, 'sawtooth', .5, 0], [1.26, 'sawtooth', .38, 4], [1, 'square', .14, -6], [2, 'triangle', .1, 3]]) { // two tones a third apart: the classic chord
+      const os = c.createOscillator(), og = c.createGain(); os.type = ty; os.detune.value = det; pitch(os.frequency, k); vg.connect(os.detune); og.gain.value = a; os.connect(og); og.connect(chop); os.start(t); os.stop(t + dur + .1);
+    }
   },
   lockOn(x) { if (!this.ok() || !this.gate('lock', .12)) return; const t = this.ctx.currentTime, o = this.out(x, .35); this.tone(o, t, 1500, 1500, .05, 'square', .05); this.tone(o, t + .09, 1900, 1900, .06, 'square', .05); },
   airVerb() { // one big outdoor echo for everything up in the sky: a long, dark, diffuse tail

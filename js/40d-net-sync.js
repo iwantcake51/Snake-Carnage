@@ -327,7 +327,7 @@ function netApply(e, local) {
     case 'abil': { if (e.pid === NETM.me) break; const rs = NS.rs.get(e.pid); if (e.id === 'hiss') { Sfx.hiss(e.x); if (snake && dist2(snake.x, snake.y, e.x, e.y) < 300 * 300) shake = Math.max(shake, 3); if (rs) rs.hissT = .8; } break; }
     case 'hissN': crHiss(e.n || 0); break;
     case 'scr': crScream(e.n || 0); break;
-    case 'air': airStrike(e.x, e.y, e.w, e.r, e.j); break; // the host called in a bomb
+    case 'air': airStrike(e.x, e.y, e.w, e.r, e.j, e.f); break; // the host called in a bomb
     case 'airw': airWarn(); break;
     case 'airs': airStrafe(e.x, e.y, e.a, e.w); break; // ...or a strafing run
     case 'evt': evt = e.v ? { ...e.v } : null; if (evt) { evt.shown = false; Sfx.chime(); showEvent(); } break;
