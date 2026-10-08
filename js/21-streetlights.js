@@ -18,6 +18,7 @@ function breakLamp(o, ang, quiet) { // co-op: replays of another player's break 
   drawObstacleLayer();
   bakeOutline(); buildSolid(); shadowKey = ''; bakeShadows(); bakeLightMasks({ x: o.x, y: o.y, r: 60 });
   const hx = o.x + Math.cos(fa) * 32, hy = o.y + Math.sin(fa) * 32;
+  if (!quiet) { impactFx(o.x, o.y, 22, fa, false); dustBillow(o.x, o.y, 14, '#9a9a9a', fa, .6); }
   if (!quiet && fx) bfxBurst({ ...o, x: o.x + Math.cos(fa) * 32, y: o.y + Math.sin(fa) * 32 }, fx, fa);
   if (!quiet && !fx) for (let k = 0; k < 16; k++) { const a = fa + rand(-1.6, 1.6), sp = rand(30, 150); debris.push({ x: hx, y: hy, z: 26, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(40, 150), t: 0, s: rand(1.1, 2.3), c: pick(['#dfe9ee', '#bcd3dc', '#f4f8fa']) }); }
   if (!quiet && !fx) for (let k = 0; k < 5; k++) { const a = fa + rand(-1, 1), sp = rand(30, 110); debris.push({ x: hx, y: hy, z: 24, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(30, 110), t: 0, s: rand(1.8, 3), c: pick(['#5b5b5b', '#3c3c3c']) }); }
@@ -31,16 +32,26 @@ function breakLamp(o, ang, quiet) { // co-op: replays of another player's break 
     if (c.state === 'wander' || c.state === 'idle') { c.state = 'uneasy'; c.fx = o.x; c.fy = o.y; c.timer = rand(1, 2); }
   }
 }
-function drawDebris(x) {
-  for (const p of debris) if (!p.spark) { if (p.sh) debrisPiece(x, p, p.x, p.y - p.z * .3, false); else { x.fillStyle = p.c; x.fillRect(p.x - p.s / 2, p.y - p.z * .3 - p.s / 2, p.s, p.s * .7); } }
+function drawDebris(x) { // every piece in the air: a shadow on the floor, bigger the higher it flies, tumbling, lit on one side
+  for (const p of debris) {
+    if (p.spark) continue;
+    if (p.z > 1 && !p.sl) { x.globalAlpha = .26 / (1 + p.z * .02); x.fillStyle = '#000'; ell(x, p.x + p.z * .2, p.y + p.z * .1, p.s * .6, p.s * .4); }
+    x.globalAlpha = 1; const k = 1 + p.z * .006, spin = p.rot ?? p.t * (7 + (p.s * 13) % 6), sq = p.sl ? 1 : .55 + .45 * Math.abs(Math.cos(spin * .8 + p.t * 2));
+    x.save(); x.translate(p.x, p.y - p.z * .3); x.scale(k * sq, k);
+    if (p.sh) debrisPiece(x, p, 0, 0, false);
+    else { const s = p.s; x.rotate(spin); x.fillStyle = p.c; x.fillRect(-s / 2, -s * .35, s, s * .7); x.fillStyle = 'rgba(255,255,255,.22)'; x.fillRect(-s / 2, -s * .35, s, s * .22); x.fillStyle = 'rgba(0,0,0,.28)'; x.fillRect(-s / 2, s * .15, s, s * .2); }
+    x.restore();
+  }
+  drawChunks(x);
 }
 function drawSparks(x) {
   let any = false;
   for (const p of debris) if (p.spark) {
-    if (!any) { any = true; x.globalCompositeOperation = 'lighter'; x.lineCap = 'round'; x.lineWidth = 1.4; }
-    const a = 1 - p.t / p.life, py = p.y - p.z * .3;
-    x.strokeStyle = p.rgb ? `rgba(${p.rgb[0]},${p.rgb[1]},${p.rgb[2]},${a.toFixed(3)})` : `rgba(255,${200 + 40 * a | 0},${120 + 80 * a | 0},${a.toFixed(3)})`;
-    x.beginPath(); x.moveTo(p.x - p.vx * .02, py - p.vy * .02); x.lineTo(p.x, py); x.stroke();
+    if (!any) { any = true; x.globalCompositeOperation = 'lighter'; x.lineCap = 'round'; }
+    const a = 1 - p.t / p.life, py = p.y - p.z * .3, c = p.rgb ? `${p.rgb[0]},${p.rgb[1]},${p.rgb[2]}` : `255,${200 + 40 * a | 0},${120 + 80 * a | 0}`;
+    x.strokeStyle = `rgba(${c},${(a * .25).toFixed(3)})`; x.lineWidth = 4; x.beginPath(); x.moveTo(p.x - p.vx * .035, py - p.vy * .035); x.lineTo(p.x, py); x.stroke(); // its glow
+    x.strokeStyle = `rgba(${c},${a.toFixed(3)})`; x.lineWidth = 1.3; x.beginPath(); x.moveTo(p.x - p.vx * .025, py - p.vy * .025); x.lineTo(p.x, py); x.stroke();
+    x.strokeStyle = `rgba(255,255,255,${(a * .9).toFixed(3)})`; x.lineWidth = .6; x.beginPath(); x.moveTo(p.x - p.vx * .008, py - p.vy * .008); x.lineTo(p.x, py); x.stroke(); // white-hot tip
   }
   if (any) x.globalCompositeOperation = 'source-over';
 }

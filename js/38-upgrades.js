@@ -125,6 +125,7 @@ function smashObstacle(o, ang, quiet) { // quiet: catching up on breakage that h
   const i = obstacles.indexOf(o); if (i < 0) return;
   const mine = !NS.remote; // my snake did it (co-op: replays of other players' smashes only rebuild the world and show it)
   const fx = bfxFor(o); // the prop's own "when it breaks" (38b-destruction); null = the classic smash below
+  if (!quiet) smashLook(o, fx, ang); // real pieces of it, the hit, its dust (cut from the map layer before it's redrawn without it)
   obstacles.splice(i, 1);
   const cx = o.t === 'r' ? o.x + o.w / 2 : o.x, cy = o.t === 'r' ? o.y + o.h / 2 : o.y, size = o.t === 'r' ? Math.sqrt(o.w * o.h) : o.r * 1.6;
   if (fx) bfxWreck(bctx, o, fx, ang); else drawWreck(bctx, o, ang); // the broken piece stays on the floor as wreckage

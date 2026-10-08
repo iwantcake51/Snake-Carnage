@@ -44,6 +44,76 @@ const bfxCol = (c, o, k) => c && c !== 'auto' ? c : shade(o.color || '#888888', 
 const bfxBox = o => o.t === 'r' ? { cx: o.x + o.w / 2, cy: o.y + o.h / 2, size: Math.sqrt(o.w * o.h), hw: o.w / 2, hh: o.h / 2 } : { cx: o.x, cy: o.y, size: o.r * 1.6, hw: o.r, hh: o.r };
 const bfxRgb = c => { const m = /^#?([\da-f]{2})([\da-f]{2})([\da-f]{2})/i.exec(c || ''); return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : [255, 220, 150]; };
 
+/* ---- every smash, whatever it is: the thing comes apart in real pieces of itself, the hit lands with a flash and a
+   shock ring, and dust in its own color billows out. Shared by props, walls, furniture and lamps. ---- */
+let chunks = [], impacts = [];
+const CHUNK_MAX = 70;
+function chunkSprite(gx, gy, sz, col, solidCol) { // a ragged piece of the object as it's drawn on the map, a darker broken edge, its underside showing
+  const S = Math.ceil(sz * 2) + 4, c = document.createElement('canvas'); c.width = c.height = S; const x = c.getContext('2d'), R = sz, n = randi(4, 7), pts = [];
+  for (let k = 0; k < n; k++) { const a = k / n * TAU + rand(-.35, .35), d = R * rand(.55, 1); pts.push([S / 2 + Math.cos(a) * d, S / 2 + Math.sin(a) * d]); }
+  const poly = (dx, dy) => { x.beginPath(); pts.forEach(([px, py], i) => i ? x.lineTo(px + dx, py + dy) : x.moveTo(px + dx, py + dy)); x.closePath(); };
+  x.fillStyle = shade(col, -.5); poly(1, 1.8); x.fill(); // the broken-off thickness underneath
+  x.save(); poly(0, 0); x.clip(); x.fillStyle = solidCol || col; x.fillRect(0, 0, S, S);
+  if (!solidCol) try { x.drawImage(plainC, (gx - sz * .5) * DPR, (gy - sz * .5) * DPR, sz * DPR, sz * DPR, S / 2 - R, S / 2 - R, R * 2, R * 2); } catch (e) {}
+  const g = x.createLinearGradient(0, 0, S, S); g.addColorStop(0, 'rgba(255,255,255,.18)'); g.addColorStop(.5, 'rgba(255,255,255,0)'); g.addColorStop(1, 'rgba(0,0,0,.25)'); x.fillStyle = g; x.fillRect(0, 0, S, S); // lit from the upper left
+  x.restore(); x.strokeStyle = 'rgba(20,14,10,.6)'; x.lineWidth = 1; poly(0, 0); x.stroke();
+  return c;
+}
+function breakChunks(o, ang, k = 1) { // call before the object is taken off the map layer: the pieces are cut from how it looks
+  const { cx, cy, size, hw, hh } = bfxBox(o), n = Math.round(clamp(size / 8, 3, 14) * k * FX_K()), col = o.color || '#888888';
+  const solid = o.kind === 'tree' ? null : undefined, leaf = o.kind === 'tree' ? ['#3f6b2a', '#5a8a36', '#6b4a2c'] : null;
+  for (let i = 0; i < n; i++) {
+    const sz = clamp(size * rand(.12, .26), 4, 15), gx = cx + rand(-hw, hw) * .75, gy = cy + rand(-hh, hh) * .75, a = ang + rand(-1.15, 1.15), sp = rand(60, 260);
+    if (chunks.length >= CHUNK_MAX) settleChunk(chunks.shift());
+    chunks.push({ x: gx, y: gy, z: rand(4, 14), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(90, 280), rot: rand(0, TAU), vr: rand(-16, 16), sz, spr: chunkSprite(gx, gy, sz, leaf ? pick(leaf) : col, leaf ? pick(leaf) : solid), t: 0 });
+  }
+}
+function settleChunk(c) { bctx.save(); bctx.globalAlpha = .3; bctx.fillStyle = '#000'; ell(bctx, c.x + .8, c.y + 1, c.sz * .5, c.sz * .38); bctx.globalAlpha = .95; bctx.translate(c.x, c.y); bctx.rotate(c.rot); const S = c.spr.width; bctx.drawImage(c.spr, -S / 4, -S / 4, S / 2, S / 2); bctx.restore(); } // stays as part of the wreckage
+function updateChunks(dt) {
+  for (let i = chunks.length - 1; i >= 0; i--) {
+    const c = chunks[i]; c.t += dt; c.vz -= 560 * GRAV() * dt; c.z += c.vz * dt; c.rot += c.vr * dt;
+    const nx = c.x + c.vx * dt, ny = c.y + c.vy * dt; if (c.z < 22 && solid(nx, ny)) { c.vx *= -.35; c.vy *= -.35; c.vr *= -.6; } else { c.x = nx; c.y = ny; }
+    if (c.z <= 0) { c.z = 0; if (c.vz < -80) { c.vz = -c.vz * .3; c.vx *= .55; c.vy *= .55; c.vr *= .5; if (c.sz > 8 && Math.random() < .5) Sfx.splat && Sfx.splat(c.x, true); } else { const f = Math.exp(-dt * 9); c.vx *= f; c.vy *= f; c.vr *= f; c.vz = 0; if (c.vx * c.vx + c.vy * c.vy < 25) { settleChunk(c); chunks.splice(i, 1); } } } // lands, bounces, skids to a stop
+  }
+  for (let i = impacts.length - 1; i >= 0; i--) if ((impacts[i].t += dt) > impacts[i].dur) impacts.splice(i, 1);
+}
+function drawChunks(x) {
+  for (const c of chunks) {
+    const k = 1 + c.z * .006, S = c.spr.width;
+    if (c.z > .5) { x.globalAlpha = .32 / (1 + c.z * .02); x.fillStyle = '#000'; ell(x, c.x + c.z * .22, c.y + c.z * .12, c.sz * .55, c.sz * .4); } // its shadow, further off the higher it flies
+    x.globalAlpha = 1; x.save(); x.translate(c.x, c.y - c.z * .3); x.rotate(c.rot); x.scale(k * (.6 + .4 * Math.abs(Math.cos(c.rot * .8))), k); x.drawImage(c.spr, -S / 4, -S / 4, S / 2, S / 2); x.restore(); // squashed as it tumbles
+  }
+  x.globalAlpha = 1;
+}
+function impactFx(cx, cy, size, ang, hard) { // the hit: a white flash, a shock ring, speed lines bursting out from it
+  impacts.push({ x: cx, y: cy, r: clamp(size * .55, 10, 40) * (hard ? 1.4 : 1), t: 0, dur: hard ? .5 : .36, a: ang, hard, lines: Array.from({ length: hard ? 14 : 9 }, () => [ang + gauss() * (hard ? 1.6 : 1), rand(.6, 1.3)]) });
+  if (hard && !SETTINGS.reduceFlash) hitStop = Math.max(hitStop, .045); // a hard one: the world catches for a moment
+}
+function drawImpacts(x) {
+  if (!impacts.length) return;
+  x.save(); x.globalCompositeOperation = 'lighter'; x.lineCap = 'round';
+  for (const m of impacts) {
+    const u = m.t / m.dur, e = 1 - (1 - u) ** 3, R = m.r;
+    if (m.t < .07) { x.fillStyle = `rgba(255,252,240,${((1 - m.t / .07) * (SETTINGS.reduceFlash ? .3 : .75)).toFixed(3)})`; circ(x, m.x, m.y, R * 1.1); }
+    x.strokeStyle = `rgba(255,245,225,${(.55 * (1 - u)).toFixed(3)})`; x.lineWidth = 3.5 * (1 - u) + .5; x.beginPath(); x.arc(m.x, m.y, R * (.6 + 2.2 * e), 0, TAU); x.stroke();
+    x.strokeStyle = `rgba(255,255,255,${(.5 * (1 - u)).toFixed(3)})`; x.lineWidth = 1.4;
+    for (const [a, l] of m.lines) { const r0 = R * (.7 + 1.6 * e), r1 = r0 + R * l * (1 - u) * 1.4; x.beginPath(); x.moveTo(m.x + Math.cos(a) * r0, m.y + Math.sin(a) * r0); x.lineTo(m.x + Math.cos(a) * r1, m.y + Math.sin(a) * r1); x.stroke(); }
+  }
+  x.restore();
+}
+function dustBillow(cx, cy, size, col, ang, k = 1) { // a cloud of the thing's own dust rolling out, and for big ones a skirt racing along the floor
+  const rgb = bfxRgb(col), fk = FX_K(), n = Math.round(clamp(size / 5, 4, 18) * k * fk);
+  for (let i = 0; i < n; i++) { const a = ang + rand(-1.5, 1.5), sp = rand(20, 110); smoke.push({ x: cx + rand(-size * .3, size * .3), y: cy + rand(-size * .3, size * .3), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: rand(7, 14) * clamp(size / 30, .7, 1.6), g: rand(12, 26), rot: rand(0, TAU), vr: rand(-.6, .6), t: -rand(0, .12), life: rand(1.4, 2.6), v: i % 4, a: rand(.5, .8), rgb }); }
+  if (size > 28) for (let i = 0; i < Math.round(12 * k * fk); i++) { const a = i / 12 * TAU + rand(-.2, .2), sp = rand(150, 240); smoke.push({ x: cx + Math.cos(a) * size * .4, y: cy + Math.sin(a) * size * .4, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: rand(6, 10), g: rand(10, 18), rot: rand(0, TAU), vr: rand(-.6, .6), t: 0, life: rand(.8, 1.3), v: i % 4, a: rand(.35, .55), rgb }); }
+}
+function smashLook(o, fx, ang) { // everything a smash looks like on top of its own debris (called before the object leaves the map)
+  const { cx, cy, size } = bfxBox(o), hard = o.kind === 'bwall' || o.kind === 'rock' || (fx && fx.preset === 'stone');
+  const soft = fx && (fx.shape === 'confetti' || fx.shape === 'fluff' || fx.n === 0 || fx.preset === 'glass');
+  if (!soft) breakChunks(o, ang, hard ? 1.4 : 1);
+  if (!(fx && fx.n === 0)) impactFx(cx, cy, size, ang, hard);
+  if (!soft) dustBillow(cx, cy, size, fx ? fx.dustC : hard ? '#aaa096' : mixColor(o.color || '#888888', '#a8a096', .55), ang, hard ? 1.4 : 1);
+}
+
 /* ---- the moment it breaks: debris, dust and sparks (into the game's own particle lists, so they fall, bounce and settle like the rest) ---- */
 function bfxBurst(o, fx, ang, into = debris, mistInto = mist) {
   const { cx, cy, size, hw, hh } = bfxBox(o), k = fx.scale !== false ? clamp(size / 40, .5, 2.2) : 1, fxk = typeof FX_K === 'function' ? FX_K() : 1;

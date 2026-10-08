@@ -23,6 +23,7 @@ function update(dt) {
   if (AUTH()) { updateSounds(); updateConvos(dt); } // the crowd's ears and chatter live on the deciding browser
   if (NETM.run) { if (NETM.host) netUpdateCreatures(dt); else netClientCreatures(dt); } // co-op: the host's AI reacts to every player; guests show what the host says
   else for (const c of creatures) if (c.alive) updateCreature(c, dt);
+  updateChunks(dt); // broken pieces of things (38b-destruction)
   airTick(dt); // air strikes, and snakes going up (before the blood moves, so a blast's spray flies this frame)
   updateBlood(dt); updateGiblets(dt); updateSplashes(dt); updateMist(dt); updateSmoke(dt); updateFlies(dt); updateVomit(dt);
   if ((fadeT -= dt) <= 0) { fadeT = 2; fadeBlood(); }

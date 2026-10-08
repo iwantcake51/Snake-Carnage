@@ -48,7 +48,7 @@ function render() {
   drawDebris(x); drawMist(x); drawSmoke(x); drawVomit(x);
   drawLighting(x); drawPropGlow(x);
   drawLampBugs(x); drawFireflyGlow(x);
-  drawSparks(x);
+  drawSparks(x); drawImpacts(x);
   drawVisionMask(x);
   const px = Math.max(1, SETTINGS.pixel | 0);
   if (px > 1 || render.dazed) { drawAirstrikes(x); drawGoldenFX(x); x.globalAlpha = render.olk ?? 1; drawTargetOutlines(x); x.globalAlpha = 1; drawSnakeNightRim(x); } // pixelated look: outlines go through the same pixelation
