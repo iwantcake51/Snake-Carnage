@@ -114,6 +114,7 @@ const ACH = [
   ['apex', 'Apex Predator', 'Reach level {n}', () => PROG.level, 40, 'rare', { chips: 600 }],
   ['notFast', 'Not Fast Enough', 'Catch {n} people mid-sprint, when the fear kicks in', () => PROG.adrenKills || 0, 25, 'medium', { chips: 150 }],
   ['karma', "That's Karma", 'Eat {n} people over time, then die within 2 seconds of eating someone', () => PROG.karma ? Math.max(PROG.kH, 250) : Math.min(PROG.kH, 249), 250, 'hard', { chips: 300 }],
+  ['allHard', 'Glutton for Punishment', 'Start a run with every harder modifier you can stack at once', () => PROG.allHard || 0, 1, 'rare', { chips: 500 }],
   // secret: the name and goal stay hidden until earned; the clue is all you get
   ['charmer', 'Snake Charmer', 'Coil all the way around a light', () => PROG.coiled || 0, 1, 'hard', { secret: 1, clue: 'Wrap yourself around something bright.', chips: 250 }],
   ['ouroboros', 'Ouroboros', 'Bite your own tail while 60+ segments long', () => PROG.ouro || 0, 1, 'hard', { secret: 1, clue: 'Get really long. Then get hungry for yourself.', chips: 250 }],

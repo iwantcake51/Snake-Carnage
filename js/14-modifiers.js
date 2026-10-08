@@ -109,6 +109,12 @@ function modHud() { // live state of the active scoring modifiers
   const html = chips.join('');
   if (el.innerHTML !== html) { el.innerHTML = html; layoutHud(); } // notifications move up out of its way
 }
+function allHardMods(ids) { // Glutton for Punishment: every harder (+) modifier is on, unless another harder one that's on rules it out (or it can't work here: One life in single player, Air raid indoors)
+  const on = new Set(ids), hard = id => ((MODS.find(q => q.id === id) || {}).mult || 0) > 0;
+  return MODS.filter(m => m.mult > 0 && m.g !== 'Style' && m.g !== 'Controls').every(m => on.has(m.id)
+    || (m.not || []).some(o => on.has(o) && hard(o)) || MODS.some(q => on.has(q.id) && hard(q.id) && (q.not || []).includes(m.id))
+    || ((m.id === 'oneLife' || m.id === 'airRaid') && modBlockReason(m.id, on)));
+}
 const modMult = ids => Math.max(.5, 1 + ids.reduce((a, id) => a + ((MODS.find(m => m.id === id) || {}).mult || 0), 0));
 function obstacleAt(px, py) {
   for (const o of obstacles) { if (obsFlag(o, 'noCollide')) continue;
