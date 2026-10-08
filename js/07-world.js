@@ -224,7 +224,7 @@ function loadMap(idx, sz) {
   curRoads = b.roads || []; curCross = b.crossings || [];
   netReseed(1); // co-op: spawning happens on the host only, so it gets dice of its own (see 40d-net-sync)
   for (const [type, n, zone] of m.pop) { // run modifiers can change the crowd
-    const k = type === 'human' ? (MOD.overcrowded ? 2.1 : 1) : (MOD.noAnimals ? 0 : 1);
+    const k = (type === 'human' ? (MOD.overcrowded ? 2.1 : 1) : (MOD.noAnimals ? 0 : MOD.overcrowded ? 2 : 1)) * (MOD.sparse ? .5 : 1); // Packed map doubles everyone; Sparse crowd halves them
     for (let i = 0; i < Math.round(n * k); i++) spawn(type, zone);
   }
   makeFlies(m.fireflies || 0);

@@ -24,7 +24,7 @@ function ungoldify(c) {
   if (state === 'play') { notify({ kind: 'info', icon: '◌', title: `The golden ${c.def.human ? (c.def.alien ? 'alien' : c.type === 'astronaut' ? 'astronaut' : 'human') : c.type} faded`, dur: 2 }); Sfx.goldFade && Sfx.goldFade(c.x); }
 }
 let ringPops = [];
-function giveFlash(c) { if (c.def.human && Math.random() < flashChance(c)) c.fl = newFlash(c); return c; }
+function giveFlash(c) { if (MOD.noFlash) return c; if (c.def.human && Math.random() < flashChance(c)) c.fl = newFlash(c); return c; }
 function spawn(type, zone) {
   if (netIsGuest()) return; // co-op: only the host spawns; guests get the creatures from it
   const def = TYPES[type], z = zone || { x: B, y: B, w: W - 2 * B, h: H - 2 * B };
@@ -32,7 +32,7 @@ function spawn(type, zone) {
     const x = rand(z.x + def.r, z.x + z.w - def.r), y = rand(z.y + def.r, z.y + z.h - def.r);
     if (!free(x, y, def.r + 3)) continue;
     if (def.human && k < 200 && typeof onRoad === 'function' && onRoad(x, y)) continue; // nobody starts out standing in the road
-    if (snake && k < 250 && dist2(x, y, snake.x, snake.y) < 200 * 200) continue;
+    if (snake && k < 250 && !MOD.noSafety && dist2(x, y, snake.x, snake.y) < 200 * 200) continue; // spawn protection (No safety net turns it off)
     const c = giveFlash(makeCreature(type, x, y, zone)); c.born = T; giveTraits(c);
     if (def.human && state === 'play' && Math.random() < (MOD.rareAppetite ? .12 : .03)) { // rare golden target: worth a lot more
       goldify(c);

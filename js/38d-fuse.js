@@ -1,5 +1,5 @@
 /* =========================================================
-   SHORT FUSE (modifier): your first kill straps a bomb to you, wired to the combo.
+   DEAD MAN'S SWITCH (modifier, id 'fuse'): your first kill straps a bomb to you, wired to the combo.
    Keep killing and the fuse keeps getting topped up. As the combo drains the bomb ticks, faster and faster,
    a fuse sizzles louder, sparks spit off your neck and a red light blinks; in the last moment it locks into one
    long tone. Let the combo run out and it goes off right at your head.

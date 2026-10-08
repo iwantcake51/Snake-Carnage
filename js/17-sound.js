@@ -94,7 +94,7 @@ const Sfx = {
     else if (human) this.voice(o, t, rand(480, 680), rand(160, 220), .45, 'sawtooth', 1100, 9, .2); // cut-off scream
     else this.voice(o, t, rand(1000, 1500), rand(400, 600), .2, 'square', 1800, 22, .09);
   },
-  shout(x) {
+  shout(x) { if (MOD.deadSilence) return; // Dead silence: the crowd makes no sound
     if (!this.ok() || this.ctx.currentTime - this.lastShout < .2) return;
     const t = this.ctx.currentTime; this.lastShout = t;
     this.voice(this.out(x, .35), t, rand(280, 420), rand(380, 520), rand(.25, .4), 'sawtooth', rand(750, 1000), 7, .2);
@@ -102,7 +102,7 @@ const Sfx = {
   /* panic voices: the same synthesized vocal, shaped into a few reaction profiles. p = this person's pitch (about .8 .. 1.25).
      shout: the usual yell. yelp: a short, high, startled squeak (rare: see voiceProfile). scream: strained and raspy, it cracks.
      low: a deep, chesty bark. breath: winded gasps with a weak voice behind them. */
-  vocal(x, prof = 'shout', p = 1) {
+  vocal(x, prof = 'shout', p = 1) { if (MOD.deadSilence) return; // Dead silence: the crowd makes no sound
     if (!this.ok() || this.ctx.currentTime - this.lastShout < .18) return;
     const t = this.ctx.currentTime; this.lastShout = t; const o = this.out(x, .35);
     switch (prof) {
@@ -160,7 +160,7 @@ const Sfx = {
     this.burst(this.out(x, .8), this.ctx.currentTime, wall ? .11 : .06, wall ? 900 : 1500, 1, wall ? .3 : .09, 'lowpass');
   },
   drip(x) { if (this.ok() && this.gate('drip', .18)) this.tone(this.out(x, .5), this.ctx.currentTime, 1300, 500, .06, 'sine', .05); },
-  animal(x, type) {
+  animal(x, type) { if (MOD.deadSilence) return; // Dead silence: the crowd makes no sound
     const A = { chicken: [1100, 800, .12, 'square', 1500, 30, .08], duck: [520, 420, .16, 'sawtooth', 1000, 0, .1], sheep: [400, 360, .5, 'sawtooth', 900, 7, .1],
       pig: [190, 140, .22, 'sawtooth', 600, 12, .12], dog: [330, 220, .12, 'sawtooth', 800, 0, .14], cat: [650, 820, .4, 'sawtooth', 1300, 5, .08],
       rabbit: [1600, 1200, .08, 'square', 2200, 0, .05], rat: [2400, 1800, .07, 'square', 3000, 0, .04], frog: [140, 110, .18, 'square', 400, 25, .1], alien: [900, 1500, .3, 'sine', 2400, 18, .06], deer: [900, 500, .25, 'sawtooth', 1400, 8, .07] };

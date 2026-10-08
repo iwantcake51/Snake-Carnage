@@ -196,7 +196,7 @@ function netSyncPlayerGone(p, why) { if (!NETM.run) return; if (why === 'left' |
 function netPlayerDown(pid, x, y) {
   if (!NETM.run || !NETM.host || NS.down.get(pid)) return;
   const p = netPlayer(pid); if (p) p.deaths = (p.deaths || 0) + 1;
-  const k = netPool(pid), back = (NS.pools[k] || 0) > 0; if (back) NS.pools[k]--;
+  const k = netPool(pid), back = !MOD.oneLife && (NS.pools[k] || 0) > 0; if (back) NS.pools[k]--; // One life: nobody comes back
   NS.down.set(pid, { at: performance.now() + (back ? (NS.cfg && NS.cfg.respawn) || 5 : 0) * 1000, out: !back }); // real time, like the round clock
   const ev = [{ t: 'down', pid, x, y, out: !back }, { t: 'lives', k, n: NS.pools[k] || 0 }];
   for (const e of ev) netEmit(e); netClientEvent({ k: 'ev', e: ev }, true);
@@ -431,7 +431,7 @@ function netDownApply(e) {
 function netUpApply(e) {
   NS.down.delete(e.pid);
   if (e.pid === NETM.me) { // back in: fresh body, a moment of grace
-    const keep = snake ? snake.started : true; snake = newSnake({ x: e.x, y: e.y, a: e.a }); snake.started = keep; snake.graceT = 1.5; NS.deadAt = 0; netDeathCam(false); netDownBanner && netDownBanner(null);
+    const keep = snake ? snake.started : true; snake = newSnake({ x: e.x, y: e.y, a: e.a }); snake.started = keep; snake.graceT = MOD.noSafety ? 0 : 1.5; NS.deadAt = 0; netDeathCam(false); netDownBanner && netDownBanner(null);
     Sfx.whoosh && Sfx.whoosh(); resetAbilities(); NS.burst = false;
   } else { const rs = NS.rs.get(e.pid); if (rs) rs.stains = rs.stains.map(() => []); } // a fresh body: the old blood stays where it fell
   netHud && netHud();

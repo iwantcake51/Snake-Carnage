@@ -75,7 +75,7 @@ function updateCreature(c, dt) {
   if (c.blastDeafT > T) c.warn = null;
   if (!blastStunned && c.warn && (c.warn.t -= dt) <= 0) { const w = c.warn; c.warn = null; panic(c, w.x, w.y, rand(3, 5), 'warned'); }
   let want = c.a, spd = 0;
-  if (c.alert > 0) c.alert = Math.max(0, c.alert - dt * .012); // fades over a minute or so, never instantly
+  if (c.alert > 0) c.alert = Math.max(0, c.alert - dt * .012 * (MOD.longMemory ? .3 : MOD.shortMemory ? 4 : 1)); // Long memory / Short memory // fades over a minute or so, never instantly
   if (c.path && c.state === 'idle' && !c.convo && c.alert < .3 && c.timer > 2) c.timer = rand(.5, 1.5); // strollers only pause briefly
   if (blastStunned) {
     c.stuck = 0; c.goalP = 0; // being stunned is not a failed navigation attempt
@@ -116,7 +116,7 @@ function updateCreature(c, dt) {
   if (c.adren > 0) c.adren -= dt;
   c.runFor = c.state === 'panic' ? (c.runFor || 0) + dt : 0; // how long they've been running flat out (winded voices)
   if (c.pukeT > 0) spd *= c.pukeRun ? .7 : 0; // bent double, or stumbling on
-  spd *= SETTINGS.creatureSpeed * (d.human && MOD.fastHumans ? 1.3 : 1) * (c.spdK || 1) * (c.adren > 0 ? 1.45 : 1) * (c.slowT > T ? .5 : 1); // a Hiss II victim staggers // some people are just faster; fear gives a short burst
+  spd *= SETTINGS.creatureSpeed * (MOD.fastHumans ? 1.3 : MOD.slowCrowd ? .75 : 1) * (c.spdK || 1) * (c.adren > 0 ? 1.45 : 1) * (c.slowT > T ? .5 : 1); // a Hiss II victim staggers // some people are just faster; fear gives a short burst
   // smooth the desired heading so it can't flip back and forth (no spinning in place)
   c.wantA = c.wantA === undefined ? want : c.wantA + angDiff(c.wantA, want) * Math.min(1, dt * 7);
   let moved = 0, mv = spd;

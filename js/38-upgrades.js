@@ -29,7 +29,8 @@ const UPGRADES = [
 ];
 PROG.upg = PROG.upg || {}; PROG.upgOff = PROG.upgOff || {};
 let UPG_OVR = null; // co-op: while the host's AI deals with another player's snake, upgrade levels are that player's
-const upg = id => UPG_OVR ? Math.min(UPG_OVR[id] || 0, 9) : edTestSkills && edTesting !== null ? Math.min(edTestSkills[id] || 0, (UPGRADES.find(u => u.id === id) || { max: 9 }).max) : PROG.upgOff[id] ? 0 : Math.min(PROG.upg[id] || 0, (UPGRADES.find(u => u.id === id) || { max: 9 }).max); // owned and switched on
+const ABILITY_IDS = new Set(UPGRADES.filter(u => u.ability).map(u => u.id));
+const upg = id => MOD.noUpgrades || (MOD.noAbilities && ABILITY_IDS.has(id)) ? 0 : UPG_OVR ? Math.min(UPG_OVR[id] || 0, 9) : edTestSkills && edTesting !== null ? Math.min(edTestSkills[id] || 0, (UPGRADES.find(u => u.id === id) || { max: 9 }).max) : PROG.upgOff[id] ? 0 : Math.min(PROG.upg[id] || 0, (UPGRADES.find(u => u.id === id) || { max: 9 }).max); // owned and switched on
 const ABIL = { // cd/dur read the owned level each time
   dash: { get cd() { return upg('dash') > 1 ? 5 : 7; }, get dur() { return upg('dash') > 1 ? .8 : .6; }, go(s) { s.dashT = this.dur; s.dashK = upg('dash') > 1 ? 1.9 : 1.8; s.lk = Math.max(s.lk || 0, .25); Sfx.dash(); camF.kv.x += Math.cos(s.angle) * 160; camF.kv.y += Math.sin(s.angle) * 160; } },
   scent: { cd: 1, dur: 1, go(s) { s.scentOn = !s.scentOn; if (s.scentOn) Sfx.sniff(); else Sfx.ui && Sfx.ui('off'); } }, // always on; the key switches it off and on again
@@ -58,15 +59,16 @@ function hissNpc(s, lv) { // what a hiss does to the crowd (the deciding browser
     return hn;
 }
 const abilCD = {};
+const abilCd = id => ABIL[id].cd * (id === 'scent' ? 1 : MOD.slowRecharge ? 2 : MOD.quickRecharge ? .5 : 1); // Slow recharge / Quick recharge (Scent is a switch, not a cooldown)
 function useAbility(id) {
   if (!upg(id) || state !== 'play' || !snake || !snake.alive || !snake.started) return;
   const a = ABIL[id]; if ((abilCD[id] || 0) > T || (id === 'dash' && snake.boomT > 0)) { /* (no lunging while you're reeling from a blast) */ if (Sfx.ok() && Sfx.gate('deny', .6)) Sfx.deny(); abilityHud(); const b = document.querySelector(`#abil [data-a="${id}"]`); if (b) { b.classList.remove('no'); void b.offsetWidth; b.classList.add('no'); } return; }
-  abilCD[id] = T + a.cd; a.go(snake); run.abil = (run.abil || 0) + 1;
+  abilCD[id] = T + abilCd(id); a.go(snake); run.abil = (run.abil || 0) + 1;
   NET.emit({ type: 'ability', id, x: snake.x, y: snake.y, a: snake.angle });
   if (NETM.run && NETM.host) netEmit({ t: 'abil', pid: NETM.me, id, x: Math.round(snake.x), y: Math.round(snake.y) }); // the others hear it (and see the hiss)
   abilityHud(true);
 }
-function resetAbilities() { for (const k in abilCD) delete abilCD[k]; for (const u of UPGRADES) if (u.ability) abilCD[u.id] = T + ABIL[u.id].cd; abilCD.scent = T; if (snake) snake.scentOn = upg('scent') > 0; abilityHud(true); } // every skill starts the round recharging
+function resetAbilities() { for (const k in abilCD) delete abilCD[k]; for (const u of UPGRADES) if (u.ability) abilCD[u.id] = T + abilCd(u.id); abilCD.scent = T; if (snake) snake.scentOn = upg('scent') > 0; abilityHud(true); } // every skill starts the round recharging
 const speedMult = () => 1 + .05 * upg('speed');
 const comboGutMult = () => 1 + .1 * upg('gut');
 
@@ -80,7 +82,7 @@ function abilityHud(rebuild) {
     refreshTouchAbilities();
   }
   for (const u of list) {
-    const left = Math.max(0, (abilCD[u.id] || 0) - T), k = left / ABIL[u.id].cd;
+    const left = Math.max(0, (abilCD[u.id] || 0) - T), k = left / abilCd(u.id);
     for (const host of [el, document.querySelector('#touch .tabil')]) {
       const b = host && host.querySelector(`[data-a="${u.id}"]`); if (!b) continue;
       b.classList.toggle('ready', k <= 0); b.style.setProperty('--cd', (k * 360).toFixed(0) + 'deg'); if (u.id === 'scent') b.classList.toggle('off', !(snake && snake.scentOn));
@@ -90,7 +92,7 @@ function abilityHud(rebuild) {
 function abilityTick() { // every frame: just slide the cooldown rings, so they sweep smoothly instead of ticking ten times a second
   for (const host of [document.getElementById('abil'), document.querySelector('#touch .tabil')]) {
     if (!host) continue;
-    for (const b of host.children) { const id = b.dataset.a, A = ABIL[id]; if (!A) continue; const k = Math.max(0, (abilCD[id] || 0) - T) / A.cd; b.style.setProperty('--cd', (k * 360).toFixed(2) + 'deg'); }
+    for (const b of host.children) { const id = b.dataset.a, A = ABIL[id]; if (!A) continue; const k = Math.max(0, (abilCD[id] || 0) - T) / abilCd(id); b.style.setProperty('--cd', (k * 360).toFixed(2) + 'deg'); }
   }
 }
 function refreshTouchAbilities() {
@@ -127,7 +129,7 @@ function obstacleHitBy(x, y, r) {
   }
   return null;
 }
-const canRam = o => { const lv = upg('ram'); if (o && ((TOUCH_KINDS.has(o.kind) && o.kind !== 'border') || o.pump)) return true; /* a gas pump goes up whatever hits it */ return lv > 0 && o && o.kind !== 'border' && RAM_KINDS[lv].has(o.kind) && !(o.kind === 'rock' && o.r > 26) && !(o.kind === 'tree' && (o.r > 20 || o.tinfo && o.tinfo.pine && o.r > 16)); }; // only saplings and small trees snap; big trunks still stop you
+const canRam = o => { const own = upg('ram'), lv = MOD.demolition ? 3 : Math.max(0, own - (MOD.tough ? 1 : 0)); /* Demolition: anything breakable; Tough structures: one tier higher */ if (o && ((TOUCH_KINDS.has(o.kind) && o.kind !== 'border' && (!MOD.tough || own >= 1)) || o.pump)) return true; /* a gas pump goes up whatever hits it */ return lv > 0 && o && o.kind !== 'border' && RAM_KINDS[lv].has(o.kind) && !(o.kind === 'rock' && o.r > 26) && !(o.kind === 'tree' && (o.r > 20 || o.tinfo && o.tinfo.pine && o.r > 16)); }; // only saplings and small trees snap; big trunks still stop you
 function smashObstacle(o, ang, quiet) { // quiet: catching up on breakage that happened before you joined (no sound or show)
   const i = obstacles.indexOf(o); if (i < 0) return;
   const mine = !NS.remote; // my snake did it (co-op: replays of other players' smashes only rebuild the world and show it)

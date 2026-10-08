@@ -531,6 +531,7 @@ function panic(c, x, y, t, ctx = 'panic') {
   if (!c.alive) return;
   const was = c.state === 'panic';
   if (c.alert > .3) t *= 1.6; // been through this before: stays scared longer
+  t *= MOD.longMemory ? 2.5 : MOD.shortMemory ? .5 : 1; // Long memory / Short memory
   c.alert = Math.max(c.alert || 0, c.def.human ? 1 : .6);
   c.timer = was ? Math.max(c.timer, t) : t;
   c.state = 'panic'; c.fx = x; c.fy = y;
