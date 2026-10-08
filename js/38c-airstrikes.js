@@ -13,18 +13,22 @@
    The further you get, the more there are: strikes come more often and in bigger salvos with every stretch you cover.
    Dying to one (and any death in multiplayer) bursts the snake from the head down to the tail, quickly, into blood in
    its own two colors that stains everyone around. The hat falls off, lands where you died and fades.
+   Sound: the jet is heard where it really is. Its roar, turbine whine and rumble follow its path with Doppler (higher
+   coming in, dropping as it goes), get quieter and duller with distance, pan across, arrive late the way sound does,
+   and trail off into a long echo across the sky as it flies away. The bomb clunks off the rack, shrieks down and the
+   blast rolls off into the same echo.
    Co-op: the host decides where bombs fall (an 'air' event); every screen counts down, draws and detonates them
    itself and checks only its own snake. Only the host kills the crowd.
    ========================================================= */
 const AIR = { warned: false, nextT: 0, flash: 0, sky: 0, rumble: 0, d0: 0 }; // flash: the white-out on screen; sky: how much a blast is lighting up the night
 const AIR_START = 90, AIR_R = 44; // seconds into the run before the first strike; blast radius
-let strikes = [], booms = [], boomBits = [], corpses = [], fallenHats = [], jets = [], shocks = [], fires = [];
+let strikes = [], booms = [], boomBits = [], corpses = [], fallenHats = [], jets = [], shocks = [], fires = [], soots = [], hazes = [], later = [];
 const airMap = () => { const m = MAPS[mapIdx]; return !!m && !m.indoor && !m.space; }; // outdoors, on Earth
-function airReset() { strikes = []; booms = []; boomBits = []; corpses = []; fallenHats = []; jets = []; shocks = []; fires = []; AIR.warned = false; AIR.nextT = 0; AIR.flash = 0; AIR.sky = 0; AIR.rumble = 0; AIR.d0 = 0; }
+function airReset() { strikes = []; booms = []; boomBits = []; corpses = []; fallenHats = []; jets = []; shocks = []; fires = []; soots = []; hazes = []; later = []; AIR.warned = false; AIR.nextT = 0; AIR.flash = 0; AIR.sky = 0; AIR.rumble = 0; AIR.d0 = 0; }
 /* reeling from a blast: full strength for the first second, then it fades over the next 1.2 */
 const boomSlow = s => s && s.boomT > 0 ? (s.boomK || 0) * clamp(s.boomT / 1.2, 0, 1) : 0;
 const boomDaze = () => snake && snake.alive ? boomSlow(snake) : 0;
-const airBusy = () => strikes.length || booms.length || boomBits.length || corpses.length || fallenHats.length || jets.length || shocks.length || fires.length;
+const airBusy = () => strikes.length || booms.length || boomBits.length || corpses.length || fallenHats.length || jets.length || shocks.length || fires.length || soots.length || hazes.length || later.length;
 /* ---- calling them in (the deciding browser only) ---- */
 function airSchedule(dt) {
   if (SETTINGS.airstrikes === false || !airMap() || state !== 'play') return;
@@ -51,7 +55,7 @@ function airWarn() {
 }
 function airStrike(x, y, w, r = AIR_R, jetA) { // every screen: mark the spot and start its clock
   strikes.push({ x, y, t: w, dur: w, r, rot: rand(0, TAU), ph: 0, whistled: false });
-  if (jetA !== undefined) jets.push({ x, y, a: jetA, u: 0, over: Math.max(.3, w - .65), heard: false });
+  if (jetA !== undefined) { const j = { x, y, a: jetA, u: 0, over: Math.max(.3, w - .65), dropped: false }; jets.push(j); Sfx.flyby(j); }
   Sfx.lockOn(x);
 }
 /* ---- every frame ---- */
@@ -59,10 +63,13 @@ function airTick(dt) {
   if (AUTH()) airSchedule(dt);
   for (let i = strikes.length - 1; i >= 0; i--) {
     const s = strikes[i]; s.t -= dt; s.ph += dt * (3 + 11 * (1 - s.t / s.dur) ** 2) * TAU; // flashes faster as it comes down
-    if (!s.whistled && s.t < .95) { s.whistled = true; Sfx.whistle(s.x, Math.max(.2, s.t)); }
+    if (!s.whistled && s.t < .9) { s.whistled = true; Sfx.whistle(s.x, Math.max(.2, s.t)); }
     if (s.t <= 0) { strikes.splice(i, 1); detonate(s); }
   }
-  for (let i = jets.length - 1; i >= 0; i--) { const j = jets[i]; j.u += dt; if (!j.heard && j.u > j.over - .7) { j.heard = true; Sfx.jet(j.x); } if (j.u > j.over + 2.5) jets.splice(i, 1); }
+  for (let i = jets.length - 1; i >= 0; i--) { const j = jets[i]; j.u += dt; if (!j.dropped && j.u >= j.over) { j.dropped = true; Sfx.release(j.x); } if (j.u > j.over + 2.5) jets.splice(i, 1); } // right over the target: the bombs come off the rack
+  for (let i = later.length - 1; i >= 0; i--) { const l = later[i]; if ((l.t -= dt) <= 0) { later.splice(i, 1); l.f(); } } // secondary blasts going off a beat after the main one
+  for (let i = soots.length - 1; i >= 0; i--) { const p = soots[i]; p.t += dt; if (p.t > p.life) { soots.splice(i, 1); continue; } if (p.t < 0) continue; const f = Math.exp(-dt * 1.3); p.vx *= f; p.vy *= f; p.x += p.vx * dt; p.y += p.vy * dt; p.r += p.g * dt * (1 - p.t / p.life * .7); p.rot += p.vr * dt; }
+  for (let i = hazes.length - 1; i >= 0; i--) { if ((hazes[i].t += dt) > hazes[i].life) hazes.splice(i, 1); }
   for (let i = booms.length - 1; i >= 0; i--) { const b = booms[i]; b.t += dt; if (b.t > b.dur) booms.splice(i, 1); }
   for (let i = shocks.length - 1; i >= 0; i--) { const w = shocks[i]; w.t += dt; if (w.t > w.dur) shocks.splice(i, 1); }
   for (let i = fires.length - 1; i >= 0; i--) { const f = fires[i]; f.t += dt; if (f.t > f.life) { fires.splice(i, 1); continue; }
@@ -83,8 +90,14 @@ function detonate(s) {
   for (let k = 0; k < 7; k++) { const a = rand(0, TAU), d = rand(.15, .75) * r; booms.push({ puff: true, x: x + Math.cos(a) * d, y: y + Math.sin(a) * d, r: r * rand(.45, .85), t: -rand(0, .22), dur: rand(.7, 1.15) }); } // fire rolling out of it
   shocks.push({ x, y, R: r * 5.2, t: 0, dur: .62 });
   scorch(x, y, r);
+  for (let k = 0; k < Math.round(12 * fx); k++) { const a = rand(0, TAU), sp = rand(20, 90); soots.push({ x: x + rand(-r * .3, r * .3), y: y + rand(-r * .3, r * .3), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: r * rand(.35, .6), g: rand(18, 34), rot: rand(0, TAU), vr: rand(-.5, .5), t: -rand(.08, .35), life: rand(2.6, 4.2), a: rand(.55, .8) }); } // black, oily smoke boiling up through the fire, lit orange from inside at first
+  hazes.push({ x, y, r: r * 1.3, t: 0, life: 4.5 }); // heat shimmer over the crater
+  const sec = randi(3, 5);
+  for (let k = 0; k < sec; k++) { const a = rand(0, TAU), d = r * rand(.5, 1.1), dl = rand(.2, .7), sx = x + Math.cos(a) * d, sy = y + Math.sin(a) * d; // things in the crater cooking off
+    booms.push({ puff: true, sec: true, x: sx, y: sy, r: r * rand(.35, .55), t: -dl, dur: .55 });
+    later.push({ t: dl, f: () => { Sfx.cookOff(sx); for (let q = 0; q < 10; q++) { const b = rand(0, TAU), v = rand(120, 380); boomBits.push({ spark: true, x: sx, y: sy, z: rand(4, 12), vx: Math.cos(b) * v, vy: Math.sin(b) * v, vz: rand(40, 200), t: 0, life: rand(.2, .5) }); } } }); }
   for (let k = 0; k < 4; k++) { const a = rand(0, TAU), d = rand(0, .55) * r; fires.push({ x: x + Math.cos(a) * d, y: y + Math.sin(a) * d, r: rand(5, 10), t: 0, life: rand(2.5, 5), ph: rand(0, 99) }); } // the crater keeps burning
-  for (let k = 0; k < 40; k++) { const a = rand(0, TAU), sp = rand(90, 420); boomBits.push({ x: x + rand(-6, 6), y: y + rand(-6, 6), z: rand(2, 10), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(120, 380), t: 0, life: rand(1.6, 3.2), s: rand(1.5, 4.2), c: pick(['#3b2f25', '#4a3b2c', '#2a2420', '#5e5246', '#6b6157']) }); } // dirt and stones, thrown high
+  for (let k = 0; k < 40; k++) { const a = rand(0, TAU), sp = rand(90, 420); boomBits.push({ x: x + rand(-6, 6), y: y + rand(-6, 6), z: rand(2, 10), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(120, 380), t: 0, life: rand(1.6, 3.2), s: rand(1.5, 4.2), tr: Math.random() < .35, c: pick(['#3b2f25', '#4a3b2c', '#2a2420', '#5e5246', '#6b6157']) }); } // dirt and stones, thrown high
   for (let k = 0; k < 48; k++) { const a = rand(0, TAU), sp = rand(180, 620); boomBits.push({ spark: true, x, y, z: rand(4, 16), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(40, 260), t: 0, life: rand(.25, .75) }); }
   for (let k = 0; k < Math.round(40 * fx); k++) { const a = rand(0, TAU), sp = rand(40, 260); boomBits.push({ ember: true, x: x + rand(-8, 8), y: y + rand(-8, 8), z: rand(6, 20), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(60, 240), t: 0, life: rand(1.2, 2.8), g: .35 }); } // glowing embers that drift down
   for (let k = 0; k < Math.round(18 * fx); k++) { const a = rand(0, TAU), sp = rand(30, 140); smoke.push({ x: x + rand(-r * .4, r * .4), y: y + rand(-r * .4, r * .4), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: rand(16, 30), g: rand(20, 40), rot: rand(0, TAU), vr: rand(-.6, .6), t: -rand(.05, .5), life: rand(2.8, 4.5), v: k % 4, a: rand(.85, 1) }); } // the cloud, rising behind the fire
@@ -217,8 +230,10 @@ function drawHats(x) {
 function drawAirstrikes(x) {
   for (const j of jets) drawJet(x, j);
   for (const s of strikes) drawStrikeMark(x, s);
-  if (booms.length || boomBits.length || fires.length) {
+  for (const p of soots) drawSoot(x, p);
+  if (booms.length || boomBits.length || fires.length || soots.length) {
     x.save(); x.globalCompositeOperation = 'lighter';
+    for (const p of soots) if (p.t >= 0 && p.t < .9) { const k = (1 - p.t / .9) ** 2 * p.a, g = x.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * .9); g.addColorStop(0, `rgba(255,140,40,${(k * .55).toFixed(3)})`); g.addColorStop(1, 'rgba(255,90,20,0)'); x.fillStyle = g; circ(x, p.x, p.y, p.r * .9); } // the fire inside the smoke
     for (const f of fires) drawFire(x, f);
     for (const b of booms) drawBoom(x, b);
     x.lineCap = 'round';
@@ -228,8 +243,15 @@ function drawAirstrikes(x) {
     }
     x.restore();
   }
+  x.lineCap = 'round'; for (const p of boomBits) if (p.tr && p.z > 2 && !p.spark && !p.ember) { x.globalAlpha = .28 * clamp(p.z / 30, 0, 1); x.strokeStyle = '#3a3633'; x.lineWidth = p.s * .8; x.beginPath(); x.moveTo(p.x, p.y - p.z * .3); x.lineTo(p.x - p.vx * .06, p.y - (p.z - p.vz * .06) * .3 - p.vy * .06); x.stroke(); } // smoke trailing off the bigger chunks
   for (const p of boomBits) if (!p.spark && !p.ember) { const al = clamp((p.life - p.t) / .5, 0, 1); x.globalAlpha = al; x.fillStyle = p.c; x.fillRect(p.x - p.s / 2, p.y - p.z * .3 - p.s / 2, p.s, p.s * .8); }
   x.globalAlpha = 1;
+}
+function drawSoot(x, p) {
+  if (p.t < 0) return;
+  const k = p.t / p.life, al = p.a * Math.min(1, p.t * 5) * (1 - k) ** 1.2;
+  const g = x.createRadialGradient(p.x, p.y, p.r * .1, p.x, p.y, p.r); g.addColorStop(0, `rgba(28,22,19,${al.toFixed(3)})`); g.addColorStop(.6, `rgba(38,32,28,${(al * .7).toFixed(3)})`); g.addColorStop(1, 'rgba(50,44,40,0)');
+  x.fillStyle = g; x.save(); x.translate(p.x, p.y); x.rotate(p.rot); x.scale(1, .82 + .18 * Math.sin(p.rot * 3)); x.translate(-p.x, -p.y); circ(x, p.x, p.y, p.r); x.restore();
 }
 function drawFire(x, f) { // a patch of ground still burning in the crater: flickering tongues of flame
   const a = clamp(Math.min(f.t * 4, (f.life - f.t) / 1.2), 0, 1) * (.75 + .25 * Math.sin(T * 23 + f.ph));
@@ -269,12 +291,14 @@ function drawBoom(x, b) {
   if (b.t < 0) return;
   const u = b.t / b.dur, R = b.r;
   if (b.puff) { // a ball of fire rolling up out of the blast, cooling from white-yellow to deep orange as it goes
+    if (b.sec && b.t < .07) { x.fillStyle = `rgba(255,250,230,${(1 - b.t / .07) * .8})`; circ(x, b.x, b.y, R * 1.6); } // a secondary going off
     const f = 1 - (1 - Math.min(1, u * 2)) ** 2, a = (1 - u) ** 1.3, rr = R * (.5 + .8 * f);
     const g = x.createRadialGradient(b.x, b.y - f * 6, 0, b.x, b.y - f * 6, rr);
     g.addColorStop(0, `rgba(255,${235 - 90 * u | 0},${150 - 120 * u | 0},${a})`); g.addColorStop(.55, `rgba(240,${100 - 50 * u | 0},20,${a * .65})`); g.addColorStop(1, 'rgba(90,20,5,0)');
     x.fillStyle = g; circ(x, b.x, b.y - f * 6, rr); return;
   }
   if (b.t < .12) { x.fillStyle = `rgba(255,255,245,${(1 - b.t / .12) * .95})`; circ(x, b.x, b.y, R * 2.4); } // the flash
+  if (b.t < .3) { const k = 1 - b.t / .3, L = R * (5 + 4 * (1 - k)); x.save(); x.translate(b.x, b.y); x.scale(1, .06 + .05 * k); const g = x.createRadialGradient(0, 0, 0, 0, 0, L); g.addColorStop(0, `rgba(255,250,235,${(.8 * k).toFixed(3)})`); g.addColorStop(.35, `rgba(255,190,120,${(.35 * k).toFixed(3)})`); g.addColorStop(1, 'rgba(255,150,80,0)'); x.fillStyle = g; circ(x, 0, 0, L); x.restore(); } // a streak of light across the lens
   const f = 1 - (1 - Math.min(1, u * 2.4)) ** 3, a = (1 - u) ** 1.6, rr = R * (.7 + 1.1 * f);
   const g = x.createRadialGradient(b.x, b.y, 0, b.x, b.y, rr); // the fireball
   g.addColorStop(0, `rgba(255,252,230,${a})`); g.addColorStop(.3, `rgba(255,205,90,${a * .95})`); g.addColorStop(.65, `rgba(240,100,25,${a * .7})`); g.addColorStop(1, 'rgba(120,30,10,0)');
@@ -285,8 +309,16 @@ function drawBoom(x, b) {
 /* ---- the shockwave: a ring racing out that bends the picture behind it like a lens (the scene inside the ring is
    pushed outward, just inside it is pulled in), with a faint bright edge. Simplified effects turns the warp off. ---- */
 function drawShockwaves(x, src) { // src: the canvas being drawn (it already holds everything under the ring)
-  if (!shocks.length || SETTINGS.simpleFx) return;
+  if ((!shocks.length && !hazes.length) || SETTINGS.simpleFx) return;
   const m = x.getTransform();
+  for (const h of hazes) { // heat over the crater: the picture wobbles in thin strips while it burns
+    const a = clamp(Math.min(h.t * 3, (h.life - h.t) / 1.5), 0, 1); if (a < .05) continue;
+    const gr = grabScene(m.transformPoint({ x: h.x - h.r, y: h.y - h.r * 1.4 }), m.transformPoint({ x: h.x + h.r, y: h.y + h.r * .6 }), src); if (!gr) continue;
+    const n = 12, sh = gr.sh / n;
+    x.save(); x.beginPath(); x.ellipse(h.x, h.y - h.r * .4, h.r, h.r, 0, 0, TAU); x.clip(); x.setTransform(1, 0, 0, 1, 0, 0);
+    for (let i = 0; i < n; i++) { const o = Math.sin(T * 9 + i * 1.3 + h.x) * 1.6 * a * DPR; x.drawImage(grabC, 0, i * sh, gr.sw, sh + 1, gr.sx + o, gr.sy + i * sh, gr.sw, sh + 1); }
+    x.restore();
+  }
   for (const w of shocks) {
     const u = w.t / w.dur, e = 1 - (1 - u) ** 2.2, rr = w.R * (.08 + .92 * e), band = 10 + 22 * (1 - u), amp = .11 * (1 - u) ** 1.4;
     if (amp < .004) continue;
@@ -336,17 +368,57 @@ Object.assign(Sfx, {
     os.connect(f); f.connect(g); g.connect(o); os.start(t); os.stop(t + 3.4);
   },
   lockOn(x) { if (!this.ok() || !this.gate('lock', .12)) return; const t = this.ctx.currentTime, o = this.out(x, .35); this.tone(o, t, 1500, 1500, .05, 'square', .05); this.tone(o, t + .09, 1900, 1900, .06, 'square', .05); },
-  whistle(x, dur) { // the bomb falling
-    if (!this.ok()) return; const c = this.ctx, t = c.currentTime, o = this.out(x, .4), os = c.createOscillator(), g = c.createGain();
-    os.type = 'sine'; os.frequency.setValueAtTime(2300, t); os.frequency.exponentialRampToValueAtTime(650, t + dur);
-    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.08, t + dur * .75); g.gain.exponentialRampToValueAtTime(.001, t + dur + .02);
-    os.connect(g); g.connect(o); os.start(t); os.stop(t + dur + .05);
+  airVerb() { // one big outdoor echo for everything up in the sky: a long, dark, diffuse tail
+    if (this.verb) return this.verb;
+    const c = this.ctx, len = Math.round(c.sampleRate * 4.2), b = c.createBuffer(2, len, c.sampleRate);
+    for (let ch = 0; ch < 2; ch++) { const d = b.getChannelData(ch); let lp = 0; for (let i = 0; i < len; i++) { const t = i / c.sampleRate; lp += (Math.random() * 2 - 1 - lp) * (.32 - .2 * Math.min(1, t / 3)); d[i] = lp * Math.exp(-t * 1.25) * (t < .08 ? t / .08 : 1); } } // darker as it fades, with a soft onset
+    const cv = c.createConvolver(), g = c.createGain(); cv.buffer = b; g.gain.value = .9; cv.connect(g); g.connect(this.bus || c.destination);
+    return this.verb = cv;
   },
-  jet(x) { // a fast jet tearing over
-    if (!this.ok() || !this.gate('jet', .5)) return; const t = this.ctx.currentTime, o = this.out(x, .55);
-    const f = this.burst(o, t, 1.6, 600, .7, .35); f.frequency.setValueAtTime(250, t); f.frequency.exponentialRampToValueAtTime(1600, t + .6); f.frequency.exponentialRampToValueAtTime(300, t + 1.6);
-    this.tone(o, t, 180, 90, 1.5, 'sawtooth', .025);
+  flyby(j) { // a jet passing over, heard where it really is: Doppler, distance, the air soaking up the highs, the delay of sound, and the sky's echo
+    if (!this.ok()) return; const c = this.ctx; this.flys = (this.flys || []).filter(e => e > c.currentTime); if (this.flys.length >= 3) return;
+    const t0 = c.currentTime + .03, V = 1150, Cs = 3400, Hh = 520, dur = j.over + 7.5, N = Math.ceil(dur * 20) + 1, dx = Math.cos(j.a), dy = Math.sin(j.a);
+    const Lx = snake ? snake.x : W / 2, Ly = snake ? snake.y : H / 2, at = u => [j.x + dx * (u - j.over) * V, j.y + dy * (u - j.over) * V];
+    const dop = new Float32Array(N), gain = new Float32Array(N), wet = new Float32Array(N), cut = new Float32Array(N), pan = new Float32Array(N), rum = new Float32Array(N);
+    for (let i = 0; i < N; i++) {
+      const t = i / 20; let te = t; for (let k = 0; k < 4; k++) { const [px, py] = at(te); te = t - Math.hypot(px - Lx, py - Ly, Hh) / Cs; } // what you hear now left the jet a moment ago
+      const [px, py] = at(te), d = Math.hypot(px - Lx, py - Ly, Hh), vr = ((px - Lx) * dx + (py - Ly) * dy) * V / d;
+      const g = Math.min(1, Math.pow(Hh / d, 1.15)), fade = Math.min(1, t / .6) * Math.min(1, (dur - t) / 1.5);
+      dop[i] = Cs / (Cs + vr); gain[i] = Math.max(.0001, g * fade); wet[i] = Math.max(.0001, Math.pow(g, .5) * .32 * fade); // the echo dies slower than the jet itself: far off, it's mostly sky
+      cut[i] = clamp(9500 * Math.pow(Hh / d, .9), 220, 12000); pan[i] = clamp((px - Lx) / 650, -1, 1) * .85; rum[i] = Math.max(.0001, Math.pow(Hh / d, .7) * fade);
+    }
+    const vol = SETTINGS.volume * .8, scaled = (a, k) => a.map(v => Math.max(.0001, v * k)), curve = (prm, arr) => prm.setValueCurveAtTime(arr, t0, dur);
+    const mix = c.createGain(), pn = c.createStereoPanner(), dry = c.createGain(), send = c.createGain();
+    mix.connect(pn); pn.connect(dry); pn.connect(send); dry.connect(this.bus || c.destination); send.connect(this.airVerb());
+    curve(pn.pan, pan); curve(dry.gain, scaled(gain, vol)); curve(send.gain, scaled(wet, vol));
+    const ns = c.createBufferSource(), lp = c.createBiquadFilter(), rg = c.createGain(); ns.buffer = this.noise; ns.loop = true; curve(ns.playbackRate, dop); // the roar: noise, its whole spectrum moved by the Doppler
+    lp.type = 'lowpass'; lp.Q.value = .4; curve(lp.frequency, cut); rg.gain.value = .55; ns.connect(lp); lp.connect(rg); rg.connect(mix);
+    for (const [ty, m, a] of [['sawtooth', 2700, .045], ['triangle', 5350, .03], ['sine', 1350, .05]]) { // the turbine whine, pitched by the same Doppler
+      const os = c.createOscillator(), f = c.createBiquadFilter(), og = c.createGain(); os.type = ty; curve(os.frequency, scaled(dop, m)); f.type = 'lowpass'; curve(f.frequency, cut); og.gain.value = a;
+      os.connect(f); f.connect(og); og.connect(mix); os.start(t0); os.stop(t0 + dur + .1);
+    }
+    const ns2 = c.createBufferSource(), rl = c.createBiquadFilter(), rgn = c.createGain(); ns2.buffer = this.noise; ns2.loop = true; rl.type = 'lowpass'; rl.frequency.value = 150; curve(rgn.gain, scaled(rum, 1.1)); // the low rumble carries furthest
+    ns2.connect(rl); rl.connect(rgn); rgn.connect(pn);
+    ns.start(t0, Math.random() * .5); ns2.start(t0, Math.random() * .5); ns.stop(t0 + dur + .1); ns2.stop(t0 + dur + .1);
+    this.flys.push(t0 + dur);
   },
+  release(x) { // the bomb coming off the rack, high up: a muffled metallic clunk, and the sky carries it
+    if (!this.ok()) return; const c = this.ctx, t = c.currentTime, o = this.out(x, .45), g = c.createGain(); g.gain.value = SETTINGS.volume * .3; g.connect(this.airVerb());
+    this.tone(o, t, 210, 95, .12, 'square', .07); this.burst(o, t, .05, 2600, 3, .18); this.tone(o, t + .02, 120, 60, .2, 'sine', .25); this.burst(g, t, .3, 900, 1, .3, 'lowpass');
+  },
+  whistle(x, dur) { // the bomb falling: a shriek dropping in pitch as it closes in, air tearing past it, louder all the way down
+    if (!this.ok()) return; const c = this.ctx, t = c.currentTime, o = this.out(x, .5);
+    for (const [f0, f1, a] of [[2600, 700, .07], [3900, 1050, .025]]) {
+      const os = c.createOscillator(), g = c.createGain(), lfo = c.createOscillator(), lg = c.createGain(); os.type = 'sine';
+      os.frequency.setValueAtTime(f0, t); os.frequency.exponentialRampToValueAtTime(f1, t + dur); lfo.frequency.value = 23; lg.gain.value = f0 * .012; lfo.connect(lg); lg.connect(os.frequency); // a flutter off the fins
+      g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(a, t + dur * .85); g.gain.exponentialRampToValueAtTime(.001, t + dur + .02);
+      os.connect(g); g.connect(o); os.start(t); lfo.start(t); os.stop(t + dur + .05); lfo.stop(t + dur + .05);
+    }
+    const src = c.createBufferSource(), bp = c.createBiquadFilter(), rg = c.createGain(); src.buffer = this.noise; bp.type = 'bandpass'; bp.Q.value = 1.6; // the air rushing past
+    bp.frequency.setValueAtTime(3200, t); bp.frequency.exponentialRampToValueAtTime(900, t + dur); rg.gain.setValueAtTime(.0001, t); rg.gain.exponentialRampToValueAtTime(.22, t + dur); rg.gain.exponentialRampToValueAtTime(.001, t + dur + .03);
+    src.connect(bp); bp.connect(rg); rg.connect(o); src.start(t, Math.random() * .4); src.stop(t + dur + .05);
+  },
+  cookOff(x) { if (!this.ok() || !this.gate('cook', .07)) return; const t = this.ctx.currentTime, o = this.out(x, .6); this.tone(o, t, 140, 45, .25, 'sine', .45); this.burst(o, t, .18, 1100, .7, .45, 'lowpass'); this.burst(o, t, .04, 3800, 1.2, .25); },
   boom(x, k = 1) { // the crack, a chest-thumping low end, a long rumble, debris coming down, and the blast echoing back
     if (!this.ok()) return; const c = this.ctx, t = c.currentTime, o = this.out(x, 1.2);
     this.burst(o, t, .16, 2200, .7, .7 * k); this.burst(o, t, .05, 5000, 1, .4 * k, 'highpass');
@@ -354,6 +426,8 @@ Object.assign(Sfx, {
     this.burst(o, t, 2.2, 320, .5, .95 * k, 'lowpass'); this.burst(o, t + .05, 1.2, 900, .6, .35 * k, 'lowpass');
     for (let i = 0; i < 14; i++) this.burst(o, t + .15 + Math.random() * 1.4, rand(.03, .09), rand(600, 3400), 2, rand(.05, .14) * k); // stuff landing
     const e = this.out(x, .5); this.burst(e, t + .38, 1.2, 260, .6, .4 * k, 'lowpass'); this.burst(e, t + .85, 1.4, 200, .6, .22 * k, 'lowpass'); // the echo rolling back off the far side
+    const vg = c.createGain(); vg.gain.value = SETTINGS.volume * .7 * k; vg.connect(this.airVerb()); this.burst(vg, t, .5, 500, .5, .9, 'lowpass'); this.tone(vg, t, 70, 30, .8, 'sine', .6); this.burst(vg, t, .12, 2000, .7, .4); // and the whole sky answering
+    for (let i = 0; i < 6; i++) this.burst(o, t + .5 + Math.random() * 1.8, rand(.04, .1), rand(1500, 4000), 3, rand(.03, .07) * k); // crackling fire
   },
   tinnitus(k = 1) { // your ears ring: a high whine that bypasses everything (it's inside your head), while the world goes muffled and slowly comes back
     if (!this.ok()) return; const c = this.ctx, t = c.currentTime, g = c.createGain(); g.connect(c.destination);
