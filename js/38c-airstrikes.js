@@ -247,7 +247,7 @@ function detonate(s) {
   const me = snake;
   if (!s.safe && me && me.alive && !me.netHidden && !(me.graceT > 0) && (state === 'play' || NETM.run) && me.segs) {
     const R = r + snakeRadius() * .6, i = me.segs.findIndex(g => dist2(g.x, g.y, x, y) < R * R);
-    if (i >= 0) airHitSnake(i, 'bomb');
+    if (i >= 0) airHitSnake(i, s.by || 'bomb');
   }
   if (!AUTH()) return;
   // the crowd: anyone in it is blown apart, everyone around runs

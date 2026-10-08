@@ -148,6 +148,7 @@ function netHostEvents(p, list) { // what a guest asks for or reports
       else if (e.t === 'brk') { const o = NS.obsById.get(e.o); if (o && obstacles.includes(o)) { netBreak(o, e.w, e.a, false); netEmit({ t: 'brk', o: e.o, w: e.w, a: e.a, by: p.id }); } }
       else if (e.t === 'abil') netHostAbility(p, e);
       else if (e.t === 'tcut') { tcutApply(e); netEmit({ ...e, by: p.id }); } // a guest's tail was shot off: show it here and pass it on
+      else if (e.t === 'fboom') { detonate({ x: e.x, y: e.y, r: e.r || 60 }); netEmit({ ...e, by: p.id }); } // a guest's Short fuse went off: the blast here (the crowd), and on everyone's screen
       else if (e.t === 'beat') { tailBitGone(e.id); netEmit({ t: 'beat', id: e.id, by: p.id }); } // a guest ate one of the pieces
       else if (e.t === 'ready2') { const L = NETM.links.get(p.id); if (L && !L.ready) { L.ready = true; L.sent = new Map(); netFullSync(L); } }
     } catch (err) { console.warn('[net] event', e && e.t, err); }
@@ -328,6 +329,7 @@ function netApply(e, local) {
     case 'brk': { if (e.by === NETM.me) break; const o = NS.obsById.get(e.o); if (o && obstacles.includes(o)) netBreak(o, e.w, e.a, !!e.quiet); break; }
     case 'abil': { if (e.pid === NETM.me) break; const rs = NS.rs.get(e.pid); if (e.id === 'hiss') { Sfx.hiss(e.x); if (snake && dist2(snake.x, snake.y, e.x, e.y) < 300 * 300) shake = Math.max(shake, 3); if (rs) rs.hissT = .8; } else if (e.id === 'hoover' && rs) Sfx.vacuum(2, 1, e.x); break; }
     case 'tcut': if (e.by !== NETM.me) tcutApply(e); break; // someone's tail was shot off: the burst and the pieces
+    case 'fboom': if (e.by !== NETM.me) detonate({ x: e.x, y: e.y, r: e.r || 60 }); break; // someone's Short fuse went off
     case 'beat': if (e.by !== NETM.me) tailBitGone(e.id); break; // someone ate one of the pieces
     case 'hissN': crHiss(e.n || 0); break;
     case 'scr': crScream(e.n || 0); break;

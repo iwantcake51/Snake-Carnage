@@ -40,6 +40,7 @@ const Sfx = {
     if (!this.bus) return;
     try { this.bus.disconnect(); this.lp.disconnect(); this.head.disconnect(); this.master.disconnect(); } catch (e) {}
     if (this.sl) { try { this.sl.src.stop(); } catch (e) {} this.sl = null; }
+    if (this.fz) { try { this.fz.src.stop(); this.fz.lfo.stop(); } catch (e) {} this.fz = null; } // the Short fuse's hiss
     this.verb = null; this.mus = null; this.flys = []; this.dzF = 0; this.ringUntil = 0; this.chain();
   },
   setMuffle(on) {
