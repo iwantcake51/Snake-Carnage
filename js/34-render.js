@@ -185,6 +185,7 @@ function frame(now) {
   const dt = Math.min(.033, raw / 1000); last = now;
   requestAnimationFrame(frame); // scheduled first: nothing below can ever stop the loop
   deathFxTick(dt);
+  Sfx.hold(state === 'paused' || (state === 'dead' && !NETM.run && !(deadT > 0))); // paused, or the solo death screen up: the world's sound waits too (in the menu it's let go)
   if (PERF.el) perfShowIfPlaying();
   if (state === 'editor') return; // the map editor draws itself
   const menu = state === 'menu'; // menus show a CSS backdrop instead of the map: the game costs nothing there

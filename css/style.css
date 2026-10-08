@@ -2357,3 +2357,10 @@ body.edscrubbing,body.edscrubbing *{cursor:ew-resize!important;user-select:none!
 .logo .l2 .splat{top:22%!important;height:118%!important;left:-6%!important;width:112%!important;opacity:.72}
 .logo .l1 .drip{top:92%}
 .logo .l1{background:radial-gradient(ellipse 9% 7% at 14% 92%,#9e0b10 0 70%,transparent 72%),radial-gradient(ellipse 12% 8% at 47% 94%,#a10d12 0 70%,transparent 72%),radial-gradient(ellipse 7% 6% at 81% 93%,#93090e 0 70%,transparent 72%),linear-gradient(#f1ebe4,#d4cbc2)!important;-webkit-background-clip:text!important;background-clip:text!important}
+
+/* v1.45: challenge cards dead centre: the check mark hangs off the left of the name (the name itself is centred), the tier tag loses its inline gap, wide previews size to their content */
+.panel.chal2 .ach .ab>b,.panel.chal2 .pmc>b{position:relative}
+.panel.chal2 .ck{position:absolute;right:100%;margin-right:.32em;font-style:normal}
+.panel.chal2 .ach .ab .tier,.panel.chal2 .pmc .tier{margin-right:0!important;padding-left:calc(6px + .1em)!important}
+.panel.chal2 .ach .prv .pvCombo{width:max-content;height:auto;min-height:0;display:block}
+.panel.chal2 .ach .prv .pvCombo .cbox{margin:0}

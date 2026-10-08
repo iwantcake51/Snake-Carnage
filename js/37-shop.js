@@ -11,9 +11,9 @@ const TIERCOL = { easy: '#5fd07a', medium: '#ffcf33', hard: '#ff8a3d', rare: '#c
 function shopCard(cat, [v, p, achId], i) {
   const cfg = SETTINGS.snake, own = owns(cat, v), on = cfg[cat] === v, ach = achId ? ACH.find(a => a.id === achId) : null, locked = ach && !own, hidden = locked && ach.secret; // secrets stay secret
   const sw = `<span class="pvw">${itemPreview(cat, v)}</span>`;
-  const tip = cat === 'title' ? titleTip(v) : '';
+  const tip = cat === 'title' && !hidden ? titleTip(v) : '';
   const status = on ? '<span class="st eq">Equipped</span>' : own ? '<span class="st own">Owned · click to equip</span>' : locked ? '' : `<span class="st buy"><i class="pc"></i> ${p} · click to buy</span>`;
-  return `<button class="sc c-${cat} ${on ? 'on' : ''} ${own ? 'own' : ''} ${locked ? 'locked' : ''} ${!own && !locked && PROG.coins < p ? 'poor' : ''}" data-cat="${cat}" data-v="${attr(v)}" style="--i:${i}" ${tip ? `data-tiph="${attr(tip)}"` : ''}>
+  return `<button class="sc c-${cat} ${on ? 'on' : ''} ${own ? 'own' : ''} ${locked ? 'locked' : ''} ${!own && !locked && PROG.coins < p ? 'poor' : ''}" data-cat="${cat}" data-v="${attr(v)}" ${hidden ? 'data-hid="1"' : ''} style="--i:${i}" ${tip ? `data-tiph="${attr(tip)}"` : ''}>
     ${hidden ? '<span class="pvw"><span class="pvTitle none">???</span></span>' : sw}<b>${hidden ? '???' : cat.startsWith('color') ? colorName(v) : v}</b>
     ${locked ? `<span class="lk">🔒</span><span class="req" style="--tc:${TIERCOL[ach.tier]}"><em>${hidden ? 'Secret challenge' : ach.name}</em>${hidden ? ach.clue : ach.what}<span class="pb"><span style="width:${(achProgress(ach) * 100).toFixed(0)}%"></span></span></span>`
       : `<span class="price">${own ? (on ? '✔' : '') : `<i class="pc"></i>${p}`}</span>`}
@@ -113,7 +113,7 @@ function shopBody(tab) {
 function wireShop() {
   overlay.querySelectorAll('.sc').forEach(b => {
     b.onclick = () => chooseItem(b.dataset.cat, b.dataset.v);
-    b.onmouseenter = () => { shopPrev = { cat: b.dataset.cat, v: b.dataset.v }; }; // live preview on hover, even before buying
+    b.onmouseenter = () => { shopPrev = b.dataset.hid ? null : { cat: b.dataset.cat, v: b.dataset.v }; }; // live preview on hover, even before buying (not a secret one: that stays hidden until it's earned)
     b.onmouseleave = () => { shopPrev = null; };
   });
   if (!wireShop.noDraw) drawPreviews(overlay);
@@ -124,7 +124,7 @@ function chooseItem(cat, v) {
   const cfg = SETTINGS.snake;
   if (!owns(cat, v)) {
     const ach = achOf(cat, v);
-    if (ach) { shopMsg = `Earn “${ach.name}” in Challenges to unlock this: ${ach.what.toLowerCase()}.`; Sfx.deny(); refreshShop(shopMsg); shopMsg = ""; return; }
+    if (ach) { shopMsg = ach.secret ? `A secret challenge unlocks this. Clue: ${ach.clue}` : `Earn “${ach.name}” in Challenges to unlock this: ${ach.what.toLowerCase()}.`; Sfx.deny(); refreshShop(shopMsg); shopMsg = ""; return; }
     const p = priceOf(cat, v);
     if (PROG.coins < p) { shopMsg = `You need ${p - PROG.coins} more chips for that.`; Sfx.deny(); refreshShop(shopMsg); shopMsg = ""; return; }
     PROG.coins -= p; PROG.owned.push(ownKey(cat, v)); saveProg(); updateHud(); Sfx.buy(); bought = true;

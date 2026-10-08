@@ -11,12 +11,31 @@ const Sfx = {
         for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
         this.noise = b;
         // master bus: everything goes through one lowpass, so a map can muffle the whole soundscape (space: thin air, through a helmet)
-        this.bus = this.ctx.createGain(); this.lp = this.ctx.createBiquadFilter(); this.lp.type = 'lowpass'; this.lp.frequency.value = 20000; this.lp.Q.value = .5;
-        this.bus.connect(this.lp); this.lp.connect(this.ctx.destination);
-        this.setMuffle(this.muffled);
+        this.chain();
       } catch (e) { return; }
     }
-    if (this.ctx.state === 'suspended') this.ctx.resume();
+    if (!this.uctx) try { this.uctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} // menu sounds while the world's sound is held (see hold)
+    if (this.ctx.state === 'suspended' && !this.held) this.ctx.resume();
+    if (this.uctx && this.uctx.state === 'suspended') this.uctx.resume();
+  },
+  chain() { // the world's output: bus -> lowpass -> speakers, plus head (inside your head: the ear ringing skips the muffle)
+    const c = this.ctx;
+    this.bus = c.createGain(); this.lp = c.createBiquadFilter(); this.lp.type = 'lowpass'; this.lp.frequency.value = 20000; this.lp.Q.value = .5;
+    this.bus.connect(this.lp); this.lp.connect(c.destination); this.head = c.createGain(); this.head.connect(c.destination);
+    this.setMuffle(this.muffled);
+  },
+  hold(on) { // the game paused (or the solo death screen up): the world's sound stops where it is and picks up again on resume
+    if (!this.ctx || on === !!this.held) return;
+    if (on) { this.held = state === 'dead' ? 'dead' : 'pause'; this.ctx.suspend(); return; }
+    const back = this.held === 'pause' && ['play', 'held', 'ready', 'intro'].includes(state); this.held = false;
+    if (!back) this.flush(); // the run is over: whatever was still playing in it (a jet, a cannon run, an echo) is dropped, not resumed in the menu
+    this.ctx.resume();
+  },
+  flush() { // cut off every world sound in flight: a fresh output chain; the old one, and everything still feeding it, is let go
+    if (!this.bus) return;
+    try { this.bus.disconnect(); this.lp.disconnect(); this.head.disconnect(); } catch (e) {}
+    if (this.sl) { try { this.sl.src.stop(); } catch (e) {} this.sl = null; }
+    this.verb = null; this.mus = null; this.flys = []; this.dzF = 0; this.chain();
   },
   setMuffle(on) {
     this.muffled = !!on; this.dzF = 0; if (!this.lp) return;
@@ -265,7 +284,7 @@ const Sfx = {
     if (!this.sl) {
       const c = this.ctx, src = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
       src.buffer = this.noise; src.loop = true; f.type = 'bandpass'; f.Q.value = .9; g.gain.value = 0;
-      src.connect(f); f.connect(g); g.connect(this.bus || c.destination); src.start(); this.sl = { f, g, v: -1, fq: -1 };
+      src.connect(f); f.connect(g); g.connect(this.bus || c.destination); src.start(); this.sl = { src, f, g, v: -1, fq: -1 };
     }
     const v = moving ? +((.02 + wet * .07) * SETTINGS.volume).toFixed(3) : 0, fq = wet > .1 ? 600 : 2400, t = this.ctx.currentTime;
     if (v !== this.sl.v) { this.sl.g.gain.setTargetAtTime(v, t, .08); this.sl.v = v; }
@@ -317,3 +336,12 @@ document.addEventListener('input', e => {
   if (e.target.type === 'range') Sfx.ui('tick');
   else if (e.target.type === 'color') Sfx.ui('click');
 }, true);
+// menu sounds while the world's sound is held (paused, or the solo death screen): played through their own small context, so they're heard right away
+for (const k of ['ui', 'levelUp', 'buy', 'deny', 'whoosh', 'roll', 'knock', 'start', 'click', 'pop', 'reveal', 'chime', 'tick']) {
+  const f = Sfx[k]; if (typeof f !== 'function') continue;
+  Sfx[k] = function (...a) {
+    if (!this.held || !this.uctx) return f.apply(this, a);
+    const keep = [this.ctx, this.bus, this.lp, this.head, this.verb]; this.ctx = this.uctx; this.bus = this.lp = this.head = this.verb = null;
+    try { return f.apply(this, a); } finally { [this.ctx, this.bus, this.lp, this.head, this.verb] = keep; }
+  };
+}

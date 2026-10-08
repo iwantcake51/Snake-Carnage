@@ -34,7 +34,7 @@
    ========================================================= */
 const AIR = { warned: false, nextT: 0, flash: 0, sky: 0, rumble: 0, d0: 0, muf: 0, mufH: 0 }; // flash: the white-out on screen; sky: how much a blast is lighting up the night
 const AIR_START = 90, AIR_R = 44, AIR_RAID_START = 6; // seconds into the run before the first strike (Air raid: almost straight away); blast radius
-const STRAFE_V = 1050, STRAFE_HW = 13, STRAFE_LEN = 820; // how fast the rounds walk down the lane, its half width and length
+const STRAFE_V = 560, STRAFE_HW = 13, STRAFE_LEN = 820; // how fast the rounds walk down the lane, its half width and length
 let strikes = [], booms = [], boomBits = [], corpses = [], fallenHats = [], jets = [], shocks = [], fires = [], soots = [], hazes = [], later = [], clods = [], strafes = [], tracers = [];
 const airMap = () => { const m = MAPS[mapIdx]; return !!m && !m.indoor && !m.space; }; // outdoors, on Earth
 const airOn = () => airMap() && (MOD.airRaid || SETTINGS.airstrikes !== false); // the Air raid modifier turns them on whatever the setting says
@@ -174,7 +174,7 @@ function airTick(dt) {
     if (s.t <= 0) { strikes.splice(i, 1); detonate(s); }
   }
   for (let i = strafes.length - 1; i >= 0; i--) {
-    const s = strafes[i], prev = s.front; s.t += dt; s.ph += dt * (4 + 10 * clamp(1 + s.t / s.warn, 0, 1) ** 2) * TAU;
+    const s = strafes[i], prev = s.front; s.t += dt; s.ph += dt * (1.6 + 3.4 * clamp(1 + s.t / s.warn, 0, 1) ** 2) * TAU; // a smooth pulse, quickening as it gets close (no hard on/off strobe)
     if (s.t < 0) continue;
     if (!s.gun) { s.gun = true; Sfx.gun(s.x0 + s.ca * s.len / 2, s.len / STRAFE_V); }
     s.front = Math.min(s.len, s.t * STRAFE_V);
@@ -200,7 +200,7 @@ function airTick(dt) {
   }
   AIR.flash *= Math.exp(-dt * 9); AIR.sky *= Math.exp(-dt * 2.1);
   if (AIR.rumble > .02) { shake = Math.max(shake, 9 * AIR.rumble); AIR.rumble *= Math.exp(-dt * 2); } else AIR.rumble = 0; // the ground keeps trembling a moment after a close one
-  updateCorpses(dt); updateHats(dt);
+  updateCorpses(dt); updateHats(dt); stumpTick(dt);
 }
 function detonate(s) {
   const { x, y, r } = s, near = snake ? Math.hypot(snake.x - x, snake.y - y) : 999, fx = FX_K();
@@ -241,8 +241,8 @@ function detonate(s) {
   // you: any part of the body inside the blast (not a pump going up: that knocks you about, it doesn't kill you)
   const me = snake;
   if (!s.safe && me && me.alive && !me.netHidden && !(me.graceT > 0) && (state === 'play' || NETM.run) && me.segs) {
-    const R = r + snakeRadius() * .6;
-    if (me.segs.some(g => dist2(g.x, g.y, x, y) < R * R)) bombDeath();
+    const R = r + snakeRadius() * .6, i = me.segs.findIndex(g => dist2(g.x, g.y, x, y) < R * R);
+    if (i >= 0) airHitSnake(i, 'bomb');
   }
   if (!AUTH()) return;
   // the crowd: anyone in it is blown apart, everyone around runs
@@ -262,6 +262,61 @@ function pumpBlast(x, y) { // a gas pump goes up: a full blast, with the ringing
   detonate({ x, y, r: Math.round(AIR_R * 1.15), safe: true });
   for (let k = 0; k < 7; k++) { const a = rand(0, TAU), d = rand(0, AIR_R * .8); fires.push({ x: x + Math.cos(a) * d, y: y + Math.sin(a) * d, r: rand(6, 11), t: 0, life: rand(6, 11), ph: rand(0, 99) }); } // burning fuel all round it
   for (let k = 0; k < 10; k++) { const a = rand(0, TAU), sp = rand(120, 300); boomBits.push({ x, y, z: rand(6, 14), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(200, 420), t: 0, life: rand(1.6, 2.6), s: rand(3, 5.5), tr: true, c: pick(['#d9d9d9', '#b5b5b5', '#c0392b', '#8a8a8a']) }); } // bits of the pump itself
+}
+/* ---- getting hit: the head and neck (the front 30% of the body) and you're dead; further back, the tail is shot off ---- */
+const AIR_FRONT = .3;
+function airHitSnake(i, by) {
+  const me = snake, n = me.segs.length, front = Math.max(3, Math.ceil(n * AIR_FRONT));
+  if (i < front) { airHurt(1); me.burstAt = i; return bombDeath(by); } // it goes up from where it was hit
+  if (me.cutT > 0) return; // the same rounds walking on over the stump don't take another piece a frame later
+  airHurt(.8); tailCut(me, i);
+}
+function tailCut(s, i) { // everything from piece i back is blown off and bursts, the stump is left torn and bleeding
+  const lost = s.segs.length - i, cfg = SETTINGS.snake;
+  snakeBurst({ segs: s.segs.slice(i), stains: s.stains.slice(i), scale: s.scale, angle: s.segs[i].a }, cfg.color, cfg, 0, true);
+  s.len = i; s.lenV = Math.min(s.lenV ?? i, i); if (s.stains.length > i) s.stains.length = i; computeSegs(s);
+  s.cutT = .4; s.stump = { t: 0, life: 14, next: 0, seed: rand(0, 99) };
+  const n = s.segs.length, gore = ['#a50d16', '#7c0710', '#c8161e', '#5e050b'];
+  for (let k = Math.max(0, n - 5); k < n; k++) { const g = s.segs[k], m = k === n - 1 ? 12 : k === n - 2 ? 7 : 3; for (let q = 0; q < m; q++) stainSnake(k, g.x + rand(-7, 7), g.y + rand(-7, 7), rand(1.6, 3.8), pick(gore)); } // soaked toward the wound
+  const t = s.segs[n - 1]; spawnBlood(t.x, t.y, t.a + Math.PI, .45, 2.6, .15, gore); bloodMist(t.x, t.y, t.a + Math.PI, .9, gore);
+  shake = Math.max(shake, 16); hitStop = Math.max(hitStop, .05); AIR.rumble = Math.max(AIR.rumble, .5);
+  if (typeof toast === 'function') toast(`Tail blown off: -${lost} length`);
+}
+function stumpTick(dt) { // the stump keeps pumping blood for a while, leaving a trail, and the wound slowly closes
+  const s = snake, w = s && s.stump; if (s && s.cutT > 0) s.cutT -= dt; if (!w) return;
+  if (!s.alive || !s.segs || !s.segs.length) { s.stump = null; return; }
+  w.t += dt; if (w.t > w.life) { s.stump = null; return; }
+  const bleed = clamp(1 - w.t / 6, 0, 1); if (bleed <= 0) return;
+  const t = s.segs[s.segs.length - 1];
+  if (Math.random() < dt * 26 * bleed) spawnBlood(t.x + rand(-2, 2), t.y + rand(-2, 2), t.a + Math.PI + rand(-.8, .8), .03 + .04 * bleed, 1.6, .1);
+  if ((w.next -= dt) <= 0) { w.next = rand(.25, .5) / (.4 + bleed); pools.push({ x: t.x + rand(-3, 3), y: t.y + rand(-3, 3), r: 1.5, c: pick(['#a50d16', '#8e0a12', '#7c0710']), max: rand(3, 6) * (.5 + bleed), ang: rand(0, TAU), lobes: Array.from({ length: randi(6, 9) }, () => ({ dx: rand(-.6, .6), dy: rand(-.6, .6), s: rand(.35, 1) })) }); }
+}
+function drawStump(x) { // the torn end: ragged flesh, a wet red core, a glint of spine, flaps of skin in the snake's colors
+  const s = snake, w = s && s.stump; if (!w || !s.alive || s.netHidden) return;
+  const pts = s._pts || s.segs, n = pts.length; if (n < 2) return;
+  const g = pts[n - 1], R = segR(n - 1, n) * (s.scale || 1), ca = Math.cos(g.a), sa = Math.sin(g.a), cx = g.x - ca * R * .5, cy = g.y - sa * R * .5;
+  const al = clamp((w.life - w.t) / 3, 0, 1), fresh = clamp(1 - w.t / 6, 0, 1), cfg = SETTINGS.snake, P = cfg.color || '#4e7cf6';
+  x.save(); x.globalAlpha = al; x.translate(cx, cy); x.rotate(g.a);
+  let r0 = w.seed; const rr = () => (r0 = (r0 * 9301 + 49297) % 233280) / 233280;
+  x.fillStyle = shade(P, -.35); for (let k = 0; k < 7; k++) { const a = Math.PI * .5 + k / 6 * Math.PI, d = R * (.75 + .25 * rr()); x.beginPath(); x.moveTo(Math.cos(a) * R * .55, Math.sin(a) * R * .55); x.lineTo(Math.cos(a - .2) * d - R * .25 * rr(), Math.sin(a - .2) * d); x.lineTo(Math.cos(a + .2) * d, Math.sin(a + .2) * d); x.fill(); } // torn skin flaps, hanging back off the end
+  x.fillStyle = '#5e050b'; x.beginPath(); x.ellipse(-R * .1, 0, R * .5, R * .82, 0, 0, TAU); x.fill();
+  x.fillStyle = `rgb(${150 + 60 * fresh | 0},${14 + 10 * fresh | 0},${22 + 8 * fresh | 0})`; x.beginPath(); x.ellipse(-R * .14, 0, R * .36, R * .62, 0, 0, TAU); x.fill(); // wet meat
+  x.fillStyle = 'rgba(255,170,170,' + (.35 * fresh + .1).toFixed(3) + ')'; x.beginPath(); x.ellipse(-R * .2, -R * .18, R * .1, R * .2, 0, 0, TAU); x.fill(); // the shine on it
+  x.fillStyle = '#e9dccb'; x.beginPath(); x.arc(-R * .12, 0, R * .13, 0, TAU); x.fill(); // the spine
+  x.fillStyle = '#7c0710'; for (let k = 0; k < 4; k++) { x.beginPath(); x.arc(-R * (.4 + .5 * rr()), (rr() - .5) * R * 1.2, R * (.08 + .1 * rr()), 0, TAU); x.fill(); } // clots
+  x.restore();
+}
+/* ---- the hit on screen: a red flash, then a red vignette pulsing in from the edges twice, like a heartbeat, and easing away ---- */
+function airHurt(k) { AIR.hurtAt = performance.now(); AIR.hurtK = Math.max(k, AIR.hurtAt - (AIR.hurtAt0 || 0) < 400 ? AIR.hurtK || 0 : 0); AIR.hurtAt0 = AIR.hurtAt; }
+function drawHurt(x) {
+  if (!AIR.hurtAt) return; const t = (performance.now() - AIR.hurtAt) / 1000, k = AIR.hurtK || 0, D = 1.7; if (t > D) { AIR.hurtAt = 0; return; }
+  const W2 = x.canvas.width, H2 = x.canvas.height, soft = SETTINGS.reduceFlash ? .4 : 1, ease = (1 - t / D) ** 1.6, beat = .62 + .38 * Math.cos(Math.min(t, 1.05) / 1.05 * TAU * 1.5 - .2); // two beats, then it lets go
+  const flash = k * soft * .42 * Math.exp(-t * 11) * Math.min(1, t * 40 + .3), vig = k * ease * beat * Math.min(1, t * 14);
+  x.save(); x.setTransform(1, 0, 0, 1, 0, 0);
+  if (flash > .005) { x.fillStyle = `rgba(200,10,18,${flash.toFixed(3)})`; x.fillRect(0, 0, W2, H2); }
+  if (vig > .005) { const R0 = Math.min(W2, H2) * (.42 - .1 * vig), R1 = Math.hypot(W2, H2) * .56, g = x.createRadialGradient(W2 / 2, H2 / 2, R0, W2 / 2, H2 / 2, R1);
+    g.addColorStop(0, 'rgba(120,0,6,0)'); g.addColorStop(.55, `rgba(150,4,12,${(.38 * vig).toFixed(3)})`); g.addColorStop(1, `rgba(90,0,4,${(.85 * vig).toFixed(3)})`); x.fillStyle = g; x.fillRect(0, 0, W2, H2); }
+  x.restore();
 }
 function bombDeath(by = 'bomb') {
   crashHit = null; run.deathBy = by;
@@ -297,7 +352,7 @@ function strafeSweep(s, a0, a1) {
   if (me && me.alive && me.segs) {
     const dx = me.x - s.x0, dy = me.y - s.y0, al = dx * s.ca + dy * s.sa, pd = Math.abs(dy * s.ca - dx * s.sa);
     if (al >= a0 - 6 && al <= a1 && pd < 200) { shake = Math.max(shake, 7 * (1 - pd / 200)); AIR.rumble = Math.max(AIR.rumble, .3 * (1 - pd / 200)); } // rounds tearing past right next to you
-    if (!me.netHidden && !(me.graceT > 0) && (state === 'play' || NETM.run) && me.segs.some(g => inLane(g.x, g.y, snakeRadius() * .5))) bombDeath('strafe');
+    if (!me.netHidden && !(me.graceT > 0) && (state === 'play' || NETM.run)) { const i = me.segs.findIndex(g => inLane(g.x, g.y, snakeRadius() * .5)); if (i >= 0) airHitSnake(i, 'strafe'); }
   }
   if (!AUTH()) return;
   const mid = (a0 + a1) / 2, mx = s.x0 + s.ca * mid, my = s.y0 + s.sa * mid, hit = [];
@@ -339,20 +394,20 @@ function scorch(x, y, r) {
   bctx.restore();
 }
 /* ---- a snake bursting, head first, quickly down to the tail: blood and body in its own two colors, no fire ---- */
-function snakeBurst(s, skin, cfg) {
+function snakeBurst(s, skin, cfg, from, part) { // from: the piece it was hit on (the bursting runs both ways from there); part: a piece blown off, not the whole snake (no head, no hat)
   const segs = s && s.segs; if (!segs || !segs.length) return;
   cfg = cfg || { ...SETTINGS.snake, color: skin || SETTINGS.snake.color, pattern: 'Solid' };
-  const n = segs.length, P = cfg.color || skin || '#4e7cf6', Q = cfg.color2 || shade(P, .3);
-  const c = { segs: segs.map(g => ({ x: g.x, y: g.y, a: g.a })), stains: segs.map((_, i) => (s.stains && s.stains[i]) || []), scale: s.scale || 1, cfg: { ...cfg, hat: 'None' },
-    n, k: 0, t: 0, dur: clamp(.2 + n * .005, .28, 1), P, Q, cols: [P, P, shade(P, -.2), shade(P, -.4), Q, Q, shade(Q, -.25), '#a50d16', '#c8161e', '#7c0710', '#b8101a'], end: 0 }; // its own two colors, and real red blood
+  const n = segs.length, P = cfg.color || skin || '#4e7cf6', Q = cfg.color2 || shade(P, .3), o = clamp(Math.round(from ?? s.burstAt ?? 0), 0, n - 1), steps = Math.max(o + 1, n - o); s.burstAt = undefined;
+  const c = { segs: segs.map(g => ({ x: g.x, y: g.y, a: g.a })), stains: segs.map((_, i) => (s.stains && s.stains[i]) || []), scale: s.scale || 1, cfg: { ...cfg, hat: 'None' }, part: !!part,
+    n, o, steps, k: 0, t: 0, dur: clamp(.2 + steps * .005, .28, 1) * (part ? .8 : 1), P, Q, cols: [P, P, shade(P, -.2), shade(P, -.4), Q, Q, shade(Q, -.25), '#a50d16', '#c8161e', '#7c0710', '#b8101a'], end: 0 }; // its own two colors, and real red blood
   corpses.push(c);
-  if (cfg.hat && cfg.hat !== 'None') dropHat(segs[0].x, segs[0].y, s.angle ?? segs[0].a, s.scale || 1, cfg.hat);
-  popSeg(c, 0); c.k = 1;
-  addBloodAmount(1.4 * ({ Minimal: .3, Reduced: .6 }[SETTINGS.bloodAmt] || 1)); bleedIntoWater(segs[0].x, segs[0].y, 1, P);
-  Sfx.crash(segs[0].x); Sfx.gore(segs[0].x, true);
+  if (!part && cfg.hat && cfg.hat !== 'None') dropHat(segs[0].x, segs[0].y, s.angle ?? segs[0].a, s.scale || 1, cfg.hat);
+  popSeg(c, o); c.k = 1;
+  addBloodAmount((part ? .8 : 1.4) * ({ Minimal: .3, Reduced: .6 }[SETTINGS.bloodAmt] || 1)); bleedIntoWater(segs[o].x, segs[o].y, part ? .6 : 1, P);
+  if (!part) Sfx.crash(segs[o].x); Sfx.gore(segs[o].x, true);
 }
 function popSeg(c, i) {
-  const g = c.segs[i], n = c.n, sc = Math.min(1.4, c.scale), head = i === 0, step = Math.max(1, Math.round(n / 22)), ba = { Minimal: .3, Reduced: .6 }[SETTINGS.bloodAmt] || 1;
+  const g = c.segs[i], n = c.n, sc = Math.min(1.4, c.scale), head = i === c.o, step = Math.max(1, Math.round(n / 22)), ba = { Minimal: .3, Reduced: .6 }[SETTINGS.bloodAmt] || 1;
   spawnBlood(g.x, g.y, rand(0, TAU), clamp(6 / n, .07, .34) * (head ? 3 : 1) * sc, 3.2, .05, c.cols); // blood in the snake's colors, flung every way: it stains anyone it reaches
   if (!(head || i % step === 0 || i === n - 1)) return;
   bloodMist(g.x, g.y, rand(0, TAU), head ? 1.3 : .6, c.cols);
@@ -372,16 +427,20 @@ function popSeg(c, i) {
 function updateCorpses(dt) {
   for (let i = corpses.length - 1; i >= 0; i--) {
     const c = corpses[i]; c.t += dt;
-    const want = Math.min(c.n, Math.floor(c.t / c.dur * c.n) + 1);
-    while (c.k < want) { popSeg(c, c.k); c.k++; }
-    if (c.k >= c.n && (c.end += dt) > .9) corpses.splice(i, 1); // kept a moment after the tail goes (not drawn): the color stays until the blood has landed
+    const want = Math.min(c.steps, Math.floor(c.t / c.dur * c.steps) + 1);
+    while (c.k < want) { const a = c.o - c.k, b = c.o + c.k; if (a >= 0) popSeg(c, a); if (b < c.n) popSeg(c, b); c.k++; } // outward from where it was hit, toward the head and the tail at once
+    if (c.k >= c.steps && (c.end += dt) > .9) corpses.splice(i, 1); // kept a moment after the tail goes (not drawn): the color stays until the blood has landed
   }
 }
 function drawCorpses(x) { // what's left of the body, still lying there as the bursting runs down it
+  drawStump(x); // (and your own torn tail end: drawn right after the snake)
   for (const c of corpses) {
-    if (c.k >= c.n) continue;
-    const segs = c.segs.slice(c.k), body = { x: segs[0].x, y: segs[0].y, angle: segs[0].a, segs, stains: c.stains.slice(c.k), scale: c.scale, cut: true, wv: 0, netMoving: false };
-    SCALE_OVR = c.scale; try { drawSnake(x, body, c.cfg); } finally { SCALE_OVR = 0; }
+    if (c.k >= c.steps) continue;
+    const hi = c.o - c.k + 1, lo = c.o + c.k; // still there: the front [0, hi) (with the head, unless it's a blown-off piece) and the back [lo, n)
+    SCALE_OVR = c.scale; try {
+      if (hi > 0) { const segs = c.segs.slice(0, hi); drawSnake(x, { x: segs[0].x, y: segs[0].y, angle: segs[0].a, segs, stains: c.stains.slice(0, hi), scale: c.scale, cut: c.part || hi < 3, wv: 0, netMoving: false }, c.cfg); }
+      if (lo < c.n) { const segs = c.segs.slice(lo); drawSnake(x, { x: segs[0].x, y: segs[0].y, angle: segs[0].a, segs, stains: c.stains.slice(lo), scale: c.scale, cut: true, wv: 0, netMoving: false }, c.cfg); }
+    } finally { SCALE_OVR = 0; }
   }
 }
 /* ---- the ground itself, thrown up: chunks cut out of the real floor under the blast (grass with its blades, a dirt path,
@@ -485,13 +544,13 @@ function drawAirstrikes(x) { // drawn under the fog (so markers in it stay hidde
   drawClods(x, true); // chunks of ground flying up through it all
 }
 function drawStrafe(x, s) { // the lane: a red strip with chevrons flowing the way the jet is coming, flashing faster as it gets close; the rounds eat it up as they land
-  const pre = s.t < 0, p = pre ? clamp(1 + s.t / s.warn, 0, 1) : 1, on = Math.sin(s.ph) > 0, fade = pre ? Math.min(1, (s.warn + s.t) * 5) : clamp(1 - s.done / .8, 0, 1), hw = s.hw, L = s.len, from = pre ? 0 : s.front;
+  const pre = s.t < 0, p = pre ? clamp(1 + s.t / s.warn, 0, 1) : 1, w = .5 + .5 * Math.sin(s.ph), fade = pre ? clamp((s.warn + s.t) * 4, 0, 1) : clamp(1 - s.done / .8, 0, 1), hw = s.hw, L = s.len, from = pre ? 0 : s.front;
   x.save(); x.translate(s.x0, s.y0); x.rotate(s.a);
   if (from < L) {
-    x.globalAlpha = fade * ((on ? .28 : .14) + .12 * p); x.fillStyle = '#ff2a20'; x.fillRect(from, -hw, L - from, hw * 2);
-    x.globalAlpha = fade * (on ? 1 : .7); x.strokeStyle = on ? '#ff3b30' : '#c81810'; x.lineWidth = 2; x.setLineDash([14, 8]); x.lineDashOffset = -T * 70;
+    x.globalAlpha = fade * (.16 + .12 * w + .1 * p); x.fillStyle = '#ff2a20'; x.fillRect(from, -hw, L - from, hw * 2);
+    x.globalAlpha = fade * (.72 + .28 * w); x.strokeStyle = '#ff3b30'; x.lineWidth = 2; x.setLineDash([14, 8]); x.lineDashOffset = -T * 70;
     x.beginPath(); x.moveTo(from, -hw); x.lineTo(L, -hw); x.moveTo(from, hw); x.lineTo(L, hw); x.stroke(); x.setLineDash([]);
-    x.strokeStyle = on ? 'rgba(255,225,205,.95)' : 'rgba(255,95,80,.85)'; x.lineWidth = 2.4; x.lineCap = 'round';
+    x.strokeStyle = `rgb(255,${95 + 130 * w | 0},${80 + 125 * w | 0})`; x.lineWidth = 2.4; x.lineCap = 'round';
     const sp = 46; for (let d = from + (T * 160) % sp; d < L; d += sp) { x.beginPath(); x.moveTo(d - 7, -hw * .6); x.lineTo(d + 2, 0); x.lineTo(d - 7, hw * .6); x.stroke(); } // >>> the way it's coming
     if (pre) { x.globalAlpha = fade * .8; x.fillStyle = '#fff'; x.fillRect(0, -1, L * (1 - p), 2); } // time left
   }
@@ -619,7 +678,7 @@ function drawJet(x, j) { // only its shadow: it's far up, crossing the screen ov
   x.lineTo(-23, 8); x.lineTo(-20, 8); x.lineTo(-15, 2.5); x.lineTo(-7, 3); x.lineTo(-11, 19); x.lineTo(-6, 19); x.lineTo(2, 3); x.lineTo(14, 2.2); x.closePath(); x.fill();
   x.restore();
 }
-function drawAirFlash(x) { if (AIR.flash > .01) { x.save(); x.setTransform(1, 0, 0, 1, 0, 0); x.fillStyle = `rgba(255,236,200,${(AIR.flash * .45).toFixed(3)})`; x.fillRect(0, 0, x.canvas.width, x.canvas.height); x.restore(); } }
+function drawAirFlash(x) { drawHurt(x); if (AIR.flash > .01) { x.save(); x.setTransform(1, 0, 0, 1, 0, 0); x.fillStyle = `rgba(255,236,200,${(AIR.flash * .45).toFixed(3)})`; x.fillRect(0, 0, x.canvas.width, x.canvas.height); x.restore(); } }
 /* ---- the sound ---- */
 Object.assign(Sfx, {
   siren() { // a real air raid siren far off over the town: a rotor winding up into a two-tone wail, a long hold, a slow wind down, the chopping of the rotor, and the whole sky carrying it
@@ -697,7 +756,7 @@ Object.assign(Sfx, {
     for (let i = 0; i < 6; i++) this.burst(o, t + .5 + Math.random() * 1.8, rand(.04, .1), rand(1500, 4000), 3, rand(.03, .07) * k); // crackling fire
   },
   tinnitus(k = 1) { // your ears ring: a high whine that bypasses everything (it's inside your head), while the world goes muffled and slowly comes back
-    if (!this.ok()) return; const c = this.ctx, t = c.currentTime, g = c.createGain(); g.connect(c.destination);
+    if (!this.ok()) return; const c = this.ctx, t = c.currentTime, g = c.createGain(); g.connect(this.head || c.destination);
     const v = SETTINGS.volume * .05 * k; g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(.0002, v), t + .3); g.gain.setValueAtTime(Math.max(.0002, v), t + 1.2); g.gain.exponentialRampToValueAtTime(.0001, t + 3.2 + 1.5 * k);
     for (const [f, a] of [[3900, 1], [3912, .6]]) { const os = c.createOscillator(), og = c.createGain(); os.type = 'sine'; os.frequency.setValueAtTime(f, t); os.frequency.linearRampToValueAtTime(f - 160, t + 4.5); og.gain.value = a; os.connect(og); og.connect(g); os.start(t); os.stop(t + 4.8 + 1.5 * k); } // two close tones: it wavers
   },
