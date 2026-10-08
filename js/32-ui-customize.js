@@ -44,7 +44,7 @@ function returnToMenu() { // ends the run on purpose; only now is the game reset
   stage.classList.remove('paused');
   if (state === 'paused' && run.time > 1) statRunEnd();
   hideResume(); clearNotes();
-  document.getElementById('chhud').innerHTML = ''; document.getElementById('modhud').innerHTML = ''; runMods = []; modBar();
+  clearRunHud();
   endCombo(true); evt = null; showEvent(); document.getElementById('rewards').innerHTML = '';
   nightVision = false; cam = null; camF.x = camF.y = camF.k.x = camF.k.y = camF.kv.x = camF.kv.y = 0; resetUserCam(true);
   MOD = {}; loadMap(mapIdx);
@@ -56,6 +56,10 @@ function hideOverlay() {
   setTimeout(() => { if (overlay.classList.contains('hide')) overlay.style.display = 'none'; }, 400);
 }
 let runMods = [];
+function clearRunHud() { // the run's own HUD (modifier strip, live modifier chips, challenges): gone when the run is, menu or multiplayer lobby alike
+  for (const id of ['chhud', 'modhud', 'modintro']) { const el = document.getElementById(id); if (el) el.innerHTML = ''; }
+  runMods = []; modBar();
+}
 function modBar() { // every active modifier, compact, at the top of the screen; hover for what it does
   const el = document.getElementById('modbar'), ids = runMods || [];
   if (!ids.length) { el.innerHTML = ''; layoutHud(); return; }
@@ -162,9 +166,10 @@ function applyUiScale() { // zoom every HUD/menu layer; overlay is shrunk by the
   document.body.classList.toggle('compact', lw < 820 || lh < 600); document.body.classList.toggle('narrow', lw < 640);
   layoutHud();
 }
-function layoutHud() { // safe zones: notifications always sit below the modifier strip, whatever its height
-  const mb = document.getElementById('modbar'), nt = document.getElementById('notes'); if (!mb || !nt) return;
+function layoutHud() { // safe zones: notifications always sit below the modifier strip, whatever its height, and above the live modifier chips when they share the bottom corner
+  const mb = document.getElementById('modbar'), nt = document.getElementById('notes'), mh = document.getElementById('modhud'); if (!mb || !nt) return;
   const u = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ui')) || 1;
   nt.style.top = ((mb.innerHTML ? mb.offsetHeight * u + 16 : 12) / u) + 'px';
+  const b = mh && mh.innerHTML ? 14 + mh.offsetHeight + 8 : 14; if (nt.style.bottom !== b + 'px') nt.style.bottom = b + 'px'; // (both live in layers scaled the same way, so their own px line up)
 }
 addEventListener('resize', () => { fit(); overlay.querySelectorAll('.seg,.sseg').forEach(sg => placeThumb(sg, true)); });

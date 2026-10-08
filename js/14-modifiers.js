@@ -116,7 +116,7 @@ function modHud() { // live state of the active scoring modifiers
   if (MOD.foodChain && R.chain) chips.push(`<span class="mh">Food chain x${(1 + R.chain * .15).toFixed(2)}</span>`);
   if (MOD.variety && R.varStreak) chips.push(`<span class="mh">Variety x${(1 + R.varStreak * .12).toFixed(2)}</span>`);
   const html = chips.join('');
-  if (el.innerHTML !== html) el.innerHTML = html;
+  if (el.innerHTML !== html) { el.innerHTML = html; layoutHud(); } // notifications move up out of its way
 }
 const modMult = ids => Math.max(.5, 1 + ids.reduce((a, id) => a + ((MODS.find(m => m.id === id) || {}).mult || 0), 0));
 function obstacleAt(px, py) {

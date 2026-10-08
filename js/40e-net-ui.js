@@ -55,7 +55,7 @@ function netJoined() { // a different screen shape means a different world size:
 }
 /* ---- the lobby ---- */
 let netPick = null; // the host's open picker: 'map' | null
-function netShowLobby() { state = 'menu'; overlay.className = 'menuMode'; overlay.style.display = 'flex'; overlay.innerHTML = '<div class="panel mplobby"></div>'; netLobbyRender(); }
+function netShowLobby() { clearRunHud(); state = 'menu'; overlay.className = 'menuMode'; overlay.style.display = 'flex'; overlay.innerHTML = '<div class="panel mplobby"></div>'; netLobbyRender(); }
 function netHideLobby() { const l = overlay.querySelector('.mplobby,.mpres'); if (l) overlay.innerHTML = ''; netPick = null; }
 function netLobbySyncProfile() { // a new skin, an upgrade or a level since joining (bought in the shop while waiting, or earned in a run): everyone gets it
   if (!NETM.on || NETM.run || NETM.host || !NETM.hostLink) return;
