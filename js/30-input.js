@@ -92,7 +92,8 @@ function goInput() { // any steering input: starts the run, or continues after a
 }
 addEventListener('keydown', e => {
   Sfx.init();
-  if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) return;
+  if (e.target && e.target.tagName === 'INPUT' && (e.target.type === 'range' || e.target.type === 'checkbox') && e.code === 'Escape') e.target.blur(); // a slider still focused after a drag: Esc should close the menu, not stay stuck on the slider
+  else if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) return;
   const k = dirOf(e.code), act = actionOf(e.code);
   if (k) {
     if (state === 'ready' || state === 'play' || state === 'held') e.preventDefault();

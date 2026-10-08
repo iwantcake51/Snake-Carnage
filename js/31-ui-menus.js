@@ -331,69 +331,69 @@ function randomRoll() { // case-opening roll; the pick stays secret until the ga
 }
 const fmtSetting = (k, v) => k === 'shakeK' ? (v <= 0 ? 'Off' : Math.round(v * 100) + '%') : k === 'customHour' ? String(v).padStart(2, '0') + ':00' : k === 'dayMinutes' ? v + ' min' : k === 'pixel' ? (v <= 1 ? 'Off' : v + 'x') : Math.round(v * 100) + '%';
 const SETTING_TABS = {
-  Gameplay: { icon: 'gameplay', lead: 'How the world behaves around you.', rows: [
+  Gameplay: { icon: 'gameplay', lead: 'How the world plays.', rows: [
     ['head', 'World'],
     ['slider', 'creatureSpeed', 'Creature speed', 'How fast people and animals move.', .3, 1.2, .05],
-    ['toggle', 'airstrikes', 'Air strikes', 'Outdoors, after a minute and a half of a run, the military starts bombing and strafing the path you\'re on. Red rings mark where bombs land, red lanes where a jet will rake with its cannon. The Air raid modifier starts them at once, even with this off. In multiplayer the host\'s setting counts.'],
+    ['toggle', 'airstrikes', 'Air strikes', 'Jets bomb and shoot at you on outdoor maps after 90 seconds.'],
     ['head', 'Time'],
-    ['seg', 'timeMode', 'Time of day', 'Dynamic starts every run at a random hour and lets the day move on. The others stay fixed.', ['Cycle', 'Day', 'Dawn', 'Dusk', 'Night'], null, null, null, TIME_MODES]] },
-  Display: { icon: 'display', lead: 'The screen, the interface on it, and what it tells you.', rows: [
+    ['seg', 'timeMode', 'Time of day', 'Dynamic starts at a random hour and the day moves on. The rest stay fixed.', ['Cycle', 'Day', 'Dawn', 'Dusk', 'Night'], null, null, null, TIME_MODES]] },
+  Display: { icon: 'display', lead: 'Screen size, interface and stats.', rows: [
     ['head', 'Screen'],
-    ['toggle', 'fullscreen', 'Fullscreen', 'Fill the whole screen. Esc or F11 leaves it.'],
-    ['seg', 'renderRes', 'Render resolution', 'How many pixels the game draws, compared with the automatic choice for your screen. Lower is much faster and a bit softer. Changing it reloads the game.', ['50%', '75%', '100%', '125%', 'Auto']],
-    ['seg', 'fpsCap', 'Frame rate', 'VSync matches your screen. A cap saves battery and heat.', ['30', '60', '120', 'VSync']],
+    ['toggle', 'fullscreen', 'Fullscreen', 'Use the whole screen.'],
+    ['seg', 'renderRes', 'Render resolution', 'Lower runs faster but looks softer. Reloads the game.', ['50%', '75%', '100%', '125%', 'Auto']],
+    ['seg', 'fpsCap', 'Frame rate', 'VSync matches your screen. A cap saves battery.', ['30', '60', '120', 'VSync']],
     ['head', 'Interface'],
-    ['seg', 'uiScale', 'UI scale', 'Size of menus, HUD, notifications and buttons. Auto follows the size of the game.', ['Small', 'Medium', 'Large', 'Extra Large', 'Auto']],
-    ['seg', 'bubbleSize', 'Speech bubble size', 'Text size of what people shout.', ['Small', 'Normal', 'Large']],
-    ['toggle', 'minimalUi', 'Minimal UI', 'Hides reward pop-ups, the combo breakdown and the challenge list during a run.'],
+    ['seg', 'uiScale', 'UI scale', 'How big menus and the HUD are.', ['Small', 'Medium', 'Large', 'Extra Large', 'Auto']],
+    ['seg', 'bubbleSize', 'Speech bubble size', 'How big the text is when people talk.', ['Small', 'Normal', 'Large']],
+    ['toggle', 'minimalUi', 'Minimal UI', 'Hides pop-ups and lists during a run.'],
     ['head', 'Diagnostics'],
-    ['seg', 'perfHud', 'Performance stats', 'A panel with the frame rate, a frame-time graph, and how long each part of the game takes per frame, so you can see what is slowing a map down. F3 cycles it during a run.', ['Off', 'FPS', 'Full']]] },
-  Graphics: { icon: 'graphics', lead: 'How good the picture looks, and what it costs.', rows: [
+    ['seg', 'perfHud', 'Performance stats', 'Shows your frame rate and what is slowing the game. F3 during a run.', ['Off', 'FPS', 'Full']]] },
+  Graphics: { icon: 'graphics', lead: 'How good the game looks. Lower settings run faster.', rows: [
     ['head', 'Quality'],
-    ['toggle', 'autoQ', 'Automatic quality', 'When the game runs slowly it simplifies the lighting and snow by itself, for that run, to keep it smooth.'],
-    ['seg', 'lightQ', 'Lighting', 'The biggest cost on screen. High: everything, including colors draining away in the dark (slow on many graphics chips). Medium: no color drain, fewer lamp shadows. Low: half-resolution light, no tinted pools, updated every other frame. Off: no light layer, just a dim tint at night, the fastest. Who can see you works the same at every setting.', ['Off', 'Low', 'Medium', 'High']],
-    ['seg', 'shadows', 'Shadows', 'Full: everything casts shadows, including people, animals and the snake under lamps and flashlights. Static: only the fixed ones (buildings, walls, furniture in sunlight and lamplight). Off: no shadows at all and none are worked out, the fastest. Light and darkness work the same either way.', ['Off', 'Static', 'Full']],
-    ['toggle', 'bloom', 'Bloom', 'A soft glow round things that light up: console buttons, screens, warning lamps, reactor cores.'],
+    ['toggle', 'autoQ', 'Automatic quality', 'Lowers quality by itself if the game starts to lag.'],
+    ['seg', 'lightQ', 'Lighting', 'Light and darkness. The biggest cost: lower it first if the game lags.', ['Off', 'Low', 'Medium', 'High']],
+    ['seg', 'shadows', 'Shadows', 'Full: everything casts shadows. Static: only buildings and furniture. Off: none.', ['Off', 'Static', 'Full']],
+    ['toggle', 'bloom', 'Bloom', 'A soft glow around things that light up.'],
     ['head', 'World detail'],
-    ['seg', 'snowQ', 'Snow', 'Winter maps. Full: deep snow that you and everyone else plough through, with powder and footprints. Simple: snow on the ground that stays as it is, almost free. Off: no snow on the ground at all.', ['Off', 'Simple', 'Full']],
-    ['seg', 'treeQ', 'Tree detail', 'High: every branch sways on its own. Medium: whole trees lean in the wind (cheaper). Low: no sway, all trees drawn as one picture (cheapest).', ['Low', 'Medium', 'High']],
-    ['seg', 'fogQ', 'Fog detail', 'Heavy fog modifier. High: drifting billows, torn edges, lamps glowing through it. Medium: billows only. Low: plain soft fog, cheapest.', ['Low', 'Medium', 'High']],
+    ['seg', 'snowQ', 'Snow', 'Full: deep snow you plough through. Simple: flat snow. Off: no snow.', ['Off', 'Simple', 'Full']],
+    ['seg', 'treeQ', 'Tree detail', 'How much trees sway in the wind. Low is fastest.', ['Low', 'Medium', 'High']],
+    ['seg', 'fogQ', 'Fog detail', 'How detailed the Heavy fog modifier looks.', ['Low', 'Medium', 'High']],
     ['head', 'Look'],
-    ['slider', 'darkness', 'Darkness', 'Overall dimness of the scene.', 0, .7, .05],
-    ['slider', 'pixel', 'Pixelation', 'Chunky pixel look. Off shows full detail.', 1, 8, 1]] },
-  Effects: { icon: 'effects', lead: 'Blood, particles and the jolts that sell a kill.', rows: [
+    ['slider', 'darkness', 'Darkness', 'Makes the whole picture darker.', 0, .7, .05],
+    ['slider', 'pixel', 'Pixelation', 'A chunky, pixelated look.', 1, 8, 1]] },
+  Effects: { icon: 'effects', lead: 'Blood, particles and screen effects.', rows: [
     ['head', 'Blood'],
-    ['seg', 'bloodQ', 'Blood quality', 'How much blood is simulated and how finely it is drawn. Low: fewer, chunkier, plainer drops and short trails (still smooth: every drop moves every frame), the fastest. Extreme: the most drops, smooth motion blur, mist and long-lasting trails.', ['Low', 'Medium', 'High', 'Extreme']],
-    ['toggle', 'bloodBlur', 'Blood motion blur', 'Fast drops stretch and smear along their path. Off: plain round drops.'],
-    ['seg', 'bloodFade', 'Blood fades', 'How long blood stays on the ground and walls.', ['Never', 'Slow', 'Normal', 'Fast']],
+    ['seg', 'bloodQ', 'Blood quality', 'How much blood there is and how detailed it looks. Lower is faster.', ['Low', 'Medium', 'High', 'Extreme']],
+    ['toggle', 'bloodBlur', 'Blood motion blur', 'Fast drops of blood smear as they fly.'],
+    ['seg', 'bloodFade', 'Blood fades', 'How long blood stays on the ground.', ['Never', 'Slow', 'Normal', 'Fast']],
     ['head', 'Particles'],
-    ['seg', 'fxLevel', 'Particles', 'How many particles are simulated: blood mist, smoke, sparks, snow powder, scent wisps, insects. Low simulates far fewer.', ['Low', 'Normal', 'High']],
+    ['seg', 'fxLevel', 'Particles', 'How much smoke, sparks, mist and bugs there are. Lower is faster.', ['Low', 'Normal', 'High']],
     ['head', 'Kill feedback'],
-    ['toggle', 'vignette', 'Kill vignette', 'A red pulse at the screen edges when you eat.'],
-    ['toggle', 'desaturate', 'Color drain', 'Briefly drains color after a kill.'],
-    ['toggle', 'shake', 'Screen shake', 'Shake the camera on kills and crashes.'],
-    ['slider', 'shakeK', 'Shake strength', 'How hard the screen shakes, from none to full.', 0, 1, .1]] },
+    ['toggle', 'vignette', 'Kill vignette', 'The screen edges flash red when you eat.'],
+    ['toggle', 'desaturate', 'Color drain', 'Colors fade for a moment after a kill.'],
+    ['toggle', 'shake', 'Screen shake', 'The screen shakes on kills and crashes.'],
+    ['slider', 'shakeK', 'Shake strength', 'How hard the screen shakes.', 0, 1, .1]] },
   Audio: { icon: 'audio', lead: 'Everything you hear.', rows: [
     ['head', 'Volume'],
-    ['slider', 'volume', 'Master volume', 'All game sounds.', 0, 1, .05],
+    ['slider', 'volume', 'Master volume', 'How loud everything is.', 0, 1, .05],
     ['head', 'Interface'],
-    ['toggle', 'uiSounds', 'Menu sounds', 'Hover and click sounds in menus.']] },
+    ['toggle', 'uiSounds', 'Menu sounds', 'Click and hover sounds in menus.']] },
   Controls: { icon: 'controls', lead: 'Click a key to change it, then press the new one. Esc cancels, Backspace puts the default back. On a phone or tablet, drag anywhere on the board to steer.', binds: true, keys: [
     ['#Steering and camera'], ['Mouse', 'Steer with the cursor (Free movement modifier + Mouse steering)'], 
     ['Wheel', 'Zoom the camera in or out, always on your snake'], ['Drag', 'Pan the camera (middle mouse, or left mouse when not steering with it)'], ['Double-click', 'Camera back on the snake'],
     ['Pinch', 'On a touch screen: two fingers zoom and pan; one finger still steers'],
     ['` or F10', 'Admin panel: god mode, speed, time of day, spawning, air strikes, chips and upgrades (single player, or the host)'], ['#Menus'], ['Space', 'Start, skip the intro, play again. In a multiplayer lobby: ready up, and the host starts once everyone is ready'], ['Esc', 'Pause, back, close settings'], ['F3', 'Performance stats: off, frame rate, full']] },
-  Accessibility: { icon: 'access', lead: 'Make the game easier to see, and gentler to play.', rows: [
+  Accessibility: { icon: 'access', lead: 'Make the game easier to see and more comfortable.', rows: [
     ['head', 'Visibility'],
-    ['seg', 'snakeOutline', 'Snake outline', 'A thin rim that keeps the snake easy to spot on any ground.', ['Off', 'Subtle', 'Strong']],
-    ['seg', 'mapOutlines', 'Map outlines', 'Dark edges around walls and everything else you can crash into.', ['Off', 'Subtle', 'Strong']],
+    ['seg', 'snakeOutline', 'Snake outline', 'An outline so your snake is easy to see.', ['Off', 'Subtle', 'Strong']],
+    ['seg', 'mapOutlines', 'Map outlines', 'Dark edges on walls and things you can crash into.', ['Off', 'Subtle', 'Strong']],
     ['head', 'Comfort'],
-    ['toggle', 'reduceMotion', 'Reduce motion', 'Turns off menu animations, floating buttons and the intro zoom.'],
-    ['toggle', 'reduceFlash', 'Reduce flashes', 'No bloom, double vision or color drain flashes after kills and hits.'],
-    ['toggle', 'simpleFx', 'Simplified effects', 'Plain versions of skill and impact effects: no warping, wakes or ghosting.'],
+    ['toggle', 'reduceMotion', 'Reduce motion', 'Fewer menu animations.'],
+    ['toggle', 'reduceFlash', 'Reduce flashes', 'Removes bright flashes after kills and hits.'],
+    ['toggle', 'simpleFx', 'Simplified effects', 'Plainer effects: no warping or ghost trails.'],
     ['head', 'Content'],
-    ['seg', 'bloodAmt', 'Amount of blood', 'Fewer drops, smaller pools and fewer chunks. Purely visual.', ['Minimal', 'Reduced', 'Full']],
-    ['toggle', 'vomit', 'Show vomit', 'People who see too much throw up, and it stays on the floor. Turn off to skip it.']] },
+    ['seg', 'bloodAmt', 'Amount of blood', 'Less blood on screen. Looks only.', ['Minimal', 'Reduced', 'Full']],
+    ['toggle', 'vomit', 'Show vomit', 'People throw up when they see too much.']] },
 };
 let settingsTab = 'Gameplay';
 function settingsBody(tab) {
@@ -459,6 +459,7 @@ function wireSettings(body) {
     el.style.setProperty('--v', ((el.value - el.min) / (el.max - el.min) * 100).toFixed(1) + '%');
     el.nextElementSibling.textContent = fmtSetting(k, SETTINGS[k]); applySetting(k);
   });
+  body.querySelectorAll('input[type=range]').forEach(el => el.addEventListener('pointerup', () => el.blur())); // let go of a slider and it lets go of the keyboard (no stuck focus ring, Esc still works)
   body.querySelectorAll('.sseg').forEach(seg => {
     seg.querySelectorAll('button').forEach(b => b.onclick = () => {
       SETTINGS[seg.dataset.k] = b.dataset.v; seg.querySelectorAll('button').forEach(o => o.classList.toggle('on', o === b)); placeThumb(seg); applySetting(seg.dataset.k);
