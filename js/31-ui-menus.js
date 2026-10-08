@@ -303,7 +303,7 @@ const SETTING_TABS = {
     ['head', 'World'],
     ['slider', 'creatureSpeed', 'Creature speed', 'How fast people and animals move.', .3, 1.2, .05],
     ['seg', 'bloodFade', 'Blood fades', 'How long blood stays on the ground and walls.', ['Never', 'Slow', 'Normal', 'Fast']],
-    ['toggle', 'airstrikes', 'Air strikes', 'Outdoors, after a minute and a half of a run, the military starts bombing the path you\'re on. Red rings mark where the bombs land. In multiplayer the host\'s setting counts.'],
+    ['toggle', 'airstrikes', 'Air strikes', 'Outdoors, after a minute and a half of a run, the military starts bombing and strafing the path you\'re on. Red rings mark where bombs land, red lanes where a jet will rake with its cannon. The Air raid modifier starts them at once, even with this off. In multiplayer the host\'s setting counts.'],
     ['head', 'Time and weather'],
     ['seg', 'timeMode', 'Time of day', 'Dynamic starts every run at a random hour and lets the day move on. The others stay fixed.', ['Cycle', 'Day', 'Dawn', 'Dusk', 'Night'], null, null, null, TIME_MODES],
     ['seg', 'season', 'Season', 'Outdoor maps only. Random picks one each run.', ['Random', 'Spring', 'Summer', 'Autumn', 'Winter']]] },

@@ -9,6 +9,7 @@ function update(dt) {
   Sfx.musicUpdate(!!MAPS[mapIdx].music && ['play', 'ready', 'intro', 'held'].includes(state));
   if (state === 'menu' || state === 'paused' || state === 'held' || state === 'loading') return; // time stops: no AI, movement, blood or sounds
   if (state === 'dead') { // the world is frozen; only the camera settles and the death screen arrives
+    airEars(dt); // a blast's muffle still clears while you're dead
     if (airBusy()) { T += dt; airTick(dt); updateBlood(dt); updateGiblets(dt); updateSplashes(dt); updateMist(dt); updateSmoke(dt); } // ...except an explosion still playing out (blown up: you go off like a fuse)
     shake *= Math.exp(-dt * 8); if (shake < .2) shake = 0;
     killV *= Math.exp(-dt * 1.4); killFlash *= Math.exp(-dt * 7);
@@ -28,7 +29,7 @@ function update(dt) {
   updateBlood(dt); updateGiblets(dt); updateSplashes(dt); updateMist(dt); updateSmoke(dt); updateFlies(dt); updateVomit(dt);
   if ((fadeT -= dt) <= 0) { fadeT = 2; fadeBlood(); }
   updateTrail(dt); updateHoovFx(dt);
-  if (snake) { const dk = snake.ramT > 0 ? Math.pow(snake.ramT / (snake.ramMax || 1), .6) * (snake.stunFx || 1) : 0; Sfx.daze(dk, snake.wallStun > 0); }
+  if (snake) { const dk = snake.ramT > 0 ? Math.pow(snake.ramT / (snake.ramMax || 1), .6) * (snake.stunFx || 1) : 0; airEars(dt, dk, snake.wallStun > 0); } // muffled by a smash, a wall or a blast
   updateScent(dt);
   updateGround(dt); updateSnow(dt); updateWeather(dt);
   if (AUTH()) for (let i = respawnQ.length - 1; i >= 0; i--) { if ((respawnQ[i].t -= dt) <= 0) { spawn(respawnQ[i].type, respawnQ[i].zone); respawnQ.splice(i, 1); } }

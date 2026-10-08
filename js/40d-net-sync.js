@@ -329,6 +329,7 @@ function netApply(e, local) {
     case 'scr': crScream(e.n || 0); break;
     case 'air': airStrike(e.x, e.y, e.w, e.r, e.j); break; // the host called in a bomb
     case 'airw': airWarn(); break;
+    case 'airs': airStrafe(e.x, e.y, e.a, e.w); break; // ...or a strafing run
     case 'evt': evt = e.v ? { ...e.v } : null; if (evt) { evt.shown = false; Sfx.chime(); showEvent(); } break;
     case 'tod': if (Math.abs(angDiff(tod / 24 * TAU, e.v / 24 * TAU)) > .01) tod = e.v; break;
     case 'lives': NS.pools[e.k || 'all'] = e.n; netHud && netHud(); break;

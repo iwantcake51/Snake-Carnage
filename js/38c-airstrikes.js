@@ -18,46 +18,71 @@
    coming in, dropping as it goes), get quieter and duller with distance, pan across, arrive late the way sound does,
    and trail off into a long echo across the sky as it flies away. The bomb clunks off the rack, shrieks down and the
    blast rolls off into the same echo.
+   Strafing runs: sometimes a jet comes in low instead and rakes a line across your path with its cannon. The lane is
+   marked first (a red strip with chevrons showing which way it's coming), then the rounds walk down it in a spray of
+   dirt, sparks and tracers, with the tearing BRRRT arriving a beat after the impacts. Anything in the lane dies.
+   Bombs in a salvo never land together: each one comes down a moment after the last.
+   The Air raid modifier starts all of this from the first seconds of the run.
+   Heavy fog and tunnel vision hide the markers like anything else, but a blast lights the fog up from inside.
+   How hard a blast hits you depends on how close it was: the slowdown, the colour draining out of the picture, the
+   muffled hearing and the disorientation (the picture swaying and wobbling like after a wall, but less) all scale with it.
    Co-op: the host decides where bombs fall (an 'air' event); every screen counts down, draws and detonates them
    itself and checks only its own snake. Only the host kills the crowd.
    ========================================================= */
-const AIR = { warned: false, nextT: 0, flash: 0, sky: 0, rumble: 0, d0: 0 }; // flash: the white-out on screen; sky: how much a blast is lighting up the night
-const AIR_START = 90, AIR_R = 44; // seconds into the run before the first strike; blast radius
-let strikes = [], booms = [], boomBits = [], corpses = [], fallenHats = [], jets = [], shocks = [], fires = [], soots = [], hazes = [], later = [], clods = [];
+const AIR = { warned: false, nextT: 0, flash: 0, sky: 0, rumble: 0, d0: 0, muf: 0, mufH: 0 }; // flash: the white-out on screen; sky: how much a blast is lighting up the night
+const AIR_START = 90, AIR_R = 44, AIR_RAID_START = 6; // seconds into the run before the first strike (Air raid: almost straight away); blast radius
+const STRAFE_V = 1050, STRAFE_HW = 13, STRAFE_LEN = 820; // how fast the rounds walk down the lane, its half width and length
+let strikes = [], booms = [], boomBits = [], corpses = [], fallenHats = [], jets = [], shocks = [], fires = [], soots = [], hazes = [], later = [], clods = [], strafes = [], tracers = [];
 const airMap = () => { const m = MAPS[mapIdx]; return !!m && !m.indoor && !m.space; }; // outdoors, on Earth
-function airReset() { strikes = []; booms = []; boomBits = []; corpses = []; fallenHats = []; jets = []; shocks = []; fires = []; soots = []; hazes = []; later = []; clods = []; AIR.warned = false; AIR.nextT = 0; AIR.flash = 0; AIR.sky = 0; AIR.rumble = 0; AIR.d0 = 0; }
+const airOn = () => airMap() && (MOD.airRaid || SETTINGS.airstrikes !== false); // the Air raid modifier turns them on whatever the setting says
+function airReset() { strikes = []; booms = []; boomBits = []; corpses = []; fallenHats = []; jets = []; shocks = []; fires = []; soots = []; hazes = []; later = []; clods = []; strafes = []; tracers = []; AIR.warned = false; AIR.nextT = 0; AIR.flash = 0; AIR.sky = 0; AIR.rumble = 0; AIR.d0 = 0; AIR.muf = 0; AIR.mufH = 0; if (Sfx.lp) Sfx.daze(0); }
 /* reeling from a blast: full strength for the first second, then it fades over the next 1.2 */
 const boomSlow = s => s && s.boomT > 0 ? (s.boomK || 0) * clamp(s.boomT / 1.2, 0, 1) : 0;
 const boomDaze = () => snake && snake.alive ? boomSlow(snake) : 0;
-const airBusy = () => strikes.length || booms.length || boomBits.length || corpses.length || fallenHats.length || jets.length || shocks.length || fires.length || soots.length || hazes.length || later.length || clods.length;
+const airBusy = () => strikes.length || booms.length || boomBits.length || corpses.length || fallenHats.length || jets.length || shocks.length || fires.length || soots.length || hazes.length || later.length || clods.length || strafes.length || tracers.length;
 /* ---- calling them in (the deciding browser only) ---- */
 function airSchedule(dt) {
-  if (SETTINGS.airstrikes === false || !airMap() || state !== 'play') return;
-  const t = run.time || 0; if (t < AIR_START) return;
+  if (!airOn() || state !== 'play') return;
+  const t0 = MOD.airRaid ? AIR_RAID_START : AIR_START, t = run.time || 0; if (t < t0) return;
   if (!AIR.warned) { AIR.warned = true; AIR.d0 = cr.dist; airWarn(); netEmit({ t: 'airw' }); AIR.nextT = 3.5; return; }
   if ((AIR.nextT -= dt) > 0) return;
-  const g = Math.max((t - AIR_START) / 180, (cr.dist - AIR.d0) / 2500), k = Math.min(1, g); // how far you've come since they started: it never stops climbing
+  const g = Math.max((t - t0) / 180, (cr.dist - AIR.d0) / 2500), k = Math.min(1, g); // how far you've come since they started: it never stops climbing
   AIR.nextT = Math.max(.8, 7 / (1 + 1.4 * g)) * rand(.8, 1.25);
   const targets = netSnakes().filter(s => s.alive && s.started && !s.hidden && !s.netHidden && !(s.graceT > 0) && s.segs && s.segs.length);
   if (!targets.length) return;
-  const s = pick(targets), n = Math.min(7, 1 + Math.floor(Math.random() * (1.3 + 1.6 * g))), warn = 2.5 - .6 * k, sp = (s.speed || CONFIG.snakeSpeeds.Normal) * (s.dashV || 1);
+  const s = pick(targets);
+  if (t - t0 > (MOD.airRaid ? 12 : 20) && Math.random() < .24 + .16 * k) return strafeRun(s, k);
+  const n = Math.min(7, 1 + Math.floor(Math.random() * (1.3 + 1.6 * g))), warn = 2.5 - .6 * k, sp = (s.speed || CONFIG.snakeSpeeds.Normal) * (s.dashV || 1);
   const jetA = s.angle + (Math.random() < .5 ? 1 : -1) * rand(.9, 2.2); // the jet crosses your path
   for (let j = 0; j < n; j++) { // a salvo walks along the path
     const lead = warn * rand(.62, .78) + j * .42, side = gauss() * 14;
     const x = clamp(s.x + Math.cos(s.angle) * sp * lead - Math.sin(s.angle) * side, 24, W - 24), y = clamp(s.y + Math.sin(s.angle) * sp * lead + Math.cos(s.angle) * side, 24, H - 24);
-    const w = +(warn + j * .2).toFixed(2), ja = j === 0 ? +jetA.toFixed(3) : undefined;
+    let w = warn + j * rand(.17, .27) + rand(.02, .08); // one after another, never two at once
+    for (let q = 0; q < 6; q++) { const o = strikes.find(o => Math.abs(o.t - w) < .11); if (!o) break; w = o.t + .11 + rand(0, .05); }
+    w = +w.toFixed(2); const ja = j === 0 ? +jetA.toFixed(3) : undefined;
     airStrike(x, y, w, AIR_R, ja);
     netEmit({ t: 'air', x: Math.round(x), y: Math.round(y), w, r: AIR_R, j: ja });
   }
 }
+function strafeRun(s, k) { // the deciding browser: line a gun run up across where this snake is about to be
+  const sp = (s.speed || CONFIG.snakeSpeeds.Normal) * (s.dashV || 1), warn = +(2.3 - .5 * k).toFixed(2), a = s.angle + (Math.random() < .5 ? 1 : -1) * rand(.35, 1.15); // raking across your path at a slant
+  const lead = warn + STRAFE_LEN / 2 / STRAFE_V + rand(-.15, .05), x = clamp(s.x + Math.cos(s.angle) * sp * lead, 40, W - 40), y = clamp(s.y + Math.sin(s.angle) * sp * lead, 40, H - 40);
+  airStrafe(x, y, +a.toFixed(3), warn); netEmit({ t: 'airs', x: Math.round(x), y: Math.round(y), a: +a.toFixed(3), w: warn });
+}
 function airWarn() {
-  notify({ kind: 'bad', icon: '✈️', title: 'AIR STRIKE INBOUND', sub: 'The military is bombing your path. Stay out of the red rings.', dur: 4.2, key: 'air' });
+  notify({ kind: 'bad', icon: '✈️', title: MOD.airRaid ? 'AIR RAID' : 'AIR STRIKE INBOUND', sub: 'The military is bombing and strafing your path. Stay out of the red rings and lanes.', dur: 4.2, key: 'air' });
   Sfx.siren();
 }
 function airStrike(x, y, w, r = AIR_R, jetA) { // every screen: mark the spot and start its clock
   strikes.push({ x, y, t: w, dur: w, r, rot: rand(0, TAU), ph: 0, whistled: false });
   if (jetA !== undefined) { const j = { x, y, a: jetA, u: 0, over: Math.max(.3, w - .65), dropped: false }; jets.push(j); Sfx.flyby(j); }
   Sfx.lockOn(x);
+}
+function airStrafe(x, y, a, w) { // every screen: mark the lane through (x, y) and start the clock
+  const ca = Math.cos(a), sa = Math.sin(a), len = STRAFE_LEN;
+  strafes.push({ x0: x - ca * len / 2, y0: y - sa * len / 2, a, ca, sa, len, t: -w, warn: w, front: 0, next: 0, hw: STRAFE_HW, ph: 0, gun: false, done: 0 });
+  const j = { x, y, a, u: 0, over: w + len / 2 / STRAFE_V + .12, dropped: true, low: true }; jets.push(j); Sfx.flyby(j); // it comes in low, right behind its rounds
+  Sfx.lockOn(x); Sfx.strafeWarn(x);
 }
 /* ---- every frame ---- */
 function airTick(dt) {
@@ -67,6 +92,16 @@ function airTick(dt) {
     if (!s.whistled && s.t < .9) { s.whistled = true; Sfx.whistle(s.x, Math.max(.2, s.t)); }
     if (s.t <= 0) { strikes.splice(i, 1); detonate(s); }
   }
+  for (let i = strafes.length - 1; i >= 0; i--) {
+    const s = strafes[i], prev = s.front; s.t += dt; s.ph += dt * (4 + 10 * clamp(1 + s.t / s.warn, 0, 1) ** 2) * TAU;
+    if (s.t < 0) continue;
+    if (!s.gun) { s.gun = true; Sfx.gun(s.x0 + s.ca * s.len / 2, s.len / STRAFE_V); }
+    s.front = Math.min(s.len, s.t * STRAFE_V);
+    while (s.next <= s.front) { strafeHit(s, s.next); s.next += rand(12, 20); }
+    if (s.front > prev) strafeSweep(s, prev, s.front);
+    if (s.front >= s.len && (s.done += dt) > .8) strafes.splice(i, 1);
+  }
+  for (let i = tracers.length - 1; i >= 0; i--) if ((tracers[i].t += dt) > tracers[i].life) tracers.splice(i, 1);
   for (let i = jets.length - 1; i >= 0; i--) { const j = jets[i]; j.u += dt; if (!j.dropped && j.u >= j.over) { j.dropped = true; Sfx.release(j.x); } if (j.u > j.over + 2.5) jets.splice(i, 1); } // right over the target: the bombs come off the rack
   for (let i = later.length - 1; i >= 0; i--) { const l = later[i]; if ((l.t -= dt) <= 0) { later.splice(i, 1); l.f(); } } // secondary blasts going off a beat after the main one
   for (let i = soots.length - 1; i >= 0; i--) { const p = soots[i]; p.t += dt; if (p.t > p.life) { soots.splice(i, 1); continue; } if (p.t < 0) continue; const f = Math.exp(-dt * 1.3); p.vx *= f; p.vy *= f; p.x += p.vx * dt; p.y += p.vy * dt; p.r += p.g * dt * (1 - p.t / p.life * .7); p.rot += p.vr * dt; }
@@ -106,16 +141,19 @@ function detonate(s) {
   for (let k = 0; k < Math.round(40 * fx); k++) { const a = rand(0, TAU), sp = rand(40, 260); boomBits.push({ ember: true, x: x + rand(-8, 8), y: y + rand(-8, 8), z: rand(6, 20), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(60, 240), t: 0, life: rand(1.2, 2.8), g: .35 }); } // glowing embers that drift down
   for (let k = 0; k < Math.round(18 * fx); k++) { const a = rand(0, TAU), sp = rand(30, 140); smoke.push({ x: x + rand(-r * .4, r * .4), y: y + rand(-r * .4, r * .4), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: rand(16, 30), g: rand(20, 40), rot: rand(0, TAU), vr: rand(-.6, .6), t: -rand(.05, .5), life: rand(2.8, 4.5), v: k % 4, a: rand(.85, 1) }); } // the cloud, rising behind the fire
   for (let k = 0; k < Math.round(16 * fx); k++) { const a = k / 16 * TAU + rand(-.2, .2), sp = rand(220, 330); smoke.push({ x: x + Math.cos(a) * r * .7, y: y + Math.sin(a) * r * .7, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: rand(10, 16), g: rand(14, 26), rot: rand(0, TAU), vr: rand(-.6, .6), t: 0, life: rand(1.2, 2), v: k % 4, a: rand(.5, .75) }); } // a skirt of dust racing out along the ground
+  for (let k = 0; k < randi(4, 6); k++) { const a = rand(0, TAU), sp = rand(200, 420), sz = rand(7, 11); if (clods.length > 70) clods.shift(); // burning wreckage arcing out, trailing smoke, still alight where it lands
+    clods.push({ x: x + rand(-6, 6), y: y + rand(-6, 6), z: 4, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(380, 600), rot: rand(0, TAU), vr: rand(-12, 12), sz, spr: clodSprite(x, y, sz, '#2a1d14'), t: 0, life: rand(6, 9), rest: false, soil: '#2a1d14', burn: true, ph: rand(0, 99) }); }
+  const mf = Math.pow(clamp(1 - near / 950, 0, 1), 1.3); if (mf > AIR.muf) { AIR.muf = mf; AIR.mufH = .5 + 1.6 * mf; } // the further off, the less it deafens you
   const kk = clamp(1 - near / 520, .25, 1);
   shake = Math.max(shake, 24 * kk); AIR.flash = Math.max(AIR.flash, clamp(1 - near / 700, .2, 1) * (SETTINGS.reduceFlash ? .25 : .8)); AIR.sky = 1;
   if (near < 260) hitStop = Math.max(hitStop, .06); // the world catches its breath
   if (snake && near > 1) { const k = 260 * kk; camF.kv.x += (snake.x - x) / near * k; camF.kv.y += (snake.y - y) / near * k; } // the camera gets shoved away from it
   Sfx.boom(x, clamp(1.2 - near / 900, .5, 1.2));
   if (near < 230 && (state === 'play' || state === 'dead' || NETM.run)) Sfx.tinnitus(clamp(1.15 - near / 230, .25, 1)); // too close: your ears ring
-  if (snake && snake.alive && near < 320) { // close enough to knock you about: slowed, dimmed, no lunge, everything else's outlines gone
-    const dz = Math.pow(1 - near / 320, .6); AIR.rumble = Math.max(AIR.rumble, dz);
-    if (dz >= boomSlow(snake)) { snake.boomK = dz; snake.boomT = 2.2; }
-    snake.dashT = 0;
+  if (snake && snake.alive && near < 520) { // close enough to knock you about: slowed, drained of colour, dimmed, reeling, everything else's outlines gone; all of it by how close it was
+    const dz = Math.pow(1 - near / 520, 1.1); AIR.rumble = Math.max(AIR.rumble, dz);
+    if (dz >= boomSlow(snake)) { snake.boomK = dz; snake.boomT = 1.4 + 1.2 * dz; }
+    if (dz > .25) snake.dashT = 0;
   }
   // you: any part of the body inside the blast
   const me = snake;
@@ -137,11 +175,46 @@ function detonate(s) {
   noise('boom', x, y);
   if (!MOD.blind) for (const c of nearbyCreatures(x, y, 420, [])) if (c.alive && c.state !== 'panic') panic(c, x, y, rand(4, 7), 'none');
 }
-function bombDeath() {
-  crashHit = null; run.deathBy = 'bomb';
+function bombDeath(by = 'bomb') {
+  crashHit = null; run.deathBy = by;
   if (NETM.run) return netLocalDown();
   snake.netHidden = true; snakeBurst(snake, SETTINGS.snake.color, SETTINGS.snake);
   die();
+}
+function airEars(dt, dk = 0, wall = false) { // the world muffled after a blast (and after a smash): held a moment, then clearing
+  if (AIR.mufH > 0) AIR.mufH -= dt; else { AIR.muf *= Math.exp(-dt * .75); if (AIR.muf < .01) AIR.muf = 0; }
+  Sfx.daze(Math.max(dk, AIR.muf), wall, AIR.muf > dk && !wall);
+}
+/* ---- strafing: each round that lands, and anything in the lane as the rounds pass ---- */
+function strafeHit(s, d) {
+  const j = clamp(gauss() * s.hw * .5, -s.hw, s.hw), x = s.x0 + s.ca * d - s.sa * j, y = s.y0 + s.sa * d + s.ca * j;
+  if (x < 2 || y < 2 || x > W - 2 || y > H - 2) return;
+  const hard = solid(x, y), fx = FX_K();
+  tracers.push({ x, y, t: 0, life: .07, f: true }); // the round going off
+  if (Math.random() < .35) tracers.push({ x, y, a: s.a, t: 0, life: .09 }); // a tracer streaking in from the jet
+  for (let k = 0; k < (hard ? 6 : 3); k++) { const b = s.a + rand(-1.3, 1.3) + (hard && Math.random() < .5 ? Math.PI : 0), v = rand(150, 420); boomBits.push({ spark: true, x, y, z: rand(1, 4), vx: Math.cos(b) * v, vy: Math.sin(b) * v, vz: rand(20, 160), t: 0, life: rand(.12, .35) }); }
+  if (hard) return;
+  const pal = groundPalette(x, y, 5), soil = soilCol(x, y);
+  for (let k = 0; k < 5; k++) { const b = s.a + rand(-1, 1), v = rand(40, 200); boomBits.push({ x, y, z: 1, vx: Math.cos(b) * v, vy: Math.sin(b) * v, vz: rand(90, 260), t: 0, life: rand(.7, 1.4), s: rand(1.2, 2.6), c: pick(pal) }); } // dirt kicked up the way the rounds were going
+  if (Math.random() < .4 * fx) smoke.push({ x, y, vx: s.ca * 30 + rand(-15, 15), vy: s.sa * 30 + rand(-15, 15), r: rand(6, 10), g: rand(14, 24), rot: rand(0, TAU), vr: rand(-.6, .6), t: 0, life: rand(.9, 1.6), v: randi(0, 3), a: rand(.45, .65) });
+  bctx.save(); bctx.translate(x, y); bctx.rotate(s.a); // the hole it leaves
+  bctx.globalAlpha = .55; bctx.fillStyle = shade(soil, .08); bctx.beginPath(); bctx.ellipse(1.2, 0, 4.2, 2.6, 0, 0, TAU); bctx.fill();
+  bctx.globalAlpha = .85; bctx.fillStyle = 'rgba(12,9,7,1)'; bctx.beginPath(); bctx.ellipse(0, 0, 2, 1.5, 0, 0, TAU); bctx.fill(); bctx.restore();
+}
+function strafeSweep(s, a0, a1) {
+  const inLane = (px, py, pad) => { const dx = px - s.x0, dy = py - s.y0, al = dx * s.ca + dy * s.sa; return al >= a0 - 6 && al <= a1 && Math.abs(dy * s.ca - dx * s.sa) < s.hw + pad; };
+  const me = snake;
+  if (me && me.alive && me.segs) {
+    const dx = me.x - s.x0, dy = me.y - s.y0, al = dx * s.ca + dy * s.sa, pd = Math.abs(dy * s.ca - dx * s.sa);
+    if (al >= a0 - 6 && al <= a1 && pd < 200) { shake = Math.max(shake, 7 * (1 - pd / 200)); AIR.rumble = Math.max(AIR.rumble, .3 * (1 - pd / 200)); } // rounds tearing past right next to you
+    if (!me.netHidden && !(me.graceT > 0) && (state === 'play' || NETM.run) && me.segs.some(g => inLane(g.x, g.y, snakeRadius() * .5))) bombDeath('strafe');
+  }
+  if (!AUTH()) return;
+  const mid = (a0 + a1) / 2, mx = s.x0 + s.ca * mid, my = s.y0 + s.sa * mid, hit = [];
+  for (const c of nearbyCreatures(mx, my, (a1 - a0) / 2 + s.hw + 30, [])) if (c.alive && inLane(c.x, c.y, c.def.r * .7)) hit.push(c);
+  for (const c of hit) { if (!c.alive) continue; const ang = s.a + rand(-.4, .4), amt = c.def.blood; eatWorld(c, ang, amt, null); if (NETM.run) netKillEvent(c, 'air', ang, amt); }
+  if (hit.length) creatures = creatures.filter(c => c.alive);
+  if (Math.random() < .25) { noise('boom', mx, my); if (!MOD.blind) for (const c of nearbyCreatures(mx, my, 300, [])) if (c.alive && c.state !== 'panic') panic(c, mx, my, rand(3, 6), 'none'); }
 }
 /* ---- the mark it leaves: a black starburst burnt into the ground (the map's own floor layer, so it stays all run) ---- */
 const SCORCH = [];
@@ -170,6 +243,10 @@ function scorch(x, y, r) {
   const pit = bctx.createRadialGradient(x, y, 0, x, y, r * .55); pit.addColorStop(0, 'rgba(15,10,6,.85)'); pit.addColorStop(1, 'rgba(15,10,6,0)'); bctx.fillStyle = pit; bctx.beginPath(); bctx.arc(x, y, r * .55, 0, TAU); bctx.fill();
   bctx.restore();
   bctx.save(); bctx.translate(x, y); bctx.rotate(a); bctx.globalAlpha = .88; bctx.drawImage(scorchSprite(randi(0, 3)), -s / 2, -s / 2, s, s); bctx.restore();
+  bctx.save(); bctx.lineCap = 'round'; bctx.strokeStyle = 'rgba(10,8,6,.75)'; // the ground split open around it: jagged cracks running out, thinning as they go, some forking
+  const crack = (px, py, b, len, w, depth) => { const n = 6, st = len / n; for (let q = 0; q < n; q++) { b += rand(-.5, .5); const nx = px + Math.cos(b) * st, ny = py + Math.sin(b) * st; bctx.lineWidth = Math.max(.4, w * (1 - q / n)); bctx.beginPath(); bctx.moveTo(px, py); bctx.lineTo(nx, ny); bctx.stroke(); px = nx; py = ny; if (depth && Math.random() < .22) crack(px, py, b + rand(.5, 1) * (Math.random() < .5 ? 1 : -1), len * .4, w * .6 * (1 - q / n), 0); } };
+  for (let k = randi(7, 11); k > 0; k--) { const b = rand(0, TAU); crack(x + Math.cos(b) * r * .5, y + Math.sin(b) * r * .5, b, r * rand(.7, 1.7), rand(1.4, 2.6), 1); }
+  bctx.restore();
 }
 /* ---- a snake bursting, head first, quickly down to the tail: blood and body in its own two colors, no fire ---- */
 function snakeBurst(s, skin, cfg) {
@@ -253,12 +330,13 @@ function updateClods(dt) {
   for (let i = clods.length - 1; i >= 0; i--) {
     const c = clods[i]; c.t += dt; if (c.t > c.life) { clods.splice(i, 1); continue; }
     if (c.rest) continue;
+    if (c.burn && Math.random() < dt * 22) smoke.push({ x: c.x, y: c.y - c.z * .3, vx: rand(-10, 10), vy: rand(-10, 10), r: rand(4, 7), g: rand(10, 18), rot: rand(0, TAU), vr: rand(-.6, .6), t: 0, life: rand(.7, 1.3), v: randi(0, 3), a: rand(.4, .6) }); // a trail of smoke behind it
     c.vz -= 560 * dt; c.z += c.vz * dt; c.rot += c.vr * dt;
     const nx = c.x + c.vx * dt, ny = c.y + c.vy * dt; if (c.z < 20 && solid(nx, ny)) { c.vx *= -.35; c.vy *= -.35; } else { c.x = nx; c.y = ny; }
     if (c.z <= 0) { // lands: a thud of dirt, a bounce or two, then it stays
       c.z = 0;
       if (c.vz < -90) { c.vz = -c.vz * .28; c.vx *= .5; c.vy *= .5; c.vr *= .5; for (let q = 0; q < 3; q++) boomBits.push({ x: c.x, y: c.y, z: 1, vx: rand(-40, 40), vy: rand(-40, 40), vz: rand(40, 90), t: 0, life: rand(.6, 1.2), s: rand(1, 2), c: shade(c.soil, rand(-.3, .1)) }); }
-      else { c.rest = true; c.vz = 0; }
+      else { c.rest = true; c.vz = 0; if (c.burn) { c.burn = false; fires.push({ x: c.x, y: c.y, r: rand(3.5, 6), t: 0, life: rand(1.5, 3.2), ph: rand(0, 99) }); } } // still burning where it lands
     }
   }
 }
@@ -290,14 +368,19 @@ function drawHats(x) {
   x.globalAlpha = 1;
 }
 /* ---- drawing: everything bright goes on top of the lighting, so it reads at night too ---- */
-function drawAirstrikes(x) {
+function drawAirstrikes(x) { // drawn under the fog (so markers in it stay hidden), over the night (so it all reads in the dark)
   for (const j of jets) drawJet(x, j);
   for (const s of strikes) drawStrikeMark(x, s);
+  for (const s of strafes) drawStrafe(x, s);
   for (const p of soots) drawSoot(x, p);
-  if (booms.length || boomBits.length || fires.length || soots.length) {
+  if (booms.length || boomBits.length || fires.length || soots.length || tracers.length || clods.length) {
     x.save(); x.globalCompositeOperation = 'lighter';
     for (const p of soots) if (p.t >= 0 && p.t < .9) { const k = (1 - p.t / .9) ** 2 * p.a, g = x.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * .9); g.addColorStop(0, `rgba(255,140,40,${(k * .55).toFixed(3)})`); g.addColorStop(1, 'rgba(255,90,20,0)'); x.fillStyle = g; circ(x, p.x, p.y, p.r * .9); } // the fire inside the smoke
     for (const f of fires) drawFire(x, f);
+    for (const c of clods) if (c.burn) { const fl = .7 + .3 * Math.sin(T * 31 + c.ph), py = c.y - c.z * .3, rr = (c.sz * .9 + 4) * (1 + c.z * .006), g = x.createRadialGradient(c.x, py, 0, c.x, py, rr); g.addColorStop(0, `rgba(255,230,140,${.9 * fl})`); g.addColorStop(.45, `rgba(255,120,30,${.6 * fl})`); g.addColorStop(1, 'rgba(200,40,0,0)'); x.fillStyle = g; circ(x, c.x, py, rr); } // wreckage still on fire
+    for (const r of tracers) { const k = 1 - r.t / r.life;
+      if (r.f) { const g = x.createRadialGradient(r.x, r.y, 0, r.x, r.y, 8); g.addColorStop(0, `rgba(255,245,200,${k})`); g.addColorStop(1, 'rgba(255,160,60,0)'); x.fillStyle = g; circ(x, r.x, r.y, 8); continue; }
+      const L = 110 * k + 12, ca = Math.cos(r.a), sa = Math.sin(r.a); x.strokeStyle = `rgba(255,${200 + 40 * k | 0},120,${(.9 * k).toFixed(3)})`; x.lineWidth = 2; x.beginPath(); x.moveTo(r.x - ca * L, r.y - sa * L - L * .35); x.lineTo(r.x, r.y); x.stroke(); } // tracers coming in at a slant
     for (const b of booms) drawBoom(x, b);
     x.lineCap = 'round';
     for (const p of boomBits) {
@@ -310,6 +393,31 @@ function drawAirstrikes(x) {
   for (const p of boomBits) if (!p.spark && !p.ember) { const al = clamp((p.life - p.t) / .5, 0, 1); x.globalAlpha = al; x.fillStyle = p.c; x.fillRect(p.x - p.s / 2, p.y - p.z * .3 - p.s / 2, p.s, p.s * .8); }
   x.globalAlpha = 1;
   drawClods(x, true); // chunks of ground flying up through it all
+}
+function drawStrafe(x, s) { // the lane: a red strip with chevrons flowing the way the jet is coming, flashing faster as it gets close; the rounds eat it up as they land
+  const pre = s.t < 0, p = pre ? clamp(1 + s.t / s.warn, 0, 1) : 1, on = Math.sin(s.ph) > 0, fade = pre ? Math.min(1, (s.warn + s.t) * 5) : clamp(1 - s.done / .8, 0, 1), hw = s.hw, L = s.len, from = pre ? 0 : s.front;
+  x.save(); x.translate(s.x0, s.y0); x.rotate(s.a);
+  if (from < L) {
+    x.globalAlpha = fade * ((on ? .28 : .14) + .12 * p); x.fillStyle = '#ff2a20'; x.fillRect(from, -hw, L - from, hw * 2);
+    x.globalAlpha = fade * (on ? 1 : .7); x.strokeStyle = on ? '#ff3b30' : '#c81810'; x.lineWidth = 2; x.setLineDash([14, 8]); x.lineDashOffset = -T * 70;
+    x.beginPath(); x.moveTo(from, -hw); x.lineTo(L, -hw); x.moveTo(from, hw); x.lineTo(L, hw); x.stroke(); x.setLineDash([]);
+    x.strokeStyle = on ? 'rgba(255,225,205,.95)' : 'rgba(255,95,80,.85)'; x.lineWidth = 2.4; x.lineCap = 'round';
+    const sp = 46; for (let d = from + (T * 160) % sp; d < L; d += sp) { x.beginPath(); x.moveTo(d - 7, -hw * .6); x.lineTo(d + 2, 0); x.lineTo(d - 7, hw * .6); x.stroke(); } // >>> the way it's coming
+    if (pre) { x.globalAlpha = fade * .8; x.fillStyle = '#fff'; x.fillRect(0, -1, L * (1 - p), 2); } // time left
+  }
+  if (!pre && s.front < L) { x.globalCompositeOperation = 'lighter'; const g = x.createRadialGradient(s.front, 0, 0, s.front, 0, 34); g.addColorStop(0, 'rgba(255,230,170,.55)'); g.addColorStop(1, 'rgba(255,120,40,0)'); x.globalAlpha = 1; x.fillStyle = g; circ(x, s.front, 0, 34); } // where the rounds are landing now
+  x.restore();
+}
+/* ---- in heavy fog (or tunnel vision) you don't see the markers, but a blast lights the fog up from inside: a big warm glow, the fireball smeared through it ---- */
+function drawAirFog(x) {
+  if (!snake || (!MOD.fog && !MOD.fow) || (!booms.length && !fires.length && !tracers.length)) return;
+  x.save(); x.globalCompositeOperation = 'lighter';
+  for (const b of booms) { if (b.t < 0) continue; const hid = 1 - playerSees(b.x, b.y); if (hid < .05) continue;
+    const u = b.t / b.dur, k = (b.puff ? .35 : 1) * (1 - u) ** 1.2 * hid, R = b.r * (b.puff ? 2.5 : 6.5 + 2 * u), g = x.createRadialGradient(b.x, b.y, 0, b.x, b.y, R);
+    g.addColorStop(0, `rgba(255,225,170,${(.75 * k).toFixed(3)})`); g.addColorStop(.3, `rgba(255,150,70,${(.42 * k).toFixed(3)})`); g.addColorStop(1, 'rgba(255,90,30,0)'); x.fillStyle = g; circ(x, b.x, b.y, R); }
+  for (const f of fires) { const hid = 1 - playerSees(f.x, f.y); if (hid < .05) continue; const k = clamp(Math.min(f.t * 4, (f.life - f.t) / 1.2), 0, 1) * (.6 + .25 * Math.sin(T * 17 + f.ph)) * hid, R = 26 + f.r * 4, g = x.createRadialGradient(f.x, f.y, 0, f.x, f.y, R); g.addColorStop(0, `rgba(255,140,50,${(.3 * k).toFixed(3)})`); g.addColorStop(1, 'rgba(255,90,30,0)'); x.fillStyle = g; circ(x, f.x, f.y, R); }
+  for (const r of tracers) if (r.f) { const hid = 1 - playerSees(r.x, r.y); if (hid < .05) continue; const k = (1 - r.t / r.life) * hid, g = x.createRadialGradient(r.x, r.y, 0, r.x, r.y, 22); g.addColorStop(0, `rgba(255,220,150,${(.4 * k).toFixed(3)})`); g.addColorStop(1, 'rgba(255,140,50,0)'); x.fillStyle = g; circ(x, r.x, r.y, 22); } // muzzle-bright rounds landing, as flickers in the murk
+  x.restore();
 }
 function drawSoot(x, p) {
   if (p.t < 0) return;
@@ -414,9 +522,9 @@ function airLightHoles(lg, dark) {
   lg.globalAlpha = 1;
 }
 function drawJet(x, j) { // only its shadow: it's far up, crossing the screen over the target at the moment it lets go
-  const v = 1150, d = (j.u - j.over) * v, px = j.x + Math.cos(j.a) * d + 60, py = j.y + Math.sin(j.a) * d + 90;
+  const v = 1150, d = (j.u - j.over) * v, px = j.x + Math.cos(j.a) * d + (j.low ? 28 : 60), py = j.y + Math.sin(j.a) * d + (j.low ? 42 : 90);
   if (px < -300 || py < -300 || px > W + 300 || py > H + 300) return;
-  x.save(); x.translate(px, py); x.rotate(j.a); x.scale(2.6, 2.6); x.fillStyle = 'rgba(0,0,0,.26)';
+  x.save(); x.translate(px, py); x.rotate(j.a); x.scale(j.low ? 2.3 : 2.6, j.low ? 2.3 : 2.6); x.fillStyle = j.low ? 'rgba(0,0,0,.36)' : 'rgba(0,0,0,.26)';
   x.beginPath(); x.moveTo(22, 0); x.lineTo(14, -2.2); x.lineTo(2, -3); x.lineTo(-6, -19); x.lineTo(-11, -19); x.lineTo(-7, -3); x.lineTo(-15, -2.5); x.lineTo(-20, -8); x.lineTo(-23, -8); x.lineTo(-21, 0);
   x.lineTo(-23, 8); x.lineTo(-20, 8); x.lineTo(-15, 2.5); x.lineTo(-7, 3); x.lineTo(-11, 19); x.lineTo(-6, 19); x.lineTo(2, 3); x.lineTo(14, 2.2); x.closePath(); x.fill();
   x.restore();
@@ -497,7 +605,22 @@ Object.assign(Sfx, {
     if (!this.ok()) return; const c = this.ctx, t = c.currentTime, g = c.createGain(); g.connect(c.destination);
     const v = SETTINGS.volume * .05 * k; g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(.0002, v), t + .3); g.gain.setValueAtTime(Math.max(.0002, v), t + 1.2); g.gain.exponentialRampToValueAtTime(.0001, t + 3.2 + 1.5 * k);
     for (const [f, a] of [[3900, 1], [3912, .6]]) { const os = c.createOscillator(), og = c.createGain(); os.type = 'sine'; os.frequency.setValueAtTime(f, t); os.frequency.linearRampToValueAtTime(f - 160, t + 4.5); og.gain.value = a; os.connect(og); og.connect(g); os.start(t); os.stop(t + 4.8 + 1.5 * k); } // two close tones: it wavers
-    if (this.lp && !this.muffled) { const lf = this.lp.frequency; lf.cancelScheduledValues(t); lf.setValueAtTime(Math.max(200, lf.value), t); lf.exponentialRampToValueAtTime(500 + 1500 * (1 - k), t + .06); lf.setTargetAtTime(20000, t + .7 + k, .9); this.dzF = 0; }
+  },
+  strafeWarn(x) { // a fast, urgent double warble: something coming in low
+    if (!this.ok()) return; const t = this.ctx.currentTime, o = this.out(x, .35);
+    for (let i = 0; i < 4; i++) this.tone(o, t + .12 + i * .13, i % 2 ? 1250 : 1650, i % 2 ? 1250 : 1650, .1, 'square', .045);
+  },
+  gun(x, dur) { // the cannon: so many rounds a second they run together into one tearing BRRRT. The rounds land before its sound gets to you
+    if (!this.ok()) return; const c = this.ctx, t = c.currentTime, o = this.out(x, 1), D = .3, d = Math.min(1.4, dur + .1);
+    for (let i = 0; i < 28; i++) this.burst(o, t + i / 28 * dur + rand(0, .02), rand(.015, .04), rand(1500, 4600), 2.5, rand(.08, .16)); // the impacts, walking along
+    for (let i = 0; i < 6; i++) this.burst(o, t + Math.random() * dur, .03, rand(600, 1000), 1.5, .2, 'lowpass'); // the odd heavier thump
+    const env = g => { g.gain.setValueAtTime(.0001, t + D); g.gain.exponentialRampToValueAtTime(1, t + D + .03); g.gain.setValueAtTime(1, t + D + d - .06); g.gain.exponentialRampToValueAtTime(.001, t + D + d + .12); };
+    const g = c.createGain(), send = c.createGain(); env(g); send.gain.value = SETTINGS.volume * .55; g.connect(o); g.connect(send); send.connect(this.airVerb());
+    const src = c.createBufferSource(), bp = c.createBiquadFilter(), am = c.createGain(), lfo = c.createOscillator(), lg = c.createGain(); src.buffer = this.noise; src.loop = true; bp.type = 'bandpass'; bp.frequency.value = 650; bp.Q.value = .8;
+    lfo.type = 'square'; lfo.frequency.value = 66; lg.gain.value = .5; am.gain.value = .5; lfo.connect(lg); lg.connect(am.gain); // the rounds: 66 a second, chopping the roar up
+    const ng = c.createGain(); ng.gain.value = .55; src.connect(bp); bp.connect(am); am.connect(ng); ng.connect(g);
+    const saw = c.createOscillator(), sl = c.createBiquadFilter(), sg = c.createGain(); saw.type = 'sawtooth'; saw.frequency.value = 66; sl.type = 'lowpass'; sl.frequency.value = 420; sg.gain.value = .28; saw.connect(sl); sl.connect(sg); sg.connect(g); // its growl
+    const end = t + D + d + .2; src.start(t + D, Math.random() * .4); lfo.start(t + D); saw.start(t + D); src.stop(end); lfo.stop(end); saw.stop(end);
   },
   gore(x, big) { // a wet burst: a body coming apart
     if (!this.ok() || !this.gate(big ? 'goreB' : 'gore', big ? .1 : .05)) return; const t = this.ctx.currentTime, o = this.out(x, big ? 1 : .55);

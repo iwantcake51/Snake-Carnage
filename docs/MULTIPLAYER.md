@@ -66,7 +66,7 @@ The host picks one in the lobby.
   - The host sends 15 binary snapshots a second: player heads, plus 8 bytes per NPC that moved or changed state since that guest's last snapshot (and a few unchanged ones in rotation).
   - Guests draw remote things 110 ms in the past and interpolate, extrapolating briefly through a late packet.
 - **Effects:** blood, gibs, mist, pools and sounds are never streamed. A kill event carries where it happened, the direction and the amount, and each screen makes its own.
-- **Air strikes:** the host picks where bombs land (an `air` event: spot, warning time, radius). Every screen counts it down, draws the marker and the blast, and checks only its own snake. People and animals caught in it die on the host, announced as ordinary kill events credited to no player. Any death in multiplayer sets the snake off front to back (`snakeBurst` in `38c-airstrikes`).
+- **Air strikes:** the host picks where bombs land (an `air` event: spot, warning time, radius) and where strafing runs rake (an `airs` event: the lane's middle, angle and warning time). Every screen counts it down, draws the marker and the blast, and checks only its own snake. People and animals caught in it die on the host, announced as ordinary kill events credited to no player. Any death in multiplayer sets the snake off front to back (`snakeBurst` in `38c-airstrikes`).
 - **Disconnects:**
   - A guest who drops or reloads mid-run reconnects with a token, gets the same slot back and rejoins the run with a full state sync.
   - If the host leaves, the earliest-joined guest becomes the new host and the others follow them. That run ends, since its world lived on the old host, and the lobby carries on.
