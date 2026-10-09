@@ -2696,7 +2696,6 @@ i.tok{display:inline-block;width:.86em;height:.96em;vertical-align:-.1em;backgro
 .skn{position:absolute;display:flex;flex-direction:column;align-items:center;width:138px;margin-left:-69px;padding:0;background:none!important;border:0;color:var(--ink);font:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;outline:none}
 .skn.maj{margin-top:-48px}.skn.pas{margin-top:-36px}
 .skshape{display:block;overflow:visible;transition:transform .16s cubic-bezier(.2,.8,.2,1)}
-.skn:hover .skshape{transform:scale(1.045)}
 .skn.maj .skshape{width:96px;height:96px}.skn.pas .skshape{width:72px;height:72px}
 .skshape *{transition:fill .3s,stroke .3s,opacity .3s}
 .skico{position:absolute;left:50%;translate:-50% -50%;pointer-events:none;color:#5c5357;transition:color .3s;display:flex}
@@ -2738,7 +2737,8 @@ i.tok{display:inline-block;width:.86em;height:.96em;vertical-align:-.1em;backgro
 .skn.sel .skl b{color:var(--ink)}
 #overlay .panel .skn:focus-visible{outline:none}
 .skn:focus-visible .skbr{stroke:var(--acc-hi);stroke-width:3}
-.skn:active .skshape{transform:scale(.93)}
+.skn.tap .skshape{animation:skTap .34s cubic-bezier(.2,.9,.3,1.4)}
+@keyframes skTap{0%{transform:scale(.9)}50%{transform:scale(1.1)}100%{transform:scale(1)}}
 .skn.pulse .skshape{animation:skPulse .4s ease-out}
 .skn.unlock .skshape{animation:skPop .62s cubic-bezier(.2,.9,.25,1.3)}
 .skn.unlock .skburst,.skn.pulse .skburst{animation:skBurst .65s ease-out}

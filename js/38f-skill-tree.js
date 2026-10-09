@@ -179,7 +179,8 @@ function skWire() {
   view.addEventListener('pointerup', up); view.addEventListener('pointercancel', up);
   view.addEventListener('click', e => { // a tap on a node selects it (never after a drag)
     if (moved) { moved = false; return; }
-    const b = e.target.closest('.skn'); if (b) skSelect(b.dataset.n, false);
+    const b = e.target.closest('.skn'); if (!b) return; skSelect(b.dataset.n, false);
+    if (!b.classList.contains('pulse') && !b.classList.contains('unlock')) { b.classList.remove('tap'); void b.offsetWidth; b.classList.add('tap'); setTimeout(() => b.classList.remove('tap'), 400); } // the clicked skill pops
   });
   view.addEventListener('wheel', e => { e.preventDefault(); const p = local(e); skZoomSmooth(Math.exp(-clamp(e.deltaY, -120, 120) * .0016), p.x, p.y); }, { passive: false });
   skEl('skFit').onclick = () => skFit(true);
