@@ -24,6 +24,6 @@ let out = html.replace(tags[0][0], `<script src="${jsName}"></script>\n`);
 for (const t of tags.slice(1)) out = out.replace(t[0], '');
 out = out.replace('href="css/style.css"', `href="${cssName}"`);
 writeFileSync('index.html', out);
-// kenney/ holds whole asset packs to pick from; only the copies the game loads ship, so the packs stay off the site.
-rmSync('kenney', { recursive: true, force: true });
+// kenney/ and texture-packs/ hold whole asset packs to pick from; only the copies the game loads ship, so the packs stay off the site.
+rmSync('kenney', { recursive: true, force: true }); rmSync('texture-packs', { recursive: true, force: true });
 console.log(`bundle: ${tags.length} scripts -> ${jsName} (${(js.length / 1024).toFixed(0)} KB), ${cssName}`);

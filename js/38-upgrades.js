@@ -146,6 +146,15 @@ const skSpent = (t = PROG.tree, cost = skRankCost) => SKILL_TREE.reduce((a, n) =
 const skTokens = () => PROG.level - 1 + (PROG.tokBonus | 0) - skSpent(); // one per level past 1 (plus what the chip-bought skills were worth); can dip below 0 after an admin max-out
 if (PROG.treeV < 3) { PROG.tokBonus = (PROG.tokBonus | 0) + skSpent(undefined, (n, r) => n.cost[r]); PROG.treeV = 3; saveProg(); }
 if (PROG.treeV < 4) { PROG.tokBonus = (PROG.tokBonus | 0) + skSpent() - skSpent(undefined, (n, r) => n.cost[r]); PROG.treeV = 4; saveProg(); } // tree v4 (dearer ranks deeper in, every other rank and the last): what you already own is made up for, so nobody loses tokens // tree v3 (tokens, not chips): what you bought with chips stays yours, and its tokens are added on top, so it costs you nothing
+/* LEVEL_V: bump it by one whenever the levelling changes (the XP curve, what pays XP, tokens per level). Every save then starts
+   over at level 1 with no XP and an empty skill tree (its tokens came from those levels), so old and new progress never mix.
+   Chips, cosmetics, achievements and records are kept. */
+const LEVEL_V = 2; // 2: v1.81's slower curve, XP for staying alive and combo XP
+if ((PROG.lvV | 0) < LEVEL_V) {
+  const was = PROG.level > 1 || PROG.xp > 0 || Object.keys(PROG.tree).length;
+  Object.assign(PROG, { level: 1, xp: 0, tree: {}, treeOff: {}, tokBonus: 0, lvV: LEVEL_V }); saveProg();
+  if (was) setTimeout(() => notify({ kind: 'info', icon: giSvg('skull'), title: 'Levels reset', sub: 'Levelling changed in this update, so everyone starts again from level 1 with a fresh skill tree. Chips, skins and achievements are kept.', dur: 7, key: 'lvreset' }), 1800);
+}
 const skMe = id => { const o = UPG_OVR; UPG_OVR = null; try { return sk(id); } finally { UPG_OVR = o; } }; // your own rank, even while the host is working for another player
 const sk = id => { const n = SKN[id]; if (!n || MOD.noUpgrades || (MOD.noAbilities && n.abil)) return 0; // a node's rank as it counts right now
   const r = UPG_OVR ? UPG_OVR[id] : edTestSkills && edTesting !== null ? edTestSkills[id] : PROG.treeOff[id] ? 0 : PROG.tree[id];

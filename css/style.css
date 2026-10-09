@@ -1880,7 +1880,7 @@ body:not(.phone):not(.narrow) .panel.mods .chhead{margin-bottom:0}
 #goFade .shT::after{bottom:0}#goFade .shB::after{top:0}
 #goFade .shS{position:absolute;left:0;right:0;top:50%;height:2px;margin-top:-1px;background:linear-gradient(90deg,transparent,#ff3030 18%,#ffb0a0 50%,#ff3030 82%,transparent);box-shadow:0 0 14px 2px rgba(255,40,40,.75),0 0 40px rgba(255,40,40,.35);transform:scaleX(0);opacity:0;transition:transform .32s cubic-bezier(.2,.8,.2,1) .4s,opacity .2s .4s}
 #goFade .shL{position:absolute;left:0;right:0;top:50%;display:flex;flex-direction:column;align-items:center;gap:2px;transform:translateY(-50%);opacity:0;transition:opacity .3s .55s,letter-spacing .9s cubic-bezier(.2,.8,.2,1) .55s;letter-spacing:.6em}
-#goFade .shL small{font:700 12px var(--f-head,sans-serif);letter-spacing:.42em;text-transform:uppercase;color:#ff5a4f;margin-bottom:34px;transform:translateY(16px)} /* (nearer the seam, still above it; the mode's name keeps its place) */
+#goFade .shL small{font:700 12px var(--f-head,sans-serif);letter-spacing:.42em;text-transform:uppercase;color:#ff5a4f;margin-bottom:34px;transform:translateY(33px)} /* (just above the seam; the mode's name keeps its place) */
 #goFade .shL b{font:800 clamp(30px,5vw,58px)/1 var(--f-head,sans-serif);text-transform:uppercase;color:#f4ece6;margin-top:6px;text-shadow:0 0 22px rgba(255,40,40,.35)}
 #goFade.in::before{opacity:1}
 #goFade.in .shT,#goFade.in .shB{transform:none}

@@ -300,10 +300,10 @@ function skReset() { // two presses: the first asks, the second hands every toke
   if (typeof netLobbySyncProfile === 'function' && NETM.on) netLobbySyncProfile();
 }
 function skSmooth(list) { // a link that was dotted closes up: the dots stretch and run together into a solid line, thickening as they go
-  for (const p of list) { const cs = getComputedStyle(p), w0 = parseFloat(cs.strokeWidth) || 3, glow = p.classList.contains('skgl');
-    p.classList.remove('open', 'off'); p.classList.add('on'); const w1 = parseFloat(getComputedStyle(p).strokeWidth) || 5, o1 = +getComputedStyle(p).opacity;
-    const a = p.animate(glow ? [{ opacity: 0 }, { opacity: o1 }] : [{ strokeDasharray: '1px 8px', strokeWidth: w0 + 'px', opacity: .5 }, { strokeDasharray: '9px 0px', strokeWidth: w1 + 'px', opacity: o1 }], { duration: glow ? 700 : 650, easing: 'cubic-bezier(.4,0,.2,1)' });
-    a.onfinish = a.oncancel = () => { delete p.dataset.hold; }; }
+  for (const p of list) { const w0 = parseFloat(getComputedStyle(p).strokeWidth) || 3, glow = p.classList.contains('skgl');
+    p.style.transition = 'none'; p.classList.remove('open', 'off'); p.classList.add('on'); const cs = getComputedStyle(p), w1 = parseFloat(cs.strokeWidth) || 5, o1 = +cs.opacity; // (the end state read with no CSS transition in the way: a transition would report where it starts, and the soft edges would only pop in at the end)
+    const a = p.animate([{ strokeDasharray: '1px 8px', strokeWidth: (glow ? w1 * .4 : w0) + 'px', opacity: glow ? 0 : .5 }, { strokeDasharray: '9px 0px', strokeWidth: w1 + 'px', opacity: o1 }], { duration: 650, easing: 'cubic-bezier(.4,0,.2,1)' }); // the soft edges close up and widen with the line, at the same pace
+    a.onfinish = a.oncancel = () => { delete p.dataset.hold; p.style.transition = ''; }; }
 }
 function skTravel(p) { // a short bright stretch running down a link that just opened
   if (skCalm() || !p) return;
