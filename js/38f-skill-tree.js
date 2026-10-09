@@ -97,7 +97,10 @@ function showSkillTree() {
   document.getElementById('backBtn').onclick = () => transitionTo(showMenu);
   document.getElementById('skReset').onclick = skReset;
   skWire(); skRefresh(); skMarkSel(); skInfo(false);
-  requestAnimationFrame(() => { if (!skCam) skFit(false); else skApply(); skMarkSel(); });
+  requestAnimationFrame(() => { // on a touch screen, start where the names are big enough to read and tap (Fit tree still shows it all)
+    if (!skCam) { skFit(false); if ((skPhone() || IS_TOUCH) && skCam.z < .62) skCenterOn({ x: SKN[skSel].x, y: SKN[skSel].y - 130 }, false); }
+    else { skClamp(); skApply(); }
+    skMarkSel(); });
 }
 function skCtlIcon(k) {
   const P = { fit: '<path d="M3 7V3h4M13 3h4v4M17 13v4h-4M7 17H3v-4"/>', plus: '<path d="M10 4v12M4 10h12"/>', minus: '<path d="M4 10h12"/>' };
@@ -122,7 +125,11 @@ function skFrame(b, glide, zmax = 1.15) {
   skCam = { z, x: w / 2 - (b.x0 + b.x1) / 2 * z, y: top + (h - top - bot) / 2 - (b.y0 + b.y1) / 2 * z }; skClamp(); skApply(glide);
 }
 const skFit = glide => skFrame(skBounds(SK_ALL()), glide);
-function skFocusBranch(br) { const ns = SKILL_TREE.filter(n => n.br === br); skFrame(skBounds([...ns, SK_LABEL[br]]), true, 1.35); const root = ns.find(n => !n.req.length); if (root && !SKILL_TREE.some(n => n.id === skSel && n.br === br)) skSelect(root.id, false); }
+const skPhone = () => document.body.classList.contains('phone');
+function skCenterOn(n, glide, z = .72) { // a phone's screen is too short to frame a whole branch readably: centre on a node at a size you can read and tap, and pan from there
+  const { w, h } = skViewSize(); skCam = { z, x: w / 2 - n.x * z, y: 54 + (h - 80) / 2 - n.y * z }; skClamp(); skApply(glide); }
+function skFocusBranch(br) { const ns = SKILL_TREE.filter(n => n.br === br), root = ns.find(n => !n.req.length);
+  if (skPhone()) skCenterOn({ x: root.x, y: root.y - 200 }, true); else skFrame(skBounds([...ns, SK_LABEL[br]]), true, 1.35); if (root && !SKILL_TREE.some(n => n.id === skSel && n.br === br)) skSelect(root.id, false); }
 function skClamp() { // never lose the tree: a good piece of it stays on screen
   const { w, h } = skViewSize(), b = skBounds(SK_ALL()), m = 140, z = skCam.z;
   skCam.x = clamp(skCam.x, Math.min(m - b.x1 * z, w - m - b.x0 * z), Math.max(m - b.x1 * z, w - m - b.x0 * z));
@@ -214,8 +221,8 @@ function skInfo(animate, prevVals) {
     <dl class="sk-fx">${fxRows}</dl>
     ${reqRows ? `<div class="sk-sec"><h4>Requires</h4><ul class="sk-req">${reqRows}</ul></div>` : ''}
     <div class="sk-buy">${max ? `<span class="sk-done">${SK_OK}${n.major ? 'Unlocked' : 'Maxed'}: nothing more to buy here</span>` : `<div class="sk-cost"><small>Cost</small><b class="${skLeft() < cost ? 'poor' : ''}"><i class="tok"></i> ${tokN(cost)}</b></div>
-      <button class="btn ${why.length || skLeft() < cost ? 'alt' : ''}" id="skBuy" data-sfx="none">${btnTxt}</button>`}</div>
-    <p class="sk-why" id="skWhy">${skWhyText(n)}</p>
+      <button class="btn ${why.length || skLeft() < cost ? 'alt' : ''}" id="skBuy" data-sfx="none">${btnTxt}</button>`}
+      <p class="sk-why" id="skWhy">${skWhyText(n)}</p></div>
     ${r ? `<div class="sk-tg"><span>${n.abil ? 'Use this ability in runs' : 'Active in runs'}</span><button class="tgl sm ${PROG.treeOff[n.id] ? '' : 'on'}" id="skTgl" data-sfx="none" role="switch" aria-checked="${!PROG.treeOff[n.id]}" aria-label="${attr(n.name)} active in runs"></button></div>` : ''}`;
   const bb = skEl('skBuy'); if (bb) bb.onclick = () => skBuy(n.id);
   const tg = skEl('skTgl'); if (tg) tg.onclick = () => { PROG.treeOff[n.id] = !PROG.treeOff[n.id]; if (!PROG.treeOff[n.id]) delete PROG.treeOff[n.id]; saveProg(); Sfx.ui(PROG.treeOff[n.id] ? 'off' : 'on'); skRefresh(); skInfo(false); };

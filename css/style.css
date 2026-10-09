@@ -2805,14 +2805,15 @@ i.tok{display:inline-block;width:.86em;height:.96em;vertical-align:-.1em;backgro
 .sk-req li em{margin-left:auto;font:600 12.5px var(--f-num);font-style:normal;color:var(--dim)}
 .sk-req .rq{width:16px;height:16px;flex:none}
 .sk-req li.ok .rq{color:#7fbf8e}.sk-req li.no{color:var(--dim)}.sk-req li.no .rq{color:#c9705f}
-.sk-buy{margin-top:auto;display:flex;align-items:center;gap:12px;padding-top:12px;border-top:1px solid var(--hair);position:sticky;bottom:0;background:#0f0c0d}
+.sk-buy{margin-top:auto;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:12px 0 6px;border-top:1px solid var(--hair);position:sticky;bottom:0;background:#0f0c0d}
+.sk-buy .sk-why{flex:1 1 100%}.sk-why:empty{display:none}
 .sk-cost small{display:block;font:600 11px var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:var(--mute)}
 .sk-cost b{display:inline-flex;align-items:center;gap:7px;font:700 19px var(--f-num);color:#cfc2f5}
 .sk-cost b.poor{color:#c9705f}
 #overlay #skBuy{margin:0 0 0 auto;min-width:168px;height:46px;transition:scale .08s ease-out}
 #overlay #skBuy:not([disabled]):active{scale:.96!important}
 #overlay #skBuy[disabled]{opacity:.55;cursor:default}
-.sk-why{margin:-4px 0 0;min-height:1.3em;font:500 13px/1.35 var(--f-body);color:#d58f74}
+.sk-why{margin:0;font:500 13px/1.35 var(--f-body);color:#d58f74}
 .sk-why.nudge{animation:skNope .32s}
 .sk-done{display:flex;align-items:center;gap:8px;font:600 13.5px var(--f-body);color:var(--bc)}.sk-done svg{width:18px;height:18px}
 .sk-tg{display:flex;align-items:center;justify-content:space-between;gap:10px;font:500 13.5px var(--f-body);color:var(--dim)}
@@ -2826,12 +2827,27 @@ body.compact .skctl button span{display:none}body.compact .skctl button{padding:
 body.touch .skctl button{height:42px;min-width:42px}
 body.touch .skn{width:150px;margin-left:-75px}
 body.touch .sk-h kbd{display:none}
-body.phone .skbody{grid-template-columns:minmax(0,1fr) 250px}
-body.phone .skinfo{padding:10px 12px;gap:9px}
-body.phone .skh{padding:6px 10px;gap:10px}body.phone #overlay .panel.sktree .skh h1{font-size:24px!important}
-body.phone #overlay .panel .sk-h h2{font-size:20px!important}body.phone .sk-ic{width:42px;height:42px}body.phone .sk-ic.maj{width:42px;height:48px}
-body.phone .sk-d{font-size:12.5px;line-height:1.4}body.phone .sk-fx>div{padding:5px 0}
-body.phone #overlay #skBuy{min-width:0;flex:1;height:44px}
+/* phones: undo the overlay's shrink (like the main menu) so the tree is drawn at full size, fill the whole stage edge to
+   edge, and keep the details panel narrow with its button always in view */
+body.phone #overlay.menuMode .panel.sktree{position:absolute;inset:0;width:auto!important;height:auto!important;max-height:none!important;zoom:calc(1 / var(--ui));border:0!important;overflow:hidden!important;padding:0 env(safe-area-inset-right) 0 env(safe-area-inset-left)!important;grid-template-rows:auto minmax(0,1fr)}
+body.phone .skbody{grid-template-columns:minmax(0,1fr) 248px}
+body.phone .skh{padding:5px 10px;gap:10px;min-height:44px}
+body.phone #overlay .panel.sktree .skh h1{font-size:21px!important}
+body.phone .skh .mm-back{min-height:36px;padding:0 10px}body.phone .skh .mm-back span{display:none}
+body.phone .sklvl{display:none}
+body.phone #overlay #skTok{padding:4px 9px}body.phone #skTok .tkw{display:none}
+body.phone .skctl{top:6px;left:6px;right:6px;gap:5px}body.phone .skctl button{height:38px;min-width:38px;padding:0 9px}
+body.phone .skinfo{padding:10px 11px 0;gap:8px}
+body.phone .sk-h{gap:9px}body.phone .sk-h small{font-size:10.5px;letter-spacing:.08em}
+body.phone #overlay .panel .sk-h h2{font-size:19px!important}body.phone .sk-ic{width:38px;height:38px}body.phone .sk-ic.maj{width:38px;height:44px}body.phone .sk-ic svg{width:20px;height:20px}
+body.phone .sk-rank{flex-wrap:wrap;gap:6px 8px}body.phone .sk-bars i{width:14px;height:6px}body.phone .sk-st{font-size:10.5px;padding:2px 6px}
+body.phone .sk-d{font-size:12.5px;line-height:1.4}
+body.phone .sk-fx>div{padding:5px 0}body.phone .sk-fx dt{font-size:12.5px}body.phone .sk-fx dd{font-size:13px}
+body.phone .sk-ranks li{font-size:12px}
+body.phone .sk-buy{flex-wrap:wrap;gap:6px 10px;padding:8px 0 10px}
+body.phone .sk-cost{display:flex;align-items:baseline;gap:8px}body.phone .sk-cost b{font-size:16px}
+body.phone #overlay #skBuy{min-width:0;flex:1 1 100%;height:44px;white-space:nowrap;font-size:17px!important}
+body.phone .sk-why{font-size:12px;margin:0}
 body.phone .skhint{display:none}body.phone .skctl button span{display:none}
 body.calm .skworld.glide{transition:none}
 body.calm .skn *,body.calm .skinfo *{animation:none!important}
