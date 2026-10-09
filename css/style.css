@@ -2938,3 +2938,26 @@ svg.ki.rdy{width:.9em;height:.9em;margin-left:3px}
 #animEd .ae-note{font-style:italic}
 #animEd .ae-foot{display:flex;gap:6px;align-items:center;padding:8px 12px;border-top:1px solid rgba(255,255,255,.08)}#animEd .ae-foot .sp{flex:1;text-align:center;color:#9dff8a}
 @media (max-width:560px){#animEd .ae-body{grid-template-columns:1fr}#animEd .ae-list{max-height:160px;border-right:0;border-bottom:1px solid rgba(255,255,255,.08)}}
+
+/* ---- Skill Tree opening (skBoot): a terminal types its way to ONLINE, a seam of light, then the black halves part from the middle ---- */
+.panel.sktree{position:relative}
+.skboot{position:absolute;inset:0;z-index:60;overflow:hidden;cursor:pointer}
+.skboot .bt,.skboot .bb{position:absolute;left:0;right:0;height:50.2%;background:#040605 repeating-linear-gradient(0deg,rgba(80,255,140,.035) 0 1px,transparent 1px 3px);transition:transform .62s cubic-bezier(.75,0,.2,1)}
+.skboot .bt{top:0;box-shadow:inset 0 -1px 0 rgba(110,255,160,.25)}.skboot .bb{bottom:0;box-shadow:inset 0 1px 0 rgba(110,255,160,.25)}
+.skboot .seam{position:absolute;left:0;right:0;top:50%;height:2px;margin-top:-1px;background:#9dffbf;box-shadow:0 0 14px 3px rgba(90,255,150,.65);transform:scaleX(0);opacity:0}
+.skboot.live .seam{animation:skSeam .5s cubic-bezier(.2,.8,.2,1) .15s forwards}
+@keyframes skSeam{0%{transform:scaleX(0);opacity:1}60%{transform:scaleX(1);opacity:1}100%{transform:scaleX(1);opacity:.9}}
+.skboot.open .bt{transform:translateY(-101%)}.skboot.open .bb{transform:translateY(101%)}
+.skboot.open .seam{animation:none;transform:scaleX(1);opacity:0;transition:opacity .35s}
+.skboot .sktxt{position:absolute;left:50%;top:50%;translate:-50% -50%;margin:0;z-index:2;font:500 15px/1.65 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#7dffa8;text-shadow:0 0 8px rgba(80,255,140,.55);white-space:pre;text-align:left;transition:opacity .2s}
+.skboot .sktxt b.on{display:block;margin-top:6px;text-align:center;font:700 40px/1 var(--f-head,ui-monospace);letter-spacing:.32em;color:#b8ffd0;text-shadow:0 0 18px rgba(90,255,150,.8);animation:skOn .45s steps(2) 2}
+@keyframes skOn{50%{opacity:.25}}
+.skboot .cur{display:inline-block;width:.6em;height:1.05em;margin-left:2px;vertical-align:-.15em;background:#7dffa8;animation:skCur .5s steps(1) infinite}
+@keyframes skCur{50%{opacity:0}}
+.skboot.live .sktxt{animation:skTxtOut .2s ease .3s forwards}
+@keyframes skTxtOut{to{opacity:0}}
+body.calm .skboot{display:none}
+/* buying a rank: a copy of the node's outline ripples out and fades */
+.skecho{position:absolute;left:50%;top:0;translate:-50% 0;overflow:visible;pointer-events:none;fill:none;stroke:var(--bc);stroke-width:3;filter:drop-shadow(0 0 6px var(--bc));animation:skEcho .95s cubic-bezier(.2,.65,.35,1) forwards}
+.skn.maj .skecho{width:96px;height:96px}.skn.pas .skecho{width:72px;height:72px}
+@keyframes skEcho{0%{transform:scale(1);opacity:1;stroke-width:5}45%{opacity:.75}100%{transform:scale(var(--k,1.9));opacity:0;stroke-width:1.2}}
