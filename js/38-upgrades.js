@@ -274,7 +274,8 @@ function refreshTouchAbilities() {
   host.innerHTML = (state === 'menu' || state === 'loading' || state === 'editor' ? [] : ABIL_NODES.filter(n => sk(n.id))).map(n => `<button class="tb ab" data-a="${n.id}" data-sfx="none" aria-label="${n.name}">${upIcon(n.icon)}<i class="cd"></i></button>`).join('');
   host.querySelectorAll('[data-a]').forEach(b => b.onpointerdown = e => { e.stopPropagation(); useAbility(b.dataset.a); });
 }
-function upIcon(k) { // small hand-drawn SVG glyphs (20 x 20), one per skill, so the tree and the HUD don't lean on emoji
+function upIcon(k) { // every skill's icon, from game-icons.net (03d-game-icons); the small hand-drawn glyphs below are the fallback
+  if (GI[k]) return giSvg(k, 'upi');
   const P = {
     speed: '<path d="M3 13h7M5 9h8M3 5h6" stroke-width="2"/><path d="M12 4l6 6-6 6" stroke-width="2.4"/>',
     sidewind: '<path d="M3 16c4 0 3-6 7-6s3-6 7-6" stroke-width="2.2"/><path d="M14 3h3v3" stroke-width="1.8"/>',

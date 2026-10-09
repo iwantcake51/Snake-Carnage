@@ -10,7 +10,7 @@
 const SAMPLES = {}; // name -> [AudioBuffer]
 function loadSamples() { // once, after the first click (the audio context needs it); only over http(s): a file:// page can't fetch
   if (loadSamples.done || !Sfx.ctx || location.protocol === 'file:') return; loadSamples.done = true;
-  fetch('sounds/manifest.json').then(r => r.ok ? r.json() : {}).then(man => {
+  (typeof SOUND_MANIFEST === 'object' ? Promise.resolve(SOUND_MANIFEST) : fetch('sounds/manifest.json').then(r => r.ok ? r.json() : {})).then(man => { // (the live site has it inside the bundle: tools/bundle.mjs)
     for (const [name, files] of Object.entries(man || {})) for (const f of [].concat(files)) {
       fetch('sounds/' + f).then(r => r.ok ? r.arrayBuffer() : Promise.reject(f)).then(b => Sfx.ctx.decodeAudioData(b)).then(buf => { (SAMPLES[name] = SAMPLES[name] || []).push(buf); }).catch(() => {});
     }

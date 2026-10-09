@@ -17,14 +17,14 @@ body.theme-ember{--acc:#e8541c;--acc-hi:#ffa060;--acc-lo:#a83510;--acc-text:#f07
 body.theme-frost{--acc:#8fd8ff;--acc-hi:#e6f8ff;--acc-lo:#4fa3d0;--acc-text:#b5e6ff;--acc-deep:#1c3a4a;--acc-bg:#152530;--acc-bg2:#1c3240;--bg1:#0f1418;--bg2:#141b21;--line:#24323c}
 body.theme-royal{--acc:#7a4fd8;--acc-hi:#e6c35a;--acc-lo:#5230a0;--acc-text:#d9b84a;--acc-deep:#2a1a4a;--acc-bg:#1c1530;--acc-bg2:#271d42;--bg1:#110e18;--bg2:#171221;--line:#2c2340}
 body.theme-neon{--acc:#ff2fd0;--acc-hi:#4ff5ff;--acc-lo:#b0108f;--acc-text:#ff6be0;--acc-deep:#3a0a34;--acc-bg:#200c22;--acc-bg2:#2c1030;--bg1:#0d0a12;--bg2:#120d18;--line:#2c1838}
+body.theme-hellfire{--acc:#ff4a12;--acc-hi:#ffb347;--acc-lo:#b3200a;--acc-text:#ff7a3d;--acc-deep:#4a0f06;--acc-bg:#2a0d08;--acc-bg2:#3d140b;--bg1:#140a08;--bg2:#1c0d0a;--line:#3d1a12} /* Glutton for Punishment's reward */
 body.theme-frost .btn:not(.alt),body.theme-frost .play{color:#0c1a22}
 body.theme-gold .btn:not(.alt),body.theme-toxic .btn:not(.alt),body.theme-gold .play,body.theme-toxic .play{color:#160f04}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;background:#0c0a0b;font-family:"Segoe UI",system-ui,-apple-system,Roboto,sans-serif;color:#ddd;overflow:hidden}
 button{font-family:inherit}
 #wrap{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
-#bar{display:flex;align-items:center;gap:20px;background:#18181d;border-bottom:2px solid var(--acc-deep);padding:8px 16px;font-weight:700;font-size:18px;border-radius:10px 10px 0 0}
-#bar .lvl{margin-left:auto;font-size:15px}
+#hudbar .lvl{margin-left:auto;font-size:15px}
 .xp{position:relative;display:inline-block;width:150px;height:10px;border-radius:6px;background:#2a2326;overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,.6);vertical-align:middle}
 .xpfill{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,var(--acc-lo),var(--acc-hi));border-radius:6px;box-shadow:0 0 8px var(--acc-hi);transition:width .45s ease-out}
 .xpfill::after{content:'';position:absolute;top:-3px;bottom:-3px;left:100%;width:170px;background:linear-gradient(90deg,color-mix(in srgb,var(--acc-hi) 70%,transparent),color-mix(in srgb,var(--acc-hi) 18%,transparent) 40%,color-mix(in srgb,var(--acc-hi) 0%,transparent));filter:blur(2px);animation:xpglow 1.6s ease-in-out infinite}
@@ -32,10 +32,9 @@ button{font-family:inherit}
 .xp.up{animation:lvlflash .9s ease-out}
 @keyframes lvlflash{0%{box-shadow:0 0 0 0 rgba(255,210,80,.9)}100%{box-shadow:0 0 0 12px rgba(255,210,80,0)}}
 @media (prefers-reduced-motion:reduce){.xpfill::after,.xp.up{animation:none}}
-#bar button{background:#2a2a31;color:#ddd;border:0;border-radius:6px;padding:4px 10px;font-size:15px;cursor:pointer}
 #stage{position:relative;box-shadow:0 10px 40px #000}
 canvas{display:block;border-radius:0 0 10px 10px;background:#000}
-#overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(8,6,7,.66);border-radius:0 0 10px 10px;overflow:hidden}
+#overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(8,6,7,.66);border-radius:10px;overflow:hidden}
 #overlay.menuMode{background:linear-gradient(160deg,rgba(16,11,13,.86),rgba(8,6,7,.95))}
 #overlay::before{content:'';position:absolute;left:0;right:0;bottom:0;height:62%;pointer-events:none;z-index:0;
   background-image:radial-gradient(circle,color-mix(in srgb,var(--acc) 75%,transparent) 0 1.5px,transparent 2.1px),radial-gradient(circle,color-mix(in srgb,var(--acc) 55%,transparent) 0 2.9px,transparent 3.5px);
@@ -107,7 +106,7 @@ kbd{display:inline-block;min-width:22px;text-align:center;background:#231d20;bor
 
 /* ================= motion + polish layer ================= */
 :root{--ease:cubic-bezier(.2,.8,.2,1);--spring:cubic-bezier(.34,1.56,.64,1)}
-#stage{overflow:hidden;border-radius:0 0 10px 10px}
+#stage{overflow:hidden;border-radius:10px}
 #c{transition:translate .5s var(--ease),scale .8s var(--ease)}
 #overlay{backdrop-filter:blur(6px) saturate(.35);-webkit-backdrop-filter:blur(6px) saturate(.35);transition:opacity .38s var(--ease)}
 #overlay.menuMode{background:linear-gradient(160deg,rgba(16,11,13,.72),rgba(8,6,7,.9));backdrop-filter:blur(8px) saturate(.12) brightness(.85);-webkit-backdrop-filter:blur(8px) saturate(.12) brightness(.85)}
@@ -132,10 +131,10 @@ kbd{display:inline-block;min-width:22px;text-align:center;background:#231d20;bor
 @keyframes drip{0%{transform:scaleY(.05);opacity:1}55%{transform:scaleY(1)}80%{transform:scaleY(1);opacity:1}100%{transform:scaleY(1.1);opacity:0}}
 
 /* hover / press on everything clickable */
-.play,.ghost,.btn,.chip,.sw,#bar button,.tab,.seg button,.sseg button,.tgl{transition:scale .24s var(--spring),background .2s,border-color .2s,box-shadow .25s,color .2s,translate .3s var(--ease)}
-.play:hover,.ghost:hover,.btn:hover,.chip:hover,.sw:hover,#bar button:hover{scale:1.06}
+.play,.ghost,.btn,.chip,.sw,#hudbar button,.tab,.seg button,.sseg button,.tgl{transition:scale .24s var(--spring),background .2s,border-color .2s,box-shadow .25s,color .2s,translate .3s var(--ease)}
+.play:hover,.ghost:hover,.btn:hover,.chip:hover,.sw:hover,#hudbar button:hover{scale:1.06}
 .seg button:hover,.sseg button:hover{color:#fff}
-.play:active,.ghost:active,.btn:active,.chip:active,.sw:active,#bar button:active,.tab:active{scale:.94;transition-duration:.08s}
+.play:active,.ghost:active,.btn:active,.chip:active,.sw:active,#hudbar button:active,.tab:active{scale:.94;transition-duration:.08s}
 .play:hover{box-shadow:0 6px 0 var(--acc-deep),0 0 26px color-mix(in srgb,var(--acc-hi) 45%,transparent)}
 .play span{display:inline-block}
 .play span.bump{animation:bump .45s var(--spring)}
@@ -251,7 +250,6 @@ kbd{display:inline-block;min-width:22px;text-align:center;background:#231d20;bor
 body.calm *,body.calm *::before,body.calm *::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}}
 /* reward popups (top right, away from the action) */
-#bar{position:relative}
 #rewards{position:absolute;top:14px;right:14px;z-index:12;display:flex;flex-direction:column;align-items:flex-end;gap:6px;pointer-events:none}
 .rw{display:flex;gap:10px;align-items:center;padding:6px 13px;border-radius:999px;background:linear-gradient(90deg,rgba(22,14,16,.86),rgba(48,22,26,.86));
   border:1px solid rgba(255,207,51,.28);box-shadow:0 4px 14px rgba(0,0,0,.45);font:700 13px "Segoe UI",system-ui,sans-serif;color:#ffe6a0;
@@ -264,8 +262,8 @@ body.calm *,body.calm *::before,body.calm *::after{animation-duration:.001ms!imp
 @keyframes rwBump{0%{scale:1}40%{scale:1.16}100%{scale:1}}
 @keyframes rwOut{to{opacity:0;transform:translateX(34px) scale(.92)}}
 /* level up */
-#bar .lvl{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:8px;transition:background .7s ease,color .7s ease,box-shadow .7s ease}
-#bar .lvl.hit{background:linear-gradient(90deg,#ffcf33,#ff9a3d);color:#2a1206;box-shadow:0 0 18px rgba(255,190,60,.7);animation:lvlhit .75s var(--spring)}
+#hudbar .lvl{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:8px;transition:background .7s ease,color .7s ease,box-shadow .7s ease}
+#hudbar .lvl.hit{background:linear-gradient(90deg,#ffcf33,#ff9a3d);color:#2a1206;box-shadow:0 0 18px rgba(255,190,60,.7);animation:lvlhit .75s var(--spring)}
 @keyframes lvlhit{0%{scale:1}14%{scale:1.4;rotate:-5deg}30%{scale:1.15;rotate:4deg}46%{rotate:-2deg}62%{scale:1.06;rotate:1deg}100%{scale:1;rotate:0deg}}
 #lvl{display:inline-block}
 #lvl.flip{animation:numflip .28s var(--spring)}
@@ -563,11 +561,9 @@ i.sw0{display:inline-block;width:11px;height:11px;border-radius:50%;vertical-ali
 
 body[class*="theme-"] .tab.on::before,body[class*="theme-"] .sc.on{background-color:var(--acc)}
 body[class*="theme-"] .sc.on{background:linear-gradient(180deg,#221b1e,#191416);border-color:var(--acc);box-shadow:0 0 0 1px var(--acc),0 8px 20px rgba(0,0,0,.3)}
-body[class*="theme-"] #bar{box-shadow:inset 0 -2px 0 var(--acc)}
 body[class*="theme-"] .play{background:linear-gradient(180deg,var(--acc),color-mix(in srgb,var(--acc) 60%,#000))}
 body[class*="theme-"] .note::before{background:var(--acc)}
 body.theme-gold .play,body.theme-toxic .play{color:#1b1406}
-body.theme-panic #bar{animation:panicBar 1.4s steps(2) infinite}
 @keyframes panicBar{50%{box-shadow:inset 0 -2px 0 #fff}}
 
 /* card styles (map cards) */
@@ -626,7 +622,6 @@ body.theme-panic #bar{animation:panicBar 1.4s steps(2) infinite}
 #hudLo{z-index:12}
 #hudHi{z-index:21}
 #intro .iname{scale:var(--ui)}
-#bar{font-size:calc(18px * var(--ui))}
 #notes,#modbar{max-width:70%}
 
 /* =========================================================
@@ -779,12 +774,6 @@ body.touch #abil{display:none}
 #chhud.near,#modhud.near,#combo.near,#rewards.near,#modbar.near,#abil.near{opacity:.5}
 
 /* top bar: aligned stat icons, XP numbers on the bar */
-#bar .bstat{display:inline-flex;align-items:center;gap:6px;line-height:1}
-#bar .bstat.dim{color:#c9bdb4}
-#bar .bi{width:1em;height:1em;flex:none}
-#bar .xp{width:170px;height:16px;border-radius:8px}
-#bar .xpfill{border-radius:8px}
-#bar .xpfill::after{display:none}
 .xpt{position:absolute;inset:0;display:grid;place-items:center;font:700 10.5px/1 "Segoe UI",system-ui,sans-serif;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.9);letter-spacing:.02em;white-space:nowrap;pointer-events:none}
 
 /* level up: a compact badge, not a billboard */
@@ -886,12 +875,9 @@ body.touch #abil{display:none}
 
 /* ---------- phones and small windows ---------- */
 body.phone #wrap{justify-content:flex-start;padding-top:max(0px,env(safe-area-inset-top))}
-body.phone #bar{gap:10px;padding:4px 10px;font-size:14px!important;border-radius:0}
-body.phone #bar .xp{width:110px;height:13px}
 body.phone .xpt{font-size:9px}
 body.phone #mapName{display:none}
 body.phone #stage,body.phone canvas,body.phone #overlay{border-radius:0}
-body.touch #bar button{padding:6px 14px;font-size:18px}
 body.touch .mtile:hover{translate:none}
 body.touch *{-webkit-tap-highlight-color:transparent}
 body.touch #stage{touch-action:none;user-select:none;-webkit-user-select:none}
@@ -1010,7 +996,7 @@ body.compact .pmwrap{grid-template-columns:150px 1fr}
 .xp,.sbar{overflow:visible!important}
 /* XP bars: light from the filled part spills softly into the empty stripes */
 .xpfill,.sfill{position:absolute}
-#bar .xpfill::after,.xp .xpfill::after,.sbar .sfill::after{content:'';display:block;position:absolute;top:0;bottom:0;right:-26px;width:30px;pointer-events:none;border-radius:0 999px 999px 0;
+.xp .xpfill::after,.sbar .sfill::after{content:'';display:block;position:absolute;top:0;bottom:0;right:-26px;width:30px;pointer-events:none;border-radius:0 999px 999px 0;
   background:radial-gradient(ellipse 100% 70% at 0% 50%,color-mix(in srgb,var(--acc-hi) 55%,transparent) 0%,color-mix(in srgb,var(--acc-hi) 22%,transparent) 38%,transparent 72%);mix-blend-mode:screen}
 .xp,.sbar{overflow:hidden!important}
 /* before the round: just the map, the people and the start prompt. The HUD comes in once you move */
@@ -1154,7 +1140,7 @@ body.cb-marquee #combo .cbox{animation:marq 1s steps(2) infinite}
 :root{--f-body:"Barlow","Segoe UI",system-ui,sans-serif;--f-head:"Barlow Condensed","Arial Narrow",Impact,sans-serif;--f-num:"JetBrains Mono",ui-monospace,Consolas,monospace;
   --ink:#ebe5de;--dim:#a39a92;--faint:#6e6660;--p1:#131012;--p2:#191517;--p3:#211c1e;--edge:#2e2729;--edge2:#3d3437;--r:4px;
   --grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
-#overlay *:not(.pvCombo):not(.pvCombo *):not(.logo):not(.logo *):not(svg *):not(.mm *):not(.rs *):not(.mmp *),#bar,#bar *,#tip,#tip *,#notes *,#chhud *,#modhud *,#modbar *,#abil *,#rewards *,#resume *,#lvlup *,#gold *,#intro *:not(.iname2){font-family:var(--f-body)!important}
+#overlay *:not(.pvCombo):not(.pvCombo *):not(.logo):not(.logo *):not(svg *):not(.mm *):not(.rs *):not(.mmp *),#hudbar,#hudbar *,#tip,#tip *,#notes *,#chhud *,#modhud *,#modbar *,#abil *,#rewards *,#resume *,#lvlup *,#gold *,#intro *:not(.iname2){font-family:var(--f-body)!important}
 /* the backdrop behind menus: dim, vignetted, grainy — no glowing red mesh */
 #overlay::before,#overlay::after{display:none!important}
 #overlay.menuMode,#overlay{background:radial-gradient(ellipse at 50% 40%,rgba(10,8,9,.55),rgba(6,5,6,.88) 75%),var(--grain)!important}
@@ -1169,9 +1155,9 @@ body.cb-marquee #combo .cbox{animation:marq 1s steps(2) infinite}
 .panel h3,.mg{font-family:var(--f-head)!important;font-weight:700!important;text-transform:uppercase;letter-spacing:.16em!important;font-size:12px!important;color:var(--acc-text)!important;border-bottom:1px solid var(--edge);padding-bottom:4px}
 .lead,.panel p.lead{color:var(--dim)!important;font-size:14px!important;line-height:1.45}
 /* buttons: squared, flat, uppercase condensed; hover lifts the border, never the size */
-.play,.ghost,.btn,.tab,.seg button,.sseg button,.ctabs button,#bar button,.chip,.sc,.mtile,.ach,.upc,.pmc{transition:background .15s,border-color .15s,color .15s,box-shadow .15s,transform .45s cubic-bezier(.2,.8,.2,1)!important}
-.play:hover,.ghost:hover,.btn:hover,.chip:hover,.sw:hover,#bar button:hover,.mtile:hover,.sc:hover{scale:1!important}
-.play:active,.ghost:active,.btn:active,.chip:active,#bar button:active,.tab:active,.mtile:active,.sc:active{scale:1!important;transform:translateY(1px)}
+.play,.ghost,.btn,.tab,.seg button,.sseg button,.ctabs button,#hudbar button,.chip,.sc,.mtile,.ach,.upc,.pmc{transition:background .15s,border-color .15s,color .15s,box-shadow .15s,transform .45s cubic-bezier(.2,.8,.2,1)!important}
+.play:hover,.ghost:hover,.btn:hover,.chip:hover,.sw:hover,#hudbar button:hover,.mtile:hover,.sc:hover{scale:1!important}
+.play:active,.ghost:active,.btn:active,.chip:active,#hudbar button:active,.tab:active,.mtile:active,.sc:active{scale:1!important;transform:translateY(1px)}
 .btn,.play,.ghost{font-family:var(--f-head)!important;text-transform:uppercase;letter-spacing:.06em;font-weight:700!important;border-radius:3px!important}
 .btn{background:var(--acc)!important;color:#fff;border:1px solid color-mix(in srgb,var(--acc) 70%,#000)!important;box-shadow:inset 0 -2px 0 rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.12)!important;padding:10px 24px;font-size:18px}
 .btn:hover{background:color-mix(in srgb,var(--acc) 85%,#fff)!important;box-shadow:inset 0 -2px 0 rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.18)!important}
@@ -1204,7 +1190,7 @@ input[type=range]{accent-color:var(--acc)}
 .mchip{background:transparent!important;border:1px solid var(--edge2)!important;color:var(--dim)!important;font-size:11.5px!important}
 .mchip.mult{color:#e9c45a!important;border-color:rgba(233,196,90,.4)!important}
 /* numbers: monospaced, steady */
-.v,.mpct,.xpt,.price,.af span:first-child,.mcf span:first-child,.sbig,#bar .val,.pmc .af span:first-child,.hc .v,.cnum,.stat b{font-family:var(--f-num)!important;font-variant-numeric:tabular-nums}
+.v,.mpct,.xpt,.price,.af span:first-child,.mcf span:first-child,.sbig,.pmc .af span:first-child,.hc .v,.cnum,.stat b{font-family:var(--f-num)!important;font-variant-numeric:tabular-nums}
 /* map cards */
 
 /* list cards: modifiers, challenges, upgrades, shop items */
@@ -1227,8 +1213,6 @@ input[type=range]{accent-color:var(--acc)}
 .upc .upicon,.ach .prv,.ach .ap{border-radius:2px!important}
 .upc .upicon{background:rgba(0,0,0,.3)!important;box-shadow:inset 0 0 0 1px var(--edge2)!important}
 /* top bar */
-#bar{background:var(--grain),#121012!important;border-bottom:1px solid var(--edge)!important;box-shadow:inset 0 -2px 0 var(--acc)!important;font-family:var(--f-num)!important;font-size:17px!important;border-radius:6px 6px 0 0!important}
-#bar button{border-radius:2px!important;background:transparent!important;border:1px solid var(--edge2)!important}
 .xp,.xpfill,.sbar,.sfill{border-radius:1px!important}
 .xpt{font-size:10px!important;text-shadow:0 1px 2px #000!important}
 /* tooltips */
@@ -1270,7 +1254,6 @@ input[type=range]{accent-color:var(--acc)}
 .mtile,.ach,.upc,.pmc,.sc,.srow>div,.sxp{background:linear-gradient(180deg,#1d191b,#131012)!important}
 .mtile.on{background:linear-gradient(180deg,color-mix(in srgb,var(--acc) 14%,#1d191b),#131012)!important}
 
-#bar{background:var(--grain),linear-gradient(180deg,#1a1618,#0d0b0c)!important}
 .note{background:var(--grain),linear-gradient(90deg,rgba(26,21,23,.96),rgba(12,10,11,.94))!important}
 #tip{background:var(--grain),linear-gradient(180deg,#1b1719,#0f0d0e)!important}
 #combo .cbox{background:linear-gradient(180deg,rgba(26,20,22,.85),rgba(10,8,9,.85))}
@@ -1288,8 +1271,8 @@ input[type=range]{accent-color:var(--acc)}
 @keyframes halftone{to{background-position:70px -35px,73.5px -31.5px}}
 @media (prefers-reduced-motion:reduce){.play::before,.btn:not(.alt)::before{animation:none}}
 /* press: a quick, soft sink and an ease back, never a snap */
-.play,.ghost,.btn,.tab,.seg button,.sseg button,.ctabs button,.mtile,.sc,.ach,.upc,.pmc,#bar button,.tgl{transition:background .18s ease,border-color .18s ease,color .18s ease,box-shadow .18s ease,transform .32s cubic-bezier(.2,.9,.25,1),filter .18s ease!important;will-change:transform}
-.play:active,.ghost:active,.btn:active,.tab:active,.seg button:active,.sseg button:active,.ctabs button:active,.mtile:active,.sc:active,#bar button:active{transform:translateY(1px) scale(.975)!important;filter:brightness(.92);transition-duration:.08s!important}
+.play,.ghost,.btn,.tab,.seg button,.sseg button,.ctabs button,.mtile,.sc,.ach,.upc,.pmc,#hudbar button,.tgl{transition:background .18s ease,border-color .18s ease,color .18s ease,box-shadow .18s ease,transform .32s cubic-bezier(.2,.9,.25,1),filter .18s ease!important;will-change:transform}
+.play:active,.ghost:active,.btn:active,.tab:active,.seg button:active,.sseg button:active,.ctabs button:active,.mtile:active,.sc:active,#hudbar button:active{transform:translateY(1px) scale(.975)!important;filter:brightness(.92);transition-duration:.08s!important}
 
 .ripple{position:absolute;border-radius:50%;pointer-events:none;background:rgba(255,255,255,.22);transform:scale(0);animation:ripple .55s cubic-bezier(.2,.7,.3,1) forwards;z-index:0}
 @keyframes ripple{to{transform:scale(1);opacity:0}}
@@ -1593,11 +1576,11 @@ body.phone #overlay .panel:not(.set):not(.shop2){overflow-y:auto}
 body.phone .play,body.phone #againBtn,body.phone #resBtn{--cut:10px}
 /* ---- bigger hit areas, same look: an invisible pad around small controls. Pads are kept narrower than the gaps
    between neighbours (segmented controls only grow up and down, never into the next segment) ---- */
-#bar button,.chip,.ctabs button,.ghost,.mb{position:relative}
-#bar button::after,.chip::after,.ghost::after,.mb::after{content:'';position:absolute;inset:-6px -4px}
+#hudbar button,.chip,.ctabs button,.ghost,.mb{position:relative}
+#hudbar button::after,.chip::after,.ghost::after,.mb::after{content:'';position:absolute;inset:-6px -4px}
 .seg button::after,.sseg button::after,.ctabs button::after,.tab::after{content:'';position:absolute;inset:-6px 0}
 .sw::before,.tgl::before{content:'';position:absolute;inset:-6px}
-body.touch #bar button::after,body.touch .chip::after,body.touch .ghost::after,body.touch .mb::after{inset:-10px -5px}
+body.touch #hudbar button::after,body.touch .chip::after,body.touch .ghost::after,body.touch .mb::after{inset:-10px -5px}
 body.touch .seg button::after,body.touch .sseg button::after,body.touch .ctabs button::after,body.touch .tab::after{inset:-9px 0}
 body.touch .sw::before,body.touch .tgl::before{inset:-9px}
 /* range sliders: a taller invisible track and a bigger thumb target, the drawn thumb unchanged */
@@ -2266,7 +2249,6 @@ body.theme-bone,body.theme-frost,body.theme-gold,body.theme-toxic{--on-acc:#1412
 #menuArt.home::after{opacity:0}
 #stage.menuBg #overlay{background:none!important} /* (the shade above does the darkening in menus) */
 #menuArt img.on{opacity:1}
-body:has(#stage.menuBg) #bar{visibility:hidden} /* score, best, clock and the level bar belong to a run: the menu has its own profile */
 /* ---- shell ---- */
 #overlay.mmMode{background:none!important}
 #overlay>.mm{position:absolute;inset:0}
@@ -2856,3 +2838,45 @@ body.phone .skhint{display:none}body.phone .skctl button span{display:none}
 body.calm .skworld.glide{transition:none}
 body.calm .skn *,body.calm .skinfo *{animation:none!important}
 @media (prefers-reduced-motion:reduce){.skworld.glide{transition:none}.skn *,.skinfo *{animation:none!important}}
+
+/* =====================================================================
+   IN-RUN STATS (no bar above the board any more): score, best, chips and level top-left, right above the combo;
+   the map, the time of day and pause top-right. Both are small plates on the board and fade when the snake comes close.
+   ===================================================================== */
+#hudbar{position:absolute;left:12px;right:12px;top:10px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;pointer-events:none;font:700 15px/1 var(--f-num);color:var(--ink);transition:opacity .35s ease}
+#hudbar[hidden]{display:none}
+#stage #hudbar.near{opacity:.18!important}
+#hudbar .hb-l,#hudbar .hb-r{background:rgba(10,8,9,.66);border:1px solid rgba(255,255,255,.08);border-radius:3px;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+#hudbar .hb-l{display:flex;align-items:center;gap:9px;padding:8px 11px;font-size:14px}
+#hudbar #mapName{font:600 13px var(--f-body);color:var(--dim);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#hudbar .hb-r{display:flex;align-items:center;gap:10px;padding:6px 6px 6px 10px}
+#hudbar .hb-st{display:flex;flex-direction:column;gap:6px}
+#hudbar .hb-row{display:flex;align-items:center;gap:12px;justify-content:flex-end}
+#hudbar .bstat{display:inline-flex;align-items:center;gap:5px}
+#hudbar .bstat.dim{color:#c9bdb4}
+#hudbar .bi{width:14px;height:14px;flex:none}
+#hudbar .money{display:inline-flex;align-items:center;gap:5px;color:var(--gold)}
+#hudbar .lvl{position:relative;display:inline-flex;align-items:center;gap:4px;margin:0;padding:1px 6px;font:600 12px var(--f-body);color:var(--dim)}
+#hudbar .lvl b{font:700 13px var(--f-num);color:var(--ink)}
+#hudbar .xp{width:150px;height:9px;border-radius:5px}
+#hudbar .xpt{display:none}
+#hudbar #menuBtn{pointer-events:auto;width:32px;height:44px;display:grid;place-items:center;padding:0;background:transparent;border:1px solid var(--hair2);border-radius:2px;color:var(--ink);cursor:pointer}
+#hudbar #menuBtn:hover{border-color:var(--acc)}
+#hudLo #combo{top:78px}#hudLo #rewards{top:58px}
+body.phone #hudbar{left:max(8px,env(safe-area-inset-left));right:max(8px,env(safe-area-inset-right));top:6px;font-size:13px}
+body.phone #hudbar .xp{width:96px}body.phone #hudbar #mapName{display:none}body.phone #hudbar .hb-l{padding:6px 9px}
+body.phone #hudLo #combo{top:66px}body.phone #hudLo #rewards{top:44px}
+body.touch #hudbar #menuBtn{width:40px}
+
+/* run setup: a modifier chip comes off with a click */
+#modline .mchip[data-mod]{cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+#modline .mchip[data-mod]::after{content:'';width:9px;height:9px;opacity:.45;background:linear-gradient(45deg,transparent 43%,currentColor 43% 57%,transparent 57%),linear-gradient(-45deg,transparent 43%,currentColor 43% 57%,transparent 57%);transition:opacity .15s}
+#modline .mchip[data-mod]:hover::after,#modline .mchip[data-mod]:focus-visible::after{opacity:1}
+#modline .mchip[data-mod]:hover{border-color:var(--acc)}
+
+/* game-icons.net icons (03d-game-icons): sized like the text they sit in unless something sets them */
+svg.gi{width:1em;height:1em;display:inline-block;vertical-align:-.14em;flex:none}
+#hudbar .bi svg.gi{width:14px;height:14px}#hudbar .bi{display:inline-flex;color:#d0191f}#hudbar .bstat.dim .bi{color:#ffcf33}
+#hudbar #menuBtn svg.gi{width:16px;height:16px}
+.ni svg.gi{width:1.1em;height:1.1em}
+.uic svg.gi{width:20px;height:20px}

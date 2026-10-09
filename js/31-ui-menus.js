@@ -1,7 +1,7 @@
 /* =========================================================
    UI
    ========================================================= */
-const overlay = document.getElementById('overlay'), bar = document.getElementById('bar');
+const overlay = document.getElementById('overlay'), bar = document.getElementById('hudbar'); // (the in-game stats: score, best, chips, level top-left; map, time of day and pause top-right)
 function getBest() { try { return +localStorage.getItem('snakeCarnageBest_' + MAPS[mapIdx].name) || 0; } catch (e) { return 0; } }
 function updateHud() {
   document.getElementById('score').textContent = score;
@@ -262,12 +262,16 @@ function menuEsc() { // Esc: shut the map browser, then back to the front page; 
   if (root) { if (closeBrowser()) return; if (root.dataset.view === 'setup' && !root.classList.contains('party')) menuGo('home'); return; }
   const b = overlay.querySelector('#backBtn, #mpBack'); if (b) b.click(); else transitionTo(showMenu);
 }
-function wireModLine(root) { root.querySelectorAll('#modline .mchip[data-mod]').forEach(ch => { ch.tabIndex = 0; ch.setAttribute('role', 'button'); ch.onclick = () => transitionTo(() => showModifiers(ch.dataset.mod)); }); } // a chip jumps straight to that modifier
+function wireModLine(root) { // the run setup's chips: click one to take that modifier off, right here (Edit modifiers is the way into the full list)
+  root.querySelectorAll('#modline .mchip[data-mod]').forEach(ch => { ch.tabIndex = 0; ch.setAttribute('role', 'button'); ch.setAttribute('aria-label', 'Remove ' + ch.textContent);
+    ch.onclick = () => { SETTINGS.mods = (SETTINGS.mods || []).filter(id => id !== ch.dataset.mod); saveSettings(); Sfx.ui('off');
+      root.querySelector('#modline').innerHTML = modLine(); wireModLine(root); const c = root.querySelector('#modClr'); if (c) c.hidden = !SETTINGS.mods.length; };
+    ch.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); ch.click(); } }; }); }
 function modLine(list, readOnly) { // active modifiers, visible before the run starts
   const ids = list || SETTINGS.mods || [];
   if (!ids.length) return '<span class="mchip dim">No modifiers</span>';
   const mm = modMult(ids);
-  return ids.map(id => { const m = MODS.find(q => q.id === id) || {}; return `<span class="mchip" data-mod="${id}" data-tip="${attr(m.desc)}${readOnly ? '' : ' (click to edit)'}">${m.name}</span>`; }).join('') +
+  return ids.map(id => { const m = MODS.find(q => q.id === id) || {}; return `<span class="mchip" data-mod="${id}" data-tip="${attr(m.desc)}${readOnly || list ? '' : ' (click to remove)'}">${m.name}</span>`; }).join('') +
     (Math.abs(mm - 1) > .005 ? `<span class="mchip mult ${mm < 1 ? 'down' : ''}">Rewards x${mm.toFixed(2)}</span>` : ''); // no meaningless x1.00 chip
 }
 const SEASON_PICK = ['Random', 'Spring', 'Summer', 'Autumn', 'Winter'];
@@ -530,7 +534,7 @@ const SETTING_TABS = {
     ['#Steering and camera'], ['Mouse', 'With Mouse steering on (Gameplay): the snake heads for the cursor; left click lunges'], 
     ['Wheel', 'Zoom the camera in or out, always on your snake'], ['Drag', 'Pan the camera (middle mouse; left mouse, or right mouse with Mouse steering on)'], ['Double-click', 'Camera back on the snake'],
     ['Pinch', 'On a touch screen: two fingers zoom and pan; one finger still steers'],
-    ['` or F10', 'Admin panel: god mode, speed, time of day, spawning, air strikes, chips and the skill tree (single player, or the host)'], ['#Menus'], ['Space', 'Start, skip the intro, play again. In a multiplayer lobby: ready up, and the host starts once everyone is ready'], ['Esc', 'Pause, back, close settings'], ['F3', 'Performance stats: off, frame rate, full']] },
+    ['` or F10', 'Admin panel: god mode, speed, time of day, spawning, air strikes, chips and the skill tree (single player, or the host)'], ['#Menus'], ['Space', 'Start, skip the intro, play again. In a multiplayer lobby: ready up, and the host starts once everyone is ready'], ['Esc', 'Pause, back, close settings'], ['F3', 'Performance stats: off, frame rate, full'], ['#Credits'], ['Icons', 'game-icons.net, by Lorc, Delapouite and contributors (CC BY 3.0)']] },
   Accessibility: { icon: 'access', lead: 'Make the game easier to see and more comfortable.', rows: [
     ['head', 'Visibility'],
     ['seg', 'snakeOutline', 'Snake outline', 'An outline so your snake is easy to see.', ['Off', 'Subtle', 'Strong']],

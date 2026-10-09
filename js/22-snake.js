@@ -79,7 +79,7 @@ function updateSnake(dt) {
   updateSize(s, dt);
   if (mouseSteerOn()) mouseSteer(); // Mouse steering: head for the cursor
   // ease toward the target heading: quick to start, settles softly, capped so it never snaps
-  const d = angDiff(s.angle, s.dir), mx = CONFIG.turnRate * dt * SKV.turn() * ((s.dashV || 1) > 1.2 ? SKV.lungeTurn() : 1) * (s.uturnT > 0 ? s.uturnK || 2.4 : 1) * (MOD.wideTurns ? .5 : MOD.quickTurn ? 1.6 : 1); // Wide turns / Quick turn modifiers. Sidewinder: snappier turns; Whiplash: sharper mid-lunge; Momentum: a fast whip round on a U-turn
+  const d = angDiff(s.angle, s.dir), mx = Math.min(CONFIG.turnRate * dt * SKV.turn() * ((s.dashV || 1) > 1.2 ? SKV.lungeTurn() : 1), (s.dashV || 1) > 1.2 ? s.speed * s.dashV * dt / (snakeRadius() * 1.7) : 99) /* mid-lunge the turn can't get tighter than the body is wide */ * (s.uturnT > 0 ? s.uturnK || 2.4 : 1) * (MOD.wideTurns ? .5 : MOD.quickTurn ? 1.6 : 1); // Wide turns / Quick turn modifiers. Sidewinder: snappier turns; Whiplash: sharper mid-lunge; Momentum: a fast whip round on a U-turn
   const ad = Math.abs(d); s.angle += Math.sign(d) * Math.min(ad, mx, ad * (1 - Math.exp(-dt * CONFIG.turnEase)) + mx * .18); // never past the target: overshooting it made the head flick side to side every frame, worse the lower the frame rate
   if (s.uturnT > 0) { s.uturnT -= dt; if (s.uturnTo !== undefined && Math.abs(angDiff(s.angle, s.dir)) < .5) { s.dir = s.uturnTo; s.uturnTo = undefined; } } // second half of the U-turn
   const stunK = MOD.quickRecovery ? 2 : MOD.heavyImpact ? .5 : 1; // Quick recovery / Heavy impact: dazes wear off twice as fast, or half as fast (Thick Skull makes them weaker to begin with: smashObstacle, detonate)

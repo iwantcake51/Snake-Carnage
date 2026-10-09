@@ -40,9 +40,9 @@ function showDead() {
   const tierCls = t => 'tier ' + t;
   const unlockRow = u => {
     if (u.kind === 'ach') { const a = ACH.find(q => q.id === u.id); if (!a) return ''; const rw = achRewards(a.id).filter(([c]) => c !== 'color2');
-      return `<li class="un"><i class="uic">${a.secret ? '🗝️' : '🏆'}</i><span><b>${a.name}</b><small>${rw.length ? rw.map(([cat, v]) => `${CAT_LABEL[cat]}${cat.startsWith('color') ? '' : ': ' + v}`).join(' · ') : a.what}${a.chips ? ` · +${a.chips} chips` : ''}</small></span></li>`; }
-    if (u.kind === 'perm') return `<li class="un"><i class="uic">🏅</i><span><b>${u.name}</b><small>Permanent ${u.map} challenge · +${u.xp} XP, +${u.chips} chips</small></span></li>`;
-    if (u.kind === 'level') return `<li class="un"><i class="uic">⬆</i><span><b>Level ${u.level}</b><small>+${u.coins} bonus chips${u.unlocks ? ' · ' + u.unlocks : ''}</small></span></li>`;
+      return `<li class="un"><i class="uic">${giSvg(a.secret ? 'key' : 'trophy')}</i><span><b>${a.name}</b><small>${rw.length ? rw.map(([cat, v]) => `${CAT_LABEL[cat]}${cat.startsWith('color') ? '' : ': ' + v}`).join(' · ') : a.what}${a.chips ? ` · +${a.chips} chips` : ''}</small></span></li>`; }
+    if (u.kind === 'perm') return `<li class="un"><i class="uic">${giSvg('medal')}</i><span><b>${u.name}</b><small>Permanent ${u.map} challenge · +${u.xp} XP, +${u.chips} chips</small></span></li>`;
+    if (u.kind === 'level') return `<li class="un"><i class="uic">${giSvg('levelup')}</i><span><b>Level ${u.level}</b><small>+${u.coins} bonus chips${u.unlocks ? ' · ' + u.unlocks : ''}</small></span></li>`;
     return '';
   };
   for (let L = run.startLevel + 1; L <= PROG.level; L++) { const ups = SKILL_TREE.filter(n => [].concat(n.lvl || []).includes(L)).map(n => n.name); unl.push({ kind: 'level', level: L, coins: 10 + L * 2, unlocks: '+1 skill token' + (ups.length ? ' · Skill Tree: ' + ups.join(', ') : '') }); }

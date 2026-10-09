@@ -81,8 +81,17 @@ function mouseAim() { // the heading from the head to the cursor, worked out fre
 function mouseSteer() { // every frame: aim at the cursor, at the same turn rate the keys get (unless a key was the last thing to steer)
   const s = snake; if (steer.keyT > steer.moveT) return; // a key steered last: it holds until the mouse moves again
   const a = mouseAim(); if (a === null) return;
+  if (!steerSafe(s, a)) { const alt = [s.angle, s.angle - 1.2, s.angle + 1.2].find(q => steerSafe(s, q)); s.dir = alt ?? s.angle; return; } // swinging round now would run the head into the body: hold the line (or bear the other way) until it's clear
   if (Math.abs(angDiff(s.angle, a)) > 1.4 && Math.abs(angDiff(s.dir, a)) > .6) s.hardTurnT = T; // a sharp swing counts like a sharp key turn
   s.dir = a;
+}
+function steerSafe(s, a) { // mouse steering chases the cursor every frame, so a fast, tight swing (a lunge with every turning skill) can loop the head into its own body: look about half a second ahead
+  const segs = s.segs; if (!segs || segs.length < 10) return true;
+  const R = snakeRadius(), dv = s.dashV || 1, v = s.speed * dv, rate = CONFIG.turnRate * SKV.turn() * (dv > 1.2 ? SKV.lungeTurn() : 1) * (MOD.wideTurns ? .5 : MOD.quickTurn ? 1.6 : 1), dt = 1 / 30;
+  let ang = s.angle, x = s.x, y = s.y;
+  for (let k = 0; k < 14; k++) { const d = angDiff(ang, a); ang += Math.sign(d) * Math.min(Math.abs(d), rate * dt); x += Math.cos(ang) * v * dt; y += Math.sin(ang) * v * dt;
+    for (let i = 8; i < segs.length; i += 2) if (dist2(x, y, segs[i].x, segs[i].y) < (R * 1.3) ** 2) return false; }
+  return true;
 }
 function steerAnalog(a) { // the touch stick snaps to the nearest of 8 directions
   setHeading(Math.round(a / (Math.PI / 4)) * (Math.PI / 4));

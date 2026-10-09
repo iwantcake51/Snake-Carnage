@@ -1,0 +1,4 @@
+# The live site joins the game's scripts into one cached file at deploy time (tools/bundle.mjs). Nothing to build locally.
+[build]
+  command = "node tools/bundle.mjs"
+  publish = "."

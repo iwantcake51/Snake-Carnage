@@ -322,7 +322,7 @@ function applyView(x) { // shake, spawn zoom and look-ahead, shared by the scene
   if (V.z) { x.translate(W / 2, H / 2); x.scale(V.z, V.z); x.translate(-V.fx, -V.fy); }
   x.translate(-V.ox, -V.oy);
 }
-const NEAR_IDS = ['chhud', 'modhud', 'combo', 'rewards', 'modbar', 'abil', 'notes', 'lvlup', 'evt', 'mpHud']; // mpHud: the multiplayer score panel, only there during a run
+const NEAR_IDS = ['hudbar', 'chhud', 'modhud', 'combo', 'rewards', 'modbar', 'abil', 'notes', 'lvlup', 'evt', 'mpHud']; // mpHud: the multiplayer score panel, only there during a run
 let nearRects = null, nearRectT = 0;
 function hudNear() { // corner UI turns half see-through while the snake is close to it
   if (!snake) return;

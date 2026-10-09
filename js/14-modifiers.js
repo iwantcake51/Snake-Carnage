@@ -3,7 +3,7 @@ const MODS = [ // g = group shown in the panel; not = can't be combined with
   { g: 'Conditions', id: 'noNVG', name: 'No night vision', desc: 'Night vision is unavailable, but kills in the dark pay 25% more.', mult: .15 },
   { g: 'Conditions', id: 'fog', name: 'Heavy fog', desc: 'You only see a small patch around you, and people can barely see you either.', mult: .25, not: ['fow'] },
   { g: 'Conditions', id: 'fow', name: 'Tunnel vision', desc: 'You only see a cone in front of you and a little around your head.', mult: .3, not: ['fog'] },
-  { g: 'Conditions', id: 'airRaid', name: 'Air raid', desc: 'Bombs and strafing runs from the first seconds of the run, not after a minute and a half. Outdoor maps only.', mult: .3 },
+  { g: 'Conditions', id: 'airRaid', name: 'Air raid', desc: 'Bombs and strafing runs from the first seconds of the run, not after a minute. Outdoor maps only.', mult: .3 },
   { g: 'Conditions', id: 'lockOn', name: 'Locked on', desc: 'Air strikes stop guessing: every bomb is aimed right where you are heading and slides after you for a split second. Jets come over twice as fast and bombs fall far quicker. Outdoor maps only.', mult: .35, not: ['noAir'] },
   { g: 'Conditions', id: 'noAir', name: 'Clear skies', desc: 'No air strikes at all this run: no bombs, no strafing runs, no jets. Pays a little less.', mult: -.1, not: ['airRaid', 'lockOn'] },
   { g: 'Conditions', id: 'lightsOut', name: 'Lights out', desc: 'Every fixed light is off: streetlights, lamps, windows, ceiling lights. Flashlights still work.', mult: .1 },
@@ -108,7 +108,10 @@ function modHud() { // live state of the active scoring modifiers
   const html = chips.join('');
   if (el.innerHTML !== html) { el.innerHTML = html; layoutHud(); } // notifications move up out of its way
 }
-function allHardMods(ids) { // Glutton for Punishment: every harder (+) modifier is on, unless another harder one that's on rules it out (or it can't work here: One life in single player, Air raid indoors)
+const GLUTTON_MODS = 20, GLUTTON_T = 100; // Glutton for Punishment: this many harder (+) modifiers on, nothing that makes it easier (or doesn't make it harder), and live this long
+const softModCount = ids => ids.filter(id => { const m = MODS.find(q => q.id === id); return m && !(m.mult > 0); }).length; // any modifier that isn't a harder one, Style ones included
+const hardModCount = ids => ids.filter(id => { const m = MODS.find(q => q.id === id); return m && m.mult > 0 && m.g !== 'Style' && m.g !== 'Controls'; }).length;
+function allHardMods(ids) { // every harder (+) modifier is on, unless another harder one that's on rules it out (or it can't work here: One life in single player, Air raid indoors)
   const on = new Set(ids), hard = id => ((MODS.find(q => q.id === id) || {}).mult || 0) > 0;
   return MODS.filter(m => m.mult > 0 && m.g !== 'Style' && m.g !== 'Controls').every(m => on.has(m.id)
     || (m.not || []).some(o => on.has(o) && hard(o)) || MODS.some(q => on.has(q.id) && hard(q.id) && (q.not || []).includes(m.id))

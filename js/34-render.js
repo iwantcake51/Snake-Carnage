@@ -177,6 +177,7 @@ function bakeBlurBg() { // blur the frozen frame into its own pixels once, so th
     ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.filter = `blur(${Math.round(6 * DPR)}px) saturate(.35) brightness(.8)`; ctx.drawImage(blurTmp, 0, 0); ctx.restore(); ctx.filter = 'none'; } catch (e) {}
 }
 function frame(now) {
+  const hbOff = !['play', 'ready', 'intro', 'held'].includes(state); if (bar.hidden !== hbOff) bar.hidden = hbOff; // the in-run stats are for the run itself (they sit above the menus' layer, so they step aside for pause, the summary and every menu)
   const cap = +SETTINGS.fpsCap; // VSync -> NaN: draw every refresh
   if (cap && now - last < 1000 / cap - 2) { requestAnimationFrame(frame); return; }
   const raw = now - last; if (raw < 200) frameMs += (raw - frameMs) * .03;

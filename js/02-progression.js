@@ -50,7 +50,7 @@ function rewardPopup(xp, coins) { // stacks in the top-right corner; rapid kills
 }
 function celebrateLevel(from, to) { // bar fills, flashes, number racks up, banner drops in -- all on the sound's beat
   lvlAnim = true;
-  const fill = document.getElementById('xpfill'), bar = document.getElementById('xpbar'), lv = document.querySelector('#bar .lvl'), num = document.getElementById('lvl');
+  const fill = document.getElementById('xpfill'), bar = document.getElementById('xpbar'), lv = document.querySelector('#hudbar .lvl'), num = document.getElementById('lvl');
   fill.classList.add('gold'); fill.style.width = '100%';
   setTimeout(() => {
     Sfx.levelUp();
@@ -61,12 +61,12 @@ function celebrateLevel(from, to) { // bar fills, flashes, number racks up, bann
     const step = () => { n++; num.textContent = n; num.classList.remove('flip'); void num.offsetWidth; num.classList.add('flip'); if (n < to) setTimeout(step, 110); };
     step();
     fill.classList.add('instant'); fill.style.width = '0%'; void fill.offsetWidth; fill.classList.remove('instant');
-    const br = bar.getBoundingClientRect(), pr = document.getElementById('bar').getBoundingClientRect();
+    const br = bar.getBoundingClientRect(), pr = document.getElementById('hudbar').getBoundingClientRect();
     for (let k = 0; k < 12; k++) {
       const sp = document.createElement('i'); sp.className = 'spark';
       sp.style.left = (br.left - pr.left + Math.random() * br.width) + 'px'; sp.style.top = (br.top - pr.top + br.height / 2) + 'px';
       sp.style.setProperty('--dx', rand(-30, 30).toFixed(0) + 'px'); sp.style.setProperty('--dy', rand(-26, 18).toFixed(0) + 'px');
-      document.getElementById('bar').appendChild(sp); setTimeout(() => sp.remove(), 800);
+      document.getElementById('hudbar').appendChild(sp); setTimeout(() => sp.remove(), 800);
     }
     levelBanner(to, lastLevelBonus);
   }, 380);

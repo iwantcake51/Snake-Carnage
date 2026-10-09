@@ -4,14 +4,14 @@
    ========================================================= */
 const NOTE_KINDS = {
   info:   { icon: '•',  cls: 'n-info' },
-  mod:    { icon: '🎲', cls: 'n-mod' },
-  reset:  { icon: '🔄', cls: 'n-reset' },
-  frenzy: { icon: '🔥', cls: 'n-frenzy' },
-  goldH:  { icon: '👑', cls: 'n-gold' },
-  goldA:  { icon: '✨', cls: 'n-gold n-small' },
-  nvg:    { icon: '◉',  cls: 'n-nvg n-small' },
-  bad:    { icon: '⚠️', cls: 'n-bad' },
-  unlock: { icon: '🏆', cls: 'n-unlock' },
+  mod:    { icon: giSvg('dice'), cls: 'n-mod' },
+  reset:  { icon: giSvg('reset'), cls: 'n-reset' },
+  frenzy: { icon: giSvg('fire'), cls: 'n-frenzy' },
+  goldH:  { icon: giSvg('crown'), cls: 'n-gold' },
+  goldA:  { icon: giSvg('sparkles'), cls: 'n-gold n-small' },
+  nvg:    { icon: giSvg('nvg'),  cls: 'n-nvg n-small' },
+  bad:    { icon: giSvg('hazard'), cls: 'n-bad' },
+  unlock: { icon: giSvg('trophy'), cls: 'n-unlock' },
 };
 const notes = [];
 function notify(o) {

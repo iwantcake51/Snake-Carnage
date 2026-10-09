@@ -26,10 +26,10 @@ const SHOP = {
   trail: [['None', 0], ['Smoke', 60], ['Bubbles', 70], ['Sparkles', 80], ['Hearts', 90], ['Petals', 90], ['Confetti', 110], ['Embers', 120],
     ['Cheese Crumbs', 0, 'ratKing'], ['Gold Dust', 0, 'goldenOpp'], ['Blood Drip', 0, 'paintRed'], ['Alarm', 0, 'badHood'], ['Stardust', 0, 'worldEater'], ['Afterglow', 0, 'toolkit'], ['Nuggets', 0, 'goldRush'], ['Shrapnel', 0, 'smasher']],
   combo: [['Default', 0], ['Minimal', 60], ['Typewriter', 80], ['Arcade', 90], ['Brutal', 120], ['Neon', 150], ['Gilded', 0, 'midas'], ['Manhunt', 0, 'allHumans'], ['Overdrive', 0, 'bottomless'], ['Hollow', 0, 'notHungry'], ['Splatter', 0, 'spitTake'], ['Marquee', 0, 'veteran']],
-  theme: [['Default', 0], ['Midnight', 180], ['Toxic', 220], ['Panic', 0, 'wrongPlace'], ['Gold', 0, 'midas'], ['Blood', 0, 'paintRed'], ['Nocturne', 0, 'lightsOut'], ['Dusk', 0, 'goldenHour'], ['Bone', 0, 'apex'], ['Ocean', 200], ['Steel', 180], ['Rose', 220], ['Jade', 220], ['Ember', 260], ['Frost', 240], ['Royal', 300], ['Neon', 320]],
+  theme: [['Default', 0], ['Midnight', 180], ['Toxic', 220], ['Panic', 0, 'wrongPlace'], ['Gold', 0, 'midas'], ['Blood', 0, 'paintRed'], ['Nocturne', 0, 'lightsOut'], ['Dusk', 0, 'goldenHour'], ['Bone', 0, 'apex'], ['Ocean', 200], ['Steel', 180], ['Rose', 220], ['Jade', 220], ['Ember', 260], ['Frost', 240], ['Royal', 300], ['Neon', 320], ['Hellfire', 0, 'allHard']],
   card: [['Default', 0], ['Neon', 150], ['Gold Frame', 0, 'goldenOpp'], ['Bloody', 0, 'cleanup'], ['Hazard', 0, 'overachiever'], ['Chip Stack', 0, 'highRoller']],
   effect: [['None', 0], ['Embers', 160], ['Snow', 160], ['Blizzard', 240], ['Gold Dust', 0, 'midas'], ['Blood Rain', 0, 'paintRed'], ['Alarm Lights', 0, 'wrongPlace'], ['Stars', 0, 'worldEater'], ['Ash', 0, 'marathon'], ['Moths', 0, 'lightsOut'], ['Fireflies', 0, 'charmer']],
-  title: [['None', 0], ['Rat King', 0, 'ratKing'], ['People Person', 0, 'peoplePerson'], ['Public Menace', 0, 'publicMenace'], ['Roadkill', 0, 'roadkill'],
+  title: [['None', 0], ['Glutton for Punishment', 0, 'allHard'], ['Rat King', 0, 'ratKing'], ['People Person', 0, 'peoplePerson'], ['Public Menace', 0, 'publicMenace'], ['Roadkill', 0, 'roadkill'],
     ['Gold Digger', 0, 'goldDigger'], ["Don't Mind Me", 0, 'dontMind'], ['Starving', 0, 'starving'], ['To-Do List', 0, 'checklist'],
     ['Thrill Seeker', 0, 'thrill'], ['Tourist', 0, 'tourist'], ['Veteran', 0, 'veteran'], ['High Roller', 0, 'highRoller'], ['Humans Only', 0, 'allHumans'],
     ['Cartographer', 0, 'cartographer'], ['Wrecking Ball', 0, 'smasher'], ['Apex Predator', 0, 'apex'], ['Snake Charmer', 0, 'charmer'], ['Ouroboros', 0, 'ouroboros'], ['Dog Walker', 0, 'glowWorm'], ['Last Call', 0, 'lastCall'], ['Swiss Army', 0, 'toolkit'], ['Iron Lungs', 0, 'marathon'], ['Prospector', 0, 'goldRush'], ['Lights Out', 0, 'lightsOut'], ['Fasting', 0, 'notHungry'], ['Spit Take', 0, 'spitTake'], ['Golden Hour', 0, 'goldenHour'], ['Had It Coming', 0, 'karma'], ['Not Fast Enough', 0, 'notFast']],
@@ -114,7 +114,7 @@ const ACH = [
   ['apex', 'Apex Predator', 'Reach level {n}', () => PROG.level, 40, 'rare', { chips: 600 }],
   ['notFast', 'Not Fast Enough', 'Catch {n} people mid-sprint, when the fear kicks in', () => PROG.adrenKills || 0, 25, 'medium', { chips: 150 }],
   ['karma', "That's Karma", 'Eat {n} people over time, then die within 2 seconds of eating someone', () => PROG.karma ? Math.max(PROG.kH, 250) : Math.min(PROG.kH, 249), 250, 'hard', { chips: 300 }],
-  ['allHard', 'Glutton for Punishment', 'Start a run with every harder modifier you can stack at once', () => PROG.allHard || 0, 1, 'rare', { chips: 500 }],
+  ['allHard', 'Glutton for Punishment', `Survive ${GLUTTON_T} seconds with at least ${GLUTTON_MODS} harder modifiers on, and not one modifier that doesn't make it harder`, () => PROG.glutton || 0, 1, 'rare', { chips: 5000, tokens: 5, xp: 6000 }], // the hardest thing in the game: it pays like it
   // secret: the name and goal stay hidden until earned; the clue is all you get
   ['charmer', 'Snake Charmer', 'Coil all the way around a light', () => PROG.coiled || 0, 1, 'hard', { secret: 1, clue: 'Wrap yourself around something bright.', chips: 250 }],
   ['ouroboros', 'Ouroboros', 'Bite your own tail while 60+ segments long', () => PROG.ouro || 0, 1, 'hard', { secret: 1, clue: 'Get really long. Then get hungry for yourself.', chips: 250 }],
@@ -127,20 +127,26 @@ const ACH = [
 ].map(([id, name, what, stat, n, tier, ex = {}]) => { const goal = typeof n === 'function' ? n : () => n; return { id, name, get n() { return goal(); }, get what() { return what.replace('{n}', goal()); }, stat, tier, ...ex }; });
 const ACH_XP = { easy: 150, medium: 400, hard: 900, rare: 1800 };
 const achRewards = id => [['color', COLOR_ITEMS], ['color2', COLOR_ITEMS], ...Object.entries(SHOP)].flatMap(([cat, l]) => l.filter(i => i[2] === id).map(i => [cat, i[0]]));
+if (PROG.ach && PROG.ach.allHard && !PROG.gluttonPaid) { // earned under the old rule (every harder modifier at the start of a run) when it paid almost nothing: the new reward, once
+  PROG.gluttonPaid = 1; PROG.glutton = 1; PROG.coins += 4500; PROG.earned = (PROG.earned || 0) + 4500; PROG.tokBonus = (PROG.tokBonus | 0) + 5;
+  for (const [cat, v] of achRewards('allHard')) if (!PROG.owned.includes(ownKey(cat, v))) PROG.owned.push(ownKey(cat, v));
+  saveProg();
+} else if (PROG.ach && !PROG.ach.allHard) PROG.gluttonPaid = 1;
 function checkAch() {
   for (const a of ACH) {
     if (PROG.ach[a.id] || a.stat() < a.n) continue;
     PROG.ach[a.id] = Date.now();
     const got = achRewards(a.id); got.forEach(([cat, v]) => { if (!PROG.owned.includes(ownKey(cat, v))) PROG.owned.push(ownKey(cat, v)); });
     if (a.chips) { PROG.coins += a.chips; PROG.earned = (PROG.earned || 0) + a.chips; }
-    if (typeof gainXP === 'function') gainXP(ACH_XP[a.tier] || 0, 0); // the harder it was, the more it pays
+    if (a.tokens) PROG.tokBonus = (PROG.tokBonus | 0) + a.tokens; // skill tokens on top of the ones from levels
+    if (typeof gainXP === 'function') gainXP(a.xp || ACH_XP[a.tier] || 0, 0); // the harder it was, the more it pays
     if (run && state !== 'menu') (run.unlocks = run.unlocks || []).push({ kind: 'ach', id: a.id });
     unlockFx(a, got);
   }
 }
 function unlockFx(a, got) { // the satisfying bit: a gold-edged unlock card plus a little fanfare
   const list = got.filter(([cat]) => cat !== 'color2').map(([cat, v]) => `${CAT_LABEL[cat]}: ${cat.startsWith('color') ? `<i class="sw0" style="background:${v}"></i>` : v}`).join(' · ');
-  notify({ kind: 'unlock', icon: a.secret ? '🗝️' : '🏆', title: `${a.secret ? 'Secret found' : 'Unlocked'}: ${a.name}`, sub: [list, a.chips ? `+${a.chips} <i class="pc"></i>` : ''].filter(Boolean).join(' · ') || a.what, dur: 5.5 });
+  notify({ kind: 'unlock', icon: giSvg(a.secret ? 'key' : 'trophy'), title: `${a.secret ? 'Secret found' : 'Unlocked'}: ${a.name}`, sub: [list, a.chips ? `+${a.chips} <i class="pc"></i>` : '', a.tokens ? `+${a.tokens} skill tokens` : '', a.xp ? `+${a.xp} XP` : ''].filter(Boolean).join(' · ') || a.what, dur: 5.5 });
   Sfx.levelUp && Sfx.levelUp();
 }
 const achProgress = a => Math.min(1, a.stat() / a.n);

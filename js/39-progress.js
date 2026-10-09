@@ -46,7 +46,7 @@ function checkPermChallenges() {
     const rw = TIERS[c.tier], xp = Math.round(rw.xp * 1.5), chips = Math.round(rw.chips * 1.5);
     (run.unlocks = run.unlocks || []).push({ kind: 'perm', name: c.name, map, xp, chips });
     (run.chList = run.chList || []).push({ name: c.name, tier: c.tier, perm: true, t: c.t, got: `${v}${c.unit || ''} of ${c.n}${c.unit || ''}`, at: run.time, xp, chips, map });
-    notify({ kind: 'unlock', icon: '🏅', title: `Permanent: ${c.name}`, sub: `${c.t} · +${xp} XP, +${chips} <i class="pc"></i>`, dur: 5 });
+    notify({ kind: 'unlock', icon: giSvg('medal'), title: `Permanent: ${c.name}`, sub: `${c.t} · +${xp} XP, +${chips} <i class="pc"></i>`, dur: 5 });
     gainXP(Math.round(xp * SKV.taskK()), Math.round(chips * SKV.taskK())); saveProg(); // Taskmaster
   }
 }
@@ -57,6 +57,7 @@ function progressTick(dt) { // while playing, a few times a second
   PROG.maxFastT = Math.max(PROG.maxFastT || 0, run.fastT || 0);
   if (!run.coiled && lights.some(l => l.enc)) { run.coiled = true; PROG.coiled = 1; }
   PROG.longestRun = Math.max(PROG.longestRun || 0, run.time);
+  if (!PROG.glutton && (run.hardMods || 0) >= GLUTTON_MODS && !run.softMods && run.time >= GLUTTON_T) { PROG.glutton = 1; saveProg(); checkAch(); } // Glutton for Punishment: 100 s alive under 20+ harder modifiers and nothing else
 }
 function progressEat(c) {
   const pair = c.dog || c.owner; if (pair) { if (!pair.alive && T - (pair.eatenT || -9) < 3) { PROG.dogWalker = 1; checkAch(); } c.eatenT = T; }
