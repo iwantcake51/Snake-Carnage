@@ -93,6 +93,8 @@ edPanel = function () {
   box.innerHTML = `<h4>Map settings</h4>
     <label class="edfield">Name <input type="text" class="cmname" maxlength="40" value="${(c.name || '').replace(/"/g, '&quot;')}"></label>
     <div class="peseg cmenv"><button data-env="outdoor" class="${indoor ? '' : 'on'}">🌳 Outdoor</button><button data-env="indoor" class="${indoor ? 'on' : ''}">🏠 Indoor</button></div>
+    <label class="edfield">Theme <select class="cmtheme"><option value="">Auto: ${MAP_THEMES[detectMapTheme(edCustomDoc())]}</option>${Object.entries(MAP_THEMES).map(([k, n]) => `<option value="${k}" ${c.theme === k ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+    <p class="edhint">What people here talk about and wear. Auto works it out from what's on the map.</p>
     <label class="edfield">Edge color <input type="color" class="cmborder" value="${edHex(c.border || '#4f7a33')}"></label>
     <p class="edhint">Ground texture: the Ground button in the toolbar. Roads, rooms and rivers: the Shapes tab.</p>
     ${indoor ? `<h4>Light</h4><label class="edfield">Room light <input type="range" class="cmamb" min="0" max="1" step=".05" value="${c.ambient ?? .3}"><output>${c.ambient ?? .3}</output></label>
@@ -115,6 +117,7 @@ edPanel = function () {
   box.querySelectorAll('.cmenv [data-env]').forEach(b => b.onclick = () => { if (b.dataset.env === c.env) return; ch(() => { const D = CUSTOM_DEFAULTS[b.dataset.env]; c.env = b.dataset.env; c.ambient = D.ambient; c.weather = { ...D.weather }; c.grass = D.grass; if (Object.values(CUSTOM_DEFAULTS).some(q => q.border === c.border)) { c.border = D.border; ED.border = D.border; } MAPS[ED.map].indoor = c.env === 'indoor'; }); edPanel(); });
   box.querySelector('.cmborder').oninput = e => { c.border = ED.border = e.target.value; ED.dirtySave = true; };
   box.querySelector('.cmborder').onchange = () => edDirty();
+  box.querySelector('.cmtheme').onchange = e => ch(() => { if (e.target.value) c.theme = e.target.value; else delete c.theme; });
   box.querySelector('.cmflash').onchange = e => ch(() => { if (e.target.value === '') delete c.flash; else c.flash = +e.target.value; }); // who carries a flashlight when it's dark
   const rng = (cls, f) => { const r = box.querySelector(cls); if (!r) return; r.oninput = () => { r.nextElementSibling.textContent = r.value; }; r.onchange = () => ch(() => f(+r.value)); };
   rng('.cmamb', v => { c.ambient = v; }); rng('.cmgrass', v => { c.grass = v; });

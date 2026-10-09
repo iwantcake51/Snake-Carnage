@@ -88,7 +88,7 @@ function updateSnake(dt) {
   if (s.camoT > 0) { const turning = Math.abs(angDiff(s.angle, s.dir)) > .05 || s.dashT > 0; s.still = clamp((s.still || 0) + (turning ? -dt * (sk('phantom') ? 1.2 : 4) : dt * 1.1), 0, 1); } else s.still = 0; // camouflage settles in on a straight line
   const dk = s.dashT > 0 ? s.dashK || 1.8 : 1; s.dashV = dk >= (s.dashV || 1) ? dk : 1 + ((s.dashV || 1) - 1) * Math.exp(-dt * 3.2); // lunge hits at once, then the speed bleeds off over about a second
   if (s.dashT > 0 && (s.wallStun > 0 || s.boomT > 0)) s.dashT = 0; // concussed: no lunging
-  const v = s.speed * s.dashV * (s.camoT > 0 ? SKV.camoSpeed() : 1) * /* Deep Cover: faster while hidden */ (s.lustT > 0 ? 1 + (SKV.lust() - 1) * Math.min(1, s.lustT / .4) : 1) * /* Bloodlust, easing off at the end */ (s.ramT > 0 ? 1 - (s.ramDeep || .5) * (s.ramT / (s.ramMax || 1)) : 1) * (1 - .55 * boomSlow(s)); // ... or reeling from a blast // a lunge, or a stagger after smashing through something
+  const v = s.speed * s.dashV * (s.camoT > 0 ? SKV.camoSpeed() : 1) * /* Deep Cover: faster while hidden */ (s.lustT > 0 ? 1 + (SKV.lust() - 1) * Math.min(1, s.lustT / .4) : 1) * /* Bloodlust, easing off at the end */ (s.ramT > 0 ? 1 - (s.ramDeep || .5) * (s.ramT / (s.ramMax || 1)) : 1) * (1 - .55 * boomSlow(s)) * (1 - gasSlow(s)); // ... or reeling from a blast, or choking on gas // a lunge, or a stagger after smashing through something
   // unit vector * speed => identical speed in all 8 directions
   if (MOD.slippery) s.mvA = s.mvA === undefined ? s.angle : s.mvA + angDiff(s.mvA, s.angle) * (1 - Math.exp(-dt * 2.8)); else s.mvA = s.angle; // Slippery: the body keeps sliding the old way a moment after you turn
   const vq = v * (MOD.quickTurn ? .9 : 1);
@@ -105,7 +105,7 @@ function updateSnake(dt) {
   const hitO = obstacleHitBy(hx, hy, hr); // walls and the map's edge always count, spawn protection or not
   if (hitO && canRam(hitO) && ramSpot(hitO, hx, hy)) smashObstacle(hitO, s.angle); // Battering Ram: furniture gives way
   else if (hitO) { crashHit = { o: hitO, t: T }; return die(); }
-  if (!grace) for (let i = 8; i < s.segs.length; i++) if (dist2(s.x, s.y, s.segs[i].x, s.segs[i].y) < (snakeRadius() * 1.1) ** 2) { if (s.segs.length >= 60) { PROG.ouro = 1; checkAch(); } crashHit = { seg: i, t: T }; return die(); }
+  if (!grace && !MOD.noSelf) for (let i = 8; i < s.segs.length; i++) if (dist2(s.x, s.y, s.segs[i].x, s.segs[i].y) < (snakeRadius() * 1.1) ** 2) { if (s.segs.length >= 60) { PROG.ouro = 1; checkAch(); } crashHit = { seg: i, t: T }; return die(); }
 
   hoover(s, dt);
   let ate = false;
@@ -337,7 +337,7 @@ function ramSpot(o, x, y) { // a custom prop can say WHERE it breaks (its intera
   return polyHit(ip, x, y, snakeHitRadius() + 2);
 }
 let crashHit = null; // what you ran into: it flashes as the run ends
-const deathDelay = () => (IS_TOUCH ? .3 : .7) + (run.deathBy === 'bomb' || run.deathBy === 'fuse' ? 1.5 : 0); // a beat to feel the impact (the hit flashes, the screen shakes), then the crash screen. Phones get it fast. Blown up: time to watch yourself go off
+const deathDelay = () => (IS_TOUCH ? .3 : .7) + (['bomb', 'fuse', 'cluster', 'fire'].includes(run.deathBy) ? 1.5 : 0); // a beat to feel the impact (the hit flashes, the screen shakes), then the crash screen. Phones get it fast. Blown up: time to watch yourself go off
 function die() {
   if (NETM.run) return netLocalDown(); // co-op: you go down, the team carries on (see 40d-net-sync)
   snake.alive = false; state = 'dead'; deadT = deathDelay(); deadAt = performance.now(); shake = 10;

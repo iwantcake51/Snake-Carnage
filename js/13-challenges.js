@@ -5,6 +5,10 @@
 const ROT_MS = 15 * 60 * 1000;
 const rotIndex = () => Math.floor(Date.now() / ROT_MS);
 const rotLeft = () => ROT_MS - (Date.now() % ROT_MS);
+let CH_RUN = null; // the rotation a run started on: its challenges hold for the whole run, and a new set waits for the menu
+const chRot = () => CH_RUN ?? rotIndex();
+const chHeld = () => CH_RUN !== null && rotIndex() !== CH_RUN; // a new set is out, but you're mid-run
+function chHold(on) { if (on) { checkRotation(); CH_RUN = rotIndex(); } else { CH_RUN = null; checkRotation(); } } // startGame holds the set, the menu lets it go
 const fmtClock = ms => { const t = Math.ceil(ms / 1000); return String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0'); };
 function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 const hashStr = str => { let h = 2166136261; for (const ch of str) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return h >>> 0; };
@@ -165,7 +169,7 @@ function buildSet(map, rot, salt = 0) {
 }
 const chCache = {};
 function activeChallenges(map) { // this rotation's set, never identical to the previous one
-  const rot = rotIndex(), key = map + '|' + rot;
+  const rot = chRot(), key = map + '|' + rot;
   if (chCache[key]) return chCache[key];
   const prev = buildSet(map, rot - 1).map(c => c.id).join();
   let set = buildSet(map, rot), salt = 0;
@@ -267,8 +271,8 @@ const chUnit = ch => ({ survive: 's', comboTime: 's', dist: ' m', goreDist: ' m'
 const chReward = ch => ch.xp ? ch : TIERS[ch.tier]; // the reward rolled with the challenge (see chRewardFor), stored on it
 const rewardText = (ch, short) => { const r = chReward(ch);
   return short ? `+${r.chips} ${'<i class="pc"></i>'}` : `+${r.xp} XP, +${r.chips} ${'<i class="pc"></i>'}${r.bonus ? `, +${Math.round(r.bonus * 100)}% score this run` : ''}`; };
-function checkRotation() { // reroll every 15 minutes, without restarting anything
-  const r = rotIndex();
+function checkRotation() { // reroll every 15 minutes (never mid-run: a run keeps the set it started with)
+  const r = chRot();
   if (PROG.chRot === r) { if (!PROG.chAbil) { PROG.chAbil = ownedAbilIds(); for (const k in chCache) delete chCache[k]; saveProg(); } return; }
   const first = PROG.chRot === undefined;
   PROG.chRot = r; PROG.chDone = {}; PROG.chBest = {}; PROG.chAbil = ownedAbilIds(); saveProg(); // abilities owned now decide this rotation's ability challenges
@@ -302,13 +306,13 @@ function challengeRows() { // compact list used by the pause menu
   const m = MAPS[mapIdx].name, done = PROG.chDone[m] || {}, best = PROG.chBest[m] || {};
   return activeChallenges(m).map(ch => {
     const v = done[ch.id] ? ch.n : Math.max(best[ch.id] || 0, Math.min(chValue(ch), ch.n));
-    return `<div class="pcr ${done[ch.id] ? 'done' : ''}"><span class="ck">${done[ch.id] ? '✔' : ''}</span><span class="t"><em class="tier ${ch.tier}">${TIERS[ch.tier].label}</em>${teamTag(ch)}<b class="cn2">${ch.name}</b> ${ch.t}</span><span class="v">${v}${chUnit(ch)}/${ch.n}${chUnit(ch)}<small>${rewardText(ch, true)}</small></span><i style="width:${(v / ch.n * 100).toFixed(0)}%"></i></div>`;
+    return `<div class="pcr ${done[ch.id] ? 'done' : ''}"><span class="ck">${done[ch.id] ? kiSvg('checkmark') : ''}</span><span class="t"><em class="tier ${ch.tier}">${TIERS[ch.tier].label}</em>${teamTag(ch)}<b class="cn2">${ch.name}</b> ${ch.t}</span><span class="v">${v}${chUnit(ch)}/${ch.n}${chUnit(ch)}<small>${rewardText(ch, true)}</small></span><i style="width:${(v / ch.n * 100).toFixed(0)}%"></i></div>`;
   }).join('') + `<p class="rot">New challenges in <b data-rot>${fmtClock(rotLeft())}</b></p>`;
 }
 function challengeHud(rebuild, refreshed) { // live checklist in the bottom-left corner while playing
   const el = document.getElementById('chhud'), m = MAPS[mapIdx].name, list = activeChallenges(m), done = PROG.chDone[m] || {};
-  if (rebuild || el.dataset.key !== m + rotIndex() + NETM.on + netMode()) {
-    el.dataset.key = m + rotIndex() + NETM.on + netMode();
+  if (rebuild || el.dataset.key !== m + chRot() + NETM.on + netMode()) {
+    el.dataset.key = m + chRot() + NETM.on + netMode();
     el.innerHTML = `<div class="hch">Challenges<span>New in <b data-rot>${fmtClock(rotLeft())}</b></span></div>` +
       list.map((ch, i) => `<div class="hc" data-id="${ch.id}" style="--i:${i}"><span class="ck ${ch.tier}"></span><span class="t" title="${ch.name}: ${ch.t}">${teamTag(ch)}<b class="cn2">${ch.name}</b><span class="sep"> · </span>${ch.t}</span><span class="v"></span><span class="rw2">${rewardText(ch, true)}</span><i></i></div>`).join('');
     el.classList.remove('refresh'); if (refreshed) { void el.offsetWidth; el.classList.add('refresh'); }
@@ -318,20 +322,20 @@ function challengeHud(rebuild, refreshed) { // live checklist in the bottom-left
     const v = done[ch.id] ? ch.n : Math.min(chValue(ch), ch.n), was = row.classList.contains('done'), vEl = row.querySelector('.v');
     row.classList.toggle('done', !!done[ch.id]);
     if (done[ch.id] && !was && !rebuild) { row.classList.remove('flash'); void row.offsetWidth; row.classList.add('flash'); }
-    row.querySelector('.ck').textContent = done[ch.id] ? '✔' : '';
+    if (!!done[ch.id] !== was || rebuild) row.querySelector('.ck').innerHTML = done[ch.id] ? kiSvg('checkmark') : ''; // only when it changes (this runs every update)
     const txt = `${v}${chUnit(ch)}/${ch.n}${chUnit(ch)}`;
     if (vEl.textContent !== txt) { if (vEl.textContent && !rebuild && !['dist', 'survive', 'comboTime'].includes(ch.k)) { vEl.classList.remove('tick'); void vEl.offsetWidth; vEl.classList.add('tick'); } vEl.textContent = txt; }
     row.querySelector('i').style.width = (v / ch.n * 100).toFixed(0) + '%';
   }
 }
 function updateRotClocks() { // every visible "new challenges in" timer
-  const t = fmtClock(rotLeft());
-  document.querySelectorAll('[data-rot]').forEach(e => { if (e.textContent !== t) e.textContent = t; });
+  const held = chHeld(), t = held ? 'after this run' : fmtClock(rotLeft());
+  document.querySelectorAll('[data-rot]').forEach(e => { if (held && !e.parentElement.dataset.held) { e.parentElement.dataset.held = 1; e.parentElement.innerHTML = 'New set <b data-rot>after this run</b>'; return; } if (e.textContent !== t) e.textContent = t; }); // mid-run, the new set waits for the menu
 }
 function challengePopup(ch, r) {
   const box = document.getElementById('rewards'), el = document.createElement('div');
   el.className = 'rw ch';
-  el.innerHTML = `<span>✔ ${chTeam(ch) ? (netMode() === 'coop' ? 'Team: ' : 'Shared: ') : ''}${ch.name}</span><span class="c">${rewardText(ch)}</span>`;
+  el.innerHTML = `<span>${kiSvg('checkmark', 'ckn')} ${chTeam(ch) ? (netMode() === 'coop' ? 'Team: ' : 'Shared: ') : ''}${ch.name}</span><span class="c">${rewardText(ch)}</span>`;
   box.prepend(el); Sfx.ui('confirm');
   setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 400); }, 4500);
 }

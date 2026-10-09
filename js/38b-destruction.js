@@ -54,7 +54,7 @@ function treeFall(o, ang, quiet) {
   const sz = typeof SZN === 'function' ? SZN() : { leaves: ['#3f8a2a', '#4c9a30'], full: 1 }, pal = [...sz.leaves, ...(sz.blossom ? ['#f6c6d6', '#ffe0ea', '#f9d4df'] : [])];
   const R = o.r * (o.kind === 'tree' ? 2.1 : 1.15), n = Math.round(clamp(R * R / 10 * ((sz.full ?? 1) + .25), 12, 110) * FX_K());
   for (let k = 0; k < n; k++) { const a = rand(0, TAU), d = Math.sqrt(Math.random()) * R, push = rand(20, 110);
-    leafFall.push({ x: o.x + Math.cos(a) * d, y: o.y + Math.sin(a) * d, z: rand(10, 34) * (o.kind === 'tree' ? 1 : .6), vx: Math.cos(ang) * push + Math.cos(a) * rand(10, 50), vy: Math.sin(ang) * push + Math.sin(a) * rand(10, 50), vz: rand(10, 60), rot: rand(0, TAU), vr: rand(-6, 6), ph: rand(0, TAU), s: rand(1.6, 3.2), c: pick(pal), t: 0 }); }
+    leafFall.push({ x: o.x + Math.cos(a) * d, y: o.y + Math.sin(a) * d, z: rand(10, 34) * (o.kind === 'tree' ? 1 : .6), vx: Math.cos(ang) * push + Math.cos(a) * rand(10, 50), vy: Math.sin(ang) * push + Math.sin(a) * rand(10, 50), vz: rand(10, 60), rot: rand(0, TAU), vr: rand(-6, 6), ph: rand(0, TAU), s: rand(1.6, 3.2), c: pick(pal), t: 0, lf: randi(0, 8) }); }
   if (leafFall.length > 500) leafFall.splice(0, leafFall.length - 500);
 }
 function updateLeafFall(dt) {
@@ -63,7 +63,7 @@ function updateLeafFall(dt) {
     p.vz = Math.max(-22 - p.s * 3, p.vz - 70 * dt); p.z += p.vz * dt; p.rot += p.vr * dt; // light: they drift down slowly, swinging side to side
     p.x += (p.vx + Math.sin(T * 3.4 + p.ph) * 16) * dt; p.y += (p.vy + Math.cos(T * 2.7 + p.ph) * 6) * dt;
     if (p.z <= 0) { // landed: it stays on the ground
-      if (!solid(p.x, p.y) && !(typeof inAnyWater === 'function' && inAnyWater(p.x, p.y))) { bctx.save(); bctx.globalAlpha = .9; bctx.translate(p.x, p.y); bctx.rotate(p.rot); bctx.fillStyle = p.c; bctx.beginPath(); bctx.ellipse(0, 0, p.s, p.s * .55, 0, 0, TAU); bctx.fill(); bctx.restore(); }
+      if (!solid(p.x, p.y) && !inCrater(p.x, p.y) && !(typeof inAnyWater === 'function' && inAnyWater(p.x, p.y))) { bctx.save(); bctx.globalAlpha = .9; if (!kDraw(bctx, K_LEAF[p.lf], p.c, p.x, p.y, p.s * 2.7, p.s * 2.7, p.rot, 16)) { bctx.translate(p.x, p.y); bctx.rotate(p.rot); bctx.fillStyle = p.c; bctx.beginPath(); bctx.ellipse(0, 0, p.s, p.s * .55, 0, 0, TAU); bctx.fill(); } bctx.restore(); }
       leafFall[i] = leafFall[leafFall.length - 1]; leafFall.pop();
     }
   }
@@ -71,7 +71,8 @@ function updateLeafFall(dt) {
 function drawLeafFall(x) {
   for (const p of leafFall) { const fl = .35 + .65 * Math.abs(Math.cos(p.t * 5 + p.ph)); // turning over as they fall
     x.globalAlpha = .22; x.fillStyle = '#000'; x.beginPath(); x.ellipse(p.x + p.z * .25, p.y + p.z * .15, p.s * .9, p.s * .45, p.rot, 0, TAU); x.fill(); // its shadow
-    x.globalAlpha = 1; x.save(); x.translate(p.x, p.y - p.z * .3); x.rotate(p.rot); x.scale(1, fl); x.fillStyle = p.c; x.beginPath(); x.ellipse(0, 0, p.s, p.s * .55, 0, 0, TAU); x.fill(); x.fillStyle = 'rgba(255,255,255,.18)'; x.fillRect(-p.s * .8, -.2, p.s * 1.6, .4); x.restore(); }
+    x.globalAlpha = 1; x.save(); x.translate(p.x, p.y - p.z * .3); x.rotate(p.rot); x.scale(1, fl); const lf = kTint(K_LEAF[p.lf], p.c, 16);
+    if (lf) x.drawImage(lf, -p.s * 1.35, -p.s * 1.35, p.s * 2.7, p.s * 2.7); else { x.fillStyle = p.c; x.beginPath(); x.ellipse(0, 0, p.s, p.s * .55, 0, 0, TAU); x.fill(); x.fillStyle = 'rgba(255,255,255,.18)'; x.fillRect(-p.s * .8, -.2, p.s * 1.6, .4); } x.restore(); }
   x.globalAlpha = 1;
 }
 const CHUNK_MAX = 70;

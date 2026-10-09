@@ -16,8 +16,8 @@ function shopCard(cat, [v, p, achId], i) {
   const status = on ? '<span class="st eq">Equipped</span>' : own ? '<span class="st own">Owned · click to equip</span>' : locked ? '' : `<span class="st buy"><i class="pc"></i> ${p} · click to buy</span>`;
   return `<button class="sc c-${cat} ${on ? 'on' : ''} ${own ? 'own' : ''} ${locked ? 'locked' : ''} ${!own && !locked && PROG.coins < p ? 'poor' : ''}" data-cat="${cat}" data-v="${attr(v)}" ${hidden ? 'data-hid="1"' : ''} style="--i:${i}" ${tip ? `data-tiph="${attr(tip)}"` : ''}>
     ${hidden ? '<span class="pvw"><span class="pvTitle none">???</span></span>' : sw}<b>${hidden ? '???' : cat.startsWith('color') ? colorName(v) : v}</b>
-    ${locked ? `<span class="lk">🔒</span><span class="req" style="--tc:${TIERCOL[ach.tier]}"><em>${hidden ? 'Secret challenge' : ach.name}</em>${hidden ? ach.clue : ach.what}<span class="pb"><span style="width:${(achProgress(ach) * 100).toFixed(0)}%"></span></span></span>`
-      : `<span class="price">${own ? (on ? '✔' : '') : `<i class="pc"></i>${p}`}</span>`}
+    ${locked ? `<span class="lk">${kiSvg('locked')}</span><span class="req" style="--tc:${TIERCOL[ach.tier]}"><em>${hidden ? 'Secret challenge' : ach.name}</em>${hidden ? ach.clue : ach.what}<span class="pb"><span style="width:${(achProgress(ach) * 100).toFixed(0)}%"></span></span></span>`
+      : `<span class="price">${own ? (on ? kiSvg('checkmark') : '') : `<i class="pc"></i>${p}`}</span>`}
     <span class="hov">${status}</span></button>`;
 }
 const slug = v => String(v).toLowerCase().replace(/[^a-z0-9]+/g, '-');

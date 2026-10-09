@@ -26,8 +26,9 @@ function deathFxTick(dt) {
   if (dfxK < .004 && !down) dfxK = 0;
   if (dead) dtK = 1; else { dtK += -dtK * (1 - Math.exp(-dt * 3.2)); if (dtK < .004) dtK = 0; } // the red lands the instant you die, and only fades once you're back
   if (Math.abs(dfxK - k0) < 1e-4 && dtK === t0 && (dfxK === 0 || dfxK > .999)) return;
-  let tint = document.getElementById('dTint'); if (!tint && dtK > 0) { tint = document.createElement('div'); tint.id = 'dTint'; stage.appendChild(tint); }
-  stage.style.setProperty('--dfx', dfxK.toFixed(3)); stage.style.setProperty('--dtint', dtK.toFixed(3)); stage.classList.toggle('dying', dfxK > 0 || dtK > 0); if (tint && dtK === 0) tint.remove(); // .dying: the canvas filter follows frame by frame, no CSS easing on top
+  let tint = document.getElementById('dTint'); if (!tint && dtK > 0) { tint = document.createElement('div'); tint.id = 'dTint'; stage.appendChild(tint);
+    const fx = document.createElement('div'); fx.id = 'dFx'; fx.innerHTML = '<i class="dBeat"></i><i class="dGrain"></i><i class="dBar t"></i><i class="dBar b"></i>'; fx.classList.toggle('still', !!SETTINGS.reduceMotion); fx.classList.toggle('soft', !!SETTINGS.reduceFlash); stage.appendChild(fx); } // over the red wash (its own layer: the wash colours, these darken): a heartbeat that thumps twice and holds, film grain, black bars closing in
+  stage.style.setProperty('--dfx', dfxK.toFixed(3)); stage.style.setProperty('--dtint', dtK.toFixed(3)); stage.classList.toggle('dying', dfxK > 0 || dtK > 0); if (tint && dtK === 0) { tint.remove(); const fx = document.getElementById('dFx'); if (fx) fx.remove(); } // .dying: the canvas filter follows frame by frame, no CSS easing on top
 }
 function killFx(x, y, amount) {
   killV = Math.min(.5, killV + .12 + .18 * amount); // only a whisper on screen; the impact is on the target itself
@@ -83,7 +84,8 @@ function drawVomit(x) { for (const p of puke) { x.fillStyle = p.c; circ(x, p.x, 
 let smoke = [];
 const SMOKE_SPR = [];
 function smokeSprite(v, rgb) { // rgb: tint it (dust in a material's own color)
-  const key = rgb ? v + ':' + rgb.join(',') : v; if (SMOKE_SPR[key]) return SMOKE_SPR[key];
+  const key = (KSPR.ok ? 'k' : '') + (rgb ? v + ':' + rgb.join(',') : v); if (SMOKE_SPR[key]) return SMOKE_SPR[key];
+  if (KSPR.ok) { const s = kTint(K_SMOKE[v & 3], rgb ? rgb.map(c => c * 1.15) : [236, 226, 212], 96, 2); if (s) return SMOKE_SPR[key] = s; } // Kenney's smoke, once the atlas is in
   const S = 64, c = document.createElement('canvas'); c.width = c.height = S; const x = c.getContext('2d'), img = x.createImageData(S, S), d = img.data, o0 = v * 17.3;
   for (let j = 0; j < S; j++) for (let i = 0; i < S; i++) {
     const dx = (i - S / 2) / (S / 2), dy = (j - S / 2) / (S / 2), r = Math.hypot(dx, dy);
@@ -105,7 +107,7 @@ function updateSmoke(dt) {
   for (let i = smoke.length - 1; i >= 0; i--) {
     const p = smoke[i]; p.t += dt; if (p.t > p.life) { smoke[i] = smoke[smoke.length - 1]; smoke.pop(); continue; }
     if (p.t < 0) continue;
-    const f = Math.exp(-dt * 1.6), curl = perlin(p.x * .02, p.y * .02 + T * .3) * 22; // drag, plus a slow curl so it drifts and folds
+    const f = Math.exp(-dt * 1.6), curl = perlin(p.x * .02, p.y * .02 + animT('smoke') * .3) * 22 * AN.smoke.amp; // drag, plus a slow curl so it drifts and folds
     p.vx = p.vx * f + curl * dt * 3; p.vy = p.vy * f - curl * dt * 2; p.x += p.vx * dt; p.y += p.vy * dt; p.r += p.g * dt * (1 - p.t / p.life * .6); p.rot += p.vr * dt;
   }
 }

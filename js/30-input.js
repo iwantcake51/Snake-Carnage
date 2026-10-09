@@ -46,7 +46,7 @@ function predictUTurn(side, final, boost) { // play the whole turn forward, plus
       for (let j = path.length - 1; j >= 0 && !done; j--) done = step(path[j][0], path[j][1]);
       if (!done) done = step(s.x, s.y);
       for (let j = 0; j < s.hist.length && !done; j++) done = step(s.hist[j].x, s.hist[j].y);
-      if (hitB) bad += 5;
+      if (hitB && !MOD.noSelf) bad += 5;
     }
     path.push([x, y]);
     if (after < 0 && Math.abs(angDiff(ang, final)) < .1) after = k;
@@ -86,7 +86,7 @@ function mouseSteer() { // every frame: aim at the cursor, at the same turn rate
   s.dir = a;
 }
 function steerSafe(s, a) { // mouse steering chases the cursor every frame, so a fast, tight swing (a lunge with every turning skill) can loop the head into its own body: look about half a second ahead
-  const segs = s.segs; if (!segs || segs.length < 10) return true;
+  const segs = s.segs; if (!segs || segs.length < 10 || MOD.noSelf) return true; // (No self collision: the body is no danger)
   const R = snakeRadius(), dv = s.dashV || 1, v = s.speed * dv, rate = CONFIG.turnRate * SKV.turn() * (dv > 1.2 ? SKV.lungeTurn() : 1) * (MOD.wideTurns ? .5 : MOD.quickTurn ? 1.6 : 1), dt = 1 / 30;
   let ang = s.angle, x = s.x, y = s.y;
   for (let k = 0; k < 14; k++) { const d = angDiff(ang, a); ang += Math.sign(d) * Math.min(Math.abs(d), rate * dt); x += Math.cos(ang) * v * dt; y += Math.sin(ang) * v * dt;

@@ -46,7 +46,7 @@ function drawSnakeBody(x, s, cfg) {
   const moving = s === snake ? s.started && s.alive && state === 'play' : !!s.netMoving; // a teammate: moving if their head is
   s.wv = (s.wv || 0) + ((moving ? 1 : 0) - (s.wv || 0)) * .08;
   const pts = s.segs.map((g, i) => {
-    const amp = s.wv * 1.7 * Math.min(1, i / 4) * Math.max(0, 1 - i / (n + 6)), o = Math.sin(i * .55 - T * 9) * amp;
+    const amp = s.wv * 1.7 * AN.slither.amp * Math.min(1, i / 4) * Math.max(0, 1 - i / (n + 6)), o = Math.sin(i * .55 - animT('slither') * 9) * amp;
     return { x: g.x - Math.sin(g.a) * o, y: g.y + Math.cos(g.a) * o, a: g.a };
   });
   for (let i = 0; i < pts.length; i++) { // direction from the neighbours, not the raw heading: hard turns bend the tube smoothly instead of kinking it
@@ -161,11 +161,12 @@ function lungeK(s) { // 0..1 lunge momentum: snaps in, peaks early, eases out af
 function histAt(s, back) { const h = s.wake || [], t = T - back; for (let i = h.length - 1; i >= 0; i--) if (h[i].t <= t) return h[i]; return h[0]; }
 function drawLungeFx(x, s, pts, n, k, lv) {
   const m = x.getTransform(), sc = Math.hypot(m.a, m.b);
-  const W0 = histAt(s, .3) || s, gr = grabScene(m.transformPoint({ x: Math.min(s.x, W0.x) - 40, y: Math.min(s.y, W0.y) - 40 }), m.transformPoint({ x: Math.max(s.x, W0.x) + 40, y: Math.max(s.y, W0.y) + 40 }));
+  if (SETTINGS.fxLevel === 'Low') return;
+  const W0 = histAt(s, .16) || s, gr = grabScene(m.transformPoint({ x: Math.min(s.x, W0.x) - 40, y: Math.min(s.y, W0.y) - 40 }), m.transformPoint({ x: Math.max(s.x, W0.x) + 40, y: Math.max(s.y, W0.y) + 40 }));
   // the wake: the ground behind the head is magnified and pushed out, like air shoved aside by something very fast
-  for (let j = 1; j <= (lv > 1 ? 5 : 4); j++) {
+  for (let j = 1; j <= (SETTINGS.fxLevel === 'Low' ? 0 : lv > 1 ? 3 : 2); j++) { // (two or three ripples: each is a clip and a copy of that bit of the screen)
     const hp = histAt(s, j * .05); if (!hp) break;
-    const w = k * (1 - j / 6), R = (11 + j * 3.5) * (lv > 1 ? 1.15 : 1), P = m.transformPoint({ x: hp.x, y: hp.y }), mag = 1 + .16 * w;
+    const w = k * (1 - j / 4), R = (11 + j * 5) * (lv > 1 ? 1.15 : 1), P = m.transformPoint({ x: hp.x, y: hp.y }), mag = 1 + .16 * w;
     x.save(); x.beginPath(); x.arc(hp.x, hp.y, R, 0, TAU); x.clip();
     x.globalAlpha = .75 * w; x.setTransform(1, 0, 0, 1, 0, 0);
     const sr = R * sc, dr = sr * mag;
@@ -176,30 +177,36 @@ function drawLungeFx(x, s, pts, n, k, lv) {
   x.globalAlpha = 1;
 }
 /* ---- dash after-images: while a snake lunges it drops a snapshot of its front half every few hundredths of a second; each one hangs in
-   the air where it was, blurring out and fading, so a lunge leaves a smeared trail of itself. Remote snakes too (their lunge flag) ---- */
-const GHOST_LIFE = .5;
+   the air where it was, fading, so a lunge leaves a smeared trail of itself. Remote snakes too (their lunge flag).
+   Each snapshot is painted once, when it's taken, into its own small canvas at a fraction of the resolution (outline, body
+   and glowing core together); stretched back up, that low resolution is the blur. Every frame after that it is one
+   drawImage. (It used to redraw every after-image, outline and core included, through a canvas blur filter, every frame:
+   up to three dozen filtered fills a frame, most of what a lunge cost.) ---- */
+const GHOST_LIFE = .45, GHOST_RES = .4; // how long one hangs in the air; the resolution it's painted at (lower = softer)
 const ghostAt = (q, u) => { const back = 34 * u; return { a: .6 * Math.pow(1 - u, 1.4), shrink: 1 - .2 * u, ox: -Math.cos(q.a) * back, oy: -Math.sin(q.a) * back }; }; // each one drifts back the way you came as it fades
+function ghostSprite(P, m, c1, c2) {
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; for (let i = 0; i < m; i++) { const r = P[3 * i + 2] + 2; x0 = Math.min(x0, P[3 * i] - r); y0 = Math.min(y0, P[3 * i + 1] - r); x1 = Math.max(x1, P[3 * i] + r); y1 = Math.max(y1, P[3 * i + 1] + r); }
+  const pad = 4, k = GHOST_RES, w = x1 - x0 + pad * 2, h = y1 - y0 + pad * 2, c = document.createElement('canvas'); c.width = Math.max(1, Math.ceil(w * k)); c.height = Math.max(1, Math.ceil(h * k));
+  const g = c.getContext('2d'); g.scale(k, k); g.translate(pad - x0, pad - y0);
+  const ol = SETTINGS.snakeOutline || 'Subtle', strong = ol === 'Strong';
+  const disc = (grow, step, sk) => { g.beginPath(); for (let i = 0; i < m; i += step) { const r = P[3 * i + 2] * sk * (1 - .35 * i / m) + grow, px = P[3 * i], py = P[3 * i + 1]; g.moveTo(px + r, py); g.arc(px, py, r, 0, TAU); } g.fill(); };
+  if (ol !== 'Off') { g.globalAlpha = .7; g.fillStyle = `rgba(8,5,5,${strong ? .85 : .5})`; disc(strong ? 1.9 : 1.3, 1, 1); } // the trail wears the snake's outline too
+  g.globalAlpha = .7; g.fillStyle = c1; disc(0, 1, 1);
+  g.globalAlpha = .55; g.fillStyle = shade(c2, .25); disc(0, 2, .55); // a bright core, so it reads as a flash of the snake, not a smudge
+  return { c, x0: x0 - pad, y0: y0 - pad, w, h };
+}
 function dashGhosts(x, s, pts, n, cfg) {
   const dashing = s.alive !== false && (s.dashT > 0 || (s === snake && (s.dashV || 1) > 1.2)), g = s.ghosts || (s.ghosts = []);
-  if (dashing && T - (s.ghT ?? -9) > .04 && n) { s.ghT = T; // a fresh snapshot of the front of the body (60 pieces at most: blurring a whole long body is a big job)
-    const m = Math.min(n, 90), P = new Float32Array(m * 3); for (let i = 0; i < m; i++) { P[3 * i] = pts[i].x; P[3 * i + 1] = pts[i].y; P[3 * i + 2] = segR(i, n); }
-    g.push({ t: T, P, m, a: pts[0].a, c1: segColor(0, n, cfg), c2: segColor(Math.min(n - 1, 8), n, cfg) }); if (g.length > 12) g.shift(); }
+  if (dashing && !SETTINGS.simpleFx && T - (s.ghT ?? -9) > .05 && n) { s.ghT = T; // a fresh snapshot of the front of the body
+    const m = Math.min(n, 60), P = new Float32Array(m * 3); for (let i = 0; i < m; i++) { P[3 * i] = pts[i].x; P[3 * i + 1] = pts[i].y; P[3 * i + 2] = segR(i, n); }
+    g.push({ t: T, hx: P[0], hy: P[1], a: pts[0].a, spr: ghostSprite(P, m, segColor(0, n, cfg), segColor(Math.min(n - 1, 8), n, cfg)) }); if (g.length > 9) g.shift(); }
   while (g.length && T - g[0].t > GHOST_LIFE) g.shift();
   if (!g.length || SETTINGS.simpleFx) return;
-  const blur = 'filter' in x && !SETTINGS.reduceMotion, ol = SETTINGS.snakeOutline || 'Subtle', strong = ol === 'Strong';
-  x.save();
   for (let j = 0; j < g.length; j++) { const q = g[j], u = (T - q.t) / GHOST_LIFE; if (u <= 0.02) continue; // the newest sits under the body anyway
-    const { a, shrink, ox, oy } = ghostAt(q, u);
-    if (blur) x.filter = `blur(${(1.5 + 6 * u).toFixed(1)}px)`; // and smears out more as it ages: a motion blur trailing behind
-    x.globalCompositeOperation = 'source-over';
-    const disc = grow => { x.beginPath(); for (let i = 0; i < q.m; i++) { const r = q.P[3 * i + 2] * shrink * (1 - .35 * i / q.m) + grow, px = q.P[3 * i] + ox, py = q.P[3 * i + 1] + oy; x.moveTo(px + r, py); x.arc(px, py, r, 0, TAU); } x.fill(); };
-    if (ol !== 'Off') { x.globalAlpha = a * .7; x.fillStyle = `rgba(8,5,5,${strong ? .85 : .5})`; disc(strong ? 1.9 : 1.3); } // the trail wears the snake's outline too (the white night rim takes it in as well)
-    x.globalAlpha = a * .7; x.fillStyle = q.c1; disc(0);
-    x.globalCompositeOperation = 'lighter'; x.globalAlpha = a * .45; x.fillStyle = q.c2; x.beginPath(); // a glowing core, so it reads as a flash of the snake, not a smudge
-    for (let i = 0; i < q.m; i += 2) { const r = q.P[3 * i + 2] * shrink * .55, px = q.P[3 * i] + ox, py = q.P[3 * i + 1] + oy; x.moveTo(px + r, py); x.arc(px, py, r, 0, TAU); }
-    x.fill();
+    const { a, shrink, ox, oy } = ghostAt(q, u), S = q.spr;
+    x.globalAlpha = a; x.drawImage(S.c, q.hx + (S.x0 - q.hx) * shrink + ox, q.hy + (S.y0 - q.hy) * shrink + oy, S.w * shrink, S.h * shrink); // (shrinking toward where the head was)
   }
-  x.restore();
+  x.globalAlpha = 1;
 }
 function drawStreaks(x) {
   const dt = Math.max(0, Math.min(.05, T - (drawStreaks.t ?? T))); drawStreaks.t = T;

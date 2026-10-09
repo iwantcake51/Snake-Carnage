@@ -148,7 +148,7 @@ function updateCreature(c, dt) {
   if (c.kb && c.kb.t > 0) { c.kb.t -= dt; const nx = c.x + c.kb.vx * dt, ny = c.y + c.kb.vy * dt; if (free(nx, ny, d.r * .8)) { c.x = nx; c.y = ny; } c.kb.vx *= .9; c.kb.vy *= .9; } // thrown back by a Hiss shockwave
   c.spd = dt > 0 ? moved / dt : 0;
   c.moveAmt += ((moved > 0 ? 1 : 0) - c.moveAmt) * Math.min(1, dt * 8);
-  c.phase += moved * (d.human ? .3 : .5) / Math.max(.7, d.r / 7); // steps scale with body size: big animals stride, small ones patter
+  c.phase += moved * (d.human ? .3 * AN.walk.sp : .5 * AN.gait.sp) / Math.max(.7, d.r / 7); // (Animation editor: step speed) // steps scale with body size: big animals stride, small ones patter
   footprints(c, moved);
   if (c.snowCover > 0 && moved > 0 && c.state === 'panic') c.snowCover = Math.max(0, c.snowCover - moved * .0025); // running shakes the snow off (it never comes back)
   if (moved > 0 && c.state === 'panic' && MOD.blind && (c.stepN = (c.stepN || 0) + moved) > 40) { c.stepN = 0; noise(d.human ? 'steps' : 'animal', c.x, c.y, d.human ? 1 : .5); } // running feet: something the blind can hear (and nothing more)

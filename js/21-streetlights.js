@@ -62,8 +62,8 @@ function updateLampBugs(l, dt) {
   const k = lightK(l), night = light && light.dark > .3 && k > .2;
   l.bugFill = clamp((l.bugFill || 0) + dt * (night ? .25 : -1.5), 0, l.bugs.length); // they turn up a few at a time after dark and leave by day
   for (const b of l.bugs) {
-    b.a += b.sp * dt * (k > .1 ? 1 : .3); b.ph += dt * rand(4, 9);
-    const wob = Math.sin(b.ph) * 3, r = b.r + wob * (k > .1 ? 1 : 2.5);
+    b.a += b.sp * dt * (k > .1 ? 1 : .3) * AN.moths.sp; b.ph += dt * rand(4, 9) * AN.moths.sp;
+    const wob = Math.sin(b.ph) * 3 * AN.moths.amp, r = b.r + wob * (k > .1 ? 1 : 2.5);
     b.x = l.x + Math.cos(b.a) * r + Math.sin(b.ph * 1.7) * 1.5; b.y = l.y - 4 + Math.sin(b.a) * r * .8 + Math.cos(b.ph) * 1.5;
   }
 }
@@ -85,12 +85,12 @@ let flies = [];
 function makeFlies(n) { const r = seeded(77); flies = Array.from({ length: Math.round(n * .45) }, () => ({ x: 40 + r() * (W - 80), y: 40 + r() * (H - 80), a: r() * TAU, sp: 6 + r() * 8, ph: r() * TAU, h: 4 + r() * 6 })); }
 function updateFlies(dt) {
   for (const f of flies) {
-    f.a += Math.sin(T * .7 + f.ph) * dt * 1.2; f.x += Math.cos(f.a) * f.sp * dt; f.y += Math.sin(f.a) * f.sp * dt;
+    f.a += Math.sin(animT('flies') * .7 + f.ph) * dt * 1.2; f.x += Math.cos(f.a) * f.sp * dt * AN.flies.sp; f.y += Math.sin(f.a) * f.sp * dt * AN.flies.sp;
     if (f.x < 30 || f.x > W - 30) f.a = Math.PI - f.a; if (f.y < 30 || f.y > H - 30) f.a = -f.a;
     if (snake && dist2(f.x, f.y, snake.x, snake.y) < 40 * 40) { const away = Math.atan2(f.y - snake.y, f.x - snake.x); f.a += angDiff(f.a, away) * dt * 4; f.x += Math.cos(away) * 40 * dt; f.y += Math.sin(away) * 40 * dt; } // drift off when you pass
   }
 }
-function drawFireflyGlow(x) {
+function drawFireflyGlow(x) { const T = animT('flies'); // (this animation's own clock: Animation editor)
   if (!flies.length || !light) return;
   const a = clamp((light.dark - .15) / .35, 0, 1); if (a < .02) return; // only once it gets dark
   const spr = glowSprites['ff'] || (glowSprites['ff'] = lightSprite('200,255,110', .25));

@@ -79,6 +79,11 @@ function statRunEnd() { // once per run
 }
 
 /* ---- achievements: [id, name, what, stat, goal, tier] -> rewards come from the items tagged with the id ---- */
+/* a worn title, as a badge: colored by the tier of the challenge that gives it (gold when it's bought), with a glint running across it */
+const TITLE_COL = { easy: '#5fd07a', medium: '#ffcf33', hard: '#ff8a3d', rare: '#c77dff', gold: '#ffcf33' };
+function titleTier(t) { const e = (SHOP.title || []).find(r => r[0] === t), a = e && e[2] ? ACH.find(x => x.id === e[2]) : null; return a ? a.tier : 'gold'; }
+const titleCol = t => TITLE_COL[titleTier(t)] || TITLE_COL.gold;
+const titleBadge = (t, cls = '') => t && t !== 'None' ? `<span class="ttl t-${titleTier(t)} ${cls}" style="--tc:${titleCol(t)}" title="Title">${kiSvg('star')}<span>${attr(t)}</span></span>` : '';
 const ACH = [
   ['ratProblem', 'Rat Problem', 'Eat {n} rats', () => PROG.kT.rat || 0, 25, 'medium'],
   ['ratKing', 'Rat King', 'Eat {n} rats', () => PROG.kT.rat || 0, 100, 'hard'],
@@ -152,11 +157,16 @@ function unlockFx(a, got) { // the satisfying bit: a gold-edged unlock card plus
 const achProgress = a => Math.min(1, a.stat() / a.n);
 
 /* ---- applying non-snake cosmetics ---- */
+function cosChanged() { // something was equipped: the profile card shows it now, and in multiplayer everyone else gets it now (lobby or mid-run)
+  const pf = document.querySelector('.mm-prof'); if (pf && typeof profileHtml === 'function') { const t = document.createElement('div'); t.innerHTML = profileHtml(); if (t.firstElementChild) pf.replaceWith(t.firstElementChild); }
+  if (typeof netCosChanged === 'function') try { netCosChanged(); } catch (e) { if (!(e instanceof ReferenceError)) throw e; } // (the first call runs while the game is still loading: in the deploy bundle the multiplayer state isn't set up yet)
+}
 function applyCosmetics() {
   const c = SETTINGS.snake;
   document.body.className = document.body.className.replace(/\b(theme|cs|fx)-\S+/g, '').trim();
   if (c.theme !== 'Default') document.body.classList.add('theme-' + c.theme.toLowerCase());
   if (c.card !== 'Default') document.body.classList.add('cs-' + c.card.toLowerCase().replace(/\s+/g, '-'));
+  cosChanged();
   document.body.className = document.body.className.replace(/\bcb-\S+/g, '').trim(); if (c.combo && c.combo !== 'Default') document.body.classList.add('cb-' + c.combo.toLowerCase());
 }
 function menuFx() { // background particles behind the main menu

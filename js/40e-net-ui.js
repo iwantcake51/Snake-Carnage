@@ -59,18 +59,28 @@ function netLobbySyncProfile() { // a new skin, an upgrade or a level since join
   NETM.sentProf = sig; NETM.sentLvl = pr.lvl; NETM.hostLink.sendR({ k: 'prof2', cos: pr.cos, upg: pr.upg, lvl: pr.lvl });
   const me = netPlayer(NETM.me); if (me) { me.cos = pr.cos; me.upg = pr.upg; me.lvl = pr.lvl; }
 }
+function netCosChanged() { // your cosmetics (title, skin, colors) changed: send them at once, in the lobby or mid-run, so nobody has to rejoin to see them
+  if (!NETM.on) return; const cos = { ...SETTINGS.snake }, sig = JSON.stringify(cos); if (NETM.cosSig === sig) return; NETM.cosSig = sig;
+  if (NETM.host) { netBroadcast({ k: 'cos', id: NETM.me, cos }); netCosApply(NETM.me, cos); }
+  else if (NETM.hostLink) { NETM.hostLink.sendR({ k: 'cos', cos }); netCosApply(NETM.me, cos); }
+}
+function netCosApply(id, cos) { // someone's new cosmetics: their lobby row, party panel, scoreboard, name tag and snake
+  const p = netPlayer(id); if (p) p.cos = cos;
+  const rs = NS.rs && NS.rs.get(id); if (rs) rs.cos = cos;
+  if (typeof netLobbyRender === 'function') netLobbyRender();
+}
 function netSetReady(v) { const me = netPlayer(NETM.me); if (!me) return; netLobbySyncProfile(); me.ready = v; if (NETM.host) netLobbyChanged(); else { NETM.hostLink && NETM.hostLink.sendR({ k: 'ready', v }); netLobbyRender(); } }
 function netCta() { // the main menu's big button in a lobby: ready up, unready, or (the host, everyone ready) start
   const me = netMe(); if (NETM.host && me.ready && netAllReady()) return netGo(); netSetReady(!me.ready); Sfx.ui && Sfx.ui(me.ready ? 'on' : 'off');
 }
-const netTitleHtml = p => { const t = p.cos && p.cos.title; return t && t !== 'None' ? `<em class="mptitle" title="Title">${esc(t)}</em>` : ''; }; // the title they wear, as on the main menu
+const netTitleHtml = p => titleBadge(p.cos && p.cos.title, 'mptitle'); // the title they wear, as on the main menu
 const netRowsHtml = (list, small) => list.map(p => `<div class="pr ${p.id === NETM.me ? 'me' : ''} ${p.conn === false ? 'away' : ''}"><i class="mpdot" style="background:${p.color}"></i><b>${esc(p.name)}</b>${netTitleHtml(p)}${p.lvl ? `<em class="mplvl" title="Account level">Lv ${p.lvl | 0}</em>` : ''}${p.host && !small ? '<em class="mptag host">Host</em>' : ''}<span class="sp"></span>${small ? '' : `<span class="mpready ${p.ready ? 'on' : ''}">${p.conn === false ? 'Reconnecting' : p.ready ? 'Ready' : 'Not ready'}</span>`}<i class="rdot ${p.ready ? 'on' : ''}" title="${p.ready ? 'Ready' : 'Not ready'}"></i></div>`).join('');
 function netPlayerRow(p, o = {}) { // one player in the party panel or the lobby: color, name, title, level, host, readiness; the host can remove anyone else
   const host = NETM.host, t = p.cos && p.cos.title && p.cos.title !== 'None' ? p.cos.title : '';
   const team = o.teams ? (() => { const tm = NET_TEAMS[p.team] || NET_TEAMS[0], can = host || p.id === NETM.me; return `<button class="pp-team" data-team-of="${esc(p.id)}" style="--tc:${tm.c}" ${can ? 'title="Switch team"' : 'disabled'}>${tm.n}</button>`; })() : '';
   const st = p.conn === false ? 'Reconnecting' : p.ready ? 'Ready' : 'Not ready';
   return `<li class="pp-r ${p.id === NETM.me ? 'me' : ''} ${p.conn === false ? 'away' : ''}">${team}<i class="mpdot" style="background:${p.color}"></i>
-    <span class="pp-n"><b>${esc(p.name)}${p.id === NETM.me ? ' <small>(you)</small>' : ''}</b>${t ? `<em>${esc(t)}</em>` : ''}</span>
+    <span class="pp-n"><b>${esc(p.name)}${p.id === NETM.me ? ' <small>(you)</small>' : ''}</b>${titleBadge(t, 'pp-ttl')}</span>
     <span class="pp-x">${p.lvl ? `<span>Lv ${p.lvl | 0}</span>` : ''}${p.host ? '<span class="pp-tag">Host</span>' : ''}${o.big && p.touch ? '<span>Phone</span>' : ''}${o.big && p.ping && !p.host ? `<span>${p.ping} ms</span>` : ''}</span>
     <span class="pp-rd ${p.ready ? 'on' : ''} ${p.conn === false ? 'warn' : ''}">${st}</span>
     ${host && !p.host ? `<button class="pp-kick" data-kick="${esc(p.id)}" aria-label="Remove ${esc(p.name)} from the lobby" title="Remove from the lobby">${ICO.x}</button>` : ''}</li>`;
@@ -125,7 +135,7 @@ function netDockRender() {
   if (!el) { el = document.createElement('div'); el.id = 'mpDock'; stage.appendChild(el); }
   const me = netMe(), present = NETM.players.filter(p => p.conn !== false), nR = present.filter(p => p.ready).length, go = NETM.host && me.ready && nR === present.length;
   el.innerHTML = `<div class="dkt"><span class="dkl">Lobby</span><span class="dkdots">${present.map(p => `<i class="rdot ${p.ready ? 'on' : ''}" title="${esc(p.name)}: ${p.ready ? 'ready' : 'not ready'}"></i>`).join('')}</span><span class="dkn">${nR}/${present.length}</span></div>
-    <div class="dkb"><div class="ppl">${netRowsHtml(NETM.players, true)}</div><div class="dkf"><button class="ghost mpsm ${me.ready ? 'on' : ''}" id="dkReady">${me.ready ? 'Ready ✓' : 'Ready up'}</button>${go ? '<button class="play mpsm" id="dkStart"><span>Start</span></button>' : ''}</div></div><div class="mptoast"></div>`;
+    <div class="dkb"><div class="ppl">${netRowsHtml(NETM.players, true)}</div><div class="dkf"><button class="ghost mpsm ${me.ready ? 'on' : ''}" id="dkReady">${me.ready ? `Ready ${kiSvg('checkmark', 'rdy')}` : 'Ready up'}</button>${go ? '<button class="play mpsm" id="dkStart"><span>Start</span></button>' : ''}</div></div><div class="mptoast"></div>`;
   el.querySelector('#dkReady').onclick = () => netSetReady(!me.ready);
   const st = el.querySelector('#dkStart'); if (st) st.onclick = () => netGo();
 }
@@ -229,7 +239,7 @@ function netDrawSnakes(x) {
 }
 function netDrawTags(x) { // screen space: names over teammates, and an arrow at the edge toward anyone off screen
   const names = SETTINGS.mpNames !== false, arrows = SETTINGS.mpArrows !== false;
-  x.save(); x.font = '700 11px Barlow, "Segoe UI", system-ui, sans-serif'; // (a canvas font can't use CSS variables) x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.save(); x.font = '700 11px Barlow, "Segoe UI", system-ui, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; // (a canvas font can't use CSS variables)
   for (const rs of NS.rs.values()) {
     const p = netPlayer(rs.pid); if (!p || !rs.buf.length) continue;
     const down = NS.down.get(rs.pid), P = worldToCanvas(rs.x, rs.y), off = P.x < 8 || P.y < 8 || P.x > W - 8 || P.y > H - 8;
@@ -240,6 +250,11 @@ function netDrawTags(x) { // screen space: names over teammates, and an arrow at
       x.fillStyle = 'rgba(12,10,14,.78)'; rrect(x, P.x - tw / 2, ty - 8, tw, 16, 8); x.fill();
       x.fillStyle = rs.color; x.beginPath(); x.arc(P.x - tw / 2 + 8, ty, 3, 0, TAU); x.fill();
       x.fillStyle = '#ffffff'; x.fillText(p.name, P.x + 4, ty + .5);
+      const t = p.cos && p.cos.title && p.cos.title !== 'None' ? p.cos.title : ''; // their title, riding on top of the name in its tier's color
+      if (t) { const col = titleCol(t), T = t.toUpperCase(); x.font = '800 9.5px Barlow, "Segoe UI", system-ui, sans-serif'; x.letterSpacing = '.8px';
+        const w2 = x.measureText(T).width + 16, y2 = ty - 16;
+        x.fillStyle = 'rgba(14,10,12,.88)'; rrect(x, P.x - w2 / 2, y2 - 7.5, w2, 15, 7.5); x.fill(); x.strokeStyle = col; x.lineWidth = 1; x.globalAlpha *= .9; x.stroke();
+        x.shadowColor = col; x.shadowBlur = 7; x.fillStyle = col; x.fillText(T, P.x, y2 + .5); x.shadowBlur = 0; x.letterSpacing = '0px'; x.font = '700 11px Barlow, "Segoe UI", system-ui, sans-serif'; }
     } else if (off && arrows && (rs.alive || down)) {
       const cx = W / 2, cy = H / 2, a = Math.atan2(P.y - cy, P.x - cx), k = Math.min((W / 2 - 22) / Math.abs(Math.cos(a) || 1e-6), (H / 2 - 22) / Math.abs(Math.sin(a) || 1e-6));
       const ax = cx + Math.cos(a) * k, ay = cy + Math.sin(a) * k;
@@ -251,7 +266,7 @@ function netDrawTags(x) { // screen space: names over teammates, and an arrow at
   x.restore();
 }
 /* ---- the score panel: the team (co-op), the standings (free for all) or every team (Teams), with lives and the round clock ---- */
-const netHearts = (n, title) => `<span class="mplives" title="${title}">${n >= 999 ? '♥ ∞' : '♥'.repeat(Math.min(12, n)) + (n > 12 ? '+' : '')}${n ? '' : '<i>no lives left</i>'}</span>`;
+const netHearts = (n, title) => `<span class="mplives" title="${title}">${n >= 999 ? kiSvg('suitHearts') + ' ∞' : kiSvg('suitHearts').repeat(Math.min(12, n)) + (n > 12 ? '+' : '')}${n ? '' : '<i>no lives left</i>'}</span>`;
 function netHud() {
   let el = document.getElementById('mpHud');
   if (!NETM.run) { if (el) el.remove(); return; }
@@ -287,13 +302,38 @@ function netSpectate() {
 const _netTick = netTick;
 netTick = function (dt) { _netTick(dt); netSpectate(); netDownTick(); if (NETM.run && performance.now() - netHudT > 500) { netHudT = performance.now(); netHud(); } if (NETM.run && performance.now() - netHudPlaceT > 120) { netHudPlaceT = performance.now(); netHudPlace(); } };
 let netHudPlaceT = 0;
+let spawnFx = null; // its own canvas, above the death tint and grain (#dTint, #dFx), so the dying screen never hides or greys it
+function drawSpawnGhost() { // while you wait to come back: a pulsing outline of your snake where you'll appear, facing the way you'll go, with the countdown
+  const sp = NS.spawnAt, on = NETM.run && sp && snake && snake.netHidden && state !== 'menu';
+  if (!on) { if (spawnFx && spawnFx.c.style.display !== 'none') spawnFx.c.style.display = 'none'; return; }
+  if (!spawnFx) { const c = document.createElement('canvas'); c.id = 'spawnFx'; c.setAttribute('aria-hidden', 'true'); c.width = cv.width; c.height = cv.height; document.getElementById('stage').appendChild(c); spawnFx = { c, x: c.getContext('2d') }; }
+  const c = spawnFx.c; if (c.style.display === 'none') c.style.display = '';
+  if (c.width !== cv.width || c.height !== cv.height) { c.width = cv.width; c.height = cv.height; }
+  const L = cv.offsetLeft + 'px', Tp = cv.offsetTop + 'px', Wd = cv.offsetWidth + 'px', Ht = cv.offsetHeight + 'px'; if (c.style.left !== L || c.style.top !== Tp || c.style.width !== Wd || c.style.height !== Ht) Object.assign(c.style, { left: L, top: Tp, width: Wd, height: Ht }); // exactly over the game
+  const x = spawnFx.x; x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, c.width, c.height); x.setTransform(DPR, 0, 0, DPR, 0, 0); applyView(x);
+  if (!sp.segs) { try { sp.segs = newSnake({ x: sp.x, y: sp.y, a: sp.a }).segs.map(g => ({ x: g.x, y: g.y })); } catch (e) { sp.segs = [{ x: sp.x, y: sp.y }]; } }
+  const g = sp.segs, n = g.length, R = snakeRadius(), t = performance.now() / 1000, pu = .5 + .5 * Math.sin(t * 5), col = (SETTINGS.snake && SETTINGS.snake.color) || '#4e7cf6';
+  const left = Math.max(0, NS.respawnIn - (performance.now() - (NS.deadAt || performance.now())) / 1000), near = 1 - Math.min(1, left / 2);
+  x.save(); x.lineCap = x.lineJoin = 'round';
+  const body = () => { x.beginPath(); x.moveTo(g[0].x, g[0].y); for (let i = 1; i < n; i++) x.lineTo(g[i].x, g[i].y); };
+  x.globalAlpha = .35 + .15 * pu + .25 * near; x.strokeStyle = col; x.lineWidth = R * 2; body(); x.stroke(); // the body, see-through, in your own color
+  x.globalAlpha = .7 + .3 * pu; x.strokeStyle = '#fff'; x.lineWidth = 2.4; x.shadowColor = 'rgba(255,255,255,.9)'; x.shadowBlur = 8; x.setLineDash([6, 5]); x.lineDashOffset = -t * 18; // its outline, marching and glowing
+  for (const s of [1, -1]) { x.beginPath(); for (let i = 0; i < n; i++) { const p = g[Math.max(0, i - 1)], q = g[Math.min(n - 1, i + 1)], a = Math.atan2(q.y - p.y, q.x - p.x), w = R * (1 - .45 * i / n); x[i ? 'lineTo' : 'moveTo'](g[i].x - Math.sin(a) * w * s, g[i].y + Math.cos(a) * w * s); } x.stroke(); }
+  x.setLineDash([]); x.beginPath(); x.arc(g[0].x, g[0].y, R * (1.05 + .25 * pu), 0, TAU); x.stroke(); // the head, breathing
+  const ca = Math.cos(sp.a), sa = Math.sin(sp.a), hx = sp.x + ca * (R * 2.2 + 6 * pu), hy = sp.y + sa * (R * 2.2 + 6 * pu); // which way you'll be heading
+  x.fillStyle = '#fff'; x.beginPath(); x.moveTo(hx + ca * 8, hy + sa * 8); x.lineTo(hx - sa * 6, hy + ca * 6); x.lineTo(hx + sa * 6, hy - ca * 6); x.closePath(); x.fill();
+  x.shadowBlur = 0; x.globalAlpha = .95; x.font = '800 11px system-ui, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.lineWidth = 3; x.strokeStyle = 'rgba(0,0,0,.7)';
+  const txt = left > .05 ? `BACK IN ${Math.ceil(left)}` : 'GO!', tx = g[n - 1].x - ca * (R + 16), ty = g[n - 1].y - sa * (R + 16); x.strokeText(txt, tx, ty); x.fillText(txt, tx, ty); // behind the tail, clear of the body
+  x.restore();
+}
 function netDownTick() { // the respawn countdown on the banner
   const el = document.querySelector('#mpDown .cd i'); if (!el || !NS.deadAt) return;
   const left = Math.max(0, Math.ceil(NS.respawnIn - (performance.now() - NS.deadAt) / 1000)), t = left ? `${left}…` : 'now…';
   if (el.textContent !== t) el.textContent = t;
 }
 function netUiCleanup() { // a run ended or you left: nothing of it stays on screen
-  for (const id of ['mpHud', 'dTint', 'mpDown']) { const el = document.getElementById(id); if (el) el.remove(); }
+  NS.spawnAt = null; if (spawnFx) spawnFx.c.style.display = 'none';
+  for (const id of ['mpHud', 'dTint', 'dFx', 'mpDown']) { const el = document.getElementById(id); if (el) el.remove(); }
   dfxK = 0; const st = document.getElementById('stage'); if (st) { st.style.removeProperty('--dfx'); st.classList.remove('dying'); }
 }
 function netHudPlace() { // the score panel shares the top-right corner with the combo counter: it moves down below the combo while one is showing
@@ -340,10 +380,10 @@ function netResultsRefresh(aborted) {
   const KEYS = ['score', 'killed', 'humans', 'animals', 'best', 'goldens', 'xp', 'chips'], hi = {}; for (const k of KEYS) hi[k] = Math.max(0, ...rows.map(r => r[k] || 0)); // the best in each column lights up
   const col = (k, v, r, cls = '') => `<td class="${cls} ${r && k && hi[k] > 0 && (r[k] || 0) === hi[k] && rows.length > 1 ? 'top' : ''}">${v ?? 0}</td>`; // the best in each column is set in bold
   const cells = (r, pl) => { const q = pl ? r : null; return `${col('score', r.score, q, 's')}${col('killed', r.killed, q)}${col('humans', r.humans, q)}${col('animals', r.animals, q)}${col('best', (r.best || 0) + '×', q)}${col('goldens', r.goldens, q)}${col('', r.deaths)}${col('xp', r.xp, q)}${col('chips', r.chips, q)}`; };
-  const tags = r => mode === 'ffa' && b.winner === r.id ? ' <em class="stamp win">Winner</em>' : '';
+  const tags = r => mode === 'ffa' && b.winner === r.id ? ` <em class="stamp win">${kiSvg('crownA')} Winner</em>` : '';
   const prow = (r, i) => { const lp = live.get(r.id); return `<tr class="${r.id === NETM.me ? 'me' : ''} ${lp ? '' : 'gone'}" style="--pc:${r.color}"><td class="pn">${i !== undefined ? `<em class="rk">${String(i + 1).padStart(2, '0')}</em>` : ''}<i class="mpdot" style="background:${r.color}"></i><span class="nm">${esc(r.name)}</span>${lp ? `<i class="rdot ${lp.ready ? 'on' : ''}" title="${lp.ready ? 'Ready' : 'Not ready'}"></i>` : ''}${r.id === NETM.me ? '<em class="stamp you">You</em>' : ''}${tags(r)}</td>${cells(r, true)}${host ? `<td>${!r.host && lp ? `<button class="ghost mpsm" data-kick="${esc(r.id)}">Kick</button>` : ''}</td>` : ''}</tr>`; };
   const T = mode === 'teams' ? [...(b.teams || [])].sort((p, q) => q.score - p.score) : [];
-  const body = mode === 'teams' ? T.map(t => `<tr class="team tg" style="--tc:${t.color}"><td class="pn"><i class="mpsq" style="background:${t.color}"></i>${esc(t.name)} team${b.winner === t.i ? ' <em class="stamp win">Winner</em>' : ''}</td>${cells(t)}${host ? '<td></td>' : ''}</tr>` + rows.filter(r => r.team === t.i).map(r => prow(r)).join('')).join('')
+  const body = mode === 'teams' ? T.map(t => `<tr class="team tg" style="--tc:${t.color}"><td class="pn"><i class="mpsq" style="background:${t.color}"></i>${esc(t.name)} team${b.winner === t.i ? ` <em class="stamp win">${kiSvg('crownA')} Winner</em>` : ''}</td>${cells(t)}${host ? '<td></td>' : ''}</tr>` + rows.filter(r => r.team === t.i).map(r => prow(r)).join('')).join('')
     : mode === 'ffa' ? rows.map(prow).join('')
     : rows.map(r => prow(r)).join('') + `<tr class="team"><td class="pn">Team total</td>${cells(b.team)}${host ? '<td></td>' : ''}</tr>`;
   const winT = mode === 'teams' && b.winner !== null && b.winner !== undefined ? (b.teams || []).find(t => t.i === b.winner) : null, winP = mode === 'ffa' && b.winner ? rows.find(r => r.id === b.winner) : null;
@@ -365,8 +405,8 @@ function netResultsRefresh(aborted) {
       ${body}</tbody></table></div>
     <div class="mpmine"><span>You</span>${place ? `<span>${place}</span>` : ''}<span>+${run.xpGained || 0} XP</span><span>+${run.coinsGained || 0} chips</span>${run.chList && run.chList.length ? `<span>${run.chList.length} challenge${run.chList.length > 1 ? 's' : ''}</span>` : ''}</div>
     <div class="mpfoot">${aborted ? '<button class="play" id="mpLobby"><span>To the lobby</span></button>' : host
-      ? `<button class="ghost" id="mpLobby">Return to lobby</button><button class="ghost" id="mpMap2">Change map</button><button class="ghost" id="mpMods2">Change modifiers</button><button class="ghost mprdy ${me.ready ? 'on' : ''}" id="mpReady2"><span>${me.ready ? 'Ready ✓' : 'Ready'}</span></button><button class="play" id="mpAgain" ${allReady ? '' : 'disabled'}><span>${allReady ? 'Play again' : `${notReady} not ready`}</span></button>`
-      : `<button class="ghost" id="mpLeave2">Leave lobby</button><button class="play ${me.ready ? 'on' : ''}" id="mpReady2"><span>${me.ready ? 'Ready ✓' : 'Ready'}</span></button>`}</div>`;
+      ? `<button class="ghost" id="mpLobby">Return to lobby</button><button class="ghost" id="mpMap2">Change map</button><button class="ghost" id="mpMods2">Change modifiers</button><button class="ghost mprdy ${me.ready ? 'on' : ''}" id="mpReady2"><span>${me.ready ? `Ready ${kiSvg('checkmark', 'rdy')}` : 'Ready'}</span></button><button class="play" id="mpAgain" ${allReady ? '' : 'disabled'}><span>${allReady ? 'Play again' : `${notReady} not ready`}</span></button>`
+      : `<button class="ghost" id="mpLeave2">Leave lobby</button><button class="play ${me.ready ? 'on' : ''}" id="mpReady2"><span>${me.ready ? `Ready ${kiSvg('checkmark', 'rdy')}` : 'Ready'}</span></button>`}</div>`;
   const $ = id => document.getElementById(id);
   const toLobby = () => { if (NETM.host) { NETM.phase = 'lobby'; netLobbyChanged(); } stage.classList.remove('paused'); state = 'menu'; showMenu(); };
   if ($('mpLobby')) $('mpLobby').onclick = toLobby;

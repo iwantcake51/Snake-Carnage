@@ -298,6 +298,7 @@ const TALK = {
     {
       "id": "weather",
       "out": true,
+      "rain": true,
       "q": [
         [
           "yn",

@@ -2,11 +2,11 @@
    CREATURE DRAWING (top-down, local frame: +x = forward)
    ========================================================= */
 function armPos(c) {
-  const L = c.look, s = Math.sin(c.phase) * c.moveAmt, sw = L.w + .4;
+  const L = c.look, s = Math.sin(c.phase) * c.moveAmt * AN.arms.amp, sw = L.w + .4; // (Animation editor: arm swing)
   const run = c.state === 'panic' || c.state === 'flee' || (c.state === 'uneasy' && c.moveAmt > .5);
-  if (c.state === 'panic' && c.flail) { const f = Math.sin(T * 25 + c.side) * 2; return [5.5 + f, -sw + 1.5, 5.5 - f, sw - 1.5]; } // the jumpy ones flap their arms
+  if (c.state === 'panic' && c.flail) { const f = Math.sin(animT('flail') * 25 + c.side) * 2 * AN.flail.amp; return [5.5 + f, -sw + 1.5, 5.5 - f, sw - 1.5]; } // the jumpy ones flap their arms
   if (run) { const p = s * (c.armK || 1) * 5.6; return [1.4 - p, -sw + .8, 1.4 + p, sw - .8]; } // running: elbows in, arms pumping against the legs
-  if (c.dance) { const b = Math.sin(T * CLUB_BPM / 60 * Math.PI * 2 + (c.seed ?? .5) * 30); return [3 + b * 2.5, -sw - 1.5, 3 - b * 2.5, sw + 1.5]; } // hands up
+  if (c.dance) { const b = Math.sin(animT('dance') * CLUB_BPM / 60 * Math.PI * 2 + (c.seed ?? .5) * 30) * AN.dance.amp; return [3 + b * 2.5, -sw - 1.5, 3 - b * 2.5, sw + 1.5]; } // hands up
   if (MOD.blind && c.def.human && !c.def.alien && !c.dance) return c.fl && c.fl.on && !c.fl.helmet ? [4.5 + s * 1.2, -sw + 1.2, 6 + s * .8, sw - 2] : [4.5 + s * 1.5, -sw + 1.2, 4.5 - s * 1.5, sw - 1.2]; // blind: hands out in front, feeling the way
   if (c.fl && c.fl.on && !c.fl.helmet) return [-s * 4, -sw, 6 + s * .8, sw - 2]; // right hand held out in front with the flashlight
   return [-s * 4, -sw, s * 4, sw];
@@ -31,8 +31,8 @@ const ANIMAL_SHAPE = { rabbit: [6.6, 4.8, -1, 5, 3.3], deer: [11.2, 6.2, -1, 12,
    drawn: a person's legs, shoes and sleeves; an animal's feet, tail, ears, wings, beak or antlers. Returns the filled parts
    as one path and the thin parts (legs, tails) as strokes with their widths, in the creature's own frame (+x forward). */
 function creatureSil(c, lite) { // lite: just the body and head (far away, where limbs wouldn't read anyway)
-  const f = new Path2D(), lines = [], d = c.def; f.beginPath = () => {}; shapePath(f, c);
-  if (lite) return { f, lines };
+  const f = new Path2D(), lines = [], d = c.def; f.beginPath = () => {}; if (!d.human) shapePath(f, c); // (a person's body and head are added below, twisted and leaned as they're drawn)
+  if (lite && !d.human) return { f, lines };
   let k = 1, ox = 0, oy = 0, rc = 1, rs = 0; // the frame a part was drawn in: scale, then a turn and a shift
   const P = (x, y) => [ox + (x * rc - y * rs) * k, oy + (x * rs + y * rc) * k];
   const E = (x, y, rx, ry, rot = 0) => { const [px, py] = P(x, y); f.moveTo(px + Math.cos(rot + Math.atan2(rs, rc)) * rx * k, py + Math.sin(rot + Math.atan2(rs, rc)) * rx * k); f.ellipse(px, py, rx * k, ry * k, rot + Math.atan2(rs, rc), 0, TAU); };
@@ -45,43 +45,47 @@ function creatureSil(c, lite) { // lite: just the body and head (far away, where
     const hw = w * k / 2;
     for (let n = 1; n < pts.length; n++) { const [ax, ay] = pts[n - 1], [bx, by] = pts[n], L = Math.hypot(bx - ax, by - ay), r = Math.atan2(by - ay, bx - ax), mx = (ax + bx) / 2, my = (ay + by) / 2, rx = L / 2 + hw;
       f.moveTo(mx + Math.cos(r) * rx, my + Math.sin(r) * rx); f.ellipse(mx, my, rx, hw, r, 0, TAU); } };
-  const feetSil = (fx, bx, wy, r) => { const m = c.moveAmt, sw = Math.sin(c.phase), lift = Math.cos(c.phase), st = 2.4 * m; // as feet() places them
+  const feetSil = (fx, bx, wy, r) => { const m = c.moveAmt, sw = Math.sin(c.phase), lift = Math.cos(c.phase), st = 2.4 * m * AN.gait.amp; // as feet() places them
     for (const [x0, y, dir] of [[fx, -wy, 1], [bx, wy, 1], [fx, wy, -1], [bx, -wy, -1]]) { const up = Math.max(0, lift * dir) * m; C(x0 + sw * st * dir, y * (1 + up * .08), r * (1 + up * .22)); } };
-  if (d.human) { // as drawHumanBody: two striding legs, the shoes, then the arms on twisted shoulders
-    const L = c.look, s = Math.sin(c.phase) * c.moveAmt, [a1, b1, a2, b2] = armPos(c), fy = L.w * .38, run = c.state === 'panic' || c.state === 'flee', stride = (run ? 7.8 : 5.2) * (c.strideK || 1);
+  if (d.human) { // as drawHumanBody: two striding legs, the shoes, then (shoulders twisted against the hips, leaning into a run) the arms, the body, the head and what's on it
+    const L = c.look, s = Math.sin(c.phase) * c.moveAmt, [a1, b1, a2, b2] = armPos(c), fy = L.w * .38, run = c.state === 'panic' || c.state === 'flee', stride = (run ? 7.8 : 5.2) * (c.strideK || 1) * AN.walk.amp;
     const cp = Math.cos(c.phase) * c.moveAmt, l1 = Math.max(0, cp), l2 = Math.max(0, -cp), f1 = s * stride, f2 = -s * stride, y1 = -fy - l1 * .5, y2 = fy + l2 * .5;
-    const lw = L.legs === 'leggings' ? 2.9 : L.legs === 'cargo' ? 4 : L.legs === 'skirt' ? 2.8 : L.legs === 'shorts' ? 3 : 3.6;
-    Ln(lw, -.6, -fy * .8, f1 * .5, -fy - l1 * .4, f1 + 2.4, y1); Ln(lw, -.6, fy * .8, f2 * .5, fy + l2 * .4, f2 + 2.4, y2); // each leg runs on over its shoe
-    if (L.legs === 'skirt') E(-.3, 0, L.d + 1.4, L.w * .82);
+    if (!lite) { const lw = L.legs === 'leggings' ? 2.9 : L.legs === 'cargo' ? 4 : L.legs === 'skirt' ? 2.8 : L.legs === 'shorts' ? 3 : 3.6;
+      Ln(lw, -.6, -fy * .8, f1 * .5, -fy - l1 * .4, f1 + 2.4, y1); Ln(lw, -.6, fy * .8, f2 * .5, fy + l2 * .4, f2 + 2.4, y2); // each leg runs on over its shoe
+      if (L.legs === 'skirt') E(-.3, 0, L.d + 1.4, L.w * .82); }
     rc = Math.cos(-s * .07); rs = Math.sin(-s * .07); if (run) ox = 1.3 * c.moveAmt;
-    for (const [ax, ay] of [[a1, b1], [a2, b2]]) { if (L.sleeves === 'long') Ln(4.4, 0, ay * .86, ax + .9, ay); else E(ax * .35, ay * .9, 2.7, 2.5); } // (the hands are in shapePath already)
-    if (L.acc === 'backpack') E(-L.d - 1.1, 0, 2.3, L.w * .55);
+    E(0, 0, L.d, L.w); if (L.outfit === 'alien') E(.6, 0, 6, 5.6); else C(.6, 0, 4.8); C(a1, b1, 2.5); C(a2, b2, 2.5); // body, head, hands
+    if (L.hat === 'straw') C(-.2, 0, 7.4); else if (L.hat === 'helmet') { C(.2, 0, 6.6); E(5.8, 0, 1.6, 2.4); } else if (L.hat === 'cap') E(4.6, 0, 2.4, 3.6);
+    if (L.outfit === 'hoodie') E(-2.6, 0, 3.6, 5.4);
+    if (lite) return { f, lines };
+    for (const [ax, ay] of [[a1, b1], [a2, b2]]) { if (L.sleeves === 'long') Ln(4.4, 0, ay * .86, ax + .9, ay); else E(ax * .35, ay * .9, 2.7, 2.5); } // (the hands are above)
+    if (L.acc === 'backpack') E(-L.d - 1.1, 0, 2.3, L.w * .55); else if (L.acc === 'bag') E(-1, L.w + 2.2, 2.8, 2);
     return { f, lines };
   }
   const T0 = typeof T === 'number' ? T : 0, sd = c.seed ?? .5;
   switch (c.type) {
-    case 'rabbit': { const air = Math.min(1, (c.hz || 0) / 5), st = air * 3, flop = Math.sin(T0 * 3 + sd * 20) * .15 + air * .3;
+    case 'rabbit': { const air = Math.min(1, (c.hz || 0) / 5), st = air * 3, flop = Math.sin(animT('ears') * 3 + sd * 20) * .15 * AN.ears.amp + air * .3;
       E(-5 - st, -3.2, 3 + st * .6, 1.6); E(-5 - st, 3.2, 3 + st * .6, 1.6); C(3 + st * .8, -2, 1.2); C(3 + st * .8, 2, 1.2); C(-7.4, 0, 2.1);
       for (const sg of [-1, 1]) { const a = Math.PI + sg * (.28 + flop); E(3.4 + Math.cos(a) * 3.2, sg * 1.3 + Math.sin(a) * 3.2, 3.4, 1.1, a); } break; }
-    case 'deer': { k = (c.sizeK || 1) * (c.male ? 1.04 : .94); const run = c.state === 'panic' || c.state === 'flee', st = Math.sin(c.phase) * c.moveAmt * (run ? 4.2 : 2.6), nod = run ? 1.5 : Math.sin(T0 * .7 + sd * 9) * .6, hx = 12.6 + nod;
+    case 'deer': { k = (c.sizeK || 1) * (c.male ? 1.04 : .94); const run = c.state === 'panic' || c.state === 'flee', st = Math.sin(c.phase) * c.moveAmt * (run ? 4.2 : 2.6) * AN.gait.amp, nod = run ? 1.5 : Math.sin(animT('deer') * .7 + sd * 9) * .6 * AN.deer.amp, hx = 12.6 + nod;
       for (const [lx, sg, ph] of [[6, -1, st], [6, 1, -st], [-7, -1, -st], [-7, 1, st]]) { Ln(1.4, lx, sg * 3.6, lx + ph, sg * 4.6); C(lx + ph, sg * 4.7, .8); }
       E(-1, 0, 10.5, 5.4); E(-10.4, 0, 2.2 * (run ? 1.5 : 1), 2.4); E(8.5 + nod * .5, 0, 3.5, 2.4); E(hx + .8, 0, 3.2, 2); // body, rump, neck, head
       for (const sg of [-1, 1]) { const a = sg * (2.2 - (run ? .5 : 0)); E(hx - 1.4 + Math.cos(a) * 2.1, sg * 1.6 + Math.sin(a) * 2.1, 2.3, 1, a); }
       if (c.male) { const A = c.antK || 1; for (const sg of [-1, 1]) Ln(1, hx - .6, sg * 1.2, hx - 3 * A, sg * 5.6 * A, hx + 2.6 * A, sg * 6.6 * A); } break; }
     case 'frog': { const air = Math.min(1, (c.hz || 0) / 3), st = air * 3;
       for (const sg of [-1, 1]) { E(-2.6 - st, sg * (3.6 - air), 2.8 + st * .7, 1.3); C(-4.6 - st * 1.6, sg * (4.4 - air), 1.1); E(2.6, sg * 3.6, 1.6, .9); C(3.2, sg * 2.1, 1.5); } break; }
-    case 'dog': { feetSil(6, -6, 3, 1.4); const wag = Math.sin(T0 * (c.state === 'wander' ? 12 : 22) + sd * 30) * (c.state === 'panic' ? .3 : .6);
+    case 'dog': { feetSil(6, -6, 3, 1.4); const wag = Math.sin(animT('dogTail') * (c.state === 'wander' ? 12 : 22) + sd * 30) * (c.state === 'panic' ? .3 : .6) * AN.dogTail.amp;
       Ln(2, -8, 0, -11, wag * 4, -13, wag * 6); E(11.6, 0, 2.6, 2.2); C(13.4, 0, 1.1); for (const sg of [-1, 1]) E(7, sg * 4.2, 2.6, 1.6); break; }
-    case 'cat': { feetSil(4.6, -4.6, 2.6, 1.2); const sw = Math.sin(T0 * 3 + sd * 20) * .5;
+    case 'cat': { feetSil(4.6, -4.6, 2.6, 1.2); const sw = Math.sin(animT('catTail') * 3 + sd * 20) * .5 * AN.catTail.amp;
       Ln(2.2, -6, 0, -10, sw * 4, -12, -sw * 5, -14, sw * 2); for (const sg of [-1, 1]) Tri(4.6, sg * 1.6, 4, sg * 4.6, 6.6, sg * 3.2); break; }
-    case 'chicken': { const s2 = Math.sin(c.phase * 1.4) * c.moveAmt * 1.6, peck = c.state === 'idle' ? Math.max(0, Math.sin(T0 * 6 + sd * 40)) * 1.2 : 0;
+    case 'chicken': { const s2 = Math.sin(c.phase * 1.4) * c.moveAmt * 1.6, peck = c.state === 'idle' ? Math.max(0, Math.sin(animT('peck') * 6 + sd * 40)) * 1.2 * AN.peck.amp : 0;
       C(1 + s2, -1.8, .9); C(1 - s2, 1.8, .9); for (const sg of [-1, 1]) E(-1, sg * 3.2, 3.6, 1.6); for (let n = 0; n < 3; n++) E(-5 - n, (n - 1) * 1.2, 2, .9);
       C(3.8 + peck, 0, 1.2); Tri(6.6 + peck, -.9, 8.6 + peck, 0, 6.6 + peck, .9); break; }
     case 'duck': { const s2 = Math.sin(c.phase * 1.2) * c.moveAmt * 1.4;
       E(1 + s2, -2, 1.3, .9); E(1 - s2, 2, 1.3, .9); for (const sg of [-1, 1]) E(-1.4, sg * 3, 4.2, 1.6); E(-6.4, 0, 1.6, 1.2); E(8.2, 0, 2.2, 1.2); break; }
     case 'pig': feetSil(5.5, -5.5, 4.4, 1.3); for (const sg of [-1, 1]) Tri(7, sg * 2.2, 6, sg * 6.2, 9.4, sg * 4.2); E(12.6, 0, 1.8, 2.4); Ln(1.2, -9.4, 0, -11, -2.2, -12.4, -.6); break;
     case 'sheep': feetSil(5.5, -5.5, 4.2, 1.2); C(0, 0, 8.4); E(8.6, 0, 3.6, 3); for (const sg of [-1, 1]) E(7.4, sg * 3.4, 2.2, 1); break;
-    case 'rat': { const s2 = Math.sin(c.phase * 1.6) * c.moveAmt, tw = Math.sin(c.phase * .8) * (.6 + c.moveAmt), py = q => Math.sin(q * 2.6 + c.phase * .45) * tw * q * 3;
+    case 'rat': { const s2 = Math.sin(c.phase * 1.6) * c.moveAmt, tw = Math.sin(c.phase * .28 * AN.ratTail.sp) * (.55 + .6 * c.moveAmt) * AN.ratTail.amp, py = q => Math.sin(q * 2.6 + c.phase * 1.6 * AN.ratTail.sp) * tw * q * 3; // (as the drawn tail)
       for (const [fx, fy, ph] of [[2.6, -2.3, s2], [2.6, 2.3, -s2], [-2.4, -2.8, -s2], [-2.4, 2.8, s2]]) E(fx + ph * 1.2, fy, .9, .6);
       for (const sg of [-1, 1]) C(3.2, sg * 2.2, 1.35);
       const pts = []; for (let n = 0; n <= 6; n++) { const q = n / 6; pts.push(-4.6 - q * 10, py(q)); } Ln(1, ...pts); break; }
@@ -90,8 +94,7 @@ function creatureSil(c, lite) { // lite: just the body and head (far away, where
 }
 function drawHuman(x, c) { // a little bob with each step and a sway side to side, so walking doesn't look like sliding
   if (c.strideK === undefined) { c.strideK = rand(.85, 1.15); c.armK = rand(.75, 1.2); c.flail = hasTrait(c, 'jumpy') || hasTrait(c, 'nervous') || Math.random() < .15; }
-  const m = c.moveAmt, run = c.state === 'panic' || c.state === 'flee', bob = 1 + (1 - Math.cos(c.phase * 2)) * .5 * .045 * m * (run ? 1.4 : 1);
-  x.save(); x.translate(0, Math.sin(c.phase) * .55 * m * (run ? 1.3 : 1)); x.scale(bob, bob); drawHumanBody(x, c); if (c.snowCover > .03) drawSnowCover(x, c); x.restore();
+  x.save(); humanBob(x, c); drawHumanBody(x, c); if (c.snowCover > .03) drawSnowCover(x, c); x.restore();
 }
 /* a light dusting of snow on shoulders, head and hat. It's drawing state, not a layer: c.snowCover (0..1) is set once
    when they spawn in the snow and only ever goes down (running shakes it off, blood stains it); the patch layout comes
@@ -129,7 +132,7 @@ function drawHumanBody(x, c) { // top-down person, +x = facing direction
   const L = c.look, s = Math.sin(c.phase) * c.moveAmt, [a1, b1, a2, b2] = armPos(c), O = 'rgba(0,0,0,.3)', fy = L.w * .38;
   // legs and shoes stride out from under the body
   x.strokeStyle = L.pants; x.lineWidth = 3.6; x.lineCap = 'round';
-  const run = c.state === 'panic' || c.state === 'flee', stride = (run ? 7.8 : 5.2) * (c.strideK || 1);
+  const run = c.state === 'panic' || c.state === 'flee', stride = (run ? 7.8 : 5.2) * (c.strideK || 1) * AN.walk.amp;
   const cp = Math.cos(c.phase) * c.moveAmt, l1 = Math.max(0, cp), l2 = Math.max(0, -cp); // the foot swinging forward lifts a little (bigger from above), the planted one stays flat
   const f1 = s * stride, f2 = -s * stride, y1 = -fy - l1 * .5, y2 = fy + l2 * .5;
   drawLegs(x, L, -fy * .8, f1 * .5, -fy - l1 * .4, f1, y1, fy * .8, f2 * .5, fy + l2 * .4, f2, y2);
@@ -203,7 +206,7 @@ function drawHumanBody(x, c) { // top-down person, +x = facing direction
   if (c.mouthBlood && L.hat !== 'helmet') { x.fillStyle = c.mouthCol || BLOOD; ell(x, 4.6, 0, 1.1, 1.8); } // blood round the mouth
 }
 function drawAlien(x, c, d) { // little grey-green visitor: big head, huge black eyes, wobbling antennae
-  const lp = Math.sin(c.phase) * c.moveAmt, w = Math.sin(T * 6 + (c.seed ?? .5) * 40) * .6;
+  const lp = Math.sin(c.phase) * c.moveAmt, w = Math.sin(animT('antenna') * 6 + (c.seed ?? .5) * 40) * .6 * AN.antenna.amp;
   x.fillStyle = shade(d.col, -.2); ell(x, -d.bl * .5 - lp * 2, -d.bw * .9, 2.6, 1.3); ell(x, -d.bl * .5 + lp * 2, d.bw * .9, 2.6, 1.3);
   x.fillStyle = d.col; ell(x, -1.5, 0, d.bl * .7, d.bw * .85);
   x.strokeStyle = shade(d.col, -.3); x.lineWidth = .9; x.beginPath(); x.moveTo(2, -2); x.lineTo(-1, -6 - w); x.moveTo(2, 2); x.lineTo(-1, 6 + w); x.stroke();
@@ -213,14 +216,14 @@ function drawAlien(x, c, d) { // little grey-green visitor: big head, huge black
   x.fillStyle = 'rgba(255,255,255,.7)'; circ(x, 5.8, -2.5, .4); circ(x, 5.8, 1.9, .4);
 }
 function drawFirefly(x, c, d) { // a little beetle: dark wing cases, a flicker of wings, the lantern at the tail
-  const fl = Math.sin(T * 60 + (c.seed ?? .5) * 99);
+  const fl = Math.sin(animT('wings') * 60 + (c.seed ?? .5) * 99);
   x.fillStyle = 'rgba(220,230,240,.35)'; ell(x, -.2, -1.6 - fl * .5, 2.2, 1.1); ell(x, -.2, 1.6 + fl * .5, 2.2, 1.1);
   x.fillStyle = '#2e2a1c'; ell(x, .4, 0, 2.2, 1.4); x.fillStyle = '#c8d86a'; ell(x, -1.8, 0, 1.2, 1); x.fillStyle = '#5a3a1a'; circ(x, 2.4, 0, .8);
 }
 /* ---- animals: top-down, +x forward. Each one: feet that actually step, a shaded body, a head with real features ---- */
 const EYE = (x, px, py, r = .8) => { x.fillStyle = '#121212'; circ(x, px, py, r); x.fillStyle = 'rgba(255,255,255,.7)'; circ(x, px + r * .3, py - r * .3, r * .35); };
 function feet(x, c, d, fx, bx, wy, col, r = 1.5) { // four paws/hooves in a proper trot: diagonal pairs move together; a swinging foot lifts (bigger, lighter), a planted one pushes back flat
-  const m = c.moveAmt, ph = c.phase, st = 2.4 * m, sw = Math.sin(ph), lift = Math.cos(ph);
+  const m = c.moveAmt, ph = c.phase, st = 2.4 * m * AN.gait.amp, sw = Math.sin(ph), lift = Math.cos(ph);
   const foot = (bx0, y, dir) => { const s = sw * st * dir, up = Math.max(0, lift * dir) * m; // up > 0: this foot is in the air, travelling forward
     x.fillStyle = up > .05 ? shade(col, .12 * up) : col; circ(x, bx0 + s, y * (1 + up * .08), r * (1 + up * .22)); };
   foot(fx, -wy, 1); foot(bx, wy, 1); foot(fx, wy, -1); foot(bx, -wy, -1); // left-front with right-back, then the other pair
@@ -237,14 +240,14 @@ const ANIMALS = {
     x.fillStyle = shade(d.col, -.2); circ(x, 3 + st * .8, -2, 1.2); circ(x, 3 + st * .8, 2, 1.2);
     body(x, 6.4, 4.6, d.col, -1); x.fillStyle = '#fff'; circ(x, -7.4, 0, 2.1); // cottontail
     x.fillStyle = shade(d.col, .05); ell(x, 4.6, 0, 3.4, 3); // head
-    const flop = Math.sin(T * 3 + (c.seed ?? .5) * 20) * .15 + air * .3;
+    const flop = Math.sin(animT('ears') * 3 + (c.seed ?? .5) * 20) * .15 * AN.ears.amp + air * .3;
     for (const sg of [-1, 1]) { x.save(); x.translate(3.4, sg * 1.3); x.rotate(Math.PI + sg * (.28 + flop)); x.fillStyle = shade(d.col, -.08); ell(x, 3.2, 0, 3.4, 1.1); x.fillStyle = 'rgba(227,181,168,.8)'; ell(x, 3.4, 0, 2.3, .45); x.restore(); }
     EYE(x, 5.6, -1.9, .7); EYE(x, 5.6, 1.9, .7); x.fillStyle = '#d98a8a'; circ(x, 7.8, 0, .6);
   },
   deer(x, c, d) { // slender legs, a long neck, ears that only twitch now and then; bucks carry antlers, does don't
     const k = (c.sizeK || 1) * (c.male ? 1.04 : .94), tk = (c.toneK || 0) + (c.male ? -.04 : .04), col = tk < 0 ? mixColor(d.col, '#000000', -tk) : mixColor(d.col, '#ffffff', tk), run = c.state === 'panic' || c.state === 'flee';
     x.save(); x.scale(k, k);
-    const st = Math.sin(c.phase) * c.moveAmt * (run ? 4.2 : 2.6); // longer strides at a run
+    const st = Math.sin(c.phase) * c.moveAmt * (run ? 4.2 : 2.6) * AN.gait.amp; // longer strides at a run
     x.strokeStyle = shade(col, -.35); x.lineWidth = 1.4; x.lineCap = 'round'; x.beginPath(); // legs, out from under the body
     for (const [lx, sg, ph] of [[6, -1, st], [6, 1, -st], [-7, -1, -st], [-7, 1, st]]) { x.moveTo(lx, sg * 3.6); x.lineTo(lx + ph, sg * 4.6); }
     x.stroke(); x.fillStyle = '#2a1e14'; for (const [lx, sg, ph] of [[6, -1, st], [6, 1, -st], [-7, -1, -st], [-7, 1, st]]) circ(x, lx + ph, sg * 4.7, .8); // hooves
@@ -253,12 +256,12 @@ const ANIMALS = {
     x.fillStyle = shade(col, -.16); x.beginPath(); x.ellipse(-1.5, 0, 8, 1.3, 0, 0, TAU); x.fill(); // darker line down the spine
     x.fillStyle = 'rgba(255,255,255,.12)'; ell(x, -2, -2.4, 6, 1.4);
     const flag = run ? 1.5 : 1; x.fillStyle = '#f4ede0'; ell(x, -10.4, 0, 2.2 * flag, 2.4); x.fillStyle = shade(col, -.1); ell(x, -11.6 - (run ? 1.2 : 0), 0, 1.3, .9 * flag); // white rump; the tail goes up when it bolts
-    const nod = run ? 1.5 : Math.sin(T * .7 + (c.seed ?? .5) * 9) * .6;
+    const nod = run ? 1.5 : Math.sin(animT('deer') * .7 + (c.seed ?? .5) * 9) * .6 * AN.deer.amp;
     x.fillStyle = shade(col, -.06); x.beginPath(); x.moveTo(6, -2.4); x.quadraticCurveTo(10 + nod, -1.6, 11 + nod, 0); x.quadraticCurveTo(10 + nod, 1.6, 6, 2.4); x.fill(); // neck
     const hx = 12.6 + nod;
     x.fillStyle = col; x.beginPath(); x.moveTo(hx - 2.2, -2); x.quadraticCurveTo(hx + 1.2, -1.8, hx + 3.4, -.6); x.quadraticCurveTo(hx + 4, 0, hx + 3.4, .6); x.quadraticCurveTo(hx + 1.2, 1.8, hx - 2.2, 2); x.closePath(); x.fill(); // long head
     x.fillStyle = '#2a1c12'; circ(x, hx + 3.5, 0, .7); // nose
-    const tw = Math.max(0, Math.sin(T * 1.3 + (c.seed ?? .5) * 31)) > .97 ? .45 : 0; // an ear flick every few seconds, not with every step
+    const tw = Math.max(0, Math.sin(animT('deer') * 1.3 + (c.seed ?? .5) * 31)) > .97 ? .45 * AN.deer.amp : 0; // an ear flick every few seconds, not with every step
     for (const sg of [-1, 1]) { x.save(); x.translate(hx - 1.4, sg * 1.6); x.rotate(sg * (2.2 - (run ? .5 : 0)) + (sg < 0 ? tw : 0)); x.fillStyle = shade(col, -.12); ell(x, 2.1, 0, 2.3, 1); x.fillStyle = 'rgba(240,215,200,.55)'; ell(x, 2.2, 0, 1.4, .45); x.restore(); }
     if (c.male) { // antlers: two main beams sweeping forward with a few tines, size varies from buck to buck
       const A = c.antK || 1; x.strokeStyle = '#7a6448'; x.lineWidth = 1; x.lineCap = 'round';
@@ -280,7 +283,7 @@ const ANIMALS = {
   },
   dog(x, c, d) {
     feet(x, c, d, 6, -6, 3, shade(d.col, -.3), 1.4);
-    const wag = Math.sin(T * (c.state === 'wander' ? 12 : 22) + (c.seed ?? .5) * 30) * (c.state === 'panic' ? .3 : .6);
+    const wag = Math.sin(animT('dogTail') * (c.state === 'wander' ? 12 : 22) + (c.seed ?? .5) * 30) * (c.state === 'panic' ? .3 : .6) * AN.dogTail.amp;
     x.strokeStyle = shade(d.col, -.12); x.lineWidth = 2; x.lineCap = 'round'; x.beginPath(); x.moveTo(-8, 0); x.quadraticCurveTo(-11, wag * 4, -13, wag * 6); x.stroke();
     body(x, 9.5, 5.4, d.col, -.5);
     x.fillStyle = shade(d.col, -.22); ell(x, -2, 0, 4, 3.4); // darker saddle
@@ -291,7 +294,7 @@ const ANIMALS = {
   },
   cat(x, c, d) {
     feet(x, c, d, 4.6, -4.6, 2.6, shade(d.col, -.15), 1.2);
-    const sw = Math.sin(T * 3 + (c.seed ?? .5) * 20) * .5;
+    const sw = Math.sin(animT('catTail') * 3 + (c.seed ?? .5) * 20) * .5 * AN.catTail.amp;
     x.strokeStyle = d.col; x.lineWidth = 2.2; x.lineCap = 'round'; x.beginPath(); x.moveTo(-6, 0); x.bezierCurveTo(-10, sw * 4, -12, -sw * 5, -14, sw * 2); x.stroke();
     x.strokeStyle = shade(d.col, -.25); x.lineWidth = 2.2; x.beginPath(); x.moveTo(-13.2, sw * 2.6); x.lineTo(-14, sw * 2); x.stroke(); // dark tail tip
     body(x, 7.4, 4.2, d.col, -.5);
@@ -306,7 +309,7 @@ const ANIMALS = {
     x.fillStyle = shade(d.col, -.12); for (const sg of [-1, 1]) ell(x, -1, sg * 3.2, 3.6, 1.6); // folded wings
     body(x, 5.2, 4.2, d.col, -.4);
     x.fillStyle = shade(d.col, -.08); for (let k = 0; k < 3; k++) ell(x, -5 - k, (k - 1) * 1.2, 2, .9); // tail feathers
-    const peck = c.state === 'idle' ? Math.max(0, Math.sin(T * 6 + (c.seed ?? .5) * 40)) * 1.2 : 0;
+    const peck = c.state === 'idle' ? Math.max(0, Math.sin(animT('peck') * 6 + (c.seed ?? .5) * 40)) * 1.2 * AN.peck.amp : 0;
     x.fillStyle = d.col; circ(x, 4.4 + peck, 0, 2.8);
     x.fillStyle = '#d62828'; circ(x, 3.8 + peck, 0, 1.2); circ(x, 5 + peck, 0, 1); ell(x, 6.4 + peck, .9, .8, .6); // comb + wattle
     x.fillStyle = '#f2a20c'; x.beginPath(); x.moveTo(6.6 + peck, -.9); x.lineTo(8.6 + peck, 0); x.lineTo(6.6 + peck, .9); x.fill();
@@ -344,8 +347,8 @@ const ANIMALS = {
   },
   rat(x, c, d) { // low and pear-shaped: heavy haunches, a pointed snout, round ears, a long ringed tail
     const s = Math.sin(c.phase * 1.6) * c.moveAmt, col = d.col, dk = shade(col, -.22), lt = shade(col, .14);
-    const tw = Math.sin(c.phase * .28) * (.55 + .6 * c.moveAmt); // tail: thick at the root, thin at the tip, swaying slowly (it used to whip about far too fast)
-    for (let k = 0; k < 9; k++) { const t0 = k / 9, t1 = (k + 1) / 9, px = q => -4.6 - q * 10, py = q => Math.sin(q * 2.6 + c.phase * 1.6) * tw * q * 3;
+    const tw = Math.sin(c.phase * .28 * AN.ratTail.sp) * (.55 + .6 * c.moveAmt) * AN.ratTail.amp; // tail: thick at the root, thin at the tip, swaying slowly (it used to whip about far too fast)
+    for (let k = 0; k < 9; k++) { const t0 = k / 9, t1 = (k + 1) / 9, px = q => -4.6 - q * 10, py = q => Math.sin(q * 2.6 + c.phase * 1.6 * AN.ratTail.sp) * tw * q * 3;
       x.strokeStyle = shade(d.tcol || '#d99a9a', -.08 * (k % 2)); x.lineWidth = 1.5 - t0 * 1.1; x.lineCap = 'round'; x.beginPath(); x.moveTo(px(t0), py(t0)); x.lineTo(px(t1), py(t1)); x.stroke(); }
     x.fillStyle = '#e3a3a0'; for (const [fx, fy, ph] of [[2.6, -2.3, s], [2.6, 2.3, -s], [-2.4, -2.8, -s], [-2.4, 2.8, s]]) ell(x, fx + ph * 1.2, fy, .9, .6); // paws, stepping in turn
     x.fillStyle = dk; x.beginPath(); x.moveTo(7.6, 0); x.bezierCurveTo(5.5, -2.2, 2, -2.6, -1, -3.2); x.bezierCurveTo(-4.4, -3.6, -5.6, -1.6, -5.6, 0); x.bezierCurveTo(-5.6, 1.6, -4.4, 3.6, -1, 3.2); x.bezierCurveTo(2, 2.6, 5.5, 2.2, 7.6, 0); x.fill(); // body outline
@@ -373,12 +376,19 @@ function drawAO(x) { // soft contact darkness where bodies meet the ground
   if (snake && snake.alive) { const P = snake._pts || snake.segs; for (let i = 0; i < P.length; i += 3) { const R = snakeRadius() * 1.8; x.drawImage(AO_SPR, P[i].x - R, P[i].y - R, R * 2, R * 2); } }
   x.globalAlpha = 1;
 }
+function creaturePose(x, c) { // the body's sway on top of where it is and which way it faces: drawn with it, and the outline (drawTargetOutlines) follows it
+  if (c.dance) { const b = Math.abs(Math.sin(animT('dance') * CLUB_BPM / 60 * Math.PI + (c.seed ?? .5) * 30)) * AN.dance.amp; x.scale(1 + b * .05, 1 + b * .05); x.rotate(Math.sin(animT('dance') * 2 + (c.seed ?? .5) * 9) * .12 * AN.dance.amp); }
+  if (!c.def.human && c.moveAmt > .02 && !c.hz) { // animals: a little weight shift each step, side to side, the body yawing against the legs
+    const m = c.moveAmt, ph = c.phase * (c.def.gaitK || 1); x.translate(0, Math.sin(ph) * .45 * m * AN.gait.amp); x.rotate(Math.cos(ph) * .045 * m * AN.gait.amp); }
+}
+function humanBob(x, c) { // a little bob with each step and a sway side to side (drawHuman, and the outline with it)
+  const m = c.moveAmt, run = c.state === 'panic' || c.state === 'flee', bob = 1 + (1 - Math.cos(c.phase * 2)) * .5 * .045 * m * (run ? 1.4 : 1) * AN.bob.amp;
+  x.translate(0, Math.sin(c.phase) * .55 * m * (run ? 1.3 : 1) * AN.bob.amp); x.scale(bob, bob);
+}
 function drawCreature(x, c, portrait) {
   if (c.hz > .3 && shadowsOn()) { const k = clamp(1 - c.hz / 14, .45, 1); x.fillStyle = `rgba(0,0,0,${(.24 * k).toFixed(3)})`; ell(x, c.x, c.y, c.def.r * .95 * k, c.def.r * .75 * k); } // the shadow shrinks as it leaves the ground
   x.save(); x.translate(c.x, c.y - (c.hz || 0) * .7); x.rotate(c.a); if (c.hz) x.scale(1 + c.hz * .045, 1 + c.hz * .045); // ...and the body gets bigger, closer to you
-  if (c.dance) { const b = Math.abs(Math.sin(T * CLUB_BPM / 60 * Math.PI + (c.seed ?? .5) * 30)); x.scale(1 + b * .05, 1 + b * .05); x.rotate(Math.sin(T * 2 + (c.seed ?? .5) * 9) * .12); }
-  if (!c.def.human && c.moveAmt > .02 && !c.hz) { // animals: a little weight shift each step, side to side, the body yawing against the legs
-    const m = c.moveAmt, ph = c.phase * (c.def.gaitK || 1); x.translate(0, Math.sin(ph) * .45 * m); x.rotate(Math.cos(ph) * .045 * m); }
+  creaturePose(x, c);
   c.def.human ? drawHuman(x, c) : drawAnimal(x, c);
   if (!portrait && hiFx() && !c.def.fly) { x.save(); shapePath(x, c); x.clip(); x.rotate(-c.a); const R = c.def.r * 1.5; x.drawImage(VOL_SPR, -R, -R, R * 2, R * 2); x.restore(); } // rounded: light on top, darker toward the edges
   if (c.stains.length) {

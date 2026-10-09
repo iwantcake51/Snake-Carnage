@@ -41,7 +41,7 @@ function legExtras(L) { // the small things that go with a style: tights under a
 const SHOES = ['#f2f2f2', '#1d1d1f', '#5a3a22', '#c43c3c', '#2d5fa8'];
 const BUILDS = [{ w: 8.2, d: 4.6 }, { w: 9.2, d: 5.1 }, { w: 9.2, d: 5.1 }, { w: 10.4, d: 5.9 }];
 function humanLook(type) { // a coordinated outfit; each map dresses its people a little differently
-  const m = MAPS[mapIdx].name, b = pick(BUILDS);
+  const m = MAPS[mapIdx].name, th = mapTheme(), b = pick(BUILDS); // dressed by the map's theme, so a custom office gets suits too
   const L = { skin: pick(SKINS), hair: Math.random() < .08 ? pick(HAIR_DYED) : pick(HAIR_NATURAL), top: pick(TOPS), top2: pick(TOPS), pants: pick(PANTS),
     shoes: pick(SHOES), w: b.w, d: b.d, sleeves: Math.random() < .55 ? 'short' : 'long', hat: null, acc: null,
     hairStyle: pick(['short', 'short', 'long', 'bun', 'ponytail', 'curly', 'bald', 'buzz']), outfit: pick(['tee', 'tee', 'stripe', 'jacket', 'hoodie']),
@@ -57,35 +57,36 @@ function humanLook(type) { // a coordinated outfit; each map dresses its people 
       hatCol: pick(['#2a3c5a', '#3a2f22', '#1f4a4f']), patch: pick(['#d63c3c', '#2f5fa8', '#f2c230']) });
     return L;
   }
-  if (m === 'Alien Facility') {
+  if (th === 'facility') {
     Object.assign(L, Math.random() < .75 ? { outfit: 'labcoat', top: '#f4f6f8', top2: '#dfe6ea', sleeves: 'long', acc: null, legs: pick(['trousers', 'trousers', 'skirt', 'jeans']) } : { outfit: 'vest', top: '#2b3440', top2: '#1d232b', pants: '#1d232b', sleeves: 'long', hat: 'cap', hatCol: '#1d232b', legs: 'cargo' });
     if (Math.random() < .5) L.hat = L.hat || null;
     return L;
   }
-  if (m === 'Space Station') { // crew jumpsuits: one color top to bottom, a mission patch
+  if (th === 'station') { // crew jumpsuits: one color top to bottom, a mission patch
     const js = pick(['#2f5fa8', '#e0702a', '#3a3f4a', '#5a8f3a']); Object.assign(L, { legs: 'plain', outfit: 'jumpsuit', top: js, top2: mixColor(js, '#000000', .25), pants: js, sleeves: 'long', acc: null, hat: null, patch: pick(['#f2f2f2', '#f2c230', '#d63c3c']) });
     return L;
   }
-  if (m === 'Bunker') { // fatigues and work overalls
+  if (th === 'bunker') { // fatigues and work overalls
     Object.assign(L, { legs: pick(['cargo', 'cargo', 'trousers']), outfit: pick(['tee', 'jacket', 'vest']), top: pick(['#4e5a3a', '#5a5a48', '#3f4a3a', '#6b6650']), top2: pick(['#3a4230', '#2f3528']), pants: pick(['#3f4a34', '#4a4a3c', '#2f3528']), shoes: '#1d1d1f', sleeves: pick(['short', 'long']), hat: Math.random() < .3 ? 'cap' : null, hatCol: '#3f4a34', acc: null });
     return L;
   }
-  if (m === 'Club') { // out for the night: bright tops, sequins, the odd glow stick
+  if (th === 'club') { // out for the night: bright tops, sequins, the odd glow stick
     Object.assign(L, { outfit: pick(['tee', 'stripe', 'jacket', 'tee']), top: pick(['#ff3fa4', '#3fd4ff', '#c9ff3f', '#ffffff', '#1d1d1f', '#ff7a1a', '#9b5cff', '#ffd23f']), top2: pick(['#1d1d1f', '#c0c0c8', '#ff3fa4']), pants: pick(['#1d1d1f', '#24272e', '#3a2f5a', '#c0c0c8']), sleeves: 'short', hat: null, acc: Math.random() < .3 ? 'glow' : null, hairStyle: Math.random() < .2 ? 'curly' : L.hairStyle });
     if (Math.random() < .12) L.hair = pick(HAIR_DYED);
     L.legs = pick(['jeans', 'leggings', 'skirt', 'skirt', 'shorts', 'trousers']); legExtras(L);
     return L;
   }
-  if (m === 'Office') {
+  if (th === 'office') {
     Object.assign(L, { outfit: pick(['shirtTie', 'shirtTie', 'blazer']), top: pick(['#f4f1ea', '#dfe8f5', '#cfe0d8', '#f0e1e1']), top2: pick(['#2b2f3a', '#3a3f4f', '#4a3a2f']),
       pants: pick(['#24272e', '#3a3f4f', '#5a5f68', '#6b5a48', '#2a3348']), tie: pick(['#a11d1d', '#2a4f9a', '#3a6f3a', '#6a3a8a']), sleeves: 'long', legs: pick(['trousers', 'trousers', 'trousers', 'skirt']) }); L.cuff = false; L.tights = L.legs === 'skirt' && Math.random() < .5 ? '#2a2a30' : null;
-  } else if (m === 'Farm') {
+  } else if (th === 'farm') {
     Object.assign(L, { outfit: pick(['overalls', 'overalls', 'plaid']), top: pick(['#c94f4f', '#4f7ac9', '#d9c08a']), top2: '#3c5f99', legs: pick(['jeans', 'jeans', 'cargo', 'trousers']) }); legExtras(L);
     if (Math.random() < .5) L.hat = 'straw';
   } else {
     if (Math.random() < .15) L.hat = pick(['cap', 'beanie']);
     if (Math.random() < .2) L.acc = 'backpack'; else if (Math.random() < .14) L.acc = 'bag';
-    if (m === 'Town' && Math.random() < .1) L.outfit = 'vest';
+    if (th === 'town' && Math.random() < .1) L.outfit = 'vest';
+    if (th === 'pool' && !(season && season.id === 'winter')) { if (Math.random() < .6) { L.legs = 'shorts'; legExtras(L); } L.sleeves = 'short'; if (Math.random() < .2) L.hat = 'cap'; } // a day at the pool
   }
   return L;
 }

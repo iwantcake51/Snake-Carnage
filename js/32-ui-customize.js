@@ -72,10 +72,10 @@ function modBar() { // every active modifier, compact, at the top of the screen;
 function startGame(opts = {}) {
   if (!opts.mystery) Sfx.start();
   // a clean slate: nothing from the last run (frozen frame, filters, effects, stray timers) may leak into this one
-  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height); cv.style.filter = ''; lastFilter = '';
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height); lastFilter = ''; // (the filter itself is rebuilt next frame from the easing values, so a retry fades the death grade out instead of cutting it)
   stage.classList.remove('paused', 'stunned'); dropped = []; debris = []; beams = []; trail = []; strayBugs = []; ringPops = []; mist = []; shake = 0; deadT = 0; loopErrs = 0;
   runMods = (opts.mods || SETTINGS.mods || []).filter(id => MODS.some(m => m.id === id)); { const set = new Set(runMods); runMods = runMods.filter(id => !modBlockReason(id, set)); } // nothing that can't actually do anything this run // the random map also rolls its own modifiers; ids that no longer exist are dropped
-  MOD = Object.fromEntries(runMods.map(id => [id, true])); rewardMult = modMult(runMods);
+  MOD = Object.fromEntries(runMods.map(id => [id, true])); rewardMult = modMult(runMods) * (opts.net && netIsGuest() ? 1 : spawnOffMult()); // (Who spawns: each kind left out pays a little less)
   run.hardMods = hardModCount(runMods); run.softMods = softModCount(runMods); // Glutton for Punishment counts these (39-progress: progressTick)
   document.body.classList.toggle('minimal', !!SETTINGS.minimalUi); // (a setting now, not a modifier)
   setTimeout(() => { if (MAPS[mapIdx].name === 'Bunker' && bunkerLock && state !== 'menu') notify({ kind: 'reset', title: 'Lockdown', sub: 'The alarms are going. Red lights only down here today.', dur: 4 }); }, 3200);
@@ -84,6 +84,7 @@ function startGame(opts = {}) {
   nightVision = false; endCombo(true); document.getElementById('rewards').innerHTML = ''; hideResume(); clearNotes();
   camF.x = camF.y = camF.k.x = camF.k.y = camF.kv.x = camF.kv.y = 0; resetUserCam(true);
   const sz = opts.net ? opts.net.season : pickSeason(MAPS[mapIdx]), myst = !!opts.mystery, gen = startGame.gen = (startGame.gen || 0) + 1;
+  chHold(true); // this run's challenges: the current set, held until you're back in the menu
   state = 'loading'; cam = null; stage.classList.toggle('msteer', !!SETTINGS.mouseSteer); steer.keyT = steer.moveT = 0;
   hideOverlay(); cv.style.translate = '0px 0px'; cv.style.scale = '1';
   if (document.activeElement) document.activeElement.blur();
@@ -119,10 +120,10 @@ function finishStart(opts, sz) {
   const wait = Math.max(0, 1250 - (performance.now() - t0)); // the card always gets its moment, however fast the load was
   introTimers = [setTimeout(endIntro, SETTINGS.reduceMotion ? 500 : 1000 + wait)];
 }
-function seasonBadge() { return season ? `<span class="tbadge szn ${season.id}"><i class="sic">${season.icon}</i><b>${season.name}</b></span>` : ''; }
+function seasonBadge() { return season ? `<span class="tbadge szn ${season.id}"><i class="sic">${giSvg(season.icon)}</i><b>${season.name}</b></span>` : ''; }
 function introHtml(sz) { // the loading card: map name, when, what season, which modifiers
   const m = MAPS[mapIdx], tags = [m.space ? 'Space' : m.indoor ? 'Indoors' : 'Outdoors'];
-  const szB = sz ? `<span class="tbadge szn ${sz.id}"><i class="sic">${sz.icon}</i><b>${sz.name}</b></span>` : '';
+  const szB = sz ? `<span class="tbadge szn ${sz.id}"><i class="sic">${giSvg(sz.icon)}</i><b>${sz.name}</b></span>` : '';
   const mods = runMods.map(id => { const q = MODS.find(x => x.id === id); return q ? `<span class="imod">${q.name}</span>` : ''; }).join('');
   return `<canvas class="iimg" width="${W}" height="${H}"></canvas><div class="ishade"></div>
     <div class="iwrap"><span class="ieye" style="--d:.05s">${tags.join(' · ')}</span>

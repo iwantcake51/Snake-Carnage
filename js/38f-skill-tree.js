@@ -106,7 +106,7 @@ function showSkillTree() {
     </div></div>`;
   document.getElementById('backBtn').onclick = () => transitionTo(showMenu);
   document.getElementById('skReset').onclick = skReset;
-  skWire(); skRefresh(); skMarkSel(); skInfo(false);
+  skWire(); skRefresh(); skMarkSel(); skInfo(false); skBoot();
   requestAnimationFrame(() => { // on a touch screen, start where the names are big enough to read and tap (Fit tree still shows it all)
     if (!skCam) { skFit(false); if ((skPhone() || IS_TOUCH) && skCam.z < .62) skCenterOn({ x: SKN[skSel].x, y: SKN[skSel].y - 130 }, false); }
     else { skClamp(); skApply(); }
@@ -298,6 +298,34 @@ function skTravel(p) { // a short bright stretch running down a link that just o
   const t = p.cloneNode(); t.setAttribute('class', `sktrav br-${SKN[p.dataset.b].br}`); t.setAttribute('pathLength', '1'); p.parentNode.appendChild(t);
   const a = t.animate([{ strokeDashoffset: .16 }, { strokeDashoffset: -1 }], { duration: 720, easing: 'cubic-bezier(.3,.1,.3,1)' }); a.onfinish = a.oncancel = () => t.remove();
 }
+/* ---- opening: a terminal boots up, types its way to ONLINE, then the screen splits from the middle and the two black halves slide away ---- */
+const SK_BOOT = ['> skill_tree --connect', '> tokens: ' , '> branches: survival / predator / fortune', ''];
+function skBoot() {
+  const panel = overlay.querySelector('.panel.sktree'); if (!panel || skCalm()) return;
+  const el = document.createElement('div'); el.className = 'skboot'; el.setAttribute('aria-hidden', 'true');
+  el.innerHTML = '<i class="bt"></i><i class="bb"></i><i class="seam"></i><pre class="sktxt"></pre>'; panel.appendChild(el);
+  const txt = el.querySelector('.sktxt'), lines = SK_BOOT.map(l => l === '> tokens: ' ? l + skLeft() + ' ready' : l), timers = [];
+  let out = '', li = 0, ci = 0, done = false;
+  const open = () => { if (done) return; done = true; timers.forEach(clearTimeout); txt.innerHTML = esc(out) + '<b class="on">ONLINE</b>'; el.classList.add('live'); Sfx.ui('open');
+    timers.push(setTimeout(() => el.classList.add('open'), 380), setTimeout(() => el.remove(), 1300)); };
+  const type = () => { // a few characters a frame, line by line, a blip per line
+    if (done) return; if (li >= lines.length) return open();
+    const L = lines[li]; ci = Math.min(L.length, ci + 3); txt.innerHTML = esc(out + L.slice(0, ci)) + '<i class="cur"></i>';
+    if (ci >= L.length) { out += L + '\n'; li++; ci = 0; Sfx.ui('tick'); timers.push(setTimeout(type, 70)); } else timers.push(setTimeout(type, 16));
+  };
+  const skip = () => { if (!done) open(); else if (el.isConnected) { el.classList.add('open'); timers.push(setTimeout(() => el.remove(), 600)); } };
+  el.addEventListener('pointerdown', skip); addEventListener('keydown', function k() { skip(); removeEventListener('keydown', k, true); }, { capture: true, once: true });
+  timers.push(setTimeout(type, 120));
+}
+/* ---- buying a rank: the node's outline is copied and ripples outward, fading as it grows ---- */
+function skEcho(b, big) {
+  const sh = b.querySelector('.skshape'), o = sh && sh.querySelector('.sko'); if (!o) return;
+  for (const [d, k] of big ? [[0, 3.4], [170, 2.6]] : [[0, 3]]) setTimeout(() => {
+    const e = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); e.setAttribute('viewBox', sh.getAttribute('viewBox')); e.setAttribute('class', 'skecho'); e.setAttribute('aria-hidden', 'true');
+    const c = o.cloneNode(); c.removeAttribute('class'); e.appendChild(c); e.style.setProperty('--k', k); b.appendChild(e);
+    e.addEventListener('animationend', () => e.remove()); setTimeout(() => e.remove(), 1200); // (in case the animation never runs)
+  }, d);
+}
 let skBusyUntil = 0;
 function skBuy(id) {
   const n = SKN[id], now = performance.now(); if (!n || now < skBusyUntil) return; // rapid clicks: one purchase at a time
@@ -318,7 +346,7 @@ function skBuy(id) {
   if (b && !skCalm()) {
     b.classList.remove('pulse', 'unlock'); void b.getBoundingClientRect(); b.classList.add(major && !r ? 'unlock' : 'pulse');
     const tk = b.querySelectorAll('.tk')[r]; if (tk) { tk.classList.remove('fill'); void tk.getBoundingClientRect(); tk.classList.add('fill'); }
-    setTimeout(() => b.classList.remove('pulse', 'unlock'), 900);
+    setTimeout(() => b.classList.remove('pulse', 'unlock'), 900); skEcho(b, major && !r);
   }
   if (!r) skTravel(overlay.querySelector(`.skln[data-b="${id}"]`)); // the link into it lights up
   for (const q of SKILL_TREE) if (was[q.id] === 'locked' && skState(q) !== 'locked') { const p = overlay.querySelector(`.skln[data-a="${id}"][data-b="${q.id}"]`); if (p) setTimeout(() => skTravel(p), 160); } // and the way on, if this opened it

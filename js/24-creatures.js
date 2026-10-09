@@ -25,8 +25,13 @@ function ungoldify(c) {
 }
 let ringPops = [];
 function giveFlash(c) { if (MOD.noFlash) return c; if (c.def.human && Math.random() < flashChance(c)) c.fl = newFlash(c); return c; }
+/* ---- who's allowed on the map: Modifiers › Who spawns switches single kinds of creature off (the host's choice in co-op) ---- */
+const spawnOff = type => (SETTINGS.noSpawn || []).includes(type);
+const mapSpawnTypes = (m = MAPS[mapIdx]) => { const out = [...new Set((m.pop || []).map(p => p[0]).filter(t => TYPES[t]))]; if ((m.walkers || 0) > 0 && !out.includes('dog')) out.push('dog'); return out; }; // (walkers bring dogs on leads)
+const spawnOffMult = () => { const on = mapSpawnTypes(), off = on.filter(spawnOff).length; return off ? Math.max(.5, Math.pow(.92, off)) : 1; }; // fewer kinds of food: a little less reward per kind left out
 function spawn(type, zone) {
   if (netIsGuest()) return; // co-op: only the host spawns; guests get the creatures from it
+  if (spawnOff(type)) return;
   const def = TYPES[type], z = zone || { x: B, y: B, w: W - 2 * B, h: H - 2 * B };
   for (let k = 0; k < 300; k++) {
     const x = rand(z.x + def.r, z.x + z.w - def.r), y = rand(z.y + def.r, z.y + z.h - def.r);
@@ -53,11 +58,11 @@ function spawnWalkers(n) {
     const pts = pick(curPaths); let i = randi(0, pts.length - 1);
     for (let t = 0; t < 12 && (!free(pts[i][0], pts[i][1], 12) || pts[i][0] < B + 10 || pts[i][0] > W - B - 10 || pts[i][1] < B + 10 || pts[i][1] > H - B - 10 || (snake && dist2(pts[i][0], pts[i][1], snake.x, snake.y) < 150 * 150)); t++) i = randi(0, pts.length - 1);
     const [x, y] = pts[i]; if (!free(x, y, 12)) continue;
-    const type = MAPS[mapIdx].pop.find(q => TYPES[q[0]].human && !TYPES[q[0]].alien) ? 'human' : null; if (!type) return;
+    const type = MAPS[mapIdx].pop.find(q => TYPES[q[0]].human && !TYPES[q[0]].alien) && !spawnOff('human') ? 'human' : null; if (!type) return;
     const c = giveFlash(makeCreature(type, x, y, null)); c.born = T; giveTraits(c);
     c.path = { pts, i, dir: Math.random() < .5 ? 1 : -1 }; c.state = 'wander'; c.timer = 99;
     creatures.push(c);
-    if (Math.random() < .45 && MAPS[mapIdx].open !== undefined || Math.random() < .3) { // a dog on a lead
+    if ((Math.random() < .45 && MAPS[mapIdx].open !== undefined || Math.random() < .3) && !spawnOff('dog')) { // a dog on a lead
       const d = makeCreature('dog', x + rand(-14, 14), y + rand(-14, 14), null); if (!free(d.x, d.y, 10)) continue;
       d.owner = c; c.dog = d; d.born = T; creatures.push(d);
     }
@@ -80,17 +85,17 @@ function drawLeashes(x) {
 /* ---- long grass that sways in the wind (open maps) ---- */
 let grass = [];
 function makeGrass(n) {
-  const r = seeded(41); grass = [];
+  const r = seeded(41); grass = []; n = Math.round(n * .7); // (a little sparser than the map asks: it read as clutter)
   for (let k = 0; k < n * 3 && grass.length < n; k++) { const x = 30 + r() * (W - 60), y = 30 + r() * (H - 60); if (!grassAt(x, y) || solid(x, y) || snowAt(x, y) > .15 || (seasonId() === 'winter' && r() < .7)) continue; grass.push({ x, y, h: (4 + r() * 4) * (seasonId() === 'winter' ? .7 : 1), ph: r() * TAU, c: season ? pick(SZN().blades) : r() < .5 ? '#6f9e33' : '#7fb03c' }); }
 }
 function drawGrass(x) {
   if (!grass.length) return;
-  x.lineCap = 'round'; x.lineWidth = 1.1;
+  x.lineCap = 'round'; x.lineWidth = 1.1; const gt = animT('grass'), ga = AN.grass.amp;
   if (!grass.byCol) { grass.byCol = new Map(); for (const g of grass) { let b = grass.byCol.get(g.c); if (!b) grass.byCol.set(g.c, b = []); b.push(g); } } // one stroke per color, not one per tuft: far fewer draw calls for the graphics chip
   for (const [col, list] of grass.byCol) {
     x.strokeStyle = col; x.beginPath();
     for (const g of list) {
-      const w = Math.sin(T * 1.7 + g.x * .018 + g.y * .01) * 1.6 + Math.sin(T * 3.1 + g.ph) * .4; // a gust rolls across the field
+      const w = (Math.sin(gt * 1.7 + g.x * .018 + g.y * .01) * 1.6 + Math.sin(gt * 3.1 + g.ph) * .4) * ga; // a gust rolls across the field
       for (let o = -1.6; o <= 1.7; o += 1.6) { x.moveTo(g.x + o, g.y); x.quadraticCurveTo(g.x + o + w * .4, g.y - g.h * .6, g.x + o * 1.4 + w, g.y - g.h - (o ? -1 : 0)); }
     }
     x.stroke();

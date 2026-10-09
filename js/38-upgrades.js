@@ -33,9 +33,9 @@ const SKILL_TREE = [
   { id: 'dash', br: 'pred', major: 1, abil: 1, name: 'Lunge', icon: 'dash', cost: [1], lvl: 3, req: [['speed', 1]], x: 934, y: 655,
     desc: 'A quick burst of speed. Not while concussed.', fx: [['Burst', g => SKV.lungeK(g), xk], ['Lasts', g => SKV.lungeDur(g), secs], ['Cooldown', g => SKV.lungeCd(g), secs]] },
   { id: 'stride', br: 'pred', name: 'Long Stride', icon: 'stride', cost: [1, 1, 1], req: [['dash', 1]], x: 920, y: 495,
-    desc: 'A longer, stronger lunge per rank.', fx: [['Lasts', g => SKV.lungeDur(g), secs], ['Burst', g => SKV.lungeK(g), xk]] },
+    desc: 'A slightly longer, stronger lunge per rank.', fx: [['Lasts', g => SKV.lungeDur(g), secs], ['Burst', g => SKV.lungeK(g), xk]] },
   { id: 'pounce', br: 'pred', major: 1, name: 'Pounce', icon: 'pounce', cost: [2], lvl: 18, req: [['stride', 2]], x: 911, y: 320,
-    desc: 'A faster lunge that recharges quicker. Eating mid-lunge recharges it.', fx: [['Burst', g => SKV.lungeK(g), xk], ['Cooldown', g => SKV.lungeCd(g), secs]] },
+    desc: 'A sharper, quicker lunge: hits harder but is over sooner, and recharges faster. Eating mid-lunge keeps it going.', fx: [['Burst', g => SKV.lungeK(g), xk], ['Cooldown', g => SKV.lungeCd(g), secs]] },
   { id: 'spring', br: 'pred', name: 'Coiled Spring', icon: 'spring', cost: [1, 1, 1, 1], req: [['dash', 1]], x: 816, y: 565,
     desc: 'Lunge recharges 7% faster per rank.', fx: [['Lunge cooldown', g => SKV.lungeCd(g), secs]] },
   { id: 'whip', br: 'pred', name: 'Whiplash', icon: 'whip', cost: [1, 1, 1], req: [['spring', 1]], x: 794, y: 400,
@@ -70,8 +70,10 @@ const SKILL_TREE = [
     desc: 'Smash through things instead of crashing. Each rank breaks heavier things.', fx: [['Smashes', g => SKV.ramTier(g), n => ['Nothing', 'Small things', 'Furniture', 'Cars and walls'][n]]] },
   { id: 'jam', br: 'surv', major: 1, name: 'Bad Intel', icon: 'jam', cost: [2], lvl: 16, req: [['skull', 2]], x: 735, y: 745,
     desc: 'Air strikes on you have a 50% chance to be called off.', fx: [['Strikes on you called off', g => g('jam') ? 50 : 0, n => n + '%']] },
-  { id: 'skull', br: 'surv', name: 'Thick Skull', icon: 'skull', cost: [1, 1, 1, 1], req: [], x: 585, y: 790,
-    desc: 'Opens the Survival branch. Dazes are 20% weaker per rank, bombs included. Never saves you from a direct hit.', fx: [['Dazes and concussions', g => (SKV.dazeCut(g) - 1) * 100, pct]] },
+  { id: 'skull', br: 'surv', name: 'Battle Hardened', icon: 'skull', cost: [1, 1, 1, 1], req: [], x: 585, y: 790,
+    desc: 'Opens the Survival branch. Every daze, concussion and slowdown is 20% weaker per rank: bombs, smashes, gas. Never saves you from a direct hit.', fx: [['Dazes, concussions and slowdowns', g => (SKV.dazeCut(g) - 1) * 100, pct]] },
+  { id: 'mask', br: 'surv', major: 1, name: 'Gas Mask', icon: 'mask', cost: [1], lvl: 12, req: [['skull', 1]], x: 585, y: 905,
+    desc: 'Gas no longer blurs, sways or drains your screen. It still slows you down.', fx: [['Gas on your screen', g => g('mask') ? 0 : 100, n => n ? 'Full' : 'None']] },
   { id: 'gut', br: 'surv', name: 'Iron Stomach', icon: 'gut', cost: [1, 1, 1], req: [['ram', 1]], x: 265, y: 590,
     desc: 'Combo lasts 10% longer per rank.', fx: [['Combo time', g => SKV.combo(g) * 100 - 100, pct]] },
   { id: 'hiss', br: 'pred', major: 1, abil: 1, name: 'Hiss', icon: 'hiss', cost: [1], lvl: 11, req: [['speed', 1]], x: 1392, y: 660,
@@ -149,8 +151,8 @@ const sk = id => { const n = SKN[id]; if (!n || MOD.noUpgrades || (MOD.noAbiliti
 const SKV = {
   speed: (g = sk) => 1 + .05 * g('speed'), // up to +25%
   turn: (g = sk) => 1 + .16 * g('sidewind'),
-  lungeK: (g = sk) => g('pounce') ? 2.7 : 1.8 + .035 * g('stride'),
-  lungeDur: (g = sk) => (g('pounce') ? .55 : .6) + .07 * g('stride'),
+  lungeK: (g = sk) => g('pounce') ? 2.3 : 1.8 + .035 * g('stride'), // the extra ground a lunge covers is about speed x (K - 1) x (dur + 0.31 s of bleeding off): at the top of the tree ~1.15 s of normal travel, not ~1.8 (it overshot whole streets)
+  lungeDur: (g = sk) => (g('pounce') ? .42 : .6) + .05 * g('stride'),
   lungeCd: (g = sk) => (g('pounce') ? 5 : 7) * (1 - .07 * g('spring')),
   lungeTurn: (g = sk) => 1 + .15 * g('whip'),
   eyeRange: (g = sk) => 1 + .2 * g('keen'),
@@ -579,14 +581,10 @@ function drawScent(x) {
   x.restore();
 }
 /* ---- screen edges: a blur round the edges mid-lunge, a cold vignette while Focus slows the world ---- */
-const EDGE_K = { lb: 0, fk: 0 }; // how far into a lunge (lb) and into Focus (fk) the screen edges are: the canvas blurs them (lungeEdges), #edgeFx adds the tint and speed lines
+const EDGE_K = { lb: 0, fk: 0 }; // how far into a lunge (lb) and into Focus (fk) the screen edges are: the canvas blurs them, tints them and draws the speed lines (lungeEdges, lungeLines)
 function edgeFxTick() {
-  const el = document.getElementById('edgeFx'); if (!el) return;
   const s = snake, live = state === 'play' && s && s.alive, lb = live && !SETTINGS.reduceMotion ? clamp(s.lk || 0, 0, 1) : 0, fk = live ? clamp(1 - (timeScale() - .38) / .62, 0, 1) : 0;
-  EDGE_K.lb = lb; EDGE_K.fk = fk;
-  const key = (lb * 20 | 0) + ':' + (fk * 20 | 0); if (key === el.dataset.k) return; el.dataset.k = key;
-  el.style.display = lb > .03 || fk > .03 ? '' : 'none';
-  el.style.setProperty('--lb', lb.toFixed(2)); el.style.setProperty('--fk', fk.toFixed(2));
+  if (live) { EDGE_K.lb = lb; EDGE_K.fk = fk; } else { EDGE_K.lb = EDGE_K.lb > .01 ? EDGE_K.lb * .86 : 0; EDGE_K.fk = EDGE_K.fk > .01 ? EDGE_K.fk * .86 : 0; } // paused or dead: they ease away, never vanish in one frame
 }
 /* ---- Hiss: a visible soundwave rolling out; Battering Ram: a pressure wedge at the head just before impact ---- */
 function drawHissWave(x) {

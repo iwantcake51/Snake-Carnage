@@ -3,7 +3,7 @@
    Player   god mode (nothing kills you), no cooldowns, speed, grow, size
    World    time of day (or let the clock run), spawn anything near you (or a golden one), panic everyone, kill
             everyone nearby, clear the crowd
-   Air      a bomb ahead of you, a salvo, a strafing run, a bombing run, air raid on/off
+   Air      a bomb ahead of you, a salvo, a strafing run, a bombing run, a cluster bomb, an incendiary, a barrage, air raid on/off
    Progress chips, a level, the whole skill tree maxed (these are saved)
    In multiplayer only the host can use it (the host's world is everyone's); guests see it greyed out.
    ========================================================= */
@@ -44,6 +44,10 @@ const ADM_ACT = {
   bomb() { const s = adminSnake(); if (!s) return; const sp = s.speed * (s.dashV || 1), x = clamp(s.x + Math.cos(s.angle) * sp * 1.6, 30, W - 30), y = clamp(s.y + Math.sin(s.angle) * sp * 1.6, 30, H - 30);
     const ja = +(s.angle + 1.4).toFixed(3); airStrike(Math.round(x), Math.round(y), 2, AIR_R, ja); netEmit({ t: 'air', x: Math.round(x), y: Math.round(y), w: 2, r: AIR_R, j: ja, h: Math.round(netNow()) }); },
   salvo() { const s = adminSnake(); if (!s) return; airSalvo(s, 1); },
+  special(kd) { const s = adminSnake(); if (!s) return; const sp = s.speed * (s.dashV || 1), x = Math.round(clamp(s.x + Math.cos(s.angle) * sp * 1.6, 30, W - 30)), y = Math.round(clamp(s.y + Math.sin(s.angle) * sp * 1.6, 30, H - 30)), sd = randi(1, 2 ** 30), r = kd === 'i' ? Math.round(AIR_R * .8) : AIR_R, ja = +(s.angle + 1.4).toFixed(3);
+    airStrike(x, y, 2, r, ja, .5, undefined, kd, sd); netEmit({ t: 'air', x, y, w: 2, r, j: ja, f: .5, kd, sd, h: Math.round(netNow()) }); },
+  barrage() { const s = adminSnake(); if (s) barrage(s, .6); },
+  cluster() { ADM_ACT.special('c'); }, incendiary() { ADM_ACT.special('i'); }, gas() { ADM_ACT.special('g'); },
   strafe() { const s = adminSnake(); if (s) strafeRun(s, .5, 'guns'); },
   bombRun() { const s = adminSnake(); if (s) strafeRun(s, .6, 'bombs'); },
   airRaid(on) { MOD.airRaid = on; if (on && !AIR.warned) AIR.nextT = 0; },
@@ -77,7 +81,10 @@ function adminRender() {
       <div class="adm-row"><button data-a="panic">Panic everyone</button><button data-a="killNear">Kill everyone near</button><button data-a="clear">Clear the crowd</button></div>
       <h4>Air strikes</h4>
       <div class="adm-row"><button data-a="bomb">Bomb ahead</button><button data-a="salvo">Salvo</button><button data-a="strafe">Strafing run</button><button data-a="bombRun">Bombing run</button></div>
+      <div class="adm-row"><button data-a="cluster">Cluster bomb</button><button data-a="incendiary">Incendiary</button><button data-a="gas">Gas bomb</button><button data-a="barrage">Barrage</button></div>
       <div class="adm-row">${tg('airRaid', 'Air raid on', 'Strikes and runs keep coming (the Air raid modifier, this run only)')}</div>
+      <h4>Look</h4>
+      <div class="adm-row"><button data-act="animEd">Animation editor</button></div>
       <h4>Progress <small>(saved)</small></h4>
       <div class="adm-row"><button data-a="chips" data-n="1000">+1000 chips</button><button data-a="chips" data-n="10000">+10000 chips</button><button data-a="level">+1 level</button><button data-a="maxUpg">Max the skill tree</button></div>
     </div>`;

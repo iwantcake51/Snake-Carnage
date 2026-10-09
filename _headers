@@ -6,3 +6,6 @@
 # PeerJS only changes with the game version it's requested with (?v=)
 /js/vendor/*
   Cache-Control: public, max-age=31536000, immutable
+# The sprite atlas is requested with the game version (?v=), so it can be kept too
+/sprites/*
+  Cache-Control: public, max-age=31536000, immutable

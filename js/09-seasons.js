@@ -5,10 +5,10 @@
    ========================================================= */
 const SEASON_MAPS = new Set(['Open Field', 'Meadow', 'Town', 'Maze', 'Farm', 'Park', 'Pool']);
 const SEASONS = {
-  spring: { name: 'Spring', icon: '🌱', leaves: ['#7cc443', '#8fd24f', '#69b236', '#a6df63'], full: .8, blossom: .35, bark: '#5d4532', blades: ['#86c840', '#97d64e'] },
-  summer: { name: 'Summer', icon: '☀️', leaves: ['#3f8a2a', '#4c9a30', '#357a24', '#5aa838'], full: 1, blossom: 0, bark: '#56402d', blades: ['#5f9e2c', '#6fae34'] },
-  autumn: { name: 'Autumn', icon: '🍂', leaves: ['#d9822b', '#c4512a', '#e6b13a', '#9c5a2a', '#b8352a', '#d9a441'], full: .6, blossom: 0, bark: '#4f3a2a', blades: ['#b8953a', '#a8823a', '#c4a24c'] },
-  winter: { name: 'Winter', icon: '❄️', leaves: ['#7a5a3a', '#8a6a44'], full: 0, blossom: 0, bark: '#4a3e36', blades: ['#cfc6ac', '#bdb59a'] },
+  spring: { name: 'Spring', icon: 'szn_spring', leaves: ['#7cc443', '#8fd24f', '#69b236', '#a6df63'], full: .8, blossom: .35, bark: '#5d4532', blades: ['#86c840', '#97d64e'] },
+  summer: { name: 'Summer', icon: 'szn_summer', leaves: ['#3f8a2a', '#4c9a30', '#357a24', '#5aa838'], full: 1, blossom: 0, bark: '#56402d', blades: ['#5f9e2c', '#6fae34'] },
+  autumn: { name: 'Autumn', icon: 'szn_autumn', leaves: ['#d9822b', '#c4512a', '#e6b13a', '#9c5a2a', '#b8352a', '#d9a441'], full: .6, blossom: 0, bark: '#4f3a2a', blades: ['#b8953a', '#a8823a', '#c4a24c'] },
+  winter: { name: 'Winter', icon: 'szn_winter', leaves: ['#7a5a3a', '#8a6a44'], full: 0, blossom: 0, bark: '#4a3e36', blades: ['#cfc6ac', '#bdb59a'] },
 };
 let season = null; // { id, late, name } for this run; null indoors / in space / in menus
 function pickSeason(m) {
@@ -90,25 +90,51 @@ function seasonDetails(x) { // flowers, leaf litter, dead tufts: only on grass, 
   const trees = (obstacles || []).filter(o => o.kind === 'tree');
   if (id === 'spring' || id === 'summer') { // flower patches and new shoots
     const cols = id === 'spring' ? ['#ffffff', '#ffe066', '#f7a8c8', '#c9a0ff', '#fff3b0'] : ['#ffffff', '#ffd23f', '#e8eef7'];
-    const patches = id === 'spring' ? 26 : 10;
+    const patches = id === 'spring' ? 16 : 6;
     for (let p = 0; p < patches; p++) {
       const cx = 30 + r() * (W - 60), cy = 30 + r() * (H - 60), col = cols[Math.floor(r() * cols.length)], n = 6 + Math.floor(r() * 14);
       for (let k = 0; k < n; k++) { const a = r() * TAU, d = Math.sqrt(r()) * 26, px = cx + Math.cos(a) * d, py = cy + Math.sin(a) * d; if (!onGrass(px, py)) continue;
         x.fillStyle = 'rgba(40,90,30,.5)'; circ(x, px + .5, py + .8, 1.5); x.fillStyle = col; circ(x, px, py, 1.15 + r() * .5); if (r() < .5) { x.fillStyle = '#f2c230'; circ(x, px, py, .45); } }
     }
     x.strokeStyle = id === 'spring' ? 'rgba(160,220,90,.7)' : 'rgba(40,90,25,.45)'; x.lineWidth = .8;
-    for (let k = 0; k < (id === 'spring' ? 260 : 420); k++) { const px = r() * W, py = r() * H; if (!onGrass(px, py)) continue; x.beginPath(); x.moveTo(px - 1, py); x.lineTo(px - 1.6, py - 2.6); x.moveTo(px, py); x.lineTo(px + .2, py - 3.2); x.moveTo(px + 1, py); x.lineTo(px + 1.8, py - 2.4); x.stroke(); }
+    for (let k = 0; k < (id === 'spring' ? 160 : 250); k++) { const px = r() * W, py = r() * H; if (!onGrass(px, py)) continue; x.beginPath(); x.moveTo(px - 1, py); x.lineTo(px - 1.6, py - 2.6); x.moveTo(px, py); x.lineTo(px + .2, py - 3.2); x.moveTo(px + 1, py); x.lineTo(px + 1.8, py - 2.4); x.stroke(); }
   }
   if (id === 'autumn') { // fallen leaves: heaped under trees, blown across the rest
-    const cols = SEASONS.autumn.leaves, litter = (px, py) => { if (!onGrass(px, py) && r() < .7) return; x.save(); x.translate(px, py); x.rotate(r() * TAU); x.fillStyle = cols[Math.floor(r() * cols.length)]; x.globalAlpha = .75 + r() * .25; ell(x, 0, 0, 1.9 + r() * 1.2, 1 + r() * .5); x.restore(); };
+    const cols = SEASONS.autumn.leaves, litter = (px, py) => { if (!onGrass(px, py) && r() < .7) return; // a Kenney leaf shape once the sprites are in, an oval before
+      const rot = r() * TAU, col = cols[Math.floor(r() * cols.length)], al = .75 + r() * .25, w = 1.9 + r() * 1.2, h = 1 + r() * .5; x.globalAlpha = al;
+      if (!kDraw(x, K_LEAF[Math.floor(r() * K_LEAF.length)], col, px, py, w * 2.7, w * 2.7, rot, 16)) { x.save(); x.translate(px, py); x.rotate(rot); x.fillStyle = col; ell(x, 0, 0, w, h); x.restore(); }
+      x.globalAlpha = 1; };
     const k0 = season.late ? 1.6 : 1;
-    for (const t of trees) for (let k = 0; k < t.r * 5 * k0; k++) { const a = r() * TAU, d = t.r * (.7 + Math.pow(r(), 1.6) * 1.7); litter(t.x + Math.cos(a) * d + 6, t.y + Math.sin(a) * d + 4); }
-    for (let k = 0; k < 500 * k0; k++) litter(r() * W, r() * H);
+    for (const t of trees) for (let k = 0; k < t.r * 3.6 * k0; k++) { const a = r() * TAU, d = t.r * (.7 + Math.pow(r(), 1.6) * 1.7); litter(t.x + Math.cos(a) * d + 6, t.y + Math.sin(a) * d + 4); }
+    for (let k = 0; k < 320 * k0; k++) litter(r() * W, r() * H);
   }
   if (id === 'winter' || season.late) { // dead tufts poking out
     x.strokeStyle = 'rgba(150,135,105,.55)'; x.lineWidth = .8;
     for (let k = 0; k < 220; k++) { const px = r() * W, py = r() * H; if (!onGrass(px, py)) continue; x.beginPath(); x.moveTo(px, py); x.lineTo(px - 1.5, py - 3); x.moveTo(px, py); x.lineTo(px + 1.2, py - 3.4); x.stroke(); }
   }
+  plants = [];
+  if (id !== 'winter') { // low plants seen from above (clover, little ferns) in a darker shade of the grass they grow in: kept apart and drawn live so they sway (drawPlants); fallen blossom in spring
+    const q = seeded(Math.round(season.seed * 131) + mapIdx * 29 + 7), n = Math.round(W * H / (season.late ? 56000 : 32000));
+    for (let k = 0; k < n; k++) { const px = q() * W, py = q() * H, rot = q() * TAU, sz = 8 + q() * 9, v = q() * 3 | 0, al = .6 + q() * .3; if (!onGrass(px, py)) continue;
+      const c = floorColAt(px, py); plants.push({ x: px, y: py, rot, sz, v, al, ph: q() * TAU, c: [c[0] * .5, c[1] * .74, c[2] * .42].map(u => Math.round(u / 12) * 12) }); }
+  }
+  if (KSPR.ok && id !== 'winter') {
+    const q = seeded(Math.round(season.seed * 131) + mapIdx * 29 + 8);
+    if (id === 'spring') for (let k = 0; k < 10; k++) { const px = 30 + q() * (W - 60), py = 30 + q() * (H - 60), rot = q() * TAU, sz = 16 + q() * 10, col = q() < .5 ? '#fbe3ec' : '#fff8f0'; if (!onGrass(px, py)) continue;
+      x.globalAlpha = .85; kDraw(x, q() < .5 ? 'petals_1' : 'petals_2', col, px, py, sz, sz, rot, 32); }
+    x.globalAlpha = 1;
+  }
+}
+
+/* ---- the low plants: Kenney's clover and ferns, each a cached tinted sprite, leaning with the same gusts as the grass ---- */
+let plants = [];
+function drawPlants(x) {
+  if (!plants.length || !KSPR.ok) return;
+  const still = SETTINGS.treeQ === 'Low' || SETTINGS.reduceMotion, pt = animT('plants'), pa = AN.plants.amp; // (tree quality Low: nothing sways)
+  for (const p of plants) { const spr = kTint(K_PLANT[p.v], p.c, 32); if (!spr) continue;
+    const w = still ? 0 : (Math.sin(pt * 1.7 + p.x * .018 + p.y * .01) * .6 + Math.sin(pt * 2.6 + p.ph) * .25) * pa; // the gust that bends the grass, and each plant's own flutter
+    x.globalAlpha = p.al; x.save(); x.translate(p.x + w * 1.2, p.y + w * .3); x.rotate(p.rot + w * .14); x.scale(1 + w * .04, 1 - Math.abs(w) * .05); x.drawImage(spr, -p.sz / 2, -p.sz / 2, p.sz, p.sz); x.restore(); }
+  x.globalAlpha = 1;
 }
 
 /* ---- trees and bushes: trunk and branches are baked; leaves are cached sprites that sway ---- */
@@ -249,8 +275,8 @@ function drawTrunk(x, o) { // baked: trunk and the main limbs, which show throug
   x.fillStyle = shade(bark, -.15); circ(x, o.x, o.y, R * .17); x.fillStyle = shade(bark, .05); circ(x, o.x - R * .03, o.y - R * .03, R * .12);
   x.strokeStyle = shade(bark, -.3); x.lineWidth = .7; x.beginPath(); x.arc(o.x, o.y, R * .08, 0, TAU); x.stroke(); // growth ring on the cut-off top
 }
-function windAt(px, py, ph) { // a slow gust rolls across the map; each tree also has its own wobble
-  return Math.sin(T * .9 - px * .006 - py * .003) * .6 + Math.sin(T * 1.7 + ph) * .25 + Math.sin(T * .43 + ph * 2.3) * .2;
+function windAt(px, py, ph, id = 'trees') { // a slow gust rolls across the map; each tree also has its own wobble (id: whose speed and strength, in the Animation editor)
+  const T = animT(id); return (Math.sin(T * .9 - px * .006 - py * .003) * .6 + Math.sin(T * 1.7 + ph) * .25 + Math.sin(T * .43 + ph * 2.3) * .2) * AN[id].amp;
 }
 let treeBake = null; // Low tree quality: every canopy painted once into one layer
 function drawTreeStatic(x, t) { const o = t.o, s = t.S;
@@ -274,7 +300,7 @@ function drawTrees(x) {
   for (const t of treeSprites) {
     const o = t.o, w = windAt(o.x, o.y, t.o.tinfo.ph), w2 = windAt(o.x + 40, o.y + 30, t.o.tinfo.ph + 1.3), A = (1 + o.r * .025) * t.amp, s = t.S;
     if (t.limbs) { // each limb swings about the trunk on its own beat, carrying its leaves with it
-      for (const l of t.limbs) { x.save(); x.translate(o.x, o.y); x.rotate((w * .035 + Math.sin(T * 1.8 + l.ph) * .016) * l.k); const sc = 1 + Math.sin(T * 1.3 + l.ph) * .008; x.scale(sc, sc); x.drawImage(l.c, -s / 2, -s / 2, s, s); x.restore(); }
+      for (const l of t.limbs) { x.save(); x.translate(o.x, o.y); x.rotate((w * .035 + Math.sin(animT('trees') * 1.8 + l.ph) * .016 * AN.trees.amp) * l.k); const sc = 1 + Math.sin(animT('trees') * 1.3 + l.ph) * .008 * AN.trees.amp; x.scale(sc, sc); x.drawImage(l.c, -s / 2, -s / 2, s, s); x.restore(); }
       x.save(); x.translate(o.x + w * .6, o.y + w2 * .3); x.rotate(w * .015); x.drawImage(t.hi, -s / 2, -s / 2, s, s); x.restore();
       continue;
     }
@@ -291,23 +317,23 @@ function makeWeather() {
   if (season.id === 'autumn') { const ts = obstacles.filter(o => o.kind === 'tree' && !o.tinfo?.pine); if (ts.length) for (let k = 0; k < (season.late ? 22 : 14); k++) weather.push(newLeaf(ts)); weather.trees = ts; }
   if (season.id === 'winter') for (let k = 0; k < 70; k++) weather.push({ flake: true, x: rand(0, W), y: rand(0, H), z: rand(0, 1), ph: rand(0, TAU), s: rand(.6, 1.6) });
 }
-function newLeaf(ts) { const t = pick(ts), a = rand(0, TAU), d = rand(0, t.r * .8); return { x: t.x + Math.cos(a) * d, y: t.y + Math.sin(a) * d, z: rand(20, 30), ph: rand(0, TAU), rot: rand(0, TAU), c: pick(SEASONS.autumn.leaves), vz: rand(5, 9) }; }
+function newLeaf(ts) { const t = pick(ts), a = rand(0, TAU), d = rand(0, t.r * .8); return { x: t.x + Math.cos(a) * d, y: t.y + Math.sin(a) * d, z: rand(20, 30), ph: rand(0, TAU), rot: rand(0, TAU), c: pick(SEASONS.autumn.leaves), vz: rand(5, 9), lf: randi(0, 8) }; }
 function updateWeather(dt) {
   for (let i = 0; i < weather.length; i++) {
-    const p = weather[i], w = windAt(p.x, p.y, p.ph);
-    if (p.flake) { p.y += (14 + p.s * 10) * dt; p.x += (w * 10 + 5) * dt; if (p.y > H + 4) { p.y = -4; p.x = rand(0, W); } if (p.x > W + 4) p.x = -4; continue; }
-    p.z -= p.vz * dt; p.x += (w * 16 + Math.sin(T * 3 + p.ph) * 10) * dt; p.y += (Math.cos(T * 2.3 + p.ph) * 6 + 4) * dt; p.rot += dt * (2 + Math.sin(p.ph) * 2);
+    const p = weather[i], w = windAt(p.x, p.y, p.ph, p.flake ? 'snow' : 'leaves');
+    if (p.flake) { p.y += (14 + p.s * 10) * dt * AN.snow.sp; p.x += (w * 10 + 5) * dt; if (p.y > H + 4) { p.y = -4; p.x = rand(0, W); } if (p.x > W + 4) p.x = -4; continue; }
+    const lt = animT('leaves'), la = AN.leaves.amp; p.z -= p.vz * dt * AN.leaves.sp; p.x += (w * 16 + Math.sin(lt * 3 + p.ph) * 10 * la) * dt; p.y += (Math.cos(lt * 2.3 + p.ph) * 6 * la + 4) * dt; p.rot += dt * (2 + Math.sin(p.ph) * 2);
     if (p.z <= 0) { // lands and stays on the ground
-      if (grassAt(p.x, p.y) && !solid(p.x, p.y)) { bctx.save(); bctx.translate(p.x, p.y); bctx.rotate(p.rot); bctx.fillStyle = p.c; bctx.globalAlpha = .85; ell(bctx, 0, 0, 2.3, 1.2); bctx.restore(); }
+      if (grassAt(p.x, p.y) && !solid(p.x, p.y)) { bctx.save(); bctx.globalAlpha = .85; if (!kDraw(bctx, K_LEAF[p.lf], p.c, p.x, p.y, 6.4, 6.4, p.rot, 16)) { bctx.translate(p.x, p.y); bctx.rotate(p.rot); bctx.fillStyle = p.c; ell(bctx, 0, 0, 2.3, 1.2); } bctx.restore(); }
       weather[i] = newLeaf(weather.trees);
     }
   }
 }
 function drawWeather(x) {
   for (const p of weather) {
-    if (p.flake) { x.fillStyle = `rgba(248,250,255,${.45 + p.z * .4})`; circ(x, p.x + Math.sin(T * 1.3 + p.ph) * 3, p.y, p.s); continue; }
-    const sq = Math.abs(Math.cos(T * 4 + p.ph)); // flutters as it turns
-    x.save(); x.translate(p.x, p.y - p.z * .6); x.rotate(p.rot); x.fillStyle = p.c; ell(x, 0, 0, 2.4, .4 + 1.1 * sq); x.restore();
+    if (p.flake) { x.fillStyle = `rgba(248,250,255,${.45 + p.z * .4})`; circ(x, p.x + Math.sin(animT('snow') * 1.3 + p.ph) * 3 * AN.snow.amp, p.y, p.s); continue; }
+    const sq = Math.abs(Math.cos(animT('leaves') * 4 + p.ph)); // flutters as it turns
+    const lf = kTint(K_LEAF[p.lf], p.c, 16); x.save(); x.translate(p.x, p.y - p.z * .6); x.rotate(p.rot); if (lf) { x.scale(1, .2 + .8 * sq); x.drawImage(lf, -3.4, -3.4, 6.8, 6.8); } else { x.fillStyle = p.c; ell(x, 0, 0, 2.4, .4 + 1.1 * sq); } x.restore();
     x.fillStyle = 'rgba(0,0,0,.12)'; circ(x, p.x + 2, p.y + 2, 1.2);
   }
 }

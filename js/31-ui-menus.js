@@ -124,15 +124,15 @@ function homeHtml() {
       <h1 class="mm-logo" aria-label="Snake: Carnage"><span class="l1">Snake</span><span class="l2"><b>Carnage</b></span></h1>
       <nav class="mm-nav" aria-label="Main menu">
         <button class="mm-cta" id="playBtn" data-sfx="open"><span class="mm-l">Start game</span><kbd>Space</kbd></button>
-        <button class="mm-it" id="coopBtn" data-sfx="open"><span class="mm-l">Play with friends</span></button>
-        <button class="mm-it" id="upBtn" data-sfx="open"><span class="mm-l">Skill Tree</span>${skillReady() ? `<em class="mm-note hot">${tokN(skLeft())} to spend</em>` : ''}</button>
-        <button class="mm-it" id="snakeBtn" data-sfx="open"><span class="mm-l">Cosmetics</span></button>
-        <button class="mm-it" id="chBtn" data-sfx="open"><span class="mm-l">Achievements</span><em class="mm-note">${achN} / ${ACH.length}</em></button>
-        <button class="mm-it" id="setBtn" data-sfx="open"><span class="mm-l">Settings</span></button>
+        <button class="mm-it" id="coopBtn" data-sfx="open"><span class="mm-l">${kiSvg('multiplayer', 'mm-ic')}Play with friends</span></button>
+        <button class="mm-it" id="upBtn" data-sfx="open"><span class="mm-l">${kiSvg('star', 'mm-ic')}Skill Tree</span>${skillReady() ? `<em class="mm-note hot">${tokN(skLeft())} to spend</em>` : ''}</button>
+        <button class="mm-it" id="snakeBtn" data-sfx="open"><span class="mm-l">${kiSvg('basket', 'mm-ic')}Cosmetics</span></button>
+        <button class="mm-it" id="chBtn" data-sfx="open"><span class="mm-l">${kiSvg('trophy', 'mm-ic')}Achievements</span><em class="mm-note">${achN} / ${ACH.length}</em></button>
+        <button class="mm-it" id="setBtn" data-sfx="open"><span class="mm-l">${kiSvg('gear', 'mm-ic')}Settings</span></button>
       </nav>
     </div>
     ${profileHtml()}
-    <footer class="mm-foot"><span class="mm-ver">v${GAME_VERSION}</span>${ed ? '<button class="mm-q" id="edBtn" data-sfx="open">Map editor</button>' : ''}<span class="sp"></span>
+    <footer class="mm-foot"><span class="mm-ver">v${GAME_VERSION}</span>${ed ? `<button class="mm-q" id="edBtn" data-sfx="open">${kiSvg('wrench', 'mm-qi')}Map editor</button>` : ''}<span class="sp"></span>
       <button class="mm-mapcap" id="mapCap" data-sfx="open" aria-label="Selected map: ${attr(MAPS[mapIdx].name)}. Open the run setup"><small>Map</small><b data-mapname>${attr(MAPS[mapIdx].name)}</b></button></footer>
   </section>`;
 }
@@ -166,7 +166,7 @@ function setupHtml() {
 function showMenu() {
   if (typeof clearRunHud === 'function') clearRunHud(); // back from a run (or a multiplayer round, straight back to the lobby): the run's modifier strip, chips and challenges go with it
   if (state !== 'menu') menuView = 'home'; // back from a run or the editor: the front page
-  state = 'menu'; endIntro(true); creatures = []; /* nobody in the background behind the menus */ setTimeout(warmCanopies, 1500);
+  state = 'menu'; chHold(false); endIntro(true); creatures = []; /* nobody in the background behind the menus */ setTimeout(warmCanopies, 1500);
   if (!thumbs || thumbs.length !== MAPS.length || MAPS.some(m => m.custom)) thumbs = makeThumbs(); // custom maps come and go (cached, so this is cheap)
   if (!MAPS[mapIdx]) mapIdx = 0;
   MOD = {}; rewardMult = 1; document.body.classList.remove('minimal');
@@ -281,6 +281,20 @@ const multLabel = ids => { const m = modMult(ids); return Math.abs(m - 1) < .005
 const MOD_GROUP_INFO = { Conditions: 'The world you play in: light, weather, air strikes, what breaks', Crowd: 'How people and animals behave, and how many there are', Snake: 'Your body, your abilities and your skill tree', Scoring: 'How kills pay, and how the combo works', Style: 'Looks only', Controls: 'How you steer' };
 const modKind = m => m.mult > 0 ? ['hard', 'Harder'] : m.mult < 0 ? ['easy', 'Easier'] : ['even', 'Different'];
 const modPct = m => m.mult ? (m.mult > 0 ? '+' : '') + Math.round(m.mult * 100) + '%' : '±0%';
+const SPAWN_NAME = { human: 'People', rabbit: 'Rabbits', deer: 'Deer', frog: 'Frogs', dog: 'Dogs', cat: 'Cats', chicken: 'Chickens', duck: 'Ducks', pig: 'Pigs', sheep: 'Sheep', astronaut: 'Astronauts', alien: 'Aliens', firefly: 'Fireflies', rat: 'Rats' };
+function spawnSection() { // Who spawns: one switch per kind of creature on the selected map
+  const ts = mapSpawnTypes(); if (!ts.length) return '';
+  return `<section class="m2grp m2spawn"><h3>Who spawns<small>On ${MAPS[mapIdx].name}. Each kind you leave out pays 8% less.</small></h3><div class="m2cards">${ts.map((t, i) => { const on = !spawnOff(t);
+    return `<button class="m2c ${on ? 'on' : ''}" data-sfx="none" data-sp="${t}" role="switch" aria-checked="${on}" style="--i:${i}"><span class="m2top"><b>${SPAWN_NAME[t] || t}</b><i class="m2ck"></i></span><span class="m2d">${on ? 'On the map' : 'Left out this run'}</span></button>`; }).join('')}</div></section>`;
+}
+function wireSpawnSection(root) {
+  root.querySelectorAll('.m2c[data-sp]').forEach(b => b.onclick = () => {
+    const t = b.dataset.sp, off = new Set(SETTINGS.noSpawn || []), ts = mapSpawnTypes();
+    if (off.has(t)) off.delete(t); else { if (ts.filter(q => !off.has(q)).length <= 1) { Sfx.deny(); b.classList.remove('nope'); void b.offsetWidth; b.classList.add('nope'); return; } off.add(t); } // something has to be left to eat
+    SETTINGS.noSpawn = [...off]; saveSettings(); const on = !off.has(t); Sfx.ui(on ? 'on' : 'off');
+    b.classList.toggle('on', on); b.setAttribute('aria-checked', on); b.querySelector('.m2d').textContent = on ? 'On the map' : 'Left out this run'; b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop');
+  });
+}
 function showModifiers(focus) {
   const ids = new Set(SETTINGS.mods || []);
   overlay.className = 'menuMode';
@@ -291,7 +305,7 @@ function showModifiers(focus) {
       return `<button class="m2c ${k}" data-sfx="none" data-m="${m.id}" role="switch" aria-checked="${ids.has(m.id)}" style="--i:${i}">
         <span class="m2top"><b>${m.name}</b><em class="m2pct">${modPct(m)}</em><i class="m2ck"></i></span>
         <span class="m2d">${m.desc}</span>
-        <span class="m2tags"><i class="m2k">${kl}</i>${(m.not || []).length ? `<i class="m2not">Not with ${m.not.map(o => (MODS.find(q => q.id === o) || {}).name).filter(Boolean).join(', ')}</i>` : ''}</span></button>`; }).join('')}</div></section>`).join('')}</div>
+        <span class="m2tags"><i class="m2k">${kl}</i>${(m.not || []).length ? `<i class="m2not">Not with ${m.not.map(o => (MODS.find(q => q.id === o) || {}).name).filter(Boolean).join(', ')}</i>` : ''}</span></button>`; }).join('')}</div></section>`).join('')}${spawnSection()}</div>
       <aside class="m2info" id="m2info"></aside></div>
     <div class="mbtns"><span class="sp"></span><button class="btn alt" id="shufBtn" data-sfx="select">Shuffle</button><button class="btn" id="backBtn" data-sfx="confirm">Done</button></div></div>`;
   const blocker = id => modBlockReason(id, ids), info = document.getElementById('m2info');
@@ -309,7 +323,7 @@ function showModifiers(focus) {
   const sync = () => {
     for (const id of [...ids]) if (modBlockReason(id, ids) && !(MODS.find(q => q.id === id).not || []).some(o => ids.has(o))) ids.delete(id); // a newer pick made this one pointless: it switches itself off
     SETTINGS.mods = [...ids]; saveSettings();
-    overlay.querySelectorAll('.m2c').forEach(t => {
+    overlay.querySelectorAll('.m2c[data-m]').forEach(t => {
       const id = t.dataset.m, on = ids.has(id), by = on ? null : blocker(id), m = MODS.find(q => q.id === id);
       t.classList.toggle('on', on); t.setAttribute('aria-checked', on); t.classList.toggle('blocked', !!by); // conflicts are greyed out with the reason
       t.querySelector('.m2d').textContent = by || m.desc; t.querySelector('b').textContent = modName(id, ids);
@@ -318,7 +332,7 @@ function showModifiers(focus) {
     document.getElementById('mcount').textContent = ids.size ? ids.size + ' active' : '';
     showInfo(shown);
   };
-  overlay.querySelectorAll('.m2c').forEach(t => {
+  overlay.querySelectorAll('.m2c[data-m]').forEach(t => {
     t.onmouseenter = t.onfocus = () => showInfo(t.dataset.m);
     t.onclick = () => {
       const m = MODS.find(q => q.id === t.dataset.m); shown = m.id;
@@ -329,10 +343,11 @@ function showModifiers(focus) {
     };
   });
   overlay.querySelector('.m2list').onmouseleave = () => showInfo(null);
+  wireSpawnSection(overlay);
   document.getElementById('shufBtn').onclick = () => {
     const keep = [...ids].filter(id => { const g = (MODS.find(m => m.id === id) || {}).g; return g === 'Style' || g === 'Controls'; }); // your own style/control picks stay
     ids.clear(); keep.forEach(id => ids.add(id)); randomMods(randi(9, 14)).forEach(id => ids.add(id)); // a properly different run
-    overlay.querySelectorAll('.m2c').forEach((t, i) => { t.classList.remove('shuf'); void t.offsetWidth; t.style.setProperty('--d', (i * 10) + 'ms'); t.classList.add('shuf'); });
+    overlay.querySelectorAll('.m2c[data-m]').forEach((t, i) => { t.classList.remove('shuf'); void t.offsetWidth; t.style.setProperty('--d', (i * 10) + 'ms'); t.classList.add('shuf'); });
     shown = null; sync();
   };
   document.getElementById('backBtn').onclick = () => transitionTo(showMenu);
@@ -365,7 +380,7 @@ function profileChallenges() {
     const slides = hide ? ['<div class="prv sil q">?</div>'] : cos.length ? cos : [a.chips ? `<div class="prv chipr"><i class="pc"></i><b>${a.chips}</b></div>` : `<div class="prv xpr"><b>${xp}</b><small>XP</small></div>`];
     const car = slides.length > 1 ? `<div class="ap car" data-n="${slides.length}"><div class="track">${slides.join('')}</div><div class="dots">${slides.map((_, k) => `<i class="${k ? '' : 'on'}"></i>`).join('')}</div></div>` : `<div class="ap">${slides[0]}</div>`;
     return `<div class="ach ${got ? 'done' : ''} ${hide ? 'secret' : ''} t-${a.tier}" style="--i:${i}" data-tiph="${attr(tip)}">${car}
-      <div class="ab"><em class="tier ${hide ? 'secret' : a.tier}">${hide ? 'Secret' : TIERS[a.tier].label}</em><b>${got ? '<i class="ck">✔</i>' : ''}${hide ? '???' : a.name}</b><small>${hide ? '<i class="clue">' + a.clue + '</i>' : a.what}</small>
+      <div class="ab"><em class="tier ${hide ? 'secret' : a.tier}">${hide ? 'Secret' : TIERS[a.tier].label}</em><b>${got ? `<i class="ck">${kiSvg('checkmark')}</i>` : ''}${hide ? '???' : a.name}</b><small>${hide ? '<i class="clue">' + a.clue + '</i>' : a.what}</small>
       <span class="axp">${hide ? 'Reward: ???' : `+${xp} XP${a.chips ? ` · ${a.chips} chips` : ''}`}</span>
       <span class="pbar"><span style="width:${(p * 100).toFixed(0)}%"></span><i>${Math.min(a.stat(), a.n)} / ${a.n}</i></span>${!hide && rw.length ? `<span class="arw">${rw.map(([cat, v]) => `${CAT_LABEL[cat]}${cat.startsWith('color') ? ': ' + colorName(v) : ': ' + v}`).join(' · ')}</span>` : ''}</div></div>`; }).join('')}</div>`;
 }
@@ -380,7 +395,7 @@ function mapPermChallenges() {
   const list = permChallenges(chMap), best = (PROG.pmBest || {})[chMap] || {};
   return `<div class="pmwrap"><div class="pmmaps">${MAPS.map(m => `<button class="${m.name === chMap ? 'on' : ''}" data-cm="${attr(m.name)}" data-sfx="tab"><span>${m.name}</span><em>${pmDoneCount(m.name)}/${permChallenges(m.name).length}</em></button>`).join('')}</div>
     <div class="pmlist">${list.map((c, i) => { const when = (PROG.pmc[chMap] || {})[c.id], v = when ? c.n : Math.min(best[c.id] || 0, c.n), rw = TIERS[c.tier];
-      return `<div class="pmc ${when ? 'done' : ''}" style="--i:${i}" ${when ? `data-tip="Completed ${fmtDate(when)}"` : ''}><em class="tier ${c.tier}">${rw.label}</em><b>${when ? '<i class="ck">✔</i>' : ''}${c.name}</b><small>${c.t}</small>
+      return `<div class="pmc ${when ? 'done' : ''}" style="--i:${i}" ${when ? `data-tip="Completed ${fmtDate(when)}"` : ''}><em class="tier ${c.tier}">${rw.label}</em><b>${when ? `<i class="ck">${kiSvg('checkmark')}</i>` : ''}${c.name}</b><small>${c.t}</small>
         <span class="axp">+${Math.round(rw.xp * 1.5)} XP · +${Math.round(rw.chips * 1.5)} chips</span><span class="pbar"><span style="width:${(v / c.n * 100).toFixed(0)}%"></span><i>${v}${c.unit || ''} / ${c.n}${c.unit || ''}${when ? '' : ' best'}</i></span></div>`; }).join('')}</div></div>`;
 }
 function achPreview(cat, v, clear) { // rewards show as a real preview; early on (and rare ones) stay silhouetted
@@ -498,7 +513,8 @@ const SETTING_TABS = {
     ['seg', 'bubbleSize', 'Speech bubble size', 'How big the text is when people talk.', ['Small', 'Normal', 'Large']],
     ['toggle', 'minimalUi', 'Minimal UI', 'Hides pop-ups and lists during a run.'],
     ['head', 'Diagnostics'],
-    ['seg', 'perfHud', 'Performance stats', 'Shows your frame rate and what is slowing the game. F3 during a run.', ['Off', 'FPS', 'Full']]] },
+    ['seg', 'perfHud', 'Performance stats', 'Shows your frame rate and what is slowing the game. F3 during a run.', ['Off', 'FPS', 'Full']],
+    ['action', 'animEd', 'Animation editor', 'How fast and how far everything moves: people, animals, plants, water, fire. Changes show live.', 'Open']] },
   Graphics: { icon: 'graphics', lead: 'How good the game looks. Lower settings run faster.', rows: [
     ['head', 'Quality'],
     ['toggle', 'autoQ', 'Automatic quality', 'Lowers quality by itself if the game starts to lag.'],
@@ -534,7 +550,7 @@ const SETTING_TABS = {
     ['#Steering and camera'], ['Mouse', 'With Mouse steering on (Gameplay): the snake heads for the cursor; left click lunges'], 
     ['Wheel', 'Zoom the camera in or out, always on your snake'], ['Drag', 'Pan the camera (middle mouse; left mouse, or right mouse with Mouse steering on)'], ['Double-click', 'Camera back on the snake'],
     ['Pinch', 'On a touch screen: two fingers zoom and pan; one finger still steers'],
-    ['` or F10', 'Admin panel: god mode, speed, time of day, spawning, air strikes, chips and the skill tree (single player, or the host)'], ['#Menus'], ['Space', 'Start, skip the intro, play again. In a multiplayer lobby: ready up, and the host starts once everyone is ready'], ['Esc', 'Pause, back, close settings'], ['F3', 'Performance stats: off, frame rate, full'], ['#Credits'], ['Icons', 'game-icons.net, by Lorc, Delapouite and contributors (CC BY 3.0)']] },
+    ['` or F10', 'Admin panel: god mode, speed, time of day, spawning, air strikes, chips and the skill tree (single player, or the host)'], ['#Menus'], ['Space', 'Start, skip the intro, play again. In a multiplayer lobby: ready up, and the host starts once everyone is ready'], ['Esc', 'Pause, back, close settings'], ['F3', 'Performance stats: off, frame rate, full'], ['#Credits'], ['Icons', 'game-icons.net, by Lorc, Delapouite and contributors (CC BY 3.0)'], ['Kenney', 'Effect sprites, light masks, menu and board-game icons, by Kenney (kenney.nl, CC0)']] },
   Accessibility: { icon: 'access', lead: 'Make the game easier to see and more comfortable.', rows: [
     ['head', 'Visibility'],
     ['seg', 'snakeOutline', 'Snake outline', 'An outline so your snake is easy to see.', ['Off', 'Subtle', 'Strong']],
@@ -558,6 +574,7 @@ function settingsBody(tab) {
     let ctl = '';
     if (type === 'toggle') ctl = `<button class="tgl ${SETTINGS[k] ? 'on' : ''}" data-sfx="none" role="switch" aria-checked="${!!SETTINGS[k]}" aria-label="${label}" data-k="${k}"></button>`;
     if (type === 'slider') ctl = `<div class="rng"><input type="range" data-k="${k}" min="${a}" max="${b}" step="${c}" value="${SETTINGS[k]}" aria-label="${label}" style="--v:${((SETTINGS[k] - a) / (b - a) * 100).toFixed(1)}%"><output>${fmtSetting(k, SETTINGS[k])}</output></div>`;
+    if (type === 'action') ctl = `<button class="mm-q" data-act="${k}" data-sfx="open">${a}</button>`; // opens a tool (the Animation editor)
     if (type === 'seg') ctl = `<div class="sseg" data-k="${k}"><i class="sthumb"></i>${a.map(o => `<button class="${o === SETTINGS[k] ? 'on' : ''}" data-sfx="tab" data-v="${o}">${names ? names[o] : o}</button>`).join('')}</div>`;
     const dim = when && !when() ? 'dim' : '';
     return `<div class="srow2 ${dim}" style="--i:${i}" data-row="${k}"><div><b>${label}</b><small>${desc}</small></div>${ctl}</div>`;
