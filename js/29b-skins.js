@@ -3,7 +3,8 @@
    Every skin is painted in body space. u runs down the body from the nose, in body radii (so a pattern keeps its
    proportions at any size and segment spacing); v runs across it, -1 one flank, 0 the spine, 1 the other flank.
    A marking is a shape in (u, v) mapped onto the bent, tapering tube: bands wrap the body, saddles bend with it, and
-   the tail's markings shrink with the taper. Colors come from your primary (P) and secondary (S) and shades of them.
+   the tail's markings shrink with the taper. Every color comes from your primary (P) and secondary (S): the two
+   themselves, mixes between them where a skin needs more tones, and lighter or darker shades of those for depth.
      base(u, cfg, uEnd): the ground color at u (drawn as the body's bands, and what segColor hands to other code)
      paint(x, F, uA, uB, cfg): the markings anchored in uA..uB. The caller clips to that stretch of body (plus two
        segments either side), so each marking is drawn exactly once and may reach a little past its stretch.
@@ -18,7 +19,16 @@ function skinPal(cfg, key, make) { // colors derived from P and S, worked out on
   return p;
 }
 const lumOf = hex => { const v = parseInt(hex.slice(1), 16); return (.299 * (v >> 16) + .587 * (v >> 8 & 255) + .114 * (v & 255)) / 255; };
-const readOn = (col, bg, P) => Math.abs(lumOf(col) - lumOf(bg)) > .2 ? col : lumOf(bg) > .45 ? shade(P, -.65) : mixColor(P, '#ffffff', .6); // your second color, unless it would vanish on this ground
+const keepSeen = (col, bg) => Math.abs(lumOf(col) - lumOf(bg)) > .1 ? col : lumOf(bg) > .5 ? shade(col, -.5) : mixColor(col, '#ffffff', .45); // your color as it is; only nudged darker or lighter when it would vanish on this ground
+const darkLight = (P, S) => lumOf(P) > lumOf(S) ? [S, P] : [P, S]; // your two colors, darker first: glows run from the darker toward the brighter
+const hexHsl = hex => { const [r, g, b] = rgbOf(hex).map(v => v / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn; let h = 0, s = 0;
+  if (d) { s = d / (1 - Math.abs(2 * l - 1)); h = 60 * (mx === r ? ((g - b) / d + 6) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4); }
+  return [h, s * 100, l * 100]; };
+function hslPath(P, S, long) { // t (0-1) -> a color between your two round the color wheel, so a blend stays vivid instead of greying out in the middle (long: the other way round)
+  const a = hexHsl(P), b = hexHsl(S); if (a[1] < 6) a[0] = b[0]; if (b[1] < 6) b[0] = a[0]; // a grey takes the other color's hue
+  let d = ((b[0] - a[0]) % 360 + 540) % 360 - 180; if (long) d = d >= 0 ? d - 360 : d + 360; // (long with the same hue twice: the whole wheel)
+  return t => hsl2hex(((a[0] + d * t) % 360 + 360) % 360, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t);
+}
 const rgbaOf = (hex, a) => { const v = parseInt(hex.slice(1), 16); return `rgba(${v >> 16},${v >> 8 & 255},${v & 255},${a})`; };
 function skinFrame(pts, n, B) { // body-space coordinates for one drawn snake
   const s = new Float64Array(Math.max(1, n));
@@ -153,7 +163,7 @@ const SNAKE_SKINS = {
         if (k % 3 === 1) F.blob(x, u + .65, (h - .5) * .2, .15 * sc, .14 * sc, h2 * 5, .15); });
       fillP(x, p.e, () => spots(1.22)); fillP(x, p.s, () => spots(1));
     } },
-  Gradient: { base: (u, c, end) => mixColor(c.color, c.color2, sstep(.15, .95, u / Math.max(1, end))) }, // primary at the head easing into secondary at the tail
+  Gradient: { base: (u, c, end) => skinPal(c, 'gr', (P, S) => ({ f: hslPath(P, S) })).f(sstep(.15, .95, u / Math.max(1, end))) }, // primary at the head easing into secondary at the tail, round the color wheel
   Zebra: { scales: 1, base: (u, c) => c.color, // narrow wavy stripes that thin toward the flanks, some of them forking
     paint(x, F, A, B, c) {
       fillP(x, c.color2, () => F.each(A, B, 1.9, 1.15, (u, k) => {
@@ -174,7 +184,7 @@ const SNAKE_SKINS = {
       fillP(x, p.s, () => F.each(A, B, 2, per, u => dia(u, 1.15, .8)));
       fillP(x, p.core, () => F.each(A, B, 2, per, u => dia(u, .52, .36)));
     } },
-  Neon: { gloss: .25, base: (u, c) => skinPal(c, 'ne', P => ({ d: mixColor(shade(P, -.8), '#000000', .35) })).d, // a dark tube lit by glowing rails, with light running down the spine
+  Neon: { gloss: .25, base: (u, c) => skinPal(c, 'ne', (P, S) => ({ d: shade(mixColor(P, S, .3), -.82) })).d, // a dark tube lit by glowing rails in your first color, with light in your second running down the spine
     paint(x, F, A, B, c) {
       const u0 = Math.max(A, .9), u1 = Math.min(B, F.uEnd - .5); if (u1 <= u0) return;
       x.save(); x.globalCompositeOperation = 'lighter'; x.lineCap = 'round'; x.lineJoin = 'round';
@@ -185,13 +195,14 @@ const SNAKE_SKINS = {
       }
       x.restore();
     } },
-  Rainbow: { gloss: 1.2, base: u => hsl2hex(((u * 24 - T * 70) % 360 + 360) % 360, 80, 56) }, // the full spectrum flowing down the body
-  Lava: { gloss: .35, // cracked black crust over molten rock: the melt swirls white-hot and flows down the body in the gaps
+  Rainbow: { gloss: 1.2, // a spectrum flowing down the body: from your first color the long way round the color wheel to your second, and back
+    base: (u, c) => skinPal(c, 'rb', (P, S) => ({ f: hslPath(P, S, true) })).f(.5 - .5 * Math.cos(u * .4 - T * 2.4)) },
+  Lava: { gloss: .35, // cracked dark crust over molten rock: the melt runs from your darker color to your brighter one, swirls white-hot and flows down the body in the gaps
     base: (u, c) => lavaPal(c).g1,
     tex: { k: 2, flow: 1.1,
       field() { const w1 = texNoise(11, .125, .5, 3), w2 = texNoise(12, .125, .5, 3), rd = texNoise(13, .1875, .9, 4), lo = texNoise(14, .0625, .45, 2); // features drawn out along the body, the way it flows
         return (u, v, o) => { const wu = w1(u, v) * 2.2, wv = w2(u, v) * .45, r = 1 - Math.abs(rd(u + wu, v + wv)); o[0] = r * r; o[1] = lo(u + wu * .5, v); }; },
-      pal: P => [[0, rgbOf(mixColor(shade(P, -.8), '#1a0400', .5))], [.3, rgbOf(mixColor(P, '#5a0c00', .55))], [.6, rgbOf(mixColor(P, '#ff6a10', .3))], [.84, rgbOf(mixColor(P, '#ffc860', .6))], [1, rgbOf(mixColor(P, '#fff6dc', .85))]],
+      pal: (P, S) => { const [C, H] = darkLight(P, S); return [[0, rgbOf(shade(C, -.6))], [.25, rgbOf(C)], [.55, rgbOf(mixColor(C, H, .5))], [.8, rgbOf(H)], [1, rgbOf(mixColor(H, '#ffffff', .4))]]; },
       color: (f, i, pal, o) => texRamp(pal, clamp(.3 + .72 * f[i] * f[i] + .3 * f[i + 1], 0, 1), o) },
     paint(x, F, A, B, c) {
       const p = lavaPal(c), L = 1.45;
@@ -215,57 +226,58 @@ const SNAKE_SKINS = {
     base: (u, c) => galPal(c).d,
     tex: { k: 3, flow: .22,
       field() { const a = texNoise(21, .125, .6, 4), b = texNoise(22, .125, .6, 4), d = texNoise(23, .25, 1.2, 3); return (u, v, o) => { o[0] = a(u, v); o[1] = b(u, v); o[2] = d(u, v); }; },
-      pal: (P, S) => { const d = galPal({ color: P, color2: S }).d; return { d: rgbOf(d), p: rgbOf(mixColor(P, '#ffffff', .12)), s: rgbOf(mixColor(readOn(S, d, P), '#ffffff', .12)), w: [255, 255, 255] }; },
+      pal: (P, S) => { const g = galPal({ color: P, color2: S }); return { d: rgbOf(g.d), p: rgbOf(P), s: rgbOf(S), w: rgbOf(g.star), m: rgbOf(mixColor(mixColor(P, S, .5), '#ffffff', .45)) }; },
       color: (f, i, p, o, t) => {
         const a = sstep(-.12, .6, f[i]), b = sstep(-.05, .65, f[i + 1]), dust = 1 - .65 * sstep(.15, .7, f[i + 2]);
         o[0] = p.d[0]; o[1] = p.d[1]; o[2] = p.d[2]; texMix(o, p.p, a * .6 * dust); texMix(o, p.s, b * .5 * dust);
-        if (a * b > .3) texMix(o, p.w, (a * b - .3) * .45 * dust); // bright where two clouds meet
+        if (a * b > .3) texMix(o, p.m, (a * b - .3) * .6 * dust); // brighter, and both colors at once, where two clouds meet
         const st = SKIN_H(t, 77); if (st > .986) texMix(o, p.w, (st - .986) / .014 * .85); // far stars
         return o; } },
     paint(x, F, A, B, c) {
       const lv = [[], [], []], bright = [];
       F.each(A, B, .3, .44, (u, k) => { const h = SKIN_H(k, 42), h2 = SKIN_H(k, 43), h3 = SKIN_H(k, 44); const tw = Math.abs(Math.sin(T * 1.6 + h * 20)); lv[tw > .66 ? 2 : tw > .33 ? 1 : 0].push([u + h * .44, (h2 * 2 - 1) * .92, .035 + h3 * .045]); if (h3 > .9) bright.push([u + h * .44, (h2 * 2 - 1) * .8]); });
-      lv.forEach((l, i) => { if (!l.length) return; fillP(x, `rgba(255,255,255,${[.35, .65, .95][i]})`, () => l.forEach(([u, v, r]) => F.dot(x, u, v, r))); });
-      if (bright.length) { x.beginPath(); for (const [u, v] of bright) { F.at(u, v); const r = F.r * .3; x.moveTo(F.X - r, F.Y); x.lineTo(F.X + r, F.Y); x.moveTo(F.X, F.Y - r); x.lineTo(F.X, F.Y + r); } x.strokeStyle = 'rgba(255,255,255,.8)'; x.lineWidth = F.R0 * .05; x.stroke(); }
+      const st = galPal(c).star; // starlight: white, tinted by your brighter color
+      lv.forEach((l, i) => { if (!l.length) return; fillP(x, rgbaOf(st, [.35, .65, .95][i]), () => l.forEach(([u, v, r]) => F.dot(x, u, v, r))); });
+      if (bright.length) { x.beginPath(); for (const [u, v] of bright) { F.at(u, v); const r = F.r * .3; x.moveTo(F.X - r, F.Y); x.lineTo(F.X + r, F.Y); x.moveTo(F.X, F.Y - r); x.lineTo(F.X, F.Y + r); } x.strokeStyle = rgbaOf(st, .8); x.lineWidth = F.R0 * .05; x.stroke(); }
     } },
-  Garter: { scales: 1, // a bright stripe down the spine and one down each side, rows of dark checks between them
-    base: (u, c) => skinPal(c, 'ga', P => ({ b: shade(P, -.5) })).b,
+  Garter: { scales: 1, // a stripe of your second color down the spine and one down each side, rows of dark checks between them
+    base: (u, c) => c.color,
     paint(x, F, A, B, c) {
-      const p = skinPal(c, 'ga2', (P, S) => { const b = readOn(S, shade(P, -.5), P); return { s: b, lat: mixColor(b, P, .35), sp: shade(P, -.74) }; }), u0 = Math.max(A, 1), u1 = Math.min(B + .05, F.uEnd), first = A <= 1;
+      const p = skinPal(c, 'ga2', (P, S) => { const b = keepSeen(S, P); return { s: b, lat: mixColor(b, P, .35), sp: shade(mixColor(P, S, .25), -.5) }; }), u0 = Math.max(A, 1), u1 = Math.min(B + .05, F.uEnd), first = A <= 1;
       fillP(x, p.sp, () => F.each(A, B, 1.5, .8, (u, k) => { const sd = k % 2 ? 1 : -1; F.poly(x, [[u - .2, sd * .3], [u + .2, sd * .3], [u + .2, sd * .53], [u - .2, sd * .53]], 2); F.poly(x, [[u + .2, -sd * .92], [u + .55, -sd * .92], [u + .55, -sd * 1.3], [u + .2, -sd * 1.3]], 2); }));
       fillP(x, p.lat, () => { F.strip(x, u0, u1, .64, .84, .45, first ? .8 : 0); F.strip(x, u0, u1, -.84, -.64, .45, first ? .8 : 0); });
       fillP(x, p.s, () => F.strip(x, u0, u1, -.19, .19, .45, first ? .7 : 0));
     } },
-  Kingsnake: { scales: 1, // pale bands on a dark body, narrow on the back and widening down the flanks, with darker edges
-    base: (u, c) => skinPal(c, 'ki', P => ({ d: shade(P, -.62) })).d,
+  Kingsnake: { scales: 1, // bands of your second color round your first, narrow on the back and widening down the flanks, with darker edges
+    base: (u, c) => c.color,
     paint(x, F, A, B, c) {
-      const p = skinPal(c, 'ki2', (P, S) => { const d = shade(P, -.62), b = readOn(S, d, P); return { s: b, e: mixColor(b, d, .45) }; });
+      const p = skinPal(c, 'ki2', (P, S) => { const b = keepSeen(S, P); return { s: b, e: shade(mixColor(P, b, .5), -.4) }; });
       const bands = g => F.each(A, B, 2.3, 2.5, (u, k) => { const h = SKIN_H(k, 50), w = v => (.36 + .34 * v * v) / 2 + g, wb = v => .04 * Math.sin(v * 4 + h * 8);
         F.band(x, v => u - w(v) + wb(v), v => u + w(v) + wb(v), -1.3, 1.3, 10); });
       fillP(x, p.e, () => bands(.07)); fillP(x, p.s, () => bands(0));
     } },
-  Coral: { scales: 1, // rings: wide primary, a thin secondary, a broad black, a thin secondary; a black snout; black flecks on the primary
+  Coral: { scales: 1, // rings: wide primary, a thin secondary, a broad dark one (both colors, darkened), a thin secondary; a dark snout; dark flecks on the primary
     base: (u, c) => c.color,
     paint(x, F, A, B, c) {
-      const p = skinPal(c, 'co', (P, S) => ({ k: mixColor(shade(P, -.8), '#000000', .5), s: S, f: shade(P, -.45) })), per = 3.6;
+      const p = skinPal(c, 'co', (P, S) => ({ k: shade(mixColor(P, S, .5), -.78), s: S, f: shade(P, -.45) })), per = 3.6;
       if (A <= .5) { fillP(x, p.k, () => F.band(x, () => -2, v => .8 + .12 * v * v)); fillP(x, p.s, () => F.band(x, v => .8 + .12 * v * v, v => 1.3 + .12 * v * v)); }
       fillP(x, p.s, () => F.each(A, B, 3.3, per, u => ring(F, x, u, 1.85, .12)));
       fillP(x, p.k, () => F.each(A, B, 3.3, per, u => ring(F, x, u, 1.15, .12)));
       fillP(x, p.f, () => F.each(A, B, 1.6, .5, (u, k) => { const m = ((u - 3.3) % per + per) % per; if (m < 1.1 || m > per - 1.1) return; const h = SKIN_H(k, 60); if (h < .5) F.dot(x, u + h * .4, (SKIN_H(k, 61) * 2 - 1) * .85, .07); }));
     } },
-  Emerald: { scales: 1, gloss: 1.35, base: (u, c) => c.color, // bold pale bars across the spine, wide on the back and tapering down the flanks, sometimes broken; pale flecks low on the sides
+  Emerald: { scales: 1, gloss: 1.35, base: (u, c) => c.color, // bold bars of your second color across the spine, wide on the back and tapering down the flanks, sometimes broken; flecks low on the sides
     paint(x, F, A, B, c) {
-      fillP(x, skinPal(c, 'em', (P, S) => ({ m: readOn(S, P, P) })).m, () => {
+      fillP(x, skinPal(c, 'em', (P, S) => ({ m: keepSeen(S, P) })).m, () => {
         F.each(A, B, 1.8, 1.9, (u, k) => { const h = SKIN_H(k, 70), h2 = SKIN_H(k, 71), tilt = (h - .5) * .45, w = v => .19 * (1 - .6 * Math.abs(v) / .66), zig = v => .07 * Math.sin(v * 6 + h2 * 9);
           const bar = (v0, v1) => F.band(x, v => u + tilt * v + zig(v) - w(v), v => u + tilt * v + zig(v) + w(v), v0, v1, 6);
           if (h2 > .72) { bar(-.66, -.1); bar(.1, .66); } else bar(-.66, .66); });
         F.each(A, B, 2.4, 1.3, (u, k) => { const h = SKIN_H(k, 72); F.dot(x, u + h * .5, (k % 2 ? 1 : -1) * (.72 + .16 * h), .07 + .04 * SKIN_H(k, 73)); });
       });
     } },
-  Python: { scales: 1, gloss: .9, // light saddles with pale rims on a dark body, smaller blotches with dark hearts down each side
-    base: (u, c) => skinPal(c, 'py', P => ({ d: shade(P, -.62) })).d,
+  Python: { scales: 1, gloss: .9, // saddles of your second color with rims between the two on your first, smaller blotches with dark hearts down each side
+    base: (u, c) => c.color,
     paint(x, F, A, B, c) {
-      const p = skinPal(c, 'py2', (P, S) => ({ s: P, rim: mixColor(P, S, .55), eye: shade(P, -.7) })), per = 2.3;
+      const p = skinPal(c, 'py2', (P, S) => { const s = keepSeen(S, P); return { s, rim: mixColor(P, s, .5), eye: shade(mixColor(P, s, .5), -.6) }; }), per = 2.3;
       const saddles = sc => F.each(A, B, 1.7, per, (u, k) => { const h = SKIN_H(k, 80), h2 = SKIN_H(k, 81); F.blob(x, u, (h - .5) * .25, .82 * sc, .64 * sc, h2 * 9, .3); });
       const sides = sc => F.each(A, B, 1.7 + per / 2, per, (u, k) => { const h = SKIN_H(k, 82); F.blob(x, u, -1, .5 * sc, .44 * sc, h * 5, .25); F.blob(x, u + .2, 1, .5 * sc, .44 * sc, h * 7, .25); });
       fillP(x, p.rim, () => { saddles(1.12); sides(1.14); }); fillP(x, p.s, () => { saddles(1); sides(1); });
@@ -274,7 +286,7 @@ const SNAKE_SKINS = {
   Diamondback: { scales: 1, // pale-edged dark diamonds down the back, dark marks on the flanks, and a ringed tail
     base: (u, c) => c.color,
     paint(x, F, A, B, c) {
-      const p = skinPal(c, 'db', (P, S) => ({ e: S, d: shade(P, -.55), m: shade(P, -.3), r2: mixColor('#17130f', P, .15) })), per = 2.25, rat = Math.min(4.2, F.uEnd * .25), uR = F.uEnd - rat;
+      const p = skinPal(c, 'db', (P, S) => ({ e: S, d: shade(P, -.55), m: shade(P, -.3), r2: shade(mixColor(P, S, .3), -.75) })), per = 2.25, rat = Math.min(4.2, F.uEnd * .25), uR = F.uEnd - rat;
       const dia = (u, l, w) => F.poly(x, [[u - l, 0], [u, -w], [u + l, 0], [u, w]], 4), on = u => u < uR - 1.2;
       fillP(x, p.d, () => F.each(A, B, 2, per, u => { if (!on(u)) return; const j = u + per / 2; F.poly(x, [[j - .45, -1.35], [j, -.84], [j + .45, -1.35]], 2); F.poly(x, [[j - .45, 1.35], [j, .84], [j + .45, 1.35]], 2); }));
       fillP(x, p.e, () => F.each(A, B, 2, per, u => on(u) && dia(u, 1.17, .92)));
@@ -291,33 +303,34 @@ const SNAKE_SKINS = {
       for (const [col, o] of [[p.dk, 0], [p.lt, 1]]) { x.beginPath(); F.each(A, Math.min(B, ts + 1), .9, .22, (u, k) => { for (const [j, v] of [[0, -.7], [1, -.35], [2, 0], [3, .35], [4, .7]]) { if ((k + j + o) % 2) continue; const h = SKIN_H(k * 5 + j, 90); F.line(x, u + h * .1, u + .36 + h * .14, v + (h - .5) * .2, .18); } }); x.strokeStyle = col; x.stroke(); }
       x.beginPath(); F.each(A, B, ts + 1, .36, u => F.cross(x, u, -1.3, 1.3)); x.strokeStyle = p.tr; x.lineWidth = F.R0 * .06; x.stroke();
     } },
-  'Gold Plated': { gloss: 1.5, // overlapping metal plates with a lit top edge and a shadow beneath, and a glint sweeping down the body
+  'Gold Plated': { gloss: 1.5, // overlapping metal plates in your first color, trimmed with your second along the lit top edge, a shadow beneath, and a glint sweeping down the body
     base: (u, c, end) => { const p = goldPal(c), g = (T * 7) % (end + 8) - 4, k = Math.max(0, 1 - Math.abs(u - g) / 2.4); return mixColor(p.m, p.hi, k * k * .75); },
     paint(x, F, A, B, c) {
       const p = goldPal(c); x.lineCap = 'round';
       x.beginPath(); F.each(A, B, .8, .95, u => F.cross(x, u + .42, -1.3, 1.3, .28)); x.strokeStyle = p.lo; x.lineWidth = F.R0 * .11; x.stroke();
       x.beginPath(); F.each(A, B, .8, .95, u => F.cross(x, u - .36, -1.1, 1.1, .28)); x.strokeStyle = p.hiA; x.lineWidth = F.R0 * .06; x.stroke();
     } },
-  'Blood Soaked': { gloss: 1.3, // soaked dark red, mottled and slowly oozing down the body: clots along the back, runs dripping down the flanks, wet highlights
-    base: () => '#4a0808',
+  'Blood Soaked': { gloss: 1.3, // soaked through: your first color, mottled darker and slowly oozing down the body; clots along the back, runs of your second color dripping down the flanks, wet highlights
+    base: (u, c) => shade(c.color, -.3),
     tex: { k: 3, flow: .18,
       field() { const a = texNoise(31, .25, .7, 4), b = texNoise(32, .09375, 1.6, 3), c = texNoise(33, .75, 1.6, 2); return (u, v, o) => { o[0] = a(u, v); o[1] = 1 - Math.abs(b(u, v)); o[2] = c(u, v); }; },
-      pal: () => ({ r: [[0, rgbOf('#1c0303')], [.4, rgbOf('#3a0606')], [.72, rgbOf('#580a0a')], [1, rgbOf('#761010')]], hi: rgbOf('#9c1e1e') }),
+      pal: (P, S) => ({ r: [[0, rgbOf(shade(P, -.68))], [.4, rgbOf(shade(P, -.4))], [.72, rgbOf(shade(P, -.12))], [1, rgbOf(mixColor(P, S, .2))]], hi: rgbOf(mixColor(S, P, .35)) }),
       color: (f, i, p, o) => { texRamp(p.r, clamp(.55 + .6 * f[i] + .14 * f[i + 2], 0, 1), o); const s = f[i + 1]; if (s > .8) texMix(o, p.hi, (s - .8) * 2.4); return o; } },
-    paint(x, F, A, B) {
-      fillP(x, '#260404', () => F.each(A, B, 1.2, 1.4, (u, k) => { const h = SKIN_H(k, 100), h2 = SKIN_H(k, 101); F.blob(x, u + (h2 - .5) * .4, (h - .5) * .9, .3 + .25 * h2, .26 + .2 * h, h * 8, .35); }));
-      fillP(x, '#7d0d0d', () => F.each(A, B, 1.6, 1.05, (u, k) => { const h = SKIN_H(k, 102), sd = k % 2 ? 1 : -1, v0 = sd * (.15 + .3 * h), v1 = sd * 1.35, w = v => .06 + .1 * ((v - v0) / (v1 - v0)) ** 3;
+    paint(x, F, A, B, c) {
+      const p = skinPal(c, 'bs', (P, S) => ({ clot: shade(P, -.62), run: mixColor(P, S, .6), wet: rgbaOf(mixColor(mixColor(P, S, .5), '#ffffff', .65), .32) }));
+      fillP(x, p.clot, () => F.each(A, B, 1.2, 1.4, (u, k) => { const h = SKIN_H(k, 100), h2 = SKIN_H(k, 101); F.blob(x, u + (h2 - .5) * .4, (h - .5) * .9, .3 + .25 * h2, .26 + .2 * h, h * 8, .35); }));
+      fillP(x, p.run, () => F.each(A, B, 1.6, 1.05, (u, k) => { const h = SKIN_H(k, 102), sd = k % 2 ? 1 : -1, v0 = sd * (.15 + .3 * h), v1 = sd * 1.35, w = v => .06 + .1 * ((v - v0) / (v1 - v0)) ** 3;
         F.band(x, v => u - w(v), v => u + w(v), Math.min(v0, v1), Math.max(v0, v1), 6); }));
       x.beginPath(); F.each(A, B, 1.4, .9, (u, k) => { const h = SKIN_H(k, 103); F.at(u + h * .4, (h - .5) * .5); const r = F.r; x.moveTo(F.X - r * .42, F.Y - r * .3); x.ellipse(F.X - r * .3, F.Y - r * .3, r * .14, r * .06, -.7, 0, TAU); });
-      x.fillStyle = 'rgba(255,215,215,.32)'; x.fill();
+      x.fillStyle = p.wet; x.fill();
     } },
   Hazard: { scales: 0, base: (u, c) => c.color, // diagonal warning stripes, like hazard tape wrapped round the body
     paint(x, F, A, B, c) { fillP(x, c.color2, () => F.each(A, B, 1.6, 1.9, u => F.band(x, v => u - .48 + .5 * v, v => u + .48 + .5 * v, -1.3, 1.3, 4))); } },
-  Lunar: { gloss: .5, // grey regolith with dark maria and craters lit from the same side as everything else
+  Lunar: { gloss: .5, // regolith in your first color, maria mixed toward your second, and craters lit from the same side as everything else
     base: (u, c) => lunPal(c).b,
     tex: { k: 2,
       field() { const a = texNoise(51, .125, .45, 3), b = texNoise(52, .5, 1.3, 4); return (u, v, o) => { o[0] = a(u, v); o[1] = b(u, v); }; },
-      pal: (P, S) => { const m = lunPal({ color: P, color2: S }); return { b: rgbOf(m.b), mare: rgbOf(shade(m.b, -.36)), lit: rgbOf(m.lit) }; },
+      pal: (P, S) => { const m = lunPal({ color: P, color2: S }); return { b: rgbOf(m.b), mare: rgbOf(m.mare), lit: rgbOf(m.lit) }; },
       color: (f, i, p, o, t) => { o[0] = p.b[0]; o[1] = p.b[1]; o[2] = p.b[2]; texMix(o, p.mare, sstep(-.05, .4, f[i]) * .85);
         const g = 1 + f[i + 1] * .13, sp = SKIN_H(t, 55); o[0] *= g; o[1] *= g; o[2] *= g; if (sp > .975) texMix(o, sp > .9875 ? p.lit : p.mare, .55); return o; } },
     paint(x, F, A, B, c) {
@@ -325,7 +338,7 @@ const SNAKE_SKINS = {
       const cr = []; F.each(A, B, 1, .7, (u, k) => { const h = SKIN_H(k, 111); if (h < .72) { F.at(u + (SKIN_H(k, 112) - .5) * .4, (SKIN_H(k, 113) * 2 - 1) * .74); cr.push([F.X, F.Y, F.r * (.11 + .2 * SKIN_H(k, 114))]); } });
       for (const [col, o, k] of [[p.lit, .12, .95], [p.sh, -.12, .92], [p.fl, .03, .72]]) fillP(x, col, () => cr.forEach(([X, Y, r]) => { x.moveTo(X + o * r + r * k, Y + o * r); x.arc(X + o * r, Y + o * r, r * k, 0, TAU); }));
     } },
-  Martian: { gloss: .6, // rust-red dust: darker patches, pale wind streaks and grit
+  Martian: { gloss: .6, // dust in your first color: patches mixed toward your second, wind streaks of your second, and grit
     base: (u, c) => marPal(c).b,
     tex: { k: 3,
       field() { const a = texNoise(41, .1875, .6, 4), b = texNoise(42, .0625, 2.4, 3), c = texNoise(43, 1, 2.2, 2); return (u, v, o) => { o[0] = a(u, v); o[1] = b(u, v); o[2] = c(u, v); }; },
@@ -337,19 +350,19 @@ const SNAKE_SKINS = {
       fillP(x, p.rock, () => F.each(A, B, 1, .42, (u, k) => { const h = SKIN_H(k, 123); F.dot(x, u + h * .4, (SKIN_H(k, 124) * 2 - 1) * .85, .04 + .05 * SKIN_H(k, 125)); }));
     } },
   Plasma: { gloss: .45, // a dark tube full of crackling plasma in your two colors, the filaments racing down the body
-    base: (u, c) => mixColor(shade(c.color, -.86), '#04020a', .5),
+    base: (u, c) => shade(mixColor(c.color, c.color2, .3), -.86),
     tex: { k: 2, flow: 2.6,
       field() { const w1 = texNoise(61, .125, .7, 3), w2 = texNoise(62, .125, .7, 3), r = texNoise(63, .125, 1.1, 4), m = texNoise(64, .0625, .5, 2);
         return (u, v, o) => { o[0] = Math.max(0, 1 - 1.5 * Math.abs(r(u + w1(u, v) * 2.5, v + w2(u, v) * .55))); o[1] = m(u, v); }; }, // thin filaments in the dark
-      pal: (P, S) => { const d = mixColor(shade(P, -.86), '#04020a', .5); return { d: rgbOf(d), p: rgbOf(P), s: rgbOf(lumOf(S) > .3 ? S : mixColor(P, '#ffffff', .3)), c: [0, 0, 0], w: [255, 255, 255] }; },
+      pal: (P, S) => ({ d: rgbOf(shade(mixColor(P, S, .3), -.86)), p: rgbOf(P), s: rgbOf(S), c: [0, 0, 0], w: rgbOf(mixColor(darkLight(P, S)[1], '#ffffff', .6)) }), // the hottest cores: your brighter color, nearly white
       color: (f, i, p, o) => { const q = f[i], m = sstep(-.35, .35, f[i + 1]), c = p.c;
         c[0] = p.p[0] + (p.s[0] - p.p[0]) * m; c[1] = p.p[1] + (p.s[1] - p.p[1]) * m; c[2] = p.p[2] + (p.s[2] - p.p[2]) * m;
         o[0] = p.d[0]; o[1] = p.d[1]; o[2] = p.d[2]; const q2 = q * q, q4 = q2 * q2; texMix(o, c, Math.min(1, q4 * 1.3 + q * .1)); texMix(o, p.w, q4 * q4 * q4 * .85); return o; } } },
-  Obsidian: { gloss: 1.4, // black volcanic glass with veins of your color glowing through it, and sharp glints where it fractured
-    base: () => '#0e0c12',
+  Obsidian: { gloss: 1.4, // volcanic glass, your second color nearly black, with veins of your first glowing through it, and sharp glints where it fractured
+    base: (u, c) => shade(c.color2, -.82),
     tex: { k: 2, flow: .3,
       field() { const a = texNoise(71, .125, .6, 4), r = texNoise(72, .125, .9, 4), w = texNoise(73, .125, .6, 2); return (u, v, o) => { o[0] = a(u, v); o[1] = 1 - Math.abs(r(u + w(u, v) * 2, v)); }; },
-      pal: (P, S) => ({ g0: rgbOf('#07060a'), g1: rgbOf(mixColor('#211d29', S, .12)), vein: rgbOf(P), core: rgbOf(mixColor(P, '#ffffff', .55)) }),
+      pal: (P, S) => ({ g0: rgbOf(shade(S, -.9)), g1: rgbOf(shade(mixColor(S, P, .15), -.72)), vein: rgbOf(P), core: rgbOf(mixColor(mixColor(P, S, .25), '#ffffff', .55)) }),
       color: (f, i, p, o) => { const k = sstep(-.35, .55, f[i]), q = f[i + 1];
         o[0] = p.g0[0] + (p.g1[0] - p.g0[0]) * k; o[1] = p.g0[1] + (p.g1[1] - p.g0[1]) * k; o[2] = p.g0[2] + (p.g1[2] - p.g0[2]) * k;
         texMix(o, p.vein, sstep(.9, .98, q) * .95); texMix(o, p.core, sstep(.975, .998, q) * .9); return o; } },
@@ -357,11 +370,11 @@ const SNAKE_SKINS = {
       fillP(x, 'rgba(255,255,255,.14)', () => F.each(A, B, 1.1, 1.7, (u, k) => { const h = SKIN_H(k, 130), sd = h < .5 ? -1 : 1, v = sd * (.2 + .3 * SKIN_H(k, 131)); F.poly(x, [[u, v], [u + .55 + .3 * h, v + sd * .1], [u + .18, v + sd * .32]], 1); }));
     } },
 };
-const lavaPal = c => skinPal(c, 'la', P => { const g1 = mixColor(P, '#ffffff', .12); const crust = mixColor(shade(P, -.85), '#140e0c', .55); return { g1, crust, rim: mixColor(crust, mixColor(P, '#ff5a00', .35), .45) }; });
-const galPal = c => skinPal(c, 'gx', P => ({ d: mixColor(shade(P, -.86), '#05040c', .45) }));
-const goldPal = c => skinPal(c, 'go', P => { const m = mixColor('#d6a93a', P, .14); return { m, hi: mixColor(m, '#fffbe6', .7), hiA: rgbaOf(mixColor(m, '#fffbe6', .75), .75), lo: shade(m, -.45) }; });
-const lunPal = c => skinPal(c, 'lu', P => { const b = mixColor('#b2b0aa', P, .18); return { b, mare: shade(b, -.18), lit: shade(b, .2), sh: shade(b, -.42), fl: shade(b, -.2) }; });
-const marPal = c => skinPal(c, 'ma', (P, S) => { const b = mixColor('#b4532f', P, .18); return { b, rust: shade(b, -.3), dust: mixColor('#e8c9a0', b, .45), rock: shade(b, -.5) }; });
+const lavaPal = c => skinPal(c, 'la', (P, S) => { const [C, H] = darkLight(P, S), crust = shade(mixColor(C, H, .2), -.8); return { g1: mixColor(C, H, .6), crust, rim: mixColor(crust, H, .4) }; });
+const galPal = c => skinPal(c, 'gx', (P, S) => ({ d: shade(mixColor(P, S, .3), -.88), star: mixColor(darkLight(P, S)[1], '#ffffff', .75) }));
+const goldPal = c => skinPal(c, 'go', (P, S) => ({ m: P, hi: mixColor(mixColor(P, S, .3), '#ffffff', .6), hiA: rgbaOf(mixColor(S, '#ffffff', .2), .75), lo: shade(P, -.45) }));
+const lunPal = c => skinPal(c, 'lu', (P, S) => ({ b: P, mare: shade(mixColor(P, S, .55), -.2), lit: mixColor(P, '#ffffff', .25), sh: shade(P, -.42), fl: shade(mixColor(P, S, .3), -.2) }));
+const marPal = c => skinPal(c, 'ma', (P, S) => ({ b: P, rust: shade(mixColor(P, S, .45), -.2), dust: S, rock: shade(mixColor(P, S, .5), -.55) }));
 const skinOf = cfg => SNAKE_SKINS[cfg.pattern] || SNAKE_SKINS.Solid;
 function segColor(i, n, cfg) { return skinOf(cfg).base(i * .9, cfg, n * .9); } // the skin's ground color at segment i, for code that wants one color (eyes, after-images)
 setTimeout(() => { // after loading, work the noise out in idle moments, one skin at a time, so the shop never stalls showing them
