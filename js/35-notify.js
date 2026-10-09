@@ -18,17 +18,21 @@ function notify(o) {
   const host = document.getElementById('notes'); if (!host) return;
   const k = NOTE_KINDS[o.kind] || NOTE_KINDS.info, dur = o.dur ?? 2.2;
   if (o.key) { const old = notes.find(n => n.key === o.key); if (old) dropNote(old, true); }
+  else { const dup = notes.find(n => !n.key && n.title === o.title && n.sub === (o.sub || '') && n.kind === o.kind); // the same note again: count it up instead of stacking a copy
+    if (dup) { dup.count++; let c = dup.el.querySelector('.ncount'); if (!c) { c = document.createElement('em'); c.className = 'ncount'; dup.el.appendChild(c); } c.textContent = '×' + dup.count;
+      dup.el.classList.remove('bump'); void dup.el.offsetWidth; dup.el.classList.add('bump'); restartLife(dup.el, dur); clearTimeout(dup.timer); dup.timer = setTimeout(() => dropNote(dup), dur * 1000); return dup; } }
   const el = document.createElement('div');
   el.className = 'note ' + k.cls;
-  el.innerHTML = `<i class="ni">${o.icon || k.icon}</i><div class="nt"><b>${o.title}</b>${o.sub ? `<small>${o.sub}</small>` : ''}</div>${o.right ? `<em class="nr">${o.right}</em>` : ''}${o.bar ? '<span class="nbar"><span></span></span>' : ''}`;
-  host.prepend(el);
-  const n = { el, key: o.key, end: performance.now() + dur * 1000 };
+  el.innerHTML = `<i class="ni">${o.icon || k.icon}</i><div class="nt"><b>${o.title}</b>${o.sub ? `<small>${o.sub}</small>` : ''}</div>${o.right ? `<em class="nr">${o.right}</em>` : ''}${o.bar ? '<span class="nbar"><span></span></span>' : '<span class="nlife"></span>'}`;
+  host.prepend(el); if (!o.bar) restartLife(el, dur); // a thin line under it that runs out with it: you can see how long it stays
+  const n = { el, key: o.key, kind: o.kind, title: o.title, sub: o.sub || '', count: 1, end: performance.now() + dur * 1000 };
   notes.push(n);
   if (o.bar) { const b = el.querySelector('.nbar span'); b.style.transition = `width ${dur}s linear`; requestAnimationFrame(() => requestAnimationFrame(() => { b.style.width = '0%'; })); }
   n.timer = setTimeout(() => dropNote(n), dur * 1000);
   while (notes.length > 4) dropNote(notes[0], true); // never a wall of notes
   return n;
 }
+function restartLife(el, dur) { const l = el.querySelector('.nlife'); if (!l) return; l.style.setProperty('--life', dur + 's'); const f = l.cloneNode(); l.replaceWith(f); }
 function dropNote(n, fast) {
   const i = notes.indexOf(n); if (i < 0) return; notes.splice(i, 1);
   clearTimeout(n.timer); n.el.classList.add(fast ? 'gone' : 'out');

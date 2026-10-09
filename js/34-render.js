@@ -4,12 +4,12 @@ function snakeShadowPath(x, ox, oy) { // round, soft-edged discs per segment, li
 }
 function render() {
   const bz = boomDaze(), pxS = Math.max(1, SETTINGS.pixel | 0), wob = snake && ((snake.wallStun > 0 && !SETTINGS.simpleFx) || (snake.ramT > 0 && !SETTINGS.reduceFlash) || (bz > .03 && !SETTINGS.simpleFx));
-  const direct = pxS <= 1 && !wob; render.src = direct ? cv : sceneC; // no post effect this frame: draw straight to the screen and skip a full-frame copy
-  const x = direct ? ctx : sctx, L = light, sh = shake && SETTINGS.shake ? shake * (SETTINGS.shakeK ?? 1) : 0;
+  const eb = (EDGE_K.lb > .03 || EDGE_K.fk > .03) && !SETTINGS.simpleFx, direct = pxS <= 1 && !wob && !eb; render.src = direct ? cv : sceneC; // no post effect this frame: draw straight to the screen and skip a full-frame copy
+  const x = direct ? ctx : sctx, L = light, sh = shake && SETTINGS.shake && state !== 'paused' ? shake * (SETTINGS.shakeK ?? 1) : 0; // paused: the picture holds still, even mid-blast
   V.sx = sh ? rand(-sh, sh) : 0; V.sy = sh ? rand(-sh, sh) : 0; V.z = 0;
   if (cam) { // spawn camera: starts tight on the snake, eases out to the full map
     const q = cam.hold ? 0 : Math.min(1, cam.t / cam.dur), p = q < .5 ? 4 * q * q * q : 1 - Math.pow(-2 * q + 2, 3) / 2, fp = Math.pow(p, 2.5);
-    V.z = Math.pow(cam.z0, 1 - p); V.fx = snake.x + (W / 2 - snake.x) * fp; V.fy = snake.y + (H / 2 - snake.y) * fp;
+    V.z = Math.pow(cam.z0, 1 - p); V.fx = snake.x + (W / 2 - snake.x) * fp; V.fy = snake.y + (H / 2 - snake.y) * fp; if (cam.z0 <= 1) { V.fx = W / 2; V.fy = H / 2; }
   }
   V.ox = camF.x + camF.k.x; V.oy = camF.y + camF.k.y;
   const uc = !cam && userCam(); if (uc) { V.z = uc.z; V.fx = uc.fx; V.fy = uc.fy; } // the player's zoom/pan (the spawn zoom has priority)
@@ -18,9 +18,9 @@ function render() {
   if (bz > .02 && !SETTINGS.reduceMotion) { V.ox += (Math.sin(T * 1.6) * 4 + Math.sin(T * 3.7) * 1.5) * bz; V.oy += (Math.sin(T * 1.2 + 2) * 3 + Math.sin(T * 3.1) * 1.2) * bz; } // reeling from a blast: the world sways, gentler than after a wall
   if (cw > 0) { V.ox += (Math.sin(T * 1.25) * 7 + Math.sin(T * 2.9) * 2) * cw; V.oy += (Math.sin(T * .95 + 1.2) * 5 + Math.sin(T * 2.3) * 1.5) * cw; } // the room sways after a wall
   const st0 = snake && snake.ramT > 0 ? Math.min(1, Math.pow(snake.ramT / (snake.ramMax || 1), .6) * (snake.stunFx || 1)) : 0;
-  const olOff = st0 > 0 || boomDaze() > .05; // smashed through something, or shaken by a blast
+  const olOff = st0 > .3 || boomDaze() > .05; // (a light knock leaves them) // smashed through something, or shaken by a blast
   render.olk = (render.olk ?? 1) + ((olOff ? 0 : 1) - (render.olk ?? 1)) * (olOff ? .25 : .03); // everything else's outlines drop out fast, stay gone while dizzy, then creep back (yours stays)
-  render.dazed = st0 > 0;
+  render.dazed = st0 > .3;
   x.setTransform(DPR, 0, 0, DPR, 0, 0);
   x.fillStyle = MAPS[mapIdx].border; x.fillRect(0, 0, W, H);
   applyView(x);
@@ -41,7 +41,7 @@ function render() {
   drawFlashBodies(x); drawHitGhosts(x);
   drawGiblets(x); // chunks on the ground sit under the snake
   drawTrail(x); drawGround(x); drawHoovFx(x); if (NETM.run) netDrawSnakes(x); if (!(snake && snake.netHidden)) drawSnake(x); drawCorpses(x); drawHats(x); drawClods(x, false); drawRamCharge(x); drawStreaks(x); drawSnowFx(x);
-  if ((render.olk ?? 1) > .995 || SETTINGS.mapOutlines === 'Off') x.drawImage(obsC, 0, 0, W, H); else { x.drawImage(plainC, 0, 0, W, H); if (render.olk > .01) { x.globalAlpha = render.olk; x.drawImage(outlineC, 0, 0, W, H); x.globalAlpha = 1; } } drawTrees(x); // outlines only cost extra while they're fading
+  if ((render.olk ?? 1) > .995 || SETTINGS.mapOutlines === 'Off') x.drawImage(obsC, 0, 0, W, H); else { x.drawImage(plainC, 0, 0, W, H); if (render.olk > .01) { x.globalAlpha = render.olk; x.drawImage(outlineC, 0, 0, W, H); x.globalAlpha = 1; } } drawFixtures(x); drawTrees(x); // outlines only cost extra while they're fading
   drawWaters(x); drawCustomFx(x, 'top');
   for (const b of bucketList) { if (!b.wd) continue; x.globalAlpha = bucketAlpha(b); x.drawImage(b.w, 0, 0, W, H); }
   x.globalAlpha = 1;
@@ -85,13 +85,19 @@ function render() {
   ctx.save(); applyView(ctx); // crisp overlays above blood and lighting
   if (px <= 1 && !render.dazed) { drawGoldenFX(ctx); ctx.globalAlpha = render.olk ?? 1; drawTargetOutlines(ctx); ctx.globalAlpha = 1; drawSnakeNightRim(ctx); }
   if (nightVision) drawNVHighlights(ctx);
-  drawWinStars(ctx); drawScent(ctx); drawHissWave(ctx); drawCrashFlash(ctx);
+  drawWinStars(ctx); drawScent(ctx); drawNearMiss(ctx); drawHissWave(ctx); drawCrashFlash(ctx);
   drawShockwaves(ctx, cv); // last: blasts bend the whole picture behind them, outlines and all
   ctx.restore();
+  if (eb) lungeEdges();
   drawAirFlash(ctx);
   if (NETM.run && !cam) netDrawTags(ctx); // co-op: teammates' names and where they are off screen
   if (!cam) drawBubbles(ctx); // screen space (positions go through the camera), so text stays readable at any zoom
   if (nightVision) drawNightVision(ctx);
+  const stunRaw = snake && snake.ramT > 0 ? Math.min(1, Math.pow(snake.ramT / (snake.ramMax || 1), .45) * (snake.stunFx || 1)) : 0; // dazed after smashing through something
+  render.stunS = (render.stunS || 0) + (stunRaw - (render.stunS || 0)) * (stunRaw > (render.stunS || 0) ? 1 : .06); // the hit lands instantly, then drains slowly as speed returns
+  const stun = render.stunS < .01 ? 0 : render.stunS, wallT = snake && snake.wallStun > 0 ? 1 : 0;
+  render.wallS = (render.wallS || 0) + (wallT - (render.wallS || 0)) * (wallT ? .35 : .05); // a wall's heavier look eases back to the lighter one
+  if (stun > 0) dazeEdges(stun, render.wallS);
   if (toastT > 0) {
     toastT -= 1 / 60;
     ctx.globalAlpha = Math.min(1, toastT * 3); ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.font = 'bold 14px sans-serif';
@@ -110,10 +116,6 @@ function render() {
   if (pg !== !!render.pg) { render.pg = pg; stage.classList.toggle('pregame', pg); if (!pg) { stage.classList.add('hudin'); clearTimeout(render.hudT); render.hudT = setTimeout(() => stage.classList.remove('hudin'), 900); } }
   const wantStart = state === 'ready' && !cam;
   if (wantStart !== !!render.startShown) { render.startShown = wantStart; wantStart ? showResume('to begin') : hideResume(); }
-  const stunRaw = snake && snake.ramT > 0 ? Math.min(1, Math.pow(snake.ramT / (snake.ramMax || 1), .45) * (snake.stunFx || 1)) : 0; // dazed after smashing through something
-  render.stunS = (render.stunS || 0) + (stunRaw - (render.stunS || 0)) * (stunRaw > (render.stunS || 0) ? 1 : .022); // the hit lands instantly, then drains slowly as speed returns // heavy but smooth: eases in, then drains slowly as speed returns
-  const stun = render.stunS < .01 ? 0 : render.stunS;
-  if (Math.abs(stun - (render.stun || 0)) > .02 || (stun === 0) !== (render.stun === 0)) { render.stun = stun; stage.style.setProperty('--stun', stun.toFixed(2)); stage.classList.toggle('stunned', stun > 0); stage.classList.toggle('wallstun', !!(snake && snake.wallStun > 0)); }
   const sat = (SETTINGS.desaturate && !nightVision ? clamp(1 - killFlash * .5, .45, 1) : 1) * (1 - .93 * stun) * (1 - .92 * dfxK) * (1 - .78 * bz); // dying drains it to grey; so does a blast close by
   const f = nightVision ? `contrast(1.15) brightness(${((.95 - SETTINGS.darkness * .2) * (1 - .2 * boomDaze())).toFixed(2)})${dfxK ? ` grayscale(${(.92 * dfxK).toFixed(2)})` : ''}` : `saturate(${sat.toFixed(2)}) brightness(${((1 - SETTINGS.darkness) * (1 - .14 * dfxK) * (1 - .2 * boomDaze())).toFixed(2)}) contrast(${(1.08 + .08 * dfxK).toFixed(2)})`;
   if (f !== lastFilter) { cv.style.filter = f; lastFilter = f; }
@@ -185,25 +187,25 @@ function frame(now) {
   const dt = Math.min(.033, raw / 1000); last = now;
   requestAnimationFrame(frame); // scheduled first: nothing below can ever stop the loop
   deathFxTick(dt);
+  Sfx.hold(state === 'paused' || (state === 'dead' && !NETM.run && !(deadT > 0))); // paused, or the solo death screen up: the world's sound waits too (in the menu it's let go)
   if (PERF.el) perfShowIfPlaying();
+  edgeFxTick(); // lunge blur, Focus vignette (off everywhere but a live run)
   if (state === 'editor') return; // the map editor draws itself
   const menu = state === 'menu'; // menus show a CSS backdrop instead of the map: the game costs nothing there
   if (menu !== !!frame.cov) { frame.cov = menu; stage.classList.toggle('menuBg', menu); }
   if (menu) { UT += dt; return; }
-  try { update(dt); } catch (e) { loopError(e, 'update'); }
+  try { update(dt * timeScale()); } catch (e) { loopError(e, 'update'); } // (3rd Eye's Focus slows the world)
   try { render(); } catch (e) { loopError(e, 'render'); }
   perfRunTick(now); if (PERF.mode !== 'Off') perfFrame(now);
 }
 
-let plxQ = null; // mouse parallax: main menu only, at most once a frame. Over the blurred pause/death backdrop every nudge re-blurs the whole screen, so it stays still there
-document.addEventListener('pointermove', e => { // on the document: during play the game holds the pointer, so the overlay itself only heard moves after a click
-  if ((state !== 'menu' && state !== 'paused' && state !== 'dead') || SETTINGS.reduceMotion) return;
+let plxQ = null; // menus only: the map picture behind them drifts a few pixels against the mouse, at most once a frame. The menus themselves stay put
+document.addEventListener('pointermove', e => {
+  if (state !== 'menu' || SETTINGS.reduceMotion) return;
   const first = !plxQ; plxQ = [e.clientX, e.clientY]; if (!first) return;
   requestAnimationFrame(() => {
-    const r = overlay.getBoundingClientRect(), mx = (plxQ[0] - r.left) / r.width * 2 - 1, my = (plxQ[1] - r.top) / r.height * 2 - 1; plxQ = null;
-    overlay.style.setProperty('--mx', mx.toFixed(2)); overlay.style.setProperty('--my', my.toFixed(2));
-    if (state !== 'menu') return; // over a paused or finished game only the panel drifts; moving the game under the blur is what made it lag
-    stage.style.setProperty('--bx', (-mx * 14).toFixed(1) + 'px'); stage.style.setProperty('--by', (-my * 10).toFixed(1) + 'px'); // backdrop drifts with the mouse
+    const r = stage.getBoundingClientRect(), mx = (plxQ[0] - r.left) / r.width * 2 - 1, my = (plxQ[1] - r.top) / r.height * 2 - 1; plxQ = null;
+    if (typeof menuArt !== 'undefined') { menuArt.style.setProperty('--px', (-mx * 14).toFixed(1) + 'px'); menuArt.style.setProperty('--py', (-my * 10).toFixed(1) + 'px'); } // only the picture moves (it overhangs every edge); the shade over it stays put
   });
 });
 /* ---- club: the dance floor lights up in time with the beat ---- */
@@ -246,20 +248,51 @@ function drawDrops(x) {
   }
 }
 
-/* after a wall: grey ghost copies of the picture pulse left and right (double, then triple vision) */
-const caR = document.createElement('canvas');
+/* after a wall: grey ghost copies of the picture pulse left and right (double, then triple vision)
+   Built at half size from the finished scene (not read back from the screen), layered together there, then laid over in one pass */
+const caR = document.createElement('canvas'), caG = document.createElement('canvas');
 function chromaSplit(k) {
-  const w = cv.width, h = cv.height; if (caR.width !== w || caR.height !== h) { caR.width = w; caR.height = h; }
-  const g = caR.getContext('2d'); g.filter = 'grayscale(1) contrast(1.1)'; g.globalCompositeOperation = 'copy'; g.drawImage(cv, 0, 0); g.filter = 'none';
-  const p = Math.sin(T * 5.5), d = (3 + 9 * k) * DPR * p; // swinging side to side
-  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
-  for (const [m, al] of [[1, .22], [-1, .22], [2.1, .1]]) { ctx.globalAlpha = al * k; ctx.drawImage(caR, d * m, 0); }
-  ctx.restore();
+  const w = Math.max(1, cv.width >> 1), h = Math.max(1, cv.height >> 1);
+  if (caR.width !== w || caR.height !== h) { caR.width = caG.width = w; caR.height = caG.height = h; }
+  const g = caR.getContext('2d'), q = caG.getContext('2d');
+  g.globalCompositeOperation = 'copy'; g.drawImage(render.src || cv, 0, 0, w, h);
+  g.globalCompositeOperation = 'saturation'; g.fillStyle = '#000'; g.fillRect(0, 0, w, h); g.globalCompositeOperation = 'source-over'; // grey
+  const d = (3 + 9 * k) * DPR * Math.sin(T * 5.5) / 2; // swinging side to side
+  q.clearRect(0, 0, w, h);
+  for (const [m, al] of [[1, .22], [-1, .22], [2.1, .1]]) { q.globalAlpha = al * k; q.drawImage(caR, d * m, 0); }
+  q.globalAlpha = 1;
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(caG, 0, 0, cv.width, cv.height); ctx.restore();
 }
 const bloomC = document.createElement('canvas'); bloomC.width = W / 4; bloomC.height = H / 4; const blx = bloomC.getContext('2d');
 function concussBloom(k) { // bright parts spill light while dazed
-  blx.globalCompositeOperation = 'copy'; blx.filter = "blur(3px) brightness(1.15) contrast(1.4)"; blx.drawImage(cv, 0, 0, W / 4, H / 4); blx.filter = 'none';
+  blx.globalCompositeOperation = 'copy'; blx.filter = "blur(3px) brightness(1.15) contrast(1.4)"; blx.drawImage(render.src || cv, 0, 0, W / 4, H / 4); blx.filter = 'none';
   ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalCompositeOperation = 'screen'; ctx.globalAlpha = Math.min(.85, k); ctx.imageSmoothingEnabled = true; ctx.drawImage(bloomC, 0, 0, cv.width, cv.height); ctx.restore();
+}
+/* soft edges: a small copy of the finished scene scaled back up (that's the blur), kept only outside an ellipse.
+   The daze and the lunge use it. A CSS backdrop blur over the page did this before and cost the graphics chip far more */
+const EDGE_C = {};
+function softEdges(a, div, rx, ry, s0, s1, grey = 0) { // rx, ry: the ellipse's radii (board units); s0..s1: where the blur fades in along them
+  if (a < .01 || render.src !== sceneC) return;
+  const w = Math.ceil(W / div), h = Math.ceil(H / div); let e = EDGE_C[div];
+  if (!e) { const c = document.createElement('canvas'); e = EDGE_C[div] = [c, c.getContext('2d')]; }
+  const [c, g] = e; if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+  g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'copy'; g.imageSmoothingQuality = 'medium'; g.drawImage(sceneC, 0, 0, w, h);
+  if (grey > .01) { g.globalCompositeOperation = 'saturation'; g.globalAlpha = Math.min(1, grey); g.fillStyle = '#000'; g.fillRect(0, 0, w, h); g.globalAlpha = 1; }
+  const k = rx / ry, m = g.createRadialGradient(0, 0, 0, 0, 0, ry); m.addColorStop(s0, 'rgba(0,0,0,0)'); m.addColorStop(s1, '#000');
+  g.setTransform(w / W * k, 0, 0, h / H, w / 2, h / 2); g.globalCompositeOperation = 'destination-in'; g.fillStyle = m; g.fillRect(-W / k, -H, 2 * W / k, 2 * H); g.globalCompositeOperation = 'source-over';
+  ctx.save(); ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.globalAlpha = Math.min(1, a); ctx.drawImage(c, 0, 0, W, H); ctx.restore();
+}
+function dazeEdges(k, wl) { // dazed: the edges darken, and after a wall they blur too. k: how dazed (0-1); wl: how much of the heavier after-a-wall look (0-1)
+  const lerp = (a, b) => a + (b - a) * wl, ax = W / H, R = H / 2 * Math.SQRT2; // an ellipse the shape of the board, to its corners
+  if (wl > .02) softEdges(k * wl, 6, W / Math.SQRT2, R, .22, .7);
+  const c = `${Math.round(lerp(20, 10))},${Math.round(lerp(0, 4))},${Math.round(lerp(0, 4))}`, g = ctx.createRadialGradient(0, 0, 0, 0, 0, R);
+  for (const [o0, o1, a0, a1] of [[.5, .3, 0, 0], [.6, .4, .04, .03], [.7, .55, .12, .15], [.8, .7, .21, .34], [1, 1, .35, .6]]) g.addColorStop(lerp(o0, o1), `rgba(${c},${(lerp(a0, a1) * k).toFixed(3)})`);
+  ctx.save(); ctx.setTransform(DPR * ax, 0, 0, DPR, DPR * W / 2, DPR * H / 2); ctx.fillStyle = g; ctx.fillRect(-H / 2, -H / 2, H, H); ctx.restore();
+}
+function lungeEdges() { // mid-lunge the edges blur in two rings (light, then heavy at the rim); 3rd Eye's Focus drains them of colour
+  const { lb, fk } = EDGE_K;
+  softEdges(Math.max(lb, fk), 3, W * .78, H * .74, .34, .72, .3 * fk);
+  softEdges(lb, 8, W * .8, H * .76, .58, 1, .5 * fk);
 }
 
 /* before the round: the mouse pans the view a little, and resting on a spot for a second eases in toward it */

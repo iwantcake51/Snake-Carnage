@@ -47,20 +47,21 @@ function steerDir(c, want) {
 
 function updateCreature(c, dt) {
   const d = c.def;
+  const blastStunned = c.blastStunT > T;
   if (c.golden && (c.goldT -= dt) <= 0) ungoldify(c); // the gold wears off: back to a normal person or animal
-  if ((c.pt -= dt) <= 0) { // perception ~5-8 times a second, each creature on its own random beat so they never all think on one frame;
+  if (!blastStunned && (c.pt -= dt) <= 0) { // perception ~5-8 times a second, each creature on its own random beat so they never all think on one frame;
     const far = (c.state === 'wander' || c.state === 'idle') && (!snake || !snake.started || dist2(c.x, c.y, snake.x, snake.y) > 420 * 420); // calm and nowhere near the action: a slower beat
     c.pt = (MOD.skittish ? .08 : .125) + Math.random() * .07 + (far && !MOD.skittish ? .16 + Math.random() * .1 : 0); perceive(c);
   }
-  c.timer -= dt;
-  c.dance = MAPS[mapIdx].club && !!c.zone && (c.state === 'idle' || c.state === 'wander') && c.alert < .3;
+  if (!blastStunned) c.timer -= dt;
+  c.dance = !blastStunned && MAPS[mapIdx].club && !!c.zone && (c.state === 'idle' || c.state === 'wander') && c.alert < .3;
   if (d.fly) { c.hz = 3.5 + Math.sin(T * 3 + c.pt * 50) * 1.5; if (c.state === 'wander' && Math.random() < dt * 2) c.wa += rand(-1.2, 1.2); } // fireflies drift and bob
   if (c.bubbles) for (let i = c.bubbles.length - 1; i >= 0; i--) {
     const b = c.bubbles[i];
     if (b.delay > 0) { if ((b.delay -= dt) <= 0 && b.yell) Sfx.vocal(c.x, b.prof || 'shout', c.vox || 1); }
     else if ((b.t += dt) > b.life) c.bubbles.splice(i, 1);
   }
-  if (c.state === 'panic' && c.def.human && c.timer > 1 && (c.sayCD -= dt) <= 0) { // keep reacting while still in danger
+  if (!blastStunned && c.state === 'panic' && c.def.human && c.timer > 1 && (c.sayCD -= dt) <= 0) { // keep reacting while still in danger
     const near = MOD.blind ? c.ear && T - c.ear.t < 1 && dist2(c.x, c.y, c.ear.x, c.ear.y) < 70 * 70 : snake && dist2(c.x, c.y, snake.x, snake.y) < 90 * 90; // blind: only when it sounds right on top of them
     if (near) say(c, 'chased'); else if (Math.random() < .45) say(c, 'panic'); else c.sayCD = rand(2, 4);
   }
@@ -71,11 +72,14 @@ function updateCreature(c, dt) {
     c.state = 'idle'; c.timer = 2.5; vomit(c);
   }
   if (c.puked && T - c.puked > 6 && !c.sorry && c.state !== 'panic' && Math.random() < dt * .3) { c.sorry = true; say(c, 'act:wipes mouth'); }
-  if (c.warn && (c.warn.t -= dt) <= 0) { const w = c.warn; c.warn = null; panic(c, w.x, w.y, rand(3, 5), 'warned'); }
+  if (c.blastDeafT > T) c.warn = null;
+  if (!blastStunned && c.warn && (c.warn.t -= dt) <= 0) { const w = c.warn; c.warn = null; panic(c, w.x, w.y, rand(3, 5), 'warned'); }
   let want = c.a, spd = 0;
-  if (c.alert > 0) c.alert = Math.max(0, c.alert - dt * .012); // fades over a minute or so, never instantly
+  if (c.alert > 0) c.alert = Math.max(0, c.alert - dt * .012 * (MOD.longMemory ? .3 : MOD.shortMemory ? 4 : 1)); // Long memory / Short memory // fades over a minute or so, never instantly
   if (c.path && c.state === 'idle' && !c.convo && c.alert < .3 && c.timer > 2) c.timer = rand(.5, 1.5); // strollers only pause briefly
-  if (c.state === 'idle') {
+  if (blastStunned) {
+    c.stuck = 0; c.goalP = 0; // being stunned is not a failed navigation attempt
+  } else if (c.state === 'idle') {
     if (c.timer <= 0) { c.state = 'wander'; c.timer = rand(2, 5); c.wa = pickWander(c); }
     else if (!c.convo && solid(c.x + Math.cos(c.a) * 16, c.y + Math.sin(c.a) * 16)) { const a = openDir(c); c.a += clamp(angDiff(c.a, a), -dt * 3, dt * 3); } // nobody stands with their nose to a wall
   } else if (c.state === 'wander') {
@@ -112,7 +116,7 @@ function updateCreature(c, dt) {
   if (c.adren > 0) c.adren -= dt;
   c.runFor = c.state === 'panic' ? (c.runFor || 0) + dt : 0; // how long they've been running flat out (winded voices)
   if (c.pukeT > 0) spd *= c.pukeRun ? .7 : 0; // bent double, or stumbling on
-  spd *= SETTINGS.creatureSpeed * (d.human && MOD.fastHumans ? 1.3 : 1) * (c.spdK || 1) * (c.adren > 0 ? 1.45 : 1) * (c.slowT > T ? .5 : 1); // a Hiss II victim staggers // some people are just faster; fear gives a short burst
+  spd *= SETTINGS.creatureSpeed * (MOD.fastHumans ? 1.3 : MOD.slowCrowd ? .75 : 1) * (c.spdK || 1) * (c.adren > 0 ? 1.45 : 1) * (c.slowT > T ? .5 : 1); // a Hiss II victim staggers // some people are just faster; fear gives a short burst
   // smooth the desired heading so it can't flip back and forth (no spinning in place)
   c.wantA = c.wantA === undefined ? want : c.wantA + angDiff(c.wantA, want) * Math.min(1, dt * 7);
   let moved = 0, mv = spd;

@@ -135,7 +135,7 @@ function disfluent(t, tier, c, yell) {
 function slur(t) { // ears ringing after a Hiss: words stretch, drop letters, trail off
   return t.split(' ').map(w => { const r = Math.random(); if (w.length > 3 && r < .3) return w.replace(/[aeiou]/i, m => m + m + m); if (w.length > 4 && r < .5) return w.slice(0, -2) + '-'; return w; }).join(' ').replace(/[.!?]*$/, '') + pick(['...', '..?', '—']);
 }
-const HOT_CTX = new Set(['witnessHuman', 'multiDeath', 'chased', 'bloodOnMe', 'touched', 'heardKill']);
+const HOT_CTX = new Set(['witnessHuman', 'multiDeath', 'chased', 'bloodOnMe', 'touched', 'heardKill', 'blastClose', 'blastNear', 'strafeClose', 'airTargetSnake', 'airCivilianRisk']);
 function finishLine(t, c, ctx) {
   let yell = isYell(t); const tier = tierOf(c);
   if (!yell && tier >= 2 && (HOT_CTX.has(ctx) || ctx === 'panic') && c.voice.heat > .6 && Math.random() < .3 + .2 * (tier - 2)) { t = t.toUpperCase(); yell = true; }
@@ -148,9 +148,10 @@ function finishLine(t, c, ctx) {
   return { text: t, yell };
 }
 /* ---- bubbles are typed out, so a thought can be cut off partway ---- */
-const URG = { heard: 2, heardKill: 3, touched: 4, idle: 0, mutter: 0, relief: 1, escaped: 1, crash: 1, bloodNearby: 1, jokeReact: 1, convoBreak: 1, stunned: 2, hissed: 2, deaf: 2, firstSight: 2, bloodySnake: 2, crowd: 2, warned: 2, answer: 2, follow: 3, panic: 3, witnessAnimal: 2, witnessHuman: 3, multiDeath: 3, wallSmash: 3, bloodOnMe: 3, spit: 3, chased: 4 };
+const URG = { airTargetSnake: 4, airCivilianRisk: 4, jetNear: 2, jetFar: 1, blastClose: 4, blastNear: 3, blastFar: 1, strafeClose: 4, strafeFar: 2, heard: 2, heardKill: 3, touched: 4, idle: 0, mutter: 0, relief: 1, escaped: 1, crash: 1, bloodNearby: 1, jokeReact: 1, convoBreak: 1, stunned: 2, hissed: 2, deaf: 2, firstSight: 2, bloodySnake: 2, crowd: 2, warned: 2, answer: 2, follow: 3, panic: 3, witnessAnimal: 2, witnessHuman: 3, multiDeath: 3, wallSmash: 3, bloodOnMe: 3, spit: 3, chased: 4 };
 const CUT = [[.6, .95], [.6, .95], [.3, .8], [.1, .6], [0, .5]]; // how far into a sentence each urgency lets you get
 function bub(c, o) {
+  if (!o.act && (MOD.mute || c.deafT > T || c.blastDeafT > T)) return { text: '', cps: 30, t: 0, delay: 0, mute: true }; // deafened (a blast going off close by, or a Hiss), or the Mute modifier: no words at all, only what they do
   const b = c.bubbles || (c.bubbles = []), len = o.text.length;
   const cps = o.act ? 0 : (o.yell ? rand(30, 42) : rand(16, 24)) * ((c.talkK || 1) > 1.4 ? 1.2 : 1) * (o.fast ? 1.3 : 1);
   const nb = { text: o.text, yell: !!o.yell, act: !!o.act, t: 0, delay: o.delay || 0, cps, urg: o.urg || 0, convo: o.convo, li: o.li,
@@ -208,6 +209,7 @@ function fillTalk(t) {
 }
 function topicFits(tp) { // can this topic be talked about here, now?
   const m = MAPS[mapIdx];
+  if (tp.earth && m.space) return false;
   if (tp.out && (m.indoor || m.space)) return false;
   if (tp.dark && !darkOut()) return false;
   if (tp.light && darkOut()) return false;
@@ -237,15 +239,17 @@ function pickFreshT(c, list, v) { // tagged lines: not said in this talk, prefer
 }
 function answerFor(B, tp, q, v) { // an answer to what was actually asked, in this person's voice, consistent with what they said before
   const key = tp.id + ':' + q.key; B.said = B.said || {}; B.overheard = B.overheard || {};
-  if (B.said[key]) return { text: pick(['Like I said, ', 'I told you, ']) + lc(B.said[key].text), tags: B.said[key].tags, repeat: true }; // they remember what they said, and stick to it
-  if (B.overheard[key] && Math.random() < .7) return { text: pick(['Someone said ', 'I heard ', 'Apparently ']) + lc(B.overheard[key].text), tags: B.overheard[key].tags, repeat: true }; // caught it from another conversation
+  const fact = tp.fact && tp.fact(), previous = B.said[key];
+  if (previous && !previous.tags.some(t => FACT_TAGS.has(t) && fact && t !== fact)) return { text: previous.text, tags: previous.tags, repeat: true };
+  // Someone else's "I have a charger" or "my dog is two" cannot answer a question about this speaker.
+  // Pick the listener's own answer; overheard first-person statements are never borrowed.
   for (const [tr, k] of PERSONA_K) if (hasTrait(B, tr) && PERSONA_ANS[tr][q.type] && Math.random() < k) { const l = pickFreshT(B, PERSONA_ANS[tr][q.type], v); return { text: l.text, tags: ['unsure'], persona: tr }; }
   let pool = tp.A[q.key] || tp.A[q.type] || [{ text: 'Huh.', tags: ['unsure'] }];
-  const f = tp.fact && tp.fact(); if (f) { const ok = pool.filter(a => !a.tags.some(t => FACT_TAGS.has(t) && t !== f)); if (ok.length) pool = ok; } // the world decides: everyone agrees the shop is shut
+  if (fact) { const ok = pool.filter(a => !a.tags.some(t => FACT_TAGS.has(t) && t !== fact)); if (ok.length) pool = ok; } // the world decides: everyone agrees the shop is shut
   const ans = pool.filter(a => !a.tags.includes('ask') || hasFollow(tp.N, q.key, a.tags)); if (ans.length) pool = ans; // a question back only if something answers it
   return pickFreshT(B, pool, v);
 }
-const PERSONA_RE = ['Okay then.', 'Forget I asked.', 'Wow. Okay.', 'Never mind.'];
+const PERSONA_RE = ['Okay.', 'Never mind.', "I'll ask someone else.", "Don't worry about it."];
 function topicLines(tp, P, out, v, first) { // one topic: opener, the answer to it, then follow-ups that fit, deeper only along the graph
   const ai = out.length ? out[out.length - 1][0] ^ 1 : v.ask0, bi = ai ^ 1, A = P[ai], B = P[bi]; // whoever didn't just speak starts a new topic
   const known = A.known || (A.known = {});
@@ -290,7 +294,7 @@ function buildTalk(a, b, surv) { // -> [[speaker 0|1, text, topic id?, meta], ..
     if (pt && pt.tp.B.length && Math.random() < .35) { // back to what they were talking about before it all happened
       const backs = pt.tp.B.filter(l => !l.req || pt.facts.has(l.req)); a.pendingTopic = b.pendingTopic = null;
       if (backs.length) {
-        out.push([0, pick(backs).text, pt.tp.id], [1, pick(BACK_RE)]); if (Math.random() < .5) out.push([0, pick(['Yeah. Fair.', 'Sorry. Coping.', 'Just saying.', '...right.'])]);
+        out.push([0, pick(backs).text, pt.tp.id], [1, pick(pt.tp.backRe || BACK_RE)]);
         return { out, v };
       }
     }
@@ -310,7 +314,7 @@ function buildTalk(a, b, surv) { // -> [[speaker 0|1, text, topic id?, meta], ..
 }
 let convos = [], convoT = 3, mutterT = 4, resumeT = 1, resumeCD = 0;
 function speakIn(v, who, text, ctx, topicId) {
-  const [t0, tag] = expand(text).split('#');
+  const [t0, tag] = expand(fillNames(text, who)).split('#');
   if (tag && THREADS[tag]) who.mem = { tag, t: T };
   heard.set(text, T);
   const r = finishLine(t0, who, ctx), nb = bub(who, { ...r, urg: 0, convo: v, li: v.i });
@@ -334,7 +338,7 @@ function updateConvos(dt) {
   for (let i = convos.length - 1; i >= 0; i--) {
     const v = convos[i];
     const scared = !v.survivor && (startled(v.a) || startled(v.b)); // a scream, a death, the snake, a crash: whatever made either of them flinch
-    const broke = !v.a.alive || !v.b.alive || dist2(v.a.x, v.a.y, v.b.x, v.b.y) > 150 * 150 || scared;
+    const broke = !v.a.alive || !v.b.alive || v.a.blastDeafT > T || v.b.blastDeafT > T || v.a.deafT > T || v.b.deafT > T || dist2(v.a.x, v.a.y, v.b.x, v.b.y) > 150 * 150 || scared; // can't talk to someone who can't hear you
     if (broke) {
       if (scared && v.a.alive && v.b.alive) {
         suspendConvo(v);
@@ -346,7 +350,7 @@ function updateConvos(dt) {
     if ((v.t -= dt) > 0) continue;
     if (v.i >= v.lines.length) { v.a.convo = v.b.convo = null; v.a.susp = v.b.susp = null; convos.splice(i, 1); continue; }
     const [sp, text, tid] = v.lines[v.i], who = sp ? v.b : v.a, other = sp ? v.a : v.b;
-    if (v.lines[v.i].cutIn) interrupt(other, 1); // talks over the end of their sentence
+    const wait = Math.max(busyUntil(who), busyUntil(other)); if (wait > 0) { v.t = wait + rand(.3, .6); continue; } // one at a time: nobody starts while either of them is still mid-sentence
     v.topic = tid ? talkPool().find(t => t.id === tid) || v.topic : v.topic;
     const nb = speakIn(v, who, text, v.survivor ? 'relief' : 'idle', tid);
     who.a = Math.atan2(other.y - who.y, other.x - who.x); other.a = Math.atan2(who.y - other.y, who.x - other.x); // they face each other
@@ -354,20 +358,17 @@ function updateConvos(dt) {
     if (other.state === 'wander' || other.state === 'idle') { other.state = 'idle'; other.timer = Math.max(other.timer, 2.5); } // stay put while it lasts
     v.i++;
     const typeT = nb.text.length / nb.cps;
-    const next = v.lines[v.i];
-    if (next && next[0] !== sp && Math.random() < .08 && typeT > 1 && !/\?$/.test(nb.text)) { // the other one jumps in before they finish
-      v.t = typeT * rand(.7, .9); next.cutIn = true;
-    } else v.t = typeT + rand(.45, 1.15) / Math.max(.6, other.talkK || 1);
+    v.t = typeT + rand(.45, 1.15) / Math.max(.6, other.talkK || 1); // they take turns: the reply comes after the line is finished
   }
   if ((resumeT -= dt) <= 0) { resumeT = rand(.8, 1.4); resumeConvos(); }
   if ((mutterT -= dt) <= 0) { mutterT = rand(3.5, 7); mutter(); }
   if ((convoT -= dt) > 0) return; convoT = rand(5, 10);
   if (convos.length >= (pregame() ? 3 : 2)) return;
   for (const c of creatures.slice().sort(() => Math.random() - .5)) { // two people standing close, both calm (or both just survived), start talking
-    if (!c.alive || !c.def.human || c.def.alien || c.convo || c.susp || !c.topics || busyUntil(c) > 0 || Math.random() > .1 * (c.talkK || 1) * (c.state === 'wander' && c.alert > .3 ? 3 : 1)) continue; // rarer, unless something just happened worth talking about
+    if (!c.alive || !c.def.human || c.def.alien || c.blastDeafT > T || c.convo || c.susp || !c.topics || busyUntil(c) > 0 || Math.random() > .1 * (c.talkK || 1) * (c.state === 'wander' && c.alert > .3 ? 3 : 1)) continue; // rarer, unless something just happened worth talking about
     const surv = c.state === 'wander' && c.alert > .3 && (!snake || dist2(c.x, c.y, snake.x, snake.y) > 220 * 220);
     if (!surv && (c.state !== 'wander' && c.state !== 'idle' || c.alert > .3)) continue;
-    const o = nearbyHumans(c.x, c.y, 70).find(o => o !== c && !o.def.alien && o.topics && !o.convo && !o.susp && busyUntil(o) <= 0 && (o.state === 'wander' || o.state === 'idle') && (MOD.blind || los(c.x, c.y, o.x, o.y)));
+    const o = nearbyHumans(c.x, c.y, 70).find(o => o !== c && !o.def.alien && !(o.blastDeafT > T) && o.topics && !o.convo && !o.susp && busyUntil(o) <= 0 && (o.state === 'wander' || o.state === 'idle') && (MOD.blind || los(c.x, c.y, o.x, o.y)));
     if (!o) continue;
     const [A, B] = (o.talkK || 1) > (c.talkK || 1) ? [o, c] : [c, o]; // the chattier one starts
     const { out: lines, v: st } = buildTalk(A, B, surv); if (!lines.length) continue;
@@ -380,7 +381,7 @@ function resumeConvos() { // after the danger: pick the talk back up, admit it's
     const s = c.susp; if (!s || s.a !== c) continue;
     const a = s.a, b = s.b, age = T - s.T;
     if (!a.alive || !b.alive || age > 60) { a.susp = b.susp = null; continue; }
-    if (age < 5 || a.convo || b.convo || startled(a) || startled(b) || busyUntil(a) > 0 || busyUntil(b) > 0) continue;
+    if (age < 5 || a.convo || b.convo || a.blastDeafT > T || b.blastDeafT > T || startled(a) || startled(b) || busyUntil(a) > 0 || busyUntil(b) > 0) continue;
     if (snake && snake.started && !MOD.blind && (dist2(a.x, a.y, snake.x, snake.y) < 220 * 220 || dist2(b.x, b.y, snake.x, snake.y) < 220 * 220)) continue; // not while it's still right there
     a.susp = b.susp = null;
     if (dist2(a.x, a.y, b.x, b.y) > 110 * 110 || T < resumeCD) continue; // they got separated (or someone just did this): it's simply dropped
@@ -425,6 +426,7 @@ function say(c, ctxRaw) {
   c.voice = c.voice || { heat: rand(.2, 1), swears: Math.random() < .7 }; c.recent = c.recent || [];
   if (hasTrait(c, 'quiet') && !HOT_CTX.has(ctx) && ctx !== 'answer' && ctx !== 'follow' && Math.random() < .55) return; // the quiet ones mostly keep it to themselves
   const urg = URG[ctx] ?? 2;
+  if (c.convo && urg < 3 && ctx !== 'act' && ctx !== 'answer') return; // mid-conversation: small remarks wait, only something urgent cuts in
   if (ctx === 'act') { bub(c, { text: name, act: true }); return; }
   // already talking? more urgent news cuts in; anything else waits its turn or is dropped
   let delay = 0; const cur = c.bubbles && c.bubbles.filter(b => b.delay > 0 || (b.cps && shownLen(b) < b.text.length - 1));
@@ -467,14 +469,14 @@ function say(c, ctxRaw) {
 function reactToJoke(c) { // someone nearby doesn't appreciate it (or kind of does)
   if (Math.random() > .45) return;
   for (const o of nearbyHumans(c.x, c.y, 140)) {
-    if (o === c || o.def.alien || o.reply) continue;
+    if (o === c || o.def.alien || o.reply || o.blastDeafT > T) continue;
     o.reply = { t: rand(1.3, 2.2), ctx: 'jokeReact' }; return;
   }
 }
 function askAround(c, tag) { // someone close by who has already seen the snake answers the question
   if (!ANSWERS[tag]) return;
   for (const o of nearbyHumans(c.x, c.y, 160)) {
-    if (o === c || o.def.alien || o.reply || !o.sawSnake) continue;
+    if (o === c || o.def.alien || o.reply || !o.sawSnake || o.blastDeafT > T) continue;
     if (Math.random() < .7) { o.reply = { t: rand(.7, 1.3), ctx: 'answer:' + tag }; c.mem = null; } // answered: no need to follow up themselves
     return;
   }
@@ -520,7 +522,7 @@ function scream(c, ctx = 'panic') {
   const R = 170 * (MOD.doublePanic ? 1.6 : 1);
   let n = 0;
   for (const o of nearbyHumans(c.x, c.y, R)) { // people who hear it panic a moment later and pass it on
-    if (o === c || o.state === 'panic' || o.warn) continue;
+    if (o === c || o.state === 'panic' || o.warn || o.blastDeafT > T) continue;
     if (dist2(c.x, c.y, o.x, o.y) < 90 * 90 || los(c.x, c.y, o.x, o.y)) { o.warn = { x: c.fx, y: c.fy, t: rand(.25, .7) / (o.panicK || 1) }; n++; }
   }
   if (state === 'play') { crScream(n); if (n) netEmit({ t: 'scr', n }); } // a team challenge in co-op: everyone's counter moves
@@ -529,6 +531,7 @@ function panic(c, x, y, t, ctx = 'panic') {
   if (!c.alive) return;
   const was = c.state === 'panic';
   if (c.alert > .3) t *= 1.6; // been through this before: stays scared longer
+  t *= MOD.longMemory ? 2.5 : MOD.shortMemory ? .5 : 1; // Long memory / Short memory
   c.alert = Math.max(c.alert || 0, c.def.human ? 1 : .6);
   c.timer = was ? Math.max(c.timer, t) : t;
   c.state = 'panic'; c.fx = x; c.fy = y;
@@ -540,14 +543,15 @@ function flee(c, x, y, t) {
   c.state = 'flee'; c.fx = x; c.fy = y; c.timer = Math.max(c.state === 'flee' ? c.timer : 0, t);
 }
 const WIT_NB = [];
-function witness(x, y, victim) { // a kill happened at x,y
+function witness(x, y, victim, quiet) { // a kill happened at x,y (quiet: from camouflage, nothing carries)
   if (victim.def.human && victim.name) lastDead = victim.name;
-  noise('kill', x, y); // the crunch (and the cut-off scream) carries: that's all a blind crowd ever gets of it
+  if (!quiet) noise('kill', x, y); // the crunch (and the cut-off scream) carries: that's all a blind crowd ever gets of it
   const lit = lightAt(x, y) > VISIBLE, R = MOD.doublePanic ? 2 : 1;
   for (const c of nearbyCreatures(x, y, 320 * R, WIT_NB)) { // nobody further than this can see it
     if (!c.alive) continue;
     const d = Math.hypot(c.x - x, c.y - y);
     if (MOD.blind && c.def.human) continue; // they can't see it: the 'kill' sound above reaches them when they next listen
+    if (quiet && d > 45) continue; // silent: only someone right there sees it
     const sees = lit ? (c.def.human ? d < 320 * R && (d < 120 * R || los(c.x, c.y, x, y)) : d < 200 * R) : d < (c.def.human ? 45 : 60) * R;
     if (!sees) { if (c.fl && c.fl.on && d < 300) c.fl.look = { x, y, t: rand(1.2, 2.2) }; continue; } // heard it: point the light there
     if (!c.def.human) { panic(c, x, y, rand(2, 4)); continue; }
@@ -586,8 +590,8 @@ function perceive(c) {
   }
   if (state !== 'play' || !s.started) return;
   if (MOD.blind && hum) return blindPerceive(c, hum); // no eyes: hearing and touch only (see 27b-hearing)
-  const dist = Math.hypot(c.x - s.x, c.y - s.y), sight = c.def.sight * (MOD.skittish ? 1.5 : MOD.oblivious ? .6 : 1) * (MOD.fog ? .55 : 1) * (s.camoT > 0 ? .25 - (upg('camo') > 2 ? .15 * (s.still || 0) : 0) : 1) * (hasTrait(c, 'distracted') ? .7 : hasTrait(c, 'curious') ? 1.15 : 1); // camouflage: only up close
-  const seen = (dist < (s.camoT > 0 ? (upg('camo') > 2 ? 9 : 22) : 40) || (dist < sight * (c.alert > .3 ? 1.25 : 1) && lightAt(s.x, s.y) > VISIBLE && los(c.x, c.y, s.x, s.y)));
+  const dist = Math.hypot(c.x - s.x, c.y - s.y), sight = c.def.sight * (MOD.skittish ? 1.5 : MOD.oblivious ? .6 : 1) * (MOD.fog ? .55 : 1) * (s.camoT > 0 ? 0 : 1) * (hasTrait(c, 'distracted') ? .7 : hasTrait(c, 'curious') ? 1.15 : 1); // camouflage: only up close
+  const seen = (dist < (s.camoT > 0 ? 24 : 40) || (dist < sight * (c.alert > .3 ? 1.25 : 1) && lightAt(s.x, s.y) > VISIBLE && los(c.x, c.y, s.x, s.y)));
   if (hum && c.state === 'panic' && dist < 62 && Math.random() < .06) adrenFrom(c, s.x, s.y); // a burst of fear, only with the snake right on their heels
   if (dist < 75 && (seen || dist < 40)) c.closeCall = true; // the snake came right past them...
   else if (c.closeCall && dist > 140) { c.closeCall = false; if (hum && Math.random() < .6) say(c, 'relief'); } // ...and kept going

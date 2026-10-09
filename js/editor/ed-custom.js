@@ -104,6 +104,7 @@ edPanel = function () {
     <h4>Crowd</h4><div class="cmpop">${(c.population || []).map(([t, n], i) => `<div class="cmrow" data-i="${i}">${tsel('cmpt', t)}<input type="number" class="cmpn" min="0" max="80" value="${n}"><button class="cmpx" title="Remove">×</button></div>`).join('')}</div>
     <div class="edbtns"><button class="cmpadd">+ Add creatures</button></div>
     <label class="edfield">Walkers <input type="number" class="cmwalk" min="0" max="40" value="${c.walkers || 0}"></label>
+    <label class="edfield">Flashlights <select class="cmflash">${[['', indoor ? 'Map default (none indoors)' : 'Map default (about a third)'], ['0', 'Nobody'], ['0.15', 'A few'], ['0.35', 'About a third'], ['0.6', 'Most people'], ['1', 'Everyone']].map(([v, n]) => `<option value="${v}" ${String(c.flash ?? '') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
     <h4>Snake start</h4><div class="edbtns"><button class="cmspawn ${ED.tool === 'spawn' ? 'on' : ''}">Place the start</button></div>
     <label class="edfield">Facing <input type="range" class="cmang" min="-180" max="180" step="15" value="${Math.round(((c.spawn || {}).a || 0) * 180 / Math.PI)}"><output>${Math.round(((c.spawn || {}).a || 0) * 180 / Math.PI)}°</output></label>
     <h4>Spawn zones <small>creatures that start in one area</small></h4><div class="cmzones">${(c.zones || []).map((z, i) => `<div class="cmrow" data-i="${i}">${tsel('cmzt', z.type)}<input type="number" class="cmzn" min="0" max="60" value="${z.n}"><button class="cmzx" title="Remove">×</button></div>`).join('')}</div>
@@ -114,6 +115,7 @@ edPanel = function () {
   box.querySelectorAll('.cmenv [data-env]').forEach(b => b.onclick = () => { if (b.dataset.env === c.env) return; ch(() => { const D = CUSTOM_DEFAULTS[b.dataset.env]; c.env = b.dataset.env; c.ambient = D.ambient; c.weather = { ...D.weather }; c.grass = D.grass; if (Object.values(CUSTOM_DEFAULTS).some(q => q.border === c.border)) { c.border = D.border; ED.border = D.border; } MAPS[ED.map].indoor = c.env === 'indoor'; }); edPanel(); });
   box.querySelector('.cmborder').oninput = e => { c.border = ED.border = e.target.value; ED.dirtySave = true; };
   box.querySelector('.cmborder').onchange = () => edDirty();
+  box.querySelector('.cmflash').onchange = e => ch(() => { if (e.target.value === '') delete c.flash; else c.flash = +e.target.value; }); // who carries a flashlight when it's dark
   const rng = (cls, f) => { const r = box.querySelector(cls); if (!r) return; r.oninput = () => { r.nextElementSibling.textContent = r.value; }; r.onchange = () => ch(() => f(+r.value)); };
   rng('.cmamb', v => { c.ambient = v; }); rng('.cmgrass', v => { c.grass = v; });
   const ck = (cls, k) => { const el = box.querySelector(cls); if (el) el.onchange = () => ch(() => { c.weather[k] = el.checked; }); }; ck('.cmseas', 'seasons'); ck('.cmsnow', 'snow');

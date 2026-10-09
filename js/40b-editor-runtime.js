@@ -122,9 +122,6 @@ const _edShowMenu = showMenu;
 showMenu = function () {
   _edShowMenu.apply(this, arguments);
   if (edTesting !== null && state === 'menu' && !ED.open && ED.leaving) { const i = edTesting; edTesting = null; ED.leaving = false; const was = edTestData; openEditor(i); if (was) { ED.dirtySave = ED.unshared = true; edStatus('Back from the play test: your unsaved changes are still here (Ctrl+S to save)'); } return; }
-  if (edTesting === null) edTestData = null;
-  const row = document.getElementById('setBtn'); if (!row || document.getElementById('edBtn') || !editorAllowed()) return; // no editor entry at all on touch screens
-  const b = document.createElement('button'); b.className = 'ghost'; b.id = 'edBtn'; b.dataset.sfx = 'open'; b.textContent = 'Map editor';
-  b.onclick = () => startEditor(mapIdx); row.parentElement.appendChild(b);
+  if (edTesting === null) edTestData = null; // (the menu's own footer holds the "Map editor" link, on desktops only)
 };
 addEventListener('load', () => { if (/^#editor\b/.test(location.hash)) setTimeout(() => startEditor(mapIdx), 50); }); // editor.html sends desktops here

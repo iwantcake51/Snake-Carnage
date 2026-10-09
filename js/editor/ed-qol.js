@@ -355,7 +355,7 @@ function qolPalette() {
    PROP EDITOR
    ========================================================= */
 const _qPeView = peView;
-peView = function () { const v = _qPeView(); v.s *= PE.zoom || 1; return v; };
+peView = function () { const v = _qPeView(); v.s *= PE.zoom || 1; v.ox += PE.panX || 0; v.oy += PE.panY || 0; return v; }; // zoomed and moved by the user
 const qolPeLocal = (v, s, ux, uy) => { // a point in the box (0..1 across and down) in the shape's own turned frame, in preview pixels
   const a = -(s.rot || 0) * Math.PI / 180, dx = (ux - s.x) * v.bw * v.s, dy = (uy - s.y) * v.bh * v.s; return [dx * Math.cos(a) - dy * Math.sin(a), dx * Math.sin(a) + dy * Math.cos(a)]; };
 const qolPeHalf = (v, s) => { const k = s.sc || 1; return [s.w * k * v.bw * v.s / 2, s.h * k * v.bh * v.s / 2]; };
@@ -368,13 +368,19 @@ function qolPeHandles(v, s) { // the selected shape's corners, on the canvas
 const _qPeDown = peDown;
 peDown = function (e) {
   const p = peGet(), sh = p.shapes || [], { v, mx, my, ux, uy } = qolPeUV(e), s = sh[PE.selShape];
+  if (e.button === 1 || e.button === 2 || (e.button === 0 && PE.space)) { e.preventDefault(); PE.pan = { x: e.clientX, y: e.clientY, px: PE.panX || 0, py: PE.panY || 0, k: v.c.width / v.c.getBoundingClientRect().width, go: true }; v.c.setPointerCapture(e.pointerId); return; } // moving the view
   if (s) for (const h of qolPeHandles(v, s)) if (Math.abs(mx - h.x) < 8 && Math.abs(my - h.y) < 8) { // a corner: resize about the centre
     PE.rs = { w: s.w, h: s.h, ux, uy, sx: s.x, sy: s.y, rot: s.rot || 0, a: h.a, b: h.b }; v.c.setPointerCapture(e.pointerId); return; }
   _qPeDown(e);
-  if (sh.length && qolPeShapeAt(v, ux, uy, sh) < 0 && PE.selShape >= 0) { PE.selShape = -1; peSide(); peDraw(); } // empty space: let go of the shape
+  if (!sh.length || qolPeShapeAt(v, ux, uy, sh) < 0) { // empty space: let go of the shape, and a drag from there moves the view
+    if (PE.selShape >= 0) { PE.selShape = -1; peSide(); peDraw(); }
+    if (!PE.drag && e.button === 0) { PE.pan = { x: e.clientX, y: e.clientY, px: PE.panX || 0, py: PE.panY || 0, k: v.c.width / v.c.getBoundingClientRect().width, go: false }; v.c.setPointerCapture(e.pointerId); }
+  }
 };
 const _qPeMove = peMove;
 peMove = function (e) {
+  if (PE.pan) { const P = PE.pan, dx = e.clientX - P.x, dy = e.clientY - P.y; if (!P.go && Math.hypot(dx, dy) < 4) return; P.go = true;
+    PE.panX = P.px + dx * P.k; PE.panY = P.py + dy * P.k; const c = PE.box.querySelector('.pebig'); if (c) c.style.cursor = 'grabbing'; peDraw(); return; }
   const { v, ux, uy, mx, my } = qolPeUV(e);
   if (PE.rs) { const p = peGet(), s = p.shapes[PE.selShape]; if (!s) return; const r = PE.rs;
     const o = { x: r.sx, y: r.sy, rot: r.rot }, [ax, ay] = qolPeLocal(v, o, r.ux, r.uy), [bx, by] = qolPeLocal(v, o, ux, uy), k = s.sc || 1; // dragged along the shape's own sides, however it's turned
@@ -398,13 +404,19 @@ peDraw = function () {
 };
 const _qOpenPE = openPropEditor;
 openPropEditor = function (kind) {
+  PE.panX = PE.panY = 0; PE.pan = null; PE.space = false;
   _qOpenPE(kind); const big = PE.box && PE.box.querySelector('.pebig'); if (!big) return;
-  big.onpointerup = () => { PE.drag = null; PE.rs = null; PE.guide = null; peDraw(); };
+  big.onpointerup = () => { PE.drag = null; PE.rs = null; PE.guide = null; if (PE.pan) { PE.pan = null; big.style.cursor = ''; } peDraw(); };
+  big.addEventListener('contextmenu', e => e.preventDefault()); // right-drag moves the view
+  PE.box.addEventListener('keydown', e => { if (e.code === 'Space' && !/^(input|textarea|select)$/i.test(e.target.tagName)) { PE.space = true; big.style.cursor = 'grab'; e.preventDefault(); } });
+  PE.box.addEventListener('keyup', e => { if (e.code === 'Space') { PE.space = false; big.style.cursor = ''; } });
   big.onpointerleave = () => { PE.hover = -1; if (!PE.drag) peDraw(); };
-  big.addEventListener('wheel', e => { e.preventDefault(); PE.zoom = clamp((PE.zoom || 1) * Math.exp(-e.deltaY * .0015), .5, 4); peDraw(); }, { passive: false });
-  big.ondblclick = () => { PE.zoom = 1; peDraw(); };
+  big.addEventListener('wheel', e => { e.preventDefault(); // zoom toward the cursor
+    const r = big.getBoundingClientRect(), mx = (e.clientX - r.left) * big.width / r.width, my = (e.clientY - r.top) * big.height / r.height, v = peView(), z0 = PE.zoom || 1, z1 = clamp(z0 * Math.exp(-e.deltaY * .0015), .5, 6), k = z1 / z0;
+    PE.panX = (PE.panX || 0) + (mx - v.ox) * (1 - k); PE.panY = (PE.panY || 0) + (my - v.oy) * (1 - k); PE.zoom = z1; peDraw(); }, { passive: false });
+  big.ondblclick = () => { PE.zoom = 1; PE.panX = PE.panY = 0; peDraw(); };
   qolScrubInit(PE.box);
-  const hint = PE.box.querySelector('.pemain .edhint'); if (hint) hint.innerHTML = 'Drag a shape to move it (it snaps to the middle and to the others; <kbd>Alt</kbd> frees it), its corners to resize (<kbd>Shift</kbd> keeps the shape). Wheel zooms, double-click resets. <kbd>Arrows</kbd> nudge · <kbd>[</kbd> <kbd>]</kbd> size · <kbd>Q</kbd> turn · <kbd>Ctrl+D</kbd> duplicate · <kbd>Tab</kbd> next shape · <kbd>Ctrl+Z</kbd> undo';
+  const hint = PE.box.querySelector('.pemain .edhint'); if (hint) hint.innerHTML = 'Drag a shape to move it (it snaps to the middle and to the others; <kbd>Alt</kbd> frees it), its corners to resize (<kbd>Shift</kbd> keeps the shape). Wheel zooms, drag empty space (or right-drag, or Space+drag) to move the view, double-click resets. <kbd>Arrows</kbd> nudge · <kbd>[</kbd> <kbd>]</kbd> size · <kbd>Q</kbd> turn · <kbd>Ctrl+D</kbd> duplicate · <kbd>Tab</kbd> next shape · <kbd>Ctrl+Z</kbd> undo';
 };
 const _qPeKey = peKey;
 peKey = function (e) {

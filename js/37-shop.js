@@ -11,9 +11,9 @@ const TIERCOL = { easy: '#5fd07a', medium: '#ffcf33', hard: '#ff8a3d', rare: '#c
 function shopCard(cat, [v, p, achId], i) {
   const cfg = SETTINGS.snake, own = owns(cat, v), on = cfg[cat] === v, ach = achId ? ACH.find(a => a.id === achId) : null, locked = ach && !own, hidden = locked && ach.secret; // secrets stay secret
   const sw = `<span class="pvw">${itemPreview(cat, v)}</span>`;
-  const tip = cat === 'title' ? titleTip(v) : '';
+  const tip = cat === 'title' && !hidden ? titleTip(v) : '';
   const status = on ? '<span class="st eq">Equipped</span>' : own ? '<span class="st own">Owned · click to equip</span>' : locked ? '' : `<span class="st buy"><i class="pc"></i> ${p} · click to buy</span>`;
-  return `<button class="sc c-${cat} ${on ? 'on' : ''} ${own ? 'own' : ''} ${locked ? 'locked' : ''} ${!own && !locked && PROG.coins < p ? 'poor' : ''}" data-cat="${cat}" data-v="${attr(v)}" style="--i:${i}" ${tip ? `data-tiph="${attr(tip)}"` : ''}>
+  return `<button class="sc c-${cat} ${on ? 'on' : ''} ${own ? 'own' : ''} ${locked ? 'locked' : ''} ${!own && !locked && PROG.coins < p ? 'poor' : ''}" data-cat="${cat}" data-v="${attr(v)}" ${hidden ? 'data-hid="1"' : ''} style="--i:${i}" ${tip ? `data-tiph="${attr(tip)}"` : ''}>
     ${hidden ? '<span class="pvw"><span class="pvTitle none">???</span></span>' : sw}<b>${hidden ? '???' : cat.startsWith('color') ? colorName(v) : v}</b>
     ${locked ? `<span class="lk">🔒</span><span class="req" style="--tc:${TIERCOL[ach.tier]}"><em>${hidden ? 'Secret challenge' : ach.name}</em>${hidden ? ach.clue : ach.what}<span class="pb"><span style="width:${(achProgress(ach) * 100).toFixed(0)}%"></span></span></span>`
       : `<span class="price">${own ? (on ? '✔' : '') : `<i class="pc"></i>${p}`}</span>`}
@@ -26,7 +26,7 @@ function itemPreview(cat, v) { // what the item actually looks like, not an emoj
   if (cat === 'theme') return `<span class="pvTheme th-${slug(v)}"><i class="tb"></i><i class="tp"></i><i class="tc"></i><i class="tc"></i></span>`;
   if (cat === 'combo') return `<span class="pvCombo cb-${slug(v)}"><span class="cbox"><span class="cbn"><b>12</b><i>x</i></span><span class="cbar"><span></span></span></span></span>`;
   if (cat === 'card') return `<span class="pvCard cs-${slug(v)}"><i class="ci"></i><i class="cl"></i></span>`;
-  if (cat === 'effect') return v === 'None' ? '<span class="pvFx none"></span>' : `<span class="pvFx mfx ${slug(v)}">${Array.from({ length: 9 }, (_, k) => `<i style="--x:${(k * 11 + 5) % 100}%;--d:${(-k * 1.3).toFixed(1)}s;--s:${(4 + k % 3).toFixed(1)}s;--z:${(.6 + (k % 3) * .25).toFixed(2)}"></i>`).join('')}</span>`;
+  if (cat === 'effect') return v === 'None' ? '<span class="pvFx none"></span>' : `<span class="pvFx mfx ${slug(v)}">${Array.from({ length: 9 }, (_, k) => `<i class="l${k % 3}" style="--x:${(k * 11 + 5) % 100}%;--y:${(k * 37 + 13) % 86 + 7}%;--d:${(-k * 1.3).toFixed(1)}s;--s:${(4 + k % 3).toFixed(1)}s;--z:${(.6 + (k % 3) * .25).toFixed(2)}"></i>`).join('')}</span>`;
   if (cat === 'title') return v === 'None' ? '<span class="pvTitle none">No title</span>' : `<span class="pvTitle">${v}</span>`;
   return '';
 }
@@ -43,7 +43,7 @@ function drawItemPreview(cv2, cat, v) {
   const x = cv2.getContext('2d'), w = cv2.width, h = cv2.height, base = { ...SETTINGS.snake, hat: 'None', trail: 'None' };
   x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, w, h);
   const keepT = T; T = 1.3; // a fixed moment, so animated cosmetics still read clearly
-  if (cat === 'pattern') { x.scale(2, 2); drawSnake(x, previewSnake(10, 74, 21, 7, 4), { ...base, pattern: v }); }
+  if (cat === 'pattern') { x.scale(1.55, 1.55); drawSnake(x, previewSnake(14, 101, 27, 6.6, 6), { ...base, pattern: v }); } // long enough to show a few repeats of the pattern
   else if (cat === 'hat' || cat === 'eyes') { // a close-up of the head, the way you see it in game
     x.translate(w * .6, h * .5); x.scale(3.3, 3.3); x.translate(-12, 0);
     drawSnake(x, previewSnake(5, 12, 0, 8, 0), { ...base, [cat]: v });
@@ -113,7 +113,7 @@ function shopBody(tab) {
 function wireShop() {
   overlay.querySelectorAll('.sc').forEach(b => {
     b.onclick = () => chooseItem(b.dataset.cat, b.dataset.v);
-    b.onmouseenter = () => { shopPrev = { cat: b.dataset.cat, v: b.dataset.v }; }; // live preview on hover, even before buying
+    b.onmouseenter = () => { shopPrev = b.dataset.hid ? null : { cat: b.dataset.cat, v: b.dataset.v }; }; // live preview on hover, even before buying (not a secret one: that stays hidden until it's earned)
     b.onmouseleave = () => { shopPrev = null; };
   });
   if (!wireShop.noDraw) drawPreviews(overlay);
@@ -124,7 +124,7 @@ function chooseItem(cat, v) {
   const cfg = SETTINGS.snake;
   if (!owns(cat, v)) {
     const ach = achOf(cat, v);
-    if (ach) { shopMsg = `Earn “${ach.name}” in Challenges to unlock this: ${ach.what.toLowerCase()}.`; Sfx.deny(); refreshShop(shopMsg); shopMsg = ""; return; }
+    if (ach) { shopMsg = ach.secret ? `A secret challenge unlocks this. Clue: ${ach.clue}` : `Earn “${ach.name}” in Challenges to unlock this: ${ach.what.toLowerCase()}.`; Sfx.deny(); refreshShop(shopMsg); shopMsg = ""; return; }
     const p = priceOf(cat, v);
     if (PROG.coins < p) { shopMsg = `You need ${p - PROG.coins} more chips for that.`; Sfx.deny(); refreshShop(shopMsg); shopMsg = ""; return; }
     PROG.coins -= p; PROG.owned.push(ownKey(cat, v)); saveProg(); updateHud(); Sfx.buy(); bought = true;

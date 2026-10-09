@@ -1,426 +1,4596 @@
-/* =========================================================
-   CONVERSATIONS, as small directed threads.
-   A topic is a little graph, not a bag of lines:
-     q: openers [type, text, key]. type = what kind of question it is (yn, when, where, what, how, who, or say for a
-        statement). key = WHICH question it is: openers with the same key ask the same thing, and nobody asks a key they
-        already know the answer to. Without a key, the type is the key.
-     a: answers, looked up by key first, then by type, so a reply always answers what was actually asked.
-        "text|tag tag" marks what an answer establishes (yes, no, unsure, ask...). An answer ending in "?" is tagged ask
-        automatically and is only used when the topic has a follow-up that picks it up.
-     n: follow-ups. { k: 'keys it can follow' (or '*'), t: 'answer tags it needs' (any of them; empty = any answer),
-        say: one line or a few ways of saying it, re: the replies (tagged the same way), then: deeper follow-ups that can
-        only come after THIS exchange, by: 'a' | 'b' who says it (default: whoever didn't speak last) }.
-        A follow-up can only follow the questions and answers it names: "We're gonna be late" follows "About four",
-        never "Who are you texting?".
-     back: how someone brings it up again once the danger has passed ("text|tag" = only if that was established).
-     flags: out (outdoor maps only), dark / light (only at that time), not: 'season ids', needs: 'dog' (the one
-        answering has a dog with them), fact(): a tag the world decides (the pizza place is open or it isn't).
-   Placeholders: {time} the time spoken roughly, {nexthour}, {today} (today / tonight), {here} (out here / in here).
-   "#tag" on a line opens a thread something later can close ("I swear something's weird tonight.#weird" -> "SEE?").
-   ========================================================= */
+/* Conversational branches: equivalent openers share an answer key.
+   Replies and follow-ups must fit every alternative on their branch; no generic joke answers.
+   #tags, |tags, time placeholders and environmental flags retain the existing dialogue protocol. */
+
 const TALK = {
-  generic: [
-    { id: 'phone', q: [['say', "My phone's almost dead.", 'dead'], ['say', "Ugh, my battery's at like five percent.", 'dead'], ['yn', 'You got a charger on you?', 'charger'], ['yn', 'Can I borrow your charger later?', 'charger']],
-      a: { dead: ['Mine too.|same', "Should've charged it last night.|scold", "There's a charger in the car.|car", 'Put it on low power mode.|tip', 'Classic.|tease'],
-           charger: ['In the car, yeah.|yes car', 'Nope, sorry.|no', 'Not one that fits yours.|no', 'Yeah, remind me later.|yes', "Mine's broken, so no.|no"] },
-      n: [{ k: 'dead charger', t: 'car', say: ['Can we grab it after?', 'Remind me to grab it.'], re: ['Yeah, sure.', 'If you remind me.'] },
-          { k: 'charger', t: 'yes', say: ["You're a lifesaver.", 'Thank you. Seriously.'], re: ['I know.', 'You owe me.', 'Yeah, yeah.'] },
-          { k: 'dead charger', t: 'no same tip', say: 'I need it for the bus times.', re: ['Just ask someone.', 'The bus is late anyway.', 'I know them by heart. Kind of.'] },
-          { k: 'dead', t: 'scold tease', say: ['Okay, thanks, mom.', 'Not helpful.'], re: ['Just saying.', 'Someone has to.'] }] },
-    { id: 'tired', q: [['say', "I'm so tired.", 'tired'], ['say', 'I could fall asleep standing up.', 'tired'], ['yn', 'Did you sleep at all last night?', 'slept'], ['how', 'How are you even awake right now?', 'awake']],
-      a: { tired: ['Same.|same', 'Go to bed earlier, then.|scold', 'Coffee. Seriously.|tip', 'You say that every day.|tease', 'Long week?|ask'],
-           slept: ['Like four hours.|bad', 'Not really, no.|bad', 'Barely.|bad', 'Yeah, actually. First time in ages.|good'],
-           awake: ['Spite.', 'Three coffees.', "I'm not awake.", 'Honestly? No idea.'] },
-      n: [{ k: 'tired', t: 'ask', say: ["Don't even ask.", 'The worst.'], re: ['Hang in there.', "It's almost over.", 'Yeah. Same.'] },
-          { k: 'tired slept', t: 'scold same bad', say: 'The neighbors were up till two again.', re: ['Call someone about it.', "That's so annoying.", 'Doing what?'],
-            then: [{ t: 'ask', say: ['Moving furniture, I think. At two.', 'Some party. Again.'], re: ['Unbelievable.', 'Call the landlord.'] }] },
-          { k: 'slept', t: 'good', say: ['Lucky.', 'Must be nice.'], re: ["I know, right?|rq", "Doesn't happen often."] },
-          { k: 'tired awake', say: "I'm going to bed the second I get home.", re: ['Same.', "You won't.", "No you're not."] }] },
-    { id: 'time', q: [['what', 'What time is it?', 'time'], ['what', 'You got the time?', 'time'], ['yn', 'Is it {nexthour} yet?', 'hour']],
-      a: { time: ['{Time}.|known', 'About {time}.|known', 'No idea, my phone died.|unknown', 'Like {time}, I think.|known'],
-           hour: ['Almost.|known', "Not yet. It's {time}.|known", "I don't know. My phone died.|unknown"] },
-      n: [{ k: '*', t: 'known', say: ["We're gonna be late.", 'We should get going.'], re: ['Yeah, we should move.', 'Then walk faster.', "We've still got a few minutes."] },
-          { k: '*', t: 'known', say: ['Okay. We have a bit, then.', 'Good. No rush.'], re: ['Relax, yeah.', "Don't get comfortable."] },
-          { k: '*', t: 'unknown', say: ['Useless.', 'Great. Neither of us knows.'], re: ["Hey, it's not my fault.", 'Ask someone else, then.'] }] },
-    { id: 'hungry', q: [['say', "I'm starving.", 'hungry'], ['yn', 'You hungry?', 'hungry?'], ['what', 'What do you want to eat later?', 'food']],
-      a: { hungry: ['Same.|same', 'Already?|tease rq', "There's a granola bar in my bag.|offer", 'We can grab something soon.|plan'],
-           'hungry?': ['Yeah, kinda.|yes', 'Not really.|no', 'A little.|yes', 'I could eat.|yes'],
-           food: ['Burgers sound good.|picked', "I don't care. You pick.|pick", 'Something cheap.|cheap', 'Maybe tacos?|picked rq'] },
-      n: [{ k: 'hungry', t: 'offer', say: ['Oh my god, yes. Please.', "You're the best."], re: ["It's a little squished.", "Here. Don't say I never do anything."] },
-          { k: 'hungry hungry?', t: 'same yes plan', say: 'Burgers after this?', re: ["I'm down.", 'Again?|rq', 'Sure, why not.'] },
-          { k: 'food', t: 'pick cheap', say: ['Okay. Tacos.', 'Fine. Pizza.'], re: ['Works for me.', 'Sold.'] },
-          { k: 'food', t: 'picked', say: ['Yeah, I could go for that.', 'Sold.'], re: ['Good. Decided.', 'See? Easy.'] },
-          { k: 'hungry', t: 'tease', say: 'I skipped lunch.', re: ["Well, that's on you.", 'Why would you do that?'],
-            then: [{ t: 'ask', say: ["Didn't have time.", 'Forgot, honestly.'], re: ['Eat something, seriously.', 'Classic.'] }] }],
-      back: ["Okay, I'm definitely hungry now.", 'So... burgers still happening?|yes'] },
-    { id: 'weather', out: true, q: [['yn', "Think it's gonna rain?", 'rain'], ['say', "Sky looks like it's about to open up.", 'sky'], ['say', 'Weather turned fast.', 'turned']],
-      a: { rain: ['Probably.|yes', 'Hope not.|unsure', 'Looks like it.|yes', "I didn't check.|unsure"], sky: ['Yeah, looks like it.|agree', 'We should probably head in soon.|agree', 'Great. Perfect.|agree'], turned: ['Yeah, it changed quick.|agree', 'I noticed.|agree', 'Of course it did.|agree'] },
-      n: [{ k: '*', t: 'yes agree', say: "I didn't bring a jacket.", re: ['Neither did I.', 'You can borrow mine if it starts.', "Then let's not stay out too long."] }] },
-    { id: 'weekend', q: [['what', 'What are you doing this weekend?', 'plans'], ['yn', 'You doing anything this weekend?', 'plans'], ['say', 'I need this weekend so bad.', 'need']],
-      a: { plans: ['Probably sleeping.|free', "My cousin's wedding.|busy", 'Nothing, hopefully.|free', "I'm moving, unfortunately.|busy", 'Working, unfortunately.|busy'],
-           need: ['Same.', 'Almost there.', 'Seriously.', 'This week has been dragging.'] },
-      n: [{ k: 'plans', t: 'free', say: 'Want to do something Saturday?', re: ['Yeah, what did you have in mind?', 'Maybe. Text me later.', 'Sure.'],
-            then: [{ t: 'ask', say: ['Movies, maybe?', "I don't know. Something cheap."], re: ["I'm in.", 'Sounds good.'] }] },
-          { k: 'plans', t: 'busy', say: ['Ugh. Have fun with that.', 'That sounds like a lot.'], re: ['It is.', "Thanks. I'll survive."] },
-          { k: 'need', say: 'Two more days.', re: ["Don't count. It makes it worse.", 'Two and a half.'] }] },
-    { id: 'weird', q: [['say', "I swear something's weird {today}.#weird", 'weird'], ['say', 'Does it feel weird {here} or is that just me?#weird', 'weird'], ['say', 'Got a bad feeling about today.#weird', 'weird']],
-      a: { weird: ["It's just you.|dismiss", 'You always say that.|dismiss', 'Yeah, actually. A little.|agree', 'Relax.|dismiss', 'What kind of weird?|ask'] },
-      n: [{ k: 'weird', t: 'ask', say: ['I dunno. Too quiet.', "Like something's watching us."], re: ["You're being paranoid.", "Okay, now I'm creeped out.", "Don't say that."] },
-          { k: 'weird', t: 'agree', say: "Right? It's too quiet.", re: ["Let's not hang around, then.", "Okay, stop, you're freaking me out."] },
-          { k: 'weird', t: 'dismiss', say: ["Fine. Don't believe me.", "Whatever. I'm just saying."], re: ['I won\'t.', 'Noted.'] }] },
-    { id: 'work', q: [['how', "How's work?", 'work'], ['yn', 'You still at that place?', 'still']],
-      a: { work: ["Don't ask.|bad", 'Same as always.|meh', 'Thinking of quitting.|quit', 'Got promoted. Kind of.|promo'], still: ['For now.|meh', 'Yeah. Unfortunately.|bad', 'Thinking of quitting.|quit'] },
-      n: [{ k: '*', t: 'quit', say: ['Seriously? To do what?', 'Wait, really?'], re: ['No idea yet.', "Anything. I'll figure it out."] },
-          { k: 'work', t: 'promo', say: ['Kind of?', 'What does "kind of" mean?'], re: ['Same job, new title, no raise.', 'I get a desk by the window now.'] },
-          { k: '*', t: 'bad meh', say: ['That bad, huh?', 'Same boss?'], re: ['Same boss.', "It's fine. It's not fine."] }] },
+  "generic": [
+    {
+      "id": "phone",
+      "q": [
+        [
+          "say",
+          "My phone's about to die.",
+          "dead"
+        ],
+        [
+          "say",
+          "I forgot to charge my phone.",
+          "dead"
+        ],
+        [
+          "yn",
+          "Do you have a charger I can borrow?",
+          "charger"
+        ],
+        [
+          "yn",
+          "You got a phone charger on you?",
+          "charger"
+        ]
+      ],
+      "a": {
+        "dead": [
+          "Mine's nearly dead too.",
+          "Put it on low power for now.",
+          "You can charge it when we get back."
+        ],
+        "charger": [
+          "I've got one in the car.",
+          "Not with me, sorry.",
+          "I left mine at home.",
+          "Yeah, remind me when we get back."
+        ]
+      },
+      "n": [
+        {
+          "k": "dead",
+          "say": [
+            "I need it to get home."
+          ],
+          "re": [
+            "Keep the screen off for a bit.",
+            "We can work it out if it dies."
+          ]
+        },
+        {
+          "k": "charger",
+          "say": [
+            "I should start carrying one."
+          ],
+          "re": [
+            "I keep meaning to as well.",
+            "They're easy to forget."
+          ]
+        }
+      ],
+      "earth": true
+    },
+    {
+      "id": "tired",
+      "q": [
+        [
+          "say",
+          "I'm so tired.",
+          "tired"
+        ],
+        [
+          "say",
+          "I barely slept last night.",
+          "tired"
+        ],
+        [
+          "yn",
+          "Did you sleep okay?",
+          "slept"
+        ],
+        [
+          "yn",
+          "You get much sleep last night?",
+          "slept"
+        ],
+        [
+          "how",
+          "How are you staying awake?",
+          "awake"
+        ],
+        [
+          "how",
+          "How are you not tired?",
+          "awake"
+        ]
+      ],
+      "a": {
+        "tired": [
+          "You look tired.",
+          "Same here.",
+          "Try to get an early night."
+        ],
+        "slept": [
+          "Not much. Kept waking up.",
+          "Yeah, for once.",
+          "A few hours.",
+          "I went to bed pretty late."
+        ],
+        "awake": [
+          "Coffee, mostly.",
+          "I am tired. I'm just trying to keep moving.",
+          "I had a nap earlier.",
+          "I actually slept last night."
+        ]
+      },
+      "n": [
+        {
+          "k": "tired",
+          "say": [
+            "I'm going straight to bed when I get home."
+          ],
+          "re": [
+            "Probably a good idea.",
+            "Don't get stuck on your phone."
+          ]
+        },
+        {
+          "k": "slept",
+          "say": [
+            "I need to sort my sleep out."
+          ],
+          "re": [
+            "Me too.",
+            "It's hard once you get into a bad routine."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "time",
+      "q": [
+        [
+          "what",
+          "What time is it?",
+          "time"
+        ],
+        [
+          "what",
+          "You got the time?",
+          "time"
+        ],
+        [
+          "yn",
+          "Is it {nexthour} yet?",
+          "hour"
+        ],
+        [
+          "yn",
+          "Have we got to {nexthour} yet?",
+          "hour"
+        ]
+      ],
+      "a": {
+        "time": [
+          "About {time}.",
+          "It's {time}.",
+          "I haven't got my phone on me.",
+          "Not sure. My phone died."
+        ],
+        "hour": [
+          "Not quite.",
+          "Nearly.",
+          "It's about {time}."
+        ]
+      },
+      "n": [
+        {
+          "k": "time",
+          "say": [
+            "I should probably head back soon."
+          ],
+          "re": [
+            "Yeah, let's start heading back.",
+            "We can go in a bit."
+          ]
+        },
+        {
+          "k": "hour",
+          "say": [
+            "I lost track of the time."
+          ],
+          "re": [
+            "Me too.",
+            "I keep having to check."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "hungry",
+      "q": [
+        [
+          "say",
+          "I'm hungry.",
+          "hungry"
+        ],
+        [
+          "say",
+          "I should've eaten before I left.",
+          "hungry"
+        ],
+        [
+          "yn",
+          "Are you hungry?",
+          "hungry?"
+        ],
+        [
+          "yn",
+          "You want food soon?",
+          "hungry?"
+        ],
+        [
+          "what",
+          "What do you want to eat later?",
+          "food"
+        ],
+        [
+          "what",
+          "What sounds good for dinner?",
+          "food"
+        ]
+      ],
+      "a": {
+        "hungry": [
+          "We can get food in a bit.",
+          "Me too.",
+          "I brought a snack if you want some."
+        ],
+        "hungry?": [
+          "Yeah, a little.",
+          "Not yet.",
+          "I could eat.",
+          "I ate before I came."
+        ],
+        "food": [
+          "Maybe pizza.",
+          "Burgers, if that's okay.",
+          "Something cheap.",
+          "I'm not fussy."
+        ]
+      },
+      "n": [
+        {
+          "k": "hungry",
+          "say": [
+            "I don't want to spend much."
+          ],
+          "re": [
+            "We can get something cheap.",
+            "Same, honestly."
+          ]
+        },
+        {
+          "k": "hungry?",
+          "say": [
+            "Let me know when you want to stop."
+          ],
+          "re": [
+            "Okay.",
+            "I will."
+          ]
+        },
+        {
+          "k": "food",
+          "say": [
+            "Let's decide when we're on the way back."
+          ],
+          "re": [
+            "Works for me.",
+            "Okay."
+          ]
+        }
+      ],
+      "back": [
+        "I still need to eat something."
+      ],
+      "backRe": [
+        "We'll get something once we're safe.",
+        "Me too. Let's get away from here first."
+      ],
+      "earth": true
+    },
+    {
+      "id": "weather",
+      "out": true,
+      "q": [
+        [
+          "yn",
+          "Think it's going to rain?",
+          "rain"
+        ],
+        [
+          "yn",
+          "Does it look like rain to you?",
+          "rain"
+        ],
+        [
+          "say",
+          "I hope the weather holds.",
+          "outside"
+        ],
+        [
+          "say",
+          "I don't want to get caught in the rain.",
+          "outside"
+        ]
+      ],
+      "a": {
+        "rain": [
+          "I haven't checked.",
+          "It might.",
+          "I'm not sure.",
+          "I should have checked before we left."
+        ],
+        "outside": [
+          "Me neither.",
+          "We can leave if it starts.",
+          "We'll keep an eye on it."
+        ]
+      },
+      "n": [
+        {
+          "k": "rain",
+          "say": [
+            "I didn't bring a jacket."
+          ],
+          "re": [
+            "We can head back if it starts.",
+            "Neither did I."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "weekend",
+      "q": [
+        [
+          "what",
+          "What are you doing this weekend?",
+          "plans"
+        ],
+        [
+          "what",
+          "Got any plans for the weekend?",
+          "plans"
+        ],
+        [
+          "say",
+          "I really need a day off.",
+          "need"
+        ],
+        [
+          "say",
+          "I'm ready for the weekend.",
+          "need"
+        ]
+      ],
+      "a": {
+        "plans": [
+          "Working most of it.",
+          "Nothing planned yet.",
+          "Seeing my family.",
+          "Probably staying home."
+        ],
+        "need": [
+          "Same here.",
+          "It's been a long week.",
+          "I know how you feel."
+        ]
+      },
+      "n": [
+        {
+          "k": "plans",
+          "say": [
+            "We should find a day to get food sometime."
+          ],
+          "re": [
+            "Yeah, text me.",
+            "I'll let you know when I'm free."
+          ]
+        },
+        {
+          "k": "need",
+          "say": [
+            "I'm not doing much when I finally get one."
+          ],
+          "re": [
+            "Can't blame you.",
+            "You need a rest."
+          ]
+        }
+      ],
+      "earth": true
+    },
+    {
+      "id": "weird",
+      "q": [
+        [
+          "say",
+          "I feel a bit uneasy {here}.#weird",
+          "weird"
+        ],
+        [
+          "say",
+          "Something about this place is putting me on edge.#weird",
+          "weird"
+        ]
+      ],
+      "a": {
+        "weird": [
+          "We can go if you want.",
+          "I haven't noticed anything.",
+          "You okay?|ask"
+        ]
+      },
+      "n": [
+        {
+          "k": "weird",
+          "say": [
+            "I can't explain it. I just don't feel right."
+          ],
+          "re": [
+            "We don't have to stay.",
+            "Let's head back if you're uncomfortable."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "work",
+      "q": [
+        [
+          "how",
+          "How's work been?",
+          "work"
+        ],
+        [
+          "how",
+          "Work going okay?",
+          "work"
+        ],
+        [
+          "yn",
+          "You still working at the same place?",
+          "still"
+        ],
+        [
+          "yn",
+          "Are you still at that job?",
+          "still"
+        ]
+      ],
+      "a": {
+        "work": [
+          "Busy lately.",
+          "Same as usual.",
+          "I'm thinking about looking for something else.",
+          "It's been alright."
+        ],
+        "still": [
+          "Yeah, for now.",
+          "Yeah, haven't found anything else yet.",
+          "No, I left recently."
+        ]
+      },
+      "n": [
+        {
+          "k": "work",
+          "say": [
+            "You getting any time off?"
+          ],
+          "re": [
+            "A little.",
+            "Not much at the moment.",
+            "I've got some booked soon."
+          ]
+        },
+        {
+          "k": "still",
+          "say": [
+            "Let me know how it goes."
+          ],
+          "re": [
+            "I will.",
+            "Thanks."
+          ]
+        }
+      ],
+      "earth": true
+    }
   ],
-  field: [
-    { id: 'lost', q: [['yn', 'Are we lost?', 'lost'], ['where', 'Which way did we come in?', 'way'], ['where', 'Where was that gate again?', 'way']],
-      a: { lost: ['Maybe a little.|yes', 'No, I know where we are.|no', 'I think so.|yes', 'Not lost. Just... turned around.|yes'], way: ['Back that way, I think.|guess', 'Past the fence.|guess', 'Toward the tree line.|guess', 'Honestly, I lost track.|unknown'] },
-      n: [{ k: '*', t: 'no guess', say: 'You said that ten minutes ago.', re: ["I know. I'm less confident now.", 'Then you pick a direction.', 'Okay, yeah, we might be lost.'] },
-          { k: '*', t: 'yes unknown', say: ['Great. My feet are killing me.', 'Perfect.'], re: ['We can stop for a minute.', "We're finding the way back first."] }],
-      back: ['Okay... where was that gate again?'] },
-    { id: 'deer', q: [['yn', 'Seen any deer yet?', 'seen'], ['say', 'There were deer here last time.', 'last']],
-      a: { seen: ['One, by the trees.|yes', 'Not yet.|no', "You're too loud for deer.|tease", 'Something big ran off earlier.|maybe'], last: ['Maybe they moved.|doubt', 'Shh, then.|hush', 'At dusk, probably.|dusk'] },
-      n: [{ k: '*', t: 'no doubt tease', say: "They're usually out around sunset.", re: ['Then we wait.', "We'll be gone by then."] },
-          { k: 'seen', t: 'yes maybe', say: ['Where? Show me.', 'Seriously? Which way?'], re: ["Over there. It's gone now.", 'Too late. It ran.'] }] },
-    { id: 'stars', out: true, dark: true, q: [['say', 'You can actually see stars {here}.', 'stars'], ['yn', 'Is that bright one a planet?', 'planet']],
-      a: { stars: ['Yeah. No city lights out here.', "It's nice, actually.", 'Way more than you can see in town.'], planet: ['Might be Venus.|maybe', "I think that's a plane.|plane", 'No idea. Could be.|maybe'] },
-      n: [{ k: 'planet', t: 'maybe', say: "It's blinking.", re: ["Then it's probably a plane.", "Yeah, okay, that's a plane.", "Planes blink. Planets don't."] },
-          { k: 'planet', t: 'plane', say: ["Oh. Yeah, it's moving.", "Huh. You're right."], re: ['Told you.'] }] },
-    { id: 'fence', q: [['yn', 'Are we even allowed past that fence?', 'allowed'], ['say', 'I think this is private land.', 'private']],
-      a: { allowed: ['Probably not.|no', "Nobody's gonna check.|whatever", 'There was a sign.|sign', "Didn't see a sign.|whatever"], private: ['So?|whatever rq', "Then let's not get caught.|whatever", "It's a field. Who cares.|whatever"] },
-      n: [{ k: 'allowed', t: 'sign', say: 'What did the sign say?', re: ["Didn't read it.", 'No trespassing, I think.', 'Something about dogs.'] },
-          { k: '*', t: 'whatever no', say: ["If a farmer shows up, I'm blaming you.", 'Okay, but if we get yelled at...'], re: ['Fine by me.', 'Deal.'] }] },
-    { id: 'car', q: [['yn', 'Did you lock the car?', 'locked'], ['where', "Where'd we leave the car?", 'where']],
-      a: { locked: ['I think so.|unsure', 'Yeah.|yes', 'You had the keys.|you'], where: ['By the gate.|known', 'Down by the road.|known', 'I thought you knew.|unknown'] },
-      n: [{ k: 'locked', t: 'you', say: ['I did not have the keys.', 'No I didn\'t.'], re: ['Check your pocket.', 'Then who did?|rq'] },
-          { k: 'locked', t: 'unsure', say: 'You think so?', re: ["I'm like eighty percent sure.", "It's fine. Nobody's out here."] },
-          { k: 'where', t: 'unknown', say: ['Great.', 'Neither of us knows where the car is.'], re: ["We'll find it.", 'It\'s a field. It\'s not hiding.'] }],
-      back: ["...we should check if the car's locked."] },
+  "field": [
+    {
+      "id": "lost",
+      "q": [
+        [
+          "yn",
+          "Have we gone the wrong way?",
+          "lost"
+        ],
+        [
+          "yn",
+          "Are we lost?",
+          "lost"
+        ],
+        [
+          "where",
+          "Which way did we come in?",
+          "way"
+        ],
+        [
+          "where",
+          "Where was the gate?",
+          "way"
+        ]
+      ],
+      "a": {
+        "lost": [
+          "I think we might have.",
+          "I don't think so.",
+          "Let me check the map."
+        ],
+        "way": [
+          "I think it's back the way we came.",
+          "I can't remember.",
+          "We should check before we go farther."
+        ]
+      },
+      "n": [
+        {
+          "k": "lost",
+          "say": [
+            "Let's stop and work it out."
+          ],
+          "re": [
+            "Okay.",
+            "Better than guessing."
+          ]
+        },
+        {
+          "k": "way",
+          "say": [
+            "I should've paid more attention."
+          ],
+          "re": [
+            "Me too.",
+            "We'll find it."
+          ]
+        }
+      ],
+      "back": [
+        "We still need to find the way back."
+      ],
+      "backRe": [
+        "Stay together. We'll find it.",
+        "Let's check the map."
+      ]
+    },
+    {
+      "id": "deer",
+      "q": [
+        [
+          "yn",
+          "Have you seen any deer?",
+          "seen"
+        ],
+        [
+          "yn",
+          "Any deer out here today?",
+          "seen"
+        ],
+        [
+          "say",
+          "I saw deer out here last time.",
+          "last"
+        ],
+        [
+          "say",
+          "There were deer here when I came before.",
+          "last"
+        ]
+      ],
+      "a": {
+        "seen": [
+          "Not so far.",
+          "I haven't been looking.",
+          "Nothing that I've noticed."
+        ],
+        "last": [
+          "Maybe we'll see some.",
+          "We might have to wait a while.",
+          "Let's keep quiet then."
+        ]
+      },
+      "n": [
+        {
+          "k": "seen",
+          "say": [
+            "I'd like to see some before we go."
+          ],
+          "re": [
+            "Keep an eye on the trees.",
+            "Maybe if we're quiet."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stars",
+      "out": true,
+      "dark": true,
+      "q": [
+        [
+          "say",
+          "You can see a lot more stars out here.",
+          "stars"
+        ],
+        [
+          "say",
+          "I like being away from the streetlights.",
+          "stars"
+        ],
+        [
+          "yn",
+          "Is that a planet?",
+          "planet"
+        ],
+        [
+          "yn",
+          "You know what that bright one is?",
+          "planet"
+        ]
+      ],
+      "a": {
+        "stars": [
+          "It's nice.",
+          "Yeah, much easier to see the sky.",
+          "I don't get to see this at home."
+        ],
+        "planet": [
+          "Not sure.",
+          "Could be a planet.",
+          "I can't tell."
+        ]
+      },
+      "n": [
+        {
+          "k": "stars",
+          "say": [
+            "We should come out here more."
+          ],
+          "re": [
+            "Yeah, when we've got time.",
+            "I'd like that."
+          ]
+        },
+        {
+          "k": "planet",
+          "say": [
+            "I should look it up later."
+          ],
+          "re": [
+            "Let me know what it is.",
+            "We could get one of those sky apps."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fence",
+      "q": [
+        [
+          "yn",
+          "Are we allowed to be in this field?",
+          "allowed"
+        ],
+        [
+          "yn",
+          "Is this open to the public?",
+          "allowed"
+        ],
+        [
+          "say",
+          "This might be private land.",
+          "private"
+        ],
+        [
+          "say",
+          "I don't know if we should be out here.",
+          "private"
+        ]
+      ],
+      "a": {
+        "allowed": [
+          "I'm not sure.",
+          "I thought so, but we should check.",
+          "I didn't see a sign."
+        ],
+        "private": [
+          "We can turn back.",
+          "Let's check for a sign.",
+          "I don't want to get yelled at either."
+        ]
+      },
+      "n": [
+        {
+          "k": "allowed",
+          "say": [
+            "Let's find out before we go farther."
+          ],
+          "re": [
+            "Yeah, okay.",
+            "Good idea."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "car",
+      "q": [
+        [
+          "yn",
+          "Did you lock the car?",
+          "locked"
+        ],
+        [
+          "yn",
+          "You locked up, right?",
+          "locked"
+        ],
+        [
+          "where",
+          "Where did we leave the car?",
+          "where"
+        ],
+        [
+          "where",
+          "Do you remember where we parked?",
+          "where"
+        ]
+      ],
+      "a": {
+        "locked": [
+          "Yeah, I checked.",
+          "I think so.",
+          "I'm pretty sure I did."
+        ],
+        "where": [
+          "Back by the road.",
+          "Near where we came in.",
+          "I think I remember the way."
+        ]
+      },
+      "n": [
+        {
+          "k": "locked",
+          "say": [
+            "Can you check the keys when we get back?"
+          ],
+          "re": [
+            "Yeah, remind me.",
+            "Sure."
+          ]
+        },
+        {
+          "k": "where",
+          "say": [
+            "You lead the way back then."
+          ],
+          "re": [
+            "Okay.",
+            "Let me check the route first."
+          ]
+        }
+      ],
+      "back": [
+        "We need to get back to the car."
+      ],
+      "backRe": [
+        "Let's work out the way back.",
+        "Stay with me."
+      ]
+    }
   ],
-  meadow: [
-    { id: 'lake', not: 'winter', q: [['yn', 'You actually getting in?', 'in'], ['yn', 'Want to go in the lake?', 'in'], ['say', 'Lake looks nice {today}.', 'nice']],
-      a: { in: ['Maybe in a minute.|maybe', "Yeah, but I'm not going past my knees.|yes", 'No chance.|no', 'Only if you go first.|dare'], nice: ['Yeah, it does.|agree', 'It looks freezing, though.|cold', 'Makes me want to jump in.|agree', 'Way nicer than last time.|agree'] },
-      n: [{ k: 'in', t: 'maybe yes', say: "Think the water's cold?", re: ['Definitely.', 'Probably at first.', 'Only one way to find out.'] },
-          { k: 'in', t: 'dare', say: ['Fine. Race you to the dock.', 'Deal. Last one in buys dinner.'], re: ["You're on.", "Wait, I didn't agree to that."] },
-          { k: 'in', t: 'no', say: "Come on, it's nice.", re: ['Not happening.', "I'll watch. From here. Dry."] },
-          { k: 'nice', t: 'cold', say: "It's not that cold.", re: ['Then you go first.', 'Sure it isn\'t.'] }] },
-    { id: 'bugs', not: 'winter', q: [['say', "I should've brought bug spray.", 'spray'], ['say', 'Something keeps biting me.', 'bite'], ['yn', 'You got bug spray?', 'spray?']],
-      a: { spray: ['Told you.|told', "It's the lake.|lake", 'They like you more than me.|tease'], bite: ["It's the lake.|lake", "Don't scratch it.|tip", 'They like you more than me.|tease'], 'spray?': ['In my bag. Somewhere.|yes', 'Ran out.|no', 'Yep. Hold still.|yes', 'Nope. Sorry.|no'] },
-      n: [{ k: 'spray', t: 'told', say: 'You did not tell me.', re: ['In the car. Twice.', 'I definitely did.', 'Okay, maybe I thought it.'] },
-          { k: 'spray?', t: 'yes', say: ['Thank you. Seriously.', "You're a hero."], re: ["Don't use all of it."] },
-          { k: 'spray? bite', t: 'no tip lake', say: "I'm going to be one giant bite by tonight.", re: ['Probably.', 'Wear long sleeves next time.'] }] },
-    { id: 'fire', q: [['say', "Fire's getting low.", 'low'], ['yn', 'Should we put more wood on?', 'wood'], ['who', 'Whose turn is it to get wood?', 'turn']],
-      a: { low: ["I'll get some.|go", 'Let it go out.|let', 'In a sec.|later'], wood: ['Yeah, go for it.|yes', "Wood's all damp.|damp", "Let it die, I'm tired.|let"], turn: ['Yours.|you', 'Not mine, I went last time.|you', "Nobody's. Let it go out.|let"] },
-      n: [{ k: '*', t: 'damp you later', say: "There's dry stuff under the tarp.", re: ['Then you get it.', 'Smart.', "Okay, fine, I'll go."] },
-          { k: '*', t: 'let', say: ["It'll be freezing without it.", 'And then what, sit in the dark?'], re: ["Fine. I'll get some.", "We'll live."] }] },
-    { id: 'trail', q: [['yn', 'Does this trail loop back?', 'loop'], ['how', 'How much longer is this trail?', 'long'], ['where', 'Where does this trail come out?', 'end']],
-      a: { loop: ['Eventually.|yes', "It's supposed to.|yes", "No idea, I'm following you.|unknown"], long: ['Mile? Maybe two.|far', 'Not long.|near', 'Longer than you want.|far'], end: ['By the car park.|known', 'Back at the tents, I think.|known', 'No idea.|unknown'] },
-      n: [{ k: 'loop', t: 'yes', say: 'The map said it loops.', re: ["The map's from 2009.", 'Then it loops.', 'Maps lie.'] },
-          { k: '*', t: 'unknown', say: ["Great. We're following each other.", 'So nobody knows.'], re: ['Pretty much.', 'Adventure!'] },
-          { k: 'long', t: 'far', say: 'My legs are not gonna make it.', re: ['They will.', 'We can sit at the next bench.'] }],
-      back: ['So does this trail loop back or not?'] },
-    { id: 'frogs', not: 'winter', q: [['say', 'The frogs are so loud {today}.', 'loud'], ['yn', 'Hear the frogs?', 'hear']],
-      a: { loud: ['Means rain, I think.', 'I like it.', "I can't sleep with that.", "It's mating season or something."], hear: ['Hard not to.', "Yeah, it's nice.", 'Is that a frog? Sounded like a duck.|duck'] },
-      n: [{ k: 'hear', t: 'duck', say: "It's definitely a frog.", re: ['A frog that quacks?|rq', 'If you say so.'] }] },
-    { id: 'marsh', q: [['who', 'Who brought the marshmallows?', 'who'], ['yn', 'We still got marshmallows?', 'left']],
-      a: { who: ['You did.|you', 'I did. You\'re welcome.|me', 'Nobody, apparently.|nobody'], left: ['In the cooler.|yes', 'Ate them.|ate', 'A few.|yes'] },
-      n: [{ k: 'who', t: 'you', say: ['I did? Where are they, then?', 'Oh. Right. I did.'], re: ['In the cooler.', 'In your bag, genius.'] },
-          { k: 'who', t: 'nobody', say: ["So no s'mores.", "Camping without marshmallows. Great."], re: ["No s'mores.", 'Next time.'] },
-          { k: 'left', t: 'ate', say: ['You ate ALL of them?', 'Seriously?'], re: ['There were only six.', 'They were calling to me.'] },
-          { k: 'left', t: 'yes', say: 'Dibs on the first one.', re: ["You're burning it again.", 'Fine.'] }] },
+  "meadow": [
+    {
+      "id": "lake",
+      "not": "winter",
+      "q": [
+        [
+          "yn",
+          "Are you going in the lake?",
+          "in"
+        ],
+        [
+          "yn",
+          "You thinking of going for a swim?",
+          "in"
+        ],
+        [
+          "say",
+          "It's nice by the lake.",
+          "nice"
+        ],
+        [
+          "say",
+          "I could stay by the water for a bit.",
+          "nice"
+        ]
+      ],
+      "a": {
+        "in": [
+          "Maybe later.",
+          "No, I'm staying dry.",
+          "I might, if it isn't too cold.",
+          "Just putting my feet in."
+        ],
+        "nice": [
+          "Me too.",
+          "No rush to go.",
+          "We can sit here a while."
+        ]
+      },
+      "n": [
+        {
+          "k": "in",
+          "say": [
+            "I want to check how cold it is first."
+          ],
+          "re": [
+            "Go on then.",
+            "Let me know."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bugs",
+      "not": "winter",
+      "q": [
+        [
+          "say",
+          "Something keeps biting me.",
+          "bite"
+        ],
+        [
+          "say",
+          "I forgot the bug spray.",
+          "bite"
+        ],
+        [
+          "yn",
+          "Have you got any bug spray?",
+          "spray?"
+        ],
+        [
+          "yn",
+          "Can I borrow some bug spray?",
+          "spray?"
+        ]
+      ],
+      "a": {
+        "bite": [
+          "I brought some if you want it.",
+          "They get bad near the water.",
+          "We should've worn long sleeves."
+        ],
+        "spray?": [
+          "Yeah, in my bag.",
+          "Sorry, I forgot mine.",
+          "I've only got a little left."
+        ]
+      },
+      "n": [
+        {
+          "k": "bite",
+          "say": [
+            "I'm trying not to scratch."
+          ],
+          "re": [
+            "That'll make it worse.",
+            "I know, it's hard not to."
+          ]
+        },
+        {
+          "k": "spray?",
+          "say": [
+            "I need to remember it next time."
+          ],
+          "re": [
+            "Write it on the list.",
+            "It's easy to forget."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fire",
+      "q": [
+        [
+          "yn",
+          "Should we get more firewood?",
+          "wood"
+        ],
+        [
+          "yn",
+          "Do we need more wood for later?",
+          "wood"
+        ],
+        [
+          "who",
+          "Who got the wood last time?",
+          "turn"
+        ],
+        [
+          "who",
+          "Was it you who got the firewood?",
+          "turn"
+        ]
+      ],
+      "a": {
+        "wood": [
+          "Probably a little more.",
+          "I think we've got enough.",
+          "We should check the pile."
+        ],
+        "turn": [
+          "I did.",
+          "I think it was you.",
+          "I can't remember."
+        ]
+      },
+      "n": [
+        {
+          "k": "wood",
+          "say": [
+            "Let's check before it gets too late."
+          ],
+          "re": [
+            "Yeah.",
+            "I'll come with you."
+          ]
+        },
+        {
+          "k": "turn",
+          "say": [
+            "I'll get it this time."
+          ],
+          "re": [
+            "Thanks.",
+            "I'll help you carry it."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "trail",
+      "q": [
+        [
+          "yn",
+          "Does this trail loop back?",
+          "loop"
+        ],
+        [
+          "yn",
+          "Does this bring us back to where we started?",
+          "loop"
+        ],
+        [
+          "how",
+          "How much farther is the trail?",
+          "long"
+        ],
+        [
+          "how",
+          "How long do you reckon we've got left?",
+          "long"
+        ],
+        [
+          "where",
+          "Where does this trail end?",
+          "end"
+        ],
+        [
+          "where",
+          "Where does this path come out?",
+          "end"
+        ]
+      ],
+      "a": {
+        "loop": [
+          "That's what the map said.",
+          "I think so.",
+          "We should check."
+        ],
+        "long": [
+          "Maybe another mile.",
+          "I'm not sure.",
+          "It didn't look too long on the map."
+        ],
+        "end": [
+          "I think it's near the parking lot.",
+          "I'm not sure.",
+          "Let me check the map."
+        ]
+      },
+      "n": [
+        {
+          "k": "loop",
+          "say": [
+            "I don't want to go too far the wrong way."
+          ],
+          "re": [
+            "Me neither.",
+            "We'll check at the next sign."
+          ]
+        },
+        {
+          "k": "long",
+          "say": [
+            "I could use a break soon."
+          ],
+          "re": [
+            "We can stop for a bit.",
+            "Let me know when you want to stop."
+          ]
+        }
+      ],
+      "back": [
+        "We need to work out where this trail goes."
+      ],
+      "backRe": [
+        "Let's check the map.",
+        "We can look for a sign."
+      ]
+    },
+    {
+      "id": "frogs",
+      "not": "winter",
+      "q": [
+        [
+          "yn",
+          "Are those frogs I can hear?",
+          "hear"
+        ],
+        [
+          "yn",
+          "Can you hear the frogs?",
+          "hear"
+        ]
+      ],
+      "a": {
+        "hear": [
+          "I think that's what it is.",
+          "Yeah, near the water.",
+          "I was wondering about that noise too."
+        ]
+      },
+      "n": [
+        {
+          "k": "hear",
+          "say": [
+            "They're loud for something so small."
+          ],
+          "re": [
+            "Yeah.",
+            "There must be a few of them."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "marsh",
+      "q": [
+        [
+          "who",
+          "Who brought the marshmallows?",
+          "who"
+        ],
+        [
+          "who",
+          "Was it you who packed the marshmallows?",
+          "who"
+        ],
+        [
+          "yn",
+          "Are there any marshmallows left?",
+          "left"
+        ],
+        [
+          "yn",
+          "Have we still got marshmallows?",
+          "left"
+        ]
+      ],
+      "a": {
+        "who": [
+          "I brought them.",
+          "I thought you did.",
+          "I'm not sure anyone did."
+        ],
+        "left": [
+          "A few, I think.",
+          "I haven't checked.",
+          "Might be some in the bag."
+        ]
+      },
+      "n": [
+        {
+          "k": "who",
+          "say": [
+            "Let's check the bags."
+          ],
+          "re": [
+            "I'll check mine.",
+            "Okay."
+          ]
+        },
+        {
+          "k": "left",
+          "say": [
+            "I'll have a look later."
+          ],
+          "re": [
+            "Save me one if there are any.",
+            "Okay."
+          ]
+        }
+      ]
+    }
   ],
-  town: [
-    { id: 'pizza', fact: () => { const h = tod % 24; return h >= 11 && h < 22 ? 'open' : 'closed'; }, // the shop is open or it isn't; everyone agrees
-      q: [['when', 'What time does that pizza place open?', 'opens'], ['yn', 'Is the pizza place open yet?', 'open'], ['yn', 'Think the pizza place is open?', 'open']],
-      a: { opens: ['Eleven, I think.', "Pretty sure it's eleven.", 'Maybe noon?|rq', "I don't remember.|unknown"],
-           open: ['I think so.|open', 'It should be by now.|open', 'It was open when I passed it earlier.|open', 'Probably not.|closed', 'It closes at ten, so no.|closed', 'Not sure. Check your phone.|unknown'] },
-      n: [{ k: 'open', t: 'open', say: 'You want to grab some after this?', re: ['Yeah, I could eat.', 'Sure.', 'Not from that place.', "If you're buying."] },
-          { k: 'open', t: 'closed', say: ['Ugh. Of course it is.', 'Seriously? Again?', "Great. Guess I'm starving."], re: ["There's always the corner store.", 'Tomorrow, then.'] },
-          { k: 'opens', say: 'Their garlic knots are actually good.', re: ['Yeah, those are solid.', "They're okay.", 'Last time they messed up my order.'] }],
-      back: ['So... pizza after this?|open'] },
-    { id: 'traffic', q: [['say', "Traffic's been awful all day.", 'traffic'], ['how', 'How long did it take you to get here?', 'long'], ['how', "How'd you get here?", 'how']],
-      a: { traffic: ['Yeah, the roadwork is killing it.|road', 'Tell me about it.|road', "It's been backed up since this morning.|road", "I should've walked.|road"],
-           long: ['Almost forty minutes.|drove', 'Way too long.|drove', 'Like twenty minutes.|drove', 'Not long. I walked.|walked'],
-           how: ['Drove. Parked a few blocks over.|drove', 'Took the bus.|drove', 'Walked.|walked', 'Got dropped off.|drove'] },
-      n: [{ k: '*', t: 'road drove', say: "They've been digging up that road for months.", re: ['I know. It never ends.', 'Same stretch, too.', "I don't even know what they're fixing anymore."] },
-          { k: 'long how', t: 'walked', say: ['Smart.', "Honestly, that's faster right now."], re: ["Yep. Legs don't get stuck in traffic."] }] },
-    { id: 'store', fact: () => { const h = tod % 24; return h >= 7 && h < 23 ? 'open' : 'closed'; },
-      q: [['yn', 'Corner store still open?', 'open'], ['what', 'Need anything from the store?', 'need'], ['when', 'When does the corner store close?', 'close']],
-      a: { open: ['Should be.|open', 'Yeah, I think so.|open', 'It was open when I passed it.|open', 'I think it closed already.|closed', 'At this hour? No.|closed'],
-           need: ['Milk, maybe.|milk', 'Chips.|item', "I'm good, thanks.|none", 'Batteries, actually.|item'], close: ['Eleven, I think.', 'Around eleven.', 'Pretty late.', "I don't remember."] },
-      n: [{ k: 'open', t: 'open', say: "I'll run over in a bit. Want anything?", re: ['Something sweet.', 'Chips.', "I'm good."] },
-          { k: 'open', t: 'closed', say: ['Great. There goes dinner.', 'Seriously?'], re: ["The gas station's open.", "Should've gone earlier."] },
-          { k: 'need', t: 'milk item', say: ['Okay. Anything else?', 'Got it.'], re: ["That's it.", "No, that's all."] }],
-      back: ['We still need that milk, by the way.|milk'] },
-    { id: 'alley', q: [['yn', 'You still cut through that alley?', 'cut'], ['say', "Don't cut through the alley {today}.", 'warn']],
-      a: { cut: ["Only when I'm late.|yes", "It's faster.|yes", 'Not after dark.|no'], warn: ['Why not?|ask', "It's fine.|dismiss", 'Okay, okay.|agree'] },
-      n: [{ k: 'cut', t: 'yes', say: "It's gross back there.", re: ["It's two minutes faster.", 'Fair.', "Rats don't bother me."] },
-          { k: 'warn', t: 'ask', say: ["It's dark and gross and there are rats.", "I just don't like it back there."], re: ['Fair.', 'Okay. Long way round.'] },
-          { k: 'warn', t: 'dismiss', say: "I'm serious.", re: ["Okay, okay. I won't.", 'Fine.'] }] },
-    { id: 'rent', q: [['yn', 'Did your rent go up too?', 'up'], ['say', 'Landlord raised the rent again.', 'raised']],
-      a: { up: ["Don't. Don't start.|yes", 'Of course it did.|yes', "Mine's locked in till spring.|no"], raised: ['Again?|ask', "That's insane.|agree", 'Move in with me. Kidding.|joke'] },
-      n: [{ k: 'raised', t: 'ask', say: 'Third time this year.', re: ['That has to be illegal.', 'Unreal.'] },
-          { k: '*', t: 'agree yes', say: 'I might have to move.', re: ['Where?', "Don't, I'll miss you.", "Everywhere's the same."],
-            then: [{ t: 'ask', say: ['No idea. Somewhere cheaper.', 'Back with my parents, maybe.'], re: ['Oof.', "That's rough."] }] },
-          { k: 'up', t: 'no', say: 'Lucky.', re: ['Until spring.', "Don't jinx it."] }] },
-    { id: 'parking', q: [['where', "Where'd you park?", 'where'], ['yn', 'Did you find parking?', 'found']],
-      a: { where: ['Three blocks away.|far', "Didn't. I'm on a hydrant.|illegal", 'Behind the market.|near'], found: ['Took twenty minutes.|far', "Didn't. I'm on a hydrant.|illegal", 'Right out front, actually.|near'] },
-      n: [{ k: '*', t: 'illegal', say: ['You are going to get towed.', 'On a hydrant?'], re: ["It's fine. Five minutes.", 'Worth it.'] },
-          { k: '*', t: 'far', say: 'Parking here is a joke.', re: ['Every single time.', 'Should\'ve taken the bus.'] },
-          { k: '*', t: 'near', say: ['Lucky.', 'How?'], re: ['Somebody pulled out right as I got there.', 'Skill.'] }] },
+  "town": [
+    {
+      "id": "pizza",
+      "q": [
+        [
+          "when",
+          "What time does the pizza place open?",
+          "opens"
+        ],
+        [
+          "when",
+          "Do you know when they open?",
+          "opens"
+        ],
+        [
+          "yn",
+          "Is the pizza place open?",
+          "open"
+        ],
+        [
+          "yn",
+          "Think we could get pizza now?",
+          "open"
+        ]
+      ],
+      "a": {
+        "opens": [
+          "Eleven, I think.",
+          "Pretty sure it's eleven.",
+          "I can't remember."
+        ],
+        "open": [
+          "It should be open.|open",
+          "I think it's open now.|open",
+          "I think it's shut right now.|closed",
+          "Not sure. We'd have to check.|unknown"
+        ]
+      },
+      "n": [
+        {
+          "k": "opens",
+          "say": [
+            "I'll check before we go over."
+          ],
+          "re": [
+            "Yeah, good idea.",
+            "Let me know."
+          ]
+        },
+        {
+          "k": "open",
+          "t": "open",
+          "say": [
+            "Want to go over?",
+            "Should we get some?"
+          ],
+          "re": [
+            "Yeah, I could eat.",
+            "Sure. Let's go in a bit.",
+            "I'd rather get something else."
+          ]
+        },
+        {
+          "k": "open",
+          "t": "closed",
+          "say": [
+            "We'll get something else then.",
+            "We can go another time."
+          ],
+          "re": [
+            "Yeah.",
+            "Works for me."
+          ]
+        }
+      ],
+      "fact": () => { const h = tod % 24; return h >= 11 && h < 22 ? 'open' : 'closed'; },
+      "back": [
+        "We can talk about getting food once we're clear."
+      ],
+      "backRe": [
+        "Yeah. Let's get away from here first.",
+        "We can decide later."
+      ]
+    },
+    {
+      "id": "traffic",
+      "q": [
+        [
+          "how",
+          "How long did it take you to get here?",
+          "long"
+        ],
+        [
+          "how",
+          "Did it take long getting here?",
+          "long"
+        ],
+        [
+          "how",
+          "How did you get here?",
+          "how"
+        ],
+        [
+          "how",
+          "Did you drive over?",
+          "how"
+        ],
+        [
+          "say",
+          "Traffic was awful on the way over.",
+          "traffic"
+        ],
+        [
+          "say",
+          "Took ages getting through town.",
+          "traffic"
+        ]
+      ],
+      "a": {
+        "long": [
+          "About half an hour.",
+          "Not too long.",
+          "Longer than I expected.",
+          "I walked, so about twenty minutes."
+        ],
+        "how": [
+          "I took the bus.",
+          "Yeah, drove.",
+          "I walked.",
+          "Got a ride."
+        ],
+        "traffic": [
+          "It's been bad lately.",
+          "You made it, at least.",
+          "I'm glad you got here."
+        ]
+      },
+      "n": [
+        {
+          "k": "long",
+          "say": [
+            "I should leave earlier next time."
+          ],
+          "re": [
+            "Give yourself a bit more time.",
+            "It's hard to judge."
+          ]
+        },
+        {
+          "k": "how",
+          "say": [
+            "I might try that next time."
+          ],
+          "re": [
+            "Whatever's easiest.",
+            "Depends where you're coming from."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "store",
+      "q": [
+        [
+          "yn",
+          "Is the corner store open?",
+          "open"
+        ],
+        [
+          "yn",
+          "Can we still get into the store?",
+          "open"
+        ],
+        [
+          "what",
+          "Do you need anything from the store?",
+          "need"
+        ],
+        [
+          "what",
+          "Want anything while I'm in there?",
+          "need"
+        ],
+        [
+          "when",
+          "What time does the store close?",
+          "close"
+        ],
+        [
+          "when",
+          "Do you know when they shut?",
+          "close"
+        ]
+      ],
+      "a": {
+        "open": [
+          "It should be open.|open",
+          "Yeah, I think so.|open",
+          "I think it's shut.|closed",
+          "I'm not sure.|unknown"
+        ],
+        "need": [
+          "Just a drink.",
+          "Some chips, please.",
+          "No, I'm okay. Thanks.",
+          "Milk, if you don't mind."
+        ],
+        "close": [
+          "Eleven, I think.",
+          "I'm pretty sure it's eleven.",
+          "I'm not sure."
+        ]
+      },
+      "n": [
+        {
+          "k": "need",
+          "say": [
+            "I'll text you when I'm heading over."
+          ],
+          "re": [
+            "Thanks.",
+            "Okay."
+          ]
+        },
+        {
+          "k": "close",
+          "say": [
+            "I'll check the hours."
+          ],
+          "re": [
+            "Good idea.",
+            "Let me know."
+          ]
+        }
+      ],
+      "fact": () => { const h = tod % 24; return h >= 7 && h < 23 ? 'open' : 'closed'; },
+      "back": [
+        "I'll worry about the shopping later."
+      ],
+      "backRe": [
+        "It can wait.",
+        "Yeah, let's just get out of here."
+      ]
+    },
+    {
+      "id": "alley",
+      "q": [
+        [
+          "yn",
+          "Do you still take that shortcut through the alley?",
+          "cut"
+        ],
+        [
+          "yn",
+          "You still go through that alley?",
+          "cut"
+        ],
+        [
+          "say",
+          "I'd rather not go through the alley.",
+          "warn"
+        ],
+        [
+          "say",
+          "Can we take the longer way?",
+          "warn"
+        ]
+      ],
+      "a": {
+        "cut": [
+          "Sometimes.",
+          "Only during the day.",
+          "Not lately.",
+          "I usually go around."
+        ],
+        "warn": [
+          "Yeah, that's fine.",
+          "No problem.",
+          "We've got time."
+        ]
+      },
+      "n": [
+        {
+          "k": "cut",
+          "say": [
+            "I don't really like it back there."
+          ],
+          "re": [
+            "Then let's go around.",
+            "Fair enough."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "rent",
+      "q": [
+        [
+          "yn",
+          "Did your rent go up too?",
+          "up"
+        ],
+        [
+          "yn",
+          "Have they raised your rent?",
+          "up"
+        ],
+        [
+          "say",
+          "My landlord wants more rent again.",
+          "raised"
+        ],
+        [
+          "say",
+          "They raised my rent.",
+          "raised"
+        ]
+      ],
+      "a": {
+        "up": [
+          "Yeah, again.",
+          "Not yet, thankfully.",
+          "It's going up when I renew."
+        ],
+        "raised": [
+          "That's rough.",
+          "How much more?|ask",
+          "I'm sorry. That's the last thing you need."
+        ]
+      },
+      "n": [
+        {
+          "k": "up",
+          "say": [
+            "It's getting hard to afford this place."
+          ],
+          "re": [
+            "I know.",
+            "Everything keeps going up."
+          ]
+        },
+        {
+          "k": "raised",
+          "t": "ask",
+          "say": [
+            "Another hundred a month.",
+            "About fifty more."
+          ],
+          "re": [
+            "That's a lot over a year.",
+            "That's rough."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "parking",
+      "q": [
+        [
+          "where",
+          "Where did you park?",
+          "where"
+        ],
+        [
+          "where",
+          "Where's your car?",
+          "where"
+        ],
+        [
+          "yn",
+          "Did you find a parking spot?",
+          "found"
+        ],
+        [
+          "yn",
+          "Manage to park okay?",
+          "found"
+        ]
+      ],
+      "a": {
+        "where": [
+          "A couple of streets over.",
+          "Near the main road.",
+          "Farther away than I'd like."
+        ],
+        "found": [
+          "Eventually.",
+          "Yeah, took a while.",
+          "Got lucky this time."
+        ]
+      },
+      "n": [
+        {
+          "k": "where",
+          "say": [
+            "I can walk back with you."
+          ],
+          "re": [
+            "Thanks.",
+            "Yeah, let's go together."
+          ]
+        },
+        {
+          "k": "found",
+          "say": [
+            "It's always a pain around here."
+          ],
+          "re": [
+            "Especially when it's busy.",
+            "Yeah, I usually leave extra time."
+          ]
+        }
+      ]
+    }
   ],
-  maze: [
-    { id: 'way', q: [['yn', 'Did we already go this way?', 'been'], ['where', 'Which way is out?', 'out'], ['say', 'I swear we passed this hedge.', 'been']],
-      a: { been: ['Twice.|yes', 'No? Maybe.|unsure', 'Every hedge looks the same.|unsure', 'We did.|yes', "It's a maze. That's the point.|tease"], out: ['Left. I think.|guess', 'Right. Definitely right. Maybe.|guess', 'No idea.|unknown'] },
-      n: [{ k: 'out', t: 'guess', say: 'You said that last time.', re: ['Then you pick.', "And I'll be right eventually.", 'Fine. Left.'] },
-          { k: 'been', t: 'yes', say: ["So we're going in circles.", 'Great. Circles.'], re: ['Pretty much.', 'Left this time, then.'] }],
-      back: ['Okay, seriously, which way is out?'] },
-    { id: 'center', q: [['what', "What's even in the middle?", 'what'], ['yn', 'Is there a prize in the middle or something?', 'prize']],
-      a: { what: ['A bench, probably.', "Nothing. It's a maze.", 'A statue, I heard.|statue'], prize: ['Bragging rights.', 'Pretty sure no.', 'A sense of accomplishment.'] },
-      n: [{ k: 'what', t: 'statue', say: 'Of what?', re: ['Some guy on a horse.', "No idea. I just heard there's one."] }] },
-    { id: 'creepy', dark: true, q: [['say', 'This place is creepy at night.#weird', 'creepy'], ['yn', 'Why did we come here after dark?', 'why']],
-      a: { creepy: ["It's fine.|dismiss", "Yeah, it's a lot.|agree", "Don't start.|dismiss"], why: ['Tickets were cheaper.', 'It was your idea.|blame', 'Seemed fun at the time.'] },
-      n: [{ k: 'why', t: 'blame', say: 'It was NOT my idea.', re: ['It was a hundred percent your idea.', 'Okay, it was kind of mine.'] },
-          { k: 'creepy', t: 'agree', say: "Let's find the exit.", re: ['Working on it.', 'If there is one.'] }] },
-    { id: 'signal', q: [['yn', 'Does your phone have signal?', 'signal'], ['yn', 'Can you call someone to find us?', 'call']],
-      a: { signal: ['One bar.|weak', 'Nope.|no', "Battery's dead.|no"], call: ['Who would I even call?|no rq', 'One bar. Maybe.|weak', 'Nope. No signal.|no'] },
-      n: [{ k: '*', t: 'no', say: ['Of course.', 'Great.'], re: ["We'll find it ourselves.", 'Should\'ve dropped breadcrumbs.'] },
-          { k: '*', t: 'weak', say: 'Try the map, then.', re: ["It just shows a green square.", 'Loading. Still loading.'] }] },
+  "maze": [
+    {
+      "id": "way",
+      "q": [
+        [
+          "yn",
+          "Have we already been this way?",
+          "been"
+        ],
+        [
+          "yn",
+          "Didn't we come through here?",
+          "been"
+        ],
+        [
+          "where",
+          "Which way is the exit?",
+          "out"
+        ],
+        [
+          "where",
+          "Do you know the way out?",
+          "out"
+        ]
+      ],
+      "a": {
+        "been": [
+          "I think we did.",
+          "I'm losing track.",
+          "It all looks the same to me."
+        ],
+        "out": [
+          "I'm not sure.",
+          "I think it's left, but I could be wrong.",
+          "We need to find a sign."
+        ]
+      },
+      "n": [
+        {
+          "k": "been",
+          "say": [
+            "Let's remember this turn."
+          ],
+          "re": [
+            "Good idea.",
+            "I'll try."
+          ]
+        },
+        {
+          "k": "out",
+          "say": [
+            "I want to get out soon."
+          ],
+          "re": [
+            "Me too.",
+            "Let's keep looking."
+          ]
+        }
+      ],
+      "back": [
+        "We still need to find the exit."
+      ],
+      "backRe": [
+        "Stay with me. We'll find it.",
+        "We need to find someone who knows the way."
+      ]
+    },
+    {
+      "id": "center",
+      "q": [
+        [
+          "what",
+          "What's in the middle of this maze?",
+          "what"
+        ],
+        [
+          "what",
+          "Do you know what we're trying to get to?",
+          "what"
+        ],
+        [
+          "yn",
+          "Do you get anything for finishing?",
+          "prize"
+        ],
+        [
+          "yn",
+          "Is there a prize at the end?",
+          "prize"
+        ]
+      ],
+      "a": {
+        "what": [
+          "I haven't been there before.",
+          "I think there's a place to sit.",
+          "I'm not sure."
+        ],
+        "prize": [
+          "I don't think so.",
+          "Maybe, but I doubt it.",
+          "I didn't check."
+        ]
+      },
+      "n": [
+        {
+          "k": "what",
+          "say": [
+            "I could use a seat."
+          ],
+          "re": [
+            "Same.",
+            "Hopefully there's one."
+          ]
+        },
+        {
+          "k": "prize",
+          "say": [
+            "I mainly want to find the way out now."
+          ],
+          "re": [
+            "Yeah, let's keep moving.",
+            "Same here."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "creepy",
+      "dark": true,
+      "q": [
+        [
+          "say",
+          "It's a bit creepy in here after dark.#weird",
+          "creepy"
+        ],
+        [
+          "say",
+          "I don't like being in this maze at night.#weird",
+          "creepy"
+        ],
+        [
+          "what",
+          "Why did we decide to come after dark?",
+          "why"
+        ],
+        [
+          "what",
+          "What made us think this was a good idea?",
+          "why"
+        ]
+      ],
+      "a": {
+        "creepy": [
+          "Let's try to get out then.",
+          "Stay with me.",
+          "I know what you mean."
+        ],
+        "why": [
+          "Seemed fun earlier.",
+          "I didn't think it'd take this long.",
+          "I wasn't thinking about how dark it would get."
+        ]
+      },
+      "n": [
+        {
+          "k": "creepy",
+          "say": [
+            "Don't get ahead of me."
+          ],
+          "re": [
+            "I won't.",
+            "I'll stay with you."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "signal",
+      "q": [
+        [
+          "yn",
+          "Have you got phone signal?",
+          "signal"
+        ],
+        [
+          "yn",
+          "Does your phone work in here?",
+          "signal"
+        ],
+        [
+          "yn",
+          "Can you call someone?",
+          "call"
+        ],
+        [
+          "yn",
+          "Can you get hold of anyone?",
+          "call"
+        ]
+      ],
+      "a": {
+        "signal": [
+          "Barely.",
+          "No signal at all.",
+          "One bar.",
+          "It keeps dropping out."
+        ],
+        "call": [
+          "I'll try.",
+          "Not without a signal.",
+          "Maybe if we get farther out."
+        ]
+      },
+      "n": [
+        {
+          "k": "signal",
+          "say": [
+            "Try sending a message when it comes back."
+          ],
+          "re": [
+            "I will.",
+            "I'll keep checking."
+          ]
+        },
+        {
+          "k": "call",
+          "say": [
+            "Let me know if it connects."
+          ],
+          "re": [
+            "I will.",
+            "Okay."
+          ]
+        }
+      ]
+    }
   ],
-  farm: [
-    { id: 'fence', q: [['say', 'Fence by the pigs needs fixing.', 'fix'], ['yn', 'Did you see the fence by the pigs?', 'seen']],
-      a: { fix: ['Which part?|ask', 'Again?|again', 'After lunch.|later', 'I fixed that last week. I thought.|again'], seen: ['The broken bit? Yeah.|yes', 'No, what happened?|ask', 'Saw it. Ignored it.|yes'] },
-      n: [{ k: '*', t: 'ask', say: "The corner post. It's leaning.", re: ["I'll get the hammer.", 'Tomorrow.', "That post's been leaning for years."] },
-          { k: '*', t: 'ask', say: 'The pigs knocked a board loose.', re: ["I'll get the hammer.", 'Again? Those pigs.'] },
-          { k: 'fix', t: 'again', say: 'The pigs keep pushing on it.', re: ["They're smarter than us.", 'Then we need a new one.', "I'll move the trough."] },
-          { k: '*', t: 'later yes', say: ['Today, though. Not next week.', 'Before they get out.'], re: ['Yeah, yeah.', 'Today. Promise.'] }] },
-    { id: 'hens', q: [['say', 'Hens are restless today.', 'restless'], ['yn', 'Hear the chickens going off?', 'hear']],
-      a: { restless: ['Storm coming, maybe.|storm', 'Or a fox.|fox', "They're always restless.|dismiss", "I'll check the coop.|check"], hear: ['Since this morning.|yes', 'Probably a fox.|fox', "I didn't hear anything.|no"] },
-      n: [{ k: '*', t: 'fox yes storm', say: "Something's got them spooked.#weird", re: ["I'll take a look.", "They're chickens. Everything spooks them.", 'Lock the coop tonight.'] }] },
-    { id: 'feed', q: [['yn', 'You feed the animals yet?', 'fed'], ['yn', 'Did everything get fed this morning?', 'fed'], ['who', 'Who fed the animals this morning?', 'who']],
-      a: { fed: ['Yeah, this morning.|yes', 'Not yet.|no', 'I thought you already did.|confused', 'Most of them. I still need to do the pigs.|partial'], who: ['I did.|yes', 'Your dad did.|yes', 'I thought you did.|confused', 'Nobody yet, I think.|no'] },
-      n: [{ k: '*', t: 'yes', say: "They're acting starved.", re: ['They always do.', "I'll check them again.", "Don't let them fool you."] },
-          { k: '*', t: 'confused no', say: ['Well, somebody should.', 'Great. So nobody did.'], re: ["I'll do it now.", 'On it.'] },
-          { k: 'fed', t: 'partial', say: "I'll do the pigs.", re: ['Thanks.', 'Watch the gate. It sticks.'] }] },
-    { id: 'tractor', q: [['yn', 'Tractor still making that noise?', 'noise'], ['say', "Tractor's making that noise again.", 'again']],
-      a: { noise: ['Worse.|worse', 'Kicked it. It helped.|kicked', "Haven't started it today.|unknown"], again: ['Kick it.|kick', "It's always done that.|dismiss", "I'll call the mechanic.|call"] },
-      n: [{ k: 'noise', t: 'kicked', say: "That's your fix for everything.", re: ["It works, doesn't it?|rq", "And it's never failed me."] },
-          { k: 'again', t: 'kick', say: "I'm not kicking it.", re: ['Then call someone.', 'Your loss.'] },
-          { k: 'noise', t: 'worse', say: "We can't afford a new one.", re: ['I know.', 'Then it keeps making the noise.'] }] },
-    { id: 'market', q: [['yn', 'We going to market Saturday?', 'going'], ['how', "How'd the eggs sell last week?", 'eggs']],
-      a: { going: ['If the truck starts.|maybe', 'Yeah.|yes', "Can't. Vet's coming.|no"], eggs: ['Sold out by ten.|good', 'Not great.|bad', 'Better than the jam.|good'] },
-      n: [{ k: 'eggs', t: 'good', say: 'Bring more this time, then.', re: ["The hens aren't laying that much.", 'Planning on it.'] },
-          { k: 'eggs', t: 'bad', say: ['Huh. Weird.', 'Too much competition?'], re: ['New stall next to us.', 'Rained all morning.'] },
-          { k: 'going', t: 'maybe', say: "It'll start.", re: ['It said that last week too.', 'Hope so.'] }] },
+  "farm": [
+    {
+      "id": "fence",
+      "q": [
+        [
+          "say",
+          "I need to fix that fence later.",
+          "fix"
+        ],
+        [
+          "say",
+          "There's a loose board on the fence.",
+          "fix"
+        ],
+        [
+          "yn",
+          "Did you look at that loose fence board?",
+          "seen"
+        ],
+        [
+          "yn",
+          "Have you checked the fence yet?",
+          "seen"
+        ]
+      ],
+      "a": {
+        "fix": [
+          "I can help you.",
+          "We should get it done soon.",
+          "I'll grab the tools."
+        ],
+        "seen": [
+          "Not yet.",
+          "Yeah, it needs fixing.",
+          "I had a quick look."
+        ]
+      },
+      "n": [
+        {
+          "k": "fix",
+          "say": [
+            "Let's do it before we forget."
+          ],
+          "re": [
+            "Okay.",
+            "I'll give you a hand."
+          ]
+        },
+        {
+          "k": "seen",
+          "say": [
+            "I'll get the tools later."
+          ],
+          "re": [
+            "Let me know when.",
+            "I'll help."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "hens",
+      "q": [
+        [
+          "say",
+          "The hens seem restless.",
+          "restless"
+        ],
+        [
+          "say",
+          "They're making more noise than usual.",
+          "restless"
+        ],
+        [
+          "yn",
+          "Can you hear the chickens?",
+          "hear"
+        ],
+        [
+          "yn",
+          "Are the chickens making that noise?",
+          "hear"
+        ]
+      ],
+      "a": {
+        "restless": [
+          "We should check on them.",
+          "They might want feeding.",
+          "Could be something bothering them."
+        ],
+        "hear": [
+          "Yeah, I hear them.",
+          "I think so.",
+          "Sounds like them."
+        ]
+      },
+      "n": [
+        {
+          "k": "restless",
+          "say": [
+            "I'll have a look at the coop."
+          ],
+          "re": [
+            "I'll come with you.",
+            "Let me know if anything's wrong."
+          ]
+        },
+        {
+          "k": "hear",
+          "say": [
+            "I'll go check in a minute."
+          ],
+          "re": [
+            "Okay.",
+            "I'll come too."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "feed",
+      "q": [
+        [
+          "yn",
+          "Have the animals been fed?",
+          "fed"
+        ],
+        [
+          "yn",
+          "Did you get the feeding done?",
+          "fed"
+        ],
+        [
+          "who",
+          "Who did the feeding?",
+          "who"
+        ],
+        [
+          "who",
+          "Who fed them earlier?",
+          "who"
+        ]
+      ],
+      "a": {
+        "fed": [
+          "Yeah, all done.",
+          "Not yet.",
+          "Most of them.",
+          "I thought you were doing it."
+        ],
+        "who": [
+          "I did.",
+          "I'm not sure anyone did yet.",
+          "I thought you did."
+        ]
+      },
+      "n": [
+        {
+          "k": "fed",
+          "say": [
+            "Let's check the list so we don't miss any."
+          ],
+          "re": [
+            "Good idea.",
+            "Okay, I'll get it."
+          ]
+        },
+        {
+          "k": "who",
+          "say": [
+            "We need to write it down when it's done."
+          ],
+          "re": [
+            "Yeah, that'll help.",
+            "I'll make a note next time."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tractor",
+      "q": [
+        [
+          "yn",
+          "Is the tractor still making that noise?",
+          "noise"
+        ],
+        [
+          "yn",
+          "Has that noise in the tractor stopped?",
+          "noise"
+        ],
+        [
+          "say",
+          "That noise in the tractor's back.",
+          "again"
+        ],
+        [
+          "say",
+          "The tractor still doesn't sound right.",
+          "again"
+        ]
+      ],
+      "a": {
+        "noise": [
+          "It's still doing it.",
+          "Haven't started it yet.",
+          "I need to check it."
+        ],
+        "again": [
+          "I'll take a look.",
+          "We should call the mechanic.",
+          "Don't leave it running then."
+        ]
+      },
+      "n": [
+        {
+          "k": "noise",
+          "say": [
+            "I'd rather get it looked at before it gets worse."
+          ],
+          "re": [
+            "Me too.",
+            "I'll call someone."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "market",
+      "q": [
+        [
+          "yn",
+          "Are we going to the market Saturday?",
+          "going"
+        ],
+        [
+          "yn",
+          "We still doing the market this week?",
+          "going"
+        ],
+        [
+          "how",
+          "How did the eggs sell last time?",
+          "eggs"
+        ],
+        [
+          "how",
+          "Did you sell many eggs?",
+          "eggs"
+        ]
+      ],
+      "a": {
+        "going": [
+          "That's the plan.",
+          "We need to check what we've got to take.",
+          "I think so."
+        ],
+        "eggs": [
+          "Sold nearly all of them.",
+          "A few boxes left over.",
+          "Not as many as I'd hoped."
+        ]
+      },
+      "n": [
+        {
+          "k": "going",
+          "say": [
+            "I'll help get things ready."
+          ],
+          "re": [
+            "Thanks.",
+            "I'll let you know when."
+          ]
+        },
+        {
+          "k": "eggs",
+          "say": [
+            "We'll see how this week goes."
+          ],
+          "re": [
+            "Yeah.",
+            "Hopefully it's busy."
+          ]
+        }
+      ]
+    }
   ],
-  park: [
-    { id: 'dog', needs: 'dog', q: [['yn', 'Is he always this hyper?', 'hyper'], ['how', 'How old is he now?', 'age'], ['yn', 'Can I pet him?', 'pet']],
-      a: { hyper: ['Every single day.', 'Only around ducks.', 'Only outside.'], age: ['Three.', 'Almost two.', 'Seven, believe it or not.|old'], pet: ['Sure, he loves it.|yes', 'He might lick you.|yes', 'He bites. Kidding.|joke'] },
-      n: [{ k: 'age', t: 'old', say: 'Seven? He acts like a puppy.', re: ["He'll never grow up.", "Don't tell him."] },
-          { k: 'pet', t: 'joke', say: 'Not funny.', re: ['A little funny.', 'Sorry. Go ahead.'] },
-          { k: 'pet', t: 'yes', say: ['Hi! Hi, buddy!', "Oh, he's so soft."], re: ['He likes you.', "Don't let him jump."] }] },
-    { id: 'ducks', q: [['say', 'Those ducks are following us.', 'follow'], ['yn', 'Did you bring anything for the ducks?', 'food']],
-      a: { follow: ['They think we have food.', 'They do that to everyone.', "Ignore them or they'll keep following us."], food: ["No. We probably shouldn't feed them anyway.|nobread", 'I brought a little birdseed.|seed', 'Nope.|no', 'Yeah, but not bread.|nobread'] },
-      n: [{ k: 'food', t: 'nobread', say: 'Why not bread?', re: ["It's not good for them, apparently.", "Birdseed's better.", 'I read it can mess with their diet.'] },
-          { k: 'food', t: 'seed', say: ['Ooh, can I throw some?', 'Nice. Give me a handful.'], re: ['Here. Not all at once.', 'Sure.'] }] },
-    { id: 'bench', q: [['yn', 'Wanna sit for a bit?', 'sit'], ['say', 'My legs are done.', 'legs']],
-      a: { sit: ['Sure.|yes', 'In a sec.|yes', 'That bench is wet.|wet', 'If we can find a dry one.|wet'], legs: ['We walked like a mile.|tease', 'Sit, then.|sit', 'Same.|same'] },
-      n: [{ k: 'sit', t: 'wet', say: ["It's fine. It's just a little damp.", "I don't care, I'm sitting."], re: ['Your jeans, your problem.', 'Gross. Okay.'] },
-          { k: 'legs', t: 'tease', say: 'A mile is a lot.', re: ['It is not.', 'For you, maybe.'] }] },
-    { id: 'jog', q: [['yn', 'You still running every morning?', 'still'], ['how', 'How many laps did you do?', 'laps']],
-      a: { still: ['Most mornings.|yes', 'I walk now. It counts.|walk', 'Skipped today.|skip'], laps: ['Three.|yes', 'One and a half.|few', "Don't ask.|few"] },
-      n: [{ k: 'still', t: 'walk', say: 'It totally counts.', re: ['Thank you.', "That's what I keep saying."] },
-          { k: 'laps', t: 'few', say: ['Hey, half a lap is still a lap.', 'Better than me.'], re: ['Thanks. I think.'] },
-          { k: 'still', t: 'skip', say: ['Rebel.', 'One day off is fine.'], re: ["It's been a week.", "That's me."] }] },
-    { id: 'pond', q: [['say', 'Pond looks gross {today}.', 'gross'], ['yn', 'Are there fish in there?', 'fish']],
-      a: { gross: ['Algae.|algae', "Don't touch the water.|warn", 'It always looks like that.'], fish: ['Some. Small ones.|yes', 'A turtle, I think.|turtle', 'Nothing alive in there.|no'] },
-      n: [{ k: 'fish', t: 'turtle', say: ['A turtle? Where?', 'No way.'], re: ['On the log. It went under.', 'I saw it once.'] },
-          { k: 'gross', t: 'algae', say: "Somebody should clean it.", re: ['The city? Ha.', 'Volunteer, then.'] }] },
+  "park": [
+    {
+      "id": "dog",
+      "needs": "dog",
+      "q": [
+        [
+          "yn",
+          "Does your dog ever settle down?",
+          "hyper"
+        ],
+        [
+          "yn",
+          "Does your dog ever slow down?",
+          "hyper"
+        ],
+        [
+          "how",
+          "How old is your dog?",
+          "age"
+        ],
+        [
+          "how",
+          "What age is your dog now?",
+          "age"
+        ],
+        [
+          "yn",
+          "Can I pet your dog?",
+          "pet"
+        ],
+        [
+          "yn",
+          "Is it okay if I say hello to your dog?",
+          "pet"
+        ]
+      ],
+      "a": {
+        "hyper": [
+          "Not often.",
+          "Only once we get home.",
+          "Usually settles down after a walk."
+        ],
+        "age": [
+          "About two.",
+          "Just turned four.",
+          "We're not sure exactly. Came from a shelter."
+        ],
+        "pet": [
+          "Sure, just go slowly.",
+          "Better not. A bit nervous with new people.",
+          "Let me settle the lead first."
+        ]
+      },
+      "n": [
+        {
+          "k": "hyper",
+          "say": [
+            "Must keep you busy."
+          ],
+          "re": [
+            "Definitely.",
+            "Gets me out of the house."
+          ]
+        },
+        {
+          "k": "age",
+          "say": [
+            "How long have you had your dog?"
+          ],
+          "re": [
+            "About a year.",
+            "Since last summer.",
+            "A few months now."
+          ]
+        },
+        {
+          "k": "pet",
+          "say": [
+            "No problem. I'll give you some room."
+          ],
+          "re": [
+            "Thanks.",
+            "Appreciate it."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ducks",
+      "q": [
+        [
+          "yn",
+          "Did you bring food for the ducks?",
+          "food"
+        ],
+        [
+          "yn",
+          "Have you got anything for the ducks?",
+          "food"
+        ],
+        [
+          "say",
+          "I like watching the ducks here.",
+          "ducks"
+        ],
+        [
+          "say",
+          "I could sit by the ducks for a while.",
+          "ducks"
+        ]
+      ],
+      "a": {
+        "food": [
+          "No, forgot.",
+          "Just some oats.",
+          "Not this time."
+        ],
+        "ducks": [
+          "Me too.",
+          "We can stay a bit.",
+          "It's a nice place to stop."
+        ]
+      },
+      "n": [
+        {
+          "k": "food",
+          "say": [
+            "We can just watch them for a bit."
+          ],
+          "re": [
+            "Yeah.",
+            "No rush."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bench",
+      "q": [
+        [
+          "yn",
+          "Want to sit down for a minute?",
+          "sit"
+        ],
+        [
+          "yn",
+          "Can we take a break?",
+          "sit"
+        ],
+        [
+          "say",
+          "My legs are getting tired.",
+          "legs"
+        ],
+        [
+          "say",
+          "I need a short break.",
+          "legs"
+        ]
+      ],
+      "a": {
+        "sit": [
+          "Yeah, my feet hurt.",
+          "Sure.",
+          "I was about to ask."
+        ],
+        "legs": [
+          "We can stop.",
+          "Let's find a seat.",
+          "No rush, take a minute."
+        ]
+      },
+      "n": [
+        {
+          "k": "sit",
+          "say": [
+            "Let's find somewhere to sit."
+          ],
+          "re": [
+            "Okay.",
+            "I'll keep an eye out."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "jog",
+      "q": [
+        [
+          "yn",
+          "Are you still running regularly?",
+          "running"
+        ],
+        [
+          "yn",
+          "You still doing your morning runs?",
+          "running"
+        ],
+        [
+          "how",
+          "How many laps did you do?",
+          "laps"
+        ],
+        [
+          "how",
+          "How many times did you go around?",
+          "laps"
+        ]
+      ],
+      "a": {
+        "running": [
+          "A few times a week.",
+          "I've missed a few lately.",
+          "Not as much as I should."
+        ],
+        "laps": [
+          "Just two.",
+          "Three, I think.",
+          "Lost count, honestly."
+        ]
+      },
+      "n": [
+        {
+          "k": "running",
+          "say": [
+            "I want to get back into it."
+          ],
+          "re": [
+            "Start with a short one.",
+            "Come along sometime."
+          ]
+        },
+        {
+          "k": "laps",
+          "say": [
+            "I'm done for now."
+          ],
+          "re": [
+            "Same here.",
+            "Let's cool down a bit."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pond",
+      "q": [
+        [
+          "yn",
+          "Are there fish in this pond?",
+          "fish"
+        ],
+        [
+          "yn",
+          "Have you ever seen fish in here?",
+          "fish"
+        ],
+        [
+          "say",
+          "I wouldn't want to swim in that pond.",
+          "pond"
+        ],
+        [
+          "say",
+          "That water doesn't look very inviting.",
+          "pond"
+        ]
+      ],
+      "a": {
+        "fish": [
+          "I think so.",
+          "I've seen little ones before.",
+          "Haven't really looked."
+        ],
+        "pond": [
+          "No, I'll stay out of it.",
+          "Me neither.",
+          "I'd rather just sit here."
+        ]
+      },
+      "n": [
+        {
+          "k": "fish",
+          "say": [
+            "Let's see if we can spot any."
+          ],
+          "re": [
+            "Okay.",
+            "Might take a minute."
+          ]
+        }
+      ]
+    }
   ],
-  pool: [
-    { id: 'water', q: [['say', "Water's actually nice {today}.", 'nice'], ['yn', 'You getting in?', 'in'], ['yn', 'Are you coming in or not?', 'in']],
-      a: { nice: ["Yeah, it's not bad.|agree", 'Told you.|agree', 'Way better than yesterday.|agree', 'Still feels cold to me.|cold'], in: ['Yeah, give me a second.|yes', 'In a minute.|yes', "Nope, I'm good.|no", 'Maybe. Let me test it first.|maybe'] },
-      n: [{ k: 'in', t: 'maybe', say: "It's warm, I promise.", re: ['You said that last time.', "We'll see."] },
-          { k: 'in', t: 'no', say: 'Come on, get in.', re: ["I'm coming.", 'Give me a minute.', 'Not happening.'] },
-          { k: 'nice', t: 'cold', say: 'You get used to it.', re: ["That's what people say about cold water.", 'Maybe in a minute.'] }] },
-    { id: 'sunscreen', light: true, q: [['yn', 'You bring sunscreen?', 'have'], ['yn', 'Do you have sunscreen?', 'have'], ['yn', 'Please tell me you brought sunscreen.', 'have']],
-      a: { have: ["Yeah, it's in my bag.|yes", 'I think so. Check the side pocket.|yes', 'No, I forgot it.|no', 'I ran out this morning.|no'] },
-      n: [{ k: 'have', t: 'no', say: "I think I'm already burning.", re: ['Get in the shade for a bit.', 'Yeah, your shoulders are getting red.'] },
-          { k: 'have', t: 'yes', say: ['Thank god. My shoulders are already red.', 'Lifesaver.'], re: ['Put a lot on.', 'Help yourself.'] }] },
-    { id: 'snacks', q: [['yn', 'Snack bar open?', 'open'], ['when', 'When does the snack bar close?', 'close'], ['say', 'I want a slushie so bad.', 'slushie']],
-      a: { open: ["Line's huge.|open", 'Yeah, just opened.|open', 'Closed for lunch, I think.|closed'], close: ['Five.', 'Like four?|rq', 'No idea.'], slushie: ['Get me one.|want', 'Blue one.|want', 'Brain freeze incoming.|want'] },
-      n: [{ k: 'slushie open', t: 'want open', say: 'Cherry or blue?', re: ['Blue. Obviously.', 'Cherry.', 'Both.'] },
-          { k: 'open', t: 'closed', say: ['For lunch? They SELL lunch.', 'Of course it is.'], re: ['I know.', 'Twenty minutes, they said.'] }],
-      back: ['...still want that slushie.|want'] },
-    { id: 'lifeguard', q: [['yn', 'Is the lifeguard even awake?', 'awake'], ['say', "Lifeguard's been on his phone all day.", 'phone']],
-      a: { awake: ['Barely.', 'He blew the whistle earlier.', "He's wearing sunglasses, who knows."], phone: ['Ha. Yeah.', 'Not our problem.', 'Must be nice.'] } },
+  "pool": [
+    {
+      "id": "water",
+      "q": [
+        [
+          "yn",
+          "Are you getting in the pool?",
+          "in"
+        ],
+        [
+          "yn",
+          "You coming in for a swim?",
+          "in"
+        ],
+        [
+          "say",
+          "I'm looking forward to a swim.",
+          "nice"
+        ],
+        [
+          "say",
+          "I haven't been swimming in ages.",
+          "nice"
+        ]
+      ],
+      "a": {
+        "in": [
+          "In a minute.",
+          "I'll stay here for now.",
+          "Yeah, let me put my stuff down.",
+          "I might later."
+        ],
+        "nice": [
+          "Take your time getting in.",
+          "Same here.",
+          "It'll be nice to get in."
+        ]
+      },
+      "n": [
+        {
+          "k": "in",
+          "say": [
+            "Let me know when you're ready."
+          ],
+          "re": [
+            "Okay.",
+            "I will."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sunscreen",
+      "q": [
+        [
+          "yn",
+          "Did you bring sunscreen?",
+          "have"
+        ],
+        [
+          "yn",
+          "Have you got sunscreen with you?",
+          "have"
+        ],
+        [
+          "yn",
+          "Can I borrow some sunscreen?",
+          "have"
+        ]
+      ],
+      "a": {
+        "have": [
+          "Yeah, in my bag.",
+          "I forgot, sorry.",
+          "I've only got a little left."
+        ]
+      },
+      "n": [
+        {
+          "k": "have",
+          "say": [
+            "I always forget something."
+          ],
+          "re": [
+            "It's easy to do.",
+            "I should keep a spare in the car."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "snacks",
+      "q": [
+        [
+          "yn",
+          "Is the snack bar open?",
+          "open"
+        ],
+        [
+          "yn",
+          "Can we get snacks yet?",
+          "open"
+        ],
+        [
+          "when",
+          "When does the snack bar close?",
+          "close"
+        ],
+        [
+          "when",
+          "Do you know what time they stop serving?",
+          "close"
+        ],
+        [
+          "say",
+          "I could really do with a cold drink.",
+          "drink"
+        ],
+        [
+          "say",
+          "I want something cold to drink.",
+          "drink"
+        ]
+      ],
+      "a": {
+        "open": [
+          "I'm not sure.",
+          "We can go check.",
+          "I haven't looked."
+        ],
+        "close": [
+          "I'm not sure.",
+          "We'd have to ask.",
+          "I didn't check the sign."
+        ],
+        "drink": [
+          "Me too.",
+          "Let's get something in a bit.",
+          "I've got water if you want some."
+        ]
+      },
+      "n": [
+        {
+          "k": "open",
+          "say": [
+            "I'll have a look in a bit."
+          ],
+          "re": [
+            "Let me know.",
+            "I'll come with you."
+          ]
+        },
+        {
+          "k": "close",
+          "say": [
+            "I'll ask before we get in the water."
+          ],
+          "re": [
+            "Good idea.",
+            "Thanks."
+          ]
+        }
+      ],
+      "back": [
+        "I need a drink of water."
+      ],
+      "backRe": [
+        "Me too.",
+        "We'll find some once we're clear."
+      ]
+    },
+    {
+      "id": "lifeguard",
+      "q": [
+        [
+          "yn",
+          "Is there a lifeguard on duty?",
+          "guard"
+        ],
+        [
+          "yn",
+          "Do you know if there's a lifeguard here?",
+          "guard"
+        ],
+        [
+          "say",
+          "I want to check where the deep end starts.",
+          "check"
+        ],
+        [
+          "say",
+          "I haven't swum here before.",
+          "check"
+        ]
+      ],
+      "a": {
+        "guard": [
+          "We should check.",
+          "I haven't looked yet.",
+          "I think so, but let's make sure."
+        ],
+        "check": [
+          "Let's check the signs.",
+          "We can ask somebody.",
+          "Take it slowly."
+        ]
+      },
+      "n": [
+        {
+          "k": "guard",
+          "say": [
+            "I'll ask before I get in."
+          ],
+          "re": [
+            "Good idea.",
+            "Let me know."
+          ]
+        }
+      ]
+    }
   ],
-  office: [
-    { id: 'meeting', q: [['when', 'When is the meeting again?', 'when'], ['yn', 'You going to the meeting?', 'going'], ['yn', "Are you sitting in on the three o'clock?", 'going']],
-      a: { when: ['Three.|known', 'They pushed it to four.|known', "I think it's at three.|known", 'Tomorrow morning, unless they changed it again.|known'], going: ['Yeah, I have to.|yes', 'Unfortunately.|yes', "No, I'm skipping it.|no", 'I think so.|yes'] },
-      n: [{ k: '*', t: 'known yes', say: "What's it even about?", re: ['The new system.', 'Budget stuff, I think.', 'No idea. I stopped reading after the first email.'] },
-          { k: 'going', t: 'no', say: ["Lucky. How'd you get out of it?", 'You can just skip it?'], re: ['I said I had a conflict.', "Nobody's checking."] }] },
-    { id: 'printer', q: [['yn', 'Is the printer working?', 'working'], ['say', "Printer's broken again.", 'broken']],
-      a: { working: ['If you kick it.|no', 'Out of toner.|no', 'Try the one upstairs.|no', 'It was never fixed.|no'], broken: ['Shocking.|dry', 'Did you call IT?|ask', 'It hates you specifically.|dry'] },
-      n: [{ k: '*', t: 'no dry', say: 'I need this printed by noon.', re: ['Email it.', 'Good luck.', 'Upstairs one works.'] },
-          { k: 'broken', t: 'ask', say: ['Twice. They said Tuesday.', "Ticket's open. Again."], re: ['So never.', 'Classic IT.'] }] },
-    { id: 'coffee', q: [['yn', 'Coffee?', 'want'], ['yn', 'Want me to grab you coffee?', 'want'], ['say', 'I need coffee before I talk to anyone.', 'need']],
-      a: { want: ['Please.|yes', 'Yeah, thanks.|yes', "I'm good.|no", 'Only if the pot is fresh.|yes'], need: ['Same.|same', "You're already talking to me.|tease", "There's a fresh pot in the kitchen.|pot", 'That makes two of us.|same'] },
-      n: [{ k: 'want', t: 'yes', say: "The machine's out again, though.", re: ['Of course it is.', 'Try the kitchen upstairs.', "Then I'm going home."] },
-          { k: 'need', t: 'pot', say: ['Bless you.', 'Finally, good news.'], re: ["Hurry before it's gone."] },
-          { k: 'need', t: 'tease', say: "This doesn't count.", re: ["Sure it doesn't."] }],
-      back: ['...I still need that coffee.'] },
-    { id: 'fridge', q: [['say', 'Someone ate my yogurt again.', 'ate'], ['who', 'Who keeps taking food from the fridge?', 'who']],
-      a: { ate: ['Not me.|deny', 'Label it.|tip', 'Probably Kevin.|kevin'], who: ['Kevin.|kevin', 'Not me, I swear.|deny', "Nobody knows. It's a mystery.|unknown"] },
-      n: [{ k: 'ate', t: 'tip', say: 'It had my name on it.', re: ['Then it was definitely Kevin.', 'Huh.', 'Start hiding it.'] },
-          { k: '*', t: 'kevin', say: ['I knew it was Kevin.', "It's always Kevin."], re: ['Everyone knows. Nobody says anything.', 'Say something to him.'] }] },
-    { id: 'friday', q: [['yn', 'Is it Friday yet?', 'fri'], ['say', 'This week is taking forever.', 'long']],
-      a: { fri: ['Not even close.', 'I wish.', 'Feels like it should be.', "Don't remind me."], long: ['Seriously.', 'I know.', 'Every day feels like Monday here.', 'It really is.'] } },
+  "office": [
+    {
+      "id": "meeting",
+      "q": [
+        [
+          "when",
+          "When's the meeting?",
+          "time"
+        ],
+        [
+          "when",
+          "What time did they say the meeting was?",
+          "time"
+        ],
+        [
+          "yn",
+          "Are you going to the meeting?",
+          "going"
+        ],
+        [
+          "yn",
+          "Do you have to sit in on that meeting?",
+          "going"
+        ]
+      ],
+      "a": {
+        "time": [
+          "Three, I think.",
+          "It's on the calendar. I need to check.",
+          "Pretty sure it's at three."
+        ],
+        "going": [
+          "Yeah, I've got to.",
+          "I don't think I'm needed.",
+          "I'll check with my manager."
+        ]
+      },
+      "n": [
+        {
+          "k": "time",
+          "say": [
+            "I'll check the invite."
+          ],
+          "re": [
+            "Let me know if I'm wrong.",
+            "Yeah, safest to check."
+          ]
+        },
+        {
+          "k": "going",
+          "say": [
+            "I'll send you the notes if you miss it."
+          ],
+          "re": [
+            "Thanks.",
+            "That'd help."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "printer",
+      "q": [
+        [
+          "yn",
+          "Is the printer working?",
+          "working"
+        ],
+        [
+          "yn",
+          "Can you print anything right now?",
+          "working"
+        ],
+        [
+          "say",
+          "The printer's jammed.",
+          "broken"
+        ],
+        [
+          "say",
+          "I can't get anything to print.",
+          "broken"
+        ]
+      ],
+      "a": {
+        "working": [
+          "I haven't tried.",
+          "It jammed when I tried earlier.",
+          "It was working a minute ago."
+        ],
+        "broken": [
+          "I'll take a look.",
+          "Did you check the paper tray?|ask",
+          "We might need to call someone."
+        ]
+      },
+      "n": [
+        {
+          "k": "working",
+          "say": [
+            "I'll have a look before I send anything."
+          ],
+          "re": [
+            "Good idea.",
+            "Let me know if it's working."
+          ]
+        },
+        {
+          "k": "broken",
+          "t": "ask",
+          "say": [
+            "Not yet. I'll check.",
+            "Yeah, there's paper in it."
+          ],
+          "re": [
+            "Let's have a look together.",
+            "I'll come over in a second."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "coffee",
+      "q": [
+        [
+          "yn",
+          "Want a coffee?",
+          "want"
+        ],
+        [
+          "yn",
+          "I'm getting coffee. Want one?",
+          "want"
+        ],
+        [
+          "say",
+          "I could use a coffee.",
+          "need"
+        ],
+        [
+          "say",
+          "I need a coffee before I start this.",
+          "need"
+        ]
+      ],
+      "a": {
+        "want": [
+          "Yes, please.",
+          "No, thanks. I've had enough.",
+          "Just a small one, thanks."
+        ],
+        "need": [
+          "I could too.",
+          "Take a break and get one.",
+          "I'll come with you."
+        ]
+      },
+      "n": [
+        {
+          "k": "want",
+          "say": [
+            "I'm heading over now."
+          ],
+          "re": [
+            "Okay, thanks.",
+            "See you in a minute."
+          ]
+        }
+      ],
+      "back": [
+        "I still haven't had that coffee."
+      ],
+      "backRe": [
+        "That can wait.",
+        "We'll get something once we're safe."
+      ]
+    },
+    {
+      "id": "fridge",
+      "q": [
+        [
+          "say",
+          "My lunch isn't in the fridge.",
+          "gone"
+        ],
+        [
+          "say",
+          "I can't find the food I brought.",
+          "gone"
+        ],
+        [
+          "who",
+          "Do you know who moved my lunch?",
+          "who"
+        ],
+        [
+          "who",
+          "Has somebody taken my food out of the fridge?",
+          "who"
+        ]
+      ],
+      "a": {
+        "gone": [
+          "Have you checked the back?|ask",
+          "Maybe somebody moved it.",
+          "I'll help you look."
+        ],
+        "who": [
+          "I haven't seen anyone move it.",
+          "No idea, sorry.",
+          "You could ask the others."
+        ]
+      },
+      "n": [
+        {
+          "k": "gone",
+          "t": "ask",
+          "say": [
+            "Not properly. I'll check again.",
+            "Yeah, I looked behind everything."
+          ],
+          "re": [
+            "I'll help you look.",
+            "Let's check the other shelf too."
+          ]
+        },
+        {
+          "k": "who",
+          "say": [
+            "I'll check again first."
+          ],
+          "re": [
+            "Okay.",
+            "Let me know if you find it."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "friday",
+      "q": [
+        [
+          "say",
+          "This week feels really long.",
+          "week"
+        ],
+        [
+          "say",
+          "I'm ready to go home.",
+          "week"
+        ],
+        [
+          "yn",
+          "Do you have the weekend off?",
+          "off"
+        ],
+        [
+          "yn",
+          "Are you working this weekend?",
+          "off"
+        ]
+      ],
+      "a": {
+        "week": [
+          "Me too.",
+          "It's been a lot.",
+          "I need a day off."
+        ],
+        "off": [
+          "I need to check my schedule.",
+          "I'm off Saturday, working Sunday.",
+          "I've got both days off."
+        ]
+      },
+      "n": [
+        {
+          "k": "week",
+          "say": [
+            "I'm not checking my emails when I get home."
+          ],
+          "re": [
+            "Good.",
+            "I should stop doing that too."
+          ]
+        },
+        {
+          "k": "off",
+          "say": [
+            "Hopefully you get a chance to rest."
+          ],
+          "re": [
+            "Thanks.",
+            "I hope so."
+          ]
+        }
+      ]
+    }
   ],
-  checker: [
-    { id: 'who', q: [['who', 'Who even built this place?', 'who'], ['yn', 'Is this an art thing?', 'art']],
-      a: { who: ['Some rich guy.', 'No idea.', 'Same people who did the big sculpture downtown.'], art: ['Has to be.', 'I think so.', 'Looks like a game show.'] } },
-    { id: 'photo', q: [['yn', 'Take my picture by the king?', 'pic'], ['yn', 'Get a photo with the horse?', 'pic']],
-      a: { pic: ['Hold still.|yes', 'One sec.|yes', 'Sure.|yes'] },
-      n: [{ k: 'pic', t: 'yes', by: 'b', say: ['Your eyes were closed. Again.', 'Okay, one more. You blinked.'], re: ['Seriously?|rq', 'Again?|rq'] }] },
+  "checker": [
+    {
+      "id": "who",
+      "q": [
+        [
+          "who",
+          "Who built this place?",
+          "built"
+        ],
+        [
+          "who",
+          "Do you know who designed this?",
+          "built"
+        ],
+        [
+          "yn",
+          "Is this supposed to be art?",
+          "art"
+        ],
+        [
+          "yn",
+          "Is this some kind of installation?",
+          "art"
+        ]
+      ],
+      "a": {
+        "built": [
+          "No idea.",
+          "There might be a sign somewhere.",
+          "I haven't looked it up."
+        ],
+        "art": [
+          "I think so.",
+          "Probably.",
+          "I'm not sure."
+        ]
+      },
+      "n": [
+        {
+          "k": "built",
+          "say": [
+            "I'd like to know why they made it like this."
+          ],
+          "re": [
+            "Me too.",
+            "We can look it up later."
+          ]
+        },
+        {
+          "k": "art",
+          "say": [
+            "I've never seen anything like it."
+          ],
+          "re": [
+            "Neither have I.",
+            "It's unusual."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "photo",
+      "q": [
+        [
+          "yn",
+          "Can you take a photo of me here?",
+          "photo"
+        ],
+        [
+          "yn",
+          "Would you mind taking my picture?",
+          "photo"
+        ]
+      ],
+      "a": {
+        "photo": [
+          "Sure, give me your phone.",
+          "Yeah, where do you want to stand?|ask",
+          "Of course."
+        ]
+      },
+      "n": [
+        {
+          "k": "photo",
+          "say": [
+            "Just here is fine."
+          ],
+          "re": [
+            "Okay, hold still.",
+            "Got it."
+          ]
+        }
+      ]
+    }
   ],
-  crew: [
-    { id: 'suit', q: [['yn', 'Suit pressure look okay?', 'press'], ['yn', 'Everything green on my suit?', 'press'], ['how', "How's your oxygen?", 'o2']],
-      a: { press: ['Yeah, all green.|ok', 'Looks good from here.|ok', "Pressure's a little low. Keep an eye on it.|low", "Hold on... yeah, you're good.|ok"], o2: ['Seventy percent.|ok', 'Fine for now.|ok', "Getting low. I'll head back soon.|low", 'About half.|ok'] },
-      n: [{ k: '*', t: 'ok', say: 'Base wants us back in an hour.', re: ['Copy.', 'That gives us time.', "Tell them we're wrapping up."] },
-          { k: '*', t: 'low', say: ["Don't push it.", 'Head back if it drops more.'], re: ['Copy that.', "I know. I'm watching it."] }] },
-    { id: 'samples', q: [['how', 'How many samples left?', 'left'], ['yn', 'We done sampling yet?', 'left']],
-      a: { left: ['Six more.|more', 'Two. Then lunch.|few', 'Lost count.|unknown', 'Nearly.|few', 'Not even close.|more', 'Base says four more.|more'] },
-      n: [{ k: '*', t: 'more', say: 'My back is killing me.', re: ['Same. Keep going.', 'Lift with your legs.'] },
-          { k: '*', t: 'unknown', say: ['Check the log.', 'You lost count?'], re: ['The tablet froze.', 'Okay, okay. Checking.'] }],
-      back: ['...base still wants those samples.'] },
-    { id: 'home', q: [['yn', 'Talked to your family yet?', 'talked'], ['when', "When's the next call home?", 'when']],
-      a: { talked: ['Yeah, last night.|yes', "Not yet. Signal's been awful.|no", 'A few days ago.|yes', 'Tried, but the call dropped.|no'], when: ['Thursday.', 'Tonight, hopefully.', 'Whenever the dish starts working again.'] },
-      n: [{ k: 'talked', t: 'yes', say: 'How are they doing?', re: ['Good. They miss me.', "Fine. My kid's learning to ride a bike."] },
-          { k: 'talked', t: 'no', say: "They'll understand.", re: ['I hope so.', 'Yeah.'] }] },
+  "crew": [
+    {
+      "id": "suit",
+      "q": [
+        [
+          "yn",
+          "Can you check my suit pressure?",
+          "pressure"
+        ],
+        [
+          "yn",
+          "Is my suit reading okay?",
+          "pressure"
+        ],
+        [
+          "how",
+          "How's your oxygen?",
+          "oxygen"
+        ],
+        [
+          "how",
+          "What have you got left on oxygen?",
+          "oxygen"
+        ]
+      ],
+      "a": {
+        "pressure": [
+          "Give me a second to check.",
+          "I'll pull up the reading.",
+          "Let me check the numbers."
+        ],
+        "oxygen": [
+          "Enough for now. I'll keep checking.",
+          "I'll get you a reading in a second.",
+          "We should head back before too long."
+        ]
+      },
+      "n": [
+        {
+          "k": "pressure",
+          "say": [
+            "Thanks. I'd rather check twice."
+          ],
+          "re": [
+            "No problem.",
+            "Better to be sure."
+          ]
+        },
+        {
+          "k": "oxygen",
+          "say": [
+            "Let's leave ourselves plenty of time."
+          ],
+          "re": [
+            "Agreed.",
+            "I'll keep an eye on it."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "samples",
+      "q": [
+        [
+          "how",
+          "How many samples do we still need?",
+          "left"
+        ],
+        [
+          "how",
+          "How many more are on the list?",
+          "left"
+        ],
+        [
+          "yn",
+          "Are we finished collecting samples?",
+          "done"
+        ],
+        [
+          "yn",
+          "Have we got everything we need?",
+          "done"
+        ]
+      ],
+      "a": {
+        "left": [
+          "A couple, I think.",
+          "Let me check the list.",
+          "I'm not sure we've marked all of them down."
+        ],
+        "done": [
+          "I think so, but let's check.",
+          "We might be missing one.",
+          "Let me go through the list."
+        ]
+      },
+      "n": [
+        {
+          "k": "left",
+          "say": [
+            "I'll check what I've got in my bag."
+          ],
+          "re": [
+            "I'll check mine too.",
+            "Good idea."
+          ]
+        },
+        {
+          "k": "done",
+          "say": [
+            "I don't want to come back for one we forgot."
+          ],
+          "re": [
+            "Neither do I.",
+            "Let's check properly."
+          ]
+        }
+      ],
+      "back": [
+        "We can check the samples once we're safe."
+      ],
+      "backRe": [
+        "Agreed. Let's get back first.",
+        "Stay on the radio."
+      ]
+    },
+    {
+      "id": "home",
+      "q": [
+        [
+          "yn",
+          "Have you spoken to your family?",
+          "called"
+        ],
+        [
+          "yn",
+          "Managed to call home yet?",
+          "called"
+        ],
+        [
+          "when",
+          "When's your next call home?",
+          "next"
+        ],
+        [
+          "when",
+          "When are you talking to your family next?",
+          "next"
+        ]
+      ],
+      "a": {
+        "called": [
+          "Not yet.",
+          "Had a short call earlier.",
+          "I'm waiting for a good time."
+        ],
+        "next": [
+          "Hopefully after we get back.",
+          "I haven't arranged it yet.",
+          "Later, if I can."
+        ]
+      },
+      "n": [
+        {
+          "k": "called",
+          "say": [
+            "I miss being able to just call whenever."
+          ],
+          "re": [
+            "Me too.",
+            "It's hard getting used to."
+          ]
+        },
+        {
+          "k": "next",
+          "say": [
+            "Tell them I said hello."
+          ],
+          "re": [
+            "I will.",
+            "Thanks."
+          ]
+        }
+      ]
+    }
   ],
-  station: [
-    { id: 'shift', q: [['when', 'When are you off?', 'off'], ['how', 'How long do you have left?', 'left']],
-      a: { off: ['Midnight.|later', 'In about twenty minutes.|soon', "I was supposed to be off an hour ago. I'm covering.|late", 'Not until morning.|later'], left: ['About twenty minutes.|soon', 'A couple hours.|later', 'Too long.|later', "I'm on a double, so don't ask.|late"] },
-      n: [{ k: '*', t: 'soon later', say: 'Want to swap Thursday?', re: ['Sure.', 'Only if you take Saturday.', 'No way.'] },
-          { k: '*', t: 'late', say: ["That's rough.", 'You need to say no sometimes.'], re: ['Tell that to my boss.', 'I know.'] }] },
-    { id: 'maint', q: [['yn', 'Did maintenance ever fix that panel?', 'fixed'], ['say', "That panel's sparking again.", 'spark']],
-      a: { fixed: ['Nope.|no', 'They said Tuesday.|no', 'Which panel?|ask'], spark: ["Don't touch it.", 'Log it.', "It's been doing that all week."] },
-      n: [{ k: 'fixed', t: 'ask', say: 'The one by the lab door.', re: ['Oh, that one. No.', 'Still broken.', "I'll put in a ticket."] }] },
-    { id: 'food', q: [['what', "What's for dinner?", 'what'], ['yn', "Please tell me it's not the paste again.", 'paste']],
-      a: { what: ['Paste.|paste', 'Rehydrated something.', "Mike's making curry. Allegedly.|curry"], paste: ["It's the paste.|paste", 'Better. Rehydrated pasta.', 'Worse.'] },
-      n: [{ k: '*', t: 'paste', say: ["I'm going to dream about real food.", "I can't do the paste again."], re: ['Three more weeks.', "It's not that bad. It's bad. But not that bad."] },
-          { k: 'what', t: 'curry', say: 'Allegedly?', re: ['Last time it was supposed to be curry. It was soup.'] }] },
-    { id: 'air', q: [['yn', 'Did you check the scrubbers?', 'checked'], ['say', 'Air smells weird today.#weird', 'smell']],
-      a: { checked: ['Twice.', 'Doing it now.', "That's not my job."], smell: ["That's Mike's lunch.", 'It always smells weird.', 'Log it.'] } },
+  "station": [
+    {
+      "id": "shift",
+      "q": [
+        [
+          "when",
+          "When does your shift end?",
+          "end"
+        ],
+        [
+          "when",
+          "What time are you off?",
+          "end"
+        ],
+        [
+          "how",
+          "How long have you got left?",
+          "left"
+        ],
+        [
+          "how",
+          "Much longer on your shift?",
+          "left"
+        ]
+      ],
+      "a": {
+        "end": [
+          "In a couple of hours.",
+          "Not for a while yet.",
+          "I need to check the roster."
+        ],
+        "left": [
+          "About two hours.",
+          "Not long, I hope.",
+          "Still a few hours."
+        ]
+      },
+      "n": [
+        {
+          "k": "end",
+          "say": [
+            "I need some sleep when I'm done."
+          ],
+          "re": [
+            "Me too.",
+            "Get some rest when you can."
+          ]
+        },
+        {
+          "k": "left",
+          "say": [
+            "I'll let you get back to it."
+          ],
+          "re": [
+            "See you later.",
+            "Catch you after."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "maint",
+      "q": [
+        [
+          "yn",
+          "Did maintenance check that panel?",
+          "fixed"
+        ],
+        [
+          "yn",
+          "Has somebody looked at that panel yet?",
+          "fixed"
+        ],
+        [
+          "say",
+          "I'm worried about that panel.",
+          "panel"
+        ],
+        [
+          "say",
+          "I don't think that panel's working properly.",
+          "panel"
+        ]
+      ],
+      "a": {
+        "fixed": [
+          "I'm not sure.",
+          "They said they'd come by.",
+          "I need to check the log."
+        ],
+        "panel": [
+          "Let's report it.",
+          "We should get maintenance to look.",
+          "Don't touch it until it's checked."
+        ]
+      },
+      "n": [
+        {
+          "k": "fixed",
+          "say": [
+            "I'll follow it up."
+          ],
+          "re": [
+            "Thanks.",
+            "Let me know what they say."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "food",
+      "q": [
+        [
+          "what",
+          "What's for dinner?",
+          "dinner"
+        ],
+        [
+          "what",
+          "Do you know what we're eating later?",
+          "dinner"
+        ],
+        [
+          "say",
+          "I'm getting tired of the food here.",
+          "tired"
+        ],
+        [
+          "say",
+          "I want something different to eat.",
+          "tired"
+        ]
+      ],
+      "a": {
+        "dinner": [
+          "Haven't checked.",
+          "Same sort of thing as usual, probably.",
+          "I'll look at the menu later."
+        ],
+        "tired": [
+          "Me too.",
+          "We could see what else is available.",
+          "I know what you mean."
+        ]
+      },
+      "n": [
+        {
+          "k": "dinner",
+          "say": [
+            "I miss cooking for myself."
+          ],
+          "re": [
+            "Me too.",
+            "You get tired of the same things."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "air",
+      "q": [
+        [
+          "yn",
+          "Did you check the air filters?",
+          "checked"
+        ],
+        [
+          "yn",
+          "Have the scrubbers been checked?",
+          "checked"
+        ],
+        [
+          "say",
+          "The air smells a bit strange.#weird",
+          "smell"
+        ],
+        [
+          "say",
+          "Does the air smell different to you?#weird",
+          "smell"
+        ]
+      ],
+      "a": {
+        "checked": [
+          "It's on my list.",
+          "I need to check the maintenance log.",
+          "I'll have a look."
+        ],
+        "smell": [
+          "I hadn't noticed.",
+          "We should report it.",
+          "Let's get someone to check it."
+        ]
+      },
+      "n": [
+        {
+          "k": "checked",
+          "say": [
+            "Let me know if they need anything."
+          ],
+          "re": [
+            "I will.",
+            "Thanks."
+          ]
+        }
+      ]
+    }
   ],
-  bunker: [
-    { id: 'shift', q: [['who', "Who's on after us?", 'who'], ['say', 'Shift change in ten.', 'change']],
-      a: { who: ['Davis. Ugh.|davis', "Nobody, we're on doubles.|double", 'The new guy.|new'], change: ['Finally.', 'Twenty, actually.', "Don't get excited."] },
-      n: [{ k: 'who', t: 'davis', say: 'He never shows up on time.', re: ['Never.', 'Last time he was forty minutes late.'] },
-          { k: 'who', t: 'double', say: ["You're joking.", 'Again?'], re: ['Wish I was.', 'Nope. Doubles all week.'] },
-          { k: 'who', t: 'new', say: 'Does he even know where the coffee is?', re: ['He will by tomorrow.', 'Nope.'] }] },
-    { id: 'radio', q: [['yn', 'Hear anything on the radio?', 'hear'], ['say', "Radio's been quiet.", 'quiet']],
-      a: { hear: ['Static.', 'Nothing.', 'Someone humming. Weird.|weird'], quiet: ["Quiet's good.", 'Too quiet.#weird', 'Turn it up.'] },
-      n: [{ k: 'hear', t: 'weird', say: 'Humming? On our channel?', re: ['Probably interference.', "That's what it sounded like."] }] },
-    { id: 'cards', q: [['yn', 'Cards after shift?', 'cards'], ['say', 'You owe me from last night.', 'owe']],
-      a: { cards: ['Deal.|yes', 'Not with you. You cheat.|cheat', 'Double or nothing.|yes'], owe: ["I don't owe you anything.|deny", 'Double or nothing?|ask', 'Put it on my tab.'] },
-      n: [{ k: 'cards', t: 'cheat', say: 'I do not cheat.', re: ['You had five aces.', "Sure you don't."] },
-          { k: 'owe', t: 'ask', say: ['Deal.', "You're on."], re: ['Bring money this time.'] },
-          { k: 'owe', t: 'deny', say: 'You lost three hands in a row.', re: ['Two. And one was a misdeal.'] }] },
-    { id: 'food', q: [['what', "What's for chow?", 'what'], ['yn', 'Please not the beans again.', 'beans']],
-      a: { what: ['Beans.|beans', 'Mystery stew.', 'Same as yesterday.'], beans: ['Beans.|beans', 'Worse. Stew.', 'Better than nothing.'] },
-      n: [{ k: '*', t: 'beans', say: ['Every day. Every single day.', "I'm going to turn into a bean."], re: ['Could be worse.', "Eat it or don't."] }] },
+  "bunker": [
+    {
+      "id": "shift",
+      "q": [
+        [
+          "who",
+          "Who's taking over after us?",
+          "next"
+        ],
+        [
+          "who",
+          "Do you know who's on the next shift?",
+          "next"
+        ],
+        [
+          "say",
+          "I hope the next shift gets here on time.",
+          "soon"
+        ],
+        [
+          "say",
+          "I'm ready to hand over.",
+          "soon"
+        ]
+      ],
+      "a": {
+        "next": [
+          "I need to check the roster.",
+          "I can't remember.",
+          "They'll be down soon."
+        ],
+        "soon": [
+          "Me too.",
+          "Finish your notes while we wait.",
+          "Hopefully it won't be long."
+        ]
+      },
+      "n": [
+        {
+          "k": "next",
+          "say": [
+            "I need to hand over these notes."
+          ],
+          "re": [
+            "Leave them with the log as well.",
+            "I'll remind you."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "radio",
+      "q": [
+        [
+          "yn",
+          "Anything on the radio?",
+          "heard"
+        ],
+        [
+          "yn",
+          "Have you heard anything come through?",
+          "heard"
+        ],
+        [
+          "say",
+          "The radio's been quiet.",
+          "quiet"
+        ],
+        [
+          "say",
+          "Haven't heard much on the radio.",
+          "quiet"
+        ]
+      ],
+      "a": {
+        "heard": [
+          "Nothing for a while.",
+          "Just routine stuff.",
+          "I haven't been listening the whole time."
+        ],
+        "quiet": [
+          "We can check the connection.",
+          "I'll try calling up.",
+          "Keep listening."
+        ]
+      },
+      "n": [
+        {
+          "k": "heard",
+          "say": [
+            "I'll check in later."
+          ],
+          "re": [
+            "Okay.",
+            "Let me know if anything comes up."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cards",
+      "q": [
+        [
+          "yn",
+          "Want to play cards after the shift?",
+          "play"
+        ],
+        [
+          "yn",
+          "Cards later?",
+          "play"
+        ],
+        [
+          "say",
+          "You still owe me from that card game.",
+          "owe"
+        ],
+        [
+          "say",
+          "Don't forget what you owe me from last time.",
+          "owe"
+        ]
+      ],
+      "a": {
+        "play": [
+          "Sure, if I'm not too tired.",
+          "Maybe. I need food first.",
+          "Not tonight, sorry."
+        ],
+        "owe": [
+          "I haven't forgotten.",
+          "I'll get you later.",
+          "Yeah, I know."
+        ]
+      },
+      "n": [
+        {
+          "k": "play",
+          "say": [
+            "I'll ask the others too."
+          ],
+          "re": [
+            "Okay.",
+            "Let me know who's around."
+          ]
+        },
+        {
+          "k": "owe",
+          "say": [
+            "I'm going to keep reminding you."
+          ],
+          "re": [
+            "I know you are.",
+            "Fair enough."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "food",
+      "q": [
+        [
+          "what",
+          "What's for dinner?",
+          "chow"
+        ],
+        [
+          "what",
+          "Do you know what's for chow?",
+          "chow"
+        ],
+        [
+          "say",
+          "I hope dinner's different this time.",
+          "same"
+        ],
+        [
+          "say",
+          "I'm tired of eating the same thing.",
+          "same"
+        ]
+      ],
+      "a": {
+        "chow": [
+          "Haven't checked.",
+          "I think there's stew.",
+          "We'll find out when we get up there."
+        ],
+        "same": [
+          "Same here.",
+          "We don't get much choice.",
+          "I know what you mean."
+        ]
+      },
+      "n": [
+        {
+          "k": "chow",
+          "say": [
+            "I just want something hot."
+          ],
+          "re": [
+            "Me too.",
+            "I'll eat whatever they have."
+          ]
+        }
+      ]
+    }
   ],
-  club: [
-    { id: 'song', q: [['say', 'I LOVE THIS SONG!', 'love'], ['who', "WHO'S DJING?", 'dj'], ['say', 'THIS SONG!', 'love']],
-      a: { love: ['WHAT?|what', 'SAME!', "IT'S THE SAME SONG!", 'YEAH!'], dj: ['NO IDEA!', 'SOME GUY!', "HE'S GOOD!"] },
-      n: [{ k: 'love', t: 'what', say: 'I SAID I LOVE THIS SONG!', re: ['OH! SAME!', 'YEAH!'] }] },
-    { id: 'drink', q: [['yn', 'ANOTHER DRINK?', 'drink'], ['yn', 'YOU WANT ANYTHING?', 'drink'], ['say', 'I NEED WATER.', 'water']],
-      a: { drink: ['YES!|yes', "I'M GOOD!|no", 'WATER!|water', "YOU'RE BUYING!|yes"], water: ['BAR!', 'OVER THERE!', 'GET ME ONE!'] },
-      n: [{ k: 'drink', t: 'yes', say: 'WHAT DO YOU WANT?', re: ['SURPRISE ME!', 'THE PINK ONE!', 'WATER!'] }],
-      back: ['...I really need that drink now.'] },
-    { id: 'jess', q: [['where', "WHERE'S JESS?", 'where'], ['yn', 'HAVE YOU SEEN JESS?', 'where']],
-      a: { where: ['BAR!|bar', 'BATHROOM LINE!', 'DANCING!', 'WHO?|who', 'NO!', 'SHE LEFT!|left'] },
-      n: [{ k: '*', t: 'bar', say: 'WHICH BAR?', re: ['THERE IS ONE BAR!', 'THE BAR! THE ONLY BAR!'] },
-          { k: '*', t: 'who', say: ['JESS! JESS!', 'YOUR FRIEND JESS!'], re: ['OH! NO IDEA!', 'WHAT?|rq'] },
-          { k: '*', t: 'left', say: 'WITHOUT US?!', re: ['TYPICAL JESS!', 'YEP!'] }] },
-    { id: 'loud', q: [['say', "IT'S SO LOUD!", 'loud'], ['yn', 'OUTSIDE FOR A SEC?', 'out']],
-      a: { loud: ['WHAT?|rq', "IT'S A CLUB!", 'I KNOW!'], out: ['ONE MORE SONG!', 'YES!', 'NO!'] } },
-    { id: 'ride', q: [['how', 'HOW ARE WE GETTING HOME?', 'ride'], ['who', "WHO'S DRIVING?", 'driver']],
-      a: { ride: ['CAB!|plan', 'ASK ME LATER!|none', 'WALKING, APPARENTLY!|plan'], driver: ['NOT ME!|none', "YOU ARE!|you", 'NOBODY! CAB!|plan'] },
-      n: [{ k: 'ride driver', t: 'none', say: 'SOMEONE HAS TO!', re: ['FINE! CAB!', 'LATER!'] }, { k: 'driver', t: 'you', say: "I'VE HAD THREE DRINKS!", re: ['CAB, THEN!', 'OKAY, CAB!'] }],
-      back: ['...seriously, how are we getting home?'] },
-  ],
+  "club": [
+    {
+      "id": "song",
+      "q": [
+        [
+          "say",
+          "I LOVE THIS SONG!",
+          "song"
+        ],
+        [
+          "say",
+          "I HAVEN'T HEARD THIS IN AGES!",
+          "song"
+        ],
+        [
+          "who",
+          "WHO'S DJING?",
+          "dj"
+        ],
+        [
+          "who",
+          "DO YOU KNOW WHO THIS DJ IS?",
+          "dj"
+        ]
+      ],
+      "a": {
+        "song": [
+          "ME TOO!",
+          "I KNOW!",
+          "THIS ONE'S GOOD!"
+        ],
+        "dj": [
+          "NO IDEA!",
+          "I DIDN'T CHECK!",
+          "IT MIGHT BE ON THE FLYER!"
+        ]
+      },
+      "n": [
+        {
+          "k": "song",
+          "say": [
+            "I'M STAYING FOR THIS ONE!"
+          ],
+          "re": [
+            "SAME!",
+            "YEAH, LET'S STAY!"
+          ]
+        },
+        {
+          "k": "dj",
+          "say": [
+            "I'LL LOOK IT UP LATER!"
+          ],
+          "re": [
+            "LET ME KNOW!",
+            "YEAH!"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "drink",
+      "q": [
+        [
+          "yn",
+          "DO YOU WANT ANOTHER DRINK?",
+          "another"
+        ],
+        [
+          "yn",
+          "ANOTHER DRINK?",
+          "another"
+        ],
+        [
+          "what",
+          "WHAT DO YOU WANT TO DRINK?",
+          "want"
+        ],
+        [
+          "what",
+          "YOU WANT ANYTHING FROM THE BAR?",
+          "want"
+        ],
+        [
+          "say",
+          "I NEED WATER!",
+          "water"
+        ],
+        [
+          "say",
+          "I NEED SOMETHING TO DRINK!",
+          "water"
+        ]
+      ],
+      "a": {
+        "another": [
+          "JUST WATER, PLEASE!",
+          "NO, I'M GOOD!",
+          "YEAH, SAME AGAIN!"
+        ],
+        "want": [
+          "WATER!",
+          "NOTHING, THANKS!",
+          "A SODA, PLEASE!"
+        ],
+        "water": [
+          "LET'S GET SOME!",
+          "I'LL COME WITH YOU!",
+          "YEAH, ME TOO!"
+        ]
+      },
+      "n": [
+        {
+          "k": "another",
+          "say": [
+            "I'M GOING OVER NOW!"
+          ],
+          "re": [
+            "OKAY!",
+            "I'LL WAIT HERE!"
+          ]
+        },
+        {
+          "k": "want",
+          "say": [
+            "OKAY, I'LL BE BACK!"
+          ],
+          "re": [
+            "THANKS!",
+            "SEE YOU IN A MINUTE!"
+          ]
+        }
+      ],
+      "back": [
+        "I just want some water now."
+      ],
+      "backRe": [
+        "Me too.",
+        "Let's get somewhere safe first."
+      ]
+    },
+    {
+      "id": "jess",
+      "q": [
+        [
+          "where",
+          "WHERE'S JESS?",
+          "where"
+        ],
+        [
+          "where",
+          "DO YOU KNOW WHERE JESS WENT?",
+          "where"
+        ],
+        [
+          "yn",
+          "HAVE YOU SEEN JESS?",
+          "seen"
+        ],
+        [
+          "yn",
+          "DID YOU SEE WHERE JESS WENT?",
+          "seen"
+        ]
+      ],
+      "a": {
+        "where": [
+          "I HAVEN'T SEEN HER!",
+          "I LOST TRACK OF HER!",
+          "TRY TEXTING HER!"
+        ],
+        "seen": [
+          "NOT RECENTLY!",
+          "NO, SORRY!",
+          "NOT SINCE WE GOT HERE!"
+        ]
+      },
+      "n": [
+        {
+          "k": "where",
+          "say": [
+            "I'LL SEND HER A MESSAGE!"
+          ],
+          "re": [
+            "LET ME KNOW IF SHE ANSWERS!",
+            "I'LL KEEP LOOKING!"
+          ]
+        },
+        {
+          "k": "seen",
+          "say": [
+            "I'LL TRY HER PHONE!"
+          ],
+          "re": [
+            "OKAY!",
+            "LET ME KNOW!"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "loud",
+      "q": [
+        [
+          "say",
+          "IT'S SO LOUD IN HERE!",
+          "loud"
+        ],
+        [
+          "say",
+          "I CAN BARELY HEAR YOU!",
+          "loud"
+        ],
+        [
+          "yn",
+          "DO YOU WANT TO GO OUTSIDE FOR A MINUTE?",
+          "outside"
+        ],
+        [
+          "yn",
+          "NEED SOME AIR?",
+          "outside"
+        ]
+      ],
+      "a": {
+        "loud": [
+          "I KNOW!",
+          "LET'S GET SOME AIR!",
+          "WE CAN TALK OUTSIDE!"
+        ],
+        "outside": [
+          "YEAH, LET'S GO!",
+          "GIVE ME A MINUTE!",
+          "AFTER THIS SONG!"
+        ]
+      },
+      "n": [
+        {
+          "k": "loud",
+          "say": [
+            "YEAH, LET'S GO OUT FOR A MINUTE!"
+          ],
+          "re": [
+            "I'M COMING!",
+            "RIGHT BEHIND YOU!"
+          ]
+        },
+        {
+          "k": "outside",
+          "say": [
+            "I'LL WAIT FOR YOU!"
+          ],
+          "re": [
+            "OKAY!",
+            "THANKS!"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ride",
+      "q": [
+        [
+          "how",
+          "HOW ARE WE GETTING HOME?",
+          "home"
+        ],
+        [
+          "how",
+          "WHAT'S THE PLAN FOR GETTING BACK?",
+          "home"
+        ],
+        [
+          "who",
+          "WHO'S DRIVING?",
+          "driver"
+        ],
+        [
+          "who",
+          "DID ANYONE AGREE TO DRIVE?",
+          "driver"
+        ]
+      ],
+      "a": {
+        "home": [
+          "WE CAN CALL A RIDE!",
+          "I'M TAKING A CAB!",
+          "WE STILL NEED TO FIGURE THAT OUT!"
+        ],
+        "driver": [
+          "NOBODY, AS FAR AS I KNOW!",
+          "I THOUGHT WE WERE GETTING A CAB!",
+          "I DON'T THINK ANYONE'S DRIVING!"
+        ]
+      },
+      "n": [
+        {
+          "k": "home",
+          "say": [
+            "LET'S SORT IT OUT BEFORE WE LEAVE!"
+          ],
+          "re": [
+            "YEAH!",
+            "GOOD IDEA!"
+          ]
+        },
+        {
+          "k": "driver",
+          "say": [
+            "LET'S BOOK A RIDE THEN!"
+          ],
+          "re": [
+            "YEAH!",
+            "OKAY!"
+          ]
+        }
+      ],
+      "back": [
+        "We need to arrange a way home."
+      ],
+      "backRe": [
+        "I'll try to call someone.",
+        "We can call a ride once we're clear."
+      ]
+    }
+  ]
 };
-/* how different people answer, per kind of question. Deliberately broad (they replace many specific answers), and tagged
-   unsure, so a follow-up that needs a real yes or no never comes after a shrug. */
+
 const PERSONA_ANS = {
-  rude: { when: ["I don't know. Check.|unsure", 'Why are you asking me?|unsure'], where: ['No idea.|unsure', 'Go look.|unsure'], yn: ['How would I know?|unsure', 'Probably. Whatever.|unsure'],
-    what: ['No idea.|unsure', 'Ask somebody else.|unsure'], how: ["I don't know.|unsure", 'Why do you care?|unsure'], who: ['Not me.|unsure', 'No clue.|unsure'], say: ['Okay?|unsure', 'And?|unsure', 'Good to know.|unsure'] },
-  quiet: { when: ['Not sure.|unsure', "I don't know.|unsure"], where: ['Not sure.|unsure', 'Over there, I think.|unsure'], yn: ['Maybe.|unsure'],
-    what: ["I don't know.|unsure", 'Not sure.|unsure'], how: ['Not sure.|unsure', "I don't know.|unsure"], who: ['No idea.|unsure', 'Not sure.|unsure'], say: ['Yeah.|unsure', 'Mm.|unsure', 'I know.|unsure'] },
-  distracted: { yn: ['Sorry, what? Uh... maybe.|unsure'], when: ["Sorry, what? I'm not sure.|unsure", "Uh... I don't remember.|unsure"], where: ["Wait, what? I don't know.|unsure"],
-    what: ["Huh? Sorry, I wasn't listening.|unsure", "I don't know.|unsure"], how: ['Sorry, what was the question?|unsure', 'Uh... not sure.|unsure'], who: ['Who? Sorry, I missed that.|unsure', 'No idea.|unsure'], say: ['Sorry, I was looking at something.|unsure', 'Huh? Yeah.|unsure'] },
-  funny: { say: ['Huge development.|unsure', 'That changes everything.|unsure', 'Tragic.|unsure'], yn: ["I'm gonna go with maybe.|unsure", 'Sure. Why not?|unsure'] }, // only where a generic joke still fits the question
+  "rude": {
+    "when": [
+      "I don't know. Check it yourself.|unsure",
+      "Ask someone else.|unsure"
+    ],
+    "where": [
+      "How should I know?|unsure",
+      "No idea.|unsure"
+    ],
+    "yn": [
+      "I haven't checked.|unsure",
+      "I don't know.|unsure"
+    ],
+    "what": [
+      "Ask someone else.|unsure",
+      "No clue.|unsure"
+    ],
+    "how": [
+      "I don't know.|unsure",
+      "Couldn't tell you.|unsure"
+    ],
+    "who": [
+      "No idea.|unsure",
+      "I haven't asked.|unsure"
+    ],
+    "say": [
+      "What do you want me to do about it?|unsure",
+      "Okay. I heard you.|unsure"
+    ]
+  },
+  "quiet": {
+    "when": [
+      "Not sure.|unsure",
+      "I don't know.|unsure"
+    ],
+    "where": [
+      "Not sure.|unsure",
+      "I haven't checked.|unsure"
+    ],
+    "yn": [
+      "I'm not sure.|unsure"
+    ],
+    "what": [
+      "I don't know.|unsure",
+      "Not sure.|unsure"
+    ],
+    "how": [
+      "Not sure.|unsure",
+      "I don't know.|unsure"
+    ],
+    "who": [
+      "No idea.|unsure",
+      "I'm not sure.|unsure"
+    ],
+    "say": [
+      "Yeah.|unsure",
+      "Mm.|unsure",
+      "Okay.|unsure"
+    ]
+  },
+  "distracted": {
+    "yn": [
+      "Sorry, I didn't catch that.|unsure"
+    ],
+    "when": [
+      "Sorry, I'm not sure.|unsure",
+      "I wasn't listening, sorry.|unsure"
+    ],
+    "where": [
+      "Sorry, I didn't hear you.|unsure"
+    ],
+    "what": [
+      "Sorry, I missed that.|unsure",
+      "I wasn't listening.|unsure"
+    ],
+    "how": [
+      "I didn't catch that, sorry.|unsure",
+      "I'm not sure.|unsure"
+    ],
+    "who": [
+      "I missed what you said.|unsure",
+      "No idea, sorry.|unsure"
+    ],
+    "say": [
+      "Sorry, I was looking at something.|unsure",
+      "Sorry, I missed that.|unsure"
+    ]
+  },
+  "funny": {}
 };
-const PERSONA_K = [['rude', .3], ['quiet', .4], ['distracted', .22], ['funny', .15]];
-const SWITCH = { q: ['Anyway.', 'Oh, random question.', 'Unrelated, but—', 'Anyway, um.', 'Hey, so.'], say: ['Anyway.', 'Oh, that reminds me.', 'Anyway, um.', 'Oh, totally different thing.'] }; // what fits before a question isn't what fits before a statement
-/* coming back to a talk the snake cut off: the one who was talking picks it up, or nobody can remember */
-const CONVO_RESUME = ['Anyway, what I was saying—', 'So. Anyway.', 'Okay. Um. Anyway.', 'Like I was saying, before... that.'];
-const CONVO_LOST = ['I completely forgot what I was talking about.', 'I had a point. It\'s gone.', 'Never mind. Doesn\'t matter now.', "...I don't even remember what we were talking about."];
-const CONVO_LOST_RE = ['Yeah. Me neither.', 'Honestly? Same.', "Can't blame you.", "Doesn't matter."];
-/* things people say while they're doing something */
+
+const PERSONA_K = [
+  [
+    "rude",
+    0.3
+  ],
+  [
+    "quiet",
+    0.4
+  ],
+  [
+    "distracted",
+    0.22
+  ],
+  [
+    "funny",
+    0.15
+  ]
+];
+
+const SWITCH = {
+  "q": [
+    "Oh, before I forget.",
+    "By the way.",
+    "Hey."
+  ],
+  "say": [
+    "Anyway.",
+    "Oh, before I forget.",
+    "By the way."
+  ]
+};
+
+const CONVO_RESUME = [
+  "Anyway, I was saying.",
+  "Where were we? Oh, yeah.",
+  "Before that happened, I was saying.",
+  "Right, back to what I was saying."
+];
+
+const CONVO_LOST = [
+  "I can't remember what I was saying.",
+  "I've completely lost my train of thought.",
+  "I don't feel like talking about it now.",
+  "Let's leave it for now."
+];
+
+const CONVO_LOST_RE = [
+  "That's okay.",
+  "We can talk later.",
+  "Take your time.",
+  "Don't worry about it."
+];
+
 const DOING = {
-  dog: ['Slow down, buddy.', 'Leave it. LEAVE IT.', 'Good boy.', 'No, we are not chasing that.', 'Heel. Heel! Ugh.'],
-  dance: ['WOO!', 'This part!', 'I love this part!', "Don't stop!", 'One more song!'],
-  flashlight: ['Batteries are dying.', 'Can barely see a thing.', 'Hold on, let me point this over there.'],
-  winter: ["It's freezing.", 'My fingers are numb.', "Should've worn gloves.", 'I can see my breath.'],
-  autumn: ['Leaves everywhere.', 'Getting dark so early now.', 'Smells like bonfires.'],
-  spring: ["Everything's blooming.", 'My allergies are killing me.', 'Finally warm out.'],
-  summer: ["It's so hot.", "I'm melting.", 'Need some shade.'],
-  night: ["It's so dark out here.", "Should've brought a flashlight.", "Streetlight's out again."],
+  "dog": [
+    "Easy, buddy.",
+    "Come on, this way.",
+    "Good dog.",
+    "Stay close.",
+    "Come here a second."
+  ],
+  "dance": [
+    "I love this bit!",
+    "This song's good!",
+    "Come on!",
+    "One more song.",
+    "I'm staying for this one."
+  ],
+  "flashlight": [
+    "I need to see where I'm going.",
+    "Let me check over here.",
+    "I should bring spare batteries next time."
+  ],
+  "winter": [
+    "My hands are cold.",
+    "I should've worn gloves.",
+    "Need to get somewhere warm.",
+    "I need a warmer coat."
+  ],
+  "autumn": [
+    "I should bring an extra layer.",
+    "Need to clear the leaves at home.",
+    "I need to check the weather later."
+  ],
+  "spring": [
+    "It's nice being out again.",
+    "I should get outside more.",
+    "Hope the weather holds."
+  ],
+  "summer": [
+    "I need more water.",
+    "I could use some shade.",
+    "It's hot out here."
+  ],
+  "night": [
+    "I need to watch where I'm walking.",
+    "It's hard to see out here.",
+    "I should head back soon."
+  ]
 };
-/* ---- weather small talk: picked by season, and by how cold it actually is right now (time of day counts) ---- */
+
 const WEATHER_TALK = {
-  freezing: [ // winter, night or early morning
-    { id: 'wx-freeze', q: [['say', "It's freezing. I can't feel my fingers.", 'cold'], ['yn', 'Is it just me or is it colder than yesterday?', 'colder'], ['say', 'My breath is literally smoking.', 'cold']],
-      a: { cold: ['Same. My ears are gone.|same', "Should've worn gloves.|scold", 'Stop complaining, walk faster.|tease', "At least it's not windy.|same"], colder: ['Way colder.|yes', "It's just you.|no", 'They said minus eight tonight.|yes', 'Feels like it.|yes'] },
-      n: [{ k: '*', t: 'same yes', say: "I'm going home after this, I swear.", re: ['You say that every time.', 'Take me with you.'] },
-          { k: '*', t: 'tease scold no', say: "The pond's probably frozen solid.", re: ["Don't even think about walking on it.", 'Good. Skating.', 'Ducks must hate this.'] }],
-      back: ['Still freezing, by the way.'] },
-    { id: 'wx-ice', q: [['say', "Watch it, the ground's all ice.", 'ice'], ['yn', 'Did you slip earlier? I heard something.', 'slip']],
-      a: { ice: ['I almost ate it back there.', 'Thanks, mom.', 'They never salt this bit.'], slip: ['Maybe.|yes', "Don't tell anyone.|yes", 'That was my dignity hitting the floor.|yes'] },
-      n: [{ k: 'slip', t: 'yes', say: ['Are you okay?', 'Did you hurt yourself?'], re: ['Only my pride.', "I'll have a bruise tomorrow."] }] }],
-  winter: [
-    { id: 'wx-snow', q: [['yn', "Think it's going to snow again?", 'more'], ['say', 'I love it when it snows like this.', 'love'], ['when', "When's this snow supposed to melt?", 'melt']],
-      a: { more: ['Looks like it.|yes', 'Hope not.|no', 'The forecast said tonight.|yes', 'More? Seriously?|no rq'], love: ["It's pretty for about a day.", 'Wait till it turns to slush.', 'You would.'], melt: ['Next week, maybe.', 'March.', 'Never, apparently.'] },
-      n: [{ k: 'love more', say: 'We should build a snowman.', re: ["We're adults.", "I'm in.", 'Last one got kicked over.'] },
-          { k: '*', say: 'Somebody made snow angels over there.', re: ['Probably kids.', 'That was me.', 'Cute.'] }],
-      back: ['Still snowing?'] }],
-  autumn: [
-    { id: 'wx-leaves', q: [['say', 'Leaves are everywhere already.', 'leaves'], ['yn', 'Is it getting dark earlier or is it just me?', 'dark']],
-      a: { leaves: ['Best time of year.|like', "Somebody's got to rake that.|chore", 'Love the crunch, though.|like'], dark: ['Clocks change soon.|yes', "It's autumn, genius.|yes", 'Way earlier.|yes'] },
-      n: [{ k: 'dark', t: 'yes', say: 'I need a proper coat.', re: ['Told you.', 'Borrow mine.', 'Just layer up.'] },
-          { k: 'leaves', t: 'like chore', say: 'Smells like rain.', re: ['Great.', 'Smells like bonfires to me.', 'I like it.'] }] },
-    { id: 'wx-chilly', q: [['say', "It's getting chilly.", 'chilly'], ['yn', 'Did you bring a jacket?', 'jacket']],
-      a: { chilly: ['Sweater weather.', 'Yeah, it turned fast.', "I'm fine. I'm not fine."], jacket: ['No, and I regret it.|no', 'Obviously.|yes', 'It was warm this morning!|no'] },
-      n: [{ k: 'jacket', t: 'no', say: 'Want mine?', re: ['Yes. Please.', "No, I'm being stubborn."] }] }],
-  spring: [
-    { id: 'wx-spring', q: [['say', 'Finally a bit of sun.', 'sun'], ['yn', 'Is it going to rain again today?', 'rain']],
-      a: { sun: ['About time.', "Don't jinx it.", 'My allergies disagree.|allergy'], rain: ["Probably. It's spring.|yes", 'Looks clear.|no', 'Bring an umbrella.|yes'] },
-      n: [{ k: '*', t: 'allergy no', say: "Everything's blooming.", re: ["I'm sneezing just looking at it.", "It's nice.", 'Bees, though.'] }] }],
-  summer: [
-    { id: 'wx-heat', q: [['say', "It's way too hot today.", 'hot'], ['yn', 'Did you put sunscreen on?', 'sun'], ['say', "I'm melting.", 'hot']],
-      a: { hot: ["I've sweated through my shirt.", "At least it's not raining.", 'Find some shade, then.'], sun: ['Forgot.|no', 'Twice.|yes', "I tan, I don't burn.|no"] },
-      n: [{ k: 'hot', say: 'I could kill for an ice cream.', re: ['Same.', 'The van went past earlier.', 'You and every kid here.'] },
-          { k: 'sun', t: 'no', say: "You're going to regret that.", re: ['Probably.', 'I never learn.'] }] }],
-  warmNight: [
-    { id: 'wx-night', q: [['say', 'Nice night, at least.', 'nice'], ['yn', 'Still warm, huh?', 'warm']],
-      a: { nice: ["Yeah, it's actually pleasant.", 'Too quiet, though.', 'Bit too dark round here.'], warm: ['Barely cooled down.', 'Perfect weather.', 'Mosquitoes love it.'] } }],
+  "freezing": [
+    {
+      "id": "wx-freeze",
+      "q": [
+        [
+          "say",
+          "My fingers are freezing.",
+          "cold"
+        ],
+        [
+          "say",
+          "I should've worn gloves.",
+          "cold"
+        ],
+        [
+          "yn",
+          "Does it feel colder to you?",
+          "colder"
+        ],
+        [
+          "yn",
+          "Is it getting colder?",
+          "colder"
+        ]
+      ],
+      "a": {
+        "cold": [
+          "Let's get somewhere warm soon.",
+          "Mine are cold too.",
+          "Keep your hands in your pockets."
+        ],
+        "colder": [
+          "Feels like it.",
+          "I'm definitely feeling it now.",
+          "Hard to tell. I've been cold the whole time."
+        ]
+      },
+      "n": [
+        {
+          "k": "cold",
+          "say": [
+            "I don't want to stay out much longer."
+          ],
+          "re": [
+            "We can head back.",
+            "Me neither."
+          ]
+        }
+      ],
+      "back": [
+        "I still need to get somewhere warm."
+      ],
+      "backRe": [
+        "Let's keep moving.",
+        "We'll find somewhere warm."
+      ]
+    },
+    {
+      "id": "wx-ice",
+      "q": [
+        [
+          "say",
+          "Watch your footing.",
+          "careful"
+        ],
+        [
+          "say",
+          "Be careful walking here.",
+          "careful"
+        ],
+        [
+          "yn",
+          "Did you slip earlier?",
+          "slip"
+        ],
+        [
+          "yn",
+          "Was that you slipping back there?",
+          "slip"
+        ]
+      ],
+      "a": {
+        "careful": [
+          "I will.",
+          "Thanks.",
+          "I'm taking it slowly."
+        ],
+        "slip": [
+          "A little, but I'm okay.",
+          "Caught myself.",
+          "Nearly, but I stayed up."
+        ]
+      },
+      "n": [
+        {
+          "k": "careful",
+          "say": [
+            "I don't want to fall out here."
+          ],
+          "re": [
+            "Me neither.",
+            "Just take your time."
+          ]
+        },
+        {
+          "k": "slip",
+          "say": [
+            "Be careful."
+          ],
+          "re": [
+            "I will.",
+            "Yeah, I'm slowing down."
+          ]
+        }
+      ]
+    }
+  ],
+  "winter": [
+    {
+      "id": "wx-snow",
+      "q": [
+        [
+          "yn",
+          "Think we'll get more snow?",
+          "more"
+        ],
+        [
+          "yn",
+          "Are we getting more snow, do you think?",
+          "more"
+        ],
+        [
+          "say",
+          "I like how it looks with the snow.",
+          "love"
+        ],
+        [
+          "say",
+          "It's nice seeing the snow out here.",
+          "love"
+        ],
+        [
+          "when",
+          "When do you think the snow will melt?",
+          "melt"
+        ],
+        [
+          "when",
+          "How long do you think this snow will last?",
+          "melt"
+        ]
+      ],
+      "a": {
+        "more": [
+          "I haven't checked.",
+          "It might.",
+          "I'm not sure."
+        ],
+        "love": [
+          "It is pretty.",
+          "Yeah, before it turns to slush.",
+          "I like it until I have to clear it."
+        ],
+        "melt": [
+          "Depends if it warms up.",
+          "Could be a while.",
+          "I haven't checked the weather."
+        ]
+      },
+      "n": [
+        {
+          "k": "more",
+          "say": [
+            "I'll check the forecast later."
+          ],
+          "re": [
+            "Let me know.",
+            "Good idea."
+          ]
+        }
+      ],
+      "back": [
+        "I'd like to get out of the cold."
+      ],
+      "backRe": [
+        "Let's keep moving.",
+        "We'll find somewhere warm."
+      ]
+    }
+  ],
+  "autumn": [
+    {
+      "id": "wx-leaves",
+      "q": [
+        [
+          "say",
+          "There's leaves everywhere now.",
+          "leaves"
+        ],
+        [
+          "say",
+          "The leaves have really started falling.",
+          "leaves"
+        ],
+        [
+          "yn",
+          "Is it getting dark earlier?",
+          "dark"
+        ],
+        [
+          "yn",
+          "Have you noticed how early it gets dark?",
+          "dark"
+        ]
+      ],
+      "a": {
+        "leaves": [
+          "Yeah, happened quickly.",
+          "Feels like the year went fast.",
+          "I like this time of year."
+        ],
+        "dark": [
+          "Yeah, much earlier.",
+          "I keep noticing it after work.",
+          "Feels like we've lost half the day."
+        ]
+      },
+      "n": [
+        {
+          "k": "leaves",
+          "say": [
+            "I need to clear the ones at home."
+          ],
+          "re": [
+            "Me too.",
+            "There's always more the next day."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wx-chilly",
+      "q": [
+        [
+          "say",
+          "It's getting chilly.",
+          "chilly"
+        ],
+        [
+          "say",
+          "I should've brought another layer.",
+          "chilly"
+        ],
+        [
+          "yn",
+          "Did you bring a jacket?",
+          "jacket"
+        ],
+        [
+          "yn",
+          "Have you got something warmer with you?",
+          "jacket"
+        ]
+      ],
+      "a": {
+        "chilly": [
+          "We can head back soon.",
+          "I'm feeling it too.",
+          "Keep moving, that'll help."
+        ],
+        "jacket": [
+          "Left it at home.",
+          "Yeah, in my bag.",
+          "Just this."
+        ]
+      },
+      "n": [
+        {
+          "k": "chilly",
+          "say": [
+            "I'm bringing a warmer coat next time."
+          ],
+          "re": [
+            "Good idea.",
+            "Me too."
+          ]
+        },
+        {
+          "k": "jacket",
+          "say": [
+            "I wasn't expecting it to cool down so much."
+          ],
+          "re": [
+            "Neither was I.",
+            "It changes quickly."
+          ]
+        }
+      ]
+    }
+  ],
+  "spring": [
+    {
+      "id": "wx-spring",
+      "q": [
+        [
+          "say",
+          "It's nice to get out again.",
+          "outside"
+        ],
+        [
+          "say",
+          "I've missed being outside.",
+          "outside"
+        ],
+        [
+          "yn",
+          "Think it'll rain later?",
+          "rain"
+        ],
+        [
+          "yn",
+          "Do you think we'll get rain later?",
+          "rain"
+        ]
+      ],
+      "a": {
+        "outside": [
+          "Me too.",
+          "It's good to get a walk in.",
+          "I needed this."
+        ],
+        "rain": [
+          "I haven't checked.",
+          "I'm not sure.",
+          "Wouldn't surprise me."
+        ]
+      },
+      "n": [
+        {
+          "k": "outside",
+          "say": [
+            "We should do this more often."
+          ],
+          "re": [
+            "Yeah, when we're both free.",
+            "I'd like that."
+          ]
+        },
+        {
+          "k": "rain",
+          "say": [
+            "I brought an umbrella just in case."
+          ],
+          "re": [
+            "Good thinking.",
+            "Better to have it."
+          ]
+        }
+      ]
+    }
+  ],
+  "summer": [
+    {
+      "id": "wx-heat",
+      "q": [
+        [
+          "say",
+          "It's so hot.",
+          "hot"
+        ],
+        [
+          "say",
+          "I'm sweating through my shirt.",
+          "hot"
+        ],
+        [
+          "yn",
+          "Did you put sunscreen on?",
+          "sun"
+        ],
+        [
+          "yn",
+          "Are you wearing sunscreen?",
+          "sun"
+        ]
+      ],
+      "a": {
+        "hot": [
+          "We should find some shade.",
+          "Me too.",
+          "Make sure you've got water."
+        ],
+        "sun": [
+          "Yeah, before I left.",
+          "No, I forgot.",
+          "I need to put more on."
+        ]
+      },
+      "n": [
+        {
+          "k": "hot",
+          "say": [
+            "I'd like a cold drink."
+          ],
+          "re": [
+            "Same.",
+            "We can stop and get one."
+          ]
+        },
+        {
+          "k": "sun",
+          "say": [
+            "I brought some if you need it."
+          ],
+          "re": [
+            "Thanks.",
+            "I'll keep that in mind."
+          ]
+        }
+      ]
+    }
+  ],
+  "warmNight": [
+    {
+      "id": "wx-night",
+      "q": [
+        [
+          "say",
+          "It's nice out tonight.",
+          "nice"
+        ],
+        [
+          "say",
+          "I'm glad it cooled down a bit.",
+          "nice"
+        ],
+        [
+          "yn",
+          "Still feels warm, doesn't it?",
+          "warm"
+        ],
+        [
+          "yn",
+          "Is it still warm to you?",
+          "warm"
+        ]
+      ],
+      "a": {
+        "nice": [
+          "Yeah, better than earlier.",
+          "Nice to be out without the sun.",
+          "I could stay out for a while."
+        ],
+        "warm": [
+          "Yeah, hasn't cooled down much.",
+          "A little.",
+          "Better than earlier, at least."
+        ]
+      },
+      "n": [
+        {
+          "k": "nice",
+          "say": [
+            "We should take evening walks more often."
+          ],
+          "re": [
+            "Yeah.",
+            "I'd like that."
+          ]
+        }
+      ]
+    }
+  ]
 };
+
 function weatherTalk() { // which of the above fits right now: season, then how cold this hour actually is
   const m = MAPS[mapIdx]; if (!m || m.indoor || m.space || !season) return [];
   const h = (typeof tod === 'number' ? tod : 12) % 24, night = h < 6.5 || h > 20, id = season.id;

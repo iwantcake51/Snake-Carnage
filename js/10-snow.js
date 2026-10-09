@@ -21,9 +21,10 @@ function buildSnow() {
   const fill = (o, rr) => { if (o.t === 'r') { for (let j = Math.floor(o.y / SG); j < Math.ceil((o.y + o.h) / SG); j++) for (let i = Math.floor(o.x / SG); i < Math.ceil((o.x + o.w) / SG); i++) if (i >= 0 && j >= 0 && i < GW && j < GH) blk[j * GW + i] = 1; }
     else for (let j = Math.floor((o.y - rr) / SG); j <= (o.y + rr) / SG; j++) for (let i = Math.floor((o.x - rr) / SG); i <= (o.x + rr) / SG; i++) if (i >= 0 && j >= 0 && i < GW && j < GH && dist2(i * SG + 2, j * SG + 2, o.x, o.y) <= rr * rr) blk[j * GW + i] = 1; };
   for (const o of obstacles) { if (o.kind === 'detail') continue; if (o.kind === 'lamp') { fill(o, 3); continue; } fill(o, o.kind === 'tree' ? o.r * .2 : o.kind === 'bush' ? 0 : o.r); }
-  for (let k = 0; k < GW * GH; k++) if (blk[k]) { dist[k] = 0; q.push(k); }
-  for (let h = 0; h < q.length; h++) { const k = q[h], i = k % GW, j = k / GW | 0, d = dist[k] + SG; if (d > 40) continue;
-    for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const ii = i + di, jj = j + dj; if (ii < 0 || jj < 0 || ii >= GW || jj >= GH) continue; const kk = jj * GW + ii; if (dist[kk] > d) { dist[kk] = d; q.push(kk); } } }
+  const src = new Int32Array(GW * GH).fill(-1); // each cell remembers its nearest solid cell, so distance is a true circle (a 4-way spread made diamonds round lamp posts)
+  for (let k = 0; k < GW * GH; k++) if (blk[k]) { dist[k] = 0; src[k] = k; q.push(k); }
+  for (let h = 0; h < q.length; h++) { const k = q[h], i = k % GW, j = k / GW | 0, sk = src[k], si = sk % GW, sj = sk / GW | 0; if (dist[k] > 40) continue;
+    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { if (!di && !dj) continue; const ii = i + di, jj = j + dj; if (ii < 0 || jj < 0 || ii >= GW || jj >= GH) continue; const kk = jj * GW + ii, d = Math.hypot(ii - si, jj - sj) * SG; if (dist[kk] > d + .01) { dist[kk] = d; src[kk] = sk; q.push(kk); } } }
   const pines = obstacles.filter(o => o.kind === 'tree' && o.tinfo && o.tinfo.pine);
   const NC = 6, nw = Math.ceil(SNW / NC) + 2, nh = Math.ceil(SNH / NC) + 2, NZ = new Float32Array(nw * nh), LZ = new Float32Array(nw * nh); // noise on a coarser grid, smoothly upsampled
   for (let j = 0; j < nh; j++) for (let i = 0; i < nw; i++) { const x = i * NC * SN, y = j * NC * SN; NZ[j * nw + i] = fbm(x / 190 + sd, y / 190 - sd, 4) + perlin(x / 47 + sd * 2, y / 47) * .22; LZ[j * nw + i] = .5 + .45 * sstep(-.3, .6, fbm(x / 70 - sd, y / 70 + sd, 2)) + perlin(x / 22 + sd, y / 22 - sd) * .14; }
@@ -109,6 +110,19 @@ function carveSnow(px, py, rr, ang, keep, push, wear = 0) { // press a soft roun
     const bx = px - dx * rr * (.9 + Math.random() * .8) + nx * (Math.random() - .5) * rr, by = py - dy * rr * (.9 + Math.random() * .8) + ny * (Math.random() - .5) * rr; // smeared along the floor behind
     softAdd(bx, by, rem * .1, s * .3, cr, cg, cb);
   }
+  return moved;
+}
+function blastSnow(x, y, r, rim = true) { // a blast: every bit of snow in the impact zone is blown off to bare ground (blood in it too); some lands in a thin ring just outside
+  if (!snowOn || !snowD) return 0;
+  const ci = x / SN, cj = y / SN, R = r / SN, RO = R * (rim ? 1.5 : 1.3); let moved = 0; // bare in the middle, then thinning out gradually to untouched snow (no hard edge)
+  for (let j = Math.max(0, Math.floor(cj - RO)); j <= Math.min(SNH - 1, Math.ceil(cj + RO)); j++) for (let i = Math.max(0, Math.floor(ci - RO)); i <= Math.min(SNW - 1, Math.ceil(ci + RO)); i++) {
+    const k = j * SNW + i; if (snowD[k] <= 0 && snowS[k] <= 0) continue; const d = Math.hypot(i + .5 - ci, j + .5 - cj); if (d > RO) continue;
+    const h = Math.sin(i * 12.9898 + j * 78.233) * 43758.5453, nz = (h - Math.floor(h) - .5) * .3, u = clamp((d / R - .55) / (RO / R - .55) + nz, 0, 1), keep = u * u * (3 - 2 * u); // smoothstep, with a ragged edge
+    if (keep < .04) { moved += snowD[k]; snowD[k] = 0; snowS[k] = 0; snowW[k] = 1; }
+    else { moved += snowD[k] * (1 - keep); snowD[k] *= keep; snowS[k] *= keep; }
+    markSnow(i, j);
+  }
+  if (rim && moved > 0) { const n = 36, v = Math.min(.5, moved / (n * 60)); for (let q = 0; q < n; q++) { const a = q / n * TAU + rand(-.08, .08), d = r * rand(1.3, 1.7); softAdd(x + Math.cos(a) * d, y + Math.sin(a) * d, v * rand(.6, 1.4), 0, 0, 0, 0); } }
   return moved;
 }
 function snowStain(x, y, amt, col) { // blood landing on snow soaks in instead of sitting on top

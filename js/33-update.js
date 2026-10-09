@@ -25,6 +25,7 @@ function update(dt) {
   if (NETM.run) { if (NETM.host) netUpdateCreatures(dt); else netClientCreatures(dt); } // co-op: the host's AI reacts to every player; guests show what the host says
   else for (const c of creatures) if (c.alive) updateCreature(c, dt);
   updateChunks(dt); // broken pieces of things (38b-destruction)
+  if (typeof adminTick === 'function') adminTick(); // the admin panel's overrides (40f-admin)
   airTick(dt); // air strikes, and snakes going up (before the blood moves, so a blast's spray flies this frame)
   updateBlood(dt); updateGiblets(dt); updateSplashes(dt); updateMist(dt); updateSmoke(dt); updateFlies(dt); updateVomit(dt);
   if ((fadeT -= dt) <= 0) { fadeT = 2; fadeBlood(); }
@@ -206,6 +207,8 @@ function drawSnakeNightRim(x) { // white rim at night, readable over dark ground
   const strong = SETTINGS.snakeOutline === 'Strong', pts = snake._pts, n = pts.length;
   let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
   for (const g of pts) { if (g.x < x0) x0 = g.x; if (g.x > x1) x1 = g.x; if (g.y < y0) y0 = g.y; if (g.y > y1) y1 = g.y; }
+  const gh = SETTINGS.simpleFx ? [] : (snake.ghosts || []).map(q => { const u = (T - q.t) / GHOST_LIFE; return u > .02 && u < 1 ? [q, ghostAt(q, u)] : null; }).filter(Boolean); // the lunge's after-images sit inside the rim too
+  for (const [q, o] of gh) for (let i = 0; i < q.m; i += 2) { const px = q.P[3 * i] + o.ox, py = q.P[3 * i + 1] + o.oy; if (px < x0) x0 = px; if (px > x1) x1 = px; if (py < y0) y0 = py; if (py > y1) y1 = py; }
   const pad = snakeRadius() + 6, prev = snake._rimBox; x0 -= pad; y0 -= pad; x1 += pad; y1 += pad;
   if (prev) snx.clearRect(prev[0], prev[1], prev[2] - prev[0], prev[3] - prev[1]); else snx.clearRect(-60, -60, W + 120, H + 120);
   snake._rimBox = [x0, y0, x1, y1];
@@ -214,7 +217,11 @@ function drawSnakeNightRim(x) { // white rim at night, readable over dark ground
   // made see-through when the layer goes on, so the overlapping rings don't add up
   snx.strokeStyle = '#fff'; snx.lineWidth = strong ? 3.6 : 2.4;
   for (let i = 0; i < n; i++) { const g = pts[i]; snx.beginPath(); snx.arc(g.x, g.y, segR(i, n) + .4, 0, TAU); snx.stroke(); }
+  const ghostPath = (q, o) => { snx.beginPath(); for (let i = 0; i < q.m; i += 2) { const r = q.P[3 * i + 2] * o.shrink * (1 - .35 * i / q.m) + .4, px = q.P[3 * i] + o.ox, py = q.P[3 * i + 1] + o.oy; snx.moveTo(px + r, py); snx.arc(px, py, r, 0, TAU); } };
+  for (const [q, o] of gh) { snx.globalAlpha = Math.min(1, o.a * 1.6); ghostPath(q, o); snx.stroke(); } // each after-image's ring fades with it
   snx.globalCompositeOperation = 'destination-out'; snx.fillStyle = '#000';
+  for (const [q, o] of gh) { snx.globalAlpha = Math.min(1, o.a * 1.6); ghostPath(q, o); snx.fill(); } // cut every shape back out, body and trail, so one rim runs round the lot
+  snx.globalAlpha = 1;
   for (let i = 0; i < n; i++) { const g = pts[i]; snx.beginPath(); snx.arc(g.x, g.y, segR(i, n) + .4, 0, TAU); snx.fill(); }
   snx.globalCompositeOperation = 'source-over';
   if (MOD.fog || MOD.fow) { snx.globalCompositeOperation = 'destination-out'; snx.drawImage(visC, 0, 0, W, H); snx.globalCompositeOperation = 'source-over'; } // only the part of the body you can see
@@ -251,7 +258,7 @@ function goldenBanner(animal, c) { // each golden target gets its own note; seve
   const who = c && c.def.alien ? 'ALIEN' : c && c.type === 'astronaut' ? 'ASTRONAUT' : 'HUMAN';
   notify({ kind: 'goldH', title: 'GOLDEN ' + who, sub: 'Find them before the gold wears off.', dur: 5.5, bar: true }); Sfx.golden();
 }
-const [rimC, rimX] = makeLayer();
+const [rimC, rimX] = makeLayer(), OUTLINE_FULL = 30; // how many of the nearest get the full outline
 function drawTargetOutlines(x) { // clean silhouette rim around everything edible: black by day, white at night
   // every rim goes into one layer (stroke the outline, then cut the body out of it: only the outer rim stays, no lines
   // across heads or arms) and the layer is drawn once. A scratch canvas per creature meant a round trip to the graphics
@@ -259,14 +266,17 @@ function drawTargetOutlines(x) { // clean silhouette rim around everything edibl
   const night = light.dark > .3, col = night ? 'rgba(255,255,255,.78)' : 'rgba(0,0,0,.6)', prev = drawTargetOutlines.box;
   if (prev) rimX.clearRect(prev[0], prev[1], prev[2] - prev[0], prev[3] - prev[1]);
   let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
-  for (const c of creatures) {
+  rimX.lineCap = rimX.lineJoin = 'round';
+  const near = new Set(); // the full outline (arms, legs, tails) for the ones close to you; further out, just body and head, which is far cheaper
+  if (snake) { const d2 = []; for (const c of creatures) if (c.alive && !c.def.fly) d2.push([dist2(c.x, c.y, snake.x, snake.y), c]); if (d2.length > OUTLINE_FULL) d2.sort((a, b) => a[0] - b[0]); for (let i = 0; i < Math.min(OUTLINE_FULL, d2.length); i++) if (d2[i][0] < 420 * 420) near.add(d2[i][1]); }
+  for (const c of creatures) { // one small shape per creature (one big merged path is what chokes a graphics chip)
     if (!c.alive || c.def.fly) continue;
     const a = playerSees(c.x, c.y); if (a <= .02) continue;
     const hz = c.hz || 0, k = 1 + hz * .045, cy = c.y - hz * .7; // the rim rides up with a hop
     rimX.save(); rimX.translate(c.x, cy); rimX.scale(k, k); rimX.rotate(c.a);
-    shapePath(rimX, c);
-    rimX.globalAlpha = a; rimX.strokeStyle = c.golden ? '#ffcf33' : col; rimX.lineWidth = c.golden ? 3.2 : 2; rimX.stroke();
-    rimX.globalAlpha = 1; rimX.globalCompositeOperation = 'destination-out'; rimX.fill(); rimX.globalCompositeOperation = 'source-over';
+    const f = creatureSil(c, !near.has(c)).f; // the whole silhouette: body, head, arms, legs, tails and ears, as one shape
+    rimX.globalAlpha = a; rimX.strokeStyle = c.golden ? '#ffcf33' : col; rimX.lineWidth = c.golden ? 3.2 : 2; rimX.stroke(f); // a rim round it...
+    rimX.globalAlpha = 1; rimX.globalCompositeOperation = 'destination-out'; rimX.fill(f); rimX.globalCompositeOperation = 'source-over'; // ...then the body cut out, so only the outer edge stays
     rimX.restore();
     if (c.x - 22 < x0) x0 = c.x - 22; if (cy - 22 < y0) y0 = cy - 22; if (c.x + 22 > x1) x1 = c.x + 22; if (cy + 22 > y1) y1 = cy + 22;
   }
@@ -287,13 +297,14 @@ function drawBubbles(x) {
     const vis = c.bubbles.filter(b => b.delay <= 0).slice(-3), P = worldToCanvas(c.x, c.y - 12);
     if (P.x < -60 || P.x > W + 60 || P.y < -20 || P.y > H + 60) continue; // zoomed in: off screen
     let cy = P.y - 2 - bh / 2;
+    const Pc = worldToCanvas(c.x, c.y), under = segC.some(g => Math.abs(g.x - Pc.x) < 48 && Math.abs(g.y - Pc.y) < 48); // the snake right on (or under) the speaker: all their bubbles fade too
     for (let k = vis.length - 1; k >= 0; k--) {
       const b = vis[k];
       const txt = b.act ? `*${b.text}*` : b.cps ? b.text.slice(0, Math.max(1, shownLen(b))) : b.text;
       x.font = b.act ? `italic 600 ${fs * .92}px "Segoe UI", sans-serif` : `${b.yell ? 800 : 600} ${fs}px "Segoe UI", sans-serif`;
       const w = x.measureText(txt).width + 9, pop = Math.min(1, b.t / .14), sc = .6 + .4 * (1 - Math.pow(1 - pop, 3));
       const bx = clamp(P.x + (vis.length - 1 - k) * 5, w / 2 + 2, W - w / 2 - 2), by = Math.max(bh, cy);
-      let near = false; // fade bubbles the snake is under, so they never hide the action
+      let near = under; // fade bubbles the snake is under, so they never hide the action
       for (let i = 0; i < segC.length && !near; i++) { const g = segC[i]; near = Math.abs(g.x - bx) < w / 2 + 22 && Math.abs(g.y - by) < bh / 2 + 22; }
       b.fa = (b.fa ?? 1) + ((near ? .18 : 1) - (b.fa ?? 1)) * .25;
       x.save(); x.globalAlpha = Math.min(1, (b.life - b.t) * 3) * b.fa * seeA; x.translate(bx + (b.yell ? Math.sin(T * 47 + k * 3 + c.x) * .7 : 0), by + (b.yell ? Math.cos(T * 53 + c.y) * .6 : 0)); x.scale(sc, sc); // shouting shakes

@@ -27,6 +27,67 @@ function shapePath(x, c) {
 }
 const ANIMAL_SHAPE = { rabbit: [6.6, 4.8, -1, 5, 3.3], deer: [11.2, 6.2, -1, 12, 3.2], frog: [5.2, 4.6, -.6, 3.2, 2.4], dog: [9.6, 5.6, -.5, 9.6, 4.6], cat: [7.6, 4.4, -.5, 6.4, 3.8],
   chicken: [5.4, 4.4, -.6, 4.8, 3], duck: [6.2, 4.6, -.6, 6, 3], pig: [10.2, 7.6, -.5, 9.6, 5], sheep: [8.2, 7.6, 0, 8.8, 3.8], rat: [5.6, 3.3, -.4, 4.8, 2.3], firefly: [2.4, 1.8, 0, 2, 1] };
+/* the outline's shape: the body and head (shapePath) plus everything sticking out of them, matching how each one is
+   drawn: a person's legs, shoes and sleeves; an animal's feet, tail, ears, wings, beak or antlers. Returns the filled parts
+   as one path and the thin parts (legs, tails) as strokes with their widths, in the creature's own frame (+x forward). */
+function creatureSil(c, lite) { // lite: just the body and head (far away, where limbs wouldn't read anyway)
+  const f = new Path2D(), lines = [], d = c.def; f.beginPath = () => {}; shapePath(f, c);
+  if (lite) return { f, lines };
+  let k = 1, ox = 0, oy = 0, rc = 1, rs = 0; // the frame a part was drawn in: scale, then a turn and a shift
+  const P = (x, y) => [ox + (x * rc - y * rs) * k, oy + (x * rs + y * rc) * k];
+  const E = (x, y, rx, ry, rot = 0) => { const [px, py] = P(x, y); f.moveTo(px + Math.cos(rot + Math.atan2(rs, rc)) * rx * k, py + Math.sin(rot + Math.atan2(rs, rc)) * rx * k); f.ellipse(px, py, rx * k, ry * k, rot + Math.atan2(rs, rc), 0, TAU); };
+  const C = (x, y, r) => E(x, y, r, r);
+  const Tri = (...p) => { const q = []; for (let n = 0; n < p.length; n += 2) q.push(P(p[n], p[n + 1])); f.moveTo(...q[0]); for (let n = 1; n < q.length; n++) f.lineTo(...q[n]); f.closePath(); };
+  const Ln = (w, ...p) => { // a limb, as slim ellipses along it (part of the one filled shape: a thick stroke per limb cost far more to draw)
+    const q = []; for (let n = 0; n < p.length; n += 2) q.push(P(p[n], p[n + 1])); let pts = q;
+    if (q.length === 3) pts = [q[0], q[2]]; // a gentle curve (a leg): one piece is close enough
+    else if (q.length === 4) pts = [0, 1 / 3, 2 / 3, 1].map(t => { const u = 1 - t; return [0, 1].map(d => u * u * u * q[0][d] + 3 * u * u * t * q[1][d] + 3 * u * t * t * q[2][d] + t * t * t * q[3][d]); });
+    const hw = w * k / 2;
+    for (let n = 1; n < pts.length; n++) { const [ax, ay] = pts[n - 1], [bx, by] = pts[n], L = Math.hypot(bx - ax, by - ay), r = Math.atan2(by - ay, bx - ax), mx = (ax + bx) / 2, my = (ay + by) / 2, rx = L / 2 + hw;
+      f.moveTo(mx + Math.cos(r) * rx, my + Math.sin(r) * rx); f.ellipse(mx, my, rx, hw, r, 0, TAU); } };
+  const feetSil = (fx, bx, wy, r) => { const m = c.moveAmt, sw = Math.sin(c.phase), lift = Math.cos(c.phase), st = 2.4 * m; // as feet() places them
+    for (const [x0, y, dir] of [[fx, -wy, 1], [bx, wy, 1], [fx, wy, -1], [bx, -wy, -1]]) { const up = Math.max(0, lift * dir) * m; C(x0 + sw * st * dir, y * (1 + up * .08), r * (1 + up * .22)); } };
+  if (d.human) { // as drawHumanBody: two striding legs, the shoes, then the arms on twisted shoulders
+    const L = c.look, s = Math.sin(c.phase) * c.moveAmt, [a1, b1, a2, b2] = armPos(c), fy = L.w * .38, run = c.state === 'panic' || c.state === 'flee', stride = (run ? 7.8 : 5.2) * (c.strideK || 1);
+    const cp = Math.cos(c.phase) * c.moveAmt, l1 = Math.max(0, cp), l2 = Math.max(0, -cp), f1 = s * stride, f2 = -s * stride, y1 = -fy - l1 * .5, y2 = fy + l2 * .5;
+    const lw = L.legs === 'leggings' ? 2.9 : L.legs === 'cargo' ? 4 : L.legs === 'skirt' ? 2.8 : L.legs === 'shorts' ? 3 : 3.6;
+    Ln(lw, -.6, -fy * .8, f1 * .5, -fy - l1 * .4, f1 + 2.4, y1); Ln(lw, -.6, fy * .8, f2 * .5, fy + l2 * .4, f2 + 2.4, y2); // each leg runs on over its shoe
+    if (L.legs === 'skirt') E(-.3, 0, L.d + 1.4, L.w * .82);
+    rc = Math.cos(-s * .07); rs = Math.sin(-s * .07); if (run) ox = 1.3 * c.moveAmt;
+    for (const [ax, ay] of [[a1, b1], [a2, b2]]) { if (L.sleeves === 'long') Ln(4.4, 0, ay * .86, ax + .9, ay); else E(ax * .35, ay * .9, 2.7, 2.5); } // (the hands are in shapePath already)
+    if (L.acc === 'backpack') E(-L.d - 1.1, 0, 2.3, L.w * .55);
+    return { f, lines };
+  }
+  const T0 = typeof T === 'number' ? T : 0, sd = c.seed ?? .5;
+  switch (c.type) {
+    case 'rabbit': { const air = Math.min(1, (c.hz || 0) / 5), st = air * 3, flop = Math.sin(T0 * 3 + sd * 20) * .15 + air * .3;
+      E(-5 - st, -3.2, 3 + st * .6, 1.6); E(-5 - st, 3.2, 3 + st * .6, 1.6); C(3 + st * .8, -2, 1.2); C(3 + st * .8, 2, 1.2); C(-7.4, 0, 2.1);
+      for (const sg of [-1, 1]) { const a = Math.PI + sg * (.28 + flop); E(3.4 + Math.cos(a) * 3.2, sg * 1.3 + Math.sin(a) * 3.2, 3.4, 1.1, a); } break; }
+    case 'deer': { k = (c.sizeK || 1) * (c.male ? 1.04 : .94); const run = c.state === 'panic' || c.state === 'flee', st = Math.sin(c.phase) * c.moveAmt * (run ? 4.2 : 2.6), nod = run ? 1.5 : Math.sin(T0 * .7 + sd * 9) * .6, hx = 12.6 + nod;
+      for (const [lx, sg, ph] of [[6, -1, st], [6, 1, -st], [-7, -1, -st], [-7, 1, st]]) { Ln(1.4, lx, sg * 3.6, lx + ph, sg * 4.6); C(lx + ph, sg * 4.7, .8); }
+      E(-1, 0, 10.5, 5.4); E(-10.4, 0, 2.2 * (run ? 1.5 : 1), 2.4); E(8.5 + nod * .5, 0, 3.5, 2.4); E(hx + .8, 0, 3.2, 2); // body, rump, neck, head
+      for (const sg of [-1, 1]) { const a = sg * (2.2 - (run ? .5 : 0)); E(hx - 1.4 + Math.cos(a) * 2.1, sg * 1.6 + Math.sin(a) * 2.1, 2.3, 1, a); }
+      if (c.male) { const A = c.antK || 1; for (const sg of [-1, 1]) Ln(1, hx - .6, sg * 1.2, hx - 3 * A, sg * 5.6 * A, hx + 2.6 * A, sg * 6.6 * A); } break; }
+    case 'frog': { const air = Math.min(1, (c.hz || 0) / 3), st = air * 3;
+      for (const sg of [-1, 1]) { E(-2.6 - st, sg * (3.6 - air), 2.8 + st * .7, 1.3); C(-4.6 - st * 1.6, sg * (4.4 - air), 1.1); E(2.6, sg * 3.6, 1.6, .9); C(3.2, sg * 2.1, 1.5); } break; }
+    case 'dog': { feetSil(6, -6, 3, 1.4); const wag = Math.sin(T0 * (c.state === 'wander' ? 12 : 22) + sd * 30) * (c.state === 'panic' ? .3 : .6);
+      Ln(2, -8, 0, -11, wag * 4, -13, wag * 6); E(11.6, 0, 2.6, 2.2); C(13.4, 0, 1.1); for (const sg of [-1, 1]) E(7, sg * 4.2, 2.6, 1.6); break; }
+    case 'cat': { feetSil(4.6, -4.6, 2.6, 1.2); const sw = Math.sin(T0 * 3 + sd * 20) * .5;
+      Ln(2.2, -6, 0, -10, sw * 4, -12, -sw * 5, -14, sw * 2); for (const sg of [-1, 1]) Tri(4.6, sg * 1.6, 4, sg * 4.6, 6.6, sg * 3.2); break; }
+    case 'chicken': { const s2 = Math.sin(c.phase * 1.4) * c.moveAmt * 1.6, peck = c.state === 'idle' ? Math.max(0, Math.sin(T0 * 6 + sd * 40)) * 1.2 : 0;
+      C(1 + s2, -1.8, .9); C(1 - s2, 1.8, .9); for (const sg of [-1, 1]) E(-1, sg * 3.2, 3.6, 1.6); for (let n = 0; n < 3; n++) E(-5 - n, (n - 1) * 1.2, 2, .9);
+      C(3.8 + peck, 0, 1.2); Tri(6.6 + peck, -.9, 8.6 + peck, 0, 6.6 + peck, .9); break; }
+    case 'duck': { const s2 = Math.sin(c.phase * 1.2) * c.moveAmt * 1.4;
+      E(1 + s2, -2, 1.3, .9); E(1 - s2, 2, 1.3, .9); for (const sg of [-1, 1]) E(-1.4, sg * 3, 4.2, 1.6); E(-6.4, 0, 1.6, 1.2); E(8.2, 0, 2.2, 1.2); break; }
+    case 'pig': feetSil(5.5, -5.5, 4.4, 1.3); for (const sg of [-1, 1]) Tri(7, sg * 2.2, 6, sg * 6.2, 9.4, sg * 4.2); E(12.6, 0, 1.8, 2.4); Ln(1.2, -9.4, 0, -11, -2.2, -12.4, -.6); break;
+    case 'sheep': feetSil(5.5, -5.5, 4.2, 1.2); C(0, 0, 8.4); E(8.6, 0, 3.6, 3); for (const sg of [-1, 1]) E(7.4, sg * 3.4, 2.2, 1); break;
+    case 'rat': { const s2 = Math.sin(c.phase * 1.6) * c.moveAmt, tw = Math.sin(c.phase * .8) * (.6 + c.moveAmt), py = q => Math.sin(q * 2.6 + c.phase * .45) * tw * q * 3;
+      for (const [fx, fy, ph] of [[2.6, -2.3, s2], [2.6, 2.3, -s2], [-2.4, -2.8, -s2], [-2.4, 2.8, s2]]) E(fx + ph * 1.2, fy, .9, .6);
+      for (const sg of [-1, 1]) C(3.2, sg * 2.2, 1.35);
+      const pts = []; for (let n = 0; n <= 6; n++) { const q = n / 6; pts.push(-4.6 - q * 10, py(q)); } Ln(1, ...pts); break; }
+  }
+  return { f, lines };
+}
 function drawHuman(x, c) { // a little bob with each step and a sway side to side, so walking doesn't look like sliding
   if (c.strideK === undefined) { c.strideK = rand(.85, 1.15); c.armK = rand(.75, 1.2); c.flail = hasTrait(c, 'jumpy') || hasTrait(c, 'nervous') || Math.random() < .15; }
   const m = c.moveAmt, run = c.state === 'panic' || c.state === 'flee', bob = 1 + (1 - Math.cos(c.phase * 2)) * .5 * .045 * m * (run ? 1.4 : 1);
@@ -283,7 +344,7 @@ const ANIMALS = {
   },
   rat(x, c, d) { // low and pear-shaped: heavy haunches, a pointed snout, round ears, a long ringed tail
     const s = Math.sin(c.phase * 1.6) * c.moveAmt, col = d.col, dk = shade(col, -.22), lt = shade(col, .14);
-    const tw = Math.sin(c.phase * .8) * (.6 + c.moveAmt); // tail: thick at the root, thin and whippy at the tip
+    const tw = Math.sin(c.phase * .28) * (.55 + .6 * c.moveAmt); // tail: thick at the root, thin at the tip, swaying slowly (it used to whip about far too fast)
     for (let k = 0; k < 9; k++) { const t0 = k / 9, t1 = (k + 1) / 9, px = q => -4.6 - q * 10, py = q => Math.sin(q * 2.6 + c.phase * 1.6) * tw * q * 3;
       x.strokeStyle = shade(d.tcol || '#d99a9a', -.08 * (k % 2)); x.lineWidth = 1.5 - t0 * 1.1; x.lineCap = 'round'; x.beginPath(); x.moveTo(px(t0), py(t0)); x.lineTo(px(t1), py(t1)); x.stroke(); }
     x.fillStyle = '#e3a3a0'; for (const [fx, fy, ph] of [[2.6, -2.3, s], [2.6, 2.3, -s], [-2.4, -2.8, -s], [-2.4, 2.8, s]]) ell(x, fx + ph * 1.2, fy, .9, .6); // paws, stepping in turn
@@ -348,73 +409,6 @@ function hsl2hex(h, s, l) {
   s /= 100; l /= 100;
   const k = n => (n + h / 30) % 12, a = s * Math.min(l, 1 - l), f = n => Math.round(255 * (l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1))));
   return '#' + [f(0), f(8), f(4)].map(v => v.toString(16).padStart(2, '0')).join('');
-}
-function segColor(i, n, cfg) { // every skin is built from your primary (P) and secondary (S) colors, plus shades of them
-  const P = cfg.color, S = cfg.color2, D = shade(P, -.55);
-  switch (cfg.pattern) {
-    case 'Stripes': return Math.floor(i / 2) % 2 ? S : P;
-    case 'Zebra': return i % 2 ? S : P;
-    case 'Gradient': return mixColor(P, S, i / Math.max(1, n - 1));
-    case 'Rainbow': return mixColor(P, S, (Math.sin(i * .35 - T * 4) + 1) / 2); // the two colors chase each other down the body
-    case 'Neon': return mixColor(P, '#ffffff', (Math.sin(T * 6 - i * .5) + 1) * .22);
-    case 'Lava': return mixColor(P, S, (Math.sin(T * 3 + i * .6) + 1) / 2);
-    case 'Galaxy': return mixColor(shade(P, -.75), P, (Math.sin(i * .7 + T) + 1) * .18);
-    case 'Rat Fur': return i >= n - 3 ? S : i % 2 ? shade(P, -.08) : P; // fur, with the tail tip in your second color
-    case 'Gold Plated': return mixColor(shade(P, -.3), S, (Math.sin(i * .5 - T * 2.5) + 1) * .5 * .8); // a highlight sweeping down the body
-    case 'Blood Soaked': return mixColor(P, shade(S, -.6), .45 + .25 * ((i * 7919 % 13) / 13));
-    case 'Hazard': return Math.floor(i / 2) % 2 ? S : P;
-    case 'Lunar': return mixColor(P, shade(P, -.25), (i * 37 % 10) / 22);
-    case 'Martian': return mixColor(P, S, (Math.sin(i * .8) + 1) * .4);
-    // real snakes, in your colors
-    case 'Coral': return [P, P, S, D, D, S][i % 6];
-    case 'Kingsnake': return i % 4 === 0 ? S : D;
-    case 'Diamondback': return mixColor(P, shade(P, .12), (i % 2) * .5);
-    case 'Python': return mixColor(P, shade(P, -.08), ((i * 31) % 7) / 7);
-    case 'Garter': return mixColor(D, shade(D, .15), (i % 2) * .5);
-    case 'Emerald': return mixColor(P, shade(P, .12), (Math.sin(i * .4) + 1) * .3);
-    default: return i % 2 ? mixColor(P, '#000000', .06) : P;
-  }
-}
-const NATURAL = new Set(['Coral', 'Kingsnake', 'Diamondback', 'Python', 'Garter', 'Emerald']);
-function patternStripes(x, pts, n, cfg, i0 = 0, i1 = n - 1) { // Garter: the stripes that run the length of the body (drawn piece by piece: points i0..i1)
-  if (cfg.pattern !== 'Garter') return;
-  const run = (off, w, col) => { x.strokeStyle = col; x.lineWidth = w; x.beginPath(); for (let i = i0; i <= i1; i++) { const g = pts[i], r = segR(i, n), px = g.x - Math.sin(g.a) * r * off, py = g.y + Math.cos(g.a) * r * off; i > i0 ? x.lineTo(px, py) : x.moveTo(px, py); } x.stroke(); };
-  x.lineCap = 'round'; x.lineJoin = 'round'; const R0 = snakeRadius(); run(0, R0 * .38, cfg.color2); run(-.72, R0 * .2, shade(cfg.color2, -.12)); run(.72, R0 * .2, shade(cfg.color2, -.12)); // the yellow dorsal stripe and two side stripes
-}
-function neonEdge(x, cfg, sides) { // Neon: a glowing tube edge in your second color (sides() adds the flanks, just inside the outline, to the path)
-  x.save(); x.strokeStyle = cfg.color2; x.globalAlpha = .55 + .25 * Math.sin(T * 4); x.lineWidth = 2.4; x.beginPath(); sides(); x.stroke(); x.globalAlpha = .25; x.lineWidth = 5; x.stroke(); x.restore();
-}
-const PATTERN_MARKS = new Set(['Spots', 'Checker', 'Diamond', 'Rat Fur', 'Diamondback', 'Python', 'Emerald', 'Kingsnake', 'Gold Plated', 'Blood Soaked', 'Lunar', 'Martian', 'Galaxy']); // the patterns patternOverlay paints marks for
-const PATTERN_SPILL = new Set(['Spots', 'Checker', 'Diamondback', 'Python', 'Garter']); // ...and the ones whose marks reach past the body's edge, so they're drawn clipped to it
-function patternOverlay(x, g, r, i, cfg) {
-  switch (cfg.pattern) {
-    case 'Spots':
-      if (i % 2 === 1) { const h = (i * 7919) % 101, sa = g.a + (h % 2 ? 1.57 : -1.57) * (.3 + (h % 7) / 10); x.save(); x.translate(g.x + Math.cos(sa) * r * .45, g.y + Math.sin(sa) * r * .45); x.rotate(g.a + h * .03); x.fillStyle = cfg.color2; ell(x, 0, 0, r * (.48 + (h % 5) * .05), r * .34); x.restore(); } // irregular oval spots, like a real spotted skin
-      break;
-    case 'Checker': { const nx = -Math.sin(g.a), ny = Math.cos(g.a), dx = Math.cos(g.a) * r * .62, dy = Math.sin(g.a) * r * .62, sd = i % 2 ? 1 : -1; x.fillStyle = cfg.color2; x.beginPath(); x.moveTo(g.x + dx, g.y + dy); x.lineTo(g.x - dx, g.y - dy); x.lineTo(g.x - dx + nx * r * 1.6 * sd, g.y - dy + ny * r * 1.6 * sd); x.lineTo(g.x + dx + nx * r * 1.6 * sd, g.y + dy + ny * r * 1.6 * sd); x.fill(); break; } // half the band, alternating sides of the spine
-    case 'Diamond':
-      if (i % 2 === 0) { x.save(); x.translate(g.x, g.y); x.rotate(g.a + Math.PI / 4); x.fillStyle = cfg.color2; x.fillRect(-r * .35, -r * .35, r * .7, r * .7); x.restore(); }
-      break;
-    case 'Rat Fur':
-      x.strokeStyle = shade(cfg.color, -.5); x.globalAlpha *= .5; x.lineWidth = .7;
-      for (let k = -1; k <= 1; k++) { const a = g.a + Math.PI + k * .5; x.beginPath(); x.moveTo(g.x + Math.cos(a) * r * .2, g.y + Math.sin(a) * r * .2); x.lineTo(g.x + Math.cos(a) * r * .8, g.y + Math.sin(a) * r * .8); x.stroke(); }
-      break;
-    case 'Diamondback': if (i % 2 === 0) { x.save(); x.translate(g.x, g.y); x.rotate(g.a + Math.PI / 4); const d = r * .74; x.fillStyle = cfg.color2; x.fillRect(-d - 1.1, -d - 1.1, d * 2 + 2.2, d * 2 + 2.2); x.fillStyle = shade(cfg.color, -.55); x.fillRect(-d, -d, d * 2, d * 2); x.fillStyle = shade(cfg.color, -.3); x.fillRect(-d * .5, -d * .5, d, d); x.restore(); } break; // dark diamonds with a pale border
-    case 'Python': { const h = (i * 7919) % 97; if (i % 2 === 0) { x.save(); x.translate(g.x, g.y); x.rotate(g.a + (h % 9 - 4) * .08); x.fillStyle = shade(cfg.color, -.6); ell(x, 0, (h % 5 - 2) * r * .14, r * 1.05, r * .78); x.fillStyle = cfg.color2; ell(x, 0, (h % 5 - 2) * r * .14, r * .42, r * .26); x.restore(); } break; } // blotches with pale hearts
-    case 'Emerald': if (i % 4 === 1) { x.fillStyle = cfg.color2; const c = Math.cos(g.a), sn = Math.sin(g.a); ell(x, g.x - sn * r * .05, g.y + c * r * .05, r * .26, r * .14); } break; // white flecks down the back
-    case 'Kingsnake': if (i % 4 === 0) { x.fillStyle = 'rgba(0,0,0,.18)'; circ(x, g.x, g.y, r * .2); } break;
-    case 'Gold Plated': x.fillStyle = 'rgba(255,250,220,.35)'; ell(x, g.x - r * .3, g.y - r * .35, r * .45, r * .22); break; // metal sheen
-    case 'Blood Soaked': if (i % 3 === 0) { x.fillStyle = shade(cfg.color2, -.7); circ(x, g.x + Math.cos(i * 2.3) * r * .4, g.y + Math.sin(i * 2.3) * r * .4, r * .35); } break;
-    case 'Lunar': if (i % 2 === 0) { x.fillStyle = shade(cfg.color, -.4); circ(x, g.x + Math.cos(i * 1.7) * r * .35, g.y + Math.sin(i * 1.7) * r * .35, r * .28); } break;
-    case 'Martian': x.fillStyle = mixColor(cfg.color2, '#ffffff', .4); for (let k = 0; k < 2; k++) circ(x, g.x + Math.cos(i * 3 + k * 2) * r * .5, g.y + Math.sin(i * 3 + k * 2) * r * .5, .7); break;
-    case 'Galaxy':
-      x.fillStyle = '#fff';
-      for (let k = 0; k < 2; k++) {
-        const h = ((i * 7919 + k * 104729) % 1000) / 1000, a = h * TAU + g.a, d = r * .65 * ((h * 13) % 1);
-        x.globalAlpha = .35 + .65 * Math.abs(Math.sin(T * 3 + i + k)); circ(x, g.x + Math.cos(a) * d, g.y + Math.sin(a) * d, .8);
-      }
-      x.globalAlpha = 1; break;
-  }
 }
 function drawEyes(x, cfg, base) {
   const eyes = [[4.4, -3.3], [4.4, 3.3]], e = cfg.eyes;

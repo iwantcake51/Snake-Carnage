@@ -278,7 +278,6 @@ function checkRotation() { // reroll every 15 minutes, without restarting anythi
   const mc = document.getElementById('mapch');
   if (mc) { mc.classList.add('rotOut'); setTimeout(() => { if (!mc.isConnected) return; mc.innerHTML = mapChallengesHtml(); mc.classList.remove('rotOut', 'swap'); void mc.offsetWidth; mc.classList.add('swap'); }, 420); }
   if (state === 'paused' && overlay.style.display !== 'none' && overlay.querySelector('.pause')) { const pc = overlay.querySelector('.pch'); if (pc) pc.innerHTML = challengeRows(); } // refresh in place, never open it
-  overlay.querySelectorAll('.card[data-map] .cb').forEach(el => { const m = MAPS[+el.closest('.card').dataset.map].name; el.textContent = `Best ${PROG.best[m] || 0} · ${chDoneCount(m)}/${activeChallenges(m).length} ✓`; });
 }
 function checkChallenges() {
   if (state !== 'play' && state !== 'dead') return;

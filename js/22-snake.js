@@ -33,6 +33,7 @@ function updateSize(s, dt) { s.playT = (s.playT || 0) + dt; const t = sizeTarget
 let SEG_SNAKE = null; // the snake being drawn right now (drawSnake sets it; teammates' snakes go through the same code)
 const segR = (i, n) => { // the tail tapers over its last 6 segments; while the body is growing, the taper follows the fractional length so nothing pops
   const s = SEG_SNAKE || snake, nf = s && s.lenV !== undefined && s.segs && s.segs.length === n ? Math.max(n - 1, Math.min(n, s.lenV)) : n;
+  if (s && s.stump && s.alive) return snakeRadius(); // the tail was shot off: no taper, it ends blunt where it was torn
   return snakeRadius() * (1 - .35 * Math.max(0, (i - (nf - 6)) / 6));
 };
 
@@ -64,7 +65,11 @@ function computeSegs(s) {
     }
     trav += L; px = q.x; py = q.y; lastA = a;
   }
-  if (i < h.length - 2) h.length = i + 2;
+  { // keep a little more of the path than the body uses: when it grows, the new length slides out along where it's really been, instead of bunching up at the tail
+    let qx = px, qy = py, dd = trav, j = i; const keepD = (Math.ceil(Math.max(s.len, lv)) + 30) * sp;
+    for (; j < h.length && dd < keepD; j++) { dd += Math.hypot(h[j].x - qx, h[j].y - qy); qx = h[j].x; qy = h[j].y; }
+    if (j < h.length - 2) h.length = j + 2;
+  }
   while (segs.length < n) segs.push({ x: px, y: py, a: lastA });
   if (frac > 1e-3 && n > 1) { const g = segs[n - 1], p = segs[n - 2]; g.x = p.x + (g.x - p.x) * frac; g.y = p.y + (g.y - p.y) * frac; } // the newest tail piece slides out of the one before it
 }
@@ -72,18 +77,22 @@ function computeSegs(s) {
 function updateSnake(dt) {
   const s = snake; if (!s.started || !s.alive) return;
   updateSize(s, dt);
-  if (MOD.freeMove) steerFree(dt);
+  if (mouseSteerOn()) mouseSteer(); // Mouse steering: head for the cursor
   // ease toward the target heading: quick to start, settles softly, capped so it never snaps
-  const sl = upg('speed'), d = angDiff(s.angle, s.dir), mx = CONFIG.turnRate * dt * (1 + (sl >= 2 ? .18 : 0) + (sl >= 4 ? .18 : 0) + (sl >= 5 ? .12 : 0)) * (s.uturnT > 0 ? s.uturnK || 2.4 : 1); // Speed Demon: snappier turns, and a fast whip round on a U-turn
+  const sl = upg('speed'), d = angDiff(s.angle, s.dir), mx = CONFIG.turnRate * dt * (1 + (sl >= 2 ? .18 : 0) + (sl >= 4 ? .18 : 0) + (sl >= 5 ? .12 : 0)) * (s.uturnT > 0 ? s.uturnK || 2.4 : 1) * (MOD.wideTurns ? .5 : MOD.quickTurn ? 1.6 : 1); // Wide turns / Quick turn modifiers. Speed Demon: snappier turns, and a fast whip round on a U-turn
   const ad = Math.abs(d); s.angle += Math.sign(d) * Math.min(ad, mx, ad * (1 - Math.exp(-dt * CONFIG.turnEase)) + mx * .18); // never past the target: overshooting it made the head flick side to side every frame, worse the lower the frame rate
   if (s.uturnT > 0) { s.uturnT -= dt; if (s.uturnTo !== undefined && Math.abs(angDiff(s.angle, s.dir)) < .5) { s.dir = s.uturnTo; s.uturnTo = undefined; } } // second half of the U-turn
-  if (s.wallStun > 0) { const k = s.wallStun / (s.wallMax || 3.4); s.wallStun -= dt; s.angle += (Math.sin(T * 4.7) * 1.5 + Math.sin(T * 2.3 + 1.3)) * k * dt; } // seeing stars: it can't hold a line
-  for (const k of ['dashT', 'camoT', 'scentT', 'hissT', 'ramT', 'boomT']) if (s[k] > 0) s[k] -= dt * (k === 'ramT' && sl >= 3 ? 1.33 : 1); // Speed Demon III shakes off dazes faster
+  const stunK = MOD.quickRecovery ? 2 : MOD.heavyImpact ? .5 : 1; // Quick recovery / Heavy impact: dazes wear off twice as fast, or half as fast
+  if (s.wallStun > 0) { const k = s.wallStun / (s.wallMax || 3.4); s.wallStun -= dt * stunK; s.angle += (Math.sin(T * 4.7) * 1.5 + Math.sin(T * 2.3 + 1.3)) * k * dt; } // seeing stars: it can't hold a line
+  for (const k of ['dashT', 'camoT', 'hissT', 'ramT', 'boomT']) if (s[k] > 0) s[k] -= dt * (k === 'ramT' && sl >= 3 ? 1.33 : 1) * (k === 'ramT' || k === 'boomT' ? stunK : 1); // Speed Demon III shakes off dazes faster
   if (s.camoT > 0) { const turning = Math.abs(angDiff(s.angle, s.dir)) > .05 || s.dashT > 0; s.still = clamp((s.still || 0) + (turning ? -dt * (upg('camo') > 2 ? 1.2 : 4) : dt * 1.1), 0, 1); } else s.still = 0; // camouflage settles in on a straight line
   const dk = s.dashT > 0 ? s.dashK || 1.8 : 1; s.dashV = dk >= (s.dashV || 1) ? dk : 1 + ((s.dashV || 1) - 1) * Math.exp(-dt * 3.2); // lunge hits at once, then the speed bleeds off over about a second
-  const v = s.speed * s.dashV * (s.ramT > 0 ? 1 - (s.ramDeep || .5) * (s.ramT / (s.ramMax || 1)) : 1) * (1 - .55 * boomSlow(s)); // ... or reeling from a blast // a lunge, or a stagger after smashing through something
+  if (s.dashT > 0 && (s.wallStun > 0 || s.boomT > 0)) s.dashT = 0; // concussed: no lunging
+  const v = s.speed * s.dashV * (s.camoT > 0 && upg('camo') > 1 ? 1.15 : 1) * /* Stalker: faster while hidden */ (s.ramT > 0 ? 1 - (s.ramDeep || .5) * (s.ramT / (s.ramMax || 1)) : 1) * (1 - .55 * boomSlow(s)); // ... or reeling from a blast // a lunge, or a stagger after smashing through something
   // unit vector * speed => identical speed in all 8 directions
-  s.x += Math.cos(s.angle) * v * dt; s.y += Math.sin(s.angle) * v * dt;
+  if (MOD.slippery) s.mvA = s.mvA === undefined ? s.angle : s.mvA + angDiff(s.mvA, s.angle) * (1 - Math.exp(-dt * 2.8)); else s.mvA = s.angle; // Slippery: the body keeps sliding the old way a moment after you turn
+  const vq = v * (MOD.quickTurn ? .9 : 1);
+  s.x += Math.cos(s.mvA) * vq * dt; s.y += Math.sin(s.mvA) * vq * dt;
   if (!s.hist.length || dist2(s.hist[0].x, s.hist[0].y, s.x, s.y) > 2.25) s.hist.unshift({ x: s.x, y: s.y });
   computeSegs(s);
   smearBlood(s, dt);
@@ -121,17 +130,19 @@ function updateSnake(dt) {
 const HOOVER_R = 76, HOOVER_NB = []; let hoovFx = [];
 const hooverMouth = s => { const f = snakeRadius() * .7; return [s.x + Math.cos(s.angle) * f, s.y + Math.sin(s.angle) * f]; };
 function hoover(s, dt) {
-  if (!MOD.hoover) return;
-  const [hx, hy] = hooverMouth(s), R = HOOVER_R * Math.sqrt(s.scale || 1), ca = Math.cos(s.angle), sa = Math.sin(s.angle);
+  if (s.hoovT > 0) s.hoovT -= dt;
+  const sk = s.hoovT > 0 ? clamp(s.hoovLv || upg('hoover') || 1, 1, 3) : 0; if (!sk && !MOD.hoover) return; // the skill while it lasts, or the modifier's steady pull
+  const P = sk ? [0, 1.5, 1.9, 2.6][sk] : 1, [hx, hy] = hooverMouth(s), R = HOOVER_R * (sk ? [0, 1.6, 1.95, 2.4][sk] : 1) * Math.sqrt(s.scale || 1), ca = Math.cos(s.angle), sa = Math.sin(s.angle), cone = .35, half = [0, .55, 1.0, 1.5][sk], ch = Math.cos(half); // the skill's pull is a cone in front of the mouth: about 30, 57 and 86 degrees either side by level
   for (const c of nearbyCreatures(hx, hy, R, HOOVER_NB)) {
     if (!c.alive || c.def.fly) continue;
     const dx = hx - c.x, dy = hy - c.y, d = Math.hypot(dx, dy) || 1;
-    const front = clamp(.35 - (dx * ca + dy * sa) / d, 0, 1.35) / 1.35; if (front <= 0) continue; // mostly from in front of the mouth, nothing from behind
+    const cs = -(dx * ca + dy * sa) / d, front = sk ? clamp((cs - ch) / (1 - ch) * 1.6, 0, 1) : clamp(cone + cs, 0, 1 + cone) / (1 + cone); if (front <= 0) continue; // mostly from in front of the mouth, nothing from behind
     if (T - (c.hvT ?? -1) > .1) { c.hvT = T; c.hvLos = los(c.x, c.y, hx, hy); } // line of sight, re-checked ten times a second
     if (!c.hvLos) continue;
-    const k = Math.pow(1 - d / R, 2.2) * front, acc = (30 + 620 * k) * (c.def.human ? .75 : 1); // a whisper at the edge, a real tug at the lips
+    const k = Math.pow(1 - d / R, sk ? 1.4 : 2.2) * front, acc = (30 + 620 * k) * (c.def.human && !sk ? .75 : 1) * P; // the skill drags people as hard as anything else // a whisper at the edge, a real tug at the lips
     const hv = c.hv || (c.hv = { vx: 0, vy: 0 }); hv.vx += dx / d * acc * dt; hv.vy += dy / d * acc * dt;
-    if (k > .05 && Math.random() < dt * 30 * k * Math.min(1, FX_K())) { // a few motes of dust (or blood, off a bloody one) streaming into the mouth
+    if (sk && c.def.human && c.state !== 'panic' && Math.random() < dt * 4) { c.alert = 1; if (typeof panic === 'function' && AUTH()) panic(c, s.x, s.y, rand(2, 3)); } // being dragged off your feet: they know
+    if (k > .05 && Math.random() < dt * (sk ? 60 : 30) * k * Math.min(1, FX_K())) { // a few motes of dust (or blood, off a bloody one) streaming into the mouth
       const a = rand(0, TAU), rr = c.def.r * rand(.4, 1.1);
       hoovFx.push({ x: c.x + Math.cos(a) * rr, y: c.y + Math.sin(a) * rr, t: 0, life: rand(.25, .45), c: c.stains.length > 3 ? (c.stains[c.stains.length - 1].c || BLOOD) : null });
       if (hoovFx.length > 90) hoovFx.shift();
@@ -146,6 +157,13 @@ function updateHoovFx(dt) {
     if (d < 5) { hoovFx.splice(i, 1); continue; } p.x += dx / d * Math.min(d, v * dt); p.y += dy / d * Math.min(d, v * dt); }
 }
 function drawHoovFx(x) {
+  const s = snake; if (s && s.hoovT > 0 && s.alive && !s.netHidden) { // the skill: air spiralling into the open mouth
+    const [hx, hy] = hooverMouth(s), lv = clamp(s.hoovLv || 1, 1, 3), R = HOOVER_R * [0, 1.6, 1.95, 2.4][lv] * .55, k = Math.min(1, s.hoovT * 3) * Math.min(1, (ABIL.hoover.dur - s.hoovT) * 6 + .2), half = [0, .55, 1.0, 1.5][lv];
+    x.save(); x.lineCap = 'round';
+    { const RR = R / .55, g = x.createRadialGradient(hx, hy, 4, hx, hy, RR); g.addColorStop(0, `rgba(230,222,205,${(.16 * k).toFixed(3)})`); g.addColorStop(1, 'rgba(230,222,205,0)'); x.fillStyle = g; x.beginPath(); x.moveTo(hx, hy); x.arc(hx, hy, RR, s.angle - half, s.angle + half); x.closePath(); x.fill(); } // the reach of the pull, faintly
+    for (let i = 0; i < 9; i++) { const ph = ((T * 1.6 + i / 9) % 1), r = R * (1 - ph), a0 = s.angle + i * 2.4 - T * 7 + ph * 3; x.strokeStyle = `rgba(230,222,205,${(.32 * k * Math.sin(ph * Math.PI)).toFixed(3)})`; x.lineWidth = 1 + 1.6 * (1 - ph); x.beginPath(); x.arc(hx, hy, Math.max(2, r), a0, a0 + 1.1); x.stroke(); }
+    x.restore();
+  }
   if (!hoovFx.length) return; x.lineCap = 'round'; x.lineWidth = 1.1;
   for (const p of hoovFx) { const f = Math.sin(p.t / p.life * Math.PI); x.strokeStyle = p.c ? p.c : `rgba(225,215,195,${(.55 * f).toFixed(3)})`; x.globalAlpha = p.c ? .7 * f : 1;
     x.beginPath(); x.moveTo(p.px ?? p.x, p.py ?? p.y); x.lineTo(p.x, p.y); x.stroke(); }
@@ -229,11 +247,7 @@ function smearBlood(s, dt) {
     s.smear *= Math.exp(-s.speed * dt / (80 * BQ().trail)); // trails last longer, so you can read where you've been
   }
   s.lastX = s.x; s.lastY = s.y;
-  for (let i = 0; i < s.segs.length; i++) { // body soaks up blood it lies in
-    if (Math.random() > .08) continue;
-    const g = s.segs[i];
-    if (freshAt(g.x, g.y) > .6) stainSnake(i, g.x + rand(-9, 9), g.y + rand(-9, 9), rand(1.2, 3), wetColAt(g.x, g.y));
-  }
+  // (sliding through blood on the ground no longer stains the body: only kills and spray do)
 }
 
 function bleedIntoWater(x, y, amount, col = BLOOD) {
@@ -277,30 +291,33 @@ function eatWorld(c, ang, amount, s) {
   if (s && s !== snake && s.drip !== undefined) { s.drip = 2.5 * amount; s.dripCol = bloodOf(c); }
   if (AUTH()) { // the crowd: who saw it, where to avoid now, who comes to take their place
     deaths.push({ x: c.x, y: c.y }); if (deaths.length > 25) deaths.shift();
-    witness(c.x, c.y, c);
+    if (s && typeof airKillTick === 'function') airKillTick(s, c); // a snake's kill (not a bomb's) brings the next air strike closer
+    witness(c.x, c.y, c, !!(s && s.camoT > 0)); // a kill from camouflage is silent
     respawnQ.push({ type: c.type, zone: c.zone, t: rand(2, 5) });
   }
   return amount;
 }
 function eatReward(c, amount, ang) {
   const s = snake, sx = Math.cos(ang), sy = Math.sin(ang);
-  if (s.camoT > 0 && upg('camo') > 2) s.camoT = Math.min(12, s.camoT + 2); // Ambush: each kill buys more time hidden
+  if (s.camoT > 0) s.camoT = Math.min(s.camoMax || 8, s.camoT + 1); // every kill while hidden keeps you hidden a second longer
   if (s.dashT > 0 && upg('dash') > 2) { abilCD.dash = Math.min(abilCD.dash || 0, T + 1.2); s.dashT = Math.max(s.dashT, .3); } // pounce: straight into the next one
   for (let k = 0; k < 14 * amount; k++) {
     const i = randi(0, Math.min(3, s.segs.length - 1)), g = s.segs[i], R = snakeRadius();
     stainSnake(i, g.x + rand(-R, R), g.y + rand(-R, R), rand(1.5, 4) * s.scale, pick(bloodOf(c)));
   }
-  for (let k = 0; k < c.def.grow; k++) s.stains.push([]); s.meals++; // Start Tiny grows back with every meal
-  s.len += c.def.grow;
+  s.growAcc = (s.growAcc || 0) + c.def.grow * (MOD.bottomless ? 2 : MOD.slowGrowth ? .5 : 1); const gAdd = Math.floor(s.growAcc + 1e-6); s.growAcc -= gAdd; // Bottomless pit: twice the length; Slow growth: half
+  for (let k = 0; k < gAdd; k++) s.stains.push([]); s.meals++; // Start Tiny grows back with every meal
+  s.len += gAdd;
   const mb = modBonus(c);
   addCombo(c); combo.t = Math.max(.6, combo.t + mb.ct);
   const gold = c.golden ? (MOD.rareAppetite ? 9 : 5) : 1, frenzy = evt && evt.type === 'frenzy' ? 2 : 1;
   const cm = MOD.comboFocus ? 1 + (combo.n - 1) * .12 : MOD.comboCushion ? 1 + Math.floor((combo.n - 1) / 4) * .15 : 1 + Math.floor((combo.n - 1) / 3) * .25;
-  const pts = Math.max(1, Math.round(c.def.score * gold * frenzy * rewardMult * cm * mb.m * (1 + (run.bonus || 0))));
+  const ph = s.camoT > 0 && upg('camo') > 2 ? 1.25 : 1; // Phantom: hidden kills pay more
+  const pts = Math.max(1, Math.round(c.def.score * gold * frenzy * rewardMult * cm * mb.m * ph * (1 + (run.bonus || 0))));
   score += pts; run.score = score;
   c.def.human ? (kills.h++, run.humans++) : (kills.a++, run.animals++);
   run.byType[c.type] = (run.byType[c.type] || 0) + 1; run.killed++; if (c.golden) { run.goldens++; c.def.human ? PROG.goldH = (PROG.goldH || 0) + 1 : PROG.goldA = (PROG.goldA || 0) + 1; } // lifetime golden tally
-  const kxp = Math.round((c.def.human ? 12 : c.def.score * 4) * gold * rewardMult * mb.m);
+  const kxp = Math.round((c.def.human ? 12 : c.def.score * 4) * gold * rewardMult * mb.m * ph);
   crEat(c, pts, kxp); statEat(c); progressEat(c);
   gainXP(kxp, Math.max(1, Math.round(c.def.score * .6 * gold * rewardMult * mb.m)));
   modHud();
@@ -316,7 +333,7 @@ function ramSpot(o, x, y) { // a custom prop can say WHERE it breaks (its intera
   return polyHit(ip, x, y, snakeHitRadius() + 2);
 }
 let crashHit = null; // what you ran into: it flashes as the run ends
-const deathDelay = () => (IS_TOUCH ? .3 : .7) + (run.deathBy === 'bomb' ? 1.5 : 0); // a beat to feel the impact (the hit flashes, the screen shakes), then the crash screen. Phones get it fast. Blown up: time to watch yourself go off
+const deathDelay = () => (IS_TOUCH ? .3 : .7) + (run.deathBy === 'bomb' || run.deathBy === 'fuse' ? 1.5 : 0); // a beat to feel the impact (the hit flashes, the screen shakes), then the crash screen. Phones get it fast. Blown up: time to watch yourself go off
 function die() {
   if (NETM.run) return netLocalDown(); // co-op: you go down, the team carries on (see 40d-net-sync)
   snake.alive = false; state = 'dead'; deadT = deathDelay(); deadAt = performance.now(); shake = 10;

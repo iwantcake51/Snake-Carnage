@@ -97,4 +97,5 @@ function drawGiblets(x) {
     x.restore();
   }
   x.globalAlpha = 1;
+  if (typeof drawTailBits === 'function') drawTailBits(x); // pieces of a shot-off tail (38c-airstrikes): big and glinting, anyone can eat them
 }

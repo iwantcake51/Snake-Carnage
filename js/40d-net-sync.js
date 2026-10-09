@@ -35,6 +35,7 @@ const netPlayerSlot = slot => NETM.players.find(p => p.slot === slot);
 const netEmit = e => { if (NETM.run && NETM.host) NS.evQ.push(e); };
 const netSend = e => { if (NETM.run && !NETM.host) NS.out.push(e); };
 const netIsGuest = () => NETM.run && !NETM.host;
+const netLag = h => h === undefined || NETM.host || NETM.clockOff === undefined ? 0 : clamp((netHostTime() - h) / 1000, 0, 1); // how long a host event took to get here (its clock vs. ours, kept in step by the pings)
 /* ---- remote snakes: built from a stream of head positions; the body simply follows the path the head took ---- */
 function rsNew(p) {
   return { pid: p.id, name: p.name, color: netColorOf(p), cos: p.cos || SETTINGS.snake, upgLv: p.upg || {}, x: 0, y: 0, angle: 0, dir: 0, len: CONFIG.startLen, scale: 1, hist: [], segs: [], stains: [],
@@ -124,8 +125,7 @@ function netHostTick(dt) {
 }
 function netAssign(c) { c.nid = NS.nid++; if (NS.nid > 65000) NS.nid = 1; NS.byId.set(c.nid, c); netEmit({ t: 'sp', id: c.nid, d: netCreatureData(c) }); }
 function netHostRemoteSnakes(dt) { // what a guest's snake does to the world besides eating: noise for a blind crowd, Hoover Mouth's pull
-  if (!MOD.blind && !MOD.hoover) return;
-  const me = snake; try { for (const rs of NS.rs.values()) { if (!rs.alive || !rs.started) continue; snake = rs; UPG_OVR = rs.upgLv; if (MOD.blind) snakeNoise(dt); if (MOD.hoover) hoover(rs, dt); } } finally { snake = me; UPG_OVR = null; }
+  const me = snake; try { for (const rs of NS.rs.values()) { if (!rs.alive || !rs.started) continue; snake = rs; UPG_OVR = rs.upgLv; if (MOD.blind) snakeNoise(dt); hoover(rs, dt); /* the modifier, or that player's own upgrade level */ } } finally { snake = me; UPG_OVR = null; }
 }
 function netUpdateCreatures(dt) { // the host's AI loop: each creature reacts to whichever player is its threat right now
   const me = snake, all = netSnakes().filter(s => s.alive && s.started);
@@ -148,6 +148,9 @@ function netHostEvents(p, list) { // what a guest asks for or reports
       else if (e.t === 'crash') netPlayerDown(p.id, e.x, e.y);
       else if (e.t === 'brk') { const o = NS.obsById.get(e.o); if (o && obstacles.includes(o)) { netBreak(o, e.w, e.a, false); netEmit({ t: 'brk', o: e.o, w: e.w, a: e.a, by: p.id }); } }
       else if (e.t === 'abil') netHostAbility(p, e);
+      else if (e.t === 'tcut') { tcutApply(e); netEmit({ ...e, by: p.id }); } // a guest's tail was shot off: show it here and pass it on
+      else if (e.t === 'fboom') { detonate({ x: e.x, y: e.y, r: e.r || 60 }); netEmit({ ...e, by: p.id }); } // a guest's Short fuse went off: the blast here (the crowd), and on everyone's screen
+      else if (e.t === 'beat') { tailBitGone(e.id); netEmit({ t: 'beat', id: e.id, by: p.id }); } // a guest ate one of the pieces
       else if (e.t === 'ready2') { const L = NETM.links.get(p.id); if (L && !L.ready) { L.ready = true; L.sent = new Map(); netFullSync(L); } }
     } catch (err) { console.warn('[net] event', e && e.t, err); }
   }
@@ -163,6 +166,7 @@ function netHostBite(p, e) { // a guest's snake reached a creature on their scre
 }
 function netHostAbility(p, e) {
   const rs = NS.rs.get(p.id); if (!rs) return;
+  if (e.id === 'hoover') { const lv = clamp(e.lv | 0, 1, 3); rs.hoovT = [1.5, 1.5, 2, 2.5][lv]; rs.hoovLv = lv; } // their Hoover skill: hoover() pulls for them on this side (netHostRemoteSnakes)
   if (e.id === 'hiss') { const me = snake; snake = rs; UPG_OVR = rs.upgLv; let n = 0; try { n = hissNpc(rs, e.lv || 1); } finally { snake = me; UPG_OVR = null; } const L = NETM.links.get(p.id); if (L) L.sendR({ k: 'ev', e: [{ t: 'hissN', n }] }); }
   netEmit({ t: 'abil', pid: p.id, id: e.id, x: Math.round(rs.x), y: Math.round(rs.y) });
 }
@@ -193,7 +197,7 @@ function netSyncPlayerGone(p, why) { if (!NETM.run) return; if (why === 'left' |
 function netPlayerDown(pid, x, y) {
   if (!NETM.run || !NETM.host || NS.down.get(pid)) return;
   const p = netPlayer(pid); if (p) p.deaths = (p.deaths || 0) + 1;
-  const k = netPool(pid), back = (NS.pools[k] || 0) > 0; if (back) NS.pools[k]--;
+  const k = netPool(pid), back = !MOD.oneLife && (NS.pools[k] || 0) > 0; if (back && NS.pools[k] < 999) NS.pools[k]--; /* 999: unlimited */ // One life: nobody comes back
   NS.down.set(pid, { at: performance.now() + (back ? (NS.cfg && NS.cfg.respawn) || 5 : 0) * 1000, out: !back }); // real time, like the round clock
   const ev = [{ t: 'down', pid, x, y, out: !back }, { t: 'lives', k, n: NS.pools[k] || 0 }];
   for (const e of ev) netEmit(e); netClientEvent({ k: 'ev', e: ev }, true);
@@ -232,9 +236,10 @@ function netStartRun() { // host: everyone loads the same world
   const sz = pickSeason(m), t = cfg.time === 'Cycle' ? pickStartTime(m) : FIXED_TIMES[cfg.time] ?? 12;
   const players = NETM.players.filter(p => p.conn !== false);
   const mode = cfg.mode || 'coop', teamOf = {}, pools = {};
-  if (mode === 'teams') { netBalanceTeams(); for (const p of players) teamOf[p.id] = p.team; for (let i = 0; i < cfg.teams; i++) { const n = players.filter(p => p.team === i).length; if (n) pools['t' + i] = 2 + n; } }
-  else if (mode === 'ffa') for (const p of players) pools['p:' + p.id] = 3;
-  else pools.all = 3 + players.length;
+  const per = cfg.respawns ?? -1, pool = (n, def) => per < 0 ? def : per >= 999 ? 999 : per * n; // the lobby's Respawns setting: each player's share goes into their pool
+  if (mode === 'teams') { netBalanceTeams(); for (const p of players) teamOf[p.id] = p.team; for (let i = 0; i < cfg.teams; i++) { const n = players.filter(p => p.team === i).length; if (n) pools['t' + i] = pool(n, 2 + n); } }
+  else if (mode === 'ffa') for (const p of players) pools['p:' + p.id] = pool(1, 3);
+  else pools.all = pool(players.length, 3 + players.length);
   NS.cfg = { seed: Math.floor(Math.random() * 2 ** 31), map: cfg.map, mapName: m.name, mods: cfg.mods, time: cfg.time, tod: t, season: sz ? { ...sz } : null, w: W, mode, teams: cfg.teams || 2, teamOf, pools, len: cfg.len || 0, respawn: cfg.respawn || 5, t0: Date.now() };
   NETM.phase = 'run';
   for (const p of NETM.players) { p.ready = false; p.stats = null; p.deaths = 0; } // everyone readies up again for the next one, the host too
@@ -324,12 +329,16 @@ function netApply(e, local) {
     case 'vom': { const c = NS.byId.get(e.id); if (c) vomit(c); break; }
     case 'ungold': { const c = NS.byId.get(e.id); if (c && c.golden) ungoldify(c); break; }
     case 'brk': { if (e.by === NETM.me) break; const o = NS.obsById.get(e.o); if (o && obstacles.includes(o)) netBreak(o, e.w, e.a, !!e.quiet); break; }
-    case 'abil': { if (e.pid === NETM.me) break; const rs = NS.rs.get(e.pid); if (e.id === 'hiss') { Sfx.hiss(e.x); if (snake && dist2(snake.x, snake.y, e.x, e.y) < 300 * 300) shake = Math.max(shake, 3); if (rs) rs.hissT = .8; } break; }
+    case 'abil': { if (e.pid === NETM.me) break; const rs = NS.rs.get(e.pid); if (e.id === 'hiss') { Sfx.hiss(e.x); if (snake && dist2(snake.x, snake.y, e.x, e.y) < 300 * 300) shake = Math.max(shake, 3); if (rs) rs.hissT = .8; } else if (e.id === 'hoover' && rs) Sfx.vacuum(2, 1, e.x); break; }
+    case 'tcut': if (e.by !== NETM.me) tcutApply(e); break; // someone's tail was shot off: the burst and the pieces
+    case 'fboom': if (e.by !== NETM.me) detonate({ x: e.x, y: e.y, r: e.r || 60 }); break; // someone's Short fuse went off
+    case 'beat': if (e.by !== NETM.me) tailBitGone(e.id); break; // someone ate one of the pieces
     case 'hissN': crHiss(e.n || 0); break;
     case 'scr': crScream(e.n || 0); break;
-    case 'air': airStrike(e.x, e.y, e.w, e.r, e.j, e.f); break; // the host called in a bomb
+    case 'air': airStrike(e.x, e.y, Math.max(.15, e.w - netLag(e.h)), e.r, e.j, e.f); break; // the host called in a bomb: same spot, and it lands when it does on the host's screen
     case 'airw': airWarn(); break;
-    case 'airs': airStrafe(e.x, e.y, e.a, e.w); break; // ...or a strafing run
+    case 'airs': airStrafe(e.x, e.y, e.a, Math.max(.15, e.w - netLag(e.h))); break; // ...or a strafing run
+    case 'airj': airApproach(e.x, e.y, e.a, e.p); break; // a jet on its way in, still miles off
     case 'evt': evt = e.v ? { ...e.v } : null; if (evt) { evt.shown = false; Sfx.chime(); showEvent(); } break;
     case 'tod': if (Math.abs(angDiff(tod / 24 * TAU, e.v / 24 * TAU)) > .01) tod = e.v; break;
     case 'lives': NS.pools[e.k || 'all'] = e.n; netHud && netHud(); break;
@@ -413,7 +422,7 @@ function netLocalDown() {
 }
 function netDeathCam(down) { // dying: the camera eases out to the whole map; back in, your own zoom returns
   if (down) { if (NS.zoomBack === undefined) NS.zoomBack = UCAM.tz; UCAM.rate = 1.6; UCAM.tz = 1 / baseZoom(); UCAM.tpx = UCAM.tpy = 0; }
-  else { UCAM.rate = 3; if (NS.zoomBack !== undefined) UCAM.tz = NS.zoomBack; NS.zoomBack = undefined; UCAM.tpx = UCAM.tpy = 0; }
+  else { UCAM.rate = 3; UCAM.tz = UCAM.keep ?? NS.zoomBack ?? UCAM.tz; NS.zoomBack = undefined; UCAM.tpx = UCAM.tpy = 0; } // back in: the zoom you last chose yourself
 }
 function netDownApply(e) {
   if (!NS.down.has(e.pid)) NS.down.set(e.pid, { out: !!e.out }); // the host's own entry keeps its respawn timer

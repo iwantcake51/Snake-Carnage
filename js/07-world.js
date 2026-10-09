@@ -64,7 +64,22 @@ function buildSolid() {
     }
   }
   buildNav(); // the low-res openness / dead-end cache follows the solid grid (see 27-crowds)
+  buildOpaque();
 }
+/* what stops light at hand height: walls, buildings, hedges, shelves... (not glass, lamp posts, water, trees' trunks or anything low) */
+let opaqueGrid = null;
+const LIGHT_PASS = new Set(['glass', 'lamp', 'water', 'tree', 'bush', 'detail']);
+function buildOpaque() {
+  opaqueGrid = new Uint8Array(GW * GH);
+  for (const o of obstacles) {
+    if (obsFlag(o, 'noCollide') || LIGHT_PASS.has(o.kind) || (HEIGHTS[o.kind] ?? 10) < 14) continue;
+    let x0, y0, x1, y1;
+    if (isRot(o)) { const P = obsCorners(o), xs = P.map(p => p[0]), ys = P.map(p => p[1]); x0 = Math.min(...xs); y0 = Math.min(...ys); x1 = Math.max(...xs); y1 = Math.max(...ys); }
+    else if (o.t === 'r') { x0 = o.x; y0 = o.y; x1 = o.x + o.w; y1 = o.y + o.h; } else { x0 = o.x - o.r; y0 = o.y - o.r; x1 = o.x + o.r; y1 = o.y + o.r; }
+    for (let j = Math.max(0, Math.floor(y0 / SG)); j < Math.min(GH, Math.ceil(y1 / SG)); j++) for (let i = Math.max(0, Math.floor(x0 / SG)); i < Math.min(GW, Math.ceil(x1 / SG)); i++) { const k = j * GW + i; if (solidGrid[k]) opaqueGrid[k] = 1; } // its real shape, from the collision grid
+  }
+}
+const opaque = (x, y) => x < 0 || y < 0 || x >= W || y >= H || (opaqueGrid ? opaqueGrid[(y / SG | 0) * GW + (x / SG | 0)] : 0);
 
 function bakeOutline() {
   mkx.clearRect(0, 0, W, H); mkx.fillStyle = '#000';
@@ -81,13 +96,20 @@ function bakeOutline() {
   nvx.clearRect(0, 0, W, H); nvx.drawImage(outlineC, 0, 0, W, H); // bright copy used by night vision
   nvx.globalCompositeOperation = 'source-in'; nvx.fillStyle = '#ffffff'; nvx.fillRect(0, 0, W, H); nvx.globalCompositeOperation = 'source-over';
 }
-let curBuild = null, curPre = [], curMapLights = [];
+let curBuild = null, curPre = [], curMapLights = [], fixList = [];
+function drawFixtures(x) { // ceiling lights hang above everything: one the snake is under fades out so it never hides you
+  const segs = snake && snake.alive && !snake.netHidden && snake.segs; if (!fixList.length) return; x.save();
+  for (const l of fixList) { if (l.fix === 'none') continue; let want = 1;
+    if (segs && segs.length) { const h = segs[0]; if (Math.abs(h.x - l.x) + Math.abs(h.y - l.y) < 60 + segs.length * 9) { let d = 1e9; for (let i = 0; i < segs.length; i += 2) { const g = segs[i]; d = Math.min(d, (g.x - l.x) ** 2 + (g.y - l.y) ** 2); } want = clamp((Math.sqrt(d) - 22) / 46, .15, 1); } }
+    l.fa = (l.fa ?? 1) + (want - (l.fa ?? 1)) * .18; if (l.fa < .995) { x.globalAlpha = l.fa; fixture(x, l); x.globalAlpha = 1; } else fixture(x, l); }
+  x.restore();
+}
 const [plainC, plainX] = makeLayer();
 function drawObstacleLayer(x = octx, b = curBuild, list = obstacles, ls = (b && b.lights) || MAPS[mapIdx].lights || []) { // walls and objects, then the details on top of them
   x.clearRect(0, 0, W, H); list.forEach(o => { if (o.kind !== 'detail') drawObstacle(x, o); }); // street details are painted into the ground (see loadMap)
   if (b && b.decor) b.decor(x);
   if (x === octx) snowCaps(x, list);
-  for (const l of ls) fixture(x, l);
+  if (x === octx) fixList = ls; else for (const l of ls) fixture(x, l); // the run's own fixtures are drawn every frame (drawFixtures), so they can fade over the snake
   if (x === octx) { outlineBreakables(x); bakePropGlow(list); } // glowing buttons and screens follow whatever is standing
 }
 /* ---- placement rules, applied to every map as it loads ----
@@ -201,7 +223,7 @@ function loadMap(idx, sz) {
   buildSnow();
   buildLights(curMapLights); setupSpeakers();
   wet = new Float32Array(WW * WH); fresh = new Float32Array(WW * WH); wetC = new Float32Array(WW * WH * 3);
-  creatures = []; parts = []; pools = []; respawnQ = []; gibs = []; splashes = []; groups = []; mist = []; smoke = []; wisps = []; chunks = []; impacts = []; gloss = []; crashHit = null; ringPops = []; hitGhosts = []; hitStop = 0; puke = []; convos = []; lastDead = null; sounds = []; hoovFx = [];
+  creatures = []; parts = []; pools = []; respawnQ = []; gibs = []; splashes = []; groups = []; mist = []; smoke = []; wisps = []; scentTrails = []; navGrid = null; chunks = []; impacts = []; leafFall = []; gloss = []; crashHit = null; ringPops = []; hitGhosts = []; hitStop = 0; puke = []; convos = []; lastDead = null; sounds = []; hoovFx = [];
   score = 0; kills = { h: 0, a: 0 }; shake = 0;
   killV = killFlash = desatHold = 0;
   light = computeLight(); shadowKey = ''; bakeShadows();
@@ -209,7 +231,7 @@ function loadMap(idx, sz) {
   curRoads = b.roads || []; curCross = b.crossings || [];
   netReseed(1); // co-op: spawning happens on the host only, so it gets dice of its own (see 40d-net-sync)
   for (const [type, n, zone] of m.pop) { // run modifiers can change the crowd
-    const k = type === 'human' ? (MOD.overcrowded ? 2.1 : 1) : (MOD.noAnimals ? 0 : 1);
+    const k = (type === 'human' ? (MOD.overcrowded ? 2.1 : 1) : (MOD.noAnimals ? 0 : MOD.overcrowded ? 2 : 1)) * (MOD.sparse ? .5 : 1); // Packed map doubles everyone; Sparse crowd halves them
     for (let i = 0; i < Math.round(n * k); i++) spawn(type, zone);
   }
   makeFlies(m.fireflies || 0);
