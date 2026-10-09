@@ -43,7 +43,7 @@ function drawItemPreview(cv2, cat, v) {
   const x = cv2.getContext('2d'), w = cv2.width, h = cv2.height, base = { ...SETTINGS.snake, hat: 'None', trail: 'None' };
   x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, w, h);
   const keepT = T; T = 1.3; // a fixed moment, so animated cosmetics still read clearly
-  if (cat === 'pattern') { x.scale(2, 2); drawSnake(x, previewSnake(10, 74, 21, 7, 4), { ...base, pattern: v }); }
+  if (cat === 'pattern') { x.scale(1.55, 1.55); drawSnake(x, previewSnake(14, 101, 27, 6.6, 6), { ...base, pattern: v }); } // long enough to show a few repeats of the pattern
   else if (cat === 'hat' || cat === 'eyes') { // a close-up of the head, the way you see it in game
     x.translate(w * .6, h * .5); x.scale(3.3, 3.3); x.translate(-12, 0);
     drawSnake(x, previewSnake(5, 12, 0, 8, 0), { ...base, [cat]: v });

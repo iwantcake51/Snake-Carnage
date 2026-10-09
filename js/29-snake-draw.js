@@ -73,49 +73,48 @@ function drawSnakeBody(x, s, cfg) {
     }
     x.globalAlpha = 1;
   }
-  for (let i = n - 1; i >= 0; i--) { // the skin: one band per segment, each exactly its slice of the tube
+  const skin = skinOf(cfg), F = skinFrame(pts, n, TB); // body-space coordinates for the skin's markings (29b-skins)
+  for (let i = n - 1; i >= 0; i--) { // the skin's ground: one band per segment, each exactly its slice of the tube
     const g = pts[i], a = cam ? cam.a[i] : 0;
     const sts = s.stains[i] || [], soak = Math.min(.55, sts.length / 50);
-    let base = segColor(i, n, cfg);
+    let base = skin.base(F.uSeg(i), cfg, F.uEnd);
     if (soak) base = mixColor(base, soakCol(sts), soak);
     if (a > .01) { base = mixColor(base, groundColAt(g.x, g.y), (.42 + .14 * cam.lv) * a); x.globalAlpha = 1 - (.56 + .06 * cam.lv + .2 * (cam.still || 0)) * a; } // takes on the colors around it
     x.fillStyle = base; x.beginPath(); tubeRun(x, E0, i, i + 1, .4); x.fill(); // overlapping the band in front a hair, under it, so no seam shows
     x.globalAlpha = 1;
   }
-  // markings and stains go on after all the skin, so a spot or diamond can run across into the next band instead of being cut off
-  const spill = PATTERN_SPILL.has(cfg.pattern), stained = (a, b) => { for (let i = a; i < b; i++) if (s.stains[i] && s.stains[i].length) return true; return false; };
+  // the skin's markings, then blood stains, on top of the ground. Each piece paints the markings anchored in its own stretch of body,
+  // clipped to that stretch plus two segments either side, so a marking can run across a cut but is never painted twice
+  const stained = (a, b) => { for (let i = a; i < b; i++) if (s.stains[i] && s.stains[i].length) return true; return false; };
   const markPiece = (a, b) => {
+    if (skin.paint) { if (camAvg > .01) x.globalAlpha = 1 - .8 * camAvg; skin.paint(x, F, a ? F.uSeg(a) : -Infinity, b < n ? F.uSeg(b) : Infinity, cfg); x.globalAlpha = 1; }
     for (let i = b - 1; i >= a; i--) {
       const g = pts[i], r = segR(i, n), al = cam ? cam.a[i] : 0, sts = s.stains[i];
+      if (!sts || !sts.length) continue;
       if (al > .01) x.globalAlpha = 1 - (.56 + .06 * cam.lv + .2 * (cam.still || 0)) * al;
-      patternOverlay(x, g, r, i, cfg);
-      if (sts && sts.length) { x.save(); x.translate(g.x, g.y); x.rotate(g.a); x.drawImage(stainSprite(sts), -r, -r, r * 2, r * 2); x.restore(); }
+      x.save(); x.translate(g.x, g.y); x.rotate(g.a); x.drawImage(stainSprite(sts), -r, -r, r * 2, r * 2); x.restore();
       x.globalAlpha = 1;
     }
-    if (cfg.pattern === 'Garter') patternStripes(x, pts, n, cfg, Math.max(0, a - 1), Math.min(n - 1, b));
   };
-  if (spill || PATTERN_MARKS.has(cfg.pattern) || stained(0, n)) inPieces(2, markPiece, (a, b) => spill || (a < 4 && stained(a, Math.min(b, 4)))); // only marks that reach past the edge need the clip (and blood on the neck, where the body is narrower)
-  const neon = cfg.pattern === 'Neon';
-  if (neon || !SETTINGS.simpleFx) { // round it off: a lit ridge along the spine, darker flanks, a few scale rows (and Neon's glowing edge)
-    const R0 = CONFIG.snakeR * (s.scale || 1), Ein = SETTINGS.simpleFx ? null : tubeEdges(TB, -.4), Eneon = neon ? tubeEdges(TB, -1.2) : null;
-    const rows = !SETTINGS.simpleFx && (NATURAL.has(cfg.pattern) || cfg.pattern === 'Solid') && n < 70;
+  if (skin.paint || stained(0, n)) inPieces(2, markPiece, (a, b) => !!skin.paint || (a < 4 && stained(a, Math.min(b, 4)))); // stains alone only need the clip on the neck, where the body is narrower
+  if (!SETTINGS.simpleFx) { // round it off: a lit ridge along the spine, darker flanks, a few scale rows
+    const R0 = CONFIG.snakeR * (s.scale || 1), Ein = tubeEdges(TB, -.4), gl = skin.gloss ?? 1;
+    const rows = skin.scales && n < 70;
     inPieces(0, (a, b) => {
       const a1 = Math.max(0, a - 1), b1 = Math.min(n, b + 1); // a little past both cuts: the clip trims it back to this piece
-      if (neon) neonEdge(x, cfg, () => tubeSides(x, Eneon, a1, b1));
-      if (!Ein) return;
       x.lineJoin = 'round'; x.lineCap = 'round';
       x.beginPath(); tubeSides(x, Ein, a1, b1); for (const [w, al] of [[5.5, .1], [2, .14]]) { x.strokeStyle = `rgba(0,0,0,${al})`; x.lineWidth = w; x.stroke(); } // flanks darken toward the edges (one path, two soft strokes)
       const i0 = Math.max(0, a - 2), i1 = Math.min(n - 1, b + 1);
       const line = (ox, oy) => { x.beginPath(); for (let i = i0; i <= i1; i++) { const g = pts[i]; i > i0 ? x.lineTo(g.x + ox, g.y + oy) : x.moveTo(g.x + ox, g.y + oy); } };
-      for (const [w, al, o] of [[1.35, .05, .14], [.85, .06, .2], [.4, .08, .27]]) { x.strokeStyle = `rgba(255,255,255,${al})`; x.lineWidth = R0 * w; line(-R0 * o, -R0 * (o + .03)); x.stroke(); } // a soft sheen: three layers, widest and faintest outside, brightest on the ridge
-      if (rows) { x.strokeStyle = 'rgba(0,0,0,.09)'; x.lineWidth = .7; // overlapping scale rows
+      for (const [w, al, o] of [[1.35, .05, .14], [.85, .06, .2], [.4, .08, .27]]) { x.strokeStyle = `rgba(255,255,255,${(al * gl).toFixed(3)})`; x.lineWidth = R0 * w; line(-R0 * o, -R0 * (o + .03)); x.stroke(); } // a soft sheen: three layers, widest and faintest outside, brightest on the ridge
+      if (rows) { x.strokeStyle = 'rgba(0,0,0,.08)'; x.lineWidth = .7; // overlapping scale rows
         for (let i = Math.max(1, a - 1); i < Math.min(n - 2, b + 1); i++) { const g = pts[i], r = segR(i, n), c = Math.cos(g.a), sn = Math.sin(g.a); for (const off of [-.5, 0, .5]) { const px = g.x - sn * r * off * 1.3, py = g.y + c * r * off * 1.3; x.beginPath(); x.arc(px, py, r * .34, g.a + 2.2, g.a + 4.1); x.stroke(); } } }
-    });
+    }, () => true);
   }
   if (!s.cut) {
     x.save(); x.translate(s.x, s.y); x.rotate(s.angle); if (s.scale && s.scale !== 1) x.scale(s.scale, s.scale); // eyes and hat grow with the head
     if (cam) x.globalAlpha = 1 - .55 * cam.a[0];
-    drawEyes(x, cfg, segColor(0, n, cfg));
+    drawEyes(x, cfg, skin.base(0, cfg, F.uEnd));
     drawHat(x, cfg.hat);
     x.restore();
   }
