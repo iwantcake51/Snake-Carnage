@@ -381,12 +381,58 @@ const SNAKE_SKINS = {
       x.strokeStyle = 'rgba(255,255,255,.05)'; x.lineWidth = F.R0 * .34; x.stroke(); x.strokeStyle = 'rgba(255,255,255,.1)'; x.lineWidth = F.R0 * .16; x.stroke(); x.strokeStyle = 'rgba(255,255,255,.42)'; x.lineWidth = F.R0 * .05; x.stroke();
       fillP(x, 'rgba(255,255,255,.12)', () => F.each(A, B, 1.1, 1.7, (u, k) => { const h = SKIN_H(k, 130), sd = h < .5 ? -1 : 1, v = sd * (.2 + .3 * SKIN_H(k, 131)); F.poly(x, [[u, v], [u + .55 + .3 * h, v + sd * .1], [u + .18, v + sd * .32]], 1); }));
     } },
+  Camo: { scales: 1, gloss: .45, // woodland camouflage in your colors: broad patches of a darker mix, bright ones of your second color and black brush strokes, all with soft, torn edges
+    base: (u, c) => camoPal(c).b,
+    tex: { k: 3,
+      field() { const w1 = texNoise(81, .125, .5, 2), w2 = texNoise(82, .125, .5, 2), a = texNoise(83, .375, .8, 3), b = texNoise(84, .25, .9, 3), d = texNoise(85, .375, 1.2, 3);
+        return (u, v, o) => { const uu = u + w1(u, v) * .9, vv = v + w2(u, v) * .35; o[0] = a(uu, vv); o[1] = b(uu + 7.25, vv); o[2] = d(uu + 3.125, vv * 1.1 + .4); }; }, // (the patches warped, so their edges tear like a real print's)
+      pal: (P, S) => { const m = camoPal({ color: P, color2: S }); return { b: rgbOf(m.b), m: rgbOf(m.m), l: rgbOf(m.l), d: rgbOf(m.d) }; },
+      color: (f, i, p, o) => { o[0] = p.b[0]; o[1] = p.b[1]; o[2] = p.b[2];
+        texMix(o, p.m, sstep(-.04, .03, f[i])); texMix(o, p.l, sstep(.22, .29, f[i + 1])); texMix(o, p.d, sstep(.29, .36, f[i + 2])); return o; } } },
+  Bones: { gloss: .55, // the skeleton showing through dark skin: a chain of vertebrae down the spine, ribs curving back down the flanks, the tail's bones shrinking to its tip. The bones in your second color, the skin your first, nearly black
+    base: (u, c) => bonePal(c).g,
+    paint(x, F, A, B, c) {
+      const p = bonePal(c), per = .84, ribEnd = Math.max(3, F.uEnd * .62), lo = Math.max(A, 1.9 - per);
+      const rib = (u, sd, g, f) => { const t = v => (Math.abs(v) - .16) / 1.0, w = v => ((.17 - .08 * t(v)) / 2 + g) * f, cu = v => u + .52 * Math.pow(t(v), 1.5) + .05; // from the spine out and back, thinning toward its end
+        F.band(x, v => cu(v) - w(v), v => cu(v) + w(v), sd > 0 ? .16 : -1.16, sd > 0 ? 1.16 : -.16, 8); };
+      const ribs = g => F.each(lo, Math.min(B, ribEnd), 1.25, per, u => { if (u < 1.9) return; const f = 1 - sstep(ribEnd - 3, ribEnd, u); if (f < .15) return; rib(u, 1, g, f); rib(u, -1, g, f); }); // (they thin away at the back of the ribcage)
+      const verts = k => F.each(A, B, 1.25, per, (u, j) => F.blob(x, u, 0, .27 * k, .21 * k, .3 + (j % 5) * .1, .12, 12)); // the vertebrae
+      const wings = k => F.each(A, Math.min(B, ribEnd + 2), 1.25, per, u => F.poly(x, [[u - .075 * k, -.4 * k], [u + .075 * k, -.4 * k], [u + .075 * k, .4 * k], [u - .075 * k, .4 * k]], 2)); // and their wings
+      fillP(x, p.glow, () => { ribs(.075); verts(1.75); wings(1.6); }); // the faint glow of bone through skin
+      fillP(x, p.rim, () => { ribs(.03); verts(1.25); wings(1.25); });
+      fillP(x, p.bone, () => { ribs(0); verts(1); wings(1); });
+      fillP(x, p.mar, () => F.each(A, B, 1.25, per, u => F.dot(x, u, 0, .07))); // the marrow
+    } },
+  'Stained Glass': { gloss: 1.25, // leaded glass: panes in every shade between your two colors (round the color wheel), each glowing brighter in its middle, set in dark lead, with a soft gleam sliding down the body
+    base: (u, c) => mixColor(c.color, c.color2, .5),
+    tex: { k: 3,
+      field: () => glassField(91),
+      pal: (P, S) => { const f = hslPath(P, S), ramp = []; for (let i = 0; i < 12; i++) ramp.push(rgbOf(f(i / 11))); return { ramp, lead: rgbOf(shade(mixColor(P, S, .5), -.86)), hi: [255, 255, 255] }; },
+      color: (f, i, p, o) => { const h = f[i], c = p.ramp[Math.min(11, h * 12 | 0)], lk = .8 + .38 * SKIN_H(h * 1e6 | 0, 92); // each pane its own shade
+        o[0] = c[0] * lk; o[1] = c[1] * lk; o[2] = c[2] * lk; texMix(o, p.hi, Math.max(0, .6 - f[i + 2]) * .45); // brighter toward its middle
+        texMix(o, p.lead, 1 - sstep(.05, .11, f[i + 1])); return o; } },
+    paint(x, F, A, B, c) { // a gleam of light sliding slowly down the panes
+      const u0 = Math.max(A, .6), u1 = Math.min(B, F.uEnd - .4); if (u1 <= u0) return;
+      x.save(); x.globalCompositeOperation = 'lighter';
+      fillP(x, 'rgba(255,255,255,.08)', () => F.each(u0, u1, (T * 1.6) % 7.5 - 7.5, 7.5, u => F.band(x, v => u - .5 + .35 * v, v => u + .5 + .35 * v, -1.3, 1.3, 4)));
+      x.restore();
+    } },
 };
 const lavaPal = c => skinPal(c, 'la', (P, S) => { const [C, H] = darkLight(P, S), crust = shade(mixColor(C, H, .2), -.8); return { g1: mixColor(C, H, .6), crust, rim: mixColor(crust, H, .4) }; });
 const galPal = c => skinPal(c, 'gx', (P, S) => ({ d: shade(mixColor(P, S, .3), -.88), star: mixColor(darkLight(P, S)[1], '#ffffff', .75) }));
 const goldPal = c => skinPal(c, 'go', (P, S) => ({ m: P, hi: mixColor(mixColor(P, S, .3), '#ffffff', .6), hiA: rgbaOf(mixColor(S, '#ffffff', .2), .75), lo: shade(P, -.45) }));
 const lunPal = c => skinPal(c, 'lu', (P, S) => ({ b: P, mare: shade(mixColor(P, S, .55), -.2), lit: mixColor(P, '#ffffff', .25), sh: shade(P, -.42), fl: shade(mixColor(P, S, .3), -.2) }));
 const marPal = c => skinPal(c, 'ma', (P, S) => ({ b: P, rust: shade(mixColor(P, S, .45), -.2), dust: S, rock: shade(mixColor(P, S, .5), -.55) }));
+const camoPal = c => skinPal(c, 'cm', (P, S) => { const [D] = darkLight(P, S); return { b: P, m: shade(mixColor(P, S, .45), -.28), l: mixColor(keepSeen(S, P), P, .15), d: shade(mixColor(D, P, .5), -.72) }; });
+const bonePal = c => skinPal(c, 'bn', (P, S) => { const g = shade(mixColor(P, S, .12), -.74), bone = mixColor(keepSeen(S, g), '#ffffff', .18); return { g, bone, rim: mixColor(g, bone, .38), glow: rgbaOf(bone, .13), mar: shade(mixColor(bone, P, .3), -.35) }; });
+function glassField(seed) { // Voronoi panes in body space, seamless down the body: o[0] the pane's own number, o[1] how far it is to the lead (the gap to the next-nearest pane), o[2] how far from the pane's middle
+  const nu = 56, rows = 3, su = TEX.L / nu, sv = 2 * TEX.v0 / rows, pt = (i, j) => { const m = ((i % nu) + nu) % nu, k = m * 131 + (j + 2) * 977; return [(i + .15 + .7 * SKIN_H(k, seed)) * su, -TEX.v0 + (j + .15 + .7 * SKIN_H(k, seed + 1)) * sv, SKIN_H(k, seed + 2)]; };
+  return (u, v, o) => {
+    const ci = Math.floor(u / su), cj = Math.floor((v + TEX.v0) / sv); let d1 = 1e9, d2 = 1e9, h = 0;
+    for (let di = -2; di <= 2; di++) for (let dj = -1; dj <= 1; dj++) { const [px, py, ph] = pt(ci + di, cj + dj), d = Math.hypot(u - px, v - py); if (d < d1) { d2 = d1; d1 = d; h = ph; } else if (d < d2) d2 = d; }
+    o[0] = h; o[1] = d2 - d1; o[2] = d1 / (su * .62);
+  };
+}
 const skinOf = cfg => SNAKE_SKINS[cfg.pattern] || SNAKE_SKINS.Solid;
 function segColor(i, n, cfg) { return skinOf(cfg).base(i * .9, cfg, n * .9); } // the skin's ground color at segment i, for code that wants one color (eyes, after-images)
 setTimeout(() => { // after loading, work the noise out in idle moments, one skin at a time, so the shop never stalls showing them

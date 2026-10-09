@@ -20,10 +20,11 @@ function update(dt) {
   T += dt;
   if (!snake || !snake.started) for (const k in abilCD) abilCD[k] += dt; // frozen opening: cooldowns don't tick until you first move
   updateCrowd(); // the neighbor grid, once per tick, before anything moves or asks who's near
-  if (state === 'play') { updateSnake(dt); if (AUTH()) snakeNoise(dt); run.time += dt; if (snake && snake.alive && snake.started) snake.lifeT = (snake.lifeT || 0) + dt; /* how long this body has lived: kills pay more XP the longer it lasts */ crTick(dt); progressTick(dt); }
+  if (state === 'play') { updateSnake(dt); if (AUTH()) snakeNoise(dt); run.time += dt; if (snake && snake.alive && snake.started) { snake.lifeT = (snake.lifeT || 0) + dt; run.aliveT = (run.aliveT || 0) + dt; } /* how long this body has lived: kills pay more XP the longer it lasts */ crTick(dt); progressTick(dt); }
   if (AUTH()) { updateSounds(); updateConvos(dt); } // the crowd's ears and chatter live on the deciding browser
   if (NETM.run) { if (NETM.host) netUpdateCreatures(dt); else netClientCreatures(dt); } // co-op: the host's AI reacts to every player; guests show what the host says
   else for (const c of creatures) if (c.alive) updateCreature(c, dt);
+  if (AUTH()) trafficTick(dt); // until somebody moves, people come and go along the paths off the map (27c-foot-traffic)
   updateChunks(dt); // broken pieces of things (38b-destruction)
   if (typeof adminTick === 'function') adminTick(); // the admin panel's overrides (40f-admin)
   airTick(dt); // air strikes, and snakes going up (before the blood moves, so a blast's spray flies this frame)

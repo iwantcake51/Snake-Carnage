@@ -57,6 +57,7 @@ The host picks one in the lobby.
   - Each link has a reliable ordered channel for events and lobby messages (JSON; a message over 6 KB is split and rejoined). It also has a raw unordered, no-retransmit channel for binary snapshots.
 - **Host authority:**
   - The host runs every NPC, spawn, death, panic, frenzy, golden target, the time of day and the score bookkeeping.
+  - Foot traffic (27c-foot-traffic) runs on the host too: until any player moves, people and animals walk on and off the map along the paths at its edge. Arrivals reach guests as ordinary `sp` spawns and walk-outs as `gone`.
   - Everyone loads the same map from the same seed, so static props, grass and snow match with nothing sent.
   - Each NPC reacts to whichever player is its current threat (the nearest, with hysteresis).
 - **Guests:**

@@ -46,6 +46,7 @@ function steerDir(c, want) {
 }
 
 function updateCreature(c, dt) {
+  if (c.transit) return transitStep(c, dt); // walking onto or off the map along a path (27c-foot-traffic)
   const d = c.def;
   const blastStunned = c.blastStunT > T;
   if (c.golden && (c.goldT -= dt) <= 0) ungoldify(c); // the gold wears off: back to a normal person or animal
@@ -80,7 +81,7 @@ function updateCreature(c, dt) {
   if (blastStunned) {
     c.stuck = 0; c.goalP = 0; // being stunned is not a failed navigation attempt
   } else if (c.state === 'idle') {
-    if (c.timer <= 0 || (c.leashed && c.owner && c.owner.state === 'wander')) { c.state = 'wander'; c.timer = rand(2, 5); c.wa = pickWander(c); }
+    if (c.timer <= 0 || c.leave || (c.leashed && c.owner && c.owner.state === 'wander')) { c.state = 'wander'; c.timer = rand(2, 5); c.wa = pickWander(c); }
     else if (!c.convo && solid(c.x + Math.cos(c.a) * 16, c.y + Math.sin(c.a) * 16)) { const a = openDir(c); c.a += clamp(angDiff(c.a, a), -dt * 3, dt * 3); } // nobody stands with their nose to a wall
   } else if (c.state === 'wander') {
     spd = d.walk * (c.alert > .3 ? 1.7 : 1) * (c.dance ? .22 : 1) * (MOD.blind && d.human ? .72 : 1); // cautious people walk briskly; dancers barely move; the blind feel their way
@@ -89,6 +90,7 @@ function updateCreature(c, dt) {
       else { c.timer = rand(1.5, 4); c.wa = pickWander(c); }
     }
     if (c.path && c.alert < .3) { c.wa = walkPath(c); c.timer = Math.max(c.timer, 1); } // strolling the path
+    if (c.leave) { const h = trafficHead(c); if (h !== null) { c.wa = h; c.timer = Math.max(c.timer, 1); } } // on the way out of the map (27c-foot-traffic)
     if (c.owner && c.owner.alive && c.owner.state !== 'panic' && c.alert < .3 && (c.leashed || Math.hypot(c.owner.x - c.x, c.owner.y - c.y) < 240)) { const h = heelDog(c, dt); c.wa = h.a; spd = c.def.walk * h.k; c.timer = Math.max(c.timer, 1); if (c.state === 'idle') c.state = 'wander'; } // on its lead: at its owner's side, at their pace (a loose one nearby comes back to be clipped on)
     const z = c.zone;
     if (z && (c.x < z.x || c.x > z.x + z.w || c.y < z.y || c.y > z.y + z.h)) c.wa = Math.atan2(z.y + z.h / 2 - c.y, z.x + z.w / 2 - c.x);

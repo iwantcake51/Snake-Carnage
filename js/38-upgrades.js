@@ -149,7 +149,7 @@ if (PROG.treeV < 4) { PROG.tokBonus = (PROG.tokBonus | 0) + skSpent() - skSpent(
 /* LEVEL_V: bump it by one whenever the levelling changes (the XP curve, what pays XP, tokens per level). Every save then starts
    over at level 1 with no XP and an empty skill tree (its tokens came from those levels), so old and new progress never mix.
    Chips, cosmetics, achievements and records are kept. */
-const LEVEL_V = 3; // 2: v1.81's slower curve, XP for staying alive and combo XP; 3: XP comes a little faster, Quick Study +6% a rank
+const LEVEL_V = 4; // 2: v1.81's slower curve, XP for staying alive and combo XP; 3: XP comes a little faster, Quick Study +6% a rank; 4: the survival bonus and the bigger achievement rewards (v1.82)
 if ((PROG.lvV | 0) < LEVEL_V) {
   const was = PROG.level > 1 || PROG.xp > 0 || Object.keys(PROG.tree).length;
   Object.assign(PROG, { level: 1, xp: 0, tree: {}, treeOff: {}, tokBonus: 0, lvV: LEVEL_V }); saveProg();

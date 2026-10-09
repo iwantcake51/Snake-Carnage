@@ -547,7 +547,7 @@ const NM = { at: -9, n: 0, list: [] };
 function nearMiss(kind, x, y) { // (x, y): where it happened, right by your body
   if (!snake || !snake.alive || state !== 'play') return;
   const now = performance.now(), chain = now - NM.at < 4000 ? NM.n + 1 : 1; NM.at = now; NM.n = chain;
-  const ck = (1 + .25 * Math.min(4, chain - 1)) * rewardMult, xp = Math.round((kind === 'strafe' ? 14 : 18) * ck), chips = Math.max(1, Math.round((kind === 'strafe' ? 5 : 6) * ck * SKV.nearK())); run.nearMiss = (run.nearMiss || 0) + 1; // chips too, climbing with the chain like the XP
+  const ck = (1 + .25 * Math.min(4, chain - 1)) * rewardMult, xp = Math.round((kind === 'strafe' ? 14 : 18) * ck), chips = Math.max(1, Math.round((kind === 'strafe' ? 5 : 6) * ck * SKV.nearK())); run.nearMiss = (run.nearMiss || 0) + 1; PROG.nearT = (PROG.nearT || 0) + 1; checkAch(); // chips too, climbing with the chain like the XP
   NM.list.push({ x: x ?? snake.x, y: y ?? snake.y, t0: now, txt: chain > 1 ? `NEAR MISS x${chain}` : 'NEAR MISS', xp, chips }); if (NM.list.length > 4) NM.list.shift();
   gainXP(Math.round(xp * SKV.nearK()), chips); // Daredevil
   if (Sfx.ok() && Sfx.gate('nm', .3)) Sfx.tone(Sfx.out(x, .5), Sfx.ctx.currentTime, 660, 1320, .16, 'triangle', .07);

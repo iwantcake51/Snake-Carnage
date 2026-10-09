@@ -302,6 +302,7 @@ function netFinishRun(board) { // every player: the run is over, keep the lobby
   const m = MAPS[mapIdx].name; PROG.best[m] = Math.max(PROG.best[m] || 0, score); PROG.runs++; PROG.kills += kills.h + kills.a; PROG.coopRuns = (PROG.coopRuns || 0) + 1;
   checkChallenges(); statRunEnd(); updateHud(); saveProg && saveProg();
   state = 'dead'; deadT = 0; endCombo(true);
+  const sv = paySurvival(); if (sv) notify({ kind: 'info', icon: giSvg('hourglass'), title: 'Survival bonus', sub: `${sv.m} min alive · +${sv.xp} XP · +${sv.chips} chips`, dur: 4, key: 'surv' }); // every full minute you were alive this round
   if (typeof netShowResults === 'function') netShowResults(board);
 }
 /* ---- GUEST ---- */
