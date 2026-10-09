@@ -579,14 +579,10 @@ function drawScent(x) {
   x.restore();
 }
 /* ---- screen edges: a blur round the edges mid-lunge, a cold vignette while Focus slows the world ---- */
-const EDGE_K = { lb: 0, fk: 0 }; // how far into a lunge (lb) and into Focus (fk) the screen edges are: the canvas blurs them (lungeEdges), #edgeFx adds the tint and speed lines
+const EDGE_K = { lb: 0, fk: 0 }; // how far into a lunge (lb) and into Focus (fk) the screen edges are: the canvas blurs them, tints them and draws the speed lines (lungeEdges, lungeLines)
 function edgeFxTick() {
-  const el = document.getElementById('edgeFx'); if (!el) return;
   const s = snake, live = state === 'play' && s && s.alive, lb = live && !SETTINGS.reduceMotion ? clamp(s.lk || 0, 0, 1) : 0, fk = live ? clamp(1 - (timeScale() - .38) / .62, 0, 1) : 0;
   EDGE_K.lb = lb; EDGE_K.fk = fk;
-  const key = (lb * 20 | 0) + ':' + (fk * 20 | 0); if (key === el.dataset.k) return; el.dataset.k = key;
-  el.style.display = lb > .03 || fk > .03 ? '' : 'none';
-  el.style.setProperty('--lb', lb.toFixed(2)); el.style.setProperty('--fk', fk.toFixed(2));
 }
 /* ---- Hiss: a visible soundwave rolling out; Battering Ram: a pressure wedge at the head just before impact ---- */
 function drawHissWave(x) {

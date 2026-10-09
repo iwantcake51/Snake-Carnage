@@ -4,7 +4,8 @@ function snakeShadowPath(x, ox, oy) { // round, soft-edged discs per segment, li
 }
 function render() {
   const bz = boomDaze(), pxS = Math.max(1, SETTINGS.pixel | 0), wob = snake && ((snake.wallStun > 0 && !SETTINGS.simpleFx) || (snake.ramT > 0 && !SETTINGS.reduceFlash) || (bz > .03 && !SETTINGS.simpleFx));
-  const eb = (EDGE_K.lb > .03 || EDGE_K.fk > .03) && !SETTINGS.simpleFx, direct = pxS <= 1 && !wob && !eb; render.src = direct ? cv : sceneC; // no post effect this frame: draw straight to the screen and skip a full-frame copy
+  render.n = (render.n || 0) + 1; // a frame number, so the edge blur shrinks each frame once
+  const eb = (EDGE_K.lb > .03 || EDGE_K.fk > .03) && !SETTINGS.simpleFx, direct = pxS <= 1 && !wob; render.src = direct ? cv : sceneC; // (a lunge's edge blur reads the screen itself: it needs no copy of the frame) // no post effect this frame: draw straight to the screen and skip a full-frame copy
   const x = direct ? ctx : sctx, L = light, sh = shake && SETTINGS.shake && state !== 'paused' ? shake * (SETTINGS.shakeK ?? 1) : 0; // paused: the picture holds still, even mid-blast
   V.sx = sh ? rand(-sh, sh) : 0; V.sy = sh ? rand(-sh, sh) : 0; V.z = 0;
   if (cam) { // spawn camera: starts tight on the snake, eases out to the full map
@@ -89,6 +90,7 @@ function render() {
   drawShockwaves(ctx, cv); // last: blasts bend the whole picture behind them, outlines and all
   ctx.restore();
   if (eb) lungeEdges();
+  if (EDGE_K.lb > .03 || EDGE_K.fk > .03) lungeLines(); // the tint and speed lines (even with simplified effects: they're cheap)
   drawAirFlash(ctx);
   if (NETM.run && !cam) netDrawTags(ctx); // co-op: teammates' names and where they are off screen
   if (!cam) drawBubbles(ctx); // screen space (positions go through the camera), so text stays readable at any zoom
@@ -272,12 +274,20 @@ function concussBloom(k) { // bright parts spill light while dazed
 /* soft edges: a small copy of the finished scene scaled back up (that's the blur), kept only outside an ellipse.
    The daze and the lunge use it. A CSS backdrop blur over the page did this before and cost the graphics chip far more */
 const EDGE_C = {};
-function softEdges(a, div, rx, ry, s0, s1, grey = 0) { // rx, ry: the ellipse's radii (board units); s0..s1: where the blur fades in along them
-  if (a < .01 || render.src !== sceneC) return;
-  const w = Math.ceil(W / div), h = Math.ceil(H / div); let e = EDGE_C[div];
-  if (!e) { const c = document.createElement('canvas'); e = EDGE_C[div] = [c, c.getContext('2d')]; }
-  const [c, g] = e; if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
-  g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'copy'; g.imageSmoothingQuality = 'medium'; g.drawImage(sceneC, 0, 0, w, h);
+const edgeCanvas = (k, w, h) => { let e = EDGE_C[k]; if (!e) { const c = document.createElement('canvas'); e = EDGE_C[k] = [c, c.getContext('2d')]; } if (e[0].width !== w || e[0].height !== h) { e[0].width = w; e[0].height = h; } return e; };
+function edgeShrink(div) { // the frame at 1/div size (div 2, 4 or 8), halved step by step: cheap bilinear passes, each made once a frame and shared, instead of a full-size mipmapped shrink per ring
+  let prev = render.src;
+  for (let d = 2; d <= div; d *= 2) {
+    const e = edgeCanvas('s' + d, Math.ceil(W / d), Math.ceil(H / d)), [c, g] = e;
+    if (e.n !== render.n) { e.n = render.n; g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'copy'; g.imageSmoothingQuality = 'low'; g.drawImage(prev, 0, 0, c.width, c.height); }
+    prev = c;
+  }
+  return prev;
+}
+function softEdges(a, div, rx, ry, s0, s1, grey = 0) { // rx, ry: the ellipse's radii (board units); s0..s1: where the blur fades in along them; div: 4 or 8 (blurrier)
+  if (a < .01) return;
+  const S = edgeShrink(div), w = S.width, h = S.height, [c, g] = edgeCanvas('m' + div, w, h);
+  g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'copy'; g.drawImage(S, 0, 0);
   if (grey > .01) { g.globalCompositeOperation = 'saturation'; g.globalAlpha = Math.min(1, grey); g.fillStyle = '#000'; g.fillRect(0, 0, w, h); g.globalAlpha = 1; }
   const k = rx / ry, m = g.createRadialGradient(0, 0, 0, 0, 0, ry); m.addColorStop(s0, 'rgba(0,0,0,0)'); m.addColorStop(s1, '#000');
   g.setTransform(w / W * k, 0, 0, h / H, w / 2, h / 2); g.globalCompositeOperation = 'destination-in'; g.fillStyle = m; g.fillRect(-W / k, -H, 2 * W / k, 2 * H); g.globalCompositeOperation = 'source-over';
@@ -285,14 +295,31 @@ function softEdges(a, div, rx, ry, s0, s1, grey = 0) { // rx, ry: the ellipse's 
 }
 function dazeEdges(k, wl) { // dazed: the edges darken, and after a wall they blur too. k: how dazed (0-1); wl: how much of the heavier after-a-wall look (0-1)
   const lerp = (a, b) => a + (b - a) * wl, ax = W / H, R = H / 2 * Math.SQRT2; // an ellipse the shape of the board, to its corners
-  if (wl > .02) softEdges(k * wl, 6, W / Math.SQRT2, R, .22, .7);
+  if (wl > .02) softEdges(k * wl, 8, W / Math.SQRT2, R, .22, .7);
   const c = `${Math.round(lerp(20, 10))},${Math.round(lerp(0, 4))},${Math.round(lerp(0, 4))}`, g = ctx.createRadialGradient(0, 0, 0, 0, 0, R);
   for (const [o0, o1, a0, a1] of [[.5, .3, 0, 0], [.6, .4, .04, .03], [.7, .55, .12, .15], [.8, .7, .21, .34], [1, 1, .35, .6]]) g.addColorStop(lerp(o0, o1), `rgba(${c},${(lerp(a0, a1) * k).toFixed(3)})`);
   ctx.save(); ctx.setTransform(DPR * ax, 0, 0, DPR, DPR * W / 2, DPR * H / 2); ctx.fillStyle = g; ctx.fillRect(-H / 2, -H / 2, H, H); ctx.restore();
 }
+const LINE_A = Array.from({ length: 60 }, (_, k) => k / 60 * TAU + Math.sin(k * 12.9898) * .04); // the speed lines' angles, a touch uneven
+function lungeLines() { // drawn in the canvas (a page layer over it cost far more): the edges darken mid-lunge and go blue in Focus, and white lines rush outward
+  const { lb, fk } = EDGE_K, R = Math.hypot(W, H) / 2, ax = W / H;
+  ctx.save(); ctx.setTransform(DPR * ax, 0, 0, DPR, DPR * W / 2, DPR * H / 2); // an ellipse the shape of the board
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, H / 2 * Math.SQRT2);
+  g.addColorStop(.4, 'rgba(0,0,0,0)'); g.addColorStop(1, `rgba(${Math.round(90 * fk / (fk + lb + .001))},${Math.round(190 * fk / (fk + lb + .001))},${Math.round(255 * fk / (fk + lb + .001))},${(fk * .28 + lb * .22).toFixed(3)})`);
+  ctx.fillStyle = g; ctx.fillRect(-H, -H, H * 2, H * 2);
+  if (lb > .03) {
+    ctx.setTransform(DPR, 0, 0, DPR, DPR * W / 2, DPR * H / 2);
+    const ph = (UT / .28) % 1, r0 = R * (.6 + .08 * ph), r1 = R * 1.05, lg = ctx.createRadialGradient(0, 0, R * .52, 0, 0, R);
+    lg.addColorStop(0, 'rgba(255,255,255,0)'); lg.addColorStop(1, `rgba(255,255,255,${(.16 * lb).toFixed(3)})`);
+    ctx.strokeStyle = lg; ctx.lineWidth = 2; ctx.beginPath();
+    for (let k = 0; k < LINE_A.length; k++) { const a = LINE_A[k], c = Math.cos(a), s = Math.sin(a), q = k % 3 ? 1 : 1.12; ctx.moveTo(c * r0 * q, s * r0 * q * (H / W) * 1.15); ctx.lineTo(c * r1, s * r1 * (H / W) * 1.15); }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
 function lungeEdges() { // mid-lunge the edges blur in two rings (light, then heavy at the rim); 3rd Eye's Focus drains them of colour
   const { lb, fk } = EDGE_K;
-  softEdges(Math.max(lb, fk), 3, W * .78, H * .74, .34, .72, .3 * fk);
+  softEdges(Math.max(lb, fk), 4, W * .78, H * .74, .34, .72, .3 * fk);
   softEdges(lb, 8, W * .8, H * .76, .58, 1, .5 * fk);
 }
 

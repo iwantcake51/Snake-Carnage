@@ -63,14 +63,14 @@ function netSetReady(v) { const me = netPlayer(NETM.me); if (!me) return; netLob
 function netCta() { // the main menu's big button in a lobby: ready up, unready, or (the host, everyone ready) start
   const me = netMe(); if (NETM.host && me.ready && netAllReady()) return netGo(); netSetReady(!me.ready); Sfx.ui && Sfx.ui(me.ready ? 'on' : 'off');
 }
-const netTitleHtml = p => { const t = p.cos && p.cos.title; return t && t !== 'None' ? `<em class="mptitle" title="Title">${esc(t)}</em>` : ''; }; // the title they wear, as on the main menu
+const netTitleHtml = p => titleBadge(p.cos && p.cos.title, 'mptitle'); // the title they wear, as on the main menu
 const netRowsHtml = (list, small) => list.map(p => `<div class="pr ${p.id === NETM.me ? 'me' : ''} ${p.conn === false ? 'away' : ''}"><i class="mpdot" style="background:${p.color}"></i><b>${esc(p.name)}</b>${netTitleHtml(p)}${p.lvl ? `<em class="mplvl" title="Account level">Lv ${p.lvl | 0}</em>` : ''}${p.host && !small ? '<em class="mptag host">Host</em>' : ''}<span class="sp"></span>${small ? '' : `<span class="mpready ${p.ready ? 'on' : ''}">${p.conn === false ? 'Reconnecting' : p.ready ? 'Ready' : 'Not ready'}</span>`}<i class="rdot ${p.ready ? 'on' : ''}" title="${p.ready ? 'Ready' : 'Not ready'}"></i></div>`).join('');
 function netPlayerRow(p, o = {}) { // one player in the party panel or the lobby: color, name, title, level, host, readiness; the host can remove anyone else
   const host = NETM.host, t = p.cos && p.cos.title && p.cos.title !== 'None' ? p.cos.title : '';
   const team = o.teams ? (() => { const tm = NET_TEAMS[p.team] || NET_TEAMS[0], can = host || p.id === NETM.me; return `<button class="pp-team" data-team-of="${esc(p.id)}" style="--tc:${tm.c}" ${can ? 'title="Switch team"' : 'disabled'}>${tm.n}</button>`; })() : '';
   const st = p.conn === false ? 'Reconnecting' : p.ready ? 'Ready' : 'Not ready';
   return `<li class="pp-r ${p.id === NETM.me ? 'me' : ''} ${p.conn === false ? 'away' : ''}">${team}<i class="mpdot" style="background:${p.color}"></i>
-    <span class="pp-n"><b>${esc(p.name)}${p.id === NETM.me ? ' <small>(you)</small>' : ''}</b>${t ? `<em>${esc(t)}</em>` : ''}</span>
+    <span class="pp-n"><b>${esc(p.name)}${p.id === NETM.me ? ' <small>(you)</small>' : ''}</b>${titleBadge(t, 'pp-ttl')}</span>
     <span class="pp-x">${p.lvl ? `<span>Lv ${p.lvl | 0}</span>` : ''}${p.host ? '<span class="pp-tag">Host</span>' : ''}${o.big && p.touch ? '<span>Phone</span>' : ''}${o.big && p.ping && !p.host ? `<span>${p.ping} ms</span>` : ''}</span>
     <span class="pp-rd ${p.ready ? 'on' : ''} ${p.conn === false ? 'warn' : ''}">${st}</span>
     ${host && !p.host ? `<button class="pp-kick" data-kick="${esc(p.id)}" aria-label="Remove ${esc(p.name)} from the lobby" title="Remove from the lobby">${ICO.x}</button>` : ''}</li>`;
@@ -229,7 +229,7 @@ function netDrawSnakes(x) {
 }
 function netDrawTags(x) { // screen space: names over teammates, and an arrow at the edge toward anyone off screen
   const names = SETTINGS.mpNames !== false, arrows = SETTINGS.mpArrows !== false;
-  x.save(); x.font = '700 11px Barlow, "Segoe UI", system-ui, sans-serif'; // (a canvas font can't use CSS variables) x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.save(); x.font = '700 11px Barlow, "Segoe UI", system-ui, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; // (a canvas font can't use CSS variables)
   for (const rs of NS.rs.values()) {
     const p = netPlayer(rs.pid); if (!p || !rs.buf.length) continue;
     const down = NS.down.get(rs.pid), P = worldToCanvas(rs.x, rs.y), off = P.x < 8 || P.y < 8 || P.x > W - 8 || P.y > H - 8;
@@ -240,6 +240,11 @@ function netDrawTags(x) { // screen space: names over teammates, and an arrow at
       x.fillStyle = 'rgba(12,10,14,.78)'; rrect(x, P.x - tw / 2, ty - 8, tw, 16, 8); x.fill();
       x.fillStyle = rs.color; x.beginPath(); x.arc(P.x - tw / 2 + 8, ty, 3, 0, TAU); x.fill();
       x.fillStyle = '#ffffff'; x.fillText(p.name, P.x + 4, ty + .5);
+      const t = p.cos && p.cos.title && p.cos.title !== 'None' ? p.cos.title : ''; // their title, riding on top of the name in its tier's color
+      if (t) { const col = titleCol(t), T = t.toUpperCase(); x.font = '800 9.5px Barlow, "Segoe UI", system-ui, sans-serif'; x.letterSpacing = '.8px';
+        const w2 = x.measureText(T).width + 16, y2 = ty - 16;
+        x.fillStyle = 'rgba(14,10,12,.88)'; rrect(x, P.x - w2 / 2, y2 - 7.5, w2, 15, 7.5); x.fill(); x.strokeStyle = col; x.lineWidth = 1; x.globalAlpha *= .9; x.stroke();
+        x.shadowColor = col; x.shadowBlur = 7; x.fillStyle = col; x.fillText(T, P.x, y2 + .5); x.shadowBlur = 0; x.letterSpacing = '0px'; x.font = '700 11px Barlow, "Segoe UI", system-ui, sans-serif'; }
     } else if (off && arrows && (rs.alive || down)) {
       const cx = W / 2, cy = H / 2, a = Math.atan2(P.y - cy, P.x - cx), k = Math.min((W / 2 - 22) / Math.abs(Math.cos(a) || 1e-6), (H / 2 - 22) / Math.abs(Math.sin(a) || 1e-6));
       const ax = cx + Math.cos(a) * k, ay = cy + Math.sin(a) * k;

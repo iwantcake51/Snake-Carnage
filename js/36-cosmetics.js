@@ -79,6 +79,11 @@ function statRunEnd() { // once per run
 }
 
 /* ---- achievements: [id, name, what, stat, goal, tier] -> rewards come from the items tagged with the id ---- */
+/* a worn title, as a badge: colored by the tier of the challenge that gives it (gold when it's bought), with a glint running across it */
+const TITLE_COL = { easy: '#5fd07a', medium: '#ffcf33', hard: '#ff8a3d', rare: '#c77dff', gold: '#ffcf33' };
+function titleTier(t) { const e = (SHOP.title || []).find(r => r[0] === t), a = e && e[2] ? ACH.find(x => x.id === e[2]) : null; return a ? a.tier : 'gold'; }
+const titleCol = t => TITLE_COL[titleTier(t)] || TITLE_COL.gold;
+const titleBadge = (t, cls = '') => t && t !== 'None' ? `<span class="ttl t-${titleTier(t)} ${cls}" style="--tc:${titleCol(t)}" title="Title">${kiSvg('star')}<span>${attr(t)}</span></span>` : '';
 const ACH = [
   ['ratProblem', 'Rat Problem', 'Eat {n} rats', () => PROG.kT.rat || 0, 25, 'medium'],
   ['ratKing', 'Rat King', 'Eat {n} rats', () => PROG.kT.rat || 0, 100, 'hard'],
