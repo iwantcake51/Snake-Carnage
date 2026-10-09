@@ -2972,3 +2972,30 @@ body.calm .skboot{display:none}
 .mbr-by{display:block;margin-top:2px;font:500 12px/1.2 var(--f-body);color:var(--mute,#9a8f94);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rs-desc .mby b{color:var(--ink,#eee);font-weight:600}
 .skboot.live .sktxt .ln{opacity:.32;transition:opacity .6s ease .2s} /* ONLINE: the readout steps back, the seam runs through it */
+
+/* ---- dropdowns with pictures (DD_THUMBS): a small picture before each choice, and on the button ---- */
+.ddo.th{display:flex;align-items:center;gap:.7em;padding-top:.35em;padding-bottom:.35em}
+.ddo.th span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.ddo .ddt{flex:none;width:40px;height:28px;border-radius:5px;background:#0d0b0e;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.dd .ddt{flex:none;width:24px;height:16px;margin-right:.55em;border-radius:3px;background:#0d0b0e;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+
+/* ---- editor building layer (ed-build): brush and build panels, the prop picker grid, the prop editor's several-parts bar and its resizable "Before" ---- */
+.ebpanel,.ebmat{margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--ed-line,#2b2530)}
+.ebpanel h4 small,.ebmat h4 small{font-weight:400;color:var(--ed-mut,#8d8496);margin-left:6px}
+.ebset{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:5px;max-height:260px;overflow-y:auto;margin:6px 0;scrollbar-width:thin}
+.ebset button,.ebfl button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 2px;font-size:10px;color:var(--ed-mut,#8d8496);background:var(--ed-p2,#1e1a21);border:1px solid var(--ed-line,#2b2530);border-radius:6px;cursor:pointer}
+.ebset button span,.ebfl button span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ebset button canvas{width:40px;height:40px}
+.ebset button.on,.ebfl button.on{color:#fff;border-color:var(--ed-acc,#d0191f);box-shadow:inset 0 0 0 1px var(--ed-acc,#d0191f);background:color-mix(in srgb,var(--ed-acc,#d0191f) 14%,var(--ed-p2,#1e1a21))}
+.ebfl{display:grid;grid-template-columns:repeat(auto-fill,minmax(56px,1fr));gap:5px;margin:6px 0}
+.ebfl button canvas{width:40px;height:28px;border-radius:3px}
+.pemulti{display:flex;flex-direction:column;gap:6px;margin:6px 0 8px;padding:8px;border-radius:7px;background:color-mix(in srgb,#ffc94d 8%,transparent);border:1px solid color-mix(in srgb,#ffc94d 30%,transparent);font-size:12px;color:#ddd}
+.pemulti b{color:#ffc94d}
+.peshapes button.multi{box-shadow:inset 0 0 0 1px #ffc94d;color:#ffe28a}
+.pecmp.ebcmp{padding:5px;gap:2px}
+.pecmp.ebcmp canvas{width:auto;height:auto;border-radius:4px}
+.pewin.narrow .pecmp.ebcmp canvas{width:auto;height:auto}
+.ebgrip{position:absolute;left:1px;bottom:1px;width:10px;height:10px;cursor:nesw-resize;opacity:.6;background:linear-gradient(45deg,transparent 45%,#9a91a2 45% 55%,transparent 55%,transparent 70%,#9a91a2 70% 80%,transparent 80%)}
+.ebgrip:hover{opacity:1}
+.pecmp.ebmin canvas,.pecmp.ebmin .ebgrip{display:none}
+.pecmp.ebcmp{cursor:default;user-select:none}

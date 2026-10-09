@@ -7,7 +7,8 @@
    ========================================================= */
 const DD = { open: null, list: null, hi: -1, typed: '', typedT: 0 };
 function ddLabel(sel) { const o = sel.options[sel.selectedIndex]; return o ? o.textContent : ''; }
-function ddSync(sel) { const b = sel._dd; if (!b) return; const t = b.querySelector('.ddv'); const v = ddLabel(sel); if (t.textContent !== v) t.textContent = v; b.disabled = sel.disabled; b.title = sel.title || ''; }
+function ddSync(sel) { const b = sel._dd; if (!b) return; const t = b.querySelector('.ddv'); const v = ddLabel(sel); if (t.textContent !== v) t.textContent = v; b.disabled = sel.disabled; b.title = sel.title || '';
+  const tk = typeof ddThumbKind === 'function' && ddThumbKind(sel); let cv = b.querySelector('.ddt'); if (tk) { if (!cv) { cv = document.createElement('canvas'); cv.className = 'ddt'; cv.width = 48; cv.height = 32; b.prepend(cv); } if (cv._v !== sel.value) { cv._v = sel.value; ddThumbDraw(cv, tk, sel.value); } } else if (cv) cv.remove(); } // (with a picture of the choice, where the select has them)
 function ddEnhance(sel) {
   if (sel._dd || sel.multiple || sel.classList.contains('nodd') || sel.size > 1) return;
   const b = document.createElement('button'); b.type = 'button'; b.className = 'dd ' + sel.className; b.setAttribute('aria-haspopup', 'listbox'); b.setAttribute('aria-expanded', 'false');
@@ -29,12 +30,13 @@ function ddOpen(sel) {
   const r = b.getBoundingClientRect(), k = b.offsetHeight ? r.height / b.offsetHeight : 1; // the menus may be scaled: the list follows
   const L = document.createElement('div'); L.className = 'ddl'; L.setAttribute('role', 'listbox');
   if (b.closest('#editor, #propEd, #matEd, .pewnd')) L.classList.add('ed');
-  let n = 0, html = '';
+  let n = 0, html = ''; const tk = ddThumbKind(sel); if (tk) L.classList.add('thumbs');
   for (const el of sel.children) {
-    if (el.tagName === 'OPTGROUP') { html += `<div class="ddg" style="--i:${n++}">${ddEsc(el.label)}</div>`; for (const o of el.children) html += ddRung(o, n++); }
-    else if (el.tagName === 'OPTION') html += ddRung(el, n++);
+    if (el.tagName === 'OPTGROUP') { html += `<div class="ddg" style="--i:${n++}">${ddEsc(el.label)}</div>`; for (const o of el.children) html += ddRung(o, n++, tk); }
+    else if (el.tagName === 'OPTION') html += ddRung(el, n++, tk);
   }
-  L.innerHTML = `<div class="ddin">${html}</div>`; L.style.setProperty('--n', n); L.style.fontSize = getComputedStyle(b).fontSize;
+  L.innerHTML = `<div class="ddin">${html}</div>`; L.style.setProperty('--n', n);
+  if (tk) L.querySelectorAll('.ddo').forEach(r => { const o = sel.options[+r.dataset.ix], cv = r.querySelector('.ddt'); if (o && cv) ddThumbDraw(cv, tk, o.value); }); L.style.fontSize = getComputedStyle(b).fontSize;
   document.body.appendChild(L);
   const minW = r.width / k, w = Math.max(minW, Math.min(420, L.offsetWidth)); L.style.width = w + 'px';
   const h = L.offsetHeight * k, below = innerHeight - r.bottom - 8, above = r.top - 8, up = h > below && above > below;
@@ -51,7 +53,11 @@ function ddOpen(sel) {
   if (typeof Sfx !== 'undefined' && Sfx.ui && SETTINGS.uiSounds !== false) Sfx.ui('open');
 }
 const ddEsc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-function ddRung(o, i) { return `<div class="ddo ${o.selected ? 'cur' : ''} ${o.disabled ? 'dis' : ''}" role="option" data-ix="${o.index}" style="--i:${i}" aria-selected="${o.selected}">${ddEsc(o.textContent)}</div>`; }
+/* small pictures in the list (and on the button): a select names its kind with data-thumb, or a class in DD_THUMB_CLASS does; DD_THUMBS[kind](canvas, value) draws one (the editor registers materials, props, creatures and maps) */
+const DD_THUMBS = {}, DD_THUMB_CLASS = {};
+const ddThumbKind = sel => { if (sel.dataset.thumb) return DD_THUMBS[sel.dataset.thumb] ? sel.dataset.thumb : null; for (const c of sel.classList) if (DD_THUMB_CLASS[c] && DD_THUMBS[DD_THUMB_CLASS[c]]) return DD_THUMB_CLASS[c]; return null; };
+function ddThumbDraw(cv, kind, v) { try { DD_THUMBS[kind](cv, v); } catch (e) {} }
+function ddRung(o, i, tk) { return `<div class="ddo ${o.selected ? 'cur' : ''} ${o.disabled ? 'dis' : ''} ${tk ? 'th' : ''}" role="option" data-ix="${o.index}" style="--i:${i}" aria-selected="${o.selected}">${tk ? '<canvas class="ddt" width="80" height="56"></canvas>' : ''}<span>${ddEsc(o.textContent)}</span></div>`; }
 function ddHi(ix, scroll) {
   if (!DD.list) return; DD.hi = ix;
   DD.list.querySelectorAll('.ddo').forEach(o => o.classList.toggle('hi', +o.dataset.ix === ix));

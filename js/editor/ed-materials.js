@@ -19,6 +19,8 @@ function edShapeSwatch(s) { const m = getMaterial(s.fill || s.stroke), L = m && 
 function edUsedMaterials() {
   const used = new Set(); for (const s of ED.shapes || []) for (const r of [s.fill, s.stroke]) if (typeof r === 'string') used.add(r);
   for (const p of Object.values(edMapProps ? edMapProps() : {})) for (const sh of p.shapes || []) if (typeof sh.mat === 'string') used.add(sh.mat);
+  for (const o of ED.obs || []) if (typeof o.mat === 'string') used.add(o.mat); // walls and blocks wearing a material
+  if (typeof ED.base === 'string' && ED.base.startsWith('mat:')) used.add(ED.base.slice(4)); // the whole floor as one material
   const out = { ...(ED.materials || {}) }; for (const id of used) if (!out[id] && userMaterials()[id]) out[id] = edClone(userMaterials()[id]);
   return out;
 }

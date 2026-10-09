@@ -91,4 +91,4 @@ function paintAreas(x, areas) {
     x.fillStyle = x.createPattern(styleTile(a.tex || 'grass'), 'repeat'); x.fill();
     if (a.edge !== false) { x.clip(); x.lineWidth = 4; x.strokeStyle = 'rgba(0,0,0,.14)'; x.stroke(); } x.restore(); }
 }
-function paintBase(x, tex) { if (tex === 'none') return; /* no floor at all: just the map's edge color shows */ x.save(); x.fillStyle = x.createPattern(styleTile(tex), 'repeat'); x.fillRect(0, 0, W, H); x.restore(); }
+function paintBase(x, tex) { if (tex === 'none') return; /* no floor at all: just the map's edge color shows */ if (typeof tex === 'string' && tex.startsWith('mat:')) { const m = typeof getMaterial === 'function' && getMaterial(tex.slice(4)); if (m) { x.save(); x.beginPath(); x.rect(0, 0, W, H); try { paintMaterial(x, m, [0, 0, W, H], 0); } catch (e) {} x.restore(); return; } tex = 'grass'; } /* 'mat:id': one material over the whole floor */ x.save(); x.fillStyle = x.createPattern(styleTile(tex), 'repeat'); x.fillRect(0, 0, W, H); x.restore(); }
