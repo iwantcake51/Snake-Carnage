@@ -39,10 +39,20 @@ function skTicks(n, r) { // one arc per rank round the node; lit = bought
   const gap = .2, step = TAU / n.max, own = skOwn(n.id);
   return Array.from({ length: n.max }, (_, k) => { const a0 = -Math.PI / 2 + k * step + gap / 2, a1 = a0 + step - gap; return `<path class="tk${k < own ? ' on' : ''}" pathLength="1" d="${skArc(r, a0, a1)}"/>`; }).join('');
 }
-const SK_LOCK = '<g class="sklock"><rect x="-5" y="-1" width="10" height="8" rx="1.5"/><path d="M-3 -1v-2.5a3 3 0 0 1 6 0V-1" fill="none"/></g>';
+const SK_LOCK = '<g class="sklock"><circle r="8.5" class="lkbg"/><rect x="-4.5" y="-1" width="9" height="7" rx="1.5"/><path d="M-2.7 -1v-2.2a2.7 2.7 0 0 1 5.4 0V-1" fill="none"/></g>';
+function skHexPt(r, t) { // a point a fraction t (0..1) of the way round a pointy-top hexagon, clockwise from the top
+  const e = ((t % 1) + 1) % 1 * 6, k = Math.floor(e), f = e - k, a0 = (-90 + 60 * k) * Math.PI / 180, a1 = (-90 + 60 * (k + 1)) * Math.PI / 180;
+  return [Math.cos(a0) * r * (1 - f) + Math.cos(a1) * r * f, Math.sin(a0) * r * (1 - f) + Math.sin(a1) * r * f];
+}
+function skHexTicks(n, r) { // a ranked major's ticks follow its own hexagon (one stretch of the outline per rank), so it reads as one shape, not a ring round a hexagon
+  const own = skOwn(n.id), gap = .022;
+  return Array.from({ length: n.max }, (_, k) => { const t0 = k / n.max + gap, t1 = (k + 1) / n.max - gap, pts = [skHexPt(r, t0)];
+    for (let v = Math.ceil(t0 * 6); v / 6 < t1; v++) pts.push(skHexPt(r, v / 6)); pts.push(skHexPt(r, t1));
+    return `<path class="tk${k < own ? ' on' : ''}" pathLength="1" d="M${pts.map(p => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join('L')}"/>`; }).join('');
+}
 function skNodeSvg(n) {
-  if (n.major) return `<svg class="skshape" viewBox="-48 -48 96 96" aria-hidden="true"><polygon class="skbr" points="${SK_HEX(n.max > 1 ? 51 : 45)}"/><polygon class="sko" points="${SK_HEX(37)}"/><polygon class="ski" points="${SK_HEX(31)}"/>${n.max > 1 ? `<g class="tks">${skTicks(n, 43)}</g>` : ''}<circle class="skburst" r="40"/><g transform="translate(26 -30)">${SK_LOCK}</g></svg>`;
-  return `<svg class="skshape" viewBox="-36 -36 72 72" aria-hidden="true"><circle class="skbr" r="34"/><circle class="sko" r="23"/><circle class="ski" r="19"/><g class="tks">${skTicks(n, 29)}</g><circle class="skburst" r="28"/><g transform="translate(19 -20)">${SK_LOCK}</g></svg>`;
+  if (n.major) return `<svg class="skshape" viewBox="-48 -48 96 96" aria-hidden="true"><polygon class="skbr" points="${SK_HEX(n.max > 1 ? 50 : 45)}"/><polygon class="sko" points="${SK_HEX(n.max > 1 ? 35 : 37)}"/><polygon class="ski" points="${SK_HEX(n.max > 1 ? 29 : 31)}"/>${n.max > 1 ? `<g class="tks">${skHexTicks(n, 42)}</g>` : ''}<polygon class="skburst" points="${SK_HEX(40)}"/><g transform="translate(${n.max > 1 ? '31 -33' : '27 -31'})">${SK_LOCK}</g></svg>`;
+  return `<svg class="skshape" viewBox="-36 -36 72 72" aria-hidden="true"><circle class="skbr" r="34"/><circle class="sko" r="23"/><circle class="ski" r="19"/><g class="tks">${skTicks(n, 29)}</g><circle class="skburst" r="28"/><g transform="translate(21 -21)">${SK_LOCK}</g></svg>`;
 }
 function skSub(n) { // the small line under a node's name: its rank, and what the next one costs or waits on
   const st = skState(n), r = skOwn(n.id), off = PROG.treeOff[n.id] && r, why = skWhy(n), lv = why.find(q => q.k === 'lvl');
@@ -63,9 +73,9 @@ function skLinkState(l) { const rb = skOwn(l.b.id); return rb ? 'on' : skWhy(l.b
 function skLinksSvg() {
   return skLinks().map(l => `<path class="skln br-${l.b.br} ${l.a ? '' : 'trunk'} ${skLinkState(l)}" data-a="${l.a ? l.a.id : ''}" data-b="${l.b.id}" d="${skPath(l.a, l.b)}"/>`).join('');
 }
-function skHubHtml() { // the coil every branch grows out of: how much of the tree you own
+function skHubHtml() { // where the three branches meet: how much of the tree you own
   const tot = SKILL_TREE.reduce((a, n) => a + n.max, 0), own = SKILL_TREE.reduce((a, n) => a + skOwn(n.id), 0);
-  return `<div class="skhub" style="left:${SK_HUB.x}px;top:${SK_HUB.y}px"><svg viewBox="-40 -40 80 80" aria-hidden="true"><path d="M0 -4a4 4 0 1 1 -4 4a9 9 0 0 1 9 -9a14 14 0 0 1 14 14a19 19 0 0 1 -19 19a24 24 0 0 1 -24 -24a29 29 0 0 1 29 -29"/><circle cx="29" cy="-29" r="2.6"/></svg><b id="skHubN">${own}</b><small>of ${tot} ranks</small></div>`;
+  return `<div class="skhub" style="left:${SK_HUB.x}px;top:${SK_HUB.y}px"><i class="knot"></i><b id="skHubN">${own}</b><small>of ${tot} ranks</small></div>`;
 }
 const SK_LABEL = { surv: { x: 360, y: 870 }, pred: { x: 1100, y: 190 }, fort: { x: 1860, y: 870 } };
 const skBranchLabel = br => `<div class="skbl br-${br}" style="left:${SK_LABEL[br].x}px;top:${SK_LABEL[br].y}px"><span>${SK_BRANCH[br].name}</span><b data-brn="${br}">${skBranchRanks(br)}</b></div>`;
@@ -149,8 +159,8 @@ function skWire() {
   const local = e => { const r = view.getBoundingClientRect(), s = r.width / view.offsetWidth || 1; return { x: (e.clientX - r.left) / s, y: (e.clientY - r.top) / s }; };
   view.addEventListener('pointerdown', e => {
     if (e.target.closest('.skctl')) return;
-    P.set(e.pointerId, local(e)); moved = false; world.classList.remove('glide');
-    if (P.size === 1) drag = { p: local(e), cam: { ...skCam } };
+    P.set(e.pointerId, local(e)); moved = false; world.classList.remove('glide'); skStopMotion();
+    if (P.size === 1) drag = { p: local(e), cam: { ...skCam }, vx: 0, vy: 0, lt: performance.now(), lp: local(e) };
     else if (P.size === 2) { const [a, b] = [...P.values()]; drag = { pinch: Math.hypot(a.x - b.x, a.y - b.y) || 1, mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, cam: { ...skCam } }; moved = true; }
   });
   view.addEventListener('pointermove', e => {
@@ -161,20 +171,37 @@ function skWire() {
     if (!moved && Math.hypot(dx, dy) < 7) return;
     if (!moved) { moved = true; view.classList.add('dragging'); try { view.setPointerCapture(e.pointerId); } catch (err) {} }
     skCam = { ...drag.cam, x: drag.cam.x + dx, y: drag.cam.y + dy }; skClamp(); skApply();
+    const now = performance.now(), ddt = Math.max(1, now - drag.lt); drag.vx = drag.vx * .5 + (p.x - drag.lp.x) / ddt * .5; drag.vy = drag.vy * .5 + (p.y - drag.lp.y) / ddt * .5; drag.lt = now; drag.lp = p; // how fast it's being flung
   });
-  const up = e => { P.delete(e.pointerId); if (P.size === 1 && drag && drag.pinch) { const p = [...P.values()][0]; drag = { p, cam: { ...skCam } }; return; } if (!P.size) { drag = null; view.classList.remove('dragging'); } };
+  const up = e => { P.delete(e.pointerId); if (P.size === 1 && drag && drag.pinch) { const p = [...P.values()][0]; drag = { p, cam: { ...skCam } }; return; } if (!P.size) { if (drag && moved && !drag.pinch && performance.now() - drag.lt < 80) skFling(drag.vx, drag.vy); drag = null; view.classList.remove('dragging'); } };
   view.addEventListener('pointerup', up); view.addEventListener('pointercancel', up);
   view.addEventListener('click', e => { // a tap on a node selects it (never after a drag)
     if (moved) { moved = false; return; }
     const b = e.target.closest('.skn'); if (b) skSelect(b.dataset.n, false);
   });
-  view.addEventListener('wheel', e => { e.preventDefault(); const p = local(e); skZoom(Math.exp(-clamp(e.deltaY, -120, 120) * .0016), p.x, p.y); }, { passive: false });
+  view.addEventListener('wheel', e => { e.preventDefault(); const p = local(e); skZoomSmooth(Math.exp(-clamp(e.deltaY, -120, 120) * .0016), p.x, p.y); }, { passive: false });
   skEl('skFit').onclick = () => skFit(true);
   skEl('skIn').onclick = () => skZoom(1.25, undefined, undefined, true);
   skEl('skOut').onclick = () => skZoom(.8, undefined, undefined, true);
   view.querySelectorAll('[data-focus]').forEach(b => b.onclick = () => skFocusBranch(b.dataset.focus));
   overlay.querySelector('.sktree').addEventListener('keydown', skKeys);
   addEventListener('resize', skResize);
+}
+/* motion: the wheel eases the zoom in over a few frames, and a flung drag keeps drifting a moment and settles (both off with reduced motion) */
+const SKM = { z: 0, cx: 0, cy: 0, zr: 0, fr: 0 };
+function skStopMotion() { cancelAnimationFrame(SKM.zr); cancelAnimationFrame(SKM.fr); SKM.zr = SKM.fr = 0; }
+function skZoomSmooth(f, cx, cy) {
+  if (skCalm()) return skZoom(f, cx, cy);
+  if (!SKM.zr) SKM.z = skCam.z; SKM.z = clamp(SKM.z * f, .32, 1.9); SKM.cx = cx; SKM.cy = cy;
+  if (SKM.zr) return;
+  const step = () => { const d = SKM.z / skCam.z; if (!skEl('skWorld') || Math.abs(d - 1) < .003) { SKM.zr = 0; return; } skZoom(1 + (d - 1) * .3, SKM.cx, SKM.cy); SKM.zr = requestAnimationFrame(step); };
+  SKM.zr = requestAnimationFrame(step);
+}
+function skFling(vx, vy) {
+  if (skCalm() || Math.hypot(vx, vy) < .25) return; let last = performance.now();
+  const step = now => { const dt = Math.min(40, now - last); last = now; vx *= Math.exp(-dt / 160); vy *= Math.exp(-dt / 160);
+    if (!skEl('skWorld') || Math.hypot(vx, vy) < .02) { SKM.fr = 0; return; } skCam.x += vx * dt; skCam.y += vy * dt; skClamp(); skApply(); SKM.fr = requestAnimationFrame(step); };
+  SKM.fr = requestAnimationFrame(step);
 }
 function skResize() { if (!skEl('skView')) return removeEventListener('resize', skResize); skClamp(); skApply(); }
 function skKeys(e) {
@@ -213,7 +240,7 @@ function skInfo(animate, prevVals) {
     ...(skNeedLv(n, r) && !max ? [`<li class="${skLv() >= skNeedLv(n, r) ? 'ok' : 'no'}">${skLv() >= skNeedLv(n, r) ? SK_OK : SK_NO}<span>Level ${skNeedLv(n, r)}${n.max > 1 && r ? ` for rank ${r + 1}` : ''}</span><em>you're ${skLv()}</em></li>`] : [])].join('');
   const stateWord = PROG.treeOff[n.id] && r ? 'Switched off' : ({ max: n.major ? 'Unlocked' : 'Maxed', own: 'Purchased', avail: 'Available', locked: 'Locked' })[st];
   const btnTxt = max ? (n.major ? 'Unlocked' : 'Maxed') : why.length ? (why[0].k === 'lvl' ? `Level ${why[0].need}` : 'Locked') : r ? `Upgrade to ${r + 1}/${n.max}` : n.major ? 'Unlock' : 'Buy rank 1';
-  el.className = `skinfo br-${n.br} st-${st}`;
+  el.className = `skinfo br-${n.br} st-${st}${animate || el.dataset.n === n.id ? ' still' : ''}`; el.dataset.n = n.id; // a new node fades in; the same one just updates
   el.innerHTML = `<div class="sk-h"><span class="sk-ic ${n.major ? 'maj' : ''}">${upIcon(n.icon)}</span><div><small>${SK_BRANCH[n.br].name} · ${n.major ? (n.abil ? 'Ability' : 'Major skill') : `Passive · ${n.max} ranks`}</small><h2>${n.name}</h2></div>${n.abil ? `<kbd data-tip="Its key (Settings › Controls)">${abilKey(n.id)}</kbd>` : ''}</div>
     <div class="sk-rank"><span class="sk-bars">${Array.from({ length: n.max }, (_, k) => `<i class="${k < r ? 'on' : ''}"></i>`).join('')}</span><b>${r}/${n.max}</b><span class="sk-st">${stateWord}</span></div>
     <p class="sk-d">${n.desc}</p>

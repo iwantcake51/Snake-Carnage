@@ -154,7 +154,7 @@ function setupHtml() {
         <div class="rs-scroll">
           <section class="rs-sec"><h4>Time of day</h4>${segHtml('rsTime', 'Time of day', Object.keys(TIME_MODES), SETTINGS.timeMode, TIME_MODES, 'time')}<p class="rs-hint" id="rsTimeTip">${TIME_TIPS[SETTINGS.timeMode] || ''}</p></section>
           <section class="rs-sec" id="rsSeason"><h4>Season</h4>${segHtml('rsSea', 'Season', SEASON_PICK, SETTINGS.season || 'Random', null, 'season')}<p class="rs-hint" id="rsSeaTip"></p></section>
-          <section class="rs-sec"><div class="rs-sh"><h4>Modifiers</h4><button class="mm-q" id="modBtn" data-sfx="open">Edit modifiers</button></div><div class="rs-mods" id="modline">${modLine()}</div></section>
+          <section class="rs-sec"><div class="rs-sh"><h4>Modifiers</h4><span class="rs-mact"><button class="mm-q" id="modClr" data-sfx="off" ${(SETTINGS.mods || []).length ? '' : 'hidden'}>Clear</button><button class="mm-q" id="modBtn" data-sfx="open">Edit modifiers</button></span></div><div class="rs-mods" id="modline">${modLine()}</div></section>
           <section class="rs-sec rs-ch" id="mapch">${mapChallengesHtml()}</section>
         </div>
       </aside>
@@ -198,7 +198,8 @@ function wireMenu() {
   $('rsPrev').onclick = $('rsChange').onclick = () => openBrowser();
   $('startBtn').onclick = () => startGame();
   $('modBtn').onclick = () => transitionTo(() => showModifiers());
-  root.querySelectorAll('#modline .mchip[data-mod]').forEach(ch => { ch.tabIndex = 0; ch.setAttribute('role', 'button'); ch.onclick = () => transitionTo(() => showModifiers(ch.dataset.mod)); }); // jump straight to that modifier
+  wireModLine(root);
+  $('modClr').onclick = () => { SETTINGS.mods = []; saveSettings(); const ml = $('modline'); ml.innerHTML = modLine(); wireModLine(root); $('modClr').hidden = true; if (typeof updateHud === 'function') updateHud(); $('modBtn').focus({ preventScroll: true }); }; // clear them right here, no trip into the Modifiers screen
   const hint = (seg, tipEl, tips, key, cur) => { // the line under a choice describes whichever option you point at, then goes back to the picked one
     seg.querySelectorAll('button').forEach(b => { b.onpointerenter = b.onfocus = () => { if (!b.disabled) tipEl.textContent = tips[b.dataset[key]] || ''; }; });
     seg.onpointerleave = () => { const w = key === 'season' && seasonWhy(MAPS[mapIdx]); tipEl.textContent = w || tips[cur()] || ''; };
@@ -261,6 +262,7 @@ function menuEsc() { // Esc: shut the map browser, then back to the front page; 
   if (root) { if (closeBrowser()) return; if (root.dataset.view === 'setup' && !root.classList.contains('party')) menuGo('home'); return; }
   const b = overlay.querySelector('#backBtn, #mpBack'); if (b) b.click(); else transitionTo(showMenu);
 }
+function wireModLine(root) { root.querySelectorAll('#modline .mchip[data-mod]').forEach(ch => { ch.tabIndex = 0; ch.setAttribute('role', 'button'); ch.onclick = () => transitionTo(() => showModifiers(ch.dataset.mod)); }); } // a chip jumps straight to that modifier
 function modLine(list, readOnly) { // active modifiers, visible before the run starts
   const ids = list || SETTINGS.mods || [];
   if (!ids.length) return '<span class="mchip dim">No modifiers</span>';
@@ -287,7 +289,7 @@ function showModifiers(focus) {
         <span class="m2d">${m.desc}</span>
         <span class="m2tags"><i class="m2k">${kl}</i>${(m.not || []).length ? `<i class="m2not">Not with ${m.not.map(o => (MODS.find(q => q.id === o) || {}).name).filter(Boolean).join(', ')}</i>` : ''}</span></button>`; }).join('')}</div></section>`).join('')}</div>
       <aside class="m2info" id="m2info"></aside></div>
-    <div class="mbtns"><span class="sp"></span><button class="btn alt" id="shufBtn" data-sfx="select">Shuffle</button><button class="btn alt" id="clrBtn" data-sfx="off">Clear</button><button class="btn" id="backBtn" data-sfx="confirm">Done</button></div></div>`;
+    <div class="mbtns"><span class="sp"></span><button class="btn alt" id="shufBtn" data-sfx="select">Shuffle</button><button class="btn" id="backBtn" data-sfx="confirm">Done</button></div></div>`;
   const blocker = id => modBlockReason(id, ids), info = document.getElementById('m2info');
   let shown = null;
   const showInfo = id => { // the side panel: everything about the one you're pointing at, or a summary of what's on
@@ -329,7 +331,6 @@ function showModifiers(focus) {
     overlay.querySelectorAll('.m2c').forEach((t, i) => { t.classList.remove('shuf'); void t.offsetWidth; t.style.setProperty('--d', (i * 10) + 'ms'); t.classList.add('shuf'); });
     shown = null; sync();
   };
-  document.getElementById('clrBtn').onclick = () => { ids.clear(); shown = null; sync(); };
   document.getElementById('backBtn').onclick = () => transitionTo(showMenu);
   sync();
   if (focus) requestAnimationFrame(() => { const t = overlay.querySelector(`.m2c[data-m="${focus}"]`); if (!t) return; showInfo(focus); t.scrollIntoView({ block: 'center', behavior: SETTINGS.reduceMotion ? 'auto' : 'smooth' }); t.classList.add('flash'); });

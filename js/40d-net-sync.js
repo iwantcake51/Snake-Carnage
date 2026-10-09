@@ -166,7 +166,7 @@ function netHostBite(p, e) { // a guest's snake reached a creature on their scre
 }
 function netHostAbility(p, e) {
   const rs = NS.rs.get(p.id); if (!rs) return;
-  if (e.id === 'hoover') { const lv = clamp(+e.lv || 1, 1, 3); rs.hoovT = clamp(+e.d || lvAt([1.5, 1.5, 2, 2.5], lv), .5, 3); rs.hoovLv = lv; } // their Hoover skill: hoover() pulls for them on this side (netHostRemoteSnakes)
+  if (e.id === 'hoover') { const lv = clamp(+e.lv || 1, 1, 3); rs.hoovT = clamp(+e.d || lvAt([1.5, 1.8, 3, 3.6], lv), .5, 4.5); rs.hoovLv = lv; } // their Hoover skill: hoover() pulls for them on this side (netHostRemoteSnakes)
   if (e.id === 'hiss') { const me = snake; snake = rs; UPG_OVR = rs.upgLv; let n = 0; try { n = hissNpc(rs, e.lv || 1); } finally { snake = me; UPG_OVR = null; } const L = NETM.links.get(p.id); if (L) L.sendR({ k: 'ev', e: [{ t: 'hissN', n }] }); }
   netEmit({ t: 'abil', pid: p.id, id: e.id, x: Math.round(rs.x), y: Math.round(rs.y) });
 }
@@ -335,10 +335,11 @@ function netApply(e, local) {
     case 'beat': if (e.by !== NETM.me) tailBitGone(e.id); break; // someone ate one of the pieces
     case 'hissN': crHiss(e.n || 0); break;
     case 'scr': crScream(e.n || 0); break;
-    case 'air': airStrike(e.x, e.y, Math.max(.15, e.w - netLag(e.h)), e.r, e.j, e.f); break; // the host called in a bomb: same spot, and it lands when it does on the host's screen
+    case 'air': airStrike(e.x, e.y, Math.max(.15, e.w - netLag(e.h)), e.r, e.j, e.f, e.tk); break; // the host called in a bomb: same spot, and it lands when it does on the host's screen
     case 'airw': airWarn(); break;
     case 'airs': airStrafe(e.x, e.y, e.a, Math.max(.15, e.w - netLag(e.h))); break; // ...or a strafing run
-    case 'airj': airApproach(e.x, e.y, e.a, e.p); break; // a jet on its way in, still miles off
+    case 'airj': airApproach(e.x, e.y, e.a, e.p); break;
+    case 'airx': if (e.pid === NETM.me) airCalledOffNote(); break; // Bad Intel: the strike meant for you was called off // a jet on its way in, still miles off
     case 'evt': evt = e.v ? { ...e.v } : null; if (evt) { evt.shown = false; Sfx.chime(); showEvent(); } break;
     case 'tod': if (Math.abs(angDiff(tod / 24 * TAU, e.v / 24 * TAU)) > .01) tod = e.v; break;
     case 'lives': NS.pools[e.k || 'all'] = e.n; netHud && netHud(); break;

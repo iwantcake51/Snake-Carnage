@@ -60,16 +60,18 @@ const SKILL_TREE = [
   { id: 'phantom', br: 'surv', major: 1, name: 'Phantom', icon: 'phantom', cost: [2], lvl: 23, req: [['cover', 2]], x: 630, y: 315,
     desc: 'Your combo doesn\'t drain while you\'re hidden, hidden kills pay 25% more, the camouflage settles back in quicker after a turn, and it recharges 2 s sooner.', fx: [['Hidden kills pay', g => g('phantom') ? 25 : 0, pct], ['Cooldown', g => SKV.camoCd(g), secs]] },
   { id: 'hoover', br: 'pred', major: 1, abil: 1, name: 'Hoover Mouth', icon: 'hoover', cost: [1], lvl: 6, req: [['jaws', 1]], x: 1271, y: 560,
-    desc: 'Open wide and inhale: for a moment everything in a cone in front of you, people included, gets dragged toward your mouth. Never through walls.', fx: [['Pull', g => SKV.hoovDur(g), secs], ['Cone', g => SKV.hoovCone(g), n => Math.round(n) + '°'], ['Cooldown', g => SKV.hoovCd(g), secs]] },
+    desc: 'Open wide and inhale: for a moment everything in a cone in front of you, people included, gets dragged toward your mouth. Never through walls.', fx: [['Pull', g => SKV.hoovDur(g), secs], ['Strength', g => SKV.hoovPull(g), xk], ['Cone', g => SKV.hoovCone(g), n => Math.round(n) + '°'], ['Cooldown', g => SKV.hoovCd(g), secs]] },
   { id: 'breath', br: 'pred', name: 'Deep Breath', icon: 'breath', cost: [1, 1, 1], req: [['hoover', 1]], x: 1280, y: 405,
-    desc: 'Each rank: the pull lasts longer, reaches further, widens and drags harder, and recharges about 1.3 s sooner.', fx: [['Pull', g => SKV.hoovDur(g), secs], ['Cone', g => SKV.hoovCone(g), n => Math.round(n) + '°'], ['Cooldown', g => SKV.hoovCd(g), secs]] },
+    desc: 'Each rank: the pull lasts 0.4 s longer, reaches further, widens and drags much harder, and recharges about 1.3 s sooner.', fx: [['Pull', g => SKV.hoovDur(g), secs], ['Strength', g => SKV.hoovPull(g), xk], ['Cone', g => SKV.hoovCone(g), n => Math.round(n) + '°'], ['Cooldown', g => SKV.hoovCd(g), secs]] },
   { id: 'vortex', br: 'pred', major: 1, name: 'Vortex', icon: 'vortex', cost: [2], lvl: 21, req: [['breath', 2]], x: 1284, y: 250,
-    desc: 'A huge pull in a 170° cone that drags in even people running for their lives: 2.5 s of it, every 9 s.', fx: [['Pull', g => SKV.hoovDur(g), secs], ['Cone', g => SKV.hoovCone(g), n => Math.round(n) + '°'], ['Cooldown', g => SKV.hoovCd(g), secs]] },
+    desc: 'A huge pull in a 170° cone that drags in even people running for their lives, for well over 3 s, every 9 s.', fx: [['Pull', g => SKV.hoovDur(g), secs], ['Strength', g => SKV.hoovPull(g), xk], ['Cone', g => SKV.hoovCone(g), n => Math.round(n) + '°'], ['Cooldown', g => SKV.hoovCd(g), secs]] },
   { id: 'ram', br: 'surv', major: 1, name: 'Battering Ram', icon: 'ram', cost: [1, 1, 2], lvl: [4, 10, 16], req: [['skull', 1]], x: 405, y: 720,
     ranks: ['Small things: chairs, plants, crates, hay, fences, bins, glass. Barely slows you', 'Big furniture, bushes and small trees: desks, tables, benches, couches, shelves, beds, bars, consoles, speakers, saplings. A harder knock', 'Cars, rocks and the cracked wall sections on some maps: shortcuts, but the hit leaves you seeing stars'],
     desc: 'Smash through things instead of crashing into them; each rank takes on heavier things. Without it glass still breaks, but going through it knocks you senseless.', fx: [['Smashes', g => SKV.ramTier(g), n => ['Nothing', 'Small things', 'Furniture', 'Cars and walls'][n]]] },
+  { id: 'jam', br: 'surv', major: 1, name: 'Bad Intel', icon: 'jam', cost: [2], lvl: 16, req: [['skull', 2]], x: 735, y: 745,
+    desc: 'The bombers get bad information about you. Every time an air strike is called in on you there is a 50% chance it is called off: no jet comes over, nothing is dropped, and the clock until the next one starts again.', fx: [['Strikes on you called off', g => g('jam') ? 50 : 0, n => n + '%']] },
   { id: 'skull', br: 'surv', name: 'Thick Skull', icon: 'skull', cost: [1, 1, 1, 1], req: [], x: 585, y: 790,
-    desc: 'Opens the Survival branch. Each rank: you shake off a daze 10% faster, whether it came from smashing through something, a wall, or a blast nearby. It never saves you from a direct hit.', fx: [['Daze recovery', g => SKV.dazeK(g) * 100 - 100, pct]] },
+    desc: 'Opens the Survival branch. Each rank: every daze and concussion is 20% weaker and shorter, whatever caused it: smashing through things, hitting a wall, or a bomb or a gas pump going off nearby. At 4 ranks a blast barely slows you or rings your ears. It never saves you from a direct hit.', fx: [['Dazes and concussions', g => (SKV.dazeCut(g) - 1) * 100, pct]] },
   { id: 'gut', br: 'surv', name: 'Iron Stomach', icon: 'gut', cost: [1, 1, 1], req: [['ram', 1]], x: 265, y: 590,
     desc: 'Each rank: your combo lasts 10% longer between kills.', fx: [['Combo time', g => SKV.combo(g) * 100 - 100, pct]] },
   { id: 'hiss', br: 'pred', major: 1, abil: 1, name: 'Hiss', icon: 'hiss', cost: [1], lvl: 11, req: [['speed', 1]], x: 1392, y: 660,
@@ -82,7 +84,7 @@ const SKILL_TREE = [
   { id: 'study', br: 'fort', name: 'Quick Study', icon: 'study', cost: [1, 1, 1, 1, 1], req: [], x: 1615, y: 790,
     desc: 'Opens the Fortune branch. Each rank: 4% more XP from everything: kills, combos, challenges, near misses, achievements.', fx: [['XP from everything', g => (SKV.xpK(g) - 1) * 100, pct]] },
   { id: 'streak', br: 'fort', name: 'Hot Streak', icon: 'streak', cost: [1, 1, 1], req: [['study', 1]], x: 1580, y: 630,
-    desc: 'Each rank: kills while your combo is 5x or higher pay 8% more XP and chips.', fx: [['Kills at 5x combo and up', g => (SKV.streakK(g) - 1) * 100, pct]] },
+    desc: 'Chain your kills: each kill within 3 s of the last one adds to the chain, and every link pays more XP and chips than the one before (2% per link per rank, building up to a 5-kill chain).', fx: [['A 2-kill chain pays', g => (SKV.streakK(g, 1) - 1) * 100, pct], ['5 kills and up pay', g => (SKV.streakK(g, 5) - 1) * 100, pct]] },
   { id: 'windfall', br: 'fort', major: 1, name: 'Windfall', icon: 'windfall', cost: [2], lvl: 20, req: [['streak', 2]], x: 1570, y: 470,
     desc: 'The bonus chips you get for every level up are doubled.', fx: [['Next level-up bonus', g => (15 + (PROG.level + 1) * 3) * SKV.windK(g), n => Math.round(n) + ' chips']] },
   { id: 'interest', br: 'fort', major: 1, name: 'Compound Interest', icon: 'interest', cost: [2], lvl: 28, req: [['windfall', 1]], x: 1565, y: 310,
@@ -158,11 +160,12 @@ const SKV = {
   camoCd: (g = sk) => 14 - .5 * g('cover') - 2 * g('phantom'),
   camoSpeed: (g = sk) => 1 + .04 * g('cover'),
   hoovLv: (g = sk) => g('vortex') ? 3 : 1 + g('breath') / 3, // 1..3: how hard and wide the pull is (22-snake hoover)
-  hoovDur: (g = sk) => g('vortex') ? 2.5 : 1.5 + g('breath') / 6,
+  hoovDur: (g = sk) => g('vortex') ? 3.4 + .2 * g('breath') : 1.8 + .4 * g('breath'),
+  hoovPull: (g = sk) => lvAt([0, 1.5, 2.3, 3.6], SKV.hoovLv(g)), // how hard it drags (22-snake hoover)
   hoovCd: (g = sk) => 16 - 4 / 3 * g('breath') - 3 * g('vortex'),
   hoovCone: (g = sk) => lvAt([0, .55, 1, 1.5], SKV.hoovLv(g)) * 2 * 180 / Math.PI,
   ramTier: (g = sk) => g('ram'),
-  dazeK: (g = sk) => 1 + .1 * g('skull'), // how fast a daze wears off (never immunity: the daze still happens, a direct hit still kills)
+  dazeCut: (g = sk) => 1 - .2 * g('skull'), // how strong and long every daze is: smashes, walls, blasts (never immunity: a direct hit still kills)
   combo: (g = sk) => 1 + .1 * g('gut'),
   hissR: (g = sk) => 190 + 17 * g('rattle') + 30 * g('shock'),
   hissSlow: (g = sk) => 1.33 * g('rattle'),
@@ -173,7 +176,7 @@ const SKV = {
   // Fortune: rewards are yours alone, so these always read your own tree (never another player's in co-op)
   xpK: (g = skMe) => 1 + .04 * g('study'),
   chipK: (g = skMe) => 1 + .05 * g('pockets'),
-  streakK: (g = skMe) => 1 + .08 * g('streak'),
+  streakK: (g = skMe, n = 0) => 1 + .02 * g('streak') * Math.min(5, n), // n: how many kills in a row, each within 3 s of the last (Hot Streak)
   luckyP: (g = skMe) => .04 * g('lucky'),
   goldK: (g = skMe) => g('midas') ? 1.5 : 1,
   shopK: (g = skMe) => 1 - .05 * g('haggler'),
@@ -296,6 +299,7 @@ function upIcon(k) { // small hand-drawn SVG glyphs (20 x 20), one per skill, so
     skull: '<path d="M4 11a6 6 0 1 1 12 0v2.5H4z" stroke-width="1.8"/><path d="M4 13.5h12v2.5H4zM10 5v4" stroke-width="1.6"/>',
     hiss: '<path d="M3 10c2-3 4-3 6 0s4 3 6 0" stroke-width="2.2"/><path d="M13 5l4-2M13 15l4 2M15 10h3" stroke-width="1.8"/>',
     rattle: '<path d="M10 2.5c2 0 3 1.2 3 2.5s-1 2.5-3 2.5-3-1.2-3-2.5 1-2.5 3-2.5zM10 7.5c2.3 0 3.5 1.3 3.5 2.8s-1.2 2.8-3.5 2.8-3.5-1.3-3.5-2.8 1.2-2.8 3.5-2.8zM10 13c2.6 0 4 1.3 4 2.8s-1.4 2.7-4 2.7-4-1.2-4-2.7 1.4-2.8 4-2.8z" stroke-width="1.5"/><path d="M2 6l2 1M18 6l-2 1M2 14l2-1M18 14l-2-1" stroke-width="1.4"/>',
+    jam: '<path d="M4 16V9M4 9l-2-4M4 9l2-4" stroke-width="1.6"/><path d="M9 11a3 3 0 0 1 6 0M7 9a6 6 0 0 1 10 0" stroke-width="1.6"/><path d="M3 18L18 3" stroke-width="2"/>',
     jaws: '<path d="M2 6c3-3 13-3 16 0M2 14c3 3 13 3 16 0" stroke-width="2"/><path d="M5 6l1.5 3L8 6M12 6l1.5 3L15 6M5 14l1.5-3L8 14M12 14l1.5-3L15 14" stroke-width="1.5"/>',
     lust: '<path d="M10 2.5c3 4 5 6.5 5 9.5a5 5 0 0 1-10 0c0-3 2-5.5 5-9.5z" stroke-width="1.8"/><path d="M8 12.5l2-3 2 3" stroke-width="1.7"/>',
     study: '<path d="M2 6l8-3.5L18 6l-8 3.5z" stroke-width="1.7"/><path d="M5 7.5V12c2 2 8 2 10 0V7.5M18 6v5" stroke-width="1.7"/>',
@@ -353,12 +357,12 @@ function smashObstacle(o, ang, quiet) { // quiet: catching up on breakage that h
   if (mine && fx && fx.stun !== 'default') { shake = Math.max(shake, 8 * fx.shake); bfxStun(fx); }
   else if (mine) { shake = Math.max(shake, (hard ? 10 : ramClass(o) === 3 ? 4 : 2) * (fx ? fx.shake : 1));
   const lng = (snake.dashV || 1) > 1.25, cls = ramClass(o), dur = (hard ? 2.2 : cls === 3 ? 1 : cls === 2 ? .6 : .3) + (lng ? (hard ? .5 : .2) : 0); // big furniture knocks you a bit longer // lunging in: it hits harder on screen and lasts longer, but you keep more of your speed
-  const res = 1; // (Thick Skull shortens the daze where it wears off: see SKV.dazeK in 22-snake)
+  const res = SKV.dazeCut(); // Thick Skull: a weaker, shorter daze
   const keepMo = sk('momentum') ? .5 : 1; // Momentum: your speed survives the hit
   if (!hard && snake.wallStun > 0) snake.ramT = Math.max(snake.ramT, Math.min(snake.ramMax, dur * res)); // already seeing stars from a wall: furniture doesn't reset it
   else { snake.ramT = snake.ramMax = dur * res; snake.ramDeep = (hard ? .5 : cls === 3 ? .35 : cls === 2 ? .22 : .08) * (lng ? .6 : 1) * res * keepMo; /* small things barely slow you, same daze */ snake.wallStun = snake.wallMax = hard ? dur * res : 0; snake.stunFx = (hard ? .8 : cls === 3 ? .5 : cls === 2 ? .3 : .15) * (lng ? 1.2 : 1) * res; } /* (v1.57: much lighter dazes, the smallest things barely register) */
   if (hard) { snake.dashT = 0; snake.dashV = 1; snake.lk = 0; } } // a wall stops a lunge dead
-  if (mine && o.kind === 'glass' && upg('ram') < 1) { snake.ramT = snake.ramMax = 2; snake.ramDeep = .5; snake.wallStun = snake.wallMax = 2; snake.stunFx = .9; snake.dashT = 0; snake.dashV = 1; snake.lk = 0; shake = Math.max(shake, 11); } // no Battering Ram: you go through the glass, but face first // dazed: slower, colours drain, edges blur, all easing back as speed returns
+  if (mine && o.kind === 'glass' && upg('ram') < 1) { const gc = SKV.dazeCut(); snake.ramT = snake.ramMax = 2 * gc; snake.ramDeep = .5 * gc; snake.wallStun = snake.wallMax = 2 * gc; snake.stunFx = .9 * gc; snake.dashT = 0; snake.dashV = 1; snake.lk = 0; shake = Math.max(shake, 11); } // no Battering Ram: you go through the glass, but face first // dazed: slower, colours drain, edges blur, all easing back as speed returns
   if (wall && !quiet && !fx) { // a wall: bricks and plaster everywhere, a cloud of dust, and the snake sees stars
     for (let k = 0; k < 40; k++) { const a = ang + rand(-.9, .9), sp = rand(80, 300); debris.push({ x: cx + rand(-o.w / 2, o.w / 2), y: cy + rand(-o.h / 2, o.h / 2), z: rand(6, 20), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(80, 220), t: 0, s: rand(2.4, 5), c: pick([o.color, shade(o.color, -.25), shade(o.color, .2), '#8a7f74']) }); }
     for (let k = 0; k < 14; k++) mist.push({ x: cx + rand(-10, 10), y: cy + rand(-10, 10), vx: Math.cos(ang + rand(-1.4, 1.4)) * rand(20, 90), vy: Math.sin(ang + rand(-1.4, 1.4)) * rand(20, 90), r: rand(6, 14), g: rand(10, 24), t: 0, life: rand(1, 1.8), c: '#aaa096', a: rand(.25, .4) });

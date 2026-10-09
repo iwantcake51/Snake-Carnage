@@ -2379,6 +2379,7 @@ body:has(#stage.menuBg) #bar{visibility:hidden} /* score, best, clock and the le
 .rs-mods{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
 .rs-sh{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);margin:-8px 0 var(--s1)}
 .rs-sh h4{margin:0}
+.rs-mact{display:inline-flex;gap:var(--s3);align-items:center}.rs-mact [hidden]{display:none}
 .rs .mchip{animation:none!important;font:500 13px/1 var(--f-body)!important;padding:7px 9px!important;border-radius:2px!important;border:1px solid var(--hair2)!important;background:var(--sheet2)!important;color:var(--ink)!important;cursor:pointer}
 .rs .mchip:hover{border-color:var(--acc)!important}
 .rs .mchip.dim{color:var(--dim)!important;border-style:dashed!important;cursor:default;opacity:1}
@@ -2696,10 +2697,9 @@ i.tok{display:inline-block;width:.86em;height:.96em;vertical-align:-.1em;backgro
 .skln.on{stroke:var(--bc);stroke-width:5}
 .skln.trunk{stroke-width:8}.skln.trunk.off,.skln.trunk.open{stroke-width:5}
 .sktrav{fill:none;stroke:color-mix(in srgb,var(--bc) 35%,#fff);stroke-width:6;stroke-linecap:round;stroke-dasharray:.16 1}
-.skhub{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;pointer-events:none;color:var(--dim)}
-.skhub svg{width:74px;height:74px;fill:none;stroke:#3a3236;stroke-width:3.2;stroke-linecap:round;margin-bottom:-2px}
-.skhub svg circle{fill:#3a3236;stroke:none}
-.skhub b{font:700 22px/1 var(--f-num);color:var(--ink)}.skhub small{font:500 12px var(--f-body);color:var(--mute)}
+.skhub{position:absolute;transform:translate(-50%,-9px);display:flex;flex-direction:column;align-items:center;gap:2px;pointer-events:none;color:var(--dim)}
+.skhub .knot{width:18px;height:18px;border-radius:50%;background:#171214;box-shadow:inset 0 0 0 2px #3d3437;margin-bottom:6px}
+.skhub b{font:700 20px/1 var(--f-num);color:var(--ink)}.skhub small{font:500 12px var(--f-body);color:var(--mute)}
 .skbl{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;pointer-events:none;line-height:1}
 .skbl{--lk:clamp(1,calc(.8 / var(--z,1)),1.3)}
 .skbl span{font:700 calc(20px * var(--lk)) var(--f-head);letter-spacing:.16em;text-transform:uppercase;color:var(--bc)}
@@ -2707,7 +2707,8 @@ i.tok{display:inline-block;width:.86em;height:.96em;vertical-align:-.1em;backgro
 /* nodes: the shape's center sits on the node's spot; the name hangs below */
 .skn{position:absolute;display:flex;flex-direction:column;align-items:center;width:138px;margin-left:-69px;padding:0;background:none!important;border:0;color:var(--ink);font:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;outline:none}
 .skn.maj{margin-top:-48px}.skn.pas{margin-top:-36px}
-.skshape{display:block;overflow:visible;transition:transform .09s ease-out}
+.skshape{display:block;overflow:visible;transition:transform .16s cubic-bezier(.2,.8,.2,1)}
+.skn:hover .skshape{transform:scale(1.045)}
 .skn.maj .skshape{width:96px;height:96px}.skn.pas .skshape{width:72px;height:72px}
 .skshape *{transition:fill .3s,stroke .3s,opacity .3s}
 .skico{position:absolute;left:50%;translate:-50% -50%;pointer-events:none;color:#5c5357;transition:color .3s;display:flex}
@@ -2716,20 +2717,20 @@ i.tok{display:inline-block;width:.86em;height:.96em;vertical-align:-.1em;backgro
 .skl{display:flex;flex-direction:column;align-items:center;gap:2px;margin-top:1px;line-height:1.1;text-align:center;pointer-events:none}
 .skl{--lk:clamp(1,calc(.8 / var(--z,1)),1.3)} /* zoomed right out, the names stay readable */
 .skl b{white-space:nowrap;font:700 calc(15.5px * var(--lk))/1.05 var(--f-head);letter-spacing:.04em;text-transform:uppercase;color:var(--dim);transition:color .3s}
-.skl b,.skl em{background:rgba(11,9,10,.82);padding:0 4px;border-radius:2px} /* a matte plate: links pass behind the names */
+.skl b,.skl em{background:rgba(11,9,10,.86);padding:0 5px;border-radius:3px} /* a matte plate: links pass behind the names */
 .skworld.far .skl em{display:none}
 .skl em{font:500 calc(12.5px * var(--lk)) var(--f-body);font-style:normal;color:var(--mute);display:inline-flex;align-items:center;gap:3px;white-space:nowrap}
 .skl em .pc{margin-left:2px}
 .skrk{font:700 1em var(--f-num);color:var(--ink)}
-.skbr{fill:transparent;stroke:transparent;stroke-width:2}
-.sko{fill:#121011;stroke:#3a3236;stroke-width:2;stroke-dasharray:5 4}
+.skbr{fill:transparent;stroke:transparent;stroke-width:2;transition:stroke .2s,stroke-width .2s}
+.sko{fill:#121011;stroke:#342c2f;stroke-width:2}
 .ski{fill:none;stroke:none}
-.tk{fill:none;stroke:#2f282b;stroke-width:4.5;stroke-linecap:butt}
+.tk{fill:none;stroke:#2c2528;stroke-width:4.5;stroke-linecap:butt;stroke-linejoin:round}
 .tk.on{stroke:var(--bc)}
 .tk.fill{stroke-dasharray:1;animation:skTick .4s cubic-bezier(.3,.7,.3,1) both}
 @keyframes skTick{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
 .skburst{fill:none;stroke:var(--bc);stroke-width:2;opacity:0;transform-box:fill-box;transform-origin:center}
-.sklock{display:none}.sklock rect{fill:#6e6660}.sklock path{stroke:#6e6660;stroke-width:1.7}
+.sklock{display:none}.sklock .lkbg{fill:#0b090a;stroke:#342c2f;stroke-width:1.2}.sklock rect{fill:#7a716b}.sklock path{stroke:#7a716b;stroke-width:1.6}
 .skn.s-locked .sklock{display:inline}
 .skn.s-avail .sko{fill:#151213;stroke:var(--bc);stroke-dasharray:none;stroke-width:2}
 .skn.s-avail .skico{color:color-mix(in srgb,var(--bc) 75%,var(--ink))}
@@ -2767,6 +2768,9 @@ i.tok{display:inline-block;width:.86em;height:.96em;vertical-align:-.1em;backgro
 .skctl .dot{width:9px;height:9px;border-radius:50%;background:var(--bc)}
 .skhint{position:absolute;left:12px;bottom:8px;margin:0;font:500 12.5px var(--f-body);color:var(--mute);pointer-events:none}
 /* the details panel: one place, never moves */
+.skinfo>*{animation:skInfoIn .2s ease-out both}
+@keyframes skInfoIn{from{opacity:0;transform:translateY(4px)}}
+.skinfo.still>*{animation:none}
 .skinfo{border-left:1px solid var(--hair);padding:16px 18px 14px;overflow:auto;display:flex;flex-direction:column;gap:13px;background:rgba(255,255,255,.012)}
 .sk-h{display:flex;gap:12px;align-items:center}
 .sk-ic{flex:none;width:54px;height:54px;display:grid;place-items:center;border-radius:50%;background:color-mix(in srgb,var(--bc) 17%,transparent);color:var(--bc);box-shadow:inset 0 0 0 2px var(--bc)}

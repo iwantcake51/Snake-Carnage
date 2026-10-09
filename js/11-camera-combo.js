@@ -62,7 +62,7 @@ const COMBO_STYLES = { // how each bought combo style behaves (the look itself i
   Brutal: { shake: 1.8, shatter: true }, Neon: { shake: .6, shatter: false }, Gilded: { shake: .8, shatter: true }, Manhunt: { shake: 1.4, shatter: true }, Overdrive: { shake: 1.6, shatter: true, step: true },
   Hollow: { shake: .4, shatter: false }, Splatter: { shake: 1.3, shatter: true }, Marquee: { shake: .5, shatter: false } };
 const comboStyle = () => COMBO_STYLES[SETTINGS.snake && SETTINGS.snake.combo] || COMBO_STYLES.Default;
-const comboDur = () => 6.5 * (MOD.halfCombo ? .5 : 1) * (MOD.comboFocus ? .75 : 1) * (MOD.comboCushion ? 1.5 : 1) * comboGutMult();
+const comboDur = () => 6.5 * (MOD.comboFocus ? .5 : 1) * /* Short fuse */ (MOD.comboCushion ? 1.5 : 1) * comboGutMult();
 const COMBO_CAP = 1.8; // the timer can bank up to 1.8x its normal length
 const comboGain = c => comboDur() * (c.golden ? .9 : c.def.human ? .55 : c.def.score >= 2 ? .45 : .32); // bigger, juicier targets buy more time
 const typeLabel = c => (c.golden ? 'Golden ' : '') + (c.def.alien ? 'alien' : c.type === 'astronaut' ? 'astronaut' : c.def.human ? 'human' : c.type).replace(/^./, m => m.toUpperCase());

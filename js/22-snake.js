@@ -82,9 +82,9 @@ function updateSnake(dt) {
   const d = angDiff(s.angle, s.dir), mx = CONFIG.turnRate * dt * SKV.turn() * ((s.dashV || 1) > 1.2 ? SKV.lungeTurn() : 1) * (s.uturnT > 0 ? s.uturnK || 2.4 : 1) * (MOD.wideTurns ? .5 : MOD.quickTurn ? 1.6 : 1); // Wide turns / Quick turn modifiers. Sidewinder: snappier turns; Whiplash: sharper mid-lunge; Momentum: a fast whip round on a U-turn
   const ad = Math.abs(d); s.angle += Math.sign(d) * Math.min(ad, mx, ad * (1 - Math.exp(-dt * CONFIG.turnEase)) + mx * .18); // never past the target: overshooting it made the head flick side to side every frame, worse the lower the frame rate
   if (s.uturnT > 0) { s.uturnT -= dt; if (s.uturnTo !== undefined && Math.abs(angDiff(s.angle, s.dir)) < .5) { s.dir = s.uturnTo; s.uturnTo = undefined; } } // second half of the U-turn
-  const stunK = MOD.quickRecovery ? 2 : MOD.heavyImpact ? .5 : 1, dz = SKV.dazeK(); // Quick recovery / Heavy impact: dazes wear off twice as fast, or half as fast
-  if (s.wallStun > 0) { const k = s.wallStun / (s.wallMax || 3.4); s.wallStun -= dt * stunK * dz; s.angle += (Math.sin(T * 4.7) * 1.5 + Math.sin(T * 2.3 + 1.3)) * k * dt; } // seeing stars: it can't hold a line
-  for (const k of ['dashT', 'camoT', 'hissT', 'ramT', 'boomT', 'lustT']) if (s[k] > 0) s[k] -= dt * (k === 'ramT' || k === 'boomT' ? stunK * dz : 1); // Thick Skull shakes off dazes faster (a smash, a blast)
+  const stunK = MOD.quickRecovery ? 2 : MOD.heavyImpact ? .5 : 1; // Quick recovery / Heavy impact: dazes wear off twice as fast, or half as fast (Thick Skull makes them weaker to begin with: smashObstacle, detonate)
+  if (s.wallStun > 0) { const k = s.wallStun / (s.wallMax || 3.4); s.wallStun -= dt * stunK; s.angle += (Math.sin(T * 4.7) * 1.5 + Math.sin(T * 2.3 + 1.3)) * k * dt; } // seeing stars: it can't hold a line
+  for (const k of ['dashT', 'camoT', 'hissT', 'ramT', 'boomT', 'lustT']) if (s[k] > 0) s[k] -= dt * (k === 'ramT' || k === 'boomT' ? stunK : 1);
   if (s.camoT > 0) { const turning = Math.abs(angDiff(s.angle, s.dir)) > .05 || s.dashT > 0; s.still = clamp((s.still || 0) + (turning ? -dt * (sk('phantom') ? 1.2 : 4) : dt * 1.1), 0, 1); } else s.still = 0; // camouflage settles in on a straight line
   const dk = s.dashT > 0 ? s.dashK || 1.8 : 1; s.dashV = dk >= (s.dashV || 1) ? dk : 1 + ((s.dashV || 1) - 1) * Math.exp(-dt * 3.2); // lunge hits at once, then the speed bleeds off over about a second
   if (s.dashT > 0 && (s.wallStun > 0 || s.boomT > 0)) s.dashT = 0; // concussed: no lunging
@@ -132,7 +132,7 @@ const hooverMouth = s => { const f = snakeRadius() * .7; return [s.x + Math.cos(
 function hoover(s, dt) {
   if (s.hoovT > 0) s.hoovT -= dt;
   const sk = s.hoovT > 0 ? clamp(s.hoovLv || SKV.hoovLv() || 1, 1, 3) : 0; if (!sk && !MOD.hoover) return; // the skill while it lasts, or the modifier's steady pull
-  const P = sk ? lvAt([0, 1.5, 1.9, 2.6], sk) : 1, [hx, hy] = hooverMouth(s), R = HOOVER_R * (sk ? lvAt([0, 1.6, 1.95, 2.4], sk) : 1) * Math.sqrt(s.scale || 1), ca = Math.cos(s.angle), sa = Math.sin(s.angle), cone = .35, half = lvAt([0, .55, 1.0, 1.5], sk), ch = Math.cos(half); // the skill's pull is a cone in front of the mouth: about 30, 57 and 86 degrees either side by level (1..3, fractional with Deep Breath)
+  const P = sk ? lvAt([0, 1.5, 2.3, 3.6], sk) : 1, [hx, hy] = hooverMouth(s), R = HOOVER_R * (sk ? lvAt([0, 1.6, 1.95, 2.4], sk) : 1) * Math.sqrt(s.scale || 1), ca = Math.cos(s.angle), sa = Math.sin(s.angle), cone = .35, half = lvAt([0, .55, 1.0, 1.5], sk), ch = Math.cos(half); // the skill's pull is a cone in front of the mouth: about 30, 57 and 86 degrees either side by level (1..3, fractional with Deep Breath)
   for (const c of nearbyCreatures(hx, hy, R, HOOVER_NB)) {
     if (!c.alive || c.def.fly) continue;
     const dx = hx - c.x, dy = hy - c.y, d = Math.hypot(dx, dy) || 1;
@@ -140,7 +140,7 @@ function hoover(s, dt) {
     if (T - (c.hvT ?? -1) > .1) { c.hvT = T; c.hvLos = los(c.x, c.y, hx, hy); } // line of sight, re-checked ten times a second
     if (!c.hvLos) continue;
     const k = Math.pow(1 - d / R, sk ? 1.4 : 2.2) * front, acc = (30 + 620 * k) * (c.def.human && !sk ? .75 : 1) * P; // the skill drags people as hard as anything else // a whisper at the edge, a real tug at the lips
-    const hv = c.hv || (c.hv = { vx: 0, vy: 0 }); hv.vx += dx / d * acc * dt; hv.vy += dy / d * acc * dt;
+    const hv = c.hv || (c.hv = { vx: 0, vy: 0 }); hv.vx += dx / d * acc * dt; hv.vy += dy / d * acc * dt; hv.cap = sk ? 150 * (.75 + sk * .35) : 150; // a stronger pull drags them faster (26-creature-ai caps the drift)
     if (sk && c.def.human && c.state !== 'panic' && Math.random() < dt * 4) { c.alert = 1; if (typeof panic === 'function' && AUTH()) panic(c, s.x, s.y, rand(2, 3)); } // being dragged off your feet: they know
     if (k > .05 && Math.random() < dt * (sk ? 60 : 30) * k * Math.min(1, FX_K())) { // a few motes of dust (or blood, off a bloody one) streaming into the mouth
       const a = rand(0, TAU), rr = c.def.r * rand(.4, 1.1);
@@ -317,7 +317,8 @@ function eatReward(c, amount, ang) {
   score += pts; run.score = score;
   c.def.human ? (kills.h++, run.humans++) : (kills.a++, run.animals++);
   run.byType[c.type] = (run.byType[c.type] || 0) + 1; run.killed++; if (c.golden) { run.goldens++; c.def.human ? PROG.goldH = (PROG.goldH || 0) + 1 : PROG.goldA = (PROG.goldA || 0) + 1; } // lifetime golden tally
-  const fk = (c.golden ? SKV.goldK() : 1) * (combo.n >= 5 ? SKV.streakK() : 1), lucky = Math.random() < SKV.luckyP(); // Golden Touch, Hot Streak, Lucky Bite
+  s.chainN = T - (s.chainAt ?? -9) <= 3 ? (s.chainN || 0) + 1 : 0; s.chainAt = T; // kills within 3 s of each other chain (Hot Streak)
+  const fk = (c.golden ? SKV.goldK() : 1) * SKV.streakK(undefined, s.chainN), lucky = Math.random() < SKV.luckyP(); // Golden Touch, Hot Streak, Lucky Bite
   const kxp = Math.round((c.def.human ? 12 : c.def.score * 4) * gold * rewardMult * mb.m * ph * fk);
   crEat(c, pts, kxp); statEat(c); progressEat(c);
   gainXP(kxp, Math.max(1, Math.round(c.def.score * .6 * gold * rewardMult * mb.m * fk)) * (lucky ? 2 : 1));
