@@ -291,7 +291,7 @@ function eatWorld(c, ang, amount, s) {
   if (s && s !== snake && s.drip !== undefined) { s.drip = 2.5 * amount; s.dripCol = bloodOf(c); }
   if (AUTH()) { // the crowd: who saw it, where to avoid now, who comes to take their place
     deaths.push({ x: c.x, y: c.y }); if (deaths.length > 25) deaths.shift();
-    if (s && typeof airKillTick === 'function') airKillTick(s); // a snake's kill (not a bomb's) brings the next air strike closer
+    if (s && typeof airKillTick === 'function') airKillTick(s, c); // a snake's kill (not a bomb's) brings the next air strike closer
     witness(c.x, c.y, c, !!(s && s.camoT > 0)); // a kill from camouflage is silent
     respawnQ.push({ type: c.type, zone: c.zone, t: rand(2, 5) });
   }

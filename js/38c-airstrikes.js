@@ -121,10 +121,11 @@ function airSchedule(dt) {
     AIR.queue.push({ t: pre, f: () => { if (!s.alive || s.netHidden || s.hidden || state !== 'play') return; if (kind === 'salvo') airSalvo(s, raid ? ramp : Math.max(gt, heatOf(s)), a); else strafeRun(s, raid ? ramp : Math.min(1, Math.max(gt, heatOf(s))), kind, a); } }); // each player's own run is as fierce as their own (team's) kills
   }
 }
-function airKillTick(s) { // the deciding browser: someone (any player) just ate somebody: the jets come sooner
+function airKillTick(s, c) { // the deciding browser: someone (any player) just ate somebody: the jets come sooner (a person a fair bit, an animal far less, a small one less still)
   if (!s || !airOn() || !AIR.warned || state !== 'play') return;
   const floor = MOD.airRaid ? 3.5 : 3; // never right on top of the last one
-  if (AIR.nextT > floor) AIR.nextT = Math.max(floor, AIR.nextT - (MOD.airRaid ? .3 : 1.2));
+  const per = MOD.airRaid ? .25 : 1, k = !c || c.def.human ? 1 : .4 * clamp((c.def.r || 8) / 14, .2, 1); // animals: under half a person's, scaled by size
+  if (AIR.nextT > floor) AIR.nextT = Math.max(floor, AIR.nextT - per * k);
 }
 function airKills(s) { // kills that count against this snake: in co-op everyone's, in Teams your team's, in free for all your own
   if (!NETM.run) return run.killed || 0;
