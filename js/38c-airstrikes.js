@@ -111,11 +111,13 @@ function airSchedule(dt) {
     : Math.max(9, 26 / (1 + .6 * g)) * rand(.5, 2) * (Math.random() < .25 ? 1.8 : 1); // a normal game: now and then, with long, uneven quiet spells between
   const targets = netSnakes().filter(s => s.alive && s.started && !s.hidden && !s.netHidden && !(s.graceT > 0) && s.segs && s.segs.length);
   if (!targets.length) return;
-  const s = pick(targets), kind = t - t0 > (raid ? 12 : 20) && Math.random() < .18 + .12 * k ? (Math.random() < .14 ? 'bombs' : 'guns') : 'salvo';
-  const a = kind === 'guns' ? rand(0, TAU) : s.angle + (Math.random() < .5 ? 1 : -1) * (kind === 'bombs' ? rand(.35, 1.15) : rand(.9, 2.2)); // gun runs come in from anywhere; bombers cross your path
-  const pre = rand(2.4, 3.6), sp = (s.speed || CONFIG.snakeSpeeds.Normal) * (s.dashV || 1), px = Math.round(s.x + Math.cos(s.angle) * sp * pre), py = Math.round(s.y + Math.sin(s.angle) * sp * pre);
-  airApproach(px, py, a, pre); netEmit({ t: 'airj', x: px, y: py, a: +a.toFixed(3), p: +pre.toFixed(2) }); // you hear it coming, miles off, before anything is marked
-  AIR.queue.push({ t: pre, f: () => { if (!s.alive || s.netHidden || state !== 'play') return; if (kind === 'salvo') airSalvo(s, g, a); else strafeRun(s, k, kind, a); } });
+  const kind = t - t0 > (raid ? 12 : 20) && Math.random() < .18 + .12 * k ? (Math.random() < .14 ? 'bombs' : 'guns') : 'salvo';
+  for (const s of targets) { // multiplayer: every player gets their own run at the same moment, and every screen sees all of them (the host sends each one out)
+    const a = kind === 'guns' ? rand(0, TAU) : s.angle + (Math.random() < .5 ? 1 : -1) * (kind === 'bombs' ? rand(.35, 1.15) : rand(.9, 2.2)); // gun runs come in from anywhere; bombers cross your path
+    const pre = rand(2.4, 3.6), sp = (s.speed || CONFIG.snakeSpeeds.Normal) * (s.dashV || 1), px = Math.round(s.x + Math.cos(s.angle) * sp * pre), py = Math.round(s.y + Math.sin(s.angle) * sp * pre);
+    airApproach(px, py, a, pre); netEmit({ t: 'airj', x: px, y: py, a: +a.toFixed(3), p: +pre.toFixed(2) }); // you hear it coming, miles off, before anything is marked
+    AIR.queue.push({ t: pre, f: () => { if (!s.alive || s.netHidden || s.hidden || state !== 'play') return; if (kind === 'salvo') airSalvo(s, g, a); else strafeRun(s, k, kind, a); } });
+  }
 }
 function airApproach(x, y, a, pre) { Sfx.jetFar && Sfx.jetFar(x, y, a, pre); } // every screen
 function airSalvo(s, g, a) { // a salvo of bombs walked along this snake's path (g: how far into the raid: bigger, faster salvos)
@@ -947,7 +949,7 @@ Object.assign(Sfx, {
   },
   jetFar(x, y, a, pre) { // a jet still miles out, on its way in: a low roar swelling out of the distance before anything is marked, handing over to its fly-by
     if (!this.ok() || !(pre > 0)) return; const c = this.ctx, t = c.currentTime, Lx = snake ? snake.x : W / 2;
-    const fromX = x - Math.cos(a) * 3200, pan = clamp((fromX - Lx) / 1600, -1, 1) * .8, v = SETTINGS.volume, end = t + pre + .8;
+    const fromX = x - Math.cos(a) * 3200, pan = clamp((fromX - Lx) / 1600, -1, 1) * .8, near = clamp(1.15 - Math.hypot(x - Lx, y - (snake ? snake.y : H / 2)) / 1200, .3, 1), v = SETTINGS.volume * near, end = t + pre + .8; // someone else's jet, across the map: quieter
     const mix = c.createGain(), pn = c.createStereoPanner(), send = c.createGain(); pn.pan.value = pan;
     mix.gain.setValueAtTime(.0001, t); mix.gain.exponentialRampToValueAtTime(.05 * v, t + pre * .45); mix.gain.exponentialRampToValueAtTime(.14 * v, t + pre); mix.gain.exponentialRampToValueAtTime(.0005, end); // swelling as it closes, then the fly-by takes over
     send.gain.value = v * .35; mix.connect(pn); pn.connect(this.bus || c.destination); pn.connect(send); send.connect(this.airVerb());
