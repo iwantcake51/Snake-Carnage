@@ -92,6 +92,7 @@ edPanel = function () {
   const box = document.createElement('div'); box.className = 'edmapset';
   box.innerHTML = `<h4>Map settings</h4>
     <label class="edfield">Name <input type="text" class="cmname" maxlength="40" value="${(c.name || '').replace(/"/g, '&quot;')}"></label>
+    <label class="edfield">Made by <input type="text" class="cmauth" maxlength="16" placeholder="${myName()}" value="${((c.meta || {}).author || '').replace(/"/g, '&quot;')}"></label>
     <div class="peseg cmenv"><button data-env="outdoor" class="${indoor ? '' : 'on'}">🌳 Outdoor</button><button data-env="indoor" class="${indoor ? 'on' : ''}">🏠 Indoor</button></div>
     <label class="edfield">Theme <select class="cmtheme"><option value="">Auto: ${MAP_THEMES[detectMapTheme(edCustomDoc())]}</option>${Object.entries(MAP_THEMES).map(([k, n]) => `<option value="${k}" ${c.theme === k ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
     <p class="edhint">What people here talk about and wear. Auto works it out from what's on the map.</p>
@@ -114,6 +115,7 @@ edPanel = function () {
   p.appendChild(box);
   const ch = f => { edPush(); f(); edDirty(); };
   box.querySelector('.cmname').onchange = e => ch(() => { c.name = e.target.value.trim() || c.name; });
+  box.querySelector('.cmauth').onchange = e => ch(() => { c.meta = { ...(c.meta || {}), author: e.target.value.replace(/[<>&"]/g, '').trim().slice(0, 16) || myName() }; }); // shown as "Made by" under the map's name
   box.querySelectorAll('.cmenv [data-env]').forEach(b => b.onclick = () => { if (b.dataset.env === c.env) return; ch(() => { const D = CUSTOM_DEFAULTS[b.dataset.env]; c.env = b.dataset.env; c.ambient = D.ambient; c.weather = { ...D.weather }; c.grass = D.grass; if (Object.values(CUSTOM_DEFAULTS).some(q => q.border === c.border)) { c.border = D.border; ED.border = D.border; } MAPS[ED.map].indoor = c.env === 'indoor'; }); edPanel(); });
   box.querySelector('.cmborder').oninput = e => { c.border = ED.border = e.target.value; ED.dirtySave = true; };
   box.querySelector('.cmborder').onchange = () => edDirty();

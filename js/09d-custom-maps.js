@@ -34,7 +34,9 @@ function migrateCustomMap(d) {
   return out;
 }
 function customMaps() { try { return JSON.parse(localStorage.getItem(CUSTOM_KEY)) || {}; } catch (e) { return {}; } }
-function saveCustomMap(d) { const all = customMaps(); d.meta = { ...(d.meta || {}), modified: Date.now(), editor: GAME_VERSION }; all[d.id] = d; try { localStorage.setItem(CUSTOM_KEY, JSON.stringify(all)); } catch (e) { return false; } registerCustomMaps(); return true; }
+const myName = () => { try { return (localStorage.getItem('snakeCarnageName') || '').replace(/[<>&"]/g, '').trim().slice(0, 16) || 'Snake'; } catch (e) { return 'Snake'; } }; // the name you play under (Play with friends)
+const mapAuthor = m => m && m.custom ? (((m.data || {}).meta || {}).author || (m.netMap ? 'the host' : myName())) : null; // who made a custom map (older saves: you)
+function saveCustomMap(d) { const all = customMaps(); d.meta = { ...(d.meta || {}), modified: Date.now(), editor: GAME_VERSION, author: (d.meta || {}).author || myName() }; all[d.id] = d; try { localStorage.setItem(CUSTOM_KEY, JSON.stringify(all)); } catch (e) { return false; } registerCustomMaps(); return true; }
 function deleteCustomMap(id) { const all = customMaps(); delete all[id]; try { localStorage.setItem(CUSTOM_KEY, JSON.stringify(all)); } catch (e) {} registerCustomMaps(); }
 /* ---- themes: what kind of place a map is, so its people talk and dress the part (25-dialogue's mapKey, 06's humanLook).
    Built-in maps have theirs by name; a custom map's is picked in the editor (Theme), or worked out from what's on it ---- */
@@ -86,8 +88,20 @@ function compileCustomMap(raw) {
         decor: vs.top.length ? x => paintVecFloor(x, vs.top) : null };
     } };
 }
-function registerCustomMaps() { // custom maps sit after the built-in ones in MAPS (re-registered after every save)
-  for (let i = MAPS.length - 1; i >= 0; i--) if (MAPS[i].custom) MAPS.splice(i, 1);
+/* ---- multiplayer: the host's custom map travels with the lobby's settings (cfg.cm, the whole document); each guest
+   compiles its own copy, for this session only (never saved to their maps), and the lobby points at it by id ---- */
+function netCustomMap(doc) { // -> the map's index here
+  if (!doc || !doc.id) return -1;
+  const mod = (doc.meta || {}).modified || 0, same = m => m.custom === doc.id && ((m.data.meta || {}).modified || 0) === mod;
+  let i = MAPS.findIndex(same); if (i >= 0) return i; // it's one of ours already, unchanged
+  const m = compileCustomMap(doc); if (!m) return -1; m.netMap = true;
+  i = MAPS.findIndex(q => q.netMap && q.custom === doc.id); if (i >= 0) MAPS[i] = m; else { MAPS.push(m); i = MAPS.length - 1; }
+  return i;
+}
+function dropNetMaps() { for (let i = MAPS.length - 1; i >= 0; i--) if (MAPS[i].netMap) MAPS.splice(i, 1); if (mapIdx >= MAPS.length) mapIdx = 0; } // leaving multiplayer: the host's maps go
+const netMapIdx = cfg => cfg.cm ? netCustomMap(cfg.cm) : (() => { const i = cfg.mapName ? MAPS.findIndex(m => !m.custom && m.name === cfg.mapName) : -1; return i >= 0 ? i : cfg.map; })(); // the lobby's map, as it is on this screen
+function registerCustomMaps() { // custom maps sit after the built-in ones in MAPS (re-registered after every save; a lobby's maps stay put)
+  for (let i = MAPS.length - 1; i >= 0; i--) if (MAPS[i].custom && !MAPS[i].netMap) MAPS.splice(i, 1);
   for (const d of Object.values(customMaps()).sort((a, b) => (a.meta || {}).created - (b.meta || {}).created)) { try { const m = compileCustomMap(d); if (m) MAPS.push(m); } catch (e) { console.warn('[custom map]', d && d.name, e); } }
   if (typeof mapIdx === 'number' && mapIdx >= MAPS.length) mapIdx = 0;
 }

@@ -299,23 +299,34 @@ function skTravel(p) { // a short bright stretch running down a link that just o
   const a = t.animate([{ strokeDashoffset: .16 }, { strokeDashoffset: -1 }], { duration: 720, easing: 'cubic-bezier(.3,.1,.3,1)' }); a.onfinish = a.oncancel = () => t.remove();
 }
 /* ---- opening: a terminal boots up, types its way to ONLINE, then the screen splits from the middle and the two black halves slide away ---- */
-const SK_BOOT = ['> skill_tree --connect', '> tokens: ' , '> branches: survival / predator / fortune', ''];
-function skBoot() {
+function skBootLines() { // what the terminal reads out: where you stand in the tree
+  const pad = (k, v) => '  ' + (k + ' ').padEnd(15, '.') + ' ' + v, bar = (a, b) => '[' + '#'.repeat(Math.round(a / Math.max(1, b) * 12)).padEnd(12, '-') + ']';
+  const all = SKILL_TREE, ranks = all.reduce((n, q) => n + q.max, 0), got = all.reduce((n, q) => n + skOwn(q.id), 0), learned = all.filter(q => skOwn(q.id) > 0).length;
+  const maj = all.filter(q => q.major), majOn = maj.filter(q => skOwn(q.id) > 0).length, maxed = all.filter(q => skOwn(q.id) >= q.max).length;
+  const out = ['> skill_tree --connect', pad('link', 'ok'), pad('level', PROG.level), pad('tokens', skLeft() + ' ready'), pad('skills', `${learned} / ${all.length} learned`), pad('ranks', `${got} / ${ranks}`), pad('abilities', `${majOn} / ${maj.length} unlocked`), pad('maxed', `${maxed} / ${all.length}`)];
+  for (const b of Object.keys(SK_BRANCH)) { const q = all.filter(n => n.br === b), m = q.reduce((n, x) => n + x.max, 0), g = q.reduce((n, x) => n + skOwn(x.id), 0); out.push(pad(SK_BRANCH[b].name.toLowerCase(), `${bar(g, m)} ${Math.round(g / Math.max(1, m) * 100)}%`)); }
+  return out;
+}
+function skBoot() { // opening the tree: a terminal in the theme's colours types out your progress, says ONLINE, and then the screen parts slowly from the middle
   const panel = overlay.querySelector('.panel.sktree'); if (!panel || skCalm()) return;
   const el = document.createElement('div'); el.className = 'skboot'; el.setAttribute('aria-hidden', 'true');
-  el.innerHTML = '<i class="bt"></i><i class="bb"></i><i class="seam"></i><pre class="sktxt"></pre>'; panel.appendChild(el);
-  const txt = el.querySelector('.sktxt'), lines = SK_BOOT.map(l => l === '> tokens: ' ? l + skLeft() + ' ready' : l), timers = [];
-  let out = '', li = 0, ci = 0, done = false;
-  const open = () => { if (done) return; done = true; timers.forEach(clearTimeout); txt.innerHTML = esc(out) + '<b class="on">ONLINE</b>'; el.classList.add('live'); Sfx.ui('open');
-    timers.push(setTimeout(() => el.classList.add('open'), 380), setTimeout(() => el.remove(), 1300)); };
-  const type = () => { // a few characters a frame, line by line, a blip per line
-    if (done) return; if (li >= lines.length) return open();
-    const L = lines[li]; ci = Math.min(L.length, ci + 3); txt.innerHTML = esc(out + L.slice(0, ci)) + '<i class="cur"></i>';
-    if (ci >= L.length) { out += L + '\n'; li++; ci = 0; Sfx.ui('tick'); timers.push(setTimeout(type, 70)); } else timers.push(setTimeout(type, 16));
+  el.innerHTML = '<i class="bt"></i><i class="bb"></i><i class="seam"></i><div class="sktxt"></div>'; panel.appendChild(el);
+  const txt = el.querySelector('.sktxt'), lines = skBootLines(), timers = [], CPS = 150; // characters a second: quick, but you can read it go by
+  let li = -1, row = null, c = 0, last = 0, done = false, raf = 0, wait = .12;
+  const end = () => { cancelAnimationFrame(raf); timers.forEach(clearTimeout); };
+  const open = () => { if (done) return; done = true; end(); if (row && li < lines.length) row.textContent = lines[li]; for (let i = li + 1; i < lines.length; i++) { const d = document.createElement('div'); d.className = 'ln'; d.textContent = lines[i]; txt.appendChild(d); } // (skipped: the rest at once)
+    txt.querySelectorAll('.cur').forEach(q => q.remove()); const on = document.createElement('b'); on.className = 'on'; on.textContent = 'ONLINE'; txt.appendChild(on); el.classList.add('live'); Sfx.ui('open');
+    timers.push(setTimeout(() => el.classList.add('open'), 900), setTimeout(() => el.remove(), 900 + 1700)); }; // it holds on ONLINE a moment, then opens slowly
+  const step = now => { // smooth typing: so many characters per second whatever the frame rate, each line sliding in as it starts
+    if (done) return; const dt = last ? Math.min(.05, (now - last) / 1000) : 0; last = now;
+    if (wait > 0) { wait -= dt; raf = requestAnimationFrame(step); return; }
+    if (!row || c >= lines[li].length) { if (row) { row.textContent = lines[li]; Sfx.ui('tick'); } li++; if (li >= lines.length) return open(); row = document.createElement('div'); row.className = 'ln'; txt.appendChild(row); c = 0; wait = li ? .05 : 0; }
+    c = Math.min(lines[li].length, c + dt * CPS); row.textContent = lines[li].slice(0, c | 0); const cur = document.createElement('i'); cur.className = 'cur'; row.appendChild(cur);
+    raf = requestAnimationFrame(step);
   };
-  const skip = () => { if (!done) open(); else if (el.isConnected) { el.classList.add('open'); timers.push(setTimeout(() => el.remove(), 600)); } };
+  const skip = () => { if (!done) open(); else if (el.isConnected) { el.classList.add('open'); timers.push(setTimeout(() => el.remove(), 1200)); } };
   el.addEventListener('pointerdown', skip); addEventListener('keydown', function k() { skip(); removeEventListener('keydown', k, true); }, { capture: true, once: true });
-  timers.push(setTimeout(type, 120));
+  raf = requestAnimationFrame(step);
 }
 /* ---- buying a rank: the node's outline is copied and ripples outward, fading as it grows ---- */
 function skEcho(b, big) {

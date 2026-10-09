@@ -1141,7 +1141,7 @@ body.cb-marquee #combo .cbox{animation:marq 1s steps(2) infinite}
 :root{--f-body:"Barlow","Segoe UI",system-ui,sans-serif;--f-head:"Barlow Condensed","Arial Narrow",Impact,sans-serif;--f-num:"JetBrains Mono",ui-monospace,Consolas,monospace;
   --ink:#ebe5de;--dim:#a39a92;--faint:#6e6660;--p1:#131012;--p2:#191517;--p3:#211c1e;--edge:#2e2729;--edge2:#3d3437;--r:4px;
   --grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
-#overlay *:not(.pvCombo):not(.pvCombo *):not(.logo):not(.logo *):not(svg *):not(.mm *):not(.rs *):not(.mmp *),#hudbar,#hudbar *,#tip,#tip *,#notes *,#chhud *,#modhud *,#modbar *,#abil *,#rewards *,#resume *,#lvlup *,#gold *,#intro *:not(.iname2){font-family:var(--f-body)!important}
+#overlay *:not(.pvCombo):not(.pvCombo *):not(.skboot .sktxt):not(.skboot .sktxt *):not(.logo):not(.logo *):not(svg *):not(.mm *):not(.rs *):not(.mmp *),#hudbar,#hudbar *,#tip,#tip *,#notes *,#chhud *,#modhud *,#modbar *,#abil *,#rewards *,#resume *,#lvlup *,#gold *,#intro *:not(.iname2){font-family:var(--f-body)!important}
 /* the backdrop behind menus: dim, vignetted, grainy — no glowing red mesh */
 #overlay::before,#overlay::after{display:none!important}
 #overlay.menuMode,#overlay{background:radial-gradient(ellipse at 50% 40%,rgba(10,8,9,.55),rgba(6,5,6,.88) 75%),var(--grain)!important}
@@ -2939,23 +2939,28 @@ svg.ki.rdy{width:.9em;height:.9em;margin-left:3px}
 #animEd .ae-foot{display:flex;gap:6px;align-items:center;padding:8px 12px;border-top:1px solid rgba(255,255,255,.08)}#animEd .ae-foot .sp{flex:1;text-align:center;color:#9dff8a}
 @media (max-width:560px){#animEd .ae-body{grid-template-columns:1fr}#animEd .ae-list{max-height:160px;border-right:0;border-bottom:1px solid rgba(255,255,255,.08)}}
 
-/* ---- Skill Tree opening (skBoot): a terminal types its way to ONLINE, a seam of light, then the black halves part from the middle ---- */
+/* ---- Skill Tree opening (skBoot): a terminal in the theme's colours types out your progress, says ONLINE, then a seam of light and the halves part slowly from the middle ---- */
 .panel.sktree{position:relative}
-.skboot{position:absolute;inset:0;z-index:60;overflow:hidden;cursor:pointer}
-.skboot .bt,.skboot .bb{position:absolute;left:0;right:0;height:50.2%;background:#040605 repeating-linear-gradient(0deg,rgba(80,255,140,.035) 0 1px,transparent 1px 3px);transition:transform .62s cubic-bezier(.75,0,.2,1)}
-.skboot .bt{top:0;box-shadow:inset 0 -1px 0 rgba(110,255,160,.25)}.skboot .bb{bottom:0;box-shadow:inset 0 1px 0 rgba(110,255,160,.25)}
-.skboot .seam{position:absolute;left:0;right:0;top:50%;height:2px;margin-top:-1px;background:#9dffbf;box-shadow:0 0 14px 3px rgba(90,255,150,.65);transform:scaleX(0);opacity:0}
-.skboot.live .seam{animation:skSeam .5s cubic-bezier(.2,.8,.2,1) .15s forwards}
-@keyframes skSeam{0%{transform:scaleX(0);opacity:1}60%{transform:scaleX(1);opacity:1}100%{transform:scaleX(1);opacity:.9}}
+.skboot{--tc:var(--acc-hi);--tg:color-mix(in srgb,var(--acc-hi) 55%,transparent);position:absolute;inset:0;z-index:60;overflow:hidden;cursor:pointer}
+.skboot .bt,.skboot .bb{position:absolute;left:0;right:0;height:50.2%;background:var(--bg1) repeating-linear-gradient(0deg,color-mix(in srgb,var(--acc) 5%,transparent) 0 1px,transparent 1px 3px);transition:transform 1.6s cubic-bezier(.65,0,.25,1)}
+.skboot .bt{top:0;box-shadow:inset 0 -1px 0 color-mix(in srgb,var(--acc-hi) 30%,transparent)}.skboot .bb{bottom:0;box-shadow:inset 0 1px 0 color-mix(in srgb,var(--acc-hi) 30%,transparent)}
+.skboot::after{content:'';position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 50%,transparent 55%,rgba(0,0,0,.5));transition:opacity 1.2s ease} /* a screen's vignette */
+.skboot.open::after{opacity:0}
+.skboot .seam{position:absolute;left:0;right:0;top:50%;height:2px;margin-top:-1px;background:var(--acc-hi);box-shadow:0 0 16px 3px var(--tg);transform:scaleX(0);opacity:0}
+.skboot.live .seam{animation:skSeam .8s cubic-bezier(.3,.7,.2,1) .35s forwards}
+@keyframes skSeam{0%{transform:scaleX(0);opacity:1}100%{transform:scaleX(1);opacity:1}}
 .skboot.open .bt{transform:translateY(-101%)}.skboot.open .bb{transform:translateY(101%)}
-.skboot.open .seam{animation:none;transform:scaleX(1);opacity:0;transition:opacity .35s}
-.skboot .sktxt{position:absolute;left:50%;top:50%;translate:-50% -50%;margin:0;z-index:2;font:500 15px/1.65 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#7dffa8;text-shadow:0 0 8px rgba(80,255,140,.55);white-space:pre;text-align:left;transition:opacity .2s}
-.skboot .sktxt b.on{display:block;margin-top:6px;text-align:center;font:700 40px/1 var(--f-head,ui-monospace);letter-spacing:.32em;color:#b8ffd0;text-shadow:0 0 18px rgba(90,255,150,.8);animation:skOn .45s steps(2) 2}
-@keyframes skOn{50%{opacity:.25}}
-.skboot .cur{display:inline-block;width:.6em;height:1.05em;margin-left:2px;vertical-align:-.15em;background:#7dffa8;animation:skCur .5s steps(1) infinite}
+.skboot.open .seam{animation:none;transform:scaleX(1);opacity:0;transition:opacity 1s ease .2s}
+.skboot .sktxt{position:absolute;left:50%;top:50%;translate:-50% -50%;margin:0;z-index:2;font:500 14px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--acc-text);text-shadow:0 0 8px var(--tg);white-space:pre;text-align:left;min-width:23em}
+.skboot .sktxt,.skboot .sktxt .ln{font-family:ui-monospace,'SFMono-Regular','Cascadia Mono','DejaVu Sans Mono',Menlo,Consolas,'Courier New',monospace!important;font-variant-ligatures:none}
+.skboot .sktxt .ln{animation:skLn .25s ease-out both}.skboot .sktxt .ln:first-child{color:var(--tc)}
+@keyframes skLn{from{opacity:0;transform:translateX(-6px)}}
+.skboot .sktxt b.on{display:block;margin-top:10px;text-align:center;font:700 40px/1 var(--f-head,ui-monospace);letter-spacing:.32em;color:var(--tc);text-shadow:0 0 22px var(--tg);animation:skOn .9s ease both}
+@keyframes skOn{0%{opacity:0;letter-spacing:.6em}40%{opacity:1}55%{opacity:.4}70%{opacity:1}100%{opacity:1;letter-spacing:.32em}}
+.skboot .cur{display:inline-block;width:.6em;height:1.05em;margin-left:1px;vertical-align:-.15em;background:var(--tc);animation:skCur .55s steps(1) infinite}
 @keyframes skCur{50%{opacity:0}}
-.skboot.live .sktxt{animation:skTxtOut .2s ease .3s forwards}
-@keyframes skTxtOut{to{opacity:0}}
+.skboot.open .sktxt{animation:skTxtOut .5s ease forwards}
+@keyframes skTxtOut{to{opacity:0;filter:blur(2px)}}
 body.calm .skboot{display:none}
 /* buying a rank: a copy of the node's outline ripples out and fades */
 .skecho{position:absolute;left:50%;top:0;translate:-50% 0;overflow:visible;pointer-events:none;fill:none;stroke:var(--bc);stroke-width:3;filter:drop-shadow(0 0 6px var(--bc));animation:skEcho .95s cubic-bezier(.2,.65,.35,1) forwards}
@@ -2963,3 +2968,7 @@ body.calm .skboot{display:none}
 @keyframes skEcho{0%{transform:scale(1);opacity:1;stroke-width:5}45%{opacity:.75}100%{transform:scale(var(--k,1.9));opacity:0;stroke-width:1.2}}
 /* where you'll respawn (drawSpawnGhost): a canvas of its own, above the death tint and grain, below the HUD */
 #spawnFx{position:absolute;z-index:7;pointer-events:none;background:transparent!important;border-radius:0 0 10px 10px}
+/* custom maps: who made it, under the name */
+.mbr-by{display:block;margin-top:2px;font:500 12px/1.2 var(--f-body);color:var(--mute,#9a8f94);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rs-desc .mby b{color:var(--ink,#eee);font-weight:600}
+.skboot.live .sktxt .ln{opacity:.32;transition:opacity .6s ease .2s} /* ONLINE: the readout steps back, the seam runs through it */
