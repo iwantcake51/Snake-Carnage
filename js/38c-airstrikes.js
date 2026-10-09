@@ -110,21 +110,21 @@ function airSchedule(dt) {
   const targets = netSnakes().filter(s => s.alive && s.started && !s.hidden && !s.netHidden && !(s.graceT > 0) && s.segs && s.segs.length);
   if (!targets.length) { AIR.nextT = 2; return; }
   const heatOf = s => Math.min(1.3, airKills(s) / 30), heat = targets.reduce((a, s) => a + heatOf(s), 0) / targets.length; // the more you (and your team) have killed, the harder they come for you
-  const g = Math.max(gt, heat), k = Math.min(1, g);
-  AIR.nextT = raid ? Math.max(1.6, 8.5 / (1 + 1.5 * g)) * rand(.75, 1.3) // Air raid: later on, and the bloodier it gets, they come quicker, but never a constant rain
+  const ramp = Math.min(1, (t - t0) / 300 + heat * .1), g = raid ? ramp : Math.max(gt, heat), k = Math.min(1, g); // Air raid: one slow climb over five minutes (kills only nudge it), then it holds
+  AIR.nextT = raid ? (13 - 8.5 * Math.pow(ramp, 1.2)) * rand(.8, 1.25) // Air raid: every 13 s or so at first, easing down to every 4-5 s by five minutes in, and no quicker
     : 22 / (1 + .35 * Math.min(1, gt)) * rand(.7, 1.4) * (Math.random() < .2 ? 1.4 : 1); // a normal game: about every 24 s if nobody kills anything (a little sooner later on), never on a beat; every kill brings the next one closer (airKillTick)
-  const kind = t - t0 > (raid ? 12 : 20) && Math.random() < .18 + .12 * k ? (Math.random() < .14 ? 'bombs' : 'guns') : 'salvo';
+  const kind = t - t0 > (raid ? 30 : 20) && Math.random() < .18 + .12 * k ? (Math.random() < .14 ? 'bombs' : 'guns') : 'salvo';
   for (const s of targets) { // multiplayer: every player gets their own run at the same moment, and every screen sees all of them (the host sends each one out)
     const a = kind === 'guns' ? rand(0, TAU) : s.angle + (Math.random() < .5 ? 1 : -1) * (kind === 'bombs' ? rand(.35, 1.15) : rand(.9, 2.2)); // gun runs come in from anywhere; bombers cross your path
     const pre = rand(2.4, 3.6), sp = (s.speed || CONFIG.snakeSpeeds.Normal) * (s.dashV || 1), px = Math.round(s.x + Math.cos(s.angle) * sp * pre), py = Math.round(s.y + Math.sin(s.angle) * sp * pre);
     airApproach(px, py, a, pre); netEmit({ t: 'airj', x: px, y: py, a: +a.toFixed(3), p: +pre.toFixed(2) }); // you hear it coming, miles off, before anything is marked
-    AIR.queue.push({ t: pre, f: () => { if (!s.alive || s.netHidden || s.hidden || state !== 'play') return; if (kind === 'salvo') airSalvo(s, Math.max(gt, heatOf(s)), a); else strafeRun(s, Math.min(1, Math.max(gt, heatOf(s))), kind, a); } }); // each player's own run is as fierce as their own (team's) kills
+    AIR.queue.push({ t: pre, f: () => { if (!s.alive || s.netHidden || s.hidden || state !== 'play') return; if (kind === 'salvo') airSalvo(s, raid ? ramp : Math.max(gt, heatOf(s)), a); else strafeRun(s, raid ? ramp : Math.min(1, Math.max(gt, heatOf(s))), kind, a); } }); // each player's own run is as fierce as their own (team's) kills
   }
 }
 function airKillTick(s) { // the deciding browser: someone (any player) just ate somebody: the jets come sooner
   if (!s || !airOn() || !AIR.warned || state !== 'play') return;
-  const floor = MOD.airRaid ? 1.2 : 3; // never right on top of the last one
-  if (AIR.nextT > floor) AIR.nextT = Math.max(floor, AIR.nextT - (MOD.airRaid ? .5 : 1.2));
+  const floor = MOD.airRaid ? 3.5 : 3; // never right on top of the last one
+  if (AIR.nextT > floor) AIR.nextT = Math.max(floor, AIR.nextT - (MOD.airRaid ? .3 : 1.2));
 }
 function airKills(s) { // kills that count against this snake: in co-op everyone's, in Teams your team's, in free for all your own
   if (!NETM.run) return run.killed || 0;
@@ -133,7 +133,7 @@ function airKills(s) { // kills that count against this snake: in co-op everyone
 }
 function airApproach(x, y, a, pre) { Sfx.jetFar && Sfx.jetFar(x, y, a, pre); } // every screen
 function airSalvo(s, g, a) { // a salvo of bombs walked along this snake's path (g: how far into the raid: bigger, faster salvos)
-  const raid = !!MOD.airRaid, k = Math.min(1, g), n = raid ? Math.min(5, 1 + Math.floor(Math.random() * (1 + 1.3 * g))) : Math.min(3, 1 + Math.floor(Math.random() * (1 + .6 * g))), warn = 3 - .5 * k, sp = (s.speed || CONFIG.snakeSpeeds.Normal) * (s.dashV || 1); // a normal game: smaller salvos
+  const raid = !!MOD.airRaid, k = Math.min(1, g), n = raid ? Math.min(4, 1 + Math.floor(Math.random() * (1 + 2.2 * Math.min(1, g)))) : Math.min(3, 1 + Math.floor(Math.random() * (1 + .6 * g))), warn = 3 - .5 * k, sp = (s.speed || CONFIG.snakeSpeeds.Normal) * (s.dashV || 1); // a normal game: smaller salvos
   const jetA = a ?? s.angle + (Math.random() < .5 ? 1 : -1) * rand(.9, 2.2); // the jet crosses your path
   for (let j = 0; j < n; j++) { // a salvo walks along the path
     const b = bombKind(), r = Math.round(AIR_R * b.r), fs = b.f; // each bomb its own size and speed
