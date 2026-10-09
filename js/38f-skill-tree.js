@@ -301,31 +301,31 @@ function skTravel(p) { // a short bright stretch running down a link that just o
   const a = t.animate([{ strokeDashoffset: .16 }, { strokeDashoffset: -1 }], { duration: 720, easing: 'cubic-bezier(.3,.1,.3,1)' }); a.onfinish = a.oncancel = () => t.remove();
 }
 /* ---- opening: an old terminal powers on, types its way to ONLINE over a block progress bar, then the board splits from the middle and the two black halves slide away ---- */
-function skBootLines() { // what the terminal reads out: where you stand in the tree
-  const pad = (k, v) => '  ' + (k + ' ').padEnd(15, '.') + ' ' + v, bar = (a, b) => '[' + '#'.repeat(Math.round(a / Math.max(1, b) * 12)).padEnd(12, '-') + ']';
+function skBootLines() { // what the terminal reads out, like an old machine's start-up check: where you stand in the tree
+  const pad = (k, v) => (k + ' ').padEnd(14, '.') + ' ' + v;
   const all = SKILL_TREE, ranks = all.reduce((n, q) => n + q.max, 0), got = all.reduce((n, q) => n + skOwn(q.id), 0), learned = all.filter(q => skOwn(q.id) > 0).length;
   const maj = all.filter(q => q.major), majOn = maj.filter(q => skOwn(q.id) > 0).length, maxed = all.filter(q => skOwn(q.id) >= q.max).length;
-  const out = ['> skill_tree --connect', pad('link', 'ok'), pad('level', PROG.level), pad('tokens', skLeft() + ' ready'), pad('skills', `${learned} / ${all.length} learned`), pad('ranks', `${got} / ${ranks}`), pad('abilities', `${majOn} / ${maj.length} unlocked`), pad('maxed', `${maxed} / ${all.length}`)];
-  for (const b of Object.keys(SK_BRANCH)) { const q = all.filter(n => n.br === b), m = q.reduce((n, x) => n + x.max, 0), g = q.reduce((n, x) => n + skOwn(x.id), 0); out.push(pad(SK_BRANCH[b].name.toLowerCase(), `${bar(g, m)} ${Math.round(g / Math.max(1, m) * 100)}%`)); }
+  const out = [pad('LEVEL', PROG.level), pad('TOKENS', skLeft()), pad('SKILLS', `${learned} OF ${all.length}`), pad('RANKS', `${got} OF ${ranks}`), pad('ABILITIES', `${majOn} OF ${maj.length}`), pad('MAXED', `${maxed} OF ${all.length}`), ''];
+  for (const b of Object.keys(SK_BRANCH)) { const q = all.filter(n => n.br === b), m = q.reduce((n, x) => n + x.max, 0), g = q.reduce((n, x) => n + skOwn(x.id), 0); out.push(pad(SK_BRANCH[b].name.toUpperCase(), Math.round(g / Math.max(1, m) * 100) + '%')); }
   return out;
 }
-const SK_BOOT_MSG = ['INITIALIZING', 'DECRYPTING SCALES', 'SHARPENING FANGS', 'PRIMING VENOM', 'COUNTING TOKENS', 'ARMING ABILITIES', 'WAKING THE PREDATOR'];
-function skBoot() { // opening the tree: an old CRT over the board (the header and details panel stay put) powers on, types out your progress over a block progress bar, slams ONLINE, then the board parts from the middle and the details panel slides in from the side
+const SK_BOOT_MSG = ['LOADING SURVIVAL', 'LOADING PREDATOR', 'LOADING FORTUNE'];
+function skBoot() { // opening the tree: an old CRT over the board (the header and details panel stay put) powers on, types out your progress over a block progress bar, says ONLINE, then the board parts from the middle and the details panel slides in from the side
   const panel = overlay.querySelector('.panel.sktree'), view = document.getElementById('skView'); if (!panel || !view || skCalm()) return;
   panel.classList.add('skin');
   const N = 32, el = document.createElement('div'); el.className = 'skboot'; el.setAttribute('aria-hidden', 'true');
   el.innerHTML = `<i class="bt"></i><i class="bb"></i><i class="seam"></i><i class="pow"></i><div class="crt">
-    <div class="skhd"><span>SNAKE//CARNAGE <em>BIOS v${GAME_VERSION}</em></span><span><b class="bl">&#9632;</b> UPLINK</span></div>
+    <div class="skhd"><span>SNAKE: CARNAGE</span><span>v${GAME_VERSION}</span></div>
     <div class="sktxt"></div>
     <div class="skbar"><div class="lbl"><span class="msg">${SK_BOOT_MSG[0]}</span><span class="pct">000%</span></div><div class="cells">${'<i></i>'.repeat(N)}</div></div>
-  </div><i class="roll"></i><i class="fl"></i>`; view.appendChild(el);
+  </div><i class="roll"></i>`; view.appendChild(el);
   const txt = el.querySelector('.sktxt'), cells = el.querySelectorAll('.cells i'), msg = el.querySelector('.msg'), pct = el.querySelector('.pct');
   const lines = skBootLines(), all = lines.reduce((n, l) => n + l.length, 0), timers = [], CPS = 200; // characters a second: fast, but you can still read it go by
   let li = -1, row = null, c = 0, dc = 0, last = 0, done = false, raf = 0, wait = .42, lit = 0, mi = 0; // (wait: the tube warms up first)
   const bar = p => { // the block bar: whole cells only, the newest one hot, and a status line that moves on as it fills
-    const k = Math.min(N, Math.round(p * N)); if (k !== lit) { cells.forEach((q, i) => { q.className = i < k ? (i === k - 1 && p < 1 ? 'on hd' : 'on') : ''; }); if (k > lit) Sfx.ui('tick'); lit = k; }
+    const k = Math.min(N, Math.round(p * N)); if (k !== lit) { cells.forEach((q, i) => { q.className = i < k ? 'on' : ''; }); if (k > lit) Sfx.ui('tick'); lit = k; }
     pct.textContent = String(Math.round(p * 100)).padStart(3, '0') + '%';
-    const m = p >= 1 ? -1 : Math.min(SK_BOOT_MSG.length - 1, p * SK_BOOT_MSG.length | 0); if (m !== mi) { mi = m; msg.textContent = m < 0 ? 'ACCESS GRANTED' : SK_BOOT_MSG[m]; }
+    const m = p >= 1 ? -1 : Math.min(SK_BOOT_MSG.length - 1, p * SK_BOOT_MSG.length | 0); if (m !== mi) { mi = m; msg.textContent = m < 0 ? 'DONE' : SK_BOOT_MSG[m]; }
   };
   const end = () => { cancelAnimationFrame(raf); timers.forEach(clearTimeout); };
   const part = () => { el.classList.add('open'); panel.classList.remove('skin'); }; // the halves part and the details panel slides in, together
@@ -334,7 +334,7 @@ function skBoot() { // opening the tree: an old CRT over the board (the header a
     if (row && li < lines.length) row.textContent = lines[li];
     for (let i = Math.max(0, li + 1); i < lines.length; i++) { const d = document.createElement('div'); d.className = 'ln'; d.textContent = lines[i]; txt.appendChild(d); } // (skipped: the rest at once)
     txt.querySelectorAll('.cur').forEach(q => q.remove()); bar(1);
-    const on = document.createElement('b'); on.className = 'on'; on.textContent = on.dataset.t = 'ONLINE'; txt.appendChild(on); el.classList.add('live'); Sfx.ui('online');
+    const on = document.createElement('b'); on.className = 'on'; on.textContent = 'ONLINE'; txt.appendChild(on); el.classList.add('live'); Sfx.ui('online');
     timers.push(setTimeout(part, 700), setTimeout(() => el.remove(), 700 + 1400)); // it holds on ONLINE a moment, then opens
   };
   const step = now => { // smooth typing: so many characters per second whatever the frame rate, each line sliding in as it starts
