@@ -203,7 +203,7 @@ document.addEventListener('pointermove', e => {
   const first = !plxQ; plxQ = [e.clientX, e.clientY]; if (!first) return;
   requestAnimationFrame(() => {
     const r = stage.getBoundingClientRect(), mx = (plxQ[0] - r.left) / r.width * 2 - 1, my = (plxQ[1] - r.top) / r.height * 2 - 1; plxQ = null;
-    if (typeof menuArt !== 'undefined') menuArt.style.translate = `${(-mx * 14).toFixed(1)}px ${(-my * 10).toFixed(1)}px`; // set on the one element: nothing else restyles
+    if (typeof menuArt !== 'undefined') { menuArt.style.setProperty('--px', (-mx * 14).toFixed(1) + 'px'); menuArt.style.setProperty('--py', (-my * 10).toFixed(1) + 'px'); } // only the picture moves (it overhangs every edge); the shade over it stays put
   });
 });
 /* ---- club: the dance floor lights up in time with the beat ---- */

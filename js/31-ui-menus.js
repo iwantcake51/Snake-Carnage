@@ -40,6 +40,8 @@ function mapArt(i) { // the whole map, big: the backdrop behind every menu and t
   return artCache.get(key);
 }
 const menuArt = (() => { const d = document.createElement('div'); d.id = 'menuArt'; d.setAttribute('aria-hidden', 'true'); d.innerHTML = '<img alt=""><img alt="">'; stage.insertBefore(d, document.getElementById('overlay')); return d; })(); // a still picture: the menus never draw the live world
+const menuShade = () => { const m = overlay.querySelector(':scope > .mm'); menuArt.classList.toggle('home', !!m && m.dataset.view === 'home' && !m.classList.contains('leaving')); }; // the front page shows the map; every other menu screen sits in the dark
+new MutationObserver(menuShade).observe(overlay, { childList: true });
 function menuBackdrop(i) { // crossfade to this map's picture once it's ready (drawn a beat later the first time, so the click itself never waits on it)
   const apply = url => {
     const p = document.getElementById('rsArt'); if (p && url && mapIdx === i) p.src = url;
@@ -62,7 +64,7 @@ function placeThumb(seg, instant) { // sliding pill (or underline) under the sel
 function transitionTo(fn) { // animate the current screen out, then show the next one
   const cur = overlay.firstElementChild;
   if (!cur || SETTINGS.reduceMotion || overlay.style.display === 'none') return fn();
-  cur.classList.add('leaving');
+  cur.classList.add('leaving'); menuShade(); // the shade starts darkening as the old screen fades, not after it's gone
   let done = false; const go = () => { if (done) return; done = true; fn(); };
   requestAnimationFrame(() => { const an = cur.getAnimations ? cur.getAnimations().find(x => x.animationName === 'panelOut' || x.animationName === 'mmOut') : null; if (an) an.finished.then(go, go); }); // swap when the close has actually played, even if the click was busy
   setTimeout(go, 450); // fallback
@@ -176,7 +178,7 @@ function showMenu() {
 }
 function menuGo(v, first) { // switch between the menu's two views: a short fade, the buttons themselves never move
   const root = overlay.querySelector('.mm'); if (!root) return;
-  menuView = v; root.dataset.view = v;
+  menuView = v; root.dataset.view = v; menuShade();
   for (const s of root.querySelectorAll('[data-v]')) { const on = s.dataset.v === v; s.inert = !on; s.setAttribute('aria-hidden', String(!on)); }
   if (v === 'setup') { root.querySelectorAll('.rs-seg').forEach(sg => placeThumb(sg, true)); requestAnimationFrame(() => root.querySelectorAll('.rs-seg').forEach(sg => placeThumb(sg, true))); }
   if (!first || menuGo.kbd) { const f = root.querySelector(v === 'setup' ? '#startBtn' : '#playBtn'); if (f) f.focus({ preventScroll: true }); }

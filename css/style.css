@@ -2315,8 +2315,14 @@ body.theme-bone,body.theme-frost,body.theme-gold,body.theme-toxic{--on-acc:#1412
 /* the still picture of the selected map behind every menu screen (the live world isn't drawn in menus) */
 #menuArt{position:absolute;inset:0;z-index:13;display:none;overflow:hidden;background:#0a0809;pointer-events:none}
 #stage.menuBg #menuArt{display:block}
-#menuArt{transition:translate .8s cubic-bezier(.2,.8,.2,1)}
-#menuArt img{position:absolute;left:-2%;top:-2%;width:104%;height:104%;object-fit:cover;opacity:0;filter:saturate(.55) brightness(.46) contrast(1.08);transition:opacity .6s ease}
+#menuArt img{position:absolute;left:-3%;top:-3%;width:106%;height:106%;object-fit:cover;opacity:0;filter:saturate(.55) brightness(.46) contrast(1.08);translate:var(--px,0) var(--py,0);transition:opacity .6s ease,translate .8s cubic-bezier(.2,.8,.2,1)}
+/* the menus' darkness lives here, under every menu screen, so it never drops out while one screen swaps for another: the front page's
+   shade (dark down the left, the map showing on the right) is always on, and a plain dark layer fades over it on every other screen */
+#menuArt::before,#menuArt::after{content:'';position:absolute;inset:0;z-index:1;pointer-events:none}
+#menuArt::before{background:linear-gradient(90deg,rgba(9,7,8,.93) 0,rgba(9,7,8,.84) 34%,rgba(9,7,8,.3) 66%,rgba(9,7,8,.5) 100%),linear-gradient(0deg,rgba(9,7,8,.8),transparent 28%)}
+#menuArt::after{background:rgba(9,7,8,.74);transition:opacity .35s ease}
+#menuArt.home::after{opacity:0}
+#stage.menuBg #overlay{background:none!important} /* (the shade above does the darkening in menus) */
 #menuArt img.on{opacity:1}
 body:has(#stage.menuBg) #bar{visibility:hidden} /* score, best, clock and the level bar belong to a run: the menu has its own profile */
 /* ---- shell ---- */
@@ -2327,10 +2333,6 @@ body:has(#stage.menuBg) #bar{visibility:hidden} /* score, best, clock and the le
 .mm.leaving,.rs.mlob.leaving,.mmp.leaving{animation:mmOut .18s ease forwards!important}
 @keyframes mmIn{from{opacity:0}}
 @keyframes mmOut{to{opacity:0}}
-.mm::before,.mm::after{content:'';position:absolute;inset:0;pointer-events:none;transition:opacity .3s ease}
-.mm::before{background:linear-gradient(90deg,rgba(9,7,8,.93) 0,rgba(9,7,8,.84) 34%,rgba(9,7,8,.3) 66%,rgba(9,7,8,.5) 100%),linear-gradient(0deg,rgba(9,7,8,.8),transparent 28%)}
-.mm::after{background:rgba(9,7,8,.72);opacity:0}
-.mm[data-view=setup]::after{opacity:1}
 .mm>.mfx{z-index:0}
 .mm [data-v]{position:absolute;inset:0;z-index:1;transition:opacity .2s ease,translate .2s ease,visibility 0s linear .2s}
 .mm[data-view=home] [data-v=setup],.mm[data-view=setup] [data-v=home]{opacity:0;visibility:hidden}
@@ -2577,7 +2579,7 @@ body.phone .mm-it{min-height:52px;font-size:22px}
 body.phone .mm-prof{width:100%;justify-self:auto}
 body.phone .mm-party{margin-top:0;max-height:none}
 body.phone .mm-foot{flex-wrap:wrap}
-body.phone .mm::before{background:linear-gradient(90deg,rgba(9,7,8,.9),rgba(9,7,8,.72))}
+body.phone #menuArt::before{background:linear-gradient(90deg,rgba(9,7,8,.9),rgba(9,7,8,.72))}
 body.phone .rs{display:flex;flex-direction:column;overflow:hidden;padding:var(--s3) max(var(--s4),env(safe-area-inset-right)) 0 max(var(--s4),env(safe-area-inset-left));gap:var(--s3)}
 body.phone .rs-grid{display:flex;flex-direction:column;flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;gap:var(--s4);padding-bottom:var(--s4)}
 body.phone .rs-grid>*,body.phone .rs-main>*{flex:none}
