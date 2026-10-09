@@ -29,7 +29,7 @@ const fmtTime = t => { t = Math.floor(t); return t < 60 ? t + 's' : Math.floor(t
 function showResume(what = 'to continue') { // the same prompt starts a run and continues after a pause
   const el = document.getElementById('resume');
   el.innerHTML = IS_TOUCH ? `<div class="rp"><b>Drag anywhere ${what}</b></div>`
-    : `<div class="rp"><span class="keys"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><span class="or">or</span><span class="keys"><kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd></span>${MOD.freeMove && SETTINGS.mouseFollow ? '<span class="or">or click</span>' : ''}<b>${what}</b></div>`;
+    : `<div class="rp"><span class="keys"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><span class="or">or</span><span class="keys"><kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd></span>${SETTINGS.mouseSteer ? '<span class="or">or click</span>' : ''}<b>${what}</b></div>`;
   el.className = 'show';
 }
 function hideResume() { const el = document.getElementById('resume'); if (el.classList.contains('show')) { el.className = 'gone'; setTimeout(() => { if (el.className === 'gone') { el.className = ''; el.innerHTML = ''; } }, 320); } }
@@ -84,7 +84,7 @@ function startGame(opts = {}) {
   nightVision = false; endCombo(true); document.getElementById('rewards').innerHTML = ''; hideResume(); clearNotes();
   camF.x = camF.y = camF.k.x = camF.k.y = camF.kv.x = camF.kv.y = 0; resetUserCam(true);
   const sz = opts.net ? opts.net.season : pickSeason(MAPS[mapIdx]), myst = !!opts.mystery, gen = startGame.gen = (startGame.gen || 0) + 1;
-  state = 'loading'; cam = null;
+  state = 'loading'; cam = null; stage.classList.toggle('msteer', !!SETTINGS.mouseSteer); steer.keyT = steer.moveT = 0;
   hideOverlay(); cv.style.translate = '0px 0px'; cv.style.scale = '1';
   if (document.activeElement) document.activeElement.blur();
   setTimeout(() => overlay.querySelectorAll('.casebox').forEach(b => b.remove()), 600);

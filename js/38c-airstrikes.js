@@ -37,7 +37,7 @@ const AIR_START = 90, AIR_R = 44, AIR_RAID_START = 6; // seconds into the run be
 const STRAFE_V = 560, STRAFE_HW = 13, STRAFE_LEN = 820; // how fast the rounds walk down the lane, its half width and length
 let strikes = [], booms = [], boomBits = [], corpses = [], fallenHats = [], jets = [], shocks = [], fires = [], soots = [], hazes = [], later = [], clods = [], strafes = [], tracers = [];
 const airMap = () => { const m = MAPS[mapIdx]; return !!m && !m.indoor && !m.space; }; // outdoors, on Earth
-const airOn = () => airMap() && !MOD.noAir && (MOD.airRaid || SETTINGS.airstrikes !== false); // Clear skies: none at all // the Air raid modifier turns them on whatever the setting says
+const airOn = () => airMap() && !MOD.noAir; // outdoors on Earth, always (the Clear skies modifier is the way to switch them off)
 function airReset() { tailBits = []; strikes = []; booms = []; boomBits = []; corpses = []; fallenHats = []; jets = []; shocks = []; fires = []; soots = []; hazes = []; later = []; clods = []; strafes = []; tracers = []; AIR.crowdTalk = null; AIR.queue = []; NM.list = []; NM.n = 0; AIR.warned = false; AIR.nextT = 0; AIR.flash = 0; AIR.sky = 0; AIR.rumble = 0; AIR.d0 = 0; AIR.muf = 0; AIR.mufH = 0; if (Sfx.lp) Sfx.daze(0); }
 /* reeling from a blast: full strength for the first second, then it fades over the next 1.2 */
 const boomSlow = s => s && s.boomT > 0 ? (s.boomK || 0) * clamp(s.boomT / 1.2, 0, 1) : 0;

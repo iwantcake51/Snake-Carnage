@@ -1,8 +1,8 @@
 /* =========================================================
    INPUT
    Keyboard: 8 directions, no key = keep going straight.
-   Free movement (modifier): any angle; holding a direction turns you toward it, letting go keeps the heading.
-   Mouse steering (free movement only) and a touch stick feed the same "steer" target.
+   Mouse steering (a Gameplay setting): the snake heads for the cursor at any angle, turning as fast as the keys turn it;
+   left click lunges. A held key takes over until the mouse moves again. The touch stick snaps to 8 directions.
    ========================================================= */
 /* ---- key bindings: every action has a default key; Settings › Controls can rebind any of them (SETTINGS.keys keeps only the changed ones).
    The arrow keys always move too, unless you've bound one of them to something else. Esc, Space and Enter stay fixed. ---- */
@@ -26,8 +26,7 @@ function keyName(code) { // a readable name for a key code
 }
 const abilKey = id => keyName(bindOf(ABIL_BIND[id] || id)); // the key shown on a skill's button
 const held = new Set(); let relTimer = null;
-const steer = { touch: null, mouse: null, mouseT: 0 }; // analog targets (radians) from the stick / cursor
-const FREE_TURN = 4.2; // rad/s: how fast free movement swings toward the held direction
+const steer = { touch: null, cx: 0, cy: 0, over: false, moveT: 0, keyT: 0 }; // the stick's heading; the cursor (client coords), whether it's over the game, when it last moved, when a key last steered
 function keyAngle() {
   const dx = (held.has('r') ? 1 : 0) - (held.has('l') ? 1 : 0), dy = (held.has('d') ? 1 : 0) - (held.has('u') ? 1 : 0);
   return dx || dy ? Math.atan2(dy, dx) : null;
@@ -70,19 +69,22 @@ function setHeading(a) { // one place where a new target heading is accepted (8-
 }
 function applyDir() {
   const a = keyAngle(); if (a === null) return;
-  if (MOD.freeMove && snake.started) return; // free movement turns gradually in steerFree()
+  steer.keyT = performance.now();
   setHeading(a);
 }
-function steerFree(dt) { // called every frame while playing with free movement on
-  const s = snake, a = keyAngle() ?? steer.touch ?? (SETTINGS.mouseFollow && steer.mouse !== null && T - steer.mouseT < 3 ? steer.mouse : null);
-  if (a === null) { s.dir = s.angle; return; }
-  const d = angDiff(s.angle, a), was = s.freeTurn || 0;
-  s.dir = s.angle + clamp(d, -FREE_TURN * dt * 3, FREE_TURN * dt * 3);
-  s.freeTurn = Math.abs(d) > .05 ? was + Math.abs(clamp(d, -FREE_TURN * dt, FREE_TURN * dt)) : 0;
-  if (s.freeTurn > 1.4 && was <= 1.4) s.hardTurnT = T; // a long sweep counts as a sharp turn too
+const mouseSteerOn = () => !!SETTINGS.mouseSteer && !IS_TOUCH;
+function mouseAim() { // the heading from the head to the cursor, worked out fresh each frame (the snake moves under a still cursor); null with the cursor off the game or on the head
+  if (!steer.over || !snake) return null;
+  const p = boardPoint(steer.cx, steer.cy), r = 22 * (snake.scale || 1);
+  return dist2(p.x, p.y, snake.x, snake.y) < r * r ? null : Math.atan2(p.y - snake.y, p.x - snake.x);
 }
-function steerAnalog(a) { // stick / cursor input outside free movement snaps to the nearest of 8 directions
-  if (MOD.freeMove && snake.started) return;
+function mouseSteer() { // every frame: aim at the cursor, at the same turn rate the keys get (unless a key was the last thing to steer)
+  const s = snake; if (steer.keyT > steer.moveT) return; // a key steered last: it holds until the mouse moves again
+  const a = mouseAim(); if (a === null) return;
+  if (Math.abs(angDiff(s.angle, a)) > 1.4 && Math.abs(angDiff(s.dir, a)) > .6) s.hardTurnT = T; // a sharp swing counts like a sharp key turn
+  s.dir = a;
+}
+function steerAnalog(a) { // the touch stick snaps to the nearest of 8 directions
   setHeading(Math.round(a / (Math.PI / 4)) * (Math.PI / 4));
 }
 function unhold() { state = 'play'; hideResume(); stage.classList.remove('paused'); }
@@ -135,22 +137,24 @@ addEventListener('keyup', e => {
 });
 addEventListener('blur', () => held.clear());
 
-/* ---- mouse steering (free movement) ---- */
+/* ---- mouse steering (the Mouse steering setting) ---- */
 function boardPoint(cx, cy) { const c = clientToCanvas(cx, cy); return canvasToWorld(c.x, c.y); } // client px -> world coords, through the same camera the frame was drawn with
 cv.addEventListener('pointermove', e => {
-  if (e.pointerType !== 'mouse' || !snake) return;
-  const p = boardPoint(e.clientX, e.clientY);
-  if (dist2(p.x, p.y, snake.x, snake.y) < 18 * 18) return; // cursor on the head: keep going
-  steer.mouse = Math.atan2(p.y - snake.y, p.x - snake.x); steer.mouseT = T;
+  if (e.pointerType !== 'mouse') return;
+  if (Math.hypot(e.clientX - steer.cx, e.clientY - steer.cy) > 2) steer.moveT = performance.now(); // a real move hands steering back to the mouse
+  steer.cx = e.clientX; steer.cy = e.clientY; steer.over = true;
 });
-cv.addEventListener('pointerleave', () => { steer.mouse = null; });
+cv.addEventListener('pointerleave', () => { steer.over = false; }); // off the game: keep going straight
 cv.addEventListener('pointerdown', e => {
-  if (e.pointerType !== 'mouse' || !MOD.freeMove || !SETTINGS.mouseFollow || !snake) return;
-  if (state === 'ready' || state === 'held') { if (steer.mouse !== null) setHeading(steer.mouse); goInput(); }
+  if (e.pointerType !== 'mouse' || !mouseSteerOn() || !snake || e.button !== 0) return;
+  steer.cx = e.clientX; steer.cy = e.clientY; steer.over = true; steer.moveT = performance.now();
+  if (state === 'ready' || state === 'held') { const a = mouseAim(); if (a !== null) setHeading(a); goInput(); }
+  else if (state === 'play') useAbility('dash'); // left click: lunge
 });
+cv.addEventListener('contextmenu', e => { if (mouseSteerOn() && camOK()) e.preventDefault(); }); // the right button looks around instead
 
 /* ---- camera: mouse wheel zooms toward the cursor; drag pans (middle button any time; left button unless the left
-   button steers, i.e. Free movement with mouse steering); double-click resets. Touch: two fingers pinch and pan. ---- */
+   button lunges, i.e. with Mouse steering on, when the right button drags instead); double-click resets. Touch: two fingers pinch and pan. ---- */
 const camOK = () => ['play', 'ready', 'held', 'paused', 'dead', 'intro'].includes(state) && !(state === 'paused' && overlay.style.display !== 'none') && !(state === 'dead' && overlay.style.display !== 'none' && overlay.innerHTML);
 document.getElementById('stage').addEventListener('wheel', e => {
   if (!camOK() || (e.target.closest && e.target.closest('#overlay,#hudLo .chip,#abil,#notes'))) return;
@@ -161,8 +165,8 @@ document.getElementById('stage').addEventListener('wheel', e => {
 const panDrag = { id: null, x: 0, y: 0, moved: false };
 cv.addEventListener('pointerdown', e => {
   if (e.pointerType !== 'mouse' || !camOK()) return;
-  const leftSteers = MOD.freeMove && SETTINGS.mouseFollow;
-  if (e.button === 1 || (e.button === 0 && !leftSteers)) { panDrag.id = e.pointerId; panDrag.x = e.clientX; panDrag.y = e.clientY; panDrag.moved = false; panDrag.mid = e.button === 1; if (e.button === 1) e.preventDefault(); }
+  const ms = mouseSteerOn(); // with mouse steering the left button lunges, and the right one drags the view
+  if (e.button === 1 || (e.button === 0 && !ms) || (e.button === 2 && ms)) { panDrag.id = e.pointerId; panDrag.x = e.clientX; panDrag.y = e.clientY; panDrag.moved = false; panDrag.mid = e.button === 1; if (e.button === 1) e.preventDefault(); }
 });
 addEventListener('pointermove', e => {
   if (e.pointerId !== panDrag.id) return;
@@ -204,7 +208,7 @@ function stickMove(cx, cy) {
   if (d < 12) return; // dead zone
   const a = Math.atan2(dy, dx);
   steer.touch = a;
-  if (state === 'ready' || state === 'held') { setHeading(MOD.freeMove ? a : Math.round(a / (Math.PI / 4)) * (Math.PI / 4)); goInput(); }
+  if (state === 'ready' || state === 'held') { setHeading(Math.round(a / (Math.PI / 4)) * (Math.PI / 4)); goInput(); }
   else if (state === 'play') steerAnalog(a);
 }
 function enableTouch() { if (document.body.classList.contains('touch')) return; IS_TOUCH = true; document.body.classList.add('touch'); if (!touchEl.firstElementChild) buildTouch(); }

@@ -137,8 +137,7 @@ function showModifiers(focus) {
         <span class="m2d">${m.desc}</span>
         <span class="m2tags"><i class="m2k">${kl}</i>${(m.not || []).length ? `<i class="m2not">Not with ${m.not.map(o => (MODS.find(q => q.id === o) || {}).name).filter(Boolean).join(', ')}</i>` : ''}</span></button>`; }).join('')}</div></section>`).join('')}</div>
       <aside class="m2info" id="m2info"></aside></div>
-    <div class="mbtns"><label class="mfollow ${ids.has('freeMove') ? '' : 'dim'}" data-tip="Free movement only: the snake heads toward your mouse cursor while it's over the game."><button class="tgl ${SETTINGS.mouseFollow ? 'on' : ''}" id="mfTgl" data-sfx="none" role="switch" aria-checked="${!!SETTINGS.mouseFollow}"></button>Mouse steering</label>
-      <span class="sp"></span><button class="btn alt" id="shufBtn" data-sfx="select">Shuffle</button><button class="btn alt" id="clrBtn" data-sfx="off">Clear</button><button class="btn" id="backBtn" data-sfx="confirm">Done</button></div></div>`;
+    <div class="mbtns"><span class="sp"></span><button class="btn alt" id="shufBtn" data-sfx="select">Shuffle</button><button class="btn alt" id="clrBtn" data-sfx="off">Clear</button><button class="btn" id="backBtn" data-sfx="confirm">Done</button></div></div>`;
   const blocker = id => modBlockReason(id, ids), info = document.getElementById('m2info');
   let shown = null;
   const showInfo = id => { // the side panel: everything about the one you're pointing at, or a summary of what's on
@@ -161,7 +160,6 @@ function showModifiers(focus) {
     });
     document.getElementById('mm').textContent = multLabel([...ids]);
     document.getElementById('mcount').textContent = ids.size ? ids.size + ' active' : '';
-    overlay.querySelector('.mfollow').classList.toggle('dim', !ids.has('freeMove'));
     showInfo(shown);
   };
   overlay.querySelectorAll('.m2c').forEach(t => {
@@ -175,7 +173,6 @@ function showModifiers(focus) {
     };
   });
   overlay.querySelector('.m2list').onmouseleave = () => showInfo(null);
-  document.getElementById('mfTgl').onclick = e => { const b = e.currentTarget; SETTINGS.mouseFollow = !SETTINGS.mouseFollow; b.classList.toggle('on', SETTINGS.mouseFollow); b.setAttribute('aria-checked', SETTINGS.mouseFollow); Sfx.ui(SETTINGS.mouseFollow ? 'on' : 'off'); saveSettings(); };
   document.getElementById('shufBtn').onclick = () => {
     const keep = [...ids].filter(id => { const g = (MODS.find(m => m.id === id) || {}).g; return g === 'Style' || g === 'Controls'; }); // your own style/control picks stay
     ids.clear(); keep.forEach(id => ids.add(id)); randomMods(randi(9, 14)).forEach(id => ids.add(id)); // a properly different run
@@ -333,7 +330,7 @@ const SETTING_TABS = {
   Gameplay: { icon: 'gameplay', lead: 'How the world plays.', rows: [
     ['head', 'World'],
     ['slider', 'creatureSpeed', 'Creature speed', 'How fast people and animals move.', .3, 1.2, .05],
-    ['toggle', 'airstrikes', 'Air strikes', 'Jets bomb and shoot at you on outdoor maps after 90 seconds.'],
+    ['toggle', 'mouseSteer', 'Mouse steering', 'The snake heads for your cursor, at any angle. Left click lunges; drag with the right or middle button to look around. Holding a movement key takes over until you move the mouse again.'],
     ['head', 'Time'],
     ['seg', 'timeMode', 'Time of day', 'Dynamic starts at a random hour and the day moves on. The rest stay fixed.', ['Cycle', 'Day', 'Dawn', 'Dusk', 'Night'], null, null, null, TIME_MODES]] },
   Display: { icon: 'display', lead: 'Screen size, interface and stats.', rows: [
@@ -379,8 +376,8 @@ const SETTING_TABS = {
     ['head', 'Interface'],
     ['toggle', 'uiSounds', 'Menu sounds', 'Click and hover sounds in menus.']] },
   Controls: { icon: 'controls', lead: 'Click a key to change it, then press the new one. Esc cancels, Backspace puts the default back. On a phone or tablet, drag anywhere on the board to steer.', binds: true, keys: [
-    ['#Steering and camera'], ['Mouse', 'Steer with the cursor (Free movement modifier + Mouse steering)'], 
-    ['Wheel', 'Zoom the camera in or out, always on your snake'], ['Drag', 'Pan the camera (middle mouse, or left mouse when not steering with it)'], ['Double-click', 'Camera back on the snake'],
+    ['#Steering and camera'], ['Mouse', 'With Mouse steering on (Gameplay): the snake heads for the cursor; left click lunges'], 
+    ['Wheel', 'Zoom the camera in or out, always on your snake'], ['Drag', 'Pan the camera (middle mouse; left mouse, or right mouse with Mouse steering on)'], ['Double-click', 'Camera back on the snake'],
     ['Pinch', 'On a touch screen: two fingers zoom and pan; one finger still steers'],
     ['` or F10', 'Admin panel: god mode, speed, time of day, spawning, air strikes, chips and upgrades (single player, or the host)'], ['#Menus'], ['Space', 'Start, skip the intro, play again. In a multiplayer lobby: ready up, and the host starts once everyone is ready'], ['Esc', 'Pause, back, close settings'], ['F3', 'Performance stats: off, frame rate, full']] },
   Accessibility: { icon: 'access', lead: 'Make the game easier to see and more comfortable.', rows: [
@@ -412,6 +409,7 @@ function settingsBody(tab) {
   }).join('');
 }
 function applySetting(k) { // side effects of a setting change
+  if (k === 'mouseSteer') stage.classList.toggle('msteer', !!SETTINGS.mouseSteer);
   if (k === 'softHigh' && Sfx.setSoftHigh) Sfx.setSoftHigh();
   saveSettings();
   if (k === 'reduceMotion') document.body.classList.toggle('calm', !!SETTINGS.reduceMotion);

@@ -3,7 +3,7 @@
    CONFIG
    ========================================================= */
 // Bump by exactly 1 (1.3 -> 1.4 -> ... -> 1.10) with every change you push. See CLAUDE.md.
-const GAME_VERSION = '1.66';
+const GAME_VERSION = '1.67';
 const H = 640, B = 16, TAU = Math.PI * 2;
 /* The world is as wide as the screen's shape allows (960 to 1472, in steps of 128): maps are built for the middle 960 and
    extended on both sides (see 05b-map-extend). Fixed for the session, so every buffer can be sized once. In co-op everyone
@@ -24,8 +24,8 @@ const CONFIG = {
 const SETTINGS_MIGRATE = s => { if (s.noticeSnake && s.mods && !s.mods.includes('noticeSnake')) s.mods.push('noticeSnake'); delete s.noticeSnake; return s; }; // moved from Settings to a modifier
 const SETTINGS = Object.assign({
   darkness: .2, pixel: 1, creatureSpeed: .55, timeMode: 'Cycle', dayMinutes: 4, bloodFade: 'Normal', customHour: 22, volume: .7,
-  lightQ: 'Medium', vomit: true, fxLevel: 'Normal', bloodQ: 'High', snowQ: 'Full', season: 'Random', minimalUi: false, shakeK: 1, bloodBlur: true, reduceFlash: false, bloodAmt: 'Full', simpleFx: false, mouseFollow: false, // lighting: High adds the color drain in the dark, slow on many graphics chips, so it's opt-in
-  vignette: true, desaturate: true, shake: true, noticeSnake: false, uiSounds: true, softHigh: false, mods: [], reduceMotion: false, bubbleSize: 'Normal', strongOutlines: false, snakeOutline: 'Subtle', uiScale: 'Auto', renderRes: 'Auto', fogQ: 'High', treeQ: 'High', fpsCap: 'VSync', fullscreen: false, autoQ: true, perfHud: 'Off', bloom: true, airstrikes: true,
+  lightQ: 'Medium', vomit: true, fxLevel: 'Normal', bloodQ: 'High', snowQ: 'Full', season: 'Random', minimalUi: false, shakeK: 1, bloodBlur: true, reduceFlash: false, bloodAmt: 'Full', simpleFx: false, mouseSteer: false, // lighting: High adds the color drain in the dark, slow on many graphics chips, so it's opt-in
+  vignette: true, desaturate: true, shake: true, noticeSnake: false, uiSounds: true, softHigh: false, mods: [], reduceMotion: false, bubbleSize: 'Normal', strongOutlines: false, snakeOutline: 'Subtle', uiScale: 'Auto', renderRes: 'Auto', fogQ: 'High', treeQ: 'High', fpsCap: 'VSync', fullscreen: false, autoQ: true, perfHud: 'Off', bloom: true, 
 }, (() => { try { return SETTINGS_MIGRATE(JSON.parse(localStorage.getItem('snakeCarnageSettings')) || {}); } catch (e) { return {}; } })());
 if (!SETTINGS.mapOutlines) SETTINGS.mapOutlines = SETTINGS.strongOutlines ? 'Strong' : 'Subtle'; // "Strong outlines" became "Map outlines"
 if (!SETTINGS.pxFix) { SETTINGS.pixel = 1; SETTINGS.pxFix = 1; } // old default was a 2x chunky look

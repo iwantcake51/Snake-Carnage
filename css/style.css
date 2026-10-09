@@ -2453,3 +2453,5 @@ body.phone .mods2 .m2body,body.narrow .mods2 .m2body{grid-template-columns:1fr}b
 .n-bad{animation:noteSlide .36s var(--spring) backwards,noteAlarm .9s ease .36s 2!important}
 @keyframes noteAlarm{50%{box-shadow:inset 3px 0 0 var(--ns),0 0 26px -4px rgba(255,60,40,.7),0 10px 24px rgba(0,0,0,.45)}}
 #notes .note:nth-child(n+3):not(.out):not(.gone){opacity:.72;scale:.96;transform-origin:right center;transition:opacity .3s,scale .3s}
+/* mouse steering: a crosshair to aim the snake with */
+#stage.msteer:not(.menuBg) #c{cursor:crosshair}

@@ -77,7 +77,7 @@ function computeSegs(s) {
 function updateSnake(dt) {
   const s = snake; if (!s.started || !s.alive) return;
   updateSize(s, dt);
-  if (MOD.freeMove) steerFree(dt);
+  if (mouseSteerOn()) mouseSteer(); // Mouse steering: head for the cursor
   // ease toward the target heading: quick to start, settles softly, capped so it never snaps
   const sl = upg('speed'), d = angDiff(s.angle, s.dir), mx = CONFIG.turnRate * dt * (1 + (sl >= 2 ? .18 : 0) + (sl >= 4 ? .18 : 0) + (sl >= 5 ? .12 : 0)) * (s.uturnT > 0 ? s.uturnK || 2.4 : 1) * (MOD.wideTurns ? .5 : MOD.quickTurn ? 1.6 : 1); // Wide turns / Quick turn modifiers. Speed Demon: snappier turns, and a fast whip round on a U-turn
   const ad = Math.abs(d); s.angle += Math.sign(d) * Math.min(ad, mx, ad * (1 - Math.exp(-dt * CONFIG.turnEase)) + mx * .18); // never past the target: overshooting it made the head flick side to side every frame, worse the lower the frame rate
