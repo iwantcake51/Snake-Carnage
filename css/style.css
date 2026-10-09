@@ -3072,3 +3072,9 @@ body.calm .skshine rect,body.calm .skn.mastery .skshape{animation:none!important
 /* nothing on the page can be highlighted or copied by accident (dragging, double-clicking, a long press): only fields you type in */
 *{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 input,textarea,select,[contenteditable],[contenteditable] *{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default}
+
+/* the skill tree stays faintly on an old screen after it opens: scanlines, darkened edges and a slow rolling band, all very light, over the board but under its controls */
+.sktv{position:absolute;inset:0;pointer-events:none;overflow:hidden;background:repeating-linear-gradient(0deg,color-mix(in srgb,var(--acc-hi) 4%,transparent) 0 1px,transparent 1px 3px)}
+.sktv::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 50%,transparent 58%,rgba(0,0,0,.32));box-shadow:inset 0 0 50px rgba(0,0,0,.35)}
+.sktv .roll{position:absolute;left:0;right:0;top:-25%;height:20%;background:linear-gradient(transparent,color-mix(in srgb,var(--acc-hi) 3%,transparent) 70%,transparent);animation:skRoll 7s linear infinite}
+body.calm .sktv .roll{display:none}

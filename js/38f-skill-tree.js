@@ -2,7 +2,7 @@
    SKILL TREE SCREEN
    The tree from 38-upgrades drawn as three branches growing out of one coil: Survival (left), Predator (middle),
    Fortune (right). Majors are hexagonal scales, passives are round with a tick per rank. Links are S-curves.
-   Ranks cost skill tokens (one per level gained); Reset tree hands every token back.
+   Ranks cost skill tokens (one per level gained); Reset tree hands every token back, for 5,000 chips.
    Drag or pinch to pan, wheel or pinch to zoom, arrows to walk the nodes, Enter to buy. Selecting a node fills the
    details panel (always there, never moves). Buying updates everything in place: no rebuild, the camera stays put.
    ========================================================= */
@@ -91,7 +91,7 @@ function showSkillTree() {
   if (!SKN[skSel]) skSel = 'speed';
   overlay.innerHTML = `<div class="panel sktree" role="dialog" aria-label="Skill Tree">
     <header class="skh"><button class="mm-back" id="backBtn" data-sfx="close">${ICO.back}<span>Back</span></button><h1>Skill Tree</h1>
-      <span class="sp"></span><button class="mm-q" id="skReset" data-sfx="none" data-tip="Take every skill back and get all your tokens back">Reset tree</button><span class="sklvl">Level <b>${PROG.level}</b></span><span class="coinpill tokpill" id="skTok" data-tip="Skill tokens: you get one every time you level up"><i class="tok"></i> <b>${skLeft()}</b><span class="tkw"> tokens</span></span></header>
+      <span class="sp"></span><button class="mm-q" id="skReset" data-sfx="none" data-tip="Take every skill back and get all your tokens back. Costs ${SK_RESET_COST.toLocaleString()} chips">${SK_RESET_LBL}</button><span class="sklvl">Level <b>${PROG.level}</b></span><span class="coinpill tokpill" id="skTok" data-tip="Skill tokens: you get one every time you level up"><i class="tok"></i> <b>${skLeft()}</b><span class="tkw"> tokens</span></span></header>
     <div class="skbody">
       <div class="skview" id="skView">
         <div class="skworld" id="skWorld" style="width:${SK_W}px;height:${SK_H}px">
@@ -99,6 +99,7 @@ function showSkillTree() {
           ${skHubHtml()}${Object.keys(SK_BRANCH).map(skBranchLabel).join('')}
           <div class="sknodes" role="group" aria-label="Skills">${SKILL_TREE.map(skNodeHtml).join('')}</div>
         </div>
+        <div class="sktv" aria-hidden="true"><i class="roll"></i></div>
         <div class="skctl" role="toolbar" aria-label="View">
           <button id="skFit" data-sfx="tab" data-tip="Fit the whole tree (F)">${skCtlIcon('fit')}<span>Fit tree</span></button>
           ${Object.keys(SK_BRANCH).map(b => `<button class="br-${b}" data-focus="${b}" data-sfx="tab" data-tip="${SK_BRANCH[b].blurb} (${SK_BRANCH[b].key})"><i class="dot"></i><span>${SK_BRANCH[b].name}</span></button>`).join('')}
@@ -289,14 +290,16 @@ function skTokAnim(from, to) { const b = overlay.querySelector('#skTok b'); if (
   pill.classList.remove('spent'); void pill.offsetWidth; pill.classList.add('spent');
   skTween(380, k => { b.textContent = Math.round(from + (to - from) * k); }, () => { b.textContent = to; }); }
 let skResetArm = 0;
-function skReset() { // two presses: the first asks, the second hands every token back
-  const b = skEl('skReset'); if (!b) return;
-  if (!skSpent()) { Sfx.deny(); b.textContent = 'Nothing to reset'; setTimeout(() => { if (b.isConnected) b.textContent = 'Reset tree'; }, 1400); return; }
-  if (performance.now() > skResetArm) { skResetArm = performance.now() + 3000; b.textContent = `Reset? Click again`; b.classList.add('arm'); Sfx.ui('select');
-    setTimeout(() => { if (b.isConnected && performance.now() > skResetArm) { b.textContent = 'Reset tree'; b.classList.remove('arm'); } }, 3100); return; }
+const SK_RESET_COST = 5000, SK_RESET_LBL = `Reset tree <i class="pc"></i>5k`; // resetting the tree costs chips: a respec is a choice, not a free undo
+function skReset() { // two presses: the first asks (and names the price), the second pays and hands every token back
+  const b = skEl('skReset'); if (!b) return; const back = () => { if (b.isConnected) { b.innerHTML = SK_RESET_LBL; b.classList.remove('arm'); } };
+  if (!skSpent()) { Sfx.deny(); b.textContent = 'Nothing to reset'; setTimeout(back, 1400); return; }
+  if ((PROG.coins | 0) < SK_RESET_COST) { Sfx.deny(); b.innerHTML = `Need ${(SK_RESET_COST - (PROG.coins | 0)).toLocaleString()} more <i class="pc"></i>`; setTimeout(back, 1800); return; }
+  if (performance.now() > skResetArm) { skResetArm = performance.now() + 3000; b.innerHTML = `Reset for 5,000 <i class="pc"></i>? Click again`; b.classList.add('arm'); Sfx.ui('select');
+    setTimeout(() => { if (performance.now() > skResetArm) back(); }, 3100); return; }
   skResetArm = 0; const t0 = skLeft();
-  PROG.tree = {}; PROG.treeOff = {}; saveProg(); Sfx.ui('close');
-  b.textContent = 'Reset tree'; b.classList.remove('arm');
+  PROG.coins -= SK_RESET_COST; PROG.tree = {}; PROG.treeOff = {}; saveProg(); Sfx.ui('close'); if (typeof updateHud === 'function') updateHud();
+  back();
   skRefresh(); skInfo(false); skTokAnim(t0, skLeft());
   if (typeof netLobbySyncProfile === 'function' && NETM.on) netLobbySyncProfile();
 }
