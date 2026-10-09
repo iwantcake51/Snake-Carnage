@@ -51,6 +51,7 @@ function render() {
   drawLighting(x); drawPropGlow(x);
   drawLampBugs(x); drawFireflyGlow(x);
   drawSparks(x); drawImpacts(x);
+  drawBurnHeat(x, render.src); // you're burning: the world round you shimmers (before the markers, so they stay sharp)
   drawAirstrikes(x); // under the fog: a marker you can't see stays hidden
   drawVisionMask(x);
   drawAirFog(x); // ...but a blast still lights the fog up
@@ -91,6 +92,7 @@ function render() {
   ctx.restore();
   if (eb) lungeEdges();
   if (EDGE_K.lb > .03 || EDGE_K.fk > .03) lungeLines(); // the tint and speed lines (even with simplified effects: they're cheap)
+  drawBurnEdge(ctx); // on fire: a restrained orange glow from the edges
   drawAirFlash(ctx);
   if (NETM.run && !cam) netDrawTags(ctx); // co-op: teammates' names and where they are off screen
   if (!cam) drawBubbles(ctx); // screen space (positions go through the camera), so text stays readable at any zoom
@@ -192,7 +194,7 @@ function frame(now) {
   deathFxTick(dt);
   Sfx.hold(state === 'paused' || (state === 'dead' && !NETM.run && !(deadT > 0))); // paused, or the solo death screen up: the world's sound waits too (in the menu it's let go)
   if (PERF.el) perfShowIfPlaying();
-  edgeFxTick(); // lunge blur, Focus vignette (off everywhere but a live run)
+  fireFrame(); edgeFxTick(); // the burning crackle (38g); lunge blur, Focus vignette (off everywhere but a live run)
   if (state === 'editor') return; // the map editor draws itself
   const menu = state === 'menu'; // menus show a CSS backdrop instead of the map: the game costs nothing there
   if (menu !== !!frame.cov) { frame.cov = menu; stage.classList.toggle('menuBg', menu); }

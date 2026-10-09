@@ -157,11 +157,16 @@ function unlockFx(a, got) { // the satisfying bit: a gold-edged unlock card plus
 const achProgress = a => Math.min(1, a.stat() / a.n);
 
 /* ---- applying non-snake cosmetics ---- */
+function cosChanged() { // something was equipped: the profile card shows it now, and in multiplayer everyone else gets it now (lobby or mid-run)
+  const pf = document.querySelector('.mm-prof'); if (pf && typeof profileHtml === 'function') { const t = document.createElement('div'); t.innerHTML = profileHtml(); if (t.firstElementChild) pf.replaceWith(t.firstElementChild); }
+  if (typeof netCosChanged === 'function') try { netCosChanged(); } catch (e) { if (!(e instanceof ReferenceError)) throw e; } // (the first call runs while the game is still loading: in the deploy bundle the multiplayer state isn't set up yet)
+}
 function applyCosmetics() {
   const c = SETTINGS.snake;
   document.body.className = document.body.className.replace(/\b(theme|cs|fx)-\S+/g, '').trim();
   if (c.theme !== 'Default') document.body.classList.add('theme-' + c.theme.toLowerCase());
   if (c.card !== 'Default') document.body.classList.add('cs-' + c.card.toLowerCase().replace(/\s+/g, '-'));
+  cosChanged();
   document.body.className = document.body.className.replace(/\bcb-\S+/g, '').trim(); if (c.combo && c.combo !== 'Default') document.body.classList.add('cb-' + c.combo.toLowerCase());
 }
 function menuFx() { // background particles behind the main menu

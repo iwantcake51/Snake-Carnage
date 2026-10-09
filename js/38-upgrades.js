@@ -33,9 +33,9 @@ const SKILL_TREE = [
   { id: 'dash', br: 'pred', major: 1, abil: 1, name: 'Lunge', icon: 'dash', cost: [1], lvl: 3, req: [['speed', 1]], x: 934, y: 655,
     desc: 'A quick burst of speed. Not while concussed.', fx: [['Burst', g => SKV.lungeK(g), xk], ['Lasts', g => SKV.lungeDur(g), secs], ['Cooldown', g => SKV.lungeCd(g), secs]] },
   { id: 'stride', br: 'pred', name: 'Long Stride', icon: 'stride', cost: [1, 1, 1], req: [['dash', 1]], x: 920, y: 495,
-    desc: 'A longer, stronger lunge per rank.', fx: [['Lasts', g => SKV.lungeDur(g), secs], ['Burst', g => SKV.lungeK(g), xk]] },
+    desc: 'A slightly longer, stronger lunge per rank.', fx: [['Lasts', g => SKV.lungeDur(g), secs], ['Burst', g => SKV.lungeK(g), xk]] },
   { id: 'pounce', br: 'pred', major: 1, name: 'Pounce', icon: 'pounce', cost: [2], lvl: 18, req: [['stride', 2]], x: 911, y: 320,
-    desc: 'A faster lunge that recharges quicker. Eating mid-lunge recharges it.', fx: [['Burst', g => SKV.lungeK(g), xk], ['Cooldown', g => SKV.lungeCd(g), secs]] },
+    desc: 'A sharper, quicker lunge: hits harder but is over sooner, and recharges faster. Eating mid-lunge keeps it going.', fx: [['Burst', g => SKV.lungeK(g), xk], ['Cooldown', g => SKV.lungeCd(g), secs]] },
   { id: 'spring', br: 'pred', name: 'Coiled Spring', icon: 'spring', cost: [1, 1, 1, 1], req: [['dash', 1]], x: 816, y: 565,
     desc: 'Lunge recharges 7% faster per rank.', fx: [['Lunge cooldown', g => SKV.lungeCd(g), secs]] },
   { id: 'whip', br: 'pred', name: 'Whiplash', icon: 'whip', cost: [1, 1, 1], req: [['spring', 1]], x: 794, y: 400,
@@ -149,8 +149,8 @@ const sk = id => { const n = SKN[id]; if (!n || MOD.noUpgrades || (MOD.noAbiliti
 const SKV = {
   speed: (g = sk) => 1 + .05 * g('speed'), // up to +25%
   turn: (g = sk) => 1 + .16 * g('sidewind'),
-  lungeK: (g = sk) => g('pounce') ? 2.7 : 1.8 + .035 * g('stride'),
-  lungeDur: (g = sk) => (g('pounce') ? .55 : .6) + .07 * g('stride'),
+  lungeK: (g = sk) => g('pounce') ? 2.3 : 1.8 + .035 * g('stride'), // the extra ground a lunge covers is about speed x (K - 1) x (dur + 0.31 s of bleeding off): at the top of the tree ~1.15 s of normal travel, not ~1.8 (it overshot whole streets)
+  lungeDur: (g = sk) => (g('pounce') ? .42 : .6) + .05 * g('stride'),
   lungeCd: (g = sk) => (g('pounce') ? 5 : 7) * (1 - .07 * g('spring')),
   lungeTurn: (g = sk) => 1 + .15 * g('whip'),
   eyeRange: (g = sk) => 1 + .2 * g('keen'),

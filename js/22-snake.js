@@ -105,7 +105,7 @@ function updateSnake(dt) {
   const hitO = obstacleHitBy(hx, hy, hr); // walls and the map's edge always count, spawn protection or not
   if (hitO && canRam(hitO) && ramSpot(hitO, hx, hy)) smashObstacle(hitO, s.angle); // Battering Ram: furniture gives way
   else if (hitO) { crashHit = { o: hitO, t: T }; return die(); }
-  if (!grace) for (let i = 8; i < s.segs.length; i++) if (dist2(s.x, s.y, s.segs[i].x, s.segs[i].y) < (snakeRadius() * 1.1) ** 2) { if (s.segs.length >= 60) { PROG.ouro = 1; checkAch(); } crashHit = { seg: i, t: T }; return die(); }
+  if (!grace && !MOD.noSelf) for (let i = 8; i < s.segs.length; i++) if (dist2(s.x, s.y, s.segs[i].x, s.segs[i].y) < (snakeRadius() * 1.1) ** 2) { if (s.segs.length >= 60) { PROG.ouro = 1; checkAch(); } crashHit = { seg: i, t: T }; return die(); }
 
   hoover(s, dt);
   let ate = false;
@@ -337,7 +337,7 @@ function ramSpot(o, x, y) { // a custom prop can say WHERE it breaks (its intera
   return polyHit(ip, x, y, snakeHitRadius() + 2);
 }
 let crashHit = null; // what you ran into: it flashes as the run ends
-const deathDelay = () => (IS_TOUCH ? .3 : .7) + (run.deathBy === 'bomb' || run.deathBy === 'fuse' ? 1.5 : 0); // a beat to feel the impact (the hit flashes, the screen shakes), then the crash screen. Phones get it fast. Blown up: time to watch yourself go off
+const deathDelay = () => (IS_TOUCH ? .3 : .7) + (['bomb', 'fuse', 'cluster', 'fire'].includes(run.deathBy) ? 1.5 : 0); // a beat to feel the impact (the hit flashes, the screen shakes), then the crash screen. Phones get it fast. Blown up: time to watch yourself go off
 function die() {
   if (NETM.run) return netLocalDown(); // co-op: you go down, the team carries on (see 40d-net-sync)
   snake.alive = false; state = 'dead'; deadT = deathDelay(); deadAt = performance.now(); shake = 10;

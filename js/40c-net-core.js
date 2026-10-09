@@ -177,6 +177,7 @@ function netHostMsg(p, L, m) {
     case 'team': if (NETM.phase !== 'run' && NETM.cfg && NETM.cfg.mode === 'teams') { p.team = Math.max(0, Math.min(NETM.cfg.teams - 1, m.v | 0)); netLobbyChanged(); } break;
     case 'leave': netHostLost(p.id, 'left'); break;
     case 'lvl': p.lvl = m.v | 0; netLobbyChanged(); break;
+    case 'cos': p.cos = m.cos; netBroadcast({ k: 'cos', id: p.id, cos: m.cos }, p.id); netCosApply(p.id, m.cos); break; // a guest equipped something (any time, mid-run too): everyone else gets it
     case 'prof2': if (NETM.phase !== 'run') { p.cos = m.cos; p.upg = m.upg; p.lvl = m.lvl | 0; netLobbyChanged(); } break; // a new skin, upgrade or level while waiting
     case 'prof': p.name = netName(m.name); p.cos = m.cos; p.upg = m.upg; p.lvl = m.lvl | 0; netLobbyChanged(); break;
     case 'ping': L.sendR({ k: 'pong', t: m.t, h: netNow() }); break;
@@ -247,6 +248,7 @@ function netClientMsg(m, L) {
   if (NETM.host || L !== NETM.hostLink) return; // a straggler from a host we've already left (or taken over from)
   switch (m.k) {
     case 'lobby': NETM.players = m.players; NETM.cfg = m.cfg; if (m.code) NETM.code = m.code; if (!NETM.run) NETM.phase = m.phase; netLobbyRender && netLobbyRender(); break; // in a run, the start and end messages move us along
+    case 'cos': if (m.id !== NETM.me) netCosApply(m.id, m.cos); break; // someone equipped a new title or skin
     case 'ping': L.sendR({ k: 'pong', t: m.t }); break;
     case 'pong': L.rtt = L.rtt * .7 + (performance.now() - m.t) * .3; if (m.h !== undefined) netClockSample(m.h, (performance.now() - m.t) / 2); break;
     case 'closed': netClientHostLost('left'); break; // the host closed the lobby on purpose: hand it over at once

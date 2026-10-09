@@ -59,6 +59,16 @@ function netLobbySyncProfile() { // a new skin, an upgrade or a level since join
   NETM.sentProf = sig; NETM.sentLvl = pr.lvl; NETM.hostLink.sendR({ k: 'prof2', cos: pr.cos, upg: pr.upg, lvl: pr.lvl });
   const me = netPlayer(NETM.me); if (me) { me.cos = pr.cos; me.upg = pr.upg; me.lvl = pr.lvl; }
 }
+function netCosChanged() { // your cosmetics (title, skin, colors) changed: send them at once, in the lobby or mid-run, so nobody has to rejoin to see them
+  if (!NETM.on) return; const cos = { ...SETTINGS.snake }, sig = JSON.stringify(cos); if (NETM.cosSig === sig) return; NETM.cosSig = sig;
+  if (NETM.host) { netBroadcast({ k: 'cos', id: NETM.me, cos }); netCosApply(NETM.me, cos); }
+  else if (NETM.hostLink) { NETM.hostLink.sendR({ k: 'cos', cos }); netCosApply(NETM.me, cos); }
+}
+function netCosApply(id, cos) { // someone's new cosmetics: their lobby row, party panel, scoreboard, name tag and snake
+  const p = netPlayer(id); if (p) p.cos = cos;
+  const rs = NS.rs && NS.rs.get(id); if (rs) rs.cos = cos;
+  if (typeof netLobbyRender === 'function') netLobbyRender();
+}
 function netSetReady(v) { const me = netPlayer(NETM.me); if (!me) return; netLobbySyncProfile(); me.ready = v; if (NETM.host) netLobbyChanged(); else { NETM.hostLink && NETM.hostLink.sendR({ k: 'ready', v }); netLobbyRender(); } }
 function netCta() { // the main menu's big button in a lobby: ready up, unready, or (the host, everyone ready) start
   const me = netMe(); if (NETM.host && me.ready && netAllReady()) return netGo(); netSetReady(!me.ready); Sfx.ui && Sfx.ui(me.ready ? 'on' : 'off');
