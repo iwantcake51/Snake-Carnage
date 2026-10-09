@@ -119,10 +119,10 @@ function finishStart(opts, sz) {
   const wait = Math.max(0, 1250 - (performance.now() - t0)); // the card always gets its moment, however fast the load was
   introTimers = [setTimeout(endIntro, SETTINGS.reduceMotion ? 500 : 1000 + wait)];
 }
-function seasonBadge() { return season ? `<span class="tbadge szn ${season.id}"><i class="sic">${season.icon}</i><b>${season.name}</b></span>` : ''; }
+function seasonBadge() { return season ? `<span class="tbadge szn ${season.id}"><i class="sic">${giSvg(season.icon)}</i><b>${season.name}</b></span>` : ''; }
 function introHtml(sz) { // the loading card: map name, when, what season, which modifiers
   const m = MAPS[mapIdx], tags = [m.space ? 'Space' : m.indoor ? 'Indoors' : 'Outdoors'];
-  const szB = sz ? `<span class="tbadge szn ${sz.id}"><i class="sic">${sz.icon}</i><b>${sz.name}</b></span>` : '';
+  const szB = sz ? `<span class="tbadge szn ${sz.id}"><i class="sic">${giSvg(sz.icon)}</i><b>${sz.name}</b></span>` : '';
   const mods = runMods.map(id => { const q = MODS.find(x => x.id === id); return q ? `<span class="imod">${q.name}</span>` : ''; }).join('');
   return `<canvas class="iimg" width="${W}" height="${H}"></canvas><div class="ishade"></div>
     <div class="iwrap"><span class="ieye" style="--d:.05s">${tags.join(' · ')}</span>

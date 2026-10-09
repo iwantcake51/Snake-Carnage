@@ -124,15 +124,15 @@ function homeHtml() {
       <h1 class="mm-logo" aria-label="Snake: Carnage"><span class="l1">Snake</span><span class="l2"><b>Carnage</b></span></h1>
       <nav class="mm-nav" aria-label="Main menu">
         <button class="mm-cta" id="playBtn" data-sfx="open"><span class="mm-l">Start game</span><kbd>Space</kbd></button>
-        <button class="mm-it" id="coopBtn" data-sfx="open"><span class="mm-l">Play with friends</span></button>
-        <button class="mm-it" id="upBtn" data-sfx="open"><span class="mm-l">Skill Tree</span>${skillReady() ? `<em class="mm-note hot">${tokN(skLeft())} to spend</em>` : ''}</button>
-        <button class="mm-it" id="snakeBtn" data-sfx="open"><span class="mm-l">Cosmetics</span></button>
-        <button class="mm-it" id="chBtn" data-sfx="open"><span class="mm-l">Achievements</span><em class="mm-note">${achN} / ${ACH.length}</em></button>
-        <button class="mm-it" id="setBtn" data-sfx="open"><span class="mm-l">Settings</span></button>
+        <button class="mm-it" id="coopBtn" data-sfx="open"><span class="mm-l">${kiSvg('multiplayer', 'mm-ic')}Play with friends</span></button>
+        <button class="mm-it" id="upBtn" data-sfx="open"><span class="mm-l">${kiSvg('star', 'mm-ic')}Skill Tree</span>${skillReady() ? `<em class="mm-note hot">${tokN(skLeft())} to spend</em>` : ''}</button>
+        <button class="mm-it" id="snakeBtn" data-sfx="open"><span class="mm-l">${kiSvg('basket', 'mm-ic')}Cosmetics</span></button>
+        <button class="mm-it" id="chBtn" data-sfx="open"><span class="mm-l">${kiSvg('trophy', 'mm-ic')}Achievements</span><em class="mm-note">${achN} / ${ACH.length}</em></button>
+        <button class="mm-it" id="setBtn" data-sfx="open"><span class="mm-l">${kiSvg('gear', 'mm-ic')}Settings</span></button>
       </nav>
     </div>
     ${profileHtml()}
-    <footer class="mm-foot"><span class="mm-ver">v${GAME_VERSION}</span>${ed ? '<button class="mm-q" id="edBtn" data-sfx="open">Map editor</button>' : ''}<span class="sp"></span>
+    <footer class="mm-foot"><span class="mm-ver">v${GAME_VERSION}</span>${ed ? `<button class="mm-q" id="edBtn" data-sfx="open">${kiSvg('wrench', 'mm-qi')}Map editor</button>` : ''}<span class="sp"></span>
       <button class="mm-mapcap" id="mapCap" data-sfx="open" aria-label="Selected map: ${attr(MAPS[mapIdx].name)}. Open the run setup"><small>Map</small><b data-mapname>${attr(MAPS[mapIdx].name)}</b></button></footer>
   </section>`;
 }
@@ -365,7 +365,7 @@ function profileChallenges() {
     const slides = hide ? ['<div class="prv sil q">?</div>'] : cos.length ? cos : [a.chips ? `<div class="prv chipr"><i class="pc"></i><b>${a.chips}</b></div>` : `<div class="prv xpr"><b>${xp}</b><small>XP</small></div>`];
     const car = slides.length > 1 ? `<div class="ap car" data-n="${slides.length}"><div class="track">${slides.join('')}</div><div class="dots">${slides.map((_, k) => `<i class="${k ? '' : 'on'}"></i>`).join('')}</div></div>` : `<div class="ap">${slides[0]}</div>`;
     return `<div class="ach ${got ? 'done' : ''} ${hide ? 'secret' : ''} t-${a.tier}" style="--i:${i}" data-tiph="${attr(tip)}">${car}
-      <div class="ab"><em class="tier ${hide ? 'secret' : a.tier}">${hide ? 'Secret' : TIERS[a.tier].label}</em><b>${got ? '<i class="ck">✔</i>' : ''}${hide ? '???' : a.name}</b><small>${hide ? '<i class="clue">' + a.clue + '</i>' : a.what}</small>
+      <div class="ab"><em class="tier ${hide ? 'secret' : a.tier}">${hide ? 'Secret' : TIERS[a.tier].label}</em><b>${got ? `<i class="ck">${kiSvg('checkmark')}</i>` : ''}${hide ? '???' : a.name}</b><small>${hide ? '<i class="clue">' + a.clue + '</i>' : a.what}</small>
       <span class="axp">${hide ? 'Reward: ???' : `+${xp} XP${a.chips ? ` · ${a.chips} chips` : ''}`}</span>
       <span class="pbar"><span style="width:${(p * 100).toFixed(0)}%"></span><i>${Math.min(a.stat(), a.n)} / ${a.n}</i></span>${!hide && rw.length ? `<span class="arw">${rw.map(([cat, v]) => `${CAT_LABEL[cat]}${cat.startsWith('color') ? ': ' + colorName(v) : ': ' + v}`).join(' · ')}</span>` : ''}</div></div>`; }).join('')}</div>`;
 }
@@ -380,7 +380,7 @@ function mapPermChallenges() {
   const list = permChallenges(chMap), best = (PROG.pmBest || {})[chMap] || {};
   return `<div class="pmwrap"><div class="pmmaps">${MAPS.map(m => `<button class="${m.name === chMap ? 'on' : ''}" data-cm="${attr(m.name)}" data-sfx="tab"><span>${m.name}</span><em>${pmDoneCount(m.name)}/${permChallenges(m.name).length}</em></button>`).join('')}</div>
     <div class="pmlist">${list.map((c, i) => { const when = (PROG.pmc[chMap] || {})[c.id], v = when ? c.n : Math.min(best[c.id] || 0, c.n), rw = TIERS[c.tier];
-      return `<div class="pmc ${when ? 'done' : ''}" style="--i:${i}" ${when ? `data-tip="Completed ${fmtDate(when)}"` : ''}><em class="tier ${c.tier}">${rw.label}</em><b>${when ? '<i class="ck">✔</i>' : ''}${c.name}</b><small>${c.t}</small>
+      return `<div class="pmc ${when ? 'done' : ''}" style="--i:${i}" ${when ? `data-tip="Completed ${fmtDate(when)}"` : ''}><em class="tier ${c.tier}">${rw.label}</em><b>${when ? `<i class="ck">${kiSvg('checkmark')}</i>` : ''}${c.name}</b><small>${c.t}</small>
         <span class="axp">+${Math.round(rw.xp * 1.5)} XP · +${Math.round(rw.chips * 1.5)} chips</span><span class="pbar"><span style="width:${(v / c.n * 100).toFixed(0)}%"></span><i>${v}${c.unit || ''} / ${c.n}${c.unit || ''}${when ? '' : ' best'}</i></span></div>`; }).join('')}</div></div>`;
 }
 function achPreview(cat, v, clear) { // rewards show as a real preview; early on (and rare ones) stay silhouetted
@@ -534,7 +534,7 @@ const SETTING_TABS = {
     ['#Steering and camera'], ['Mouse', 'With Mouse steering on (Gameplay): the snake heads for the cursor; left click lunges'], 
     ['Wheel', 'Zoom the camera in or out, always on your snake'], ['Drag', 'Pan the camera (middle mouse; left mouse, or right mouse with Mouse steering on)'], ['Double-click', 'Camera back on the snake'],
     ['Pinch', 'On a touch screen: two fingers zoom and pan; one finger still steers'],
-    ['` or F10', 'Admin panel: god mode, speed, time of day, spawning, air strikes, chips and the skill tree (single player, or the host)'], ['#Menus'], ['Space', 'Start, skip the intro, play again. In a multiplayer lobby: ready up, and the host starts once everyone is ready'], ['Esc', 'Pause, back, close settings'], ['F3', 'Performance stats: off, frame rate, full'], ['#Credits'], ['Icons', 'game-icons.net, by Lorc, Delapouite and contributors (CC BY 3.0)'], ['Effects', 'Smoke, fire, scorch and leaf sprites by Kenney (kenney.nl, CC0)']] },
+    ['` or F10', 'Admin panel: god mode, speed, time of day, spawning, air strikes, chips and the skill tree (single player, or the host)'], ['#Menus'], ['Space', 'Start, skip the intro, play again. In a multiplayer lobby: ready up, and the host starts once everyone is ready'], ['Esc', 'Pause, back, close settings'], ['F3', 'Performance stats: off, frame rate, full'], ['#Credits'], ['Icons', 'game-icons.net, by Lorc, Delapouite and contributors (CC BY 3.0)'], ['Kenney', 'Effect sprites, light masks, menu and board-game icons, by Kenney (kenney.nl, CC0)']] },
   Accessibility: { icon: 'access', lead: 'Make the game easier to see and more comfortable.', rows: [
     ['head', 'Visibility'],
     ['seg', 'snakeOutline', 'Snake outline', 'An outline so your snake is easy to see.', ['Off', 'Subtle', 'Strong']],

@@ -26,6 +26,12 @@ const BEAM = (() => { // one smooth cone: bright core, soft edges, distance fall
   const g2 = c.getContext('2d'); g2.filter = 'blur(4px)'; g2.drawImage(raw, 0, 0); g2.filter = 'none';
   return c;
 })();
+let WIN_SPR = MASK_SPR; // a lit window's pool (its panes once the Kenney atlas is in)
+kReady(() => { // Kenney light masks: blotchy texture through every flashlight beam, a reflector's rings in each lamp's pool, window panes in the light falling out of windows
+  WIN_SPR = document.createElement('canvas'); WIN_SPR.width = WIN_SPR.height = MASK_SPR.width; WIN_SPR.getContext('2d').drawImage(MASK_SPR, 0, 0); kModulate(WIN_SPR, 'window_e_noise', .2);
+  kModulate(BEAM, 'cone_e_noise', .4, 1); kModulate(MASK_SPR, 'circle_a_noise', .42);
+  if (typeof shadowsChanged === 'function') shadowsChanged(); // re-bake what was baked with the plain ones
+});
 function shadowShape(q, L, o, ox, oy) {
   const R = L.r * 1.6, z = o.z;
   const reach = (px, py) => { const dx = px - L.x, dy = py - L.y, d = Math.hypot(dx, dy) || 1, s = z >= L.h ? R : Math.min(R, d * z / (L.h - z)); return [px - ox, py - oy, px + dx / d * s - ox, py + dy / d * s - oy]; };
@@ -191,7 +197,7 @@ function drawLighting(x) {
       for (const l of lights) {
         if (!isStaticLight(l)) continue; const k = lightK(l); if (k < .01) continue;
         stx.globalAlpha = k; // source-over of alpha masks = their union, exactly what punching them out one by one gives
-        if (l.kind === 'window') { stx.drawImage(MASK_SPR, l.x - l.r, l.y - l.r, l.r * 2, l.r * 2); continue; }
+        if (l.kind === 'window') { stx.drawImage(WIN_SPR, l.x - l.r, l.y - l.r, l.r * 2, l.r * 2); continue; }
         const s = l.size, bs = Math.ceil(s * LS); stx.drawImage(l.mask, 0, 0, bs, bs, l.x - l.r, l.y - l.r, s, s);
       }
       stx.globalAlpha = 1;
@@ -215,7 +221,7 @@ function drawLighting(x) {
       const k = lightK(l); if (k < .01) continue;
       if (l.kind === 'street' && !nv) { useAdd(); const spr = glowSprites[l.c] || (glowSprites[l.c] = lightSprite(l.c, .3)); adx.globalAlpha = k * .9; adx.drawImage(spr, l.x - 13, l.y - 13, 26, 26); } // the bulb
       if (isStaticLight(l)) continue;
-      if (l.kind === 'window') { lgx.globalAlpha = k; lgx.drawImage(MASK_SPR, l.x - l.r, l.y - l.r, l.r * 2, l.r * 2); continue; }
+      if (l.kind === 'window') { lgx.globalAlpha = k; lgx.drawImage(WIN_SPR, l.x - l.r, l.y - l.r, l.r * 2, l.r * 2); continue; }
       const s = l.size, bs = Math.ceil(s * LS); let src = l.mask;
       if (l.dynNow) { // someone is under this light: add their shadows this frame
         s1.clearRect(0, 0, s, s); s1.drawImage(l.mask, 0, 0, s, s); shadeInto(s1, l, nearDyn(l.x, l.y, l.r), l.x - l.r, l.y - l.r, s, .75); src = S1;

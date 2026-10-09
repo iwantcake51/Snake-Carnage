@@ -119,11 +119,11 @@ function render() {
   const sat = (SETTINGS.desaturate && !nightVision ? clamp(1 - killFlash * .5, .45, 1) : 1) * (1 - .93 * stun) * (1 - .92 * dfxK) * (1 - .78 * bz); // dying drains it to grey; so does a blast close by
   const f = nightVision ? `contrast(1.15) brightness(${((.95 - SETTINGS.darkness * .2) * (1 - .2 * boomDaze())).toFixed(2)})${dfxK ? ` grayscale(${(.92 * dfxK).toFixed(2)})` : ''}` : `saturate(${sat.toFixed(2)}) brightness(${((1 - SETTINGS.darkness) * (1 - .14 * dfxK) * (1 - .2 * boomDaze())).toFixed(2)}) contrast(${(1.08 + .08 * dfxK).toFixed(2)})`;
   if (f !== lastFilter) { cv.style.filter = f; lastFilter = f; }
-  const clock = (MAPS[mapIdx].indoor ? '🏢 ' : light.day > .5 ? '☀️ ' : light.day > .05 ? '🌇 ' : '🌙 ') +
-    String(Math.floor(tod)).padStart(2, '0') + ':' + String(Math.floor(tod % 1 * 60)).padStart(2, '0');
+  const ic = MAPS[mapIdx].indoor ? 'tod_indoor' : light.day > .5 ? 'tod_day' : light.day > .05 ? 'tod_dusk' : 'tod_night', clock = String(Math.floor(tod)).padStart(2, '0') + ':' + String(Math.floor(tod % 1 * 60)).padStart(2, '0');
   if (clockEl.textContent !== clock) clockEl.textContent = clock;
+  if (clockIc.dataset.k !== ic) { clockIc.dataset.k = ic; clockIc.className = 'bi ' + ic; clockIc.innerHTML = giSvg(ic); } // sun, sunset, moon (or a lamp indoors)
 }
-const clockEl = document.getElementById('clock');
+const clockEl = document.getElementById('clockT'), clockIc = document.getElementById('clockIc');
 let nightVision = false, toastMsg = '', toastT = 0;
 function toast(m) { notify({ kind: 'info', title: m, dur: 1.8, key: 'toast:' + m }); }
 const NOISE = Array.from({ length: 4 }, () => { // a few pre-made static frames

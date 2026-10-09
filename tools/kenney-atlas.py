@@ -4,17 +4,19 @@
 import zipfile, io
 from PIL import Image
 CELL, COLS = 128, 8
-FX = 'kenney/kenney_particle-pack.zip'; FOL = 'kenney/kenney_foliage-sprites.zip'
+FX = 'kenney/kenney_particle-pack.zip'; FOL = 'kenney/kenney_foliage-sprites.zip'; LM = 'kenney/kenney_light-masks-1.0.zip'
 NAMES = [
   ('smoke_04', FX), ('smoke_05', FX), ('smoke_07', FX), ('smoke_08', FX),
   ('fire_01', FX), ('fire_02', FX), ('flame_01', FX), ('flame_02', FX), ('flame_03', FX), ('flame_04', FX),
   ('scorch_01', FX), ('scorch_02', FX), ('scorch_03', FX), ('dirt_01', FX), ('dirt_02', FX), ('dirt_03', FX),
   ('muzzle_01', FX), ('muzzle_02', FX), ('muzzle_03', FX), ('star_06', FX), ('star_08', FX), ('flare_01', FX), ('circle_05', FX),
-] + [('sprite_%04d' % n, FOL) for n in list(range(81, 90)) + list(range(96, 102))]
-zips = {p: zipfile.ZipFile(p) for p in (FX, FOL)}
+] + [('sprite_%04d' % n, FOL) for n in list(range(81, 90)) + list(range(96, 102))] + [
+  ('cone_e_noise', LM), ('circle_a_noise', LM), ('window_e_noise', LM), ('water_caustics_c', LM), ('water_caustics_d', LM),
+]
+zips = {p: zipfile.ZipFile(p) for p in (FX, FOL, LM)}
 def find(z, name):
   for n in z.namelist():
-    if n.endswith('/' + name + '.png') and ('Transparent' in n or 'Shaded' in n) and 'Rotated' not in n: return n
+    if n.endswith('/' + name + '.png') and ('Transparent' in n or 'Shaded' in n) and 'Rotated' not in n: return n # (the light masks' Transparent set: white, the shape in the alpha)
   raise SystemExit('missing ' + name)
 rows = (len(NAMES) + COLS - 1) // COLS
 atlas = Image.new('LA', (COLS * CELL, rows * CELL), (0, 0))

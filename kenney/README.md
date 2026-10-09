@@ -6,10 +6,16 @@ Kenney's assets are CC0, so they can ship with the game without credit (the game
 
 This folder is a source library, not part of the game. Netlify deletes it before publishing (`tools/bundle.mjs`), so whole packs never go up with the site. What the game uses is copied out of here:
 
-- **Sprites** go into one atlas, `sprites/kenney.png`, so they're a single request. `tools/kenney-atlas.py` builds it from the zips here (run `python3 tools/kenney-atlas.py` from the repo root; it needs Pillow). To use another sprite, add it to `NAMES` there and to `KSPR_NAMES` in `js/03e-sprites.js`, in the same order.
+- **Sprites and light masks** go into one atlas, `sprites/kenney.png`, so they're a single request. `tools/kenney-atlas.py` builds it from the zips here (run `python3 tools/kenney-atlas.py` from the repo root; it needs Pillow). To use another sprite, add it to `NAMES` there and to `KSPR_NAMES` in `js/03e-sprites.js`, in the same order.
+- **Icons** for menus, the shop and the lobby are written into `js/03f-kenney-icons.js` as path data by `tools/kenney-icons.py` (add the name to `UI` or `BOARD` there and run it). Skill tree icons come from game-icons.net instead.
 - **Audio** goes into `sounds/`, listed in `sounds/manifest.json`.
 
-In use now: from the Particle Pack, smoke, fire, flame, scorch, dirt, muzzle flash, star and flare; from Foliage Sprites, the leaves, the low plants seen from above and the scattered petals.
+In use now:
+- Particle Pack: smoke, fire, flame, scorch, dirt, muzzle flash, star and flare.
+- Foliage Sprites: the leaves, the low plants seen from above and the scattered petals.
+- Light Masks: a flashlight cone, a lamp's pool, window panes and water caustics.
+- Game Icons: multiplayer, star, basket, trophy, gear, wrench, lock and checkmark.
+- Board Game Icons: the heart and the crown.
 
 ## Adding packs on GitHub
 

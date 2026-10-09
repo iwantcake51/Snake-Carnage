@@ -63,7 +63,7 @@ function updateLeafFall(dt) {
     p.vz = Math.max(-22 - p.s * 3, p.vz - 70 * dt); p.z += p.vz * dt; p.rot += p.vr * dt; // light: they drift down slowly, swinging side to side
     p.x += (p.vx + Math.sin(T * 3.4 + p.ph) * 16) * dt; p.y += (p.vy + Math.cos(T * 2.7 + p.ph) * 6) * dt;
     if (p.z <= 0) { // landed: it stays on the ground
-      if (!solid(p.x, p.y) && !(typeof inAnyWater === 'function' && inAnyWater(p.x, p.y))) { bctx.save(); bctx.globalAlpha = .9; if (!kDraw(bctx, K_LEAF[p.lf], p.c, p.x, p.y, p.s * 2.7, p.s * 2.7, p.rot, 16)) { bctx.translate(p.x, p.y); bctx.rotate(p.rot); bctx.fillStyle = p.c; bctx.beginPath(); bctx.ellipse(0, 0, p.s, p.s * .55, 0, 0, TAU); bctx.fill(); } bctx.restore(); }
+      if (!solid(p.x, p.y) && !inCrater(p.x, p.y) && !(typeof inAnyWater === 'function' && inAnyWater(p.x, p.y))) { bctx.save(); bctx.globalAlpha = .9; if (!kDraw(bctx, K_LEAF[p.lf], p.c, p.x, p.y, p.s * 2.7, p.s * 2.7, p.rot, 16)) { bctx.translate(p.x, p.y); bctx.rotate(p.rot); bctx.fillStyle = p.c; bctx.beginPath(); bctx.ellipse(0, 0, p.s, p.s * .55, 0, 0, TAU); bctx.fill(); } bctx.restore(); }
       leafFall[i] = leafFall[leafFall.length - 1]; leafFall.pop();
     }
   }

@@ -2882,3 +2882,17 @@ svg.gi{width:1em;height:1em;display:inline-block;vertical-align:-.14em;flex:none
 #hudbar #menuBtn svg.gi{width:16px;height:16px}
 .ni svg.gi{width:1.1em;height:1.1em}
 .uic svg.gi{width:20px;height:20px}
+/* Kenney icons (03f-kenney-icons): filled shapes in the text color */
+svg.ki{display:inline-block;width:1em;height:1em;vertical-align:-.14em;flex:none}
+.mm-l svg.mm-ic{width:18px;height:18px;margin-right:12px;vertical-align:-3px;opacity:.55;transition:opacity .2s ease,color .2s ease}
+.mm-it:hover svg.mm-ic,.mm-it:focus-visible svg.mm-ic{opacity:1;color:var(--acc)}
+svg.mm-qi{width:12px;height:12px;margin-right:5px;vertical-align:-2px}
+.sc.locked .lk svg.ki{width:13px;height:13px}
+.mplives svg.ki{width:.9em;height:.9em;margin-right:1px;vertical-align:-.1em}
+svg.ki.rdy{width:.9em;height:.9em;margin-left:3px}
+#hudbar #clock{display:inline-flex;align-items:center;gap:6px}
+#hudbar #clock .bi{width:15px;height:15px}#hudbar #clock .bi svg.gi{width:15px;height:15px}
+#hudbar #clock .tod_day{color:#ffcf33}#hudbar #clock .tod_dusk{color:#ff8a3d}#hudbar #clock .tod_night{color:#c9d4ff}#hudbar #clock .tod_indoor{color:#ffe29a}
+.sic svg.gi{width:16px;height:16px;vertical-align:-3px}
+.szn.spring .sic{color:#8fd24f}.szn.summer .sic{color:#ffcf33}.szn.autumn .sic{color:#e6923a}.szn.winter .sic{color:#bfe3ff}
+.stamp.win svg.ki{width:1.05em;height:1.05em;vertical-align:-.18em;margin-right:2px}

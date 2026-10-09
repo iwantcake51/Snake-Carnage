@@ -5,10 +5,10 @@
    ========================================================= */
 const SEASON_MAPS = new Set(['Open Field', 'Meadow', 'Town', 'Maze', 'Farm', 'Park', 'Pool']);
 const SEASONS = {
-  spring: { name: 'Spring', icon: '🌱', leaves: ['#7cc443', '#8fd24f', '#69b236', '#a6df63'], full: .8, blossom: .35, bark: '#5d4532', blades: ['#86c840', '#97d64e'] },
-  summer: { name: 'Summer', icon: '☀️', leaves: ['#3f8a2a', '#4c9a30', '#357a24', '#5aa838'], full: 1, blossom: 0, bark: '#56402d', blades: ['#5f9e2c', '#6fae34'] },
-  autumn: { name: 'Autumn', icon: '🍂', leaves: ['#d9822b', '#c4512a', '#e6b13a', '#9c5a2a', '#b8352a', '#d9a441'], full: .6, blossom: 0, bark: '#4f3a2a', blades: ['#b8953a', '#a8823a', '#c4a24c'] },
-  winter: { name: 'Winter', icon: '❄️', leaves: ['#7a5a3a', '#8a6a44'], full: 0, blossom: 0, bark: '#4a3e36', blades: ['#cfc6ac', '#bdb59a'] },
+  spring: { name: 'Spring', icon: 'szn_spring', leaves: ['#7cc443', '#8fd24f', '#69b236', '#a6df63'], full: .8, blossom: .35, bark: '#5d4532', blades: ['#86c840', '#97d64e'] },
+  summer: { name: 'Summer', icon: 'szn_summer', leaves: ['#3f8a2a', '#4c9a30', '#357a24', '#5aa838'], full: 1, blossom: 0, bark: '#56402d', blades: ['#5f9e2c', '#6fae34'] },
+  autumn: { name: 'Autumn', icon: 'szn_autumn', leaves: ['#d9822b', '#c4512a', '#e6b13a', '#9c5a2a', '#b8352a', '#d9a441'], full: .6, blossom: 0, bark: '#4f3a2a', blades: ['#b8953a', '#a8823a', '#c4a24c'] },
+  winter: { name: 'Winter', icon: 'szn_winter', leaves: ['#7a5a3a', '#8a6a44'], full: 0, blossom: 0, bark: '#4a3e36', blades: ['#cfc6ac', '#bdb59a'] },
 };
 let season = null; // { id, late, name } for this run; null indoors / in space / in menus
 function pickSeason(m) {

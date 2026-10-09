@@ -97,7 +97,15 @@ function drawWater(x, o, t) {
     }
   }
   if (o.wb) for (const g of o.wb.rings) { x.strokeStyle = `rgba(255,220,220,${(.5 * (1 - g.t / .7)).toFixed(3)})`; x.lineWidth = 1; x.beginPath(); x.arc(g.x, g.y, 1.5 + g.t * 14, 0, TAU); x.stroke(); }
-  // caustics: two crossing sets of wobbling lines drifting slowly
+  // caustics: two crossing sets of wobbling lines drifting slowly (Kenney's caustic textures, drifting against each other, once they're in)
+  const cp = KSPR.ok && kPattern(x, 'caustics_1', '#bef0ff');
+  if (cp) {
+    const bk = tint ? 1 - .85 * Math.min(1, tint.a / .6) : 1, k = 96 / KSPR_CELL;
+    for (let set = 0; set < 2; set++) { const p = set ? kPattern(x, 'caustics_2', '#ffffff') : cp, dir = set ? -1 : 1, sc = k * (set ? 1.35 : 1);
+      p.setTransform(new DOMMatrix().translate(cx + t * 5 * dir + Math.sin(t * .4 + set) * 6, cy + t * 3.5 + Math.cos(t * .33) * 5 * dir).rotate(set ? 25 : 0).scale(sc, sc));
+      x.globalAlpha = (set ? .1 : .16) * bk; x.fillStyle = p; x.fillRect(cx - hw, cy - hh, hw * 2, hh * 2); }
+    x.globalAlpha = 1;
+  } else {
   x.lineWidth = 1.4; x.lineCap = 'round';
   const step = Math.max(4, M / 11), gap = Math.max(9, Math.min(M / 5, 30));
   for (let set = 0; set < 2; set++) {
@@ -113,6 +121,7 @@ function drawWater(x, o, t) {
       }
     }
     x.stroke();
+  }
   }
   const pt = (seed, spread) => S.round ? (() => { const a = wHash(seed) * TAU, d = Math.sqrt(wHash(seed + 1)) * hw * spread; return [cx + Math.cos(a) * d, cy + Math.sin(a) * d]; })()
                                        : [cx + (wHash(seed) * 2 - 1) * hw * spread, cy + (wHash(seed + 1) * 2 - 1) * hh * spread];

@@ -302,7 +302,7 @@ function challengeRows() { // compact list used by the pause menu
   const m = MAPS[mapIdx].name, done = PROG.chDone[m] || {}, best = PROG.chBest[m] || {};
   return activeChallenges(m).map(ch => {
     const v = done[ch.id] ? ch.n : Math.max(best[ch.id] || 0, Math.min(chValue(ch), ch.n));
-    return `<div class="pcr ${done[ch.id] ? 'done' : ''}"><span class="ck">${done[ch.id] ? '✔' : ''}</span><span class="t"><em class="tier ${ch.tier}">${TIERS[ch.tier].label}</em>${teamTag(ch)}<b class="cn2">${ch.name}</b> ${ch.t}</span><span class="v">${v}${chUnit(ch)}/${ch.n}${chUnit(ch)}<small>${rewardText(ch, true)}</small></span><i style="width:${(v / ch.n * 100).toFixed(0)}%"></i></div>`;
+    return `<div class="pcr ${done[ch.id] ? 'done' : ''}"><span class="ck">${done[ch.id] ? kiSvg('checkmark') : ''}</span><span class="t"><em class="tier ${ch.tier}">${TIERS[ch.tier].label}</em>${teamTag(ch)}<b class="cn2">${ch.name}</b> ${ch.t}</span><span class="v">${v}${chUnit(ch)}/${ch.n}${chUnit(ch)}<small>${rewardText(ch, true)}</small></span><i style="width:${(v / ch.n * 100).toFixed(0)}%"></i></div>`;
   }).join('') + `<p class="rot">New challenges in <b data-rot>${fmtClock(rotLeft())}</b></p>`;
 }
 function challengeHud(rebuild, refreshed) { // live checklist in the bottom-left corner while playing
@@ -318,7 +318,7 @@ function challengeHud(rebuild, refreshed) { // live checklist in the bottom-left
     const v = done[ch.id] ? ch.n : Math.min(chValue(ch), ch.n), was = row.classList.contains('done'), vEl = row.querySelector('.v');
     row.classList.toggle('done', !!done[ch.id]);
     if (done[ch.id] && !was && !rebuild) { row.classList.remove('flash'); void row.offsetWidth; row.classList.add('flash'); }
-    row.querySelector('.ck').textContent = done[ch.id] ? '✔' : '';
+    if (!!done[ch.id] !== was || rebuild) row.querySelector('.ck').innerHTML = done[ch.id] ? kiSvg('checkmark') : ''; // only when it changes (this runs every update)
     const txt = `${v}${chUnit(ch)}/${ch.n}${chUnit(ch)}`;
     if (vEl.textContent !== txt) { if (vEl.textContent && !rebuild && !['dist', 'survive', 'comboTime'].includes(ch.k)) { vEl.classList.remove('tick'); void vEl.offsetWidth; vEl.classList.add('tick'); } vEl.textContent = txt; }
     row.querySelector('i').style.width = (v / ch.n * 100).toFixed(0) + '%';
@@ -331,7 +331,7 @@ function updateRotClocks() { // every visible "new challenges in" timer
 function challengePopup(ch, r) {
   const box = document.getElementById('rewards'), el = document.createElement('div');
   el.className = 'rw ch';
-  el.innerHTML = `<span>✔ ${chTeam(ch) ? (netMode() === 'coop' ? 'Team: ' : 'Shared: ') : ''}${ch.name}</span><span class="c">${rewardText(ch)}</span>`;
+  el.innerHTML = `<span>${kiSvg('checkmark', 'ckn')} ${chTeam(ch) ? (netMode() === 'coop' ? 'Team: ' : 'Shared: ') : ''}${ch.name}</span><span class="c">${rewardText(ch)}</span>`;
   box.prepend(el); Sfx.ui('confirm');
   setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 400); }, 4500);
 }

@@ -35,6 +35,7 @@
 const AIR = { queue: [], warned: false, nextT: 0, flash: 0, sky: 0, rumble: 0, d0: 0, muf: 0, mufH: 0 }; // flash: the white-out on screen; sky: how much a blast is lighting up the night
 const AIR_START = 60, AIR_R = 44, AIR_RAID_START = 6; // seconds into the run before the first strike (Air raid: almost straight away); blast radius
 const STRAFE_V = 560, STRAFE_HW = 13, STRAFE_LEN = 820; // how fast the rounds walk down the lane, its half width and length
+let scorched = []; // craters burnt into the ground this run: [x, y, r]. Nothing grows or settles in them again
 let strikes = [], booms = [], boomBits = [], corpses = [], fallenHats = [], jets = [], shocks = [], fires = [], soots = [], hazes = [], later = [], clods = [], strafes = [], tracers = [];
 const airMap = () => { const m = MAPS[mapIdx]; return !!m && !m.indoor && !m.space; }; // outdoors, on Earth
 const airOn = () => airMap() && !MOD.noAir;
@@ -43,7 +44,7 @@ const airOn = () => airMap() && !MOD.noAir;
 const LOCK = () => !!MOD.lockOn, jetV = () => LOCK() ? 2200 : 1150, strafeV = () => LOCK() ? 980 : STRAFE_V;
 const snakeOfPid = id => !NETM.run || !id || id === NETM.me ? snake : (NS.rs && NS.rs.get(id)) || null; // the snake a tracking marker follows, on any screen
 function skOf(s, id) { if (s === snake) return sk(id); const o = UPG_OVR; UPG_OVR = s.upgLv || {}; try { return sk(id); } finally { UPG_OVR = o; } } // another player's rank (the host deciding for them) // outdoors on Earth, always (the Clear skies modifier is the way to switch them off)
-function airReset() { tailBits = []; strikes = []; booms = []; boomBits = []; corpses = []; fallenHats = []; jets = []; shocks = []; fires = []; soots = []; hazes = []; later = []; clods = []; strafes = []; tracers = []; AIR.crowdTalk = null; AIR.queue = []; NM.list = []; NM.n = 0; AIR.warned = false; AIR.nextT = 0; AIR.flash = 0; AIR.sky = 0; AIR.rumble = 0; AIR.d0 = 0; AIR.muf = 0; AIR.mufH = 0; if (Sfx.lp) Sfx.daze(0); }
+function airReset() { scorched = []; tailBits = []; strikes = []; booms = []; boomBits = []; corpses = []; fallenHats = []; jets = []; shocks = []; fires = []; soots = []; hazes = []; later = []; clods = []; strafes = []; tracers = []; AIR.crowdTalk = null; AIR.queue = []; NM.list = []; NM.n = 0; AIR.warned = false; AIR.nextT = 0; AIR.flash = 0; AIR.sky = 0; AIR.rumble = 0; AIR.d0 = 0; AIR.muf = 0; AIR.mufH = 0; if (Sfx.lp) Sfx.daze(0); }
 /* reeling from a blast: full strength for the first second, then it fades over the next 1.2 */
 const boomSlow = s => s && s.boomT > 0 ? (s.boomK || 0) * clamp(s.boomT / 1.2, 0, 1) : 0;
 const boomDaze = () => snake && snake.alive ? boomSlow(snake) : 0;
@@ -569,8 +570,18 @@ function scorchSprite(v) {
   for (let k = 0; k < 40; k++) { const a = r() * TAU, d = R * (.35 + .6 * r()); x.fillStyle = `rgba(10,8,7,${(.3 + .5 * r()).toFixed(2)})`; x.beginPath(); x.arc(Math.cos(a) * d, Math.sin(a) * d, .6 + 1.8 * r(), 0, TAU); x.fill(); }
   return SCORCH[v] = c;
 }
+const inCrater = (x, y) => { for (const c of scorched) if ((x - c[0]) ** 2 + (y - c[1]) ** 2 < c[2] * c[2]) return true; return false; };
+function burnGrass(x, y, r) { // the crater and the ground round it are burnt off: grass in the middle is gone, a ring of it is left as black stubble, and none of it comes back
+  const R = r * 1.25; scorched.push([x, y, R]);
+  if (grass.length) { let hit = false; grass = grass.filter(g => { const d = Math.hypot(g.x - x, g.y - y); if (d > R) return true; hit = true; if (d < r * .8) return false; g.c = Math.random() < .5 ? '#1d1916' : '#2a231d'; g.h *= .45; return true; }); if (hit) grass.byCol = null; }
+  for (let j = Math.max(0, (y - R) / GM | 0); j <= Math.min(GMH - 1, (y + R) / GM | 0); j++) for (let i = Math.max(0, (x - R) / GM | 0); i <= Math.min(GMW - 1, (x + R) / GM | 0); i++)
+    if (((i + .5) * GM - x) ** 2 + ((j + .5) * GM - y) ** 2 < R * R) grassMask[j * GMW + i] = 0; // not grass any more: no leaves settle, no plants, no green kicked up
+  const g = bctx.createRadialGradient(x, y, r * .3, x, y, R * 1.1); g.addColorStop(0, 'rgba(18,13,10,.8)'); g.addColorStop(.6, 'rgba(22,16,12,.55)'); g.addColorStop(1, 'rgba(22,16,12,0)'); // char: the flowers, plants and leaves baked into the ground go black
+  bctx.fillStyle = g; bctx.beginPath(); bctx.arc(x, y, R * 1.1, 0, TAU); bctx.fill();
+}
 function scorch(x, y, r) {
   const s = r * 2.6, a = rand(0, TAU), soil = soilCol(x, y);
+  burnGrass(x, y, r);
   bctx.save(); // the hole it dug: bare soil, darker toward the middle, ringed with the dirt it threw out
   for (let k = 0; k < 70; k++) { const b = rand(0, TAU), d = r * (.85 + Math.pow(Math.random(), 1.6) * 1.1), q = rand(.8, 3.2); bctx.globalAlpha = rand(.35, .8); bctx.fillStyle = shade(soil, rand(-.35, .1)); bctx.beginPath(); bctx.ellipse(x + Math.cos(b) * d, y + Math.sin(b) * d, q * rand(1, 1.8), q, b, 0, TAU); bctx.fill(); }
   bctx.globalAlpha = .95; bctx.fillStyle = shade(soil, -.25); bctx.beginPath();

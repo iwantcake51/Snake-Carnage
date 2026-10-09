@@ -125,7 +125,7 @@ function netDockRender() {
   if (!el) { el = document.createElement('div'); el.id = 'mpDock'; stage.appendChild(el); }
   const me = netMe(), present = NETM.players.filter(p => p.conn !== false), nR = present.filter(p => p.ready).length, go = NETM.host && me.ready && nR === present.length;
   el.innerHTML = `<div class="dkt"><span class="dkl">Lobby</span><span class="dkdots">${present.map(p => `<i class="rdot ${p.ready ? 'on' : ''}" title="${esc(p.name)}: ${p.ready ? 'ready' : 'not ready'}"></i>`).join('')}</span><span class="dkn">${nR}/${present.length}</span></div>
-    <div class="dkb"><div class="ppl">${netRowsHtml(NETM.players, true)}</div><div class="dkf"><button class="ghost mpsm ${me.ready ? 'on' : ''}" id="dkReady">${me.ready ? 'Ready ✓' : 'Ready up'}</button>${go ? '<button class="play mpsm" id="dkStart"><span>Start</span></button>' : ''}</div></div><div class="mptoast"></div>`;
+    <div class="dkb"><div class="ppl">${netRowsHtml(NETM.players, true)}</div><div class="dkf"><button class="ghost mpsm ${me.ready ? 'on' : ''}" id="dkReady">${me.ready ? `Ready ${kiSvg('checkmark', 'rdy')}` : 'Ready up'}</button>${go ? '<button class="play mpsm" id="dkStart"><span>Start</span></button>' : ''}</div></div><div class="mptoast"></div>`;
   el.querySelector('#dkReady').onclick = () => netSetReady(!me.ready);
   const st = el.querySelector('#dkStart'); if (st) st.onclick = () => netGo();
 }
@@ -251,7 +251,7 @@ function netDrawTags(x) { // screen space: names over teammates, and an arrow at
   x.restore();
 }
 /* ---- the score panel: the team (co-op), the standings (free for all) or every team (Teams), with lives and the round clock ---- */
-const netHearts = (n, title) => `<span class="mplives" title="${title}">${n >= 999 ? '♥ ∞' : '♥'.repeat(Math.min(12, n)) + (n > 12 ? '+' : '')}${n ? '' : '<i>no lives left</i>'}</span>`;
+const netHearts = (n, title) => `<span class="mplives" title="${title}">${n >= 999 ? kiSvg('suitHearts') + ' ∞' : kiSvg('suitHearts').repeat(Math.min(12, n)) + (n > 12 ? '+' : '')}${n ? '' : '<i>no lives left</i>'}</span>`;
 function netHud() {
   let el = document.getElementById('mpHud');
   if (!NETM.run) { if (el) el.remove(); return; }
@@ -340,10 +340,10 @@ function netResultsRefresh(aborted) {
   const KEYS = ['score', 'killed', 'humans', 'animals', 'best', 'goldens', 'xp', 'chips'], hi = {}; for (const k of KEYS) hi[k] = Math.max(0, ...rows.map(r => r[k] || 0)); // the best in each column lights up
   const col = (k, v, r, cls = '') => `<td class="${cls} ${r && k && hi[k] > 0 && (r[k] || 0) === hi[k] && rows.length > 1 ? 'top' : ''}">${v ?? 0}</td>`; // the best in each column is set in bold
   const cells = (r, pl) => { const q = pl ? r : null; return `${col('score', r.score, q, 's')}${col('killed', r.killed, q)}${col('humans', r.humans, q)}${col('animals', r.animals, q)}${col('best', (r.best || 0) + '×', q)}${col('goldens', r.goldens, q)}${col('', r.deaths)}${col('xp', r.xp, q)}${col('chips', r.chips, q)}`; };
-  const tags = r => mode === 'ffa' && b.winner === r.id ? ' <em class="stamp win">Winner</em>' : '';
+  const tags = r => mode === 'ffa' && b.winner === r.id ? ` <em class="stamp win">${kiSvg('crownA')} Winner</em>` : '';
   const prow = (r, i) => { const lp = live.get(r.id); return `<tr class="${r.id === NETM.me ? 'me' : ''} ${lp ? '' : 'gone'}" style="--pc:${r.color}"><td class="pn">${i !== undefined ? `<em class="rk">${String(i + 1).padStart(2, '0')}</em>` : ''}<i class="mpdot" style="background:${r.color}"></i><span class="nm">${esc(r.name)}</span>${lp ? `<i class="rdot ${lp.ready ? 'on' : ''}" title="${lp.ready ? 'Ready' : 'Not ready'}"></i>` : ''}${r.id === NETM.me ? '<em class="stamp you">You</em>' : ''}${tags(r)}</td>${cells(r, true)}${host ? `<td>${!r.host && lp ? `<button class="ghost mpsm" data-kick="${esc(r.id)}">Kick</button>` : ''}</td>` : ''}</tr>`; };
   const T = mode === 'teams' ? [...(b.teams || [])].sort((p, q) => q.score - p.score) : [];
-  const body = mode === 'teams' ? T.map(t => `<tr class="team tg" style="--tc:${t.color}"><td class="pn"><i class="mpsq" style="background:${t.color}"></i>${esc(t.name)} team${b.winner === t.i ? ' <em class="stamp win">Winner</em>' : ''}</td>${cells(t)}${host ? '<td></td>' : ''}</tr>` + rows.filter(r => r.team === t.i).map(r => prow(r)).join('')).join('')
+  const body = mode === 'teams' ? T.map(t => `<tr class="team tg" style="--tc:${t.color}"><td class="pn"><i class="mpsq" style="background:${t.color}"></i>${esc(t.name)} team${b.winner === t.i ? ` <em class="stamp win">${kiSvg('crownA')} Winner</em>` : ''}</td>${cells(t)}${host ? '<td></td>' : ''}</tr>` + rows.filter(r => r.team === t.i).map(r => prow(r)).join('')).join('')
     : mode === 'ffa' ? rows.map(prow).join('')
     : rows.map(r => prow(r)).join('') + `<tr class="team"><td class="pn">Team total</td>${cells(b.team)}${host ? '<td></td>' : ''}</tr>`;
   const winT = mode === 'teams' && b.winner !== null && b.winner !== undefined ? (b.teams || []).find(t => t.i === b.winner) : null, winP = mode === 'ffa' && b.winner ? rows.find(r => r.id === b.winner) : null;
@@ -365,8 +365,8 @@ function netResultsRefresh(aborted) {
       ${body}</tbody></table></div>
     <div class="mpmine"><span>You</span>${place ? `<span>${place}</span>` : ''}<span>+${run.xpGained || 0} XP</span><span>+${run.coinsGained || 0} chips</span>${run.chList && run.chList.length ? `<span>${run.chList.length} challenge${run.chList.length > 1 ? 's' : ''}</span>` : ''}</div>
     <div class="mpfoot">${aborted ? '<button class="play" id="mpLobby"><span>To the lobby</span></button>' : host
-      ? `<button class="ghost" id="mpLobby">Return to lobby</button><button class="ghost" id="mpMap2">Change map</button><button class="ghost" id="mpMods2">Change modifiers</button><button class="ghost mprdy ${me.ready ? 'on' : ''}" id="mpReady2"><span>${me.ready ? 'Ready ✓' : 'Ready'}</span></button><button class="play" id="mpAgain" ${allReady ? '' : 'disabled'}><span>${allReady ? 'Play again' : `${notReady} not ready`}</span></button>`
-      : `<button class="ghost" id="mpLeave2">Leave lobby</button><button class="play ${me.ready ? 'on' : ''}" id="mpReady2"><span>${me.ready ? 'Ready ✓' : 'Ready'}</span></button>`}</div>`;
+      ? `<button class="ghost" id="mpLobby">Return to lobby</button><button class="ghost" id="mpMap2">Change map</button><button class="ghost" id="mpMods2">Change modifiers</button><button class="ghost mprdy ${me.ready ? 'on' : ''}" id="mpReady2"><span>${me.ready ? `Ready ${kiSvg('checkmark', 'rdy')}` : 'Ready'}</span></button><button class="play" id="mpAgain" ${allReady ? '' : 'disabled'}><span>${allReady ? 'Play again' : `${notReady} not ready`}</span></button>`
+      : `<button class="ghost" id="mpLeave2">Leave lobby</button><button class="play ${me.ready ? 'on' : ''}" id="mpReady2"><span>${me.ready ? `Ready ${kiSvg('checkmark', 'rdy')}` : 'Ready'}</span></button>`}</div>`;
   const $ = id => document.getElementById(id);
   const toLobby = () => { if (NETM.host) { NETM.phase = 'lobby'; netLobbyChanged(); } stage.classList.remove('paused'); state = 'menu'; showMenu(); };
   if ($('mpLobby')) $('mpLobby').onclick = toLobby;
