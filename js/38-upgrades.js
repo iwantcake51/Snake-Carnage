@@ -45,7 +45,7 @@ const SKILL_TREE = [
   { id: 'lust', br: 'pred', major: 1, name: 'Bloodlust', icon: 'lust', cost: [2], lvl: 14, req: [['jaws', 2]], x: 1172, y: 520,
     desc: 'Each kill makes you 15% faster for 1.5 s.', fx: [['Speed after a kill', g => (SKV.lust(g) - 1) * 100, pct], ['For', g => g('lust') ? 1.5 : 0, secs]] },
   // ---- Survival: senses, stealth and recovery (nothing here kills for you) ----
-  { id: 'scent', br: 'surv', major: 1, abil: 1, name: '3rd Eye', icon: 'scent', cost: [1], lvl: 5, req: [['skull', 1]], x: 485, y: 640,
+  { id: 'scent', br: 'surv', major: 1, abil: 1, name: '3rd Eye', icon: 'scent', cost: [1], lvl: 5, req: [['ram', 1]], x: 485, y: 640,
     desc: 'Shows trails to safety and to food. Focus slows time for a moment (in multiplayer it reveals people near you).', fx: [['Focus', g => SKV.focusDur(g), secs], ['Focus cooldown', g => SKV.focusCd(g), secs]] },
   { id: 'keen', br: 'surv', name: 'Keen Eye', icon: 'keen', cost: [1, 1, 1], req: [['scent', 1]], x: 430, y: 500,
     desc: 'The 3rd Eye sees 20% further and Focus lasts longer, per rank.', fx: [['Sense range', g => SKV.eyeRange(g) * 100 - 100, pct], ['Focus', g => SKV.focusDur(g), secs]] },
@@ -53,7 +53,7 @@ const SKILL_TREE = [
     desc: 'The 3rd Eye also finds golden targets and shows who can see you.', fx: [['Focus cooldown', g => SKV.focusCd(g), secs]] },
   { id: 'crowd', br: 'surv', major: 1, name: 'Crowd Sense', icon: 'crowd', cost: [2], lvl: 21, req: [['gold', 1]], x: 292, y: 328,
     desc: 'The 3rd Eye leads you to big crowds.', fx: [['Focus cooldown', g => SKV.focusCd(g), secs]] },
-  { id: 'camo', br: 'surv', major: 1, abil: 1, name: 'Camouflage', icon: 'camo', cost: [1], lvl: 8, req: [['skull', 1]], x: 640, y: 625,
+  { id: 'camo', br: 'surv', major: 1, abil: 1, name: 'Camouflage', icon: 'camo', cost: [1], lvl: 8, req: [['ram', 1]], x: 640, y: 625,
     desc: 'Turn nearly invisible. Hidden kills are silent and keep you hidden 1 s longer.', fx: [['Hidden for', g => SKV.camoDur(g), secs], ['Cooldown', g => SKV.camoCd(g), secs]] },
   { id: 'cover', br: 'surv', name: 'Deep Cover', icon: 'cover', cost: [1, 1, 1, 1], req: [['camo', 1]], x: 640, y: 452,
     desc: 'Hide longer, recharge faster and move faster while hidden, per rank.', fx: [['Hidden for', g => SKV.camoDur(g), secs], ['Cooldown', g => SKV.camoCd(g), secs], ['Speed while hidden', g => SKV.camoSpeed(g) * 100 - 100, pct]] },
@@ -65,16 +65,16 @@ const SKILL_TREE = [
     desc: 'A longer, wider, stronger pull that recharges faster, per rank.', fx: [['Pull', g => SKV.hoovDur(g), secs], ['Strength', g => SKV.hoovPull(g), xk], ['Cone', g => SKV.hoovCone(g), n => Math.round(n) + '°'], ['Cooldown', g => SKV.hoovCd(g), secs]] },
   { id: 'vortex', br: 'pred', major: 1, name: 'Vortex', icon: 'vortex', cost: [2], lvl: 21, req: [['breath', 2]], x: 1290, y: 252,
     desc: 'A huge pull that drags in even people running away.', fx: [['Pull', g => SKV.hoovDur(g), secs], ['Strength', g => SKV.hoovPull(g), xk], ['Cone', g => SKV.hoovCone(g), n => Math.round(n) + '°'], ['Cooldown', g => SKV.hoovCd(g), secs]] },
-  { id: 'ram', br: 'surv', major: 1, name: 'Battering Ram', icon: 'ram', cost: [1, 1, 2], lvl: [4, 10, 16], req: [['skull', 1]], x: 400, y: 735,
+  { id: 'ram', br: 'surv', major: 1, name: 'Battering Ram', icon: 'ram', cost: [1, 1, 2], lvl: [2, 10, 16], req: [], x: 600, y: 800,
     ranks: ['Small things: chairs, crates, fences, glass', 'Furniture, bushes and small trees', 'Cars, rocks and cracked walls (leaves you dazed)'],
-    desc: 'Smash through things instead of crashing. Each rank breaks heavier things.', fx: [['Smashes', g => SKV.ramTier(g), n => ['Nothing', 'Small things', 'Furniture', 'Cars and walls'][n]]] },
-  { id: 'jam', br: 'surv', major: 1, name: 'Bad Intel', icon: 'jam', cost: [2], lvl: 16, req: [['skull', 2]], x: 770, y: 772,
+    desc: 'Opens the Survival branch. Smash through things instead of crashing. Each rank breaks heavier things.', fx: [['Smashes', g => SKV.ramTier(g), n => ['Nothing', 'Small things', 'Furniture', 'Cars and walls'][n]]] },
+  { id: 'jam', br: 'surv', major: 1, name: 'Bad Intel', icon: 'jam', cost: [2], lvl: 16, req: [['ram', 2]], x: 770, y: 772,
     desc: 'Air strikes on you have a 50% chance to be called off.', fx: [['Strikes on you called off', g => g('jam') ? 50 : 0, n => n + '%']] },
-  { id: 'skull', br: 'surv', name: 'Battle Hardened', icon: 'skull', cost: [1, 1, 1, 1], req: [], x: 600, y: 800,
-    desc: 'Opens the Survival branch. Every daze, concussion and slowdown is 20% weaker per rank: bombs, smashes, gas. Never saves you from a direct hit.', fx: [['Dazes, concussions and slowdowns', g => (SKV.dazeCut(g) - 1) * 100, pct]] },
-  { id: 'mask', br: 'surv', major: 1, name: 'Gas Mask', icon: 'mask', cost: [1], lvl: 12, req: [['skull', 1]], x: 520, y: 912,
+  { id: 'skull', br: 'surv', name: 'Battle Hardened', icon: 'skull', cost: [1, 1, 1, 1], req: [['ram', 1]], x: 410, y: 738,
+    desc: 'Every daze, concussion and slowdown is 20% weaker per rank: bombs, smashes, gas. Never saves you from a direct hit.', fx: [['Dazes, concussions and slowdowns', g => (SKV.dazeCut(g) - 1) * 100, pct]] },
+  { id: 'mask', br: 'surv', major: 1, name: 'Gas Mask', icon: 'mask', cost: [1], lvl: 12, req: [['skull', 1]], x: 300, y: 830,
     desc: 'Gas no longer blurs, sways or drains your screen. It still slows you down.', fx: [['Gas on your screen', g => g('mask') ? 0 : 100, n => n ? 'Full' : 'None']] },
-  { id: 'gut', br: 'surv', name: 'Iron Stomach', icon: 'gut', cost: [1, 1, 1], req: [['ram', 1]], x: 232, y: 642,
+  { id: 'gut', br: 'surv', name: 'Iron Stomach', icon: 'gut', cost: [1, 1, 1], req: [['skull', 1]], x: 232, y: 642,
     desc: 'Combo lasts 10% longer per rank.', fx: [['Combo time', g => SKV.combo(g) * 100 - 100, pct]] },
   { id: 'hiss', br: 'pred', major: 1, abil: 1, name: 'Hiss', icon: 'hiss', cost: [1], lvl: 11, req: [['speed', 1]], x: 1415, y: 702,
     desc: 'A hiss that makes everyone nearby panic and scatter.', fx: [['Radius', g => SKV.hissR(g), px], ['Cooldown', g => SKV.hissCd(g), secs]] },
@@ -140,9 +140,12 @@ function treeMerge(t, off) { // tree v2: Quick Scales folded into Speed Demon's 
 if (PROG.treeV < 2) { treeMerge(PROG.tree, PROG.treeOff); PROG.treeV = 2; saveProg(); }
 let UPG_OVR = null; // co-op: while the host's AI deals with another player's snake, the ranks are that player's (their profile's tree)
 const skOwn = id => Math.min(PROG.tree[id] || 0, SKN[id] ? SKN[id].max : 0); // bought, switched on or not
-const skSpent = (t = PROG.tree) => SKILL_TREE.reduce((a, n) => { for (let r = 0; r < Math.min(t[n.id] | 0, n.max); r++) a += n.cost[r]; return a; }, 0); // tokens in the tree
+const skDepth = n => n._d ?? (n._d = n.req.length ? 1 + Math.max(...n.req.map(([id]) => skDepth(SKN[id]))) : 0); // how far out from the trunk a node sits
+const skRankCost = (n, r) => n.cost[Math.min(r, n.max - 1)] + skDepth(n) + Math.floor(r / 2) + (n.max > 1 && r === n.max - 1 ? 2 : 0) + (n.major ? 1 : 0); // what rank r+1 costs: its base, +1 for every step out from the trunk, +1 every other rank, +2 for the last (it masters the skill), and +1 on any major
+const skSpent = (t = PROG.tree, cost = skRankCost) => SKILL_TREE.reduce((a, n) => { for (let r = 0; r < Math.min(t[n.id] | 0, n.max); r++) a += cost(n, r); return a; }, 0); // tokens in the tree
 const skTokens = () => PROG.level - 1 + (PROG.tokBonus | 0) - skSpent(); // one per level past 1 (plus what the chip-bought skills were worth); can dip below 0 after an admin max-out
-if (PROG.treeV < 3) { PROG.tokBonus = (PROG.tokBonus | 0) + skSpent(); PROG.treeV = 3; saveProg(); } // tree v3 (tokens, not chips): what you bought with chips stays yours, and its tokens are added on top, so it costs you nothing
+if (PROG.treeV < 3) { PROG.tokBonus = (PROG.tokBonus | 0) + skSpent(undefined, (n, r) => n.cost[r]); PROG.treeV = 3; saveProg(); }
+if (PROG.treeV < 4) { PROG.tokBonus = (PROG.tokBonus | 0) + skSpent() - skSpent(undefined, (n, r) => n.cost[r]); PROG.treeV = 4; saveProg(); } // tree v4 (dearer ranks deeper in, every other rank and the last): what you already own is made up for, so nobody loses tokens // tree v3 (tokens, not chips): what you bought with chips stays yours, and its tokens are added on top, so it costs you nothing
 const skMe = id => { const o = UPG_OVR; UPG_OVR = null; try { return sk(id); } finally { UPG_OVR = o; } }; // your own rank, even while the host is working for another player
 const sk = id => { const n = SKN[id]; if (!n || MOD.noUpgrades || (MOD.noAbilities && n.abil)) return 0; // a node's rank as it counts right now
   const r = UPG_OVR ? UPG_OVR[id] : edTestSkills && edTesting !== null ? edTestSkills[id] : PROG.treeOff[id] ? 0 : PROG.tree[id];
@@ -187,6 +190,9 @@ const SKV = {
   windK: (g = skMe) => g('windfall') ? 2 : 1,
   interest: (g = skMe) => g('interest') ? Math.min(300, Math.round(PROG.coins * .03)) : 0,
 };
+const SK_MASTERY = .5; // a maxed passive (more than one rank) counts this much extra: the slight bonus for mastering it
+const skMastery = g => id => { const v = g(id), n = SKN[id]; return n && !n.major && n.max > 1 && v >= n.max ? v + SK_MASTERY : v; };
+for (const k of Object.keys(SKV)) { const f = SKV[k], dflt = ['xpK', 'chipK', 'streakK', 'luckyP', 'goldK', 'shopK', 'taskK', 'nearK', 'windK', 'interest'].includes(k) ? skMe : sk; SKV[k] = (g = dflt, ...a) => f(skMastery(g), ...a); }
 const shopPrice = p => p > 0 ? Math.max(1, Math.round(p * SKV.shopK())) : 0; // Haggler (free things stay free)
 function payInterest() { // Compound Interest: once per run, on the run summary
   if (run.interestPaid) return; run.interestPaid = true; const n = SKV.interest(); if (!n) return;

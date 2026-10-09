@@ -776,10 +776,17 @@ function peBreakFxWire(el) {
   el.querySelectorAll('[data-bc]').forEach(c => c.oninput = () => upd(d => { d[c.dataset.bc] = c.value; }));
   el.querySelectorAll('[data-bcol]').forEach(c => c.oninput = () => { c.classList.remove('auto'); const b = c.nextElementSibling; if (b) b.classList.remove('on'); upd(d => { d.cols = [...(d.cols || ['auto', 'auto', 'auto'])]; d.cols[+c.dataset.bcol] = c.value; }); });
   el.querySelectorAll('[data-bauto]').forEach(b => b.onclick = () => { upd(d => { d.cols = [...(d.cols || ['auto', 'auto', 'auto'])]; d.cols[+b.dataset.bauto] = 'auto'; }); peSide(); });
-  const t = el.querySelector('.pebtry'); if (t) t.onclick = () => { // the effect, played in the big preview
-    const v = peView(), fx = bfxFor(v.o) || bfxPreset("classic");
-    bfxPreview(v.c, v.o, fx, (x, o) => drawObstacle(x, o)); setTimeout(() => { if (PE.box && PE.box.isConnected) peDraw(); }, 2700);
-  };
+  const t = el.querySelector('.pebtry'); if (t) t.onclick = () => peBreakView(t); // the effect, played in a viewport that pops up right by the button (no scrolling back up to the big preview)
+}
+function peBreakView(btn) { // a small floating window that plays the break; Replay runs it again, Esc or x closes it
+  let w = document.getElementById('pebView');
+  if (!w) { w = document.createElement('div'); w.id = 'pebView'; w.innerHTML = `<div class="pbvh"><b>When it breaks</b><button class="pbvr" title="Play it again">${edSvg('play', 13)} Replay</button><button class="pbvx" title="Close (Esc)">×</button></div><canvas width="720" height="480"></canvas>`; document.body.appendChild(w);
+    w.querySelector('.pbvx').onclick = () => w.remove(); w.querySelector('.pbvr').onclick = () => play();
+    const esc = e => { if (e.key === 'Escape' && w.isConnected) { e.stopPropagation(); w.remove(); removeEventListener('keydown', esc, true); } }; addEventListener('keydown', esc, true); }
+  const r = btn.getBoundingClientRect(), W0 = 380, H0 = 290; // beside the side panel, level with the button, kept on screen
+  w.style.left = Math.max(8, Math.min(innerWidth - W0 - 8, r.left - W0 - 14 > 8 ? r.left - W0 - 14 : r.right + 14)) + 'px'; w.style.top = Math.max(8, Math.min(innerHeight - H0 - 8, r.top - H0 / 2)) + 'px';
+  const play = () => { const v = peView(), fx = bfxFor(v.o) || bfxPreset('classic'); bfxPreview(w.querySelector('canvas'), v.o, fx, (x, o) => drawObstacle(x, o)); };
+  play();
 }
 function peSideVals() { const s = (peGet().shapes || [])[PE.selShape]; if (!s) return; PE.box.querySelectorAll('[data-sk]').forEach(r => { r.value = s[r.dataset.sk] ?? 0; r.nextElementSibling.textContent = r.value; }); }
 

@@ -18,7 +18,7 @@ const PROG = Object.assign({ xp: 0, level: 1, coins: 0, owned: [], best: {}, bes
 for (const k of ['best', 'bestCombo', 'chDone', 'chBest']) PROG[k] = PROG[k] || {};
 if (PROG.chRot !== Math.floor(Date.now() / (15 * 60 * 1000))) { PROG.chRot = Math.floor(Date.now() / (15 * 60 * 1000)); PROG.chDone = {}; PROG.chBest = {}; } // stale challenge progress
 function saveProg() { try { localStorage.setItem(PROG_KEY, JSON.stringify(PROG)); } catch (e) {} }
-const xpNeed = l => Math.round(l < 5 ? 160 + 110 * Math.pow(l - 1, 1.5) : 820 + 150 * Math.pow(l - 5, 1.3)); // early levels mean something; later ones keep climbing without a wall
+const xpNeed = l => Math.round(1100 + 480 * Math.pow(l - 1, 1.2)); // slow from the start (a first game gets you to about level 5, not 11), and it keeps climbing without a wall: about 4-6x the old curve early on, 3x by level 20
 let MOD = {}, rewardMult = 1;
 let floaters = [];
 let lvlAnim = false, lastLevelBonus = 0;

@@ -319,9 +319,10 @@ function eatReward(c, amount, ang) {
   run.byType[c.type] = (run.byType[c.type] || 0) + 1; run.killed++; if (c.golden) { run.goldens++; c.def.human ? PROG.goldH = (PROG.goldH || 0) + 1 : PROG.goldA = (PROG.goldA || 0) + 1; } // lifetime golden tally
   s.chainN = T - (s.chainAt ?? -9) <= 3 ? (s.chainN || 0) + 1 : 0; s.chainAt = T; // kills within 3 s of each other chain (Hot Streak)
   const fk = (c.golden ? SKV.goldK() : 1) * SKV.streakK(undefined, s.chainN), lucky = Math.random() < SKV.luckyP(); // Golden Touch, Hot Streak, Lucky Bite
-  const kxp = Math.round((c.def.human ? 12 : c.def.score * 4) * gold * rewardMult * mb.m * ph * fk);
+  const lifeK = 1 + .6 * Math.min(1, (s.lifeT || 0) / 600), cbK = 1 + Math.min(.3, Math.max(0, combo.n - 1) * .02); // the longer you've lived, the more each kill teaches you (up to +60% at ten minutes); a big combo pays a little more XP and chips (+2% a step, up to +30%)
+  const kxp = Math.round((c.def.human ? 12 : c.def.score * 4) * gold * rewardMult * mb.m * ph * fk * lifeK * cbK);
   crEat(c, pts, kxp); statEat(c); progressEat(c);
-  gainXP(kxp, Math.max(1, Math.round(c.def.score * .6 * gold * rewardMult * mb.m * fk)) * (lucky ? 2 : 1));
+  gainXP(kxp, Math.max(1, Math.round(c.def.score * .6 * gold * rewardMult * mb.m * fk * cbK)) * (lucky ? 2 : 1));
   if (lucky) notify({ kind: 'info', icon: '◆', title: 'Lucky bite', right: 'x2 chips', dur: 1.3, key: 'lucky' });
   if (sk('lust')) s.lustT = 1.5; // Bloodlust: a rush of speed after every kill
   modHud();

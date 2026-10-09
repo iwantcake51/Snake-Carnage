@@ -10,7 +10,8 @@ const KSPR_NAMES = [ // the atlas order: keep in step with NAMES in tools/kenney
   'leaf_1', 'leaf_2', 'leaf_3', 'leaf_4', 'leaf_5', 'leaf_6', 'leaf_7', 'leaf_8', 'leaf_9', // foliage sprite_0081-0089: leaves, long to maple
   'plant_1', 'plant_2', 'plant_3', 'plant_4', 'petals_1', 'petals_2', // sprite_0096-0101: low plants seen from above, scattered petals
   'cone_e_noise', 'circle_a_noise', 'window_e_noise', 'caustics_1', 'caustics_2', // Light Masks: a flashlight cone, a lamp's pool, window panes, water caustics (seamless)
-  'smoke_01', 'smoke_02', 'smoke_06', 'smoke_09', 'smoke_10', 'twirl_01', 'twirl_02', 'twirl_03', 'circle_03' // gas clouds (38g): wispy puffs, smoke rings, swirls, the bubble's skin
+  'smoke_01', 'smoke_02', 'smoke_06', 'smoke_09', 'smoke_10', 'twirl_01', 'twirl_02', 'twirl_03', 'circle_03', // gas clouds (38g): wispy puffs, smoke rings, swirls, the bubble's skin
+  'circle_02', 'circle_04', 'star_01', 'spark_01', 'spark_02', 'spark_03', 'slash_01' // breaking things (38b) and a blast's ring (38c): rings, a flare, sparks, a swipe
 ];
 const KSPR_CELL = 128, KSPR_COLS = 8, KSPR_IX = Object.fromEntries(KSPR_NAMES.map((n, i) => [n, i]));
 const KSPR = { img: null, ok: false, tints: new Map(), masks: new Map(), ready: [] }; // ready: what to redo once the atlas is in

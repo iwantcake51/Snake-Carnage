@@ -194,8 +194,8 @@ function netLobbyRender() {
   if ($('mpShare')) $('mpShare').onclick = () => navigator.share({ title: 'Snake: Carnage co-op', text: `Join my Snake: Carnage game. Code ${NETM.code}`, url: link }).catch(() => {});
   $('mpLeave').onclick = () => { netLeave(); state = 'menu'; showMenu(); };
   $('mpBack').onclick = () => transitionTo(showMenu);
-  $('mpNames').onchange = e => { SETTINGS.mpNames = e.target.checked; saveSettings(); };
-  $('mpArrows').onchange = e => { SETTINGS.mpArrows = e.target.checked; saveSettings(); };
+  $('mpNames').onchange = e => { SETTINGS.mpNames = e.target.checked; saveSettings(); Sfx.ui(e.target.checked ? 'on' : 'off'); };
+  $('mpArrows').onchange = e => { SETTINGS.mpArrows = e.target.checked; saveSettings(); Sfx.ui(e.target.checked ? 'on' : 'off'); };
   $('mpReady').onclick = () => netSetReady(!me.ready);
   netWireRows(box);
   if (host) {
@@ -341,8 +341,8 @@ function netDownBanner(out) {
 }
 function netLivesLeft(e, n) { if (e) e.textContent = n >= 999 ? 'Unlimited lives' : n ? `${n} ${n === 1 ? 'life' : 'lives'} left${netMode() === 'ffa' ? '' : ' for the team'}` : 'No lives left'; }
 function netBackLives() { // back in: how many lives are left, for a moment
-  const k = netPool(NETM.me), n = NS.pools[k] || 0; let el = document.getElementById('mpBack'); if (el) el.remove();
-  el = document.createElement('div'); el.id = 'mpBack'; el.innerHTML = '<div class="mplv"></div><small class="mplvn"></small>'; (document.getElementById('stage') || document.body).appendChild(el);
+  const k = netPool(NETM.me), n = NS.pools[k] || 0; let el = document.getElementById('mpLivesBack'); if (el) el.remove();
+  el = document.createElement('div'); el.id = 'mpLivesBack'; el.innerHTML = '<div class="mplv"></div><small class="mplvn"></small>'; (document.getElementById('stage') || document.body).appendChild(el);
   netHeartsSync(el.querySelector('.mplv'), n, netPoolMax(k)); netLivesLeft(el.querySelector('.mplvn'), n);
   setTimeout(() => el.classList.add('fade'), 2200); setTimeout(() => el.remove(), 3200);
 }
@@ -387,7 +387,7 @@ function netDownTick() { // the respawn countdown on the banner
 }
 function netUiCleanup() { // a run ended or you left: nothing of it stays on screen
   NS.spawnAt = null; if (spawnFx) spawnFx.c.style.display = 'none';
-  for (const id of ['mpHud', 'dTint', 'dFx', 'mpDown', 'mpBack']) { const el = document.getElementById(id); if (el) el.remove(); }
+  for (const id of ['mpHud', 'dTint', 'dFx', 'mpDown', 'mpLivesBack']) { const el = document.getElementById(id); if (el) el.remove(); }
   dfxK = 0; const st = document.getElementById('stage'); if (st) { st.style.removeProperty('--dfx'); st.classList.remove('dying'); }
 }
 function netHudPlace() { // the score panel sits under the top-right stats (score, chips, level, pause), and under the combo counter while one is showing

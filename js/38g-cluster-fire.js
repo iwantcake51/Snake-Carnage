@@ -32,9 +32,9 @@ function fireReset() { bomblets = []; firePatches = []; gasPuffs = []; gasBubble
 /* ---- cluster bombs ---- */
 function simBomblet(x, y, a, sp, vz) { // the whole flight, worked out at once at a fixed step, so every screen gets the same path: bounces off the ground and off walls, then a roll to a stop
   const out = [], hops = []; let vx = Math.cos(a) * sp, vy = Math.sin(a) * sp, z = 16, t = 0, still = 0, n = 0; const h = 1 / 60;
-  while (t < 2.4) {
+  while (t < 3.6) {
     vz -= 560 * h; z += vz * h;
-    if (z <= 0) { z = 0; if (vz < -45) { hops.push(+t.toFixed(3)); vz = -vz * .42; vx *= .7; vy *= .7; } else { vz = 0; const f = Math.exp(-h * 3.2); vx *= f; vy *= f; } }
+    if (z <= 0) { z = 0; if (vz < -38) { hops.push(+t.toFixed(3)); vz = -vz * .5; vx *= .76; vy *= .76; } else { vz = 0; const f = Math.exp(-h * 2.6); vx *= f; vy *= f; } } // (a little bouncier and slower to stop than it was: they go off the moment they come to rest)
     const nx = x + vx * h, ny = y + vy * h, inside = solid(x, y); // (one that opened over a roof drops through it: it only bounces going into something)
     if (z < 22 && !inside && solid(nx, y)) { vx = -vx * .55; hops.push(+t.toFixed(3)); } else x = nx; // off whatever's solid
     if (z < 22 && !inside && solid(x, ny)) { vy = -vy * .55; hops.push(+t.toFixed(3)); } else y = ny;
@@ -54,8 +54,7 @@ function clusterSplit(s) { // every screen: the bomb goes off like any other (de
     list.push({ ...b, k, t: 0, hop: 0, r: Math.round(CLUSTER_R * (.9 + r() * .2)), blink: r() * TAU });
     settle = Math.max(settle, b.rest);
   }
-  const fz = list.map(() => settle + .5 + r() * 2.6).sort((p, q) => p - q); for (let i = 1; i < fz.length; i++) fz[i] = Math.max(fz[i], fz[i - 1] + .12); // each on its own random fuse, in no set order (never two at once)
-  const order = list.map((b, i) => [r(), i]).sort((p, q) => p[0] - q[0]); order.forEach(([, i], j) => { list[i].fuse = +fz[j].toFixed(3); });
+  let last = -1; list.slice().sort((p, q) => p.rest - q.rest).forEach(b => { b.fuse = +Math.max(b.rest + .12, last + .14).toFixed(3); last = b.fuse; }); // each goes off the moment it stops bouncing and rolling (never two at once)
   bomblets.push(...list);
   if (AUTH()) for (const b of list) for (const c of nearbyCreatures(b.x, b.y, 80, [])) if (c.alive && !c.def.fly) { c.state = 'panic'; c.fx = b.x; c.fy = b.y; c.alert = Math.max(c.alert || 0, c.def.human ? 1 : .6); c.timer = Math.max(c.timer || 0, rand(3, 5)); } // the crowd sees them land and runs
 }
@@ -270,6 +269,8 @@ function fireFrame() { // every frame, run or not: the crackle follows how hard 
 
 /* ---- sounds ---- */
 Object.assign(Sfx, {
+  cough(x, human) { if (!this.ok() || !this.gate('cough', .12)) return; const n = human ? randi(1, 3) : 1, f = human ? rand(380, 620) : rand(700, 1000); // a dry hack or two (an animal: one short huff)
+    for (let k = 0; k < n; k++) setTimeout(() => this.noiseHit(x, human ? .09 : .05, f * rand(.9, 1.1), 1.4, human ? .13 : .08), k * rand(170, 240)); },
   noiseBuf() { if (this._nz && this._nz.sampleRate === this.ctx.sampleRate) return this._nz; const c = this.ctx, n = c.sampleRate, b = c.createBuffer(1, n, c.sampleRate), d = b.getChannelData(0); for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1; return this._nz = b; },
   noiseHit(x, vol, f, q, dur, type = 'bandpass') { if (!this.ok()) return; const c = this.ctx, t = c.currentTime, src = c.createBufferSource(), fl = c.createBiquadFilter(), g = c.createGain();
     src.buffer = this.noiseBuf(); fl.type = type; fl.frequency.value = f; fl.Q.value = q; g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + .01); g.gain.exponentialRampToValueAtTime(.0005, t + dur);
@@ -323,10 +324,10 @@ function gasTick(dt) {
   if (!s.alive || s.netHidden || state !== 'play') { if (state !== 'paused') s.gasK = 0; return; }
   const g = gasPuffs.length ? inGas(s.x, s.y) : 0, was = s.gasK || 0; // what you breathe: where your head is
   s.gasK = g > .05 ? Math.min(1, was + dt * 2 * g) : Math.max(0, was - dt * .35); // it gets into you fast, and wears off slowly
-  if (g > .05 && was < .05 && performance.now() - (gasTick.at || 0) > 6000) { gasTick.at = performance.now(); notify({ kind: 'bad', icon: giSvg('gas'), title: 'GAS', sub: sk('mask') ? 'Your mask keeps it out of your eyes. Get clear.' : 'It slows you and blurs everything. Get clear.', dur: 2.2, key: 'gas' }); }
-  if (AUTH() && gasPuffs.length && (gasTick.ai = (gasTick.ai || 0) - dt) <= 0) { gasTick.ai = .4; // the crowd: coughing, they stumble out of it, slowed
-    for (const p of gasPuffs) { if (p.t < 0 || gasK(p) < .2) continue; const [px, py, pr] = gasAt(p); for (const c of nearbyCreatures(px, py, pr + 30, [])) { if (!c.alive || c.def.fly) continue;
-      c.blastStunT = Math.max(c.blastStunT || 0, T + .15); if (c.state !== 'panic') { c.state = 'panic'; c.fx = px; c.fy = py; c.alert = Math.max(c.alert || 0, c.def.human ? 1 : .6); c.timer = Math.max(c.timer || 0, rand(2.5, 4)); c.goal = null; } } } }
+  if (AUTH() && gasPuffs.length && (gasTick.ai = (gasTick.ai || 0) - dt) <= 0) { gasTick.ai = .4; // the crowd: anyone in it just walks slower and coughs (no panic, no stumbling)
+    for (const p of gasPuffs) { if (p.t < 0 || gasK(p) < .2) continue; const [px, py, pr] = gasAt(p); for (const c of nearbyCreatures(px, py, pr, [])) { if (!c.alive || c.def.fly || dist2(c.x, c.y, px, py) > pr * pr) continue;
+      c.gasT = T + .7; // (26-creature-ai: under half speed while it lasts)
+      if (T > (c.coughAt || 0)) { c.coughAt = T + rand(1.4, 3); if (c.def.human) say(c, 'act:' + pick(['*cough*', '*cough cough*', '*hack*', '*wheeze*'])); if (snake && dist2(c.x, c.y, snake.x, snake.y) < 420 * 420) Sfx.cough(c.x, c.def.human); } } } }
 }
 let gasWisps = []; // (looks only, per screen) little curls of gas lifting off the cloud
 function drawGas(x) { // Kenney's smoke and twirl particles, tinted a sickly yellow-green: a ring of smoke and a bubble's skin swell out of the middle when it goes off, then a slow churning cloud with wisps curling off it

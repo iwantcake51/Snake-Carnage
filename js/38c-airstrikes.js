@@ -975,7 +975,9 @@ function drawShockwaves(x, src) { // src: the canvas being drawn (it already hol
       x.drawImage(grabC, 0, 0, gr.sw, gr.sh, C.x + (gr.sx - C.x) * k, C.y + (gr.sy - C.y) * k, gr.sw * k, gr.sh * k);
       x.restore();
     }
-    x.strokeStyle = `rgba(255,250,235,${(.35 * (1 - u)).toFixed(3)})`; x.lineWidth = 1.5; x.beginPath(); x.arc(w.x, w.y, rr + band * .3, 0, TAU); x.stroke();
+    const ring = rr + band * .3; x.save(); x.globalCompositeOperation = 'lighter'; x.globalAlpha = .32 * (1 - u); // the ring itself: Kenney's ring sprite, warm white, or a thin stroke before the atlas loads
+    if (!kDraw(x, 'circle_02', '#fff2dc', w.x, w.y, ring * 2.3, ring * 2.3, 0)) { x.globalAlpha = 1; x.strokeStyle = `rgba(255,250,235,${(.35 * (1 - u)).toFixed(3)})`; x.lineWidth = 1.5; x.beginPath(); x.arc(w.x, w.y, ring, 0, TAU); x.stroke(); }
+    x.restore();
   }
 }
 /* ---- at night a blast lights everything up: the whole sky for a moment, and a warm, flickering pool round it while it
