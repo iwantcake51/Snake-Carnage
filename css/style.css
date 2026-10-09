@@ -2329,8 +2329,10 @@ body:has(#stage.menuBg) #bar{visibility:hidden} /* score, best, clock and the le
 #overlay.mmMode{background:none!important}
 #overlay>.mm{position:absolute;inset:0}
 .mm,.rs.mlob,.mmp{color:var(--ink);font-family:var(--f-body)!important;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;text-align:left}
-.mm{position:absolute;inset:0;overflow:hidden;animation:mmIn .3s ease backwards}
-.mm.leaving,.rs.mlob.leaving,.mmp.leaving{animation:mmOut .18s ease forwards!important}
+.mm{position:absolute;inset:0;overflow:hidden}
+.mm.leaving{animation:mmLeave .3s linear forwards!important}
+@keyframes mmLeave{0%,80%{opacity:1}to{opacity:0}}
+.rs.mlob.leaving,.mmp.leaving{animation:panelOut .22s cubic-bezier(.5,0,.75,0) forwards!important}
 @keyframes mmIn{from{opacity:0}}
 @keyframes mmOut{to{opacity:0}}
 .mm>.mfx{z-index:0}
@@ -2629,3 +2631,83 @@ body.narrow:not(.phone) .rs-scroll{overflow:visible}
 body.narrow:not(.phone) .rs-foot{flex:none;margin:0;border-radius:2px}
 body.narrow:not(.phone) .rs-side{border-bottom:1px solid var(--hair)}
 body.phone .rs-foot{padding-top:var(--s2)}
+
+/* =====================================================================
+   MENUS v3, motion: the front page's column slides in from the left (on load, and whenever you come back to it) and slides
+   away when another screen opens; every other screen slides in from the right and back out to it.
+   ===================================================================== */
+@keyframes mmSlideIn{from{opacity:0;translate:-56px 0}}
+@keyframes mmSlideIn2{from{opacity:0;translate:-56px 0}}
+@keyframes mmSlideOut{to{opacity:0;translate:-56px 0}}
+@keyframes mmFadeIn{from{opacity:0}}
+@keyframes pnIn{from{opacity:0;translate:44px 0}}
+@keyframes panelOut{to{opacity:0;translate:44px 0}}
+.mm-home .mm-logo,.mm-home .mm-nav>button{animation:mmSlideIn .5s cubic-bezier(.2,.8,.2,1) backwards}
+.mm-home.again .mm-logo,.mm-home.again .mm-nav>button{animation-name:mmSlideIn2} /* (a new name replays it) */
+.mm-home .mm-nav>button:nth-child(1){animation-delay:.05s}.mm-home .mm-nav>button:nth-child(2){animation-delay:.09s}.mm-home .mm-nav>button:nth-child(3){animation-delay:.13s}
+.mm-home .mm-nav>button:nth-child(4){animation-delay:.17s}.mm-home .mm-nav>button:nth-child(5){animation-delay:.21s}.mm-home .mm-nav>button:nth-child(6){animation-delay:.25s}
+.mm-home .mm-prof,.mm-home .mm-foot,.mm-home .mm-party{animation:mmFadeIn .45s ease .15s backwards}
+.mm.leaving .mm-logo,.mm.leaving .mm-nav>button{animation:mmSlideOut .24s cubic-bezier(.5,0,.75,0) forwards}
+.mm.leaving .mm-nav>button:nth-child(2){animation-delay:.015s}.mm.leaving .mm-nav>button:nth-child(3){animation-delay:.03s}.mm.leaving .mm-nav>button:nth-child(4){animation-delay:.045s}
+.mm.leaving .mm-nav>button:nth-child(5){animation-delay:.06s}.mm.leaving .mm-nav>button:nth-child(6){animation-delay:.075s}
+.mm.leaving .mm-prof,.mm.leaving .mm-foot,.mm.leaving .mm-party{animation:mmOut .2s ease forwards}
+.mm .rs{animation:pnIn .34s cubic-bezier(.2,.8,.2,1) backwards}
+.mm.leaving .rs{animation:panelOut .24s cubic-bezier(.5,0,.75,0) forwards}
+.mm[data-view=setup] [data-v=home]{translate:-48px 0}
+.rs.mlob,.mmp{animation:pnIn .34s cubic-bezier(.2,.8,.2,1) backwards}
+#overlay .panel{animation:pnIn .34s cubic-bezier(.2,.8,.2,1) backwards!important}
+#overlay .panel.noanim{animation:none!important}
+#overlay .panel.leaving{animation:panelOut .22s cubic-bezier(.5,0,.75,0) forwards!important}
+body.calm .mm *,body.calm #overlay .panel,body.calm .rs.mlob,body.calm .mmp{animation:none!important}
+@media (prefers-reduced-motion:reduce){.mm *,#overlay .panel,.rs.mlob,.mmp{animation:none!important}}
+/* =====================================================================
+   MENUS v3, the other screens (upgrades, cosmetics, achievements, settings, modifiers, pause, the run summary):
+   the same solid dark sheet, hairlines, 2px corners, quiet labels, underlined choices and plain buttons as the main menu.
+   ===================================================================== */
+#overlay .panel{background:rgba(13,10,11,.96)!important;border:1px solid var(--hair)!important;border-radius:2px!important;box-shadow:0 24px 60px rgba(0,0,0,.5)!important;color:var(--ink)}
+#overlay .panel::before{display:none!important}
+#overlay .panel h1,#overlay .snav h1,#overlay .chhead h1{font:700 34px/1 var(--f-head)!important;letter-spacing:.01em!important;text-transform:uppercase;color:var(--ink)!important}
+#overlay .panel h3,#overlay .panel .sgrp,#overlay .mg{font:600 12px var(--f-body)!important;letter-spacing:.14em!important;text-transform:uppercase;color:var(--mute)!important;border-bottom:1px solid var(--hair)!important}
+#overlay .panel .lead,#overlay .panel p.lead{font:400 14.5px/1.5 var(--f-body)!important;color:var(--dim)!important}
+/* buttons: the main action flat in the accent, everything else outlined; no drifting halftone, no glow */
+#overlay .btn::before{display:none!important}
+#overlay .btn:not(.alt){background:var(--acc)!important;color:var(--on-acc)!important;border:0!important;border-radius:2px!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.14),inset 0 -3px 0 rgba(0,0,0,.24)!important;font:700 19px/1 var(--f-head)!important;letter-spacing:.05em!important;text-transform:uppercase}
+#overlay .btn:not(.alt):hover{background:color-mix(in srgb,var(--acc) 84%,#fff)!important}
+#overlay .btn.alt,#overlay .panel .ghost{background:none!important;color:var(--ink)!important;border:1px solid var(--hair2)!important;border-radius:2px!important;box-shadow:none!important;font:600 17px/1 var(--f-head)!important;letter-spacing:.05em!important}
+#overlay .btn.alt:hover,#overlay .panel .ghost:hover{border-color:var(--acc)!important;background:rgba(255,255,255,.03)!important}
+#overlay .panel #backBtn,#overlay .panel #pMenuBtn{background:none!important;color:var(--ink)!important;border:1px solid var(--hair2)!important;box-shadow:none!important} /* Done and Back are the quiet way out */
+#overlay .panel #backBtn:hover,#overlay .panel #pMenuBtn:hover{border-color:var(--acc)!important;background:rgba(255,255,255,.03)!important}
+#overlay .btn:active,#overlay .tab:active,#overlay .sseg button:active,#overlay .ctabs button:active{transform:none!important;scale:1!important;filter:none!important}
+#overlay .panel :focus-visible{outline:2px solid var(--acc-hi);outline-offset:2px}
+/* side navigation (settings, cosmetics): text rows, the current one marked with a short accent bar */
+#overlay .snav{background:rgba(255,255,255,.02)!important;border-right:1px solid var(--hair)!important}
+#overlay .tab{font:500 15px/1.2 var(--f-body)!important;letter-spacing:0!important;text-transform:none!important;color:var(--dim)!important;border-radius:2px!important;background:none!important;box-shadow:none!important;translate:none!important;min-height:40px}
+#overlay .tab:hover{color:var(--ink)!important;background:rgba(255,255,255,.035)!important}
+#overlay .tab.on{color:var(--ink)!important;background:rgba(255,255,255,.05)!important;box-shadow:inset 2px 0 0 var(--acc)!important}
+#overlay .panel.shop2 .tab{font-size:14px!important}
+/* choices: underlined like the run setup's */
+#overlay .sseg,#overlay .ctabs{background:none!important;border:0!important;border-bottom:1px solid var(--hair)!important;border-radius:0!important;padding:0!important}
+#overlay .sseg button,#overlay .ctabs button{font:500 14px var(--f-body)!important;letter-spacing:0!important;text-transform:none!important;color:var(--dim)!important;background:none!important;border-radius:0!important;min-height:36px;padding:0 10px!important}
+#overlay .sseg button:hover,#overlay .ctabs button:hover{color:var(--ink)!important}
+#overlay .sseg button.on,#overlay .ctabs button.on{color:var(--ink)!important;font-weight:600!important}
+#overlay .ctabs button.on{box-shadow:inset 0 -2px 0 var(--acc)!important}
+#overlay .sseg .sthumb{top:auto!important;bottom:-1px!important;height:2px!important;border-radius:0!important;background:var(--acc)!important;opacity:1!important}
+#overlay .ctabs button em{font:500 12px var(--f-body)!important;color:var(--mute);opacity:1}
+/* switches and sliders in the accent, squared */
+#overlay .tgl{border-radius:2px!important;background:#2a2426!important;box-shadow:inset 0 0 0 1px var(--hair2)!important}
+#overlay .tgl.on{background:var(--acc)!important;box-shadow:none!important}
+#overlay .tgl:hover{box-shadow:inset 0 0 0 1px var(--hair2),0 0 0 3px rgba(255,255,255,.06)!important}
+/* cards: one plain surface with a hairline, no gradients */
+#overlay .ach,#overlay .upc,#overlay .pmc,#overlay .sc,#overlay .m2c,#overlay .srow>div,#overlay .sxp{background:rgba(255,255,255,.035)!important;border:1px solid var(--hair)!important;border-radius:2px!important}
+#overlay .sc:hover,#overlay .upc:hover,#overlay .m2c:hover{border-color:var(--hair2)!important;translate:none!important;box-shadow:none!important}
+#overlay .sc.on,#overlay .m2c.on{border-color:var(--acc)!important;box-shadow:inset 0 0 0 1px var(--acc)!important}
+#overlay .ach.secret{background:rgba(255,255,255,.02)!important;border-style:dashed!important}
+#overlay .sc.locked{background:rgba(255,255,255,.015)!important;border-style:dashed!important}
+#overlay .srow2{border-bottom:1px solid rgba(255,255,255,.06)!important}
+#overlay .srow2 b{font:600 15px var(--f-body)!important;color:var(--ink)!important}
+#overlay .srow2 small{font:400 13px/1.45 var(--f-body)!important;color:var(--dim)!important}
+#overlay .coinpill{background:none!important;border:1px solid var(--hair2)!important;border-radius:2px!important;font:600 14px var(--f-body)!important;font-variant-numeric:tabular-nums;color:var(--gold)!important}
+#overlay .m2info{background:rgba(255,255,255,.025)!important;border:1px solid var(--hair)!important;border-radius:2px!important}
+#overlay .btn::after{display:none!important} /* (no sweeping shine across buttons either) */
+#overlay .sbody .sgrp::before{display:none}
+#overlay .play,#overlay #againBtn,#overlay #resBtn{clip-path:none;border-radius:2px!important} /* square main buttons, like the menu's */

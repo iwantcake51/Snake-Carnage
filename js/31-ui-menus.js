@@ -66,7 +66,7 @@ function transitionTo(fn) { // animate the current screen out, then show the nex
   if (!cur || SETTINGS.reduceMotion || overlay.style.display === 'none') return fn();
   cur.classList.add('leaving'); menuShade(); // the shade starts darkening as the old screen fades, not after it's gone
   let done = false; const go = () => { if (done) return; done = true; fn(); };
-  requestAnimationFrame(() => { const an = cur.getAnimations ? cur.getAnimations().find(x => x.animationName === 'panelOut' || x.animationName === 'mmOut') : null; if (an) an.finished.then(go, go); }); // swap when the close has actually played, even if the click was busy
+  requestAnimationFrame(() => { const an = cur.getAnimations ? cur.getAnimations().find(x => x.animationName === 'panelOut' || x.animationName === 'mmLeave') : null; if (an) an.finished.then(go, go); }); // swap when the close has actually played, even if the click was busy
   setTimeout(go, 450); // fallback
 }
 /* =========================================================
@@ -179,6 +179,7 @@ function showMenu() {
 function menuGo(v, first) { // switch between the menu's two views: a short fade, the buttons themselves never move
   const root = overlay.querySelector('.mm'); if (!root) return;
   menuView = v; root.dataset.view = v; menuShade();
+  if (v === 'home' && !first) root.querySelector('.mm-home').classList.toggle('again'); // back from the setup: the column slides in again
   for (const s of root.querySelectorAll('[data-v]')) { const on = s.dataset.v === v; s.inert = !on; s.setAttribute('aria-hidden', String(!on)); }
   if (v === 'setup') { root.querySelectorAll('.rs-seg').forEach(sg => placeThumb(sg, true)); requestAnimationFrame(() => root.querySelectorAll('.rs-seg').forEach(sg => placeThumb(sg, true))); }
   if (!first || menuGo.kbd) { const f = root.querySelector(v === 'setup' ? '#startBtn' : '#playBtn'); if (f) f.focus({ preventScroll: true }); }
