@@ -9,6 +9,7 @@ const SHOP_TABS = [
 let shopTab = 'color', shopMsg = '', shopPrev = null;
 const TIERCOL = { easy: '#5fd07a', medium: '#ffcf33', hard: '#ff8a3d', rare: '#c77dff' };
 function shopCard(cat, [v, p, achId], i) {
+  p = shopPrice(p); // Haggler
   const cfg = SETTINGS.snake, own = owns(cat, v), on = cfg[cat] === v, ach = achId ? ACH.find(a => a.id === achId) : null, locked = ach && !own, hidden = locked && ach.secret; // secrets stay secret
   const sw = `<span class="pvw">${itemPreview(cat, v)}</span>`;
   const tip = cat === 'title' && !hidden ? titleTip(v) : '';
@@ -176,8 +177,8 @@ function customBody() {
   if (!pickerState) { const hx = SETTINGS.snake.color; pickerState = { slot: 'color', hex: hx, ...hex2hsv(hx) }; }
   const slotOk = pickerState.slot === 'color' ? hasP : hasF;
   return `<h2>Custom color</h2><p class="lead">Any color you can imagine. This is the luxury tier: Primary first, then full Primary + Secondary control.</p>
-    <div class="cbuy"><div class="tier1 ${hasP ? 'own' : ''}"><b>Custom Primary</b><span>${hasP ? 'Owned' : `<i class="pc"></i> ${CUSTOM_PRICE.primary}`}</span>${hasP ? '' : `<button class="btn" data-buy="primary" ${PROG.coins < CUSTOM_PRICE.primary ? 'disabled' : ''}>Buy</button>`}</div>
-      <div class="tier1 ${hasF ? 'own' : ''} ${hasP ? '' : 'dim'}"><b>Full Primary + Secondary</b><span>${hasF ? 'Owned' : `<i class="pc"></i> ${CUSTOM_PRICE.full}`}</span>${hasF ? '' : `<button class="btn" data-buy="full" ${!hasP || PROG.coins < CUSTOM_PRICE.full ? 'disabled' : ''}>Buy</button>`}</div></div>
+    <div class="cbuy"><div class="tier1 ${hasP ? 'own' : ''}"><b>Custom Primary</b><span>${hasP ? 'Owned' : `<i class="pc"></i> ${shopPrice(CUSTOM_PRICE.primary)}`}</span>${hasP ? '' : `<button class="btn" data-buy="primary" ${PROG.coins < shopPrice(CUSTOM_PRICE.primary) ? 'disabled' : ''}>Buy</button>`}</div>
+      <div class="tier1 ${hasF ? 'own' : ''} ${hasP ? '' : 'dim'}"><b>Full Primary + Secondary</b><span>${hasF ? 'Owned' : `<i class="pc"></i> ${shopPrice(CUSTOM_PRICE.full)}`}</span>${hasF ? '' : `<button class="btn" data-buy="full" ${!hasP || PROG.coins < shopPrice(CUSTOM_PRICE.full) ? 'disabled' : ''}>Buy</button>`}</div></div>
     <div class="picker ${slotOk ? '' : 'preview'}">
       <div class="slots"><button class="${pickerState.slot === 'color' ? 'on' : ''}" data-slot="color">Primary</button><button class="${pickerState.slot === 'color2' ? 'on' : ''}" data-slot="color2">Secondary</button></div>
       <div class="sv" style="--hue:${pickerState.h}"><i class="knob" style="left:${pickerState.s * 100}%;top:${(1 - pickerState.v) * 100}%"></i></div>
@@ -196,7 +197,7 @@ function wirePicker() {
   hexIn.oninput = () => { if (/^#[0-9a-f]{6}$/i.test(hexIn.value)) { Object.assign(P, hex2hsv(hexIn.value)); refresh(); } };
   overlay.querySelectorAll('[data-slot]').forEach(b => b.onclick = () => { const hx = SETTINGS.snake[b.dataset.slot]; pickerState = { slot: b.dataset.slot, hex: hx, ...hex2hsv(hx) }; showCustomize(); });
   overlay.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => {
-    const k = b.dataset.buy, p = CUSTOM_PRICE[k]; if (PROG.coins < p) { Sfx.deny(); return; }
+    const k = b.dataset.buy, p = shopPrice(CUSTOM_PRICE[k]); if (PROG.coins < p) { Sfx.deny(); return; }
     PROG.coins -= p; PROG.owned.push('custom:' + k); saveProg(); updateHud(); Sfx.buy(); shopMsg = k === 'full' ? 'Full custom colors unlocked. Go wild.' : 'Custom Primary unlocked.'; showCustomize();
   });
   document.getElementById('pkCancel').onclick = () => { const p = overlay.querySelector('.picker'); p.classList.add('cancel'); setTimeout(() => { pickerState = null; showCustomize(); }, 180); };

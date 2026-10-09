@@ -17,7 +17,7 @@ let SCALE_OVR = 0; // co-op: drawing a teammate's snake at its own size
 const snakeScale = () => SCALE_OVR || (snake && snake.scale) || 1;
 const snakeRadius = () => CONFIG.snakeR * snakeScale();
 const snakeSegmentSpacing = () => CONFIG.segSpacing * snakeScale();
-const snakeEatRadius = () => snakeRadius() * .8;
+const snakeEatRadius = () => snakeRadius() * .8 * SKV.jaws(); // Wide Jaws: a longer reach
 const snakeHitRadius = () => Math.max(snakeRadius(), CONFIG.snakeR * .9) * .72; // against walls and objects: a small snake never gets a thinner hitbox than ~90% of normal, so gaps that are solid stay solid
 /* size modifiers: Big / Small hold one size all run; Start Big shrinks back to normal over the first 90 s of play; Start Tiny
    starts small and every meal grows it back toward full size. The size changes ease in, they never pop. */
@@ -84,11 +84,11 @@ function updateSnake(dt) {
   if (s.uturnT > 0) { s.uturnT -= dt; if (s.uturnTo !== undefined && Math.abs(angDiff(s.angle, s.dir)) < .5) { s.dir = s.uturnTo; s.uturnTo = undefined; } } // second half of the U-turn
   const stunK = MOD.quickRecovery ? 2 : MOD.heavyImpact ? .5 : 1, dz = SKV.dazeK(); // Quick recovery / Heavy impact: dazes wear off twice as fast, or half as fast
   if (s.wallStun > 0) { const k = s.wallStun / (s.wallMax || 3.4); s.wallStun -= dt * stunK * dz; s.angle += (Math.sin(T * 4.7) * 1.5 + Math.sin(T * 2.3 + 1.3)) * k * dt; } // seeing stars: it can't hold a line
-  for (const k of ['dashT', 'camoT', 'hissT', 'ramT', 'boomT']) if (s[k] > 0) s[k] -= dt * (k === 'ramT' || k === 'boomT' ? stunK * dz : 1); // Thick Skull shakes off dazes faster (a smash, a blast)
+  for (const k of ['dashT', 'camoT', 'hissT', 'ramT', 'boomT', 'lustT']) if (s[k] > 0) s[k] -= dt * (k === 'ramT' || k === 'boomT' ? stunK * dz : 1); // Thick Skull shakes off dazes faster (a smash, a blast)
   if (s.camoT > 0) { const turning = Math.abs(angDiff(s.angle, s.dir)) > .05 || s.dashT > 0; s.still = clamp((s.still || 0) + (turning ? -dt * (sk('phantom') ? 1.2 : 4) : dt * 1.1), 0, 1); } else s.still = 0; // camouflage settles in on a straight line
   const dk = s.dashT > 0 ? s.dashK || 1.8 : 1; s.dashV = dk >= (s.dashV || 1) ? dk : 1 + ((s.dashV || 1) - 1) * Math.exp(-dt * 3.2); // lunge hits at once, then the speed bleeds off over about a second
   if (s.dashT > 0 && (s.wallStun > 0 || s.boomT > 0)) s.dashT = 0; // concussed: no lunging
-  const v = s.speed * s.dashV * (s.camoT > 0 ? SKV.camoSpeed() : 1) * /* Deep Cover: faster while hidden */ (s.ramT > 0 ? 1 - (s.ramDeep || .5) * (s.ramT / (s.ramMax || 1)) : 1) * (1 - .55 * boomSlow(s)); // ... or reeling from a blast // a lunge, or a stagger after smashing through something
+  const v = s.speed * s.dashV * (s.camoT > 0 ? SKV.camoSpeed() : 1) * /* Deep Cover: faster while hidden */ (s.lustT > 0 ? 1 + (SKV.lust() - 1) * Math.min(1, s.lustT / .4) : 1) * /* Bloodlust, easing off at the end */ (s.ramT > 0 ? 1 - (s.ramDeep || .5) * (s.ramT / (s.ramMax || 1)) : 1) * (1 - .55 * boomSlow(s)); // ... or reeling from a blast // a lunge, or a stagger after smashing through something
   // unit vector * speed => identical speed in all 8 directions
   if (MOD.slippery) s.mvA = s.mvA === undefined ? s.angle : s.mvA + angDiff(s.mvA, s.angle) * (1 - Math.exp(-dt * 2.8)); else s.mvA = s.angle; // Slippery: the body keeps sliding the old way a moment after you turn
   const vq = v * (MOD.quickTurn ? .9 : 1);
@@ -317,9 +317,12 @@ function eatReward(c, amount, ang) {
   score += pts; run.score = score;
   c.def.human ? (kills.h++, run.humans++) : (kills.a++, run.animals++);
   run.byType[c.type] = (run.byType[c.type] || 0) + 1; run.killed++; if (c.golden) { run.goldens++; c.def.human ? PROG.goldH = (PROG.goldH || 0) + 1 : PROG.goldA = (PROG.goldA || 0) + 1; } // lifetime golden tally
-  const kxp = Math.round((c.def.human ? 12 : c.def.score * 4) * gold * rewardMult * mb.m * ph);
+  const fk = (c.golden ? SKV.goldK() : 1) * (combo.n >= 5 ? SKV.streakK() : 1), lucky = Math.random() < SKV.luckyP(); // Golden Touch, Hot Streak, Lucky Bite
+  const kxp = Math.round((c.def.human ? 12 : c.def.score * 4) * gold * rewardMult * mb.m * ph * fk);
   crEat(c, pts, kxp); statEat(c); progressEat(c);
-  gainXP(kxp, Math.max(1, Math.round(c.def.score * .6 * gold * rewardMult * mb.m)));
+  gainXP(kxp, Math.max(1, Math.round(c.def.score * .6 * gold * rewardMult * mb.m * fk)) * (lucky ? 2 : 1));
+  if (lucky) notify({ kind: 'info', icon: '◆', title: 'Lucky bite', right: 'x2 chips', dur: 1.3, key: 'lucky' });
+  if (sk('lust')) s.lustT = 1.5; // Bloodlust: a rush of speed after every kill
   modHud();
   killFx(c.x, c.y, amount);
   shake = Math.min(CONFIG.shakeMax * .4, shake + .5 + 2.5 * amount); // just a nudge: the hit is felt on the target, not the camera

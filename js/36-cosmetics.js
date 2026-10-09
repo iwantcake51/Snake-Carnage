@@ -44,7 +44,7 @@ SETTINGS.snake = Object.assign({ theme: 'Default', combo: 'Default', card: 'Defa
 const itemsOf = cat => cat.startsWith('color') ? COLOR_ITEMS : SHOP[cat];
 const findItem = (cat, v) => itemsOf(cat).find(i => i[0] === v);
 const ownKey = (cat, v) => cat + ':' + v; // Primary and Secondary colors are owned separately
-function priceOf(cat, v) { const it = findItem(cat, v); return it ? it[1] : 0; }
+function priceOf(cat, v) { const it = findItem(cat, v); return it ? shopPrice(it[1]) : 0; } // (Haggler takes its cut off)
 const achOf = (cat, v) => { const it = findItem(cat, v); return it && it[2] ? ACH.find(a => a.id === it[2]) : null; };
 function owns(cat, v) {
   if (cat.startsWith('color') && !findItem(cat, v)) return PROG.owned.includes(cat === 'color' ? 'custom:primary' : 'custom:full'); // a custom color

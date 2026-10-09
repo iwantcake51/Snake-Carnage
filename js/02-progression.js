@@ -24,12 +24,13 @@ let floaters = [];
 let lvlAnim = false, lastLevelBonus = 0;
 const XP_GAIN = 1.5; // every source of XP pays half as much again (v1.56: levels come quicker)
 function gainXP(xp, coins) {
-  xp = Math.round(xp * XP_GAIN);
+  const sv = typeof SKV === 'object'; // (the skill tree loads later; rewards only start once everything has)
+  xp = Math.round(xp * XP_GAIN * (sv ? SKV.xpK() : 1)); coins = Math.round(coins * (sv ? SKV.chipK() : 1)); // Quick Study, Deep Pockets
   PROG.xp += xp; PROG.coins += coins; PROG.earned = (PROG.earned || 0) + coins; rewardPopup(xp, coins);
   if (typeof run === 'object' && (state === 'play' || state === 'dead' || state === 'held')) { run.xpGained = (run.xpGained || 0) + xp; run.coinsGained = (run.coinsGained || 0) + coins; }
   const from = PROG.level;
   let bonus = 0;
-  while (PROG.xp >= xpNeed(PROG.level)) { PROG.xp -= xpNeed(PROG.level); PROG.level++; const b = 15 + PROG.level * 3; PROG.coins += b; bonus += b; }
+  while (PROG.xp >= xpNeed(PROG.level)) { PROG.xp -= xpNeed(PROG.level); PROG.level++; const b = (15 + PROG.level * 3) * (sv ? SKV.windK() : 1); /* Windfall doubles it */ PROG.coins += b; bonus += b; }
   if (bonus) lastLevelBonus = bonus; // a later reward in the same moment must not wipe the banner's number
   saveProg();
   if (PROG.level > from) celebrateLevel(from, PROG.level); else updateHud();
@@ -75,7 +76,7 @@ function celebrateLevel(from, to) { // bar fills, flashes, number racks up, bann
 let bannerTimer = null;
 function levelBanner(level, coins) {
   const host = document.getElementById('lvlup');
-  host.innerHTML = `<div class="lu"><small>Level up!</small><b>${level}</b><em>+${coins} <i class="pc"></i> bonus chips</em></div>`;
+  host.innerHTML = `<div class="lu"><small>Level up!</small><b>${level}</b><em>+${coins} <i class="pc"></i> bonus chips</em><em class="lutok"><i class="tok"></i> Skill token ready</em></div>`;
   clearTimeout(bannerTimer);
   bannerTimer = setTimeout(() => { const el = host.firstElementChild; if (el) { el.classList.add('out'); setTimeout(() => el.isConnected && el.remove(), 520); } }, 3200);
 }

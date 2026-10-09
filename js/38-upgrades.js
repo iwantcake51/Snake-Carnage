@@ -12,68 +12,93 @@ const NET = { // multiplayer hook: nothing listens yet, but every ability use an
   emit(e) { e.t = T; this.log.push(e); if (this.log.length > 60) this.log.shift(); for (const f of this.listeners) f(e); },
   on(f) { this.listeners.push(f); },
 };
-const SK_BRANCH = {
-  move: { name: 'Movement', key: '1', blurb: 'Speed, turning and the Lunge' },
-  hunt: { name: 'Hunting', key: '2', blurb: '3rd Eye, Camouflage and Hoover Mouth' },
-  res: { name: 'Resilience', key: '3', blurb: 'Battering Ram, Hiss and getting back up' },
+const SK_BRANCH = { // (left to right on the screen)
+  surv: { name: 'Survival', key: '1', blurb: 'Senses, stealth and getting back up: nothing here kills for you' },
+  pred: { name: 'Predator', key: '2', blurb: 'Everything that makes you deadlier: speed, the Lunge, Hoover Mouth, Hiss' },
+  fort: { name: 'Fortune', key: '3', blurb: 'More XP and more chips from everything you do' },
 };
-/* x, y: where the node sits on the tree (the screen's own units). req: [[id, rank], ...] all needed before the first rank.
+/* Skills are bought with skill tokens: one for every level past 1 (skTokens). cost: tokens per rank.
+   x, y: where the node sits on the tree (the screen's own units). req: [[id, rank], ...] all needed before the first rank.
    lvl: the account level the first rank needs, or one per rank ([4, 10, 16]). ranks: optional text per rank (what each one adds).
    fx: what the details panel shows, current -> next: [label, g => number, n => text] where g(id) is a rank. */
 const pct = n => (n > 0 ? '+' : '') + Math.round(n) + '%', secs = n => (+n.toFixed(2)) + ' s', xk = n => (+n.toFixed(2)) + 'x', px = n => Math.round(n) + ' px';
 const SKILL_TREE = [
-  // ---- Movement ----
-  { id: 'speed', br: 'move', name: 'Speed Demon', icon: 'speed', cost: [150, 200, 320, 480, 700], lvl: 2, req: [], x: 626, y: 800,
-    desc: 'Each rank: your snake moves 5% faster. The first rank opens the Movement branch.', fx: [['Speed', g => SKV.speed(g) * 100 - 100, pct]] },
-  { id: 'sidewind', br: 'move', name: 'Sidewinder', icon: 'sidewind', cost: [260, 420, 640], req: [['speed', 1]], x: 480, y: 718,
+  // ---- Predator: everything that makes you deadlier ----
+  { id: 'speed', br: 'pred', name: 'Speed Demon', icon: 'speed', cost: [1, 1, 1, 1, 1], lvl: 2, req: [], x: 1100, y: 790,
+    desc: 'Each rank: your snake moves 5% faster. The first rank opens the Predator branch.', fx: [['Speed', g => SKV.speed(g) * 100 - 100, pct]] },
+  { id: 'sidewind', br: 'pred', name: 'Sidewinder', icon: 'sidewind', cost: [1, 1, 1], req: [['speed', 1]], x: 1023, y: 640,
     desc: 'Each rank: your head swings round 16% quicker.', fx: [['Turn rate', g => SKV.turn(g) * 100 - 100, pct]] },
-  { id: 'momentum', br: 'move', major: 1, name: 'Momentum', icon: 'momentum', cost: [2100], lvl: 20, req: [['sidewind', 2]], x: 335, y: 590,
+  { id: 'momentum', br: 'pred', major: 1, name: 'Momentum', icon: 'momentum', cost: [2], lvl: 20, req: [['sidewind', 2]], x: 1023, y: 470,
     desc: 'Smashing through things keeps half your speed instead of stalling you, and pressing the opposite way whips you round in a tight U-turn (it picks the side that clears your body and the walls).', fx: [['Speed kept through a smash', g => g('momentum') ? 50 : 0, n => n ? 'Half the stall' : 'Full stall'], ['U-turn', g => g('momentum'), n => n ? 'Yes' : 'No']] },
-  { id: 'dash', br: 'move', major: 1, abil: 1, name: 'Lunge', icon: 'dash', cost: [250], lvl: 3, req: [['speed', 1]], x: 588, y: 625,
+  { id: 'dash', br: 'pred', major: 1, abil: 1, name: 'Lunge', icon: 'dash', cost: [1], lvl: 3, req: [['speed', 1]], x: 934, y: 655,
     desc: 'A short burst of speed for catching runners. You can\'t lunge while you\'re concussed.', fx: [['Burst', g => SKV.lungeK(g), xk], ['Lasts', g => SKV.lungeDur(g), secs], ['Cooldown', g => SKV.lungeCd(g), secs]] },
-  { id: 'stride', br: 'move', name: 'Long Stride', icon: 'stride', cost: [240, 400, 620], req: [['dash', 1]], x: 562, y: 470,
+  { id: 'stride', br: 'pred', name: 'Long Stride', icon: 'stride', cost: [1, 1, 1], req: [['dash', 1]], x: 920, y: 495,
     desc: 'Each rank: the lunge lasts 0.07 s longer and hits a little harder.', fx: [['Lasts', g => SKV.lungeDur(g), secs], ['Burst', g => SKV.lungeK(g), xk]] },
-  { id: 'pounce', br: 'move', major: 1, name: 'Pounce', icon: 'pounce', cost: [1800], lvl: 18, req: [['stride', 2]], x: 549, y: 300,
+  { id: 'pounce', br: 'pred', major: 1, name: 'Pounce', icon: 'pounce', cost: [2], lvl: 18, req: [['stride', 2]], x: 911, y: 320,
     desc: 'The lunge becomes a pounce: 2.7x speed and a much shorter cooldown. Eat something mid-lunge and it\'s ready again almost at once, and you keep going.', fx: [['Burst', g => SKV.lungeK(g), xk], ['Cooldown', g => SKV.lungeCd(g), secs]] },
-  { id: 'spring', br: 'move', name: 'Coiled Spring', icon: 'spring', cost: [200, 320, 480, 700], req: [['dash', 1]], x: 437, y: 500,
+  { id: 'spring', br: 'pred', name: 'Coiled Spring', icon: 'spring', cost: [1, 1, 1, 1], req: [['dash', 1]], x: 816, y: 565,
     desc: 'Each rank: the lunge recharges 7% faster.', fx: [['Lunge cooldown', g => SKV.lungeCd(g), secs]] },
-  { id: 'whip', br: 'move', name: 'Whiplash', icon: 'whip', cost: [220, 360, 560], req: [['spring', 1]], x: 386, y: 340,
+  { id: 'whip', br: 'pred', name: 'Whiplash', icon: 'whip', cost: [1, 1, 1], req: [['spring', 1]], x: 794, y: 400,
     desc: 'Each rank: you turn 15% sharper mid-lunge, so a burst can bend round a corner after a runner.', fx: [['Turning while lunging', g => SKV.lungeTurn(g) * 100 - 100, pct]] },
-  // ---- Hunting ----
-  { id: 'scent', br: 'hunt', major: 1, abil: 1, name: '3rd Eye', icon: 'scent', cost: [400], lvl: 5, req: [], x: 850, y: 760,
+  { id: 'jaws', br: 'pred', name: 'Wide Jaws', icon: 'jaws', cost: [1, 1, 1], req: [['speed', 1]], x: 1172, y: 650,
+    desc: 'Each rank: your bite reaches 7% further, so a near miss becomes a meal.', fx: [['Bite reach', g => SKV.jaws(g) * 100 - 100, pct]] },
+  { id: 'lust', br: 'pred', major: 1, name: 'Bloodlust', icon: 'lust', cost: [2], lvl: 14, req: [['jaws', 2]], x: 1168, y: 470,
+    desc: 'Every kill sends a rush through you: 15% faster for 1.5 s. Keep killing and you stay fast.', fx: [['Speed after a kill', g => (SKV.lust(g) - 1) * 100, pct], ['For', g => g('lust') ? 1.5 : 0, secs]] },
+  // ---- Survival: senses, stealth and recovery (nothing here kills for you) ----
+  { id: 'scent', br: 'surv', major: 1, abil: 1, name: '3rd Eye', icon: 'scent', cost: [1], lvl: 5, req: [['skull', 1]], x: 500, y: 625,
     desc: 'A sixth sense, always on: five times a second it lays the best way out from under bombs and strafing lanes, a lifeline to the nearest meal when your combo is dying, and otherwise a trail to the best meal near you. Its key is Focus: the world slows right down for a moment (in multiplayer it lights up everyone near you instead).', fx: [['Focus', g => SKV.focusDur(g), secs], ['Focus cooldown', g => SKV.focusCd(g), secs]] },
-  { id: 'keen', br: 'hunt', name: 'Keen Eye', icon: 'keen', cost: [300, 500, 780], req: [['scent', 1]], x: 850, y: 615,
+  { id: 'keen', br: 'surv', name: 'Keen Eye', icon: 'keen', cost: [1, 1, 1], req: [['scent', 1]], x: 480, y: 470,
     desc: 'Each rank: the 3rd Eye reads 20% further and Focus lasts 0.27 s longer.', fx: [['Sense range', g => SKV.eyeRange(g) * 100 - 100, pct], ['Focus', g => SKV.focusDur(g), secs]] },
-  { id: 'gold', br: 'hunt', major: 1, name: 'Gold Sense', icon: 'gold', cost: [1100], lvl: 15, req: [['keen', 1]], x: 850, y: 465,
+  { id: 'gold', br: 'surv', major: 1, name: 'Gold Sense', icon: 'gold', cost: [1], lvl: 15, req: [['keen', 1]], x: 465, y: 315,
     desc: 'The 3rd Eye finds golden targets, even through a raid, routed round the danger, and marks everyone who can see you right now. Focus recharges 3 s sooner.', fx: [['Focus cooldown', g => SKV.focusCd(g), secs]] },
-  { id: 'crowd', br: 'hunt', major: 1, name: 'Crowd Sense', icon: 'crowd', cost: [2000], lvl: 21, req: [['gold', 1]], x: 850, y: 300,
+  { id: 'crowd', br: 'surv', major: 1, name: 'Crowd Sense', icon: 'crowd', cost: [2], lvl: 21, req: [['gold', 1]], x: 325, y: 300,
     desc: 'The 3rd Eye leads you to big crowds out in the open, where a lunge tears through them. Focus recharges another 3 s sooner.', fx: [['Focus cooldown', g => SKV.focusCd(g), secs]] },
-  { id: 'camo', br: 'hunt', major: 1, abil: 1, name: 'Camouflage', icon: 'camo', cost: [600], lvl: 8, req: [['scent', 1]], x: 725, y: 600,
+  { id: 'camo', br: 'surv', major: 1, abil: 1, name: 'Camouflage', icon: 'camo', cost: [1], lvl: 8, req: [['skull', 1]], x: 650, y: 625,
     desc: 'Vanish on the spot. Nobody sees you unless you\'re right on top of them, anyone already onto you loses you, and kills while hidden are silent. Every kill while hidden keeps you hidden 1 s longer.', fx: [['Hidden for', g => SKV.camoDur(g), secs], ['Cooldown', g => SKV.camoCd(g), secs]] },
-  { id: 'cover', br: 'hunt', name: 'Deep Cover', icon: 'cover', cost: [260, 400, 580, 820], req: [['camo', 1]], x: 712, y: 445,
+  { id: 'cover', br: 'surv', name: 'Deep Cover', icon: 'cover', cost: [1, 1, 1, 1], req: [['camo', 1]], x: 640, y: 470,
     desc: 'Each rank: hidden 0.5 s longer, 0.5 s less cooldown, and 4% faster while hidden.', fx: [['Hidden for', g => SKV.camoDur(g), secs], ['Cooldown', g => SKV.camoCd(g), secs], ['Speed while hidden', g => SKV.camoSpeed(g) * 100 - 100, pct]] },
-  { id: 'phantom', br: 'hunt', major: 1, name: 'Phantom', icon: 'phantom', cost: [2400], lvl: 23, req: [['cover', 2]], x: 704, y: 290,
+  { id: 'phantom', br: 'surv', major: 1, name: 'Phantom', icon: 'phantom', cost: [2], lvl: 23, req: [['cover', 2]], x: 630, y: 315,
     desc: 'Your combo doesn\'t drain while you\'re hidden, hidden kills pay 25% more, the camouflage settles back in quicker after a turn, and it recharges 2 s sooner.', fx: [['Hidden kills pay', g => g('phantom') ? 25 : 0, pct], ['Cooldown', g => SKV.camoCd(g), secs]] },
-  { id: 'hoover', br: 'hunt', major: 1, abil: 1, name: 'Hoover Mouth', icon: 'hoover', cost: [500], lvl: 6, req: [['scent', 1]], x: 975, y: 600,
+  { id: 'hoover', br: 'pred', major: 1, abil: 1, name: 'Hoover Mouth', icon: 'hoover', cost: [1], lvl: 6, req: [['jaws', 1]], x: 1271, y: 560,
     desc: 'Open wide and inhale: for a moment everything in a cone in front of you, people included, gets dragged toward your mouth. Never through walls.', fx: [['Pull', g => SKV.hoovDur(g), secs], ['Cone', g => SKV.hoovCone(g), n => Math.round(n) + '°'], ['Cooldown', g => SKV.hoovCd(g), secs]] },
-  { id: 'breath', br: 'hunt', name: 'Deep Breath', icon: 'breath', cost: [320, 520, 800], req: [['hoover', 1]], x: 988, y: 445,
+  { id: 'breath', br: 'pred', name: 'Deep Breath', icon: 'breath', cost: [1, 1, 1], req: [['hoover', 1]], x: 1280, y: 405,
     desc: 'Each rank: the pull lasts longer, reaches further, widens and drags harder, and recharges about 1.3 s sooner.', fx: [['Pull', g => SKV.hoovDur(g), secs], ['Cone', g => SKV.hoovCone(g), n => Math.round(n) + '°'], ['Cooldown', g => SKV.hoovCd(g), secs]] },
-  { id: 'vortex', br: 'hunt', major: 1, name: 'Vortex', icon: 'vortex', cost: [2300], lvl: 21, req: [['breath', 2]], x: 996, y: 290,
+  { id: 'vortex', br: 'pred', major: 1, name: 'Vortex', icon: 'vortex', cost: [2], lvl: 21, req: [['breath', 2]], x: 1284, y: 250,
     desc: 'A huge pull in a 170° cone that drags in even people running for their lives: 2.5 s of it, every 9 s.', fx: [['Pull', g => SKV.hoovDur(g), secs], ['Cone', g => SKV.hoovCone(g), n => Math.round(n) + '°'], ['Cooldown', g => SKV.hoovCd(g), secs]] },
-  // ---- Resilience ----
-  { id: 'ram', br: 'res', major: 1, name: 'Battering Ram', icon: 'ram', cost: [300, 850, 1900], lvl: [4, 10, 16], req: [], x: 1074, y: 800,
+  { id: 'ram', br: 'surv', major: 1, name: 'Battering Ram', icon: 'ram', cost: [1, 1, 2], lvl: [4, 10, 16], req: [['skull', 1]], x: 405, y: 720,
     ranks: ['Small things: chairs, plants, crates, hay, fences, bins, glass. Barely slows you', 'Big furniture, bushes and small trees: desks, tables, benches, couches, shelves, beds, bars, consoles, speakers, saplings. A harder knock', 'Cars, rocks and the cracked wall sections on some maps: shortcuts, but the hit leaves you seeing stars'],
     desc: 'Smash through things instead of crashing into them; each rank takes on heavier things. Without it glass still breaks, but going through it knocks you senseless.', fx: [['Smashes', g => SKV.ramTier(g), n => ['Nothing', 'Small things', 'Furniture', 'Cars and walls'][n]]] },
-  { id: 'skull', br: 'res', name: 'Thick Skull', icon: 'skull', cost: [220, 360, 540, 780], req: [['ram', 1]], x: 1222, y: 718,
-    desc: 'Each rank: you shake off a daze 10% faster, whether it came from smashing through something, a wall, or a blast nearby. It never saves you from a direct hit.', fx: [['Daze recovery', g => SKV.dazeK(g) * 100 - 100, pct]] },
-  { id: 'gut', br: 'res', name: 'Iron Stomach', icon: 'gut', cost: [350, 700, 1100], req: [['skull', 1]], x: 1365, y: 590,
+  { id: 'skull', br: 'surv', name: 'Thick Skull', icon: 'skull', cost: [1, 1, 1, 1], req: [], x: 585, y: 790,
+    desc: 'Opens the Survival branch. Each rank: you shake off a daze 10% faster, whether it came from smashing through something, a wall, or a blast nearby. It never saves you from a direct hit.', fx: [['Daze recovery', g => SKV.dazeK(g) * 100 - 100, pct]] },
+  { id: 'gut', br: 'surv', name: 'Iron Stomach', icon: 'gut', cost: [1, 1, 1], req: [['ram', 1]], x: 265, y: 590,
     desc: 'Each rank: your combo lasts 10% longer between kills.', fx: [['Combo time', g => SKV.combo(g) * 100 - 100, pct]] },
-  { id: 'hiss', br: 'res', major: 1, abil: 1, name: 'Hiss', icon: 'hiss', cost: [700], lvl: 11, req: [['ram', 1]], x: 1121, y: 625,
+  { id: 'hiss', br: 'pred', major: 1, abil: 1, name: 'Hiss', icon: 'hiss', cost: [1], lvl: 11, req: [['speed', 1]], x: 1392, y: 660,
     desc: 'A blood-curdling hiss you can see rippling out: everything nearby panics and scatters.', fx: [['Radius', g => SKV.hissR(g), px], ['Cooldown', g => SKV.hissCd(g), secs]] },
-  { id: 'rattle', br: 'res', name: 'Rattle', icon: 'rattle', cost: [380, 600, 900], req: [['hiss', 1]], x: 1147, y: 470,
+  { id: 'rattle', br: 'pred', name: 'Rattle', icon: 'rattle', cost: [1, 1, 1], req: [['hiss', 1]], x: 1406, y: 500,
     desc: 'Each rank: the hiss reaches 17 px further, and everyone it catches is slowed for 1.3 s more and half-deaf (and slurring) for 3.3 s more.', fx: [['Radius', g => SKV.hissR(g), px], ['Slowed for', g => SKV.hissSlow(g), secs], ['Half-deaf for', g => SKV.hissDeaf(g), secs]] },
-  { id: 'shock', br: 'res', major: 1, name: 'Shockwave', icon: 'shock', cost: [2600], lvl: 24, req: [['rattle', 2]], x: 1160, y: 300,
+  { id: 'shock', br: 'pred', major: 1, name: 'Shockwave', icon: 'shock', cost: [2], lvl: 24, req: [['rattle', 2]], x: 1415, y: 335,
     desc: 'The hiss knocks people off their feet and blows groups apart, reaches 30 px further, and recharges 2 s sooner.', fx: [['Radius', g => SKV.hissR(g), px], ['Cooldown', g => SKV.hissCd(g), secs]] },
+  // ---- Fortune: more XP and chips from everything ----
+  { id: 'study', br: 'fort', name: 'Quick Study', icon: 'study', cost: [1, 1, 1, 1, 1], req: [], x: 1615, y: 790,
+    desc: 'Opens the Fortune branch. Each rank: 4% more XP from everything: kills, combos, challenges, near misses, achievements.', fx: [['XP from everything', g => (SKV.xpK(g) - 1) * 100, pct]] },
+  { id: 'streak', br: 'fort', name: 'Hot Streak', icon: 'streak', cost: [1, 1, 1], req: [['study', 1]], x: 1580, y: 630,
+    desc: 'Each rank: kills while your combo is 5x or higher pay 8% more XP and chips.', fx: [['Kills at 5x combo and up', g => (SKV.streakK(g) - 1) * 100, pct]] },
+  { id: 'windfall', br: 'fort', major: 1, name: 'Windfall', icon: 'windfall', cost: [2], lvl: 20, req: [['streak', 2]], x: 1570, y: 470,
+    desc: 'The bonus chips you get for every level up are doubled.', fx: [['Next level-up bonus', g => (15 + (PROG.level + 1) * 3) * SKV.windK(g), n => Math.round(n) + ' chips']] },
+  { id: 'interest', br: 'fort', major: 1, name: 'Compound Interest', icon: 'interest', cost: [2], lvl: 28, req: [['windfall', 1]], x: 1565, y: 310,
+    desc: 'At the end of every run your chip stash earns 3% interest, up to 300 chips a run.', fx: [['Next payout (from what you hold now)', g => SKV.interest(g), n => Math.round(n) + ' chips']] },
+  { id: 'pockets', br: 'fort', name: 'Deep Pockets', icon: 'pockets', cost: [1, 1, 1, 1, 1], req: [['study', 1]], x: 1755, y: 715,
+    desc: 'Each rank: 5% more chips from everything.', fx: [['Chips from everything', g => (SKV.chipK(g) - 1) * 100, pct]] },
+  { id: 'lucky', br: 'fort', name: 'Lucky Bite', icon: 'lucky', cost: [1, 1, 1], req: [['pockets', 1]], x: 1875, y: 610,
+    desc: 'Each rank: a 4% chance that a kill pays double chips.', fx: [['Chance of double chips', g => SKV.luckyP(g) * 100, n => Math.round(n) + '%']] },
+  { id: 'midas', br: 'fort', major: 1, name: 'Golden Touch', icon: 'midas', cost: [2], lvl: 12, req: [['lucky', 1]], x: 1890, y: 450,
+    desc: 'Golden targets pay 50% more XP and chips.', fx: [['Golden targets pay', g => (SKV.goldK(g) - 1) * 100, pct]] },
+  { id: 'haggler', br: 'fort', name: 'Haggler', icon: 'haggler', cost: [1, 1, 1], req: [['pockets', 2]], x: 2005, y: 690,
+    desc: 'Each rank: everything in the shop costs 5% less.', fx: [['Shop prices', g => (SKV.shopK(g) - 1) * 100, pct]] },
+  { id: 'taskmaster', br: 'fort', name: 'Taskmaster', icon: 'taskmaster', cost: [1, 1, 1], req: [['pockets', 1]], x: 1745, y: 540,
+    desc: 'Each rank: map challenges and permanent challenges pay 10% more.', fx: [['Challenge rewards', g => (SKV.taskK(g) - 1) * 100, pct]] },
+  { id: 'daredevil', br: 'fort', name: 'Daredevil', icon: 'daredevil', cost: [1, 1, 1], req: [['taskmaster', 1]], x: 1740, y: 375,
+    desc: 'Each rank: near misses (a bomb landing or a strafing run tearing past right by you) pay 25% more.', fx: [['Near-miss rewards', g => (SKV.nearK(g) - 1) * 100, pct]] },
 ];
 for (const n of SKILL_TREE) n.max = n.cost.length;
 const SKN = Object.fromEntries(SKILL_TREE.map(n => [n.id, n]));
@@ -111,6 +136,10 @@ function treeMerge(t, off) { // tree v2: Quick Scales folded into Speed Demon's 
 if (PROG.treeV < 2) { treeMerge(PROG.tree, PROG.treeOff); PROG.treeV = 2; saveProg(); }
 let UPG_OVR = null; // co-op: while the host's AI deals with another player's snake, the ranks are that player's (their profile's tree)
 const skOwn = id => Math.min(PROG.tree[id] || 0, SKN[id] ? SKN[id].max : 0); // bought, switched on or not
+const skSpent = (t = PROG.tree) => SKILL_TREE.reduce((a, n) => { for (let r = 0; r < Math.min(t[n.id] | 0, n.max); r++) a += n.cost[r]; return a; }, 0); // tokens in the tree
+const skTokens = () => PROG.level - 1 + (PROG.tokBonus | 0) - skSpent(); // one per level past 1 (plus what the chip-bought skills were worth); can dip below 0 after an admin max-out
+if (PROG.treeV < 3) { PROG.tokBonus = (PROG.tokBonus | 0) + skSpent(); PROG.treeV = 3; saveProg(); } // tree v3 (tokens, not chips): what you bought with chips stays yours, and its tokens are added on top, so it costs you nothing
+const skMe = id => { const o = UPG_OVR; UPG_OVR = null; try { return sk(id); } finally { UPG_OVR = o; } }; // your own rank, even while the host is working for another player
 const sk = id => { const n = SKN[id]; if (!n || MOD.noUpgrades || (MOD.noAbilities && n.abil)) return 0; // a node's rank as it counts right now
   const r = UPG_OVR ? UPG_OVR[id] : edTestSkills && edTesting !== null ? edTestSkills[id] : PROG.treeOff[id] ? 0 : PROG.tree[id];
   return Math.max(0, Math.min(r | 0, n.max)); };
@@ -139,7 +168,25 @@ const SKV = {
   hissSlow: (g = sk) => 1.33 * g('rattle'),
   hissDeaf: (g = sk) => 3.33 * g('rattle'),
   hissCd: (g = sk) => 15 - 2 * g('shock'),
+  jaws: (g = sk) => 1 + .07 * g('jaws'), // bite reach (snakeEatRadius)
+  lust: (g = sk) => g('lust') ? 1.15 : 1, // Bloodlust: speed for 1.5 s after a kill
+  // Fortune: rewards are yours alone, so these always read your own tree (never another player's in co-op)
+  xpK: (g = skMe) => 1 + .04 * g('study'),
+  chipK: (g = skMe) => 1 + .05 * g('pockets'),
+  streakK: (g = skMe) => 1 + .08 * g('streak'),
+  luckyP: (g = skMe) => .04 * g('lucky'),
+  goldK: (g = skMe) => g('midas') ? 1.5 : 1,
+  shopK: (g = skMe) => 1 - .05 * g('haggler'),
+  taskK: (g = skMe) => 1 + .1 * g('taskmaster'),
+  nearK: (g = skMe) => 1 + .25 * g('daredevil'),
+  windK: (g = skMe) => g('windfall') ? 2 : 1,
+  interest: (g = skMe) => g('interest') ? Math.min(300, Math.round(PROG.coins * .03)) : 0,
 };
+const shopPrice = p => p > 0 ? Math.max(1, Math.round(p * SKV.shopK())) : 0; // Haggler (free things stay free)
+function payInterest() { // Compound Interest: once per run, on the run summary
+  if (run.interestPaid) return; run.interestPaid = true; const n = SKV.interest(); if (!n) return;
+  gainXP(0, n); notify({ kind: 'info', icon: '◆', title: 'Compound Interest', right: `+${n} chips`, dur: 2.4, key: 'interest' });
+}
 const lvAt = (a, l) => { const i = Math.max(0, Math.min(a.length - 1, Math.floor(l))), f = l - i; return i >= a.length - 1 ? a[a.length - 1] : a[i] + (a[i + 1] - a[i]) * f; }; // a per-level table read at a fractional level
 /* The old upgrade levels, worked out from the tree, for code that still asks "which tier" (looks, challenges, the ram's targets) */
 const upg = id => { switch (id) {
@@ -249,6 +296,18 @@ function upIcon(k) { // small hand-drawn SVG glyphs (20 x 20), one per skill, so
     skull: '<path d="M4 11a6 6 0 1 1 12 0v2.5H4z" stroke-width="1.8"/><path d="M4 13.5h12v2.5H4zM10 5v4" stroke-width="1.6"/>',
     hiss: '<path d="M3 10c2-3 4-3 6 0s4 3 6 0" stroke-width="2.2"/><path d="M13 5l4-2M13 15l4 2M15 10h3" stroke-width="1.8"/>',
     rattle: '<path d="M10 2.5c2 0 3 1.2 3 2.5s-1 2.5-3 2.5-3-1.2-3-2.5 1-2.5 3-2.5zM10 7.5c2.3 0 3.5 1.3 3.5 2.8s-1.2 2.8-3.5 2.8-3.5-1.3-3.5-2.8 1.2-2.8 3.5-2.8zM10 13c2.6 0 4 1.3 4 2.8s-1.4 2.7-4 2.7-4-1.2-4-2.7 1.4-2.8 4-2.8z" stroke-width="1.5"/><path d="M2 6l2 1M18 6l-2 1M2 14l2-1M18 14l-2-1" stroke-width="1.4"/>',
+    jaws: '<path d="M2 6c3-3 13-3 16 0M2 14c3 3 13 3 16 0" stroke-width="2"/><path d="M5 6l1.5 3L8 6M12 6l1.5 3L15 6M5 14l1.5-3L8 14M12 14l1.5-3L15 14" stroke-width="1.5"/>',
+    lust: '<path d="M10 2.5c3 4 5 6.5 5 9.5a5 5 0 0 1-10 0c0-3 2-5.5 5-9.5z" stroke-width="1.8"/><path d="M8 12.5l2-3 2 3" stroke-width="1.7"/>',
+    study: '<path d="M2 6l8-3.5L18 6l-8 3.5z" stroke-width="1.7"/><path d="M5 7.5V12c2 2 8 2 10 0V7.5M18 6v5" stroke-width="1.7"/>',
+    streak: '<path d="M3 15l4-5 3 3 6-8" stroke-width="2"/><path d="M12 5h4v4" stroke-width="1.8"/><path d="M3 18h14" stroke-width="1.3"/>',
+    windfall: '<circle cx="10" cy="12.5" r="4.5" stroke-width="1.8"/><path d="M10 10.5v4M10 2v4M7 4l3 2 3-2" stroke-width="1.6"/>',
+    interest: '<path d="M3 17h14" stroke-width="1.5"/><path d="M4 17v-3M8 17v-5M12 17v-7M16 17v-10" stroke-width="2.2"/><path d="M3 9l5-4 3 2 5-4" stroke-width="1.4"/>',
+    pockets: '<path d="M4 6h12l-1 10H5z" stroke-width="1.8"/><path d="M7 6V4.5a3 3 0 0 1 6 0V6" stroke-width="1.6"/><circle cx="10" cy="11" r="2" stroke-width="1.5"/>',
+    lucky: '<path d="M10 10C7 7 4 7 4 10s3 3 6 0zM10 10c3-3 6-3 6 0s-3 3-6 0zM10 10c-3 3-3 6 0 6s3-3 0-6zM10 10c-3-3-3-6 0-6s3 3 0 6z" stroke-width="1.5"/>',
+    midas: '<circle cx="9" cy="11" r="5.5" stroke-width="1.8"/><path d="M9 8v6M7 9.5h3a1.2 1.2 0 0 1 0 2.4H8a1.2 1.2 0 0 0 0 2.4h3" stroke-width="1.3"/><path d="M16 2v3M14.5 3.5h3" stroke-width="1.5"/>',
+    haggler: '<path d="M3 3h7l7 7-7 7-7-7z" stroke-width="1.8"/><circle cx="7" cy="7" r="1.4" stroke-width="1.4"/><path d="M8 13l5-5" stroke-width="1.5"/>',
+    taskmaster: '<path d="M5 3h10v15H5z" stroke-width="1.7"/><path d="M7 7l1 1 2-2M7 11l1 1 2-2M12 7h1.5M12 11h1.5M7 15h6" stroke-width="1.4"/>',
+    daredevil: '<circle cx="9" cy="12" r="5" stroke-width="1.8"/><path d="M12.5 8.5L15 6M15 6l1-2M15 6l2 1" stroke-width="1.6"/><path d="M7 11.5l1.5 1.5L11 10" stroke-width="1.4"/>',
     shock: '<circle cx="10" cy="10" r="1.8" fill="currentColor" stroke-width="1"/><path d="M5.5 5.5a6.4 6.4 0 0 0 0 9M14.5 5.5a6.4 6.4 0 0 1 0 9M3 3a10 10 0 0 0 0 14M17 3a10 10 0 0 1 0 14" stroke-width="1.7"/>',
   };
   return `<svg class="upi" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[k] || ''}</svg>`;

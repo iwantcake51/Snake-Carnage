@@ -125,7 +125,7 @@ function homeHtml() {
       <nav class="mm-nav" aria-label="Main menu">
         <button class="mm-cta" id="playBtn" data-sfx="open"><span class="mm-l">Start game</span><kbd>Space</kbd></button>
         <button class="mm-it" id="coopBtn" data-sfx="open"><span class="mm-l">Play with friends</span></button>
-        <button class="mm-it" id="upBtn" data-sfx="open"><span class="mm-l">Skill Tree</span>${skillReady() ? '<em class="mm-note hot">Ready to buy</em>' : ''}</button>
+        <button class="mm-it" id="upBtn" data-sfx="open"><span class="mm-l">Skill Tree</span>${skillReady() ? `<em class="mm-note hot">${tokN(skLeft())} to spend</em>` : ''}</button>
         <button class="mm-it" id="snakeBtn" data-sfx="open"><span class="mm-l">Cosmetics</span></button>
         <button class="mm-it" id="chBtn" data-sfx="open"><span class="mm-l">Achievements</span><em class="mm-note">${achN} / ${ACH.length}</em></button>
         <button class="mm-it" id="setBtn" data-sfx="open"><span class="mm-l">Settings</span></button>

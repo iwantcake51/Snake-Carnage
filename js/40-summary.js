@@ -30,6 +30,7 @@ function chTip(c) { // everything about a finished challenge: what it asked, wha
 }
 function showDead() {
   if (showDead.for === deadAt) return; showDead.for = deadAt; // one summary per crash, however many taps or frames land on it
+  payInterest(); // Compound Interest
   stage.classList.remove('bars', 'paused');
   sumShownAt = performance.now();
   const m = MAPS[mapIdx].name, best = PROG.best[m] || 0, pb = score >= best && score > 0;
@@ -44,7 +45,7 @@ function showDead() {
     if (u.kind === 'level') return `<li class="un"><i class="uic">⬆</i><span><b>Level ${u.level}</b><small>+${u.coins} bonus chips${u.unlocks ? ' · ' + u.unlocks : ''}</small></span></li>`;
     return '';
   };
-  for (let L = run.startLevel + 1; L <= PROG.level; L++) { const ups = SKILL_TREE.filter(n => [].concat(n.lvl || []).includes(L)).map(n => n.name); unl.push({ kind: 'level', level: L, coins: 10 + L * 2, unlocks: ups.length ? 'Skill Tree: ' + ups.join(', ') : '' }); }
+  for (let L = run.startLevel + 1; L <= PROG.level; L++) { const ups = SKILL_TREE.filter(n => [].concat(n.lvl || []).includes(L)).map(n => n.name); unl.push({ kind: 'level', level: L, coins: 10 + L * 2, unlocks: '+1 skill token' + (ups.length ? ' · Skill Tree: ' + ups.join(', ') : '') }); }
   overlay.className = 'sumMode';
   overlay.innerHTML = `<div class="panel sum">
     <div class="sh"><h1>${snake && snake.alive ? 'Run over' : run.deathBy === 'bomb' ? 'Blown up' : run.deathBy === 'fuse' ? 'Fuse ran out' : run.deathBy === 'strafe' ? 'Shot up' : 'Crashed'}</h1><span class="smap">${m} · ${fmtTime(run.time)} survived</span></div>
