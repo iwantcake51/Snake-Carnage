@@ -90,8 +90,7 @@ function creatureSil(c, lite) { // lite: just the body and head (far away, where
 }
 function drawHuman(x, c) { // a little bob with each step and a sway side to side, so walking doesn't look like sliding
   if (c.strideK === undefined) { c.strideK = rand(.85, 1.15); c.armK = rand(.75, 1.2); c.flail = hasTrait(c, 'jumpy') || hasTrait(c, 'nervous') || Math.random() < .15; }
-  const m = c.moveAmt, run = c.state === 'panic' || c.state === 'flee', bob = 1 + (1 - Math.cos(c.phase * 2)) * .5 * .045 * m * (run ? 1.4 : 1);
-  x.save(); x.translate(0, Math.sin(c.phase) * .55 * m * (run ? 1.3 : 1)); x.scale(bob, bob); drawHumanBody(x, c); if (c.snowCover > .03) drawSnowCover(x, c); x.restore();
+  x.save(); humanBob(x, c); drawHumanBody(x, c); if (c.snowCover > .03) drawSnowCover(x, c); x.restore();
 }
 /* a light dusting of snow on shoulders, head and hat. It's drawing state, not a layer: c.snowCover (0..1) is set once
    when they spawn in the snow and only ever goes down (running shakes it off, blood stains it); the patch layout comes
@@ -373,12 +372,19 @@ function drawAO(x) { // soft contact darkness where bodies meet the ground
   if (snake && snake.alive) { const P = snake._pts || snake.segs; for (let i = 0; i < P.length; i += 3) { const R = snakeRadius() * 1.8; x.drawImage(AO_SPR, P[i].x - R, P[i].y - R, R * 2, R * 2); } }
   x.globalAlpha = 1;
 }
-function drawCreature(x, c, portrait) {
-  if (c.hz > .3 && shadowsOn()) { const k = clamp(1 - c.hz / 14, .45, 1); x.fillStyle = `rgba(0,0,0,${(.24 * k).toFixed(3)})`; ell(x, c.x, c.y, c.def.r * .95 * k, c.def.r * .75 * k); } // the shadow shrinks as it leaves the ground
-  x.save(); x.translate(c.x, c.y - (c.hz || 0) * .7); x.rotate(c.a); if (c.hz) x.scale(1 + c.hz * .045, 1 + c.hz * .045); // ...and the body gets bigger, closer to you
+function creaturePose(x, c) { // the body's sway on top of where it is and which way it faces: drawn with it, and the outline (drawTargetOutlines) follows it
   if (c.dance) { const b = Math.abs(Math.sin(T * CLUB_BPM / 60 * Math.PI + (c.seed ?? .5) * 30)); x.scale(1 + b * .05, 1 + b * .05); x.rotate(Math.sin(T * 2 + (c.seed ?? .5) * 9) * .12); }
   if (!c.def.human && c.moveAmt > .02 && !c.hz) { // animals: a little weight shift each step, side to side, the body yawing against the legs
     const m = c.moveAmt, ph = c.phase * (c.def.gaitK || 1); x.translate(0, Math.sin(ph) * .45 * m); x.rotate(Math.cos(ph) * .045 * m); }
+}
+function humanBob(x, c) { // a little bob with each step and a sway side to side (drawHuman, and the outline with it)
+  const m = c.moveAmt, run = c.state === 'panic' || c.state === 'flee', bob = 1 + (1 - Math.cos(c.phase * 2)) * .5 * .045 * m * (run ? 1.4 : 1);
+  x.translate(0, Math.sin(c.phase) * .55 * m * (run ? 1.3 : 1)); x.scale(bob, bob);
+}
+function drawCreature(x, c, portrait) {
+  if (c.hz > .3 && shadowsOn()) { const k = clamp(1 - c.hz / 14, .45, 1); x.fillStyle = `rgba(0,0,0,${(.24 * k).toFixed(3)})`; ell(x, c.x, c.y, c.def.r * .95 * k, c.def.r * .75 * k); } // the shadow shrinks as it leaves the ground
+  x.save(); x.translate(c.x, c.y - (c.hz || 0) * .7); x.rotate(c.a); if (c.hz) x.scale(1 + c.hz * .045, 1 + c.hz * .045); // ...and the body gets bigger, closer to you
+  creaturePose(x, c);
   c.def.human ? drawHuman(x, c) : drawAnimal(x, c);
   if (!portrait && hiFx() && !c.def.fly) { x.save(); shapePath(x, c); x.clip(); x.rotate(-c.a); const R = c.def.r * 1.5; x.drawImage(VOL_SPR, -R, -R, R * 2, R * 2); x.restore(); } // rounded: light on top, darker toward the edges
   if (c.stains.length) {

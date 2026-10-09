@@ -273,7 +273,7 @@ function drawTargetOutlines(x) { // clean silhouette rim around everything edibl
     if (!c.alive || c.def.fly) continue;
     const a = playerSees(c.x, c.y); if (a <= .02) continue;
     const hz = c.hz || 0, k = 1 + hz * .045, cy = c.y - hz * .7; // the rim rides up with a hop
-    rimX.save(); rimX.translate(c.x, cy); rimX.scale(k, k); rimX.rotate(c.a);
+    rimX.save(); rimX.translate(c.x, cy); rimX.scale(k, k); rimX.rotate(c.a); creaturePose(rimX, c); if (c.def.human) humanBob(rimX, c); // sways and bobs with the body
     const f = creatureSil(c, !near.has(c)).f; // the whole silhouette: body, head, arms, legs, tails and ears, as one shape
     rimX.globalAlpha = a; rimX.strokeStyle = c.golden ? '#ffcf33' : col; rimX.lineWidth = c.golden ? 3.2 : 2; rimX.stroke(f); // a rim round it...
     rimX.globalAlpha = 1; rimX.globalCompositeOperation = 'destination-out'; rimX.fill(f); rimX.globalCompositeOperation = 'source-over'; // ...then the body cut out, so only the outer edge stays
