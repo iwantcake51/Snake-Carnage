@@ -18,6 +18,7 @@ const ctx = {
   rand: (a, b) => a + math.random() * (b - a),
   randi: (a, b) => a + Math.floor(math.random() * (b - a + 1)),
 };
+ctx.mapTheme = () => ctx.api.MAP_KEY[ctx.MAPS[ctx.mapIdx].name] || null; // (09d's: built-in maps by name)
 vm.createContext(ctx);
 const source = ['25-lines.js', '25-talk.js', '25-dialogue.js'].map(name =>
   fs.readFileSync(path.join(__dirname, '../js', name), 'utf8')).join('\n');

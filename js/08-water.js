@@ -174,7 +174,7 @@ function drawFountainTier(x, o, S, t, tint) { // raised center bowl, falling wat
 }
 function drawWaters(x) {
   if (!obstacles) return;
-  const t = performance.now() / 1000, ice = iceOn();
+  const t = performance.now() / 1000 * AN.water.sp, ice = iceOn(); // (Animation editor: water speed)
   for (const o of obstacles) if (o.kind === 'water') { if (ice) drawIce(x, o); else drawWater(x, o, t); }
 }
 /* winter (and late autumn snow): ponds, pools and fountains freeze over */

@@ -312,6 +312,7 @@ function qolCommands() {
   for (const [t, n, k] of ED_TOOLS) out.push({ n, tag: 'Tool', k, run: () => edTool(t) });
   if (typeof SHAPE_TOOLS !== 'undefined') for (const [t, n, k] of SHAPE_TOOLS) out.push({ n: n + ' shape', tag: 'Tool', k: 'Shift+' + k, run: () => edTool(t) });
   for (const [menu, items] of Object.entries(ED_MENUS)) for (const it of items) if (it !== '-' && !it[0].startsWith('tool:')) out.push({ n: it[1].replace('…', ''), sub: menu, tag: 'Command', k: it[2], run: () => edCmd(it[0]) });
+  if (typeof openAnimEditor === 'function') out.push({ n: 'Animation editor', sub: 'how everything moves', tag: 'Command', run: openAnimEditor });
   out.push({ n: 'Select all like this', tag: 'Command', k: 'Ctrl+Shift+A', run: qolSelectSimilar }, { n: 'Paste in place', tag: 'Command', k: 'Ctrl+Shift+V', run: () => edPaste(true) });
   MAPS.forEach((m, i) => { if (i !== ED.map) out.push({ n: 'Open ' + m.name, tag: 'Map', run: () => { const s = ED.root.querySelector('.edmap'); s.value = i; s.dispatchEvent(new Event('change')); } }); });
   for (const k of ED_KINDS) out.push({ n: 'Edit every ' + ((ED_PROPS.find(p => p[1] === k) || [k])[0]).toLowerCase(), tag: 'Prop editor', run: () => openPropEditor(k) });

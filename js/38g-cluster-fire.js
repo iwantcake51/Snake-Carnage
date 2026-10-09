@@ -27,7 +27,7 @@ function nearWater(x, y, pad) { // inside a pond, a pool or a fountain, or withi
     if (S.round ? Math.hypot(x - S.cx, y - S.cy) < S.hw + pad : Math.abs(x - S.cx) < S.hw + pad && Math.abs(y - S.cy) < S.hh + pad) return true; }
   return false;
 }
-function fireReset() { bomblets = []; firePatches = []; if (snake) burnClear(snake); }
+function fireReset() { bomblets = []; firePatches = []; gasPuffs = []; if (snake) { burnClear(snake); snake.gasK = 0; } }
 
 /* ---- cluster bombs ---- */
 function simBomblet(x, y, a, sp, vz) { // the whole flight, worked out at once at a fixed step, so every screen gets the same path: bounces off the ground and off walls, then a roll to a stop
@@ -96,6 +96,7 @@ function fireSpread(s) { // every screen, from the strike's seed: the same patch
 }
 const patchK = p => clamp(Math.min(p.t * 3, (p.life - p.t) / 1.4), 0, 1); // how hard it's burning: flares up, dies down at the end
 function drawFirePatches(x) { // a small, clearly edged patch: charred ground with a glowing rim, flames standing on it
+  const T = animT('fire'); // (this animation's own clock: Animation editor)
   for (const p of firePatches) { if (p.t < 0) continue; const k = patchK(p); if (k < .01) continue;
     x.globalAlpha = .7 * Math.min(1, p.t * 2); x.fillStyle = '#1b120d'; circ(x, p.x, p.y, p.r * 1.05); // the burnt ground
     x.globalAlpha = .85 * k; x.strokeStyle = `rgb(255,${120 + 50 * Math.sin(T * 9 + p.ph) | 0},30)`; x.lineWidth = 1.8; x.setLineDash([3, 2.5]); x.lineDashOffset = -T * 9; x.beginPath(); x.arc(p.x, p.y, p.r, 0, TAU); x.stroke(); x.setLineDash([]); // its edge: where it burns
@@ -103,6 +104,7 @@ function drawFirePatches(x) { // a small, clearly edged patch: charred ground wi
   x.globalAlpha = 1;
 }
 function drawFireFlames(x) { // (additive) flames standing on each patch
+  const T = animT('fire'); // (this animation's own clock: Animation editor)
   for (const p of firePatches) { if (p.t < 0) continue; const k = patchK(p); if (k < .01) continue;
     const g = x.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 1.5); g.addColorStop(0, `rgba(255,150,50,${(.5 * k).toFixed(3)})`); g.addColorStop(1, 'rgba(200,40,0,0)'); x.fillStyle = g; circ(x, p.x, p.y, p.r * 1.5);
     for (let q = 0; q < 3; q++) { const a = p.ph + q * 2.1 + T * .6, d = p.r * .45, fx = p.x + Math.cos(a) * d * (q ? 1 : 0), fy = p.y + Math.sin(a) * d * (q ? 1 : 0), s = p.r * (1.5 - q * .25) * (.85 + .15 * Math.sin(T * 13 + p.ph + q));
@@ -166,6 +168,7 @@ function burnSnakes(dt) { // everyone's burning snake (yours and the others'): i
   }
 }
 function drawSnakeFlames(x) { // (additive) small flames licking along a burning body, more and taller the harder it burns
+  const T = animT('fire'); // (this animation's own clock: Animation editor)
   for (const s of netSnakes()) { const k = s.burnK || 0; if (k < .02 || !s.alive || !s.segs || s.segs.length < 2 || s.netHidden) continue;
     const n = s.segs.length, m = Math.round(3 + 9 * k), sc = s.scale || 1;
     for (let q = 0; q < m; q++) { const i = Math.min(n - 1, Math.floor((q + .5) / m * n)), g = s.segs[i], R = segR(i, n) * sc, fl = Math.sin(T * (11 + q) + q * 1.7), sz = R * (1.6 + .9 * k) * (.85 + .2 * fl);
@@ -195,7 +198,7 @@ function drawBurnEdge(x) { // screen space: a restrained orange glow creeping in
 function fireTick(dt) { // every frame of a run (from airTick)
   for (let i = firePatches.length - 1; i >= 0; i--) { const p = firePatches[i]; p.t += dt; if (p.t > p.life) { firePatches.splice(i, 1); continue; }
     if (p.t > 0 && Math.random() < dt * 9 * patchK(p) * FX_K()) boomBits.push({ ember: true, x: p.x + rand(-p.r, p.r) * .7, y: p.y + rand(-p.r, p.r) * .6, z: rand(2, 7), vx: rand(-14, 14), vy: rand(-28, -8), vz: rand(30, 70), t: 0, life: rand(.5, 1), g: .15 }); }
-  bombletTick(dt); burnTick(dt); burnSnakes(dt);
+  bombletTick(dt); burnTick(dt); burnSnakes(dt); gasTick(dt);
   if (AUTH() && firePatches.length && (fireTick.ai = (fireTick.ai || 0) - dt) <= 0) { fireTick.ai = .3; fireCrowd(); }
 }
 function fireCrowd() { // the host: people and animals keep clear of the flames, and anyone caught in them burns
@@ -210,6 +213,7 @@ function fireCrowd() { // the host: people and animals keep clear of the flames,
 function fireFrame() { // every frame, run or not: the crackle follows how hard you're burning, and stops the moment you're not in a live run
   const s = snake, live = s && s.alive && (state === 'play' || state === 'paused') && !s.netHidden;
   if (!live && s && (s.burnK || s.burnT)) burnClear(s);
+  if (!live && s) s.gasK = 0;
   if (Sfx.burnSizzle) Sfx.burnSizzle(live ? s.burnK || 0 : 0);
 }
 
@@ -234,3 +238,47 @@ Object.assign(Sfx, {
     if (!(v > .01)) { const old = this.bz; this.bz = null; old.g.gain.setTargetAtTime(0, t, .05); setTimeout(() => { try { old.src.stop(); } catch (e) {} }, 300); }
   },
 });
+
+/* ---- gas bombs (strike kind 'g'): a cloud that hangs for a while. Breathing it slows you, the world swims and drains of
+   colour the longer you're in it, and it eases off once you're out. Battle Hardened (id skull) takes the edge off the
+   slowdown, as it does every slowdown; the Gas Mask (id mask) takes away everything it does to your eyes, but not the
+   slowdown. Every screen builds the same cloud from the strike's seed; each one only gasses its own snake ---- */
+let gasPuffs = [];
+const gasK = p => clamp(Math.min(p.t * 1.6, (p.life - p.t) / 2.5), 0, 1);
+function gasPop(s) { // every screen: the canister bursts with a hiss and the cloud rolls out
+  booms.push({ puff: true, x: s.x, y: s.y, r: 12, t: 0, dur: .35 }); shocks.push({ x: s.x, y: s.y, R: 50, t: 0, dur: .3 });
+  Sfx.clusterPop(s.x); Sfx.steam(s.x);
+  const r = seeded(((s.sd | 0) || 1) + 13), n = 5 + Math.floor(r() * 3), life = 13 + r() * 4;
+  for (let k = 0; k < n; k++) { const a = r() * TAU, d = k ? s.r * (.3 + r() * .9) : 0; gasPuffs.push({ x: s.x + Math.cos(a) * d, y: s.y + Math.sin(a) * d, r: 40 + r() * 20, t: -k * .12, life: life + r() * 2, ph: r() * TAU, v: k % 4 }); }
+  if (gasPuffs.length > 48) gasPuffs.splice(0, gasPuffs.length - 48);
+  if (AUTH()) airCrowdReact('blast', s.x, s.y, s.r * .6);
+}
+const gasMove = (p, dt) => { p.x += Math.cos(p.ph + T * .15) * 3 * dt; p.y += Math.sin(p.ph * 1.7 + T * .12) * 3 * dt; }; // it drifts a little (the same way everywhere: it only depends on the clock)
+function inGas(x, y) { let k = 0; for (const p of gasPuffs) { if (p.t < 0) continue; const d2 = dist2(x, y, p.x, p.y), R = p.r * .9; if (d2 < R * R) k = Math.max(k, gasK(p) * (1 - Math.sqrt(d2) / R * .4)); } return k; }
+const gasSlow = s => s && s.gasK > 0 ? .45 * s.gasK * SKV.dazeCut() : 0; // Battle Hardened: less slowed, as by everything else
+const gasScreen = () => snake && snake.alive && snake.gasK > 0 && !sk('mask') ? snake.gasK : 0; // the Gas Mask: none of it reaches your eyes
+function gasTick(dt) {
+  for (let i = gasPuffs.length - 1; i >= 0; i--) { const p = gasPuffs[i]; p.t += dt; if (p.t > p.life) { gasPuffs.splice(i, 1); continue; } gasMove(p, dt); }
+  const s = snake; if (!s) return;
+  if (!s.alive || s.netHidden || state !== 'play') { if (state !== 'paused') s.gasK = 0; return; }
+  const g = gasPuffs.length ? inGas(s.x, s.y) : 0, was = s.gasK || 0; // what you breathe: where your head is
+  s.gasK = g > .05 ? Math.min(1, was + dt * 2 * g) : Math.max(0, was - dt * .35); // it gets into you fast, and wears off slowly
+  if (g > .05 && was < .05 && performance.now() - (gasTick.at || 0) > 6000) { gasTick.at = performance.now(); notify({ kind: 'bad', icon: giSvg('gas'), title: 'GAS', sub: sk('mask') ? 'Your mask keeps it out of your eyes. Get clear.' : 'It slows you and blurs everything. Get clear.', dur: 2.2, key: 'gas' }); }
+  if (AUTH() && gasPuffs.length && (gasTick.ai = (gasTick.ai || 0) - dt) <= 0) { gasTick.ai = .4; // the crowd: coughing, they stumble out of it, slowed
+    for (const p of gasPuffs) { if (p.t < 0 || gasK(p) < .2) continue; for (const c of nearbyCreatures(p.x, p.y, p.r + 30, [])) { if (!c.alive || c.def.fly) continue;
+      c.blastStunT = Math.max(c.blastStunT || 0, T + .15); if (c.state !== 'panic') { c.state = 'panic'; c.fx = p.x; c.fy = p.y; c.alert = Math.max(c.alert || 0, c.def.human ? 1 : .6); c.timer = Math.max(c.timer || 0, rand(2.5, 4)); c.goal = null; } } } }
+}
+function drawGas(x) { // a low, rolling cloud, sickly yellow-green
+  const T = animT('gas'); // (this animation's own clock: Animation editor)
+  for (const p of gasPuffs) { if (p.t < 0) continue; const k = gasK(p); if (k < .01) continue;
+    const g = x.createRadialGradient(p.x, p.y, p.r * .2, p.x, p.y, p.r); g.addColorStop(0, `rgba(185,220,75,${(.24 * k).toFixed(3)})`); g.addColorStop(.7, `rgba(150,190,55,${(.15 * k).toFixed(3)})`); g.addColorStop(1, 'rgba(120,150,40,0)');
+    x.fillStyle = g; circ(x, p.x, p.y, p.r);
+    x.globalAlpha = .42 * k; kDraw(x, K_SMOKE[p.v], [196, 230, 96], p.x, p.y, p.r * 2.1, p.r * 2.1, p.ph + T * .08, 96, 2); x.globalAlpha = 1; }
+}
+function drawGasEdge(x) { // screen space: while you're breathing it, the edges go a sickly green and swim
+  const k = gasScreen(); if (k < .02) return;
+  const ax = W / H, wob = SETTINGS.reduceMotion ? 0 : Math.sin(UT * 2.3) * .04;
+  x.save(); x.setTransform(DPR * ax, 0, 0, DPR, DPR * W / 2, DPR * H / 2);
+  const g = x.createRadialGradient(0, 0, 0, 0, 0, H / 2 * Math.SQRT2 * (1 + wob)); g.addColorStop(.45, 'rgba(120,150,40,0)'); g.addColorStop(1, `rgba(95,120,25,${(.42 * k).toFixed(3)})`);
+  x.fillStyle = g; x.fillRect(-H, -H, H * 2, H * 2); x.restore();
+}

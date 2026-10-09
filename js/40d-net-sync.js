@@ -411,7 +411,7 @@ function netCreatureCosmetics(c, dt, moved) { // the parts of updateCreature tha
   if (c.bubbles) for (let i = c.bubbles.length - 1; i >= 0; i--) { const b = c.bubbles[i]; if (b.delay > 0) { if ((b.delay -= dt) <= 0 && b.yell) Sfx.vocal(c.x, b.prof || 'shout', c.vox || 1); } else if ((b.t += dt) > b.life) c.bubbles.splice(i, 1); }
   c.spd = dt > 0 ? moved / dt : 0;
   c.moveAmt += ((moved > .05 ? 1 : 0) - c.moveAmt) * Math.min(1, dt * 8);
-  c.phase += moved * (d.human ? .3 : .5) / Math.max(.7, d.r / 7);
+  c.phase += moved * (d.human ? .3 * AN.walk.sp : .5 * AN.gait.sp) / Math.max(.7, d.r / 7);
   footprints(c, moved);
   if (c.snowCover > 0 && moved > 0 && c.state === 'panic') c.snowCover = Math.max(0, c.snowCover - moved * .0025);
   updateFlash(c, dt);

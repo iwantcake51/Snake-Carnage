@@ -48,7 +48,7 @@ function airReset() { fireReset(); AIR.barT = undefined; scorched = []; tailBits
 /* reeling from a blast: full strength for the first second, then it fades over the next 1.2 */
 const boomSlow = s => s && s.boomT > 0 ? (s.boomK || 0) * clamp(s.boomT / 1.2, 0, 1) : 0;
 const boomDaze = () => snake && snake.alive ? boomSlow(snake) : 0;
-const airBusy = () => bomblets.length || firePatches.length || strikes.length || booms.length || boomBits.length || corpses.length || fallenHats.length || jets.length || shocks.length || fires.length || soots.length || hazes.length || later.length || clods.length || strafes.length || tracers.length;
+const airBusy = () => bomblets.length || firePatches.length || gasPuffs.length || strikes.length || booms.length || boomBits.length || corpses.length || fallenHats.length || jets.length || shocks.length || fires.length || soots.length || hazes.length || later.length || clods.length || strafes.length || tracers.length;
 /* Host-only perception, using the existing voice/interruption and bubble replication.
    No knowledge of target rings: react only to a passing aircraft or actual impacts. */
 function airCrowdReact(kind, x, y, r = AIR_R, seen) {
@@ -173,7 +173,7 @@ function airCalledOffNote() { notify({ kind: 'info', icon: '✈', title: 'Bad in
 function airSalvo(s, g, a) { // a salvo of bombs walked along this snake's path (g: how far into the raid: bigger, faster salvos)
   const raid = !!MOD.airRaid, lock = LOCK(), k = Math.min(1, g), n = raid ? Math.min(4, 1 + Math.floor(Math.random() * (1 + 2.2 * Math.min(1, g)))) : Math.min(3, 1 + Math.floor(Math.random() * (1 + .6 * g))), warn = (3 - .5 * k) * (lock ? .45 : 1), sp = (s.speed || CONFIG.snakeSpeeds.Normal) * (s.dashV || 1); // a normal game: smaller salvos
   const jetA = a ?? s.angle + (Math.random() < .5 ? 1 : -1) * rand(.9, 2.2); // the jet crosses your path
-  const tt = (run.time || 0) - (raid ? AIR_RAID_START : AIR_START), spec = tt > 35 && Math.random() < .42 ? (Math.random() < .5 ? 'c' : 'i') : null, sj = spec ? randi(0, n - 1) : -1; // now and then one of them is a cluster bomb or an incendiary
+  const tt = (run.time || 0) - (raid ? AIR_RAID_START : AIR_START), spec = tt > 35 && Math.random() < .5 ? pick(['c', 'i', 'g']) : null, sj = spec ? randi(0, n - 1) : -1; // now and then one of them is a cluster bomb or an incendiary
   for (let j = 0; j < n; j++) { // a salvo walks along the path
     const b = bombKind(), r = Math.round(AIR_R * b.r), fs = b.f; // each bomb its own size and speed
     let w = warn / Math.sqrt(fs) + j * (lock ? rand(.22, .32) : raid ? rand(.3, .45) : rand(.55, .9)) + rand(.02, .08); // a fast one gives less warning; one after another, never two at once
@@ -277,6 +277,7 @@ function airTick(dt) {
 }
 function detonate(s) {
   if (s.kd === 'c') return clusterSplit(s); // a cluster bomb opens instead: its bomblets do the damage (38g-cluster-fire)
+  if (s.kd === 'g') return gasPop(s); // a gas bomb doesn't blow up: it lets out a cloud (38g)
   const mini = !!s.mini, cm = mini ? .3 : 1; // a bomblet: the same blast, much smaller, felt much less far off
   const { x, y, r } = s, near = (snake ? Math.hypot(snake.x - x, snake.y - y) : 999) * (mini ? 2.4 : 1), fx = FX_K() * cm;
   booms.push({ x, y, r, t: 0, dur: mini ? .7 : 1.1 }); // the flash and the core fireball
@@ -439,20 +440,33 @@ function updateTailBits(dt) {
   }
 }
 function eatTailBits(s) { // run over them to swallow them back (yours or anyone's)
-  if (!tailBits.length) return; let ate = 0, ex = 0; const R = snakeRadius() * 1.6;
+  if (!tailBits.length) return; let ate = 0, ex = 0, ey = 0, own = 0, P = null; const R = snakeRadius() * 1.6, me = (NETM.run ? NETM.me : 'me') + ':';
   for (let i = tailBits.length - 1; i >= 0; i--) { const b = tailBits[i]; if (b.z > 14) continue;
-    if (dist2(b.x, b.y, s.x, s.y) < (R + b.s) ** 2) { s.gibFood = (s.gibFood || 0) + b.food; ex = b.x; tailBits.splice(i, 1); ate++;
+    if (dist2(b.x, b.y, s.x, s.y) < (R + b.s) ** 2) { s.gibFood = (s.gibFood || 0) + b.food; ex = b.x; ey = b.y; P = b.P; if (String(b.id).startsWith(me)) own++; tailBits.splice(i, 1); ate++;
       if (NETM.run) { const m = { t: 'beat', id: b.id, by: NETM.me }; if (NETM.host) netEmit(m); else netSend(m); } } }
   if (!ate) return;
   let grew = 0; while (s.gibFood >= 1 - 1e-6) { s.gibFood -= 1; s.len++; s.stains.push([]); grew++; }
-  Sfx.gore(ex, false); if (grew) Sfx.eat(ex, false, .4);
+  Sfx.gore(ex, false); Sfx.eat(ex, false, grew ? .75 : .45); // a wet, meaty gulp
+  chunkImpact(s, ex, ey, ate, own === ate, P, grew);
   for (let k = 0; k < 3 * ate; k++) { const i = randi(0, Math.min(3, s.segs.length - 1)), g = s.segs[i]; stainSnake(i, g.x + rand(-6, 6), g.y + rand(-6, 6), rand(1.2, 2.6), pick(['#a50d16', '#7c0710'])); }
 }
+function chunkImpact(s, x, y, n, own, P, grew) { // biting a chunk back down: a jolt, a red spray from the jaws, the head swells a moment, and a word in the world
+  shake = Math.max(shake, Math.min(9, 4 + 1.6 * n)); if (!SETTINGS.reduceFlash) hitStop = Math.max(hitStop, .035);
+  const a = s.angle ?? Math.atan2(y - s.y, x - s.x); spawnBlood(s.x + Math.cos(a) * 6, s.y + Math.sin(a) * 6, a, Math.min(.6, .18 + .08 * n), 1.4, .25); bloodMist(s.x, s.y, a, Math.min(1, .4 + .15 * n), [BLOOD, '#a50d16', '#6e0710']);
+  for (let k = 0; k < 6 + 3 * n; k++) { const b = a + rand(-1.4, 1.4), sp = rand(60, 170); boomBits.push({ x: s.x, y: s.y, z: rand(2, 6), vx: Math.cos(b) * sp, vy: Math.sin(b) * sp, vz: rand(40, 110), t: 0, life: rand(.5, .9), g: .6, s: rand(1.4, 2.8), c: k % 3 ? '#b3121e' : P || '#7c0710' }); } // gristle flying from the bite
+  ringPops.push({ x, y, t: 0 }); s.drip = Math.max(s.drip || 0, 1.2 + .4 * n); s.dripCol = BLOOD; // and the jaws drip for a bit
+  const now = performance.now(); let m = NM.list[NM.list.length - 1]; // a run of bites in a row adds up in one word
+  if (m && m.chunk && now - m.t0 < 700) { m.n += n; m.g += grew; m.own = m.own && own; m.t0 = now; m.x = x; m.y = y; } else { NM.list.push(m = { chunk: 1, x, y, t0: now, n, g: grew, own }); if (NM.list.length > 5) NM.list.shift(); }
+  m.txt = m.own ? (m.n > 1 ? `TAIL BACK x${m.n}` : 'TAIL BACK') : (m.n > 1 ? `FLESH x${m.n}` : 'FRESH FLESH'); m.sub = m.g ? `+${m.g} LENGTH` : null; m.col = m.own ? '#9dff8a' : '#ff6a6a';
+}
 function drawTailBits(x) { // fat chunks of snake body: its colors, a raw red end each side, a wet shine, and a soft pulsing glow under them so you spot them
+  const T = animT('chunks'); // (this animation's own clock: Animation editor)
   if (!tailBits.length) return;
   x.save();
-  for (const b of tailBits) { const al = clamp((b.life - b.t) / 2, 0, 1), s = b.s, y = b.y - b.z * .3, pu = .5 + .5 * Math.sin(T * 5 + b.rot * 3);
-    x.globalAlpha = al * (.28 + .22 * pu); const g = x.createRadialGradient(b.x, b.y, 0, b.x, b.y, s * 3.2); g.addColorStop(0, 'rgba(255,225,170,.9)'); g.addColorStop(1, 'rgba(255,200,120,0)'); x.fillStyle = g; x.beginPath(); x.arc(b.x, b.y, s * 3.2, 0, TAU); x.fill();
+  for (const b of tailBits) { const al = clamp((b.life - b.t) / 2, 0, 1), s = b.s * 1.15, bob = b.z > 0 ? 0 : (1.6 + 1.6 * Math.sin(T * 3.4 + b.rot * 5)) * AN.chunks.amp, y = b.y - b.z * .3 - bob, pu = .5 + .5 * Math.sin(T * 5 + b.rot * 3); // sitting on the ground they bob, so they read as something to grab
+    x.globalCompositeOperation = 'lighter'; x.globalAlpha = al * (.35 + .3 * pu); const g = x.createRadialGradient(b.x, b.y, 0, b.x, b.y, s * 4); g.addColorStop(0, 'rgba(255,215,150,.95)'); g.addColorStop(.35, 'rgba(255,120,90,.45)'); g.addColorStop(1, 'rgba(255,80,60,0)'); x.fillStyle = g; x.beginPath(); x.arc(b.x, b.y, s * 4, 0, TAU); x.fill(); // a warm glow you can see across the map
+    const tw = Math.max(0, Math.sin(T * 2.3 + b.rot * 7)) ** 6; if (tw > .05) { const L = s * (1.6 + 1.4 * tw), cx = b.x + s * .5, cy = y - s * .6; x.globalAlpha = al * tw; x.strokeStyle = '#fff6dc'; x.lineWidth = 1.2; x.beginPath(); x.moveTo(cx - L, cy); x.lineTo(cx + L, cy); x.moveTo(cx, cy - L); x.lineTo(cx, cy + L); x.stroke(); } // and now and then a glint
+    x.globalCompositeOperation = 'source-over';
     x.globalAlpha = .25 * al; x.fillStyle = '#000'; x.beginPath(); x.ellipse(b.x, b.y + 1.5, s * 1.3, s * .8, 0, 0, TAU); x.fill(); // its shadow
     x.globalAlpha = al; x.translate(b.x, y); x.rotate(b.rot);
     x.fillStyle = b.P; x.beginPath(); x.ellipse(0, 0, s * 1.35, s * .82, 0, 0, TAU); x.fill(); // the body
@@ -460,7 +474,8 @@ function drawTailBits(x) { // fat chunks of snake body: its colors, a raw red en
     x.fillStyle = '#9e0f1a'; for (const e of [-1, 1]) { x.beginPath(); x.ellipse(e * s * 1.18, 0, s * .32, s * .72, 0, 0, TAU); x.fill(); } // torn red ends
     x.fillStyle = '#e04a55'; for (const e of [-1, 1]) { x.beginPath(); x.ellipse(e * s * 1.2, 0, s * .16, s * .4, 0, 0, TAU); x.fill(); }
     x.fillStyle = 'rgba(255,255,255,.35)'; x.beginPath(); x.ellipse(-s * .25, -s * .38, s * .55, s * .14, 0, 0, TAU); x.fill(); // the shine
-    x.strokeStyle = `rgba(255,235,200,${(.45 + .4 * pu) * al})`; x.lineWidth = 1.3; x.beginPath(); x.ellipse(0, 0, s * 1.55, s * 1.02, 0, 0, TAU); x.stroke(); // a pulsing outline
+    x.strokeStyle = `rgba(20,4,6,${.7 * al})`; x.lineWidth = 1.6; x.beginPath(); x.ellipse(0, 0, s * 1.42, s * .9, 0, 0, TAU); x.stroke(); // a dark edge so it reads on any ground
+    x.strokeStyle = `rgba(255,235,200,${(.55 + .45 * pu) * al})`; x.lineWidth = 1.5; x.beginPath(); x.ellipse(0, 0, s * (1.6 + .15 * pu), s * (1.06 + .12 * pu), 0, 0, TAU); x.stroke(); // a pulsing outline
     x.restore(); x.save(); }
   x.restore();
 }
@@ -523,8 +538,8 @@ function drawNearMiss(x) { // in the world, small, right where it happened: a qu
   NM.list = NM.list.filter(m => now - m.t0 < 1150); if (!NM.list.length) return;
   x.save(); x.textAlign = 'center'; x.textBaseline = 'middle'; x.lineJoin = 'round';
   for (const m of NM.list) { const u = (now - m.t0) / 1150, pop = u < .12 ? .7 + 2.5 * u : 1, a = u < .1 ? u * 10 : 1 - Math.max(0, (u - .55) / .45), y = m.y - 14 - 16 * u;
-    x.globalAlpha = a * .92; x.font = `800 ${(9 * pop).toFixed(1)}px system-ui, sans-serif`; x.lineWidth = 2.6; x.strokeStyle = 'rgba(0,0,0,.65)'; x.strokeText(m.txt, m.x, y); x.fillStyle = '#ffd86a'; x.fillText(m.txt, m.x, y);
-    x.font = `700 ${(7.5 * pop).toFixed(1)}px system-ui, sans-serif`; x.strokeText(`+${m.xp} XP`, m.x, y + 9); x.fillStyle = '#fff3cf'; x.fillText(`+${m.xp} XP`, m.x, y + 9); }
+    x.globalAlpha = a * .92; x.font = `800 ${(9 * pop).toFixed(1)}px system-ui, sans-serif`; x.lineWidth = 2.6; x.strokeStyle = 'rgba(0,0,0,.65)'; x.strokeText(m.txt, m.x, y); x.fillStyle = m.col || '#ffd86a'; x.fillText(m.txt, m.x, y);
+    const sub = m.xp != null ? `+${m.xp} XP` : m.sub; if (sub) { x.font = `700 ${(7.5 * pop).toFixed(1)}px system-ui, sans-serif`; x.strokeText(sub, m.x, y + 9); x.fillStyle = '#fff3cf'; x.fillText(sub, m.x, y + 9); } } // (eaten flesh chunks use these too: their own color, no XP line)
   x.restore();
 }
 function bombDeath(by = 'bomb') {
@@ -607,6 +622,7 @@ const inCrater = (x, y) => { for (const c of scorched) if ((x - c[0]) ** 2 + (y 
 function burnGrass(x, y, r) { // the crater and the ground round it are burnt off: grass in the middle is gone, a ring of it is left as black stubble, and none of it comes back
   const R = r * 1.25; scorched.push([x, y, R]);
   if (grass.length) { let hit = false; grass = grass.filter(g => { const d = Math.hypot(g.x - x, g.y - y); if (d > R) return true; hit = true; if (d < r * .8) return false; g.c = Math.random() < .5 ? '#1d1916' : '#2a231d'; g.h *= .45; return true; }); if (hit) grass.byCol = null; }
+  if (plants.length) plants = plants.filter(p => Math.hypot(p.x - x, p.y - y) > R * .9); // the clover and ferns there are gone too
   for (let j = Math.max(0, (y - R) / GM | 0); j <= Math.min(GMH - 1, (y + R) / GM | 0); j++) for (let i = Math.max(0, (x - R) / GM | 0); i <= Math.min(GMW - 1, (x + R) / GM | 0); i++)
     if (((i + .5) * GM - x) ** 2 + ((j + .5) * GM - y) ** 2 < R * R) grassMask[j * GMW + i] = 0; // not grass any more: no leaves settle, no plants, no green kicked up
   const g = bctx.createRadialGradient(x, y, r * .3, x, y, R * 1.1); g.addColorStop(0, 'rgba(18,13,10,.8)'); g.addColorStop(.6, 'rgba(22,16,12,.55)'); g.addColorStop(1, 'rgba(22,16,12,0)'); // char: the flowers, plants and leaves baked into the ground go black
@@ -759,6 +775,7 @@ function drawAirstrikes(x) { // drawn under the fog (so markers in it stay hidde
   drawBomblets(x);
   for (const s of strafes) drawStrafe(x, s);
   for (const p of soots) drawSoot(x, p);
+  drawGas(x); // gas clouds hang over everything on the ground
   if (firePatches.length || netSnakes().some(s => (s.burnK || 0) > .02)) { x.save(); x.globalCompositeOperation = 'lighter'; drawFireFlames(x); drawSnakeFlames(x); x.restore(); } // flames on the ground and on anyone burning
   if (booms.length || boomBits.length || fires.length || soots.length || tracers.length || clods.length) {
     x.save(); x.globalCompositeOperation = 'lighter';
@@ -815,6 +832,7 @@ function drawSoot(x, p) {
   x.fillStyle = g; x.save(); x.translate(p.x, p.y); x.rotate(p.rot); x.scale(1, .82 + .18 * Math.sin(p.rot * 3)); x.translate(-p.x, -p.y); circ(x, p.x, p.y, p.r); x.restore();
 }
 function drawFire(x, f) { // a patch of ground still burning in the crater: flickering tongues of flame
+  const T = animT('fire'); // (this animation's own clock: Animation editor)
   const a = clamp(Math.min(f.t * 4, (f.life - f.t) / 1.2), 0, 1) * (.75 + .25 * Math.sin(T * 23 + f.ph));
   if (KSPR.ok) {
     const g = x.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.r * 1.3); g.addColorStop(0, `rgba(255,150,50,${(a * .55).toFixed(3)})`); g.addColorStop(1, 'rgba(160,30,0,0)'); x.fillStyle = g; circ(x, f.x, f.y, f.r * 1.3);
@@ -844,6 +862,12 @@ function drawStrikeMark(x, s) { // a bomb, an incendiary and a cluster bomb each
     x.fillStyle = g; x.beginPath(); x.moveTo(0, -fh); x.bezierCurveTo(fh * .55, -fh * .35, fh * .5, fh * .35, 0, fh * .5); x.bezierCurveTo(-fh * .5, fh * .35, -fh * .55, -fh * .35, 0, -fh); x.fill();
     x.fillStyle = 'rgba(255,240,200,.85)'; x.beginPath(); x.ellipse(0, fh * .12, fh * .16, fh * .28, 0, 0, TAU); x.fill();
     sweep();
+  } else if (s.kd === 'g') { // GAS: a sickly green ring of bubbles, a cloud of them drifting inside
+    zone(150, 200, 40);
+    x.save(); x.rotate(rot * .4); x.setLineDash([2, 6]); x.lineWidth = 3; x.lineCap = 'round'; x.strokeStyle = on ? '#d6ff5a' : '#9cc83a'; x.beginPath(); x.arc(0, 0, R, 0, TAU); x.stroke(); x.setLineDash([]); x.restore();
+    x.fillStyle = 'rgba(190,230,90,.35)'; x.strokeStyle = '#b8e04c'; x.lineWidth = 1.4;
+    for (let q = 0; q < 7; q++) { const a = q * 2.4 + T * .5, d = R * (.15 + .45 * ((q * 37) % 10) / 10), rr = 4 + (q % 3) * 2.5 + Math.sin(T * 3 + q) * 1.2; x.beginPath(); x.arc(Math.cos(a) * d, Math.sin(a) * d, rr, 0, TAU); x.fill(); x.stroke(); } // bubbles of it
+    sweep();
   } else if (s.kd === 'c') { // CLUSTER: yellow and black hazard stripes, a dashed circle as far as the bomblets scatter, and a spread of little targets in the middle
     zone(255, 190, 40);
     x.save(); x.globalAlpha = .55 + .3 * p; x.setLineDash([3, 7]); x.lineWidth = 1.6; x.strokeStyle = '#ffd23f'; x.beginPath(); x.arc(0, 0, R * 2.5, 0, TAU); x.stroke(); x.setLineDash([]); x.restore(); // how far they scatter
@@ -866,7 +890,7 @@ function drawStrikeMark(x, s) { // a bomb, an incendiary and a cluster bomb each
     x.fillStyle = on ? '#fff' : '#ff4a3a'; circ(x, 0, 0, 2.6); x.strokeStyle = '#ff3b30'; x.lineWidth = 1.5; x.beginPath(); x.arc(0, 0, 6, 0, TAU); x.stroke();
   }
   if (s.t < s.f) drawFallingBomb(x, s, 1 - s.t / s.f); // the bomb coming down
-  if (s.kd) { const c = s.kd === 'c' ? '#ffd23f' : '#ff7a1a', L = s.kd === 'c' ? 'CLUSTER' : 'FIRE', ly = s.kd === 'c' ? R * 2.5 + 11 : R + 28; // what it is, underneath
+  if (s.kd) { const c = s.kd === 'c' ? '#ffd23f' : s.kd === 'g' ? '#b8e04c' : '#ff7a1a', L = s.kd === 'c' ? 'CLUSTER' : s.kd === 'g' ? 'GAS' : 'FIRE', ly = s.kd === 'c' ? R * 2.5 + 11 : R + 28; // what it is, underneath
     x.font = '900 10px system-ui, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.lineWidth = 3.5; x.strokeStyle = 'rgba(0,0,0,.8)'; x.strokeText(L, 0, ly); x.fillStyle = c; x.fillText(L, 0, ly); }
   x.restore();
 }
@@ -876,7 +900,7 @@ function drawFallingBomb(x, s, u) { // (in the marker's frame) it comes down at 
   const bx = -ca * back, by = -sa * back * .55 - h, vx = ca * .42, vy = sa * .42 * .55 + 1; // where it is, and which way it's moving on screen
   const k = .85 + .6 * u, nose = Math.atan2(vy, vx) - Math.PI / 2, wob = Math.sin(T * 34 + s.rot * 9) * .07 * (1 - u * .5);
   const sh = .18 + .45 * u, sr = 2.5 + 8 * u; x.fillStyle = `rgba(0,0,0,${sh.toFixed(3)})`; ell(x, -ca * back * .15, -sa * back * .1, sr, sr * .62); // the shadow
-  const body = s.kd === 'c' ? ['#4f4620', '#7a6c2c', '#d9b23a'] : s.kd === 'i' ? ['#5a2216', '#8a3a24', '#ff7a2a'] : ['#2f3527', '#4b5540', '#c9a227'];
+  const body = s.kd === 'c' ? ['#4f4620', '#7a6c2c', '#d9b23a'] : s.kd === 'i' ? ['#5a2216', '#8a3a24', '#ff7a2a'] : s.kd === 'g' ? ['#34421c', '#5c7330', '#b8e04c'] : ['#2f3527', '#4b5540', '#c9a227'];
   const blur = SETTINGS.reduceMotion ? 0 : 4; // the motion blur: fading copies trailing back up its path, and a soft streak
   x.save(); x.translate(bx, by); x.rotate(nose + wob); x.scale(k, k);
   if (blur) { const L = 26 + 40 * (1 - u), g = x.createLinearGradient(0, 0, 0, -L); g.addColorStop(0, 'rgba(255,255,255,.28)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.beginPath(); x.moveTo(-3.6, -2); x.lineTo(3.6, -2); x.lineTo(1.2, -L); x.lineTo(-1.2, -L); x.closePath(); x.fill(); // the air it tears through

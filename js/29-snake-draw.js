@@ -46,7 +46,7 @@ function drawSnakeBody(x, s, cfg) {
   const moving = s === snake ? s.started && s.alive && state === 'play' : !!s.netMoving; // a teammate: moving if their head is
   s.wv = (s.wv || 0) + ((moving ? 1 : 0) - (s.wv || 0)) * .08;
   const pts = s.segs.map((g, i) => {
-    const amp = s.wv * 1.7 * Math.min(1, i / 4) * Math.max(0, 1 - i / (n + 6)), o = Math.sin(i * .55 - T * 9) * amp;
+    const amp = s.wv * 1.7 * AN.slither.amp * Math.min(1, i / 4) * Math.max(0, 1 - i / (n + 6)), o = Math.sin(i * .55 - animT('slither') * 9) * amp;
     return { x: g.x - Math.sin(g.a) * o, y: g.y + Math.cos(g.a) * o, a: g.a };
   });
   for (let i = 0; i < pts.length; i++) { // direction from the neighbours, not the raw heading: hard turns bend the tube smoothly instead of kinking it

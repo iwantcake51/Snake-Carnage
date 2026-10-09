@@ -111,7 +111,7 @@ function updateLights(dt) {
     let fl = 1;
     if (l.ign > 0) { l.ign -= dt; fl = Math.random() < .45 ? rand(.05, .35) : 1; }
     else if (l.fT > 0) { l.fT -= dt; if ((l.fN -= dt) <= 0) { l.fN = rand(.04, .09); l.fv = Math.random() < .5 ? rand(.45, .75) : 1; } fl = l.fv; } // a short, rare stutter
-    else if (l.flick && Math.random() < dt * .05) { l.fT = rand(.15, .45); l.fN = 0; }
+    else if (l.flick && Math.random() < dt * .05 * AN.flicker.freq) { l.fT = rand(.15, .45); l.fN = 0; }
     l.fl = fl;
     if (l.kind === 'disco') { // club spots sweep the dance floor and drift through the colors
       const a = T * .55 + l.spin * Math.PI / 2; l.x = 480 + Math.cos(a) * 110 + Math.cos(T * 1.3 + l.spin) * 30; l.y = 350 + Math.sin(a * 1.3) * 80;

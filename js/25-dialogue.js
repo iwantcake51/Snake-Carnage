@@ -18,7 +18,7 @@ function stretch(t) { // FUCKKK, NOOOO
   words[i] = w.slice(0, pos + 1) + w[pos].repeat(randi(1, 3)) + w.slice(pos + 1);
   return words.join(' ');
 }
-const mapKey = () => MAP_KEY[MAPS[mapIdx].name] || null;
+const mapKey = () => { const t = mapTheme(); return t && (MAPL[t] || TALK[t]) ? t : null; }; // the map's theme: built-in by name, custom maps by their own (09d)
 const mapL = () => MAPL[mapKey()] || {};
 function panicLevel(c) { // 0 calm .. 1 falling apart
   const h = c.voice ? c.voice.heat : .5, seen = Math.min(.25, (c.deathsSeen || 0) * .08);
@@ -72,6 +72,30 @@ function fromPool(c, pool) {
   const l = pick(pool); c.recent.push(l); if (c.recent.length > 10) c.recent.shift();
   return l;
 }
+/* ---- more than one snake in the world (co-op, free for all): they say "snakes", not "the snake" ---- */
+const manySnakes = () => typeof netSnakes === 'function' && netSnakes().filter(s => s.alive && !s.hidden && !s.netHidden).length > 1;
+const MANY = {
+  firstSight: ['There\'s more than one of them!', 'Two snakes?!', 'How many snakes ARE there?', 'There\'s another one!', 'Wait, there\'s two of them.', 'They\'re everywhere!'],
+  chased: ['There\'s more of them!', 'Another one! Another one!', 'They\'re coming from both sides!', 'Which one do I run from?!'],
+  panic: ['THERE\'S MORE THAN ONE!', 'They\'re everywhere!', 'How many of them are there?!', 'Watch out, there\'s another one!'],
+  airTargetSnake: ['They\'re bombing all of them!', 'Which snake are they even aiming at?!', 'They\'re after the snakes, not us!'],
+};
+const SNAKES_PL = [ // singular snake phrasings, and what they become with several (applied before any yelling or stutter)
+  [/\b(Is|is) that ((?:actually |really )?)a ((?:fucking |huge |real )*)snake\b/g, (m, a, b, d) => (a === 'Is' ? 'Are' : 'are') + ' those ' + b + d + 'snakes'],
+  [/\bWas that really a snake\b/g, 'Were those really snakes'],
+  [/\bThat was a snake, wasn't it\b/g, 'Those were snakes, weren\'t they'],
+  [/\b(T|t)here's a ((?:fucking |huge |real )*)snake\b/g, '$1here are $2snakes'],
+  [/\b(I|i)t's a ((?:fucking |huge |real )*)snake\. A big one\b/g, (m, a, b) => (a === 'I' ? 'T' : 't') + 'hey\'re ' + b + 'snakes. Big ones'],
+  [/\b(I|i)t's a ((?:fucking |huge |real )*)snake\b/g, (m, a, b) => (a === 'I' ? 'T' : 't') + 'hey\'re ' + b + 'snakes'],
+  [/\b(T|t)hat's a ((?:fucking |huge |real )*)snake\b/g, '$1hose are $2snakes'],
+  [/\bHow did a snake get\b/g, 'How did snakes get'],
+  [/\b(the) snake is\b/gi, '$1 snakes are'],
+  [/\b(t)hat ((?:fucking )?)snake\b/gi, (m, a, b) => (a === 'T' ? 'T' : 't') + 'hose ' + b + 'snakes'],
+  [/\b(the|someone's) snake\b/gi, '$1 snakes'],
+  [/\ba ((?:fucking |huge |real )*)snake\b/g, '$1snakes'],
+  [/\bSNAKE!/g, 'SNAKES!'],
+];
+function snakesPlural(t) { if (!t || !/snake/i.test(t) || !manySnakes()) return t; for (const [re, to] of SNAKES_PL) t = t.replace(re, to); return t; }
 function linePool(c, ctx) {
   const tier = tierOf(c), out = [];
   if (c.traits) for (const t of c.traits) { // personality first, sometimes
@@ -80,6 +104,7 @@ function linePool(c, ctx) {
   }
   const m = mapL(), ml = m[ctx] && tiered(m[ctx], tier);
   if (ml && Math.random() < (c.type === 'astronaut' ? .7 : .55)) return ml; // astronauts mostly sound like astronauts
+  if (MANY[ctx] && manySnakes() && Math.random() < .3) return MANY[ctx]; // more than one of them out there: now and then, that's what they notice
   const base = tiered(LINES[ctx === 'warned' ? 'crowd' : ctx] || LINES.panic, tier);
   if (out.length) return out.concat(base);
   return base;
@@ -137,6 +162,7 @@ function slur(t) { // ears ringing after a Hiss: words stretch, drop letters, tr
 }
 const HOT_CTX = new Set(['witnessHuman', 'multiDeath', 'chased', 'bloodOnMe', 'touched', 'heardKill', 'blastClose', 'blastNear', 'strafeClose', 'airTargetSnake', 'airCivilianRisk']);
 function finishLine(t, c, ctx) {
+  t = snakesPlural(t);
   let yell = isYell(t); const tier = tierOf(c);
   if (!yell && tier >= 2 && (HOT_CTX.has(ctx) || ctx === 'panic') && c.voice.heat > .6 && Math.random() < .3 + .2 * (tier - 2)) { t = t.toUpperCase(); yell = true; }
   else if (yell && c.voice.heat < .35 && tier < 3 && !MAPS[mapIdx].club && Math.random() < .5) { t = t.toLowerCase(); yell = false; }

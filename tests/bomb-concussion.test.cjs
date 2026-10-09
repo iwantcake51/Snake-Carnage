@@ -16,7 +16,7 @@ const ctx = {
   free: () => true, solid: () => false, angDiff: (a, b) => b - a,
 };
 vm.createContext(ctx);
-vm.runInContext(read('27b-hearing.js') + '\n' + read('26-creature-ai.js') + '\n' +
+vm.runInContext(read('03g-anim.js') + '\n' + read('27b-hearing.js') + '\n' + read('26-creature-ai.js') + '\n' +
   air.slice(air.indexOf('function airCrowdConcuss'), air.indexOf('function bombDeath')) +
   '\npickFleeGoal = c => { c.goal = { x: c.x + 100, y: c.y, fx: c.fx, fy: c.fy }; c.goalT = 10; }; steerDir = (c, a) => a; footprints = () => {};', ctx);
 function person(x) {

@@ -107,7 +107,7 @@ function updateSmoke(dt) {
   for (let i = smoke.length - 1; i >= 0; i--) {
     const p = smoke[i]; p.t += dt; if (p.t > p.life) { smoke[i] = smoke[smoke.length - 1]; smoke.pop(); continue; }
     if (p.t < 0) continue;
-    const f = Math.exp(-dt * 1.6), curl = perlin(p.x * .02, p.y * .02 + T * .3) * 22; // drag, plus a slow curl so it drifts and folds
+    const f = Math.exp(-dt * 1.6), curl = perlin(p.x * .02, p.y * .02 + animT('smoke') * .3) * 22 * AN.smoke.amp; // drag, plus a slow curl so it drifts and folds
     p.vx = p.vx * f + curl * dt * 3; p.vy = p.vy * f - curl * dt * 2; p.x += p.vx * dt; p.y += p.vy * dt; p.r += p.g * dt * (1 - p.t / p.life * .6); p.rot += p.vr * dt;
   }
 }

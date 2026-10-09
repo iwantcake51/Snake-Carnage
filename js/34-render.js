@@ -3,7 +3,7 @@ function snakeShadowPath(x, ox, oy) { // round, soft-edged discs per segment, li
   for (let i = 0; i < n; i++) { const g = sg[i], r = segR(i, n) * .95, sx = g.x + ox, sy = g.y + oy; x.moveTo(sx + r, sy); x.arc(sx, sy, r, 0, TAU); }
 }
 function render() {
-  const bz = boomDaze(), pxS = Math.max(1, SETTINGS.pixel | 0), wob = snake && ((snake.wallStun > 0 && !SETTINGS.simpleFx) || (snake.ramT > 0 && !SETTINGS.reduceFlash) || (bz > .03 && !SETTINGS.simpleFx));
+  const bz = Math.max(boomDaze(), gasScreen() * .8), pxS = Math.max(1, SETTINGS.pixel | 0), wob = snake && ((snake.wallStun > 0 && !SETTINGS.simpleFx) || (snake.ramT > 0 && !SETTINGS.reduceFlash) || (bz > .03 && !SETTINGS.simpleFx));
   render.n = (render.n || 0) + 1; // a frame number, so the edge blur shrinks each frame once
   const eb = (EDGE_K.lb > .03 || EDGE_K.fk > .03) && !SETTINGS.simpleFx, direct = pxS <= 1 && !wob; render.src = direct ? cv : sceneC; // (a lunge's edge blur reads the screen itself: it needs no copy of the frame) // no post effect this frame: draw straight to the screen and skip a full-frame copy
   const x = direct ? ctx : sctx, L = light, sh = shake && SETTINGS.shake && state !== 'paused' ? shake * (SETTINGS.shakeK ?? 1) : 0; // paused: the picture holds still, even mid-blast
@@ -29,7 +29,7 @@ function render() {
   x.drawImage(groundC, 0, 0, W, H);
   if (MAPS[mapIdx].club) drawDanceFloor(x);
   drawCustomFx(x, 'floor'); // moving materials on the ground (custom maps and edited shapes only; empty otherwise)
-  drawGrass(x);
+  drawPlants(x); drawGrass(x);
   for (const b of bucketList) { if (!b.fd) continue; x.globalAlpha = bucketAlpha(b); x.drawImage(b.f, 0, 0, W, H); }
   x.globalAlpha = 1; drawSnow(x); // (no fake pool reflections: the pools are just blood)
   if (shadowsOn()) { x.globalAlpha = L.salpha; x.drawImage(shadowC, 0, 0, W, H); x.globalAlpha = 1; } // baked sun shadows (Static and Full)
@@ -94,6 +94,7 @@ function render() {
   if (eb) lungeEdges();
   if (EDGE_K.lb > .03 || EDGE_K.fk > .03) lungeLines(); // the tint and speed lines (even with simplified effects: they're cheap)
   drawBurnEdge(ctx); // on fire: a restrained orange glow from the edges
+  drawGasEdge(ctx); // in gas: the edges go sickly green
   drawAirFlash(ctx);
   if (NETM.run && !cam) netDrawTags(ctx); // co-op: teammates' names and where they are off screen
   if (!cam) drawBubbles(ctx); // screen space (positions go through the camera), so text stays readable at any zoom
@@ -121,7 +122,7 @@ function render() {
   if (pg !== !!render.pg) { render.pg = pg; stage.classList.toggle('pregame', pg); if (!pg) { stage.classList.add('hudin'); clearTimeout(render.hudT); render.hudT = setTimeout(() => stage.classList.remove('hudin'), 900); } }
   const wantStart = state === 'ready' && !cam;
   if (wantStart !== !!render.startShown) { render.startShown = wantStart; wantStart ? showResume('to begin') : hideResume(); }
-  const sat = (SETTINGS.desaturate && !nightVision ? clamp(1 - killFlash * .5, .45, 1) : 1) * (1 - .93 * stun) * (1 - .92 * dfxK) * (1 - .78 * bz); // dying drains it to grey; so does a blast close by
+  const sat = (SETTINGS.desaturate && !nightVision ? clamp(1 - killFlash * .5, .45, 1) : 1) * (1 - .93 * stun) * (1 - .92 * dfxK) * (1 - .78 * bz) * (1 - .85 * gasScreen()); // dying drains it to grey; so does a blast close by, and breathing gas
   const f = nightVision ? `contrast(1.15) brightness(${((.95 - SETTINGS.darkness * .2) * (1 - .2 * boomDaze())).toFixed(2)})${dfxK ? ` grayscale(${(.92 * dfxK).toFixed(2)})` : ''}` : `saturate(${sat.toFixed(2)}) brightness(${((1 - SETTINGS.darkness) * (1 - .36 * dfxK) * (1 - .2 * boomDaze())).toFixed(2)}) contrast(${(1.08 + .42 * dfxK).toFixed(2)})`; // dying: grey and hard, the blacks crushed under the red
   if (f !== lastFilter) { cv.style.filter = f; lastFilter = f; }
   const ic = MAPS[mapIdx].indoor ? 'tod_indoor' : light.day > .5 ? 'tod_day' : light.day > .05 ? 'tod_dusk' : 'tod_night', clock = String(Math.floor(tod)).padStart(2, '0') + ':' + String(Math.floor(tod % 1 * 60)).padStart(2, '0');

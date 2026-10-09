@@ -281,6 +281,20 @@ const multLabel = ids => { const m = modMult(ids); return Math.abs(m - 1) < .005
 const MOD_GROUP_INFO = { Conditions: 'The world you play in: light, weather, air strikes, what breaks', Crowd: 'How people and animals behave, and how many there are', Snake: 'Your body, your abilities and your skill tree', Scoring: 'How kills pay, and how the combo works', Style: 'Looks only', Controls: 'How you steer' };
 const modKind = m => m.mult > 0 ? ['hard', 'Harder'] : m.mult < 0 ? ['easy', 'Easier'] : ['even', 'Different'];
 const modPct = m => m.mult ? (m.mult > 0 ? '+' : '') + Math.round(m.mult * 100) + '%' : '±0%';
+const SPAWN_NAME = { human: 'People', rabbit: 'Rabbits', deer: 'Deer', frog: 'Frogs', dog: 'Dogs', cat: 'Cats', chicken: 'Chickens', duck: 'Ducks', pig: 'Pigs', sheep: 'Sheep', astronaut: 'Astronauts', alien: 'Aliens', firefly: 'Fireflies', rat: 'Rats' };
+function spawnSection() { // Who spawns: one switch per kind of creature on the selected map
+  const ts = mapSpawnTypes(); if (!ts.length) return '';
+  return `<section class="m2grp m2spawn"><h3>Who spawns<small>On ${MAPS[mapIdx].name}. Each kind you leave out pays 8% less.</small></h3><div class="m2cards">${ts.map((t, i) => { const on = !spawnOff(t);
+    return `<button class="m2c ${on ? 'on' : ''}" data-sfx="none" data-sp="${t}" role="switch" aria-checked="${on}" style="--i:${i}"><span class="m2top"><b>${SPAWN_NAME[t] || t}</b><i class="m2ck"></i></span><span class="m2d">${on ? 'On the map' : 'Left out this run'}</span></button>`; }).join('')}</div></section>`;
+}
+function wireSpawnSection(root) {
+  root.querySelectorAll('.m2c[data-sp]').forEach(b => b.onclick = () => {
+    const t = b.dataset.sp, off = new Set(SETTINGS.noSpawn || []), ts = mapSpawnTypes();
+    if (off.has(t)) off.delete(t); else { if (ts.filter(q => !off.has(q)).length <= 1) { Sfx.deny(); b.classList.remove('nope'); void b.offsetWidth; b.classList.add('nope'); return; } off.add(t); } // something has to be left to eat
+    SETTINGS.noSpawn = [...off]; saveSettings(); const on = !off.has(t); Sfx.ui(on ? 'on' : 'off');
+    b.classList.toggle('on', on); b.setAttribute('aria-checked', on); b.querySelector('.m2d').textContent = on ? 'On the map' : 'Left out this run'; b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop');
+  });
+}
 function showModifiers(focus) {
   const ids = new Set(SETTINGS.mods || []);
   overlay.className = 'menuMode';
@@ -291,7 +305,7 @@ function showModifiers(focus) {
       return `<button class="m2c ${k}" data-sfx="none" data-m="${m.id}" role="switch" aria-checked="${ids.has(m.id)}" style="--i:${i}">
         <span class="m2top"><b>${m.name}</b><em class="m2pct">${modPct(m)}</em><i class="m2ck"></i></span>
         <span class="m2d">${m.desc}</span>
-        <span class="m2tags"><i class="m2k">${kl}</i>${(m.not || []).length ? `<i class="m2not">Not with ${m.not.map(o => (MODS.find(q => q.id === o) || {}).name).filter(Boolean).join(', ')}</i>` : ''}</span></button>`; }).join('')}</div></section>`).join('')}</div>
+        <span class="m2tags"><i class="m2k">${kl}</i>${(m.not || []).length ? `<i class="m2not">Not with ${m.not.map(o => (MODS.find(q => q.id === o) || {}).name).filter(Boolean).join(', ')}</i>` : ''}</span></button>`; }).join('')}</div></section>`).join('')}${spawnSection()}</div>
       <aside class="m2info" id="m2info"></aside></div>
     <div class="mbtns"><span class="sp"></span><button class="btn alt" id="shufBtn" data-sfx="select">Shuffle</button><button class="btn" id="backBtn" data-sfx="confirm">Done</button></div></div>`;
   const blocker = id => modBlockReason(id, ids), info = document.getElementById('m2info');
@@ -309,7 +323,7 @@ function showModifiers(focus) {
   const sync = () => {
     for (const id of [...ids]) if (modBlockReason(id, ids) && !(MODS.find(q => q.id === id).not || []).some(o => ids.has(o))) ids.delete(id); // a newer pick made this one pointless: it switches itself off
     SETTINGS.mods = [...ids]; saveSettings();
-    overlay.querySelectorAll('.m2c').forEach(t => {
+    overlay.querySelectorAll('.m2c[data-m]').forEach(t => {
       const id = t.dataset.m, on = ids.has(id), by = on ? null : blocker(id), m = MODS.find(q => q.id === id);
       t.classList.toggle('on', on); t.setAttribute('aria-checked', on); t.classList.toggle('blocked', !!by); // conflicts are greyed out with the reason
       t.querySelector('.m2d').textContent = by || m.desc; t.querySelector('b').textContent = modName(id, ids);
@@ -318,7 +332,7 @@ function showModifiers(focus) {
     document.getElementById('mcount').textContent = ids.size ? ids.size + ' active' : '';
     showInfo(shown);
   };
-  overlay.querySelectorAll('.m2c').forEach(t => {
+  overlay.querySelectorAll('.m2c[data-m]').forEach(t => {
     t.onmouseenter = t.onfocus = () => showInfo(t.dataset.m);
     t.onclick = () => {
       const m = MODS.find(q => q.id === t.dataset.m); shown = m.id;
@@ -329,10 +343,11 @@ function showModifiers(focus) {
     };
   });
   overlay.querySelector('.m2list').onmouseleave = () => showInfo(null);
+  wireSpawnSection(overlay);
   document.getElementById('shufBtn').onclick = () => {
     const keep = [...ids].filter(id => { const g = (MODS.find(m => m.id === id) || {}).g; return g === 'Style' || g === 'Controls'; }); // your own style/control picks stay
     ids.clear(); keep.forEach(id => ids.add(id)); randomMods(randi(9, 14)).forEach(id => ids.add(id)); // a properly different run
-    overlay.querySelectorAll('.m2c').forEach((t, i) => { t.classList.remove('shuf'); void t.offsetWidth; t.style.setProperty('--d', (i * 10) + 'ms'); t.classList.add('shuf'); });
+    overlay.querySelectorAll('.m2c[data-m]').forEach((t, i) => { t.classList.remove('shuf'); void t.offsetWidth; t.style.setProperty('--d', (i * 10) + 'ms'); t.classList.add('shuf'); });
     shown = null; sync();
   };
   document.getElementById('backBtn').onclick = () => transitionTo(showMenu);
@@ -498,7 +513,8 @@ const SETTING_TABS = {
     ['seg', 'bubbleSize', 'Speech bubble size', 'How big the text is when people talk.', ['Small', 'Normal', 'Large']],
     ['toggle', 'minimalUi', 'Minimal UI', 'Hides pop-ups and lists during a run.'],
     ['head', 'Diagnostics'],
-    ['seg', 'perfHud', 'Performance stats', 'Shows your frame rate and what is slowing the game. F3 during a run.', ['Off', 'FPS', 'Full']]] },
+    ['seg', 'perfHud', 'Performance stats', 'Shows your frame rate and what is slowing the game. F3 during a run.', ['Off', 'FPS', 'Full']],
+    ['action', 'animEd', 'Animation editor', 'How fast and how far everything moves: people, animals, plants, water, fire. Changes show live.', 'Open']] },
   Graphics: { icon: 'graphics', lead: 'How good the game looks. Lower settings run faster.', rows: [
     ['head', 'Quality'],
     ['toggle', 'autoQ', 'Automatic quality', 'Lowers quality by itself if the game starts to lag.'],
@@ -558,6 +574,7 @@ function settingsBody(tab) {
     let ctl = '';
     if (type === 'toggle') ctl = `<button class="tgl ${SETTINGS[k] ? 'on' : ''}" data-sfx="none" role="switch" aria-checked="${!!SETTINGS[k]}" aria-label="${label}" data-k="${k}"></button>`;
     if (type === 'slider') ctl = `<div class="rng"><input type="range" data-k="${k}" min="${a}" max="${b}" step="${c}" value="${SETTINGS[k]}" aria-label="${label}" style="--v:${((SETTINGS[k] - a) / (b - a) * 100).toFixed(1)}%"><output>${fmtSetting(k, SETTINGS[k])}</output></div>`;
+    if (type === 'action') ctl = `<button class="mm-q" data-act="${k}" data-sfx="open">${a}</button>`; // opens a tool (the Animation editor)
     if (type === 'seg') ctl = `<div class="sseg" data-k="${k}"><i class="sthumb"></i>${a.map(o => `<button class="${o === SETTINGS[k] ? 'on' : ''}" data-sfx="tab" data-v="${o}">${names ? names[o] : o}</button>`).join('')}</div>`;
     const dim = when && !when() ? 'dim' : '';
     return `<div class="srow2 ${dim}" style="--i:${i}" data-row="${k}"><div><b>${label}</b><small>${desc}</small></div>${ctl}</div>`;

@@ -88,7 +88,7 @@ function updateSnake(dt) {
   if (s.camoT > 0) { const turning = Math.abs(angDiff(s.angle, s.dir)) > .05 || s.dashT > 0; s.still = clamp((s.still || 0) + (turning ? -dt * (sk('phantom') ? 1.2 : 4) : dt * 1.1), 0, 1); } else s.still = 0; // camouflage settles in on a straight line
   const dk = s.dashT > 0 ? s.dashK || 1.8 : 1; s.dashV = dk >= (s.dashV || 1) ? dk : 1 + ((s.dashV || 1) - 1) * Math.exp(-dt * 3.2); // lunge hits at once, then the speed bleeds off over about a second
   if (s.dashT > 0 && (s.wallStun > 0 || s.boomT > 0)) s.dashT = 0; // concussed: no lunging
-  const v = s.speed * s.dashV * (s.camoT > 0 ? SKV.camoSpeed() : 1) * /* Deep Cover: faster while hidden */ (s.lustT > 0 ? 1 + (SKV.lust() - 1) * Math.min(1, s.lustT / .4) : 1) * /* Bloodlust, easing off at the end */ (s.ramT > 0 ? 1 - (s.ramDeep || .5) * (s.ramT / (s.ramMax || 1)) : 1) * (1 - .55 * boomSlow(s)); // ... or reeling from a blast // a lunge, or a stagger after smashing through something
+  const v = s.speed * s.dashV * (s.camoT > 0 ? SKV.camoSpeed() : 1) * /* Deep Cover: faster while hidden */ (s.lustT > 0 ? 1 + (SKV.lust() - 1) * Math.min(1, s.lustT / .4) : 1) * /* Bloodlust, easing off at the end */ (s.ramT > 0 ? 1 - (s.ramDeep || .5) * (s.ramT / (s.ramMax || 1)) : 1) * (1 - .55 * boomSlow(s)) * (1 - gasSlow(s)); // ... or reeling from a blast, or choking on gas // a lunge, or a stagger after smashing through something
   // unit vector * speed => identical speed in all 8 directions
   if (MOD.slippery) s.mvA = s.mvA === undefined ? s.angle : s.mvA + angDiff(s.mvA, s.angle) * (1 - Math.exp(-dt * 2.8)); else s.mvA = s.angle; // Slippery: the body keeps sliding the old way a moment after you turn
   const vq = v * (MOD.quickTurn ? .9 : 1);

@@ -72,10 +72,10 @@ function modBar() { // every active modifier, compact, at the top of the screen;
 function startGame(opts = {}) {
   if (!opts.mystery) Sfx.start();
   // a clean slate: nothing from the last run (frozen frame, filters, effects, stray timers) may leak into this one
-  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height); cv.style.filter = ''; lastFilter = '';
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height); lastFilter = ''; // (the filter itself is rebuilt next frame from the easing values, so a retry fades the death grade out instead of cutting it)
   stage.classList.remove('paused', 'stunned'); dropped = []; debris = []; beams = []; trail = []; strayBugs = []; ringPops = []; mist = []; shake = 0; deadT = 0; loopErrs = 0;
   runMods = (opts.mods || SETTINGS.mods || []).filter(id => MODS.some(m => m.id === id)); { const set = new Set(runMods); runMods = runMods.filter(id => !modBlockReason(id, set)); } // nothing that can't actually do anything this run // the random map also rolls its own modifiers; ids that no longer exist are dropped
-  MOD = Object.fromEntries(runMods.map(id => [id, true])); rewardMult = modMult(runMods);
+  MOD = Object.fromEntries(runMods.map(id => [id, true])); rewardMult = modMult(runMods) * (opts.net && netIsGuest() ? 1 : spawnOffMult()); // (Who spawns: each kind left out pays a little less)
   run.hardMods = hardModCount(runMods); run.softMods = softModCount(runMods); // Glutton for Punishment counts these (39-progress: progressTick)
   document.body.classList.toggle('minimal', !!SETTINGS.minimalUi); // (a setting now, not a modifier)
   setTimeout(() => { if (MAPS[mapIdx].name === 'Bunker' && bunkerLock && state !== 'menu') notify({ kind: 'reset', title: 'Lockdown', sub: 'The alarms are going. Red lights only down here today.', dur: 4 }); }, 3200);
