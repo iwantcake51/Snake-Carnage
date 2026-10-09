@@ -207,8 +207,7 @@ function drawSnakeNightRim(x) { // white rim at night, readable over dark ground
   const strong = SETTINGS.snakeOutline === 'Strong', pts = snake._pts, n = pts.length;
   let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
   for (const g of pts) { if (g.x < x0) x0 = g.x; if (g.x > x1) x1 = g.x; if (g.y < y0) y0 = g.y; if (g.y > y1) y1 = g.y; }
-  const gh = SETTINGS.simpleFx ? [] : (snake.ghosts || []).map(q => { const u = (T - q.t) / GHOST_LIFE; return u > .02 && u < 1 ? [q, ghostAt(q, u)] : null; }).filter(Boolean); // the lunge's after-images sit inside the rim too
-  for (const [q, o] of gh) for (let i = 0; i < q.m; i += 2) { const px = q.P[3 * i] + o.ox, py = q.P[3 * i + 1] + o.oy; if (px < x0) x0 = px; if (px > x1) x1 = px; if (py < y0) y0 = py; if (py > y1) y1 = py; }
+  // (a lunge's after-images aren't rimmed: each carries its own dark outline, painted into it once, and re-rimming every one of them every frame was a big part of what a lunge cost)
   const pad = snakeRadius() + 6, prev = snake._rimBox; x0 -= pad; y0 -= pad; x1 += pad; y1 += pad;
   if (prev) snx.clearRect(prev[0], prev[1], prev[2] - prev[0], prev[3] - prev[1]); else snx.clearRect(-60, -60, W + 120, H + 120);
   snake._rimBox = [x0, y0, x1, y1];
@@ -217,11 +216,7 @@ function drawSnakeNightRim(x) { // white rim at night, readable over dark ground
   // made see-through when the layer goes on, so the overlapping rings don't add up
   snx.strokeStyle = '#fff'; snx.lineWidth = strong ? 3.6 : 2.4;
   for (let i = 0; i < n; i++) { const g = pts[i]; snx.beginPath(); snx.arc(g.x, g.y, segR(i, n) + .4, 0, TAU); snx.stroke(); }
-  const ghostPath = (q, o) => { snx.beginPath(); for (let i = 0; i < q.m; i += 2) { const r = q.P[3 * i + 2] * o.shrink * (1 - .35 * i / q.m) + .4, px = q.P[3 * i] + o.ox, py = q.P[3 * i + 1] + o.oy; snx.moveTo(px + r, py); snx.arc(px, py, r, 0, TAU); } };
-  for (const [q, o] of gh) { snx.globalAlpha = Math.min(1, o.a * 1.6); ghostPath(q, o); snx.stroke(); } // each after-image's ring fades with it
-  snx.globalCompositeOperation = 'destination-out'; snx.fillStyle = '#000';
-  for (const [q, o] of gh) { snx.globalAlpha = Math.min(1, o.a * 1.6); ghostPath(q, o); snx.fill(); } // cut every shape back out, body and trail, so one rim runs round the lot
-  snx.globalAlpha = 1;
+  snx.globalCompositeOperation = 'destination-out'; snx.fillStyle = '#000'; // cut every disc back out, so one rim runs round the outside
   for (let i = 0; i < n; i++) { const g = pts[i]; snx.beginPath(); snx.arc(g.x, g.y, segR(i, n) + .4, 0, TAU); snx.fill(); }
   snx.globalCompositeOperation = 'source-over';
   if (MOD.fog || MOD.fow) { snx.globalCompositeOperation = 'destination-out'; snx.drawImage(visC, 0, 0, W, H); snx.globalCompositeOperation = 'source-over'; } // only the part of the body you can see

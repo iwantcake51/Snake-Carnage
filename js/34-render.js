@@ -321,8 +321,7 @@ function lungeLines() { // drawn in the canvas (a page layer over it cost far mo
 }
 function lungeEdges() { // mid-lunge the edges blur in two rings (light, then heavy at the rim); 3rd Eye's Focus drains them of colour
   const { lb, fk } = EDGE_K;
-  softEdges(Math.max(lb, fk), 4, W * .78, H * .74, .34, .72, .3 * fk);
-  softEdges(lb, 8, W * .8, H * .76, .58, 1, .5 * fk);
+  softEdges(Math.max(lb, fk), 4, W * .78, H * .74, .34, .9, .35 * fk); // one ring, fading in from a third of the way out to the rim (it was two full-screen passes)
 }
 
 /* before the round: the mouse pans the view a little, and resting on a spot for a second eases in toward it */
