@@ -72,7 +72,7 @@ function skPath(a, b) { // an S-curve, like a snake's body: leaves the parent he
   const k = (h % 1000) / 500 - 1, t = .3 + (h >> 10) % 100 / 400; // a sideways lean and how soon it turns, both from the pair's names, so the same every time
   return `M${x1} ${y1}C${(x1 + k * 38).toFixed(1)} ${(y1 - dy * t).toFixed(1)} ${(x2 - k * 26).toFixed(1)} ${(y2 + dy * (.85 - t)).toFixed(1)} ${x2} ${y2}`;
 }
-function skLinkState(l) { const rb = skOwn(l.b.id); return rb ? 'on' : skWhy(l.b).some(q => q.k === 'req') ? 'off' : 'open'; }
+function skLinkState(l) { const rb = skOwn(l.b.id), why = skWhy(l.b); return rb ? 'on' : why.some(q => q.k === 'req') ? 'off' : why.length || skLeft() < skCost(l.b) ? 'wait' : 'open'; } // wait: the way is open but it can't be bought yet (its level, or not enough tokens): dotted, in grey
 function skLinksSvg() {
   const L = skLinks(), at = (l, cls) => `<path class="${cls} br-${l.b.br} ${l.a ? '' : 'trunk'} ${skLinkState(l)}" data-a="${l.a ? l.a.id : ''}" data-b="${l.b.id}" d="${skPath(l.a, l.b)}"/>`;
   return `<defs><linearGradient id="skShineG" x1="0" x2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".6"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>`
@@ -279,7 +279,7 @@ function skRefresh() {
     const em = b.querySelector('.skl em'), sub = skSub(n); if (em.innerHTML !== sub) em.innerHTML = sub;
     b.querySelectorAll('.tk').forEach((t, k) => t.classList.toggle('on', k < r));
     b.setAttribute('aria-label', skAria(n)); });
-  overlay.querySelectorAll('.skln, .skgl').forEach(p => { if (p.dataset.hold) return; const st = skLinkState({ b: SKN[p.dataset.b] }); p.classList.remove('on', 'open', 'off'); p.classList.add(st); }); // (a link that's turning solid finishes its own way)
+  overlay.querySelectorAll('.skln, .skgl').forEach(p => { if (p.dataset.hold) return; const st = skLinkState({ b: SKN[p.dataset.b] }); p.classList.remove('on', 'open', 'off', 'wait'); p.classList.add(st); }); // (a link that's turning solid finishes its own way)
   overlay.querySelectorAll('[data-brn]').forEach(b => { b.textContent = skBranchRanks(b.dataset.brn); });
   const hn = skEl('skHubN'); if (hn) hn.textContent = SKILL_TREE.reduce((a, n) => a + skOwn(n.id), 0);
 }
@@ -301,7 +301,7 @@ function skReset() { // two presses: the first asks, the second hands every toke
 }
 function skSmooth(list) { // a link that was dotted closes up: the dots stretch and run together into a solid line, thickening as they go
   for (const p of list) { const w0 = parseFloat(getComputedStyle(p).strokeWidth) || 3, glow = p.classList.contains('skgl');
-    p.style.transition = 'none'; p.classList.remove('open', 'off'); p.classList.add('on'); const cs = getComputedStyle(p), w1 = parseFloat(cs.strokeWidth) || 5, o1 = +cs.opacity; // (the end state read with no CSS transition in the way: a transition would report where it starts, and the soft edges would only pop in at the end)
+    p.style.transition = 'none'; p.classList.remove('open', 'off', 'wait'); p.classList.add('on'); const cs = getComputedStyle(p), w1 = parseFloat(cs.strokeWidth) || 5, o1 = +cs.opacity; // (the end state read with no CSS transition in the way: a transition would report where it starts, and the soft edges would only pop in at the end)
     const a = p.animate([{ strokeDasharray: '1px 8px', strokeWidth: (glow ? w1 * .4 : w0) + 'px', opacity: glow ? 0 : .5 }, { strokeDasharray: '9px 0px', strokeWidth: w1 + 'px', opacity: o1 }], { duration: 650, easing: 'cubic-bezier(.4,0,.2,1)' }); // the soft edges close up and widen with the line, at the same pace
     a.onfinish = a.oncancel = () => { delete p.dataset.hold; p.style.transition = ''; }; }
 }
