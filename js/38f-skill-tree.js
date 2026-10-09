@@ -91,7 +91,7 @@ function showSkillTree() {
   if (!SKN[skSel]) skSel = 'speed';
   overlay.innerHTML = `<div class="panel sktree" role="dialog" aria-label="Skill Tree">
     <header class="skh"><button class="mm-back" id="backBtn" data-sfx="close">${ICO.back}<span>Back</span></button><h1>Skill Tree</h1>
-      <span class="sp"></span><button class="mm-q" id="skReset" data-sfx="none" data-tip="Take every skill back and get all your tokens back. Costs ${SK_RESET_COST.toLocaleString()} chips">${SK_RESET_LBL}</button><span class="sklvl">Level <b>${PROG.level}</b></span><span class="coinpill tokpill" id="skTok" data-tip="Skill tokens: you get one every time you level up"><i class="tok"></i> <b>${skLeft()}</b><span class="tkw"> tokens</span></span></header>
+      <span class="sp"></span><button class="mm-q" id="skReset" data-sfx="none" data-tip="Take every skill back and get all your tokens back. Costs ${SK_RESET_COST.toLocaleString()} chips">${SK_RESET_LBL}</button><span class="sklvl">Level <b>${PROG.level}</b></span><span class="coinpill" id="skChips" data-tip="Your chips: spent in the shop, and on resetting the tree"><i class="pc"></i> <b>${(PROG.coins | 0).toLocaleString()}</b></span><span class="coinpill tokpill" id="skTok" data-tip="Skill tokens: you get one every time you level up"><i class="tok"></i> <b>${skLeft()}</b><span class="tkw"> tokens</span></span></header>
     <div class="skbody">
       <div class="skview" id="skView">
         <div class="skworld" id="skWorld" style="width:${SK_W}px;height:${SK_H}px">
@@ -274,6 +274,7 @@ function skTween(ms, f, end) { const t0 = performance.now(); const step = now =>
 
 /* ---- in place: every node's look, label and links, the hub, the branch totals, the tokens ---- */
 function skRefresh() {
+  const ch = overlay.querySelector('#skChips b'), cv = (PROG.coins | 0).toLocaleString(); if (ch && ch.textContent !== cv) ch.textContent = cv; // your chips, top right
   overlay.querySelectorAll('.skn').forEach(b => { const n = SKN[b.dataset.n], st = skState(n), r = skOwn(n.id);
     b.classList.remove('s-locked', 's-avail', 's-own', 's-max'); b.classList.add('s-' + st);
     b.classList.toggle('s-off', !!(PROG.treeOff[n.id] && r)); b.classList.toggle('poor', (st === 'avail' || st === 'own') && skLeft() < skCost(n));
