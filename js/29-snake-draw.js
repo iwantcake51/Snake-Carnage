@@ -56,6 +56,7 @@ function drawSnakeBody(x, s, cfg) {
   if (!n) return;
   const me = s === snake, lv = me ? upg('dash') : 0, lk = me ? lungeK(s) : 0, cam = me ? camoField(s, n) : null;
   if (lk > .01 && !SETTINGS.simpleFx) drawLungeFx(x, s, pts, n, lk, lv);
+  dashGhosts(x, s, pts, n, cfg); // after-images left behind a lunge: any snake, yours or another player's
   if (cam && !SETTINGS.simpleFx) refractBody(x, s, pts, n, cam);
   const camAvg = cam ? cam.avg : 0, TB = tubeBase(pts, n, s.cut), E0 = tubeEdges(TB, 0), pieces = [];
   for (let a = 0; a < n; a += TUBE_PIECE) pieces.push([a, Math.min(n, a + TUBE_PIECE)]);
@@ -146,16 +147,31 @@ function drawLungeFx(x, s, pts, n, k, lv) {
     x.restore();
     x.strokeStyle = `rgba(255,255,255,${(.13 * w).toFixed(3)})`; x.lineWidth = 1; x.beginPath(); x.arc(hp.x, hp.y, R * .92, hp.a + 1.2, hp.a + 5.1); x.stroke(); // the edge of the pressure wave
   }
-  // motion ghosts: the body smeared backward along its own path (the front 60 segments: blurring a whole long body is a big job for the graphics chip)
-  const N = lv > 1 ? 4 : 3, col = segColor(0, n, SETTINGS.snake);
-  if ('filter' in x) x.filter = `blur(${(1 + 4 * k).toFixed(1)}px)`; // a soft blur smeared out behind the body, fading as the speed bleeds off
-  for (let c = N; c >= 1; c--) {
-    x.globalAlpha = .5 * k * (1 - c / (N + 1.5)); x.fillStyle = col; x.beginPath();
-    for (let i = 0, m = Math.min(n, 60); i < m; i++) { const g = pts[i], d = c * k * (lv > 1 ? 6 : 5) * (1 - i / (n + 4)), r = segR(i, n) * (1 - .06 * c); const gx = g.x - Math.cos(g.a) * d, gy = g.y - Math.sin(g.a) * d; x.moveTo(gx + r, gy); x.arc(gx, gy, r, 0, TAU); }
+  x.globalAlpha = 1;
+}
+/* ---- dash after-images: while a snake lunges it drops a snapshot of its front half every few hundredths of a second; each one hangs in
+   the air where it was, blurring out and fading, so a lunge leaves a smeared trail of itself. Remote snakes too (their lunge flag) ---- */
+const GHOST_LIFE = .5;
+function dashGhosts(x, s, pts, n, cfg) {
+  const dashing = s.alive !== false && (s.dashT > 0 || (s === snake && (s.dashV || 1) > 1.2)), g = s.ghosts || (s.ghosts = []);
+  if (dashing && T - (s.ghT ?? -9) > .04 && n) { s.ghT = T; // a fresh snapshot of the front of the body (60 pieces at most: blurring a whole long body is a big job)
+    const m = Math.min(n, 90), P = new Float32Array(m * 3); for (let i = 0; i < m; i++) { P[3 * i] = pts[i].x; P[3 * i + 1] = pts[i].y; P[3 * i + 2] = segR(i, n); }
+    g.push({ t: T, P, m, a: pts[0].a, c1: segColor(0, n, cfg), c2: segColor(Math.min(n - 1, 8), n, cfg) }); if (g.length > 12) g.shift(); }
+  while (g.length && T - g[0].t > GHOST_LIFE) g.shift();
+  if (!g.length || SETTINGS.simpleFx) return;
+  const blur = 'filter' in x && !SETTINGS.reduceMotion;
+  x.save();
+  for (let j = 0; j < g.length; j++) { const q = g[j], u = (T - q.t) / GHOST_LIFE; if (u <= 0.02) continue; // the newest sits under the body anyway
+    const a = .6 * Math.pow(1 - u, 1.4), shrink = 1 - .2 * u, back = 34 * u, ox = -Math.cos(q.a) * back, oy = -Math.sin(q.a) * back; // each one drifts back the way you came as it fades
+    if (blur) x.filter = `blur(${(1.5 + 6 * u).toFixed(1)}px)`; // and smears out more as it ages: a motion blur trailing behind
+    x.globalCompositeOperation = 'source-over'; x.globalAlpha = a * .7; x.fillStyle = q.c1; x.beginPath();
+    for (let i = 0; i < q.m; i++) { const r = q.P[3 * i + 2] * shrink * (1 - .35 * i / q.m), px = q.P[3 * i] + ox, py = q.P[3 * i + 1] + oy; x.moveTo(px + r, py); x.arc(px, py, r, 0, TAU); }
+    x.fill();
+    x.globalCompositeOperation = 'lighter'; x.globalAlpha = a * .45; x.fillStyle = q.c2; x.beginPath(); // a glowing core, so it reads as a flash of the snake, not a smudge
+    for (let i = 0; i < q.m; i += 2) { const r = q.P[3 * i + 2] * shrink * .55, px = q.P[3 * i] + ox, py = q.P[3 * i + 1] + oy; x.moveTo(px + r, py); x.arc(px, py, r, 0, TAU); }
     x.fill();
   }
-  if ('filter' in x) x.filter = 'none';
-  x.globalAlpha = 1;
+  x.restore();
 }
 function drawStreaks(x) {
   const dt = Math.max(0, Math.min(.05, T - (drawStreaks.t ?? T))); drawStreaks.t = T;

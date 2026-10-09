@@ -2427,11 +2427,20 @@ body.phone .mods2 .m2body,body.narrow .mods2 .m2body{grid-template-columns:1fr}b
 .binds .bfoot{background:none;border:0;padding:6px 0 0;font:500 12px var(--f-body,system-ui);color:#9a8f94}
 .binds{grid-column:1/-1;grid-template-columns:1fr 1fr;gap:6px 14px}.binds .sgrp,.binds .bfoot{grid-column:1/-1}
 .binds .bfoot .btn{font-size:12px!important;padding:7px 14px!important;white-space:nowrap;min-width:0;flex:none}
-/* screen edges: blurred mid-lunge (--lb), a cold vignette while 3rd Eye's Focus slows the world (--fk) */
-#edgeFx{position:absolute;inset:0;pointer-events:none;border-radius:inherit;--lb:0;--fk:0;
-  backdrop-filter:blur(calc(var(--lb) * 6px)) saturate(calc(1 - var(--fk) * .45));-webkit-backdrop-filter:blur(calc(var(--lb) * 6px)) saturate(calc(1 - var(--fk) * .45));
-  -webkit-mask-image:radial-gradient(ellipse 72% 68% at 50% 50%,transparent 42%,#000 100%);mask-image:radial-gradient(ellipse 72% 68% at 50% 50%,transparent 42%,#000 100%);
-  background:radial-gradient(ellipse at center,transparent 40%,rgba(90,190,255,calc(var(--fk) * .28)) 100%)}
+/* screen edges mid-lunge (--lb): two soft blur rings, light near the middle and stronger at the very edge, a slight dimming, and faint speed
+   lines rushing outward; while 3rd Eye's Focus slows the world (--fk) the edges drain of colour under a cold vignette */
+#edgeFx{position:absolute;inset:0;pointer-events:none;border-radius:inherit;overflow:hidden;--lb:0;--fk:0;
+  background:radial-gradient(ellipse at center,transparent 40%,rgba(90,190,255,calc(var(--fk) * .28)) 100%),radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,calc(var(--lb) * .22)) 100%)}
+#edgeFx::before,#edgeFx::after{content:'';position:absolute;inset:0;border-radius:inherit}
+#edgeFx::before{backdrop-filter:blur(calc(var(--lb) * 2.5px)) saturate(calc(1 - var(--fk) * .3));-webkit-backdrop-filter:blur(calc(var(--lb) * 2.5px)) saturate(calc(1 - var(--fk) * .3));
+  -webkit-mask-image:radial-gradient(ellipse 78% 74% at 50% 50%,transparent 34%,#000 72%);mask-image:radial-gradient(ellipse 78% 74% at 50% 50%,transparent 34%,#000 72%)}
+#edgeFx::after{backdrop-filter:blur(calc(var(--lb) * 9px)) saturate(calc(1 - var(--fk) * .5));-webkit-backdrop-filter:blur(calc(var(--lb) * 9px)) saturate(calc(1 - var(--fk) * .5));
+  -webkit-mask-image:radial-gradient(ellipse 80% 76% at 50% 50%,transparent 58%,#000 100%);mask-image:radial-gradient(ellipse 80% 76% at 50% 50%,transparent 58%,#000 100%)}
+#edgeFx .elines{position:absolute;inset:-10%;opacity:calc(var(--lb) * .9);
+  background:repeating-conic-gradient(from 0deg at 50% 50%,transparent 0deg 3.1deg,rgba(255,255,255,.09) 3.1deg 3.4deg,transparent 3.4deg 7.3deg,rgba(255,255,255,.05) 7.3deg 7.5deg);
+  -webkit-mask-image:radial-gradient(ellipse 70% 66% at 50% 50%,transparent 52%,#000 100%);mask-image:radial-gradient(ellipse 70% 66% at 50% 50%,transparent 52%,#000 100%);animation:elines .28s linear infinite}
+@keyframes elines{from{scale:1}to{scale:1.07}}
+@media (prefers-reduced-motion:reduce){#edgeFx .elines{animation:none}}
 /* notifications (v1.57): each kind keeps its own colour (stripe, glow, title), they slide in from the side they live on, a thin line runs out
    while they're up, a repeat counts up (x2, x3) instead of stacking, and older ones step back so the newest reads first */
 .n-info{--ns:#9fb3c8;--nt:#e9eef4}.n-mod{--ns:#b48cff;--nt:#e4d6ff}.n-reset{--ns:#4fb3ff;--nt:#d4ecff}.n-frenzy{--ns:#ff7a2a;--nt:#ffd27a}.n-gold{--ns:#ffcf33;--nt:#ffe6a0}
