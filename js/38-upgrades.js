@@ -84,7 +84,7 @@ const SKILL_TREE = [
     desc: 'The hiss knocks people down and blows groups apart.', fx: [['Radius', g => SKV.hissR(g), px], ['Cooldown', g => SKV.hissCd(g), secs]] },
   // ---- Fortune: more XP and chips from everything ----
   { id: 'study', br: 'fort', name: 'Quick Study', icon: 'study', cost: [1, 1, 1, 1, 1], req: [], x: 1640, y: 800,
-    desc: 'Opens the Fortune branch. +4% XP from everything per rank.', fx: [['XP from everything', g => (SKV.xpK(g) - 1) * 100, pct]] },
+    desc: 'Opens the Fortune branch. +6% XP from everything per rank.', fx: [['XP from everything', g => (SKV.xpK(g) - 1) * 100, pct]] },
   { id: 'streak', br: 'fort', name: 'Hot Streak', icon: 'streak', cost: [1, 1, 1], req: [['study', 1]], x: 1600, y: 642,
     desc: 'Kills within 3 s of each other chain up. Each link pays more XP and chips, up to 5.', fx: [['A 2-kill chain pays', g => (SKV.streakK(g, 1) - 1) * 100, pct], ['5 kills and up pay', g => (SKV.streakK(g, 5) - 1) * 100, pct]] },
   { id: 'windfall', br: 'fort', major: 1, name: 'Windfall', icon: 'windfall', cost: [2], lvl: 20, req: [['streak', 2]], x: 1555, y: 482,
@@ -149,7 +149,7 @@ if (PROG.treeV < 4) { PROG.tokBonus = (PROG.tokBonus | 0) + skSpent() - skSpent(
 /* LEVEL_V: bump it by one whenever the levelling changes (the XP curve, what pays XP, tokens per level). Every save then starts
    over at level 1 with no XP and an empty skill tree (its tokens came from those levels), so old and new progress never mix.
    Chips, cosmetics, achievements and records are kept. */
-const LEVEL_V = 2; // 2: v1.81's slower curve, XP for staying alive and combo XP
+const LEVEL_V = 3; // 2: v1.81's slower curve, XP for staying alive and combo XP; 3: XP comes a little faster, Quick Study +6% a rank
 if ((PROG.lvV | 0) < LEVEL_V) {
   const was = PROG.level > 1 || PROG.xp > 0 || Object.keys(PROG.tree).length;
   Object.assign(PROG, { level: 1, xp: 0, tree: {}, treeOff: {}, tokBonus: 0, lvV: LEVEL_V }); saveProg();
@@ -188,7 +188,7 @@ const SKV = {
   jaws: (g = sk) => 1 + .07 * g('jaws'), // bite reach (snakeEatRadius)
   lust: (g = sk) => g('lust') ? 1.15 : 1, // Bloodlust: speed for 1.5 s after a kill
   // Fortune: rewards are yours alone, so these always read your own tree (never another player's in co-op)
-  xpK: (g = skMe) => 1 + .04 * g('study'),
+  xpK: (g = skMe) => 1 + .06 * g('study'),
   chipK: (g = skMe) => 1 + .05 * g('pockets'),
   streakK: (g = skMe, n = 0) => 1 + .02 * g('streak') * Math.min(5, n), // n: how many kills in a row, each within 3 s of the last (Hot Streak)
   luckyP: (g = skMe) => .04 * g('lucky'),
@@ -200,7 +200,8 @@ const SKV = {
   interest: (g = skMe) => g('interest') ? Math.min(300, Math.round(PROG.coins * .03)) : 0,
 };
 const SK_MASTERY = .5; // a maxed passive (more than one rank) counts this much extra: the slight bonus for mastering it
-const skMastery = g => id => { const v = g(id), n = SKN[id]; return n && !n.major && n.max > 1 && v >= n.max ? v + SK_MASTERY : v; };
+let skPlain = null; // a node's id while the details panel works out its stats without its own mastery bonus (shown beside them instead)
+const skMastery = g => id => { const v = g(id), n = SKN[id]; return n && !n.major && n.max > 1 && v >= n.max && id !== skPlain ? v + SK_MASTERY : v; };
 for (const k of Object.keys(SKV)) { const f = SKV[k], dflt = ['xpK', 'chipK', 'streakK', 'luckyP', 'goldK', 'shopK', 'taskK', 'nearK', 'windK', 'interest'].includes(k) ? skMe : sk; SKV[k] = (g = dflt, ...a) => f(skMastery(g), ...a); }
 const shopPrice = p => p > 0 ? Math.max(1, Math.round(p * SKV.shopK())) : 0; // Haggler (free things stay free)
 function payInterest() { // Compound Interest: once per run, on the run summary

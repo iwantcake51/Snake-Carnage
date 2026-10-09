@@ -22,7 +22,7 @@ const xpNeed = l => Math.round(1100 + 480 * Math.pow(l - 1, 1.2)); // slow from 
 let MOD = {}, rewardMult = 1;
 let floaters = [];
 let lvlAnim = false, lastLevelBonus = 0;
-const XP_GAIN = 1.5; // every source of XP pays half as much again (v1.56: levels come quicker)
+const XP_GAIN = 1.65; // every source of XP pays this much more (v1.56: half as much again; v1.81: a little more on top)
 function gainXP(xp, coins) {
   const sv = typeof SKV === 'object'; // (the skill tree loads later; rewards only start once everything has)
   xp = Math.round(xp * XP_GAIN * (sv ? SKV.xpK() : 1)); coins = Math.round(coins * (sv ? SKV.chipK() : 1)); // Quick Study, Deep Pockets

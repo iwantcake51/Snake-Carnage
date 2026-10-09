@@ -354,7 +354,7 @@ function netApply(e, local) {
     case 'brn': if (e.by !== NETM.me) brnApply(e); break; // a piece of someone's tail burned off // the host called in a bomb: same spot, and it lands when it does on the host's screen
     case 'airw': airWarn(); break;
     case 'airs': airStrafe(e.x, e.y, e.a, Math.max(.15, e.w - netLag(e.h))); break; // ...or a strafing run
-    case 'airj': airApproach(e.x, e.y, e.a, e.p); break;
+    case 'airj': airApproach(e.x, e.y, e.a, e.p, e.o); break;
     case 'airx': if (e.pid === NETM.me) airCalledOffNote(); break; // Bad Intel: the strike meant for you was called off // a jet on its way in, still miles off
     case 'evt': evt = e.v ? { ...e.v } : null; if (evt) { evt.shown = false; Sfx.chime(); showEvent(); } break;
     case 'tod': if (Math.abs(angDiff(tod / 24 * TAU, e.v / 24 * TAU)) > .01) tod = e.v; break;

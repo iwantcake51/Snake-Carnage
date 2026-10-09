@@ -236,14 +236,20 @@ function skSelect(id, kbd) {
 }
 
 /* ---- the details panel: built when the selection changes; a purchase only updates its numbers ---- */
-function skFxVals(n, g) { return n.fx.map(([, f]) => +f(g)); }
+function skFxVals(n, g, plain) { skPlain = plain ? n.id : null; try { return n.fx.map(([, f]) => +f(g)); } finally { skPlain = null; } } // (plain: without this node's own mastery bonus)
+function skMst(fmt, a, b) { // a maxed passive's mastery bonus on one stat, a small gold figure beside it: in points on a stat that's already a percentage, else how much it changes it, in percent
+  const d = b - a; if (!isFinite(d) || Math.abs(d) < 1e-6) return '';
+  let v = /%$/.test(String(fmt(1))) ? d : a ? d / Math.abs(a) * 100 : 0; v = Math.abs(v) >= 10 ? Math.round(v) : Math.round(v * 10) / 10; if (!v) return '';
+  return `<span class="mst" data-tip="Mastery bonus: maxing a skill makes it a little stronger">${v > 0 ? '+' : '−'}${Math.abs(v)}%</span>`;
+}
 function skInfo(animate, prevVals) {
   const el = skEl('skInfo'); if (!el) return;
   const keep = el.contains(document.activeElement) ? document.activeElement.id || 'skBuy' : null, top = el.scrollTop; // a purchase from the keyboard keeps focus where it was
   const n = SKN[skSel], r = skOwn(n.id), st = skState(n), max = r >= n.max, why = skWhy(n), cost = skCost(n);
   const gCur = id => skOwn(id), gNext = id => id === n.id ? Math.min(n.max, r + 1) : skOwn(id);
-  const cur = skFxVals(n, gCur), nxt = skFxVals(n, gNext), none = n.abil && !r; // an ability you don't have yet: nothing to compare against
-  const fxRows = n.fx.map(([label, , fmt], i) => `<div><dt>${label}</dt><dd><span class="cur" data-i="${i}">${none ? '—' : fmt(cur[i])}</span>${max ? '' : `<i class="ar">→</i><span class="nxt ${nxt[i] !== cur[i] || none ? 'up' : ''}">${fmt(nxt[i])}</span>`}</dd></div>`).join('');
+  const cur = skFxVals(n, gCur, true), nxt = skFxVals(n, gNext, true), none = n.abil && !r; // an ability you don't have yet: nothing to compare against
+  const curM = max ? skFxVals(n, gCur) : cur, nxtM = !max && r + 1 >= n.max ? skFxVals(n, gNext) : nxt; // with the mastery bonus (maxed, or the next rank maxes it)
+  const fxRows = n.fx.map(([label, , fmt], i) => `<div><dt>${label}</dt><dd><span class="cur" data-i="${i}">${none ? '—' : fmt(cur[i])}</span>${max ? skMst(fmt, cur[i], curM[i]) : `<i class="ar">→</i><span class="nxt ${nxt[i] !== cur[i] || none ? 'up' : ''}">${fmt(nxt[i])}</span>${skMst(fmt, nxt[i], nxtM[i])}`}</dd></div>`).join('');
   const reqRows = [...n.req.map(([id, need]) => { const have = skOwn(id), ok = have >= need || r > 0; return `<li class="${ok ? 'ok' : 'no'}">${ok ? SK_OK : SK_NO}<span>${skReqText({ id, need })}</span>${SKN[id].max > 1 ? `<em>${Math.min(have, SKN[id].max)}/${need}</em>` : ''}</li>`; }),
     ...(skNeedLv(n, r) && !max ? [`<li class="${skLv() >= skNeedLv(n, r) ? 'ok' : 'no'}">${skLv() >= skNeedLv(n, r) ? SK_OK : SK_NO}<span>Level ${skNeedLv(n, r)}${n.max > 1 && r ? ` for rank ${r + 1}` : ''}</span><em>you're ${skLv()}</em></li>`] : [])].join('');
   const stateWord = PROG.treeOff[n.id] && r ? 'Switched off' : ({ max: n.major ? 'Unlocked' : 'Maxed', own: 'Purchased', avail: 'Available', locked: 'Locked' })[st];
@@ -255,7 +261,7 @@ function skInfo(animate, prevVals) {
     ${n.ranks ? `<ol class="sk-ranks">${n.ranks.map((t, k) => `<li class="${k < r ? 'got' : k === r ? 'next' : ''}"><b>${k + 1}</b><span>${t}${skNeedLv(n, k) ? ` <em>Level ${skNeedLv(n, k)}</em>` : ''}</span></li>`).join('')}</ol>` : ''}
     <dl class="sk-fx">${fxRows}</dl>
     ${reqRows ? `<div class="sk-sec"><h4>Requires</h4><ul class="sk-req">${reqRows}</ul></div>` : ''}
-    <div class="sk-buy">${max ? `<span class="sk-done">${SK_OK}${n.major ? 'Unlocked: nothing more to buy here' : n.max > 1 ? 'Mastered: it counts as half a rank more than its top rank' : 'Maxed: nothing more to buy here'}</span>` : `<div class="sk-cost"><small>Cost</small><b class="${skLeft() < cost ? 'poor' : ''}"><i class="tok"></i> ${tokN(cost)}</b></div>
+    <div class="sk-buy">${max ? `<span class="sk-done">${SK_OK}${n.major ? 'Unlocked: nothing more to buy here' : n.max > 1 ? 'Mastered: the gold figures are its bonus for maxing it' : 'Maxed: nothing more to buy here'}</span>` : `<div class="sk-cost"><small>Cost</small><b class="${skLeft() < cost ? 'poor' : ''}"><i class="tok"></i> ${tokN(cost)}</b></div>
       <button class="btn ${why.length || skLeft() < cost ? 'alt' : ''}" id="skBuy" data-sfx="none">${btnTxt}</button>`}
       <p class="sk-why" id="skWhy">${skWhyText(n)}</p></div>
     ${r ? `<div class="sk-tg"><span>${n.abil ? 'Use this ability in runs' : 'Active in runs'}</span><button class="tgl sm ${PROG.treeOff[n.id] ? '' : 'on'}" id="skTgl" data-sfx="none" role="switch" aria-checked="${!PROG.treeOff[n.id]}" aria-label="${attr(n.name)} active in runs"></button></div>` : ''}`;
@@ -389,7 +395,7 @@ function skBuy(id) {
   }
   skBusyUntil = now + 380;
   const was = {}; for (const q of SKILL_TREE) was[q.id] = skState(q);
-  const prevVals = skFxVals(n, id2 => skOwn(id2)), tok0 = skLeft();
+  const prevVals = skFxVals(n, id2 => skOwn(id2), true), tok0 = skLeft();
   PROG.tree[id] = r + 1; delete PROG.treeOff[id]; saveProg(); // (the token count is worked out from the tree: nothing else to spend)
   const major = n.major; Sfx.skill(major && !r);
   const lk = !r && !skCalm() ? [...overlay.querySelectorAll(`.skln[data-b="${id}"], .skgl[data-b="${id}"]`)] : []; lk.forEach(p => { p.dataset.hold = 1; });

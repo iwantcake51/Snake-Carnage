@@ -276,7 +276,7 @@ Object.assign(Sfx, {
     src.buffer = this.noiseBuf(); fl.type = type; fl.frequency.value = f; fl.Q.value = q; g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + .01); g.gain.exponentialRampToValueAtTime(.0005, t + dur);
     src.connect(fl); fl.connect(g); g.connect(this.out(x, 1)); src.start(t, Math.random() * .5); src.stop(t + dur + .05); },
   clusterPop(x) { if (!this.ok()) return; this.noiseHit(x, .5, 900, .7, .35, 'lowpass'); this.tone(this.out(x, .4), this.ctx.currentTime, 180, 70, .25, 'triangle', .2); },
-  barrage() { if (!this.ok()) return; this.siren && this.siren(); const t = this.ctx.currentTime, o = this.out(undefined, .5); for (let k = 0; k < 6; k++) this.tone(o, t + .5 + k * .16, k % 2 ? 620 : 880, k % 2 ? 600 : 860, .12, 'square', .07); }, // the siren, then a fast two-tone klaxon: not the usual warning
+  barrage() { if (!this.ok()) return; this.siren && this.siren(); const t = this.ctx.currentTime, o = this.out(undefined, .5); for (let k = 0; k < 6; k++) this.tone(o, t + .5 + k * .16, k % 2 ? 620 : 880, k % 2 ? 600 : 860, .12, 'square', .07 * this.soft(.35)); }, // the siren, then a fast two-tone klaxon: not the usual warning
   clink(x) { if (!this.ok() || !this.gate('clink', .05)) return; const t = this.ctx.currentTime, o = this.out(x, .25); this.tone(o, t, rand(1700, 2300), rand(1300, 1700), .09, 'triangle', .08); this.noiseHit(x, .08, 3000, 2, .06); },
   ignite(x) { if (!this.ok()) return; this.noiseHit(x, .35, 500, .6, .6, 'lowpass'); },
   steam(x) { if (!this.ok()) return; this.noiseHit(x, .3, 5200, .8, 1.1, 'highpass'); },
