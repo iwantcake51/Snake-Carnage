@@ -193,6 +193,31 @@ function drawBurnEdge(x) { // screen space: a restrained orange glow creeping in
   const g = x.createRadialGradient(0, 0, 0, 0, 0, H / 2 * Math.SQRT2); g.addColorStop(.55, 'rgba(255,110,20,0)'); g.addColorStop(.85, `rgba(255,100,20,${(a * .6).toFixed(3)})`); g.addColorStop(1, `rgba(255,70,10,${a.toFixed(3)})`);
   x.fillStyle = g; x.fillRect(-H, -H, H * 2, H * 2); x.restore();
 }
+const HAZE = { a: document.createElement('canvas'), b: document.createElement('canvas') }; HAZE.ax = HAZE.a.getContext('2d'); HAZE.bx = HAZE.b.getContext('2d');
+function hazeBand(x, src, bx, by, bw, bh, side, A, T) { // one edge of the screen, worked at half size (the stretch back up softens it, as haze should): copied once, its rows slid sideways on a wave that climbs, then faded out toward the middle so there's no seam
+  const q = .5, sw = Math.max(1, Math.round(bw * q)), sh = Math.max(1, Math.round(bh * q)), { a, b, ax, bx: hx } = HAZE;
+  if (a.width < sw || a.height < sh) { a.width = b.width = Math.max(a.width, sw); a.height = b.height = Math.max(a.height, sh); }
+  ax.globalCompositeOperation = 'copy'; ax.drawImage(src, bx, by, bw, bh, 0, 0, sw, sh);
+  hx.globalCompositeOperation = 'copy'; hx.drawImage(a, 0, 0, sw, sh, 0, 0, sw, sh); hx.globalCompositeOperation = 'source-over'; // (the plain copy underneath fills the gap a slid row leaves)
+  const rh = Math.max(2, Math.round(3 * DPR * q * 2)), Aq = A * q;
+  for (let y = 0; y < sh; y += rh) { // how far a row slides: none at the band's inner edge, most at the screen's edge
+    const u = side === 'b' ? y / sh : side === 't' ? 1 - y / sh : 1, py = (by + y / q) / DPR;
+    const o = (Math.sin(py * .045 + T * 7.5) + .5 * Math.sin(py * .11 + T * 12.3)) * Aq * u * u; if (Math.abs(o) < .15) continue;
+    hx.drawImage(a, 0, y, sw, rh, o, y, sw, rh);
+  }
+  const g = side === 'l' ? hx.createLinearGradient(0, 0, sw, 0) : side === 'r' ? hx.createLinearGradient(sw, 0, 0, 0) : side === 'b' ? hx.createLinearGradient(0, sh, 0, 0) : hx.createLinearGradient(0, 0, 0, sh);
+  g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(.45, 'rgba(0,0,0,.75)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+  hx.globalCompositeOperation = 'destination-in'; hx.fillStyle = g; hx.fillRect(0, 0, sw, sh); hx.globalCompositeOperation = 'source-over';
+  x.drawImage(b, 0, 0, sw, sh, bx, by, bw, bh);
+}
+function drawBurnHaze(x) { // screen space: while you burn, heat haze ripples in from every edge of the screen (four copied bands, nothing built per frame)
+  const s = snake, k = s && s.alive && state !== 'menu' ? s.burnK || 0 : 0; if (k < .05 || SETTINGS.simpleFx || SETTINGS.reduceMotion || SETTINGS.fxLevel === 'Low') return;
+  const src = x.canvas, w = src.width, h = src.height, A = 4.5 * DPR * k, T = UT, sb = Math.round(h * .24), st = Math.round(h * .12), sw = Math.round(w * .1);
+  x.save(); x.setTransform(1, 0, 0, 1, 0, 0);
+  hazeBand(x, src, 0, h - sb, w, sb, 'b', A, T); hazeBand(x, src, 0, 0, w, st, 't', A * .6, T);
+  hazeBand(x, src, 0, st, sw, h - st - sb, 'l', A * .8, T); hazeBand(x, src, w - sw, st, sw, h - st - sb, 'r', A * .8, T);
+  x.restore();
+}
 let FLAME_FB = null; // the stand-in flame before the sprite atlas loads: one soft teardrop, drawn once
 function flameFallback() {
   if (FLAME_FB) return FLAME_FB; const c = document.createElement('canvas'); c.width = 64; c.height = 128; const x = c.getContext('2d');

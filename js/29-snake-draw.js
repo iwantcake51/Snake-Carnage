@@ -79,7 +79,7 @@ function drawSnakeBody(x, s, cfg) {
   // along the body flows from one segment into the next instead of stepping. Where neighbours match it's a plain fill
   const sc = new Array(n), sa = new Float32Array(n);
   for (let i = 0; i < n; i++) {
-    const g = pts[i], a = cam ? cam.a[i] : 0, sts = s.stains[i], soak = sts ? Math.min(.55, sts.length / 50) : 0;
+    const g = pts[i], a = cam ? cam.a[i] : 0, sts = s.stains[i], soak = sts ? Math.min(.28, sts.length / 100) : 0; // (half strength: blood on the body reads as half see-through)
     let base = skin.base(F.uSeg(i), cfg, F.uEnd);
     if (soak) base = mixColor(base, soakCol(sts), soak);
     if (a > .01) { base = mixColor(base, groundColAt(g.x, g.y), (.42 + .14 * cam.lv) * a); sa[i] = 1 - (.56 + .06 * cam.lv + .2 * (cam.still || 0)) * a; } // takes on the colors around it
@@ -118,7 +118,7 @@ function drawSnakeBody(x, s, cfg) {
     for (let i = b - 1; i >= a; i--) {
       const g = pts[i], r = segR(i, n), al = cam ? cam.a[i] : 0, sts = s.stains[i];
       if (!sts || !sts.length) continue;
-      if (al > .01) x.globalAlpha = 1 - (.56 + .06 * cam.lv + .2 * (cam.still || 0)) * al;
+      x.globalAlpha = SNAKE_BLOOD_A * (al > .01 ? 1 - (.56 + .06 * cam.lv + .2 * (cam.still || 0)) * al : 1); // blood on the body is half see-through: the skin shows through it
       x.save(); x.translate(g.x, g.y); x.rotate(g.a); x.drawImage(stainSprite(sts), -r, -r, r * 2, r * 2); x.restore();
       x.globalAlpha = 1;
     }
@@ -233,6 +233,7 @@ function camoField(s, n) {
   return { a, avg: sum / n, lv, still };
 }
 const grabC = document.createElement('canvas'), grx = grabC.getContext('2d');
+const SNAKE_BLOOD_A = .5; // how solid the blood on a snake's body is
 function grabScene(A, B, src = render.src) { // copy just this patch of the frame once (drawing the scene onto itself forces a full copy every call)
   const sx = Math.max(0, Math.floor(A.x)), sy = Math.max(0, Math.floor(A.y)), sw = Math.min(src.width, Math.ceil(B.x)) - sx, sh = Math.min(src.height, Math.ceil(B.y)) - sy;
   if (sw <= 0 || sh <= 0) return null;
