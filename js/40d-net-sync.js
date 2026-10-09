@@ -252,7 +252,7 @@ function netStartRun() { // host: everyone loads the same world
   if (mode === 'teams') { netBalanceTeams(); for (const p of players) teamOf[p.id] = p.team; for (let i = 0; i < cfg.teams; i++) { const n = players.filter(p => p.team === i).length; if (n) pools['t' + i] = pool(n, 2 + n); } }
   else if (mode === 'ffa') for (const p of players) pools['p:' + p.id] = pool(1, 3);
   else pools.all = pool(players.length, 3 + players.length);
-  NS.cfg = { seed: Math.floor(Math.random() * 2 ** 31), map: cfg.map, mapName: m.name, mods: cfg.mods, time: cfg.time, tod: t, season: sz ? { ...sz } : null, w: W, mode, teams: cfg.teams || 2, teamOf, pools, len: cfg.len || 0, respawn: cfg.respawn || 5, t0: Date.now() };
+  NS.cfg = { seed: Math.floor(Math.random() * 2 ** 31), map: cfg.map, mapName: m.name, cm: m.custom ? m.data : null, mods: cfg.mods, time: cfg.time, tod: t, season: sz ? { ...sz } : null, w: W, mode, teams: cfg.teams || 2, teamOf, pools, len: cfg.len || 0, respawn: cfg.respawn || 5, t0: Date.now() };
   NETM.phase = 'run';
   for (const p of NETM.players) { p.ready = false; p.stats = null; p.deaths = 0; } // everyone readies up again for the next one, the host too
   for (const L of NETM.links.values()) { L.ready = false; L.sent = new Map(); }
@@ -262,7 +262,7 @@ function netStartRun() { // host: everyone loads the same world
 function netBeginRun(cfg, late) { // every player: load the shared world and start
   netSyncReset(false, true);
   NS.cfg = cfg; NETM.run = true; NETM.phase = 'run'; NS.pools = { ...(cfg.pools || { all: cfg.lives || 0 }) }; NS.clock = 0; NS.loaded = false;
-  mapIdx = MAPS.findIndex(m => m.name === cfg.mapName); if (mapIdx < 0) mapIdx = cfg.map;
+  mapIdx = cfg.cm ? netCustomMap(cfg.cm) : MAPS.findIndex(m => !m.custom && m.name === cfg.mapName); if (mapIdx < 0) mapIdx = MAPS.findIndex(m => m.name === cfg.mapName); if (mapIdx < 0) mapIdx = 0; // (a custom map: the copy built from the host's document)
   for (const p of NETM.players) if (p.id !== NETM.me) NS.rs.set(p.id, rsNew(p));
   if (typeof netHideLobby === 'function') netHideLobby();
   if (typeof netGoFade === 'function') netGoFade(null, true); // already black if the host's 'go' came first

@@ -134,6 +134,16 @@ function edHandles() { // resize handles for a single selected object or light
   if (isRot(o)) return []; // turned objects resize with the gizmo
   const { x, y, w, h } = o; return [['nw', x, y], ['n', x + w / 2, y], ['ne', x + w, y], ['e', x + w, y + h / 2], ['se', x + w, y + h], ['s', x + w / 2, y + h], ['sw', x, y + h], ['w', x, y + h / 2]].map(([k, hx, hy]) => ({ k, x: hx, y: hy }));
 }
+function edDrawHandles(x, px) { // the resize handles: soft white knobs with a dark rim and a shadow; corners round, sides as short bars along their edge; the one under the cursor (or being dragged) swells and lights up
+  const hs = edHandles(); if (!hs.length) return; const m = ED.mouse ? edW(...ED.mouse) : null, dr = ED.drag && (ED.drag.k === 'resize' || ED.drag.k === 'pt') ? ED.drag : null;
+  x.save(); x.shadowColor = 'rgba(0,0,0,.45)'; x.shadowBlur = 6; x.shadowOffsetY = 1; // (shadows are in screen pixels whatever the zoom)
+  for (const h of hs) { const hot = (dr && (dr.h === h.k || (h.k === 'pt' && dr.i === h.i))) || (m && Math.abs(m[0] - h.x) < 9 * px && Math.abs(m[1] - h.y) < 9 * px), k = hot ? 1.35 : 1;
+    x.fillStyle = hot ? '#ffe9a8' : '#ffffff'; x.strokeStyle = hot ? '#ffb020' : '#ff4d6a'; x.lineWidth = px * 1.6; x.beginPath();
+    if (h.k === 'pt' || h.k === 'r' || h.k === 'lr' || h.k.length === 2) x.arc(h.x, h.y, 5.2 * px * k, 0, TAU); // corners and points: round
+    else { const L = 9 * px * k, T2 = 3.4 * px * k, vert = h.k === 'e' || h.k === 'w'; const [w, hh] = vert ? [T2 * 2, L * 2] : [L * 2, T2 * 2]; if (x.roundRect) x.roundRect(h.x - w / 2, h.y - hh / 2, w, hh, T2); else x.rect(h.x - w / 2, h.y - hh / 2, w, hh); } // sides: a bar along the edge
+    x.fill(); x.shadowColor = 'transparent'; x.stroke(); x.shadowColor = 'rgba(0,0,0,.45)'; }
+  x.restore();
+}
 /* ---- drawing ---- */
 function edLoop() {
   ED.raf = requestAnimationFrame(edLoop);
@@ -183,7 +193,7 @@ function edLoop() {
     if (d.kind !== 'path' && pts.length > 2) { x.globalAlpha = .5; x.fillStyle = d.kind === 'area' ? x.createPattern(styleTile(ED.areaTex || 'grass'), 'repeat') : '#4aa3df'; const S = smoothClosed(pts); x.beginPath(); S.forEach(([a, b], k) => k ? x.lineTo(a, b) : x.moveTo(a, b)); x.closePath(); x.fill(); x.globalAlpha = 1; }
     x.strokeStyle = '#fff'; x.lineWidth = px * 1.5; x.setLineDash([5 * px, 4 * px]); x.beginPath(); pts.forEach(([a, b], k) => k ? x.lineTo(a, b) : x.moveTo(a, b)); x.stroke(); x.setLineDash([]);
     for (const [k, [a, b]] of d.pts.entries()) { x.fillStyle = k === 0 && d.kind === 'water' && d.pts.length > 2 ? '#7aff9a' : '#fff'; x.beginPath(); x.arc(a, b, 5 * px, 0, TAU); x.fill(); } }
-  for (const h of edHandles()) { x.fillStyle = '#fff'; x.strokeStyle = '#ff4d6a'; x.lineWidth = px * 1.5; if (h.k === 'pt') { x.beginPath(); x.arc(h.x, h.y, 5 * px, 0, TAU); x.fill(); x.stroke(); } else { x.fillRect(h.x - 4 * px, h.y - 4 * px, 8 * px, 8 * px); x.strokeRect(h.x - 4 * px, h.y - 4 * px, 8 * px, 8 * px); } }
+  edDrawHandles(x, px);
   edShapeOverlay(x, px); edGizmoDraw(x, px);
   const dr = ED.drag;
   if (dr && (dr.k === 'box' || dr.k === 'wall' || dr.k === 'rect')) { const [ax, ay, bx, by] = [Math.min(dr.x0, dr.x1), Math.min(dr.y0, dr.y1), Math.max(dr.x0, dr.x1), Math.max(dr.y0, dr.y1)];
@@ -394,7 +404,8 @@ function edBuildUI() {
         <button class="edhelpbtn edghost" title="Show controls (H)">${edSvg('help', 14)} Controls</button><div class="edhelp"><button class="edhelpx" title="Hide (H)">×</button><b>Controls</b>
           <p><kbd>Wheel</kbd> zoom · <kbd>Space</kbd>/<kbd>Middle</kbd>/<kbd>Right</kbd>-drag pan · <kbd>0</kbd> fit · <kbd>F</kbd> focus · right-click for actions</p>
           <p><kbd>Click</kbd> select · <kbd>Shift</kbd>+click add · drag empty space to box-select · <kbd>Ctrl+A</kbd> all</p>
-          <p>Gizmo: <b style="color:#ff5a5a">red</b>/<b style="color:#5aff7a">green</b> arrows move on an axis, yellow square moves freely, cubes scale (white: evenly), ring rotates · <kbd>Ctrl</kbd> flips snapping</p>
+          <p>Gizmo: <b style="color:#ff5b6e">red</b>/<b style="color:#4fd88a">green</b> arrows move on an axis, the gold puck moves freely, the square knobs stretch (round: evenly), the ring (or its grip) turns · <kbd>Ctrl</kbd> flips snapping</p>
+          <p>Build: <kbd>R</kbd> room · <kbd>I</kbd> wall line · <kbd>D</kbd> doorway · <kbd>J</kbd> random prop brush (<kbd>Alt</kbd>+drag clears)</p>
           <p><kbd>Arrows</kbd> nudge · <kbd>[</kbd><kbd>]</kbd> size · <kbd>Q</kbd> rotate · <kbd>Alt</kbd>+drag duplicates</p>
           <p><kbd>Del</kbd> delete · <kbd>Ctrl+D</kbd> duplicate · <kbd>Ctrl+C</kbd>/<kbd>V</kbd> copy/paste · <kbd>Ctrl+Z</kbd>/<kbd>Y</kbd> undo/redo · <kbd>Ctrl+L</kbd> lock · <kbd>Ctrl+H</kbd> hide</p>
           <p><kbd>T</kbd> path · <kbd>Y</kbd> water · <kbd>A</kbd> add point · <kbd>E</kbd> end path · <kbd>Alt</kbd>+click a point removes it · double-click a line adds one</p>

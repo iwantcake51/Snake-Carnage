@@ -1141,7 +1141,7 @@ body.cb-marquee #combo .cbox{animation:marq 1s steps(2) infinite}
 :root{--f-body:"Barlow","Segoe UI",system-ui,sans-serif;--f-head:"Barlow Condensed","Arial Narrow",Impact,sans-serif;--f-num:"JetBrains Mono",ui-monospace,Consolas,monospace;
   --ink:#ebe5de;--dim:#a39a92;--faint:#6e6660;--p1:#131012;--p2:#191517;--p3:#211c1e;--edge:#2e2729;--edge2:#3d3437;--r:4px;
   --grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
-#overlay *:not(.pvCombo):not(.pvCombo *):not(.logo):not(.logo *):not(svg *):not(.mm *):not(.rs *):not(.mmp *),#hudbar,#hudbar *,#tip,#tip *,#notes *,#chhud *,#modhud *,#modbar *,#abil *,#rewards *,#resume *,#lvlup *,#gold *,#intro *:not(.iname2){font-family:var(--f-body)!important}
+#overlay *:not(.pvCombo):not(.pvCombo *):not(.skboot .sktxt):not(.skboot .sktxt *):not(.logo):not(.logo *):not(svg *):not(.mm *):not(.rs *):not(.mmp *),#hudbar,#hudbar *,#tip,#tip *,#notes *,#chhud *,#modhud *,#modbar *,#abil *,#rewards *,#resume *,#lvlup *,#gold *,#intro *:not(.iname2){font-family:var(--f-body)!important}
 /* the backdrop behind menus: dim, vignetted, grainy — no glowing red mesh */
 #overlay::before,#overlay::after{display:none!important}
 #overlay.menuMode,#overlay{background:radial-gradient(ellipse at 50% 40%,rgba(10,8,9,.55),rgba(6,5,6,.88) 75%),var(--grain)!important}
@@ -2696,7 +2696,6 @@ i.tok{display:inline-block;width:.86em;height:.96em;vertical-align:-.1em;backgro
 .skn{position:absolute;display:flex;flex-direction:column;align-items:center;width:138px;margin-left:-69px;padding:0;background:none!important;border:0;color:var(--ink);font:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;outline:none}
 .skn.maj{margin-top:-48px}.skn.pas{margin-top:-36px}
 .skshape{display:block;overflow:visible;transition:transform .16s cubic-bezier(.2,.8,.2,1)}
-.skn:hover .skshape{transform:scale(1.045)}
 .skn.maj .skshape{width:96px;height:96px}.skn.pas .skshape{width:72px;height:72px}
 .skshape *{transition:fill .3s,stroke .3s,opacity .3s}
 .skico{position:absolute;left:50%;translate:-50% -50%;pointer-events:none;color:#5c5357;transition:color .3s;display:flex}
@@ -2738,7 +2737,8 @@ i.tok{display:inline-block;width:.86em;height:.96em;vertical-align:-.1em;backgro
 .skn.sel .skl b{color:var(--ink)}
 #overlay .panel .skn:focus-visible{outline:none}
 .skn:focus-visible .skbr{stroke:var(--acc-hi);stroke-width:3}
-.skn:active .skshape{transform:scale(.93)}
+.skn.tap .skshape{animation:skTap .34s cubic-bezier(.2,.9,.3,1.4)}
+@keyframes skTap{0%{transform:scale(.9)}50%{transform:scale(1.1)}100%{transform:scale(1)}}
 .skn.pulse .skshape{animation:skPulse .4s ease-out}
 .skn.unlock .skshape{animation:skPop .62s cubic-bezier(.2,.9,.25,1.3)}
 .skn.unlock .skburst,.skn.pulse .skburst{animation:skBurst .65s ease-out}
@@ -2939,23 +2939,46 @@ svg.ki.rdy{width:.9em;height:.9em;margin-left:3px}
 #animEd .ae-foot{display:flex;gap:6px;align-items:center;padding:8px 12px;border-top:1px solid rgba(255,255,255,.08)}#animEd .ae-foot .sp{flex:1;text-align:center;color:#9dff8a}
 @media (max-width:560px){#animEd .ae-body{grid-template-columns:1fr}#animEd .ae-list{max-height:160px;border-right:0;border-bottom:1px solid rgba(255,255,255,.08)}}
 
-/* ---- Skill Tree opening (skBoot): a terminal types its way to ONLINE, a seam of light, then the black halves part from the middle ---- */
+/* ---- Skill Tree opening (skBoot): an old CRT in the theme's colours powers on over the board, types out your progress over a block progress bar, says ONLINE, then a seam of light and the halves part from the middle ---- */
 .panel.sktree{position:relative}
-.skboot{position:absolute;inset:0;z-index:60;overflow:hidden;cursor:pointer}
-.skboot .bt,.skboot .bb{position:absolute;left:0;right:0;height:50.2%;background:#040605 repeating-linear-gradient(0deg,rgba(80,255,140,.035) 0 1px,transparent 1px 3px);transition:transform .62s cubic-bezier(.75,0,.2,1)}
-.skboot .bt{top:0;box-shadow:inset 0 -1px 0 rgba(110,255,160,.25)}.skboot .bb{bottom:0;box-shadow:inset 0 1px 0 rgba(110,255,160,.25)}
-.skboot .seam{position:absolute;left:0;right:0;top:50%;height:2px;margin-top:-1px;background:#9dffbf;box-shadow:0 0 14px 3px rgba(90,255,150,.65);transform:scaleX(0);opacity:0}
-.skboot.live .seam{animation:skSeam .5s cubic-bezier(.2,.8,.2,1) .15s forwards}
-@keyframes skSeam{0%{transform:scaleX(0);opacity:1}60%{transform:scaleX(1);opacity:1}100%{transform:scaleX(1);opacity:.9}}
+.skboot{--tc:var(--acc-hi);--tg:color-mix(in srgb,var(--acc-hi) 55%,transparent);--tf:color-mix(in srgb,var(--acc-hi) 14%,transparent);position:absolute;inset:0;z-index:60;overflow:hidden;cursor:pointer;container-type:size} /* over the board only: the header and details panel stay put */
+.skinfo{transition:transform 1.1s cubic-bezier(.22,.8,.24,1),opacity .8s ease}
+.sktree.skin .skinfo{transform:translateX(100%);opacity:0;pointer-events:none;transition:none} /* waits off the side until the board parts, then slides in */
+.skboot .bt,.skboot .bb{position:absolute;left:0;right:0;height:50.2%;background:var(--bg1) repeating-linear-gradient(0deg,color-mix(in srgb,var(--acc) 6%,transparent) 0 1px,transparent 1px 3px);transition:transform 1.3s cubic-bezier(.65,0,.25,1)}
+.skboot .bt{top:0;box-shadow:inset 0 -1px 0 color-mix(in srgb,var(--acc-hi) 30%,transparent)}.skboot .bb{bottom:0;box-shadow:inset 0 1px 0 color-mix(in srgb,var(--acc-hi) 30%,transparent)}
+.skboot::after{content:'';position:absolute;inset:0;pointer-events:none;z-index:5;background:radial-gradient(ellipse at 50% 50%,transparent 50%,rgba(0,0,0,.62));box-shadow:inset 0 0 60px rgba(0,0,0,.7);transition:opacity 1s ease} /* the tube's curved, darkened edges */
+.skboot.open::after{opacity:0}
+.skboot .seam{position:absolute;left:0;right:0;top:50%;height:2px;margin-top:-1px;z-index:3;background:var(--acc-hi);box-shadow:0 0 16px 3px var(--tg);transform:scaleX(0);opacity:0}
+.skboot.live .seam{animation:skSeam .6s cubic-bezier(.3,.7,.2,1) .2s forwards}
+@keyframes skSeam{0%{transform:scaleX(0);opacity:1}100%{transform:scaleX(1);opacity:1}}
 .skboot.open .bt{transform:translateY(-101%)}.skboot.open .bb{transform:translateY(101%)}
-.skboot.open .seam{animation:none;transform:scaleX(1);opacity:0;transition:opacity .35s}
-.skboot .sktxt{position:absolute;left:50%;top:50%;translate:-50% -50%;margin:0;z-index:2;font:500 15px/1.65 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#7dffa8;text-shadow:0 0 8px rgba(80,255,140,.55);white-space:pre;text-align:left;transition:opacity .2s}
-.skboot .sktxt b.on{display:block;margin-top:6px;text-align:center;font:700 40px/1 var(--f-head,ui-monospace);letter-spacing:.32em;color:#b8ffd0;text-shadow:0 0 18px rgba(90,255,150,.8);animation:skOn .45s steps(2) 2}
-@keyframes skOn{50%{opacity:.25}}
-.skboot .cur{display:inline-block;width:.6em;height:1.05em;margin-left:2px;vertical-align:-.15em;background:#7dffa8;animation:skCur .5s steps(1) infinite}
+.skboot.open .seam{animation:none;transform:scaleX(1);opacity:0;transition:opacity .9s ease .15s}
+/* powering on: a bright line snaps across the middle, then the picture opens out of it */
+.skboot .pow{position:absolute;left:0;right:0;top:50%;height:3px;margin-top:-1.5px;z-index:4;background:#fff;box-shadow:0 0 18px 4px var(--tg),0 0 3px 1px var(--tc);transform:scaleX(0);opacity:0;animation:skPowLine .5s cubic-bezier(.2,.9,.2,1) forwards;pointer-events:none}
+@keyframes skPowLine{0%{transform:scaleX(0);opacity:1}35%{transform:scaleX(1);opacity:1}100%{transform:scaleX(1) scaleY(24);opacity:0}}
+.skboot .crt{position:absolute;inset:0;z-index:2;animation:skPow .55s cubic-bezier(.2,.8,.2,1) .12s both,skFlick 3.2s steps(1) .7s infinite}
+@keyframes skPow{0%{transform:scale(1.08,.006);filter:brightness(5) blur(1px);opacity:0}20%{opacity:1}55%{transform:scale(1,1.03);filter:brightness(1.6)}100%{transform:none;filter:none;opacity:1}}
+@keyframes skFlick{0%{opacity:1}31%{opacity:.82}32%{opacity:1}67%{opacity:.9}68%{opacity:1}69%{opacity:.86}70%{opacity:1}}
+.skboot.open .crt{animation:skTxtOut .45s ease forwards}
+@keyframes skTxtOut{to{opacity:0;filter:blur(2px)}}
+.skboot .roll{position:absolute;left:0;right:0;top:-25%;height:22%;z-index:4;pointer-events:none;background:linear-gradient(transparent,color-mix(in srgb,var(--acc-hi) 5%,transparent) 70%,transparent);animation:skRoll 2.4s linear infinite;transition:opacity .4s} /* the slow band rolling down the tube */
+@keyframes skRoll{to{top:105%}}
+.skboot.open .roll{opacity:0}
+.skboot .crt,.skboot .crt *{font-family:ui-monospace,'SFMono-Regular','Cascadia Mono','DejaVu Sans Mono',Menlo,Consolas,'Courier New',monospace!important;font-variant-ligatures:none}
+.skboot .skhd{position:absolute;left:5%;right:5%;top:5%;display:flex;justify-content:space-between;gap:12px;padding-bottom:6px;border-bottom:1px dashed color-mix(in srgb,var(--acc-hi) 40%,transparent);font:600 clamp(8px,min(1.9cqw,3cqh),12px)/1 monospace;letter-spacing:.12em;color:var(--tc);text-shadow:0 0 6px var(--tg);white-space:nowrap}
+.skboot .sktxt{position:absolute;left:50%;top:47%;translate:-50% -50%;margin:0;z-index:2;font:500 clamp(8px,min(3.1cqw,2.9cqh),14px)/1.55 monospace;color:var(--acc-text);text-shadow:0 0 6px var(--tg);white-space:pre;text-align:left;min-width:23em}
+.skboot .sktxt .ln{min-height:1.55em}
+.skboot .sktxt b.on{display:table;margin:.9em auto 0;padding:.12em .5em .12em .8em;font:700 clamp(18px,min(7cqw,9cqh),36px)/1 monospace;letter-spacing:.3em;color:var(--bg1);background:var(--tc);text-shadow:none;box-shadow:0 0 14px var(--tg);animation:skOn .5s steps(1) both} /* inverse video, blinked on like a real terminal */
+@keyframes skOn{0%{opacity:0}20%{opacity:1}40%{opacity:0}60%,100%{opacity:1}}
+.skboot .cur{display:inline-block;width:.6em;height:1.05em;margin-left:1px;vertical-align:-.15em;background:var(--tc);animation:skCur .5s steps(1) infinite}
 @keyframes skCur{50%{opacity:0}}
-.skboot.live .sktxt{animation:skTxtOut .2s ease .3s forwards}
-@keyframes skTxtOut{to{opacity:0}}
+.skboot.live .sktxt .ln{opacity:.3;transition:opacity .5s ease .1s} /* ONLINE: the readout steps back, the seam runs through it */
+/* the progress bar along the bottom, an old machine's: whole blocks in a frame */
+.skboot .skbar{position:absolute;left:5%;right:5%;bottom:6%;color:var(--tc);text-shadow:0 0 6px var(--tg)}
+.skboot .skbar .lbl{display:flex;justify-content:space-between;margin-bottom:6px;font:600 clamp(8px,min(1.9cqw,3cqh),12px)/1 monospace;letter-spacing:.12em}
+.skboot .skbar .msg::after{content:'_';animation:skCur .5s steps(1) infinite}
+.skboot .cells{display:grid;grid-template-columns:repeat(32,1fr);gap:3px;height:clamp(10px,4cqh,18px);padding:3px;border:2px solid var(--tc)}
+.skboot .cells i.on{background:var(--tc)}
 body.calm .skboot{display:none}
 /* buying a rank: a copy of the node's outline ripples out and fades */
 .skecho{position:absolute;left:50%;top:0;translate:-50% 0;overflow:visible;pointer-events:none;fill:none;stroke:var(--bc);stroke-width:3;filter:drop-shadow(0 0 6px var(--bc));animation:skEcho .95s cubic-bezier(.2,.65,.35,1) forwards}
@@ -2963,3 +2986,33 @@ body.calm .skboot{display:none}
 @keyframes skEcho{0%{transform:scale(1);opacity:1;stroke-width:5}45%{opacity:.75}100%{transform:scale(var(--k,1.9));opacity:0;stroke-width:1.2}}
 /* where you'll respawn (drawSpawnGhost): a canvas of its own, above the death tint and grain, below the HUD */
 #spawnFx{position:absolute;z-index:7;pointer-events:none;background:transparent!important;border-radius:0 0 10px 10px}
+/* custom maps: who made it, under the name */
+.mbr-by{display:block;margin-top:2px;font:500 12px/1.2 var(--f-body);color:var(--mute,#9a8f94);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rs-desc .mby b{color:var(--ink,#eee);font-weight:600}
+
+/* ---- dropdowns with pictures (DD_THUMBS): a small picture before each choice, and on the button ---- */
+.ddo.th{display:flex;align-items:center;gap:.7em;padding-top:.35em;padding-bottom:.35em}
+.ddo.th span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.ddo .ddt{flex:none;width:40px;height:28px;border-radius:5px;background:#0d0b0e;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.dd .ddt{flex:none;width:24px;height:16px;margin-right:.55em;border-radius:3px;background:#0d0b0e;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+
+/* ---- editor building layer (ed-build): brush and build panels, the prop picker grid, the prop editor's several-parts bar and its resizable "Before" ---- */
+.ebpanel,.ebmat{margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--ed-line,#2b2530)}
+.ebpanel h4 small,.ebmat h4 small{font-weight:400;color:var(--ed-mut,#8d8496);margin-left:6px}
+.ebset{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:5px;max-height:260px;overflow-y:auto;margin:6px 0;scrollbar-width:thin}
+.ebset button,.ebfl button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 2px;font-size:10px;color:var(--ed-mut,#8d8496);background:var(--ed-p2,#1e1a21);border:1px solid var(--ed-line,#2b2530);border-radius:6px;cursor:pointer}
+.ebset button span,.ebfl button span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ebset button canvas{width:40px;height:40px}
+.ebset button.on,.ebfl button.on{color:#fff;border-color:var(--ed-acc,#d0191f);box-shadow:inset 0 0 0 1px var(--ed-acc,#d0191f);background:color-mix(in srgb,var(--ed-acc,#d0191f) 14%,var(--ed-p2,#1e1a21))}
+.ebfl{display:grid;grid-template-columns:repeat(auto-fill,minmax(56px,1fr));gap:5px;margin:6px 0}
+.ebfl button canvas{width:40px;height:28px;border-radius:3px}
+.pemulti{display:flex;flex-direction:column;gap:6px;margin:6px 0 8px;padding:8px;border-radius:7px;background:color-mix(in srgb,#ffc94d 8%,transparent);border:1px solid color-mix(in srgb,#ffc94d 30%,transparent);font-size:12px;color:#ddd}
+.pemulti b{color:#ffc94d}
+.peshapes button.multi{box-shadow:inset 0 0 0 1px #ffc94d;color:#ffe28a}
+.pecmp.ebcmp{padding:5px;gap:2px}
+.pecmp.ebcmp canvas{width:auto;height:auto;border-radius:4px}
+.pewin.narrow .pecmp.ebcmp canvas{width:auto;height:auto}
+.ebgrip{position:absolute;left:1px;bottom:1px;width:10px;height:10px;cursor:nesw-resize;opacity:.6;background:linear-gradient(45deg,transparent 45%,#9a91a2 45% 55%,transparent 55%,transparent 70%,#9a91a2 70% 80%,transparent 80%)}
+.ebgrip:hover{opacity:1}
+.pecmp.ebmin canvas,.pecmp.ebmin .ebgrip{display:none}
+.pecmp.ebcmp{cursor:default;user-select:none}

@@ -64,7 +64,11 @@ drawObstacle = function (x, o) { // every obstacle drawing goes through here, so
   }
   return drawObstacleUpright(x, o);
 };
-function drawObstacleUpright(x, o) {
+function drawObstacleUpright(x, o) { // (and a material laid over it, if it has one: walls and blocks can wear any material, like shapes)
+  drawObstacleUpright0(x, o);
+  if (o && o.mat) { const m = typeof getMaterial === 'function' && getMaterial(o.mat); if (m) { const box = o.t === 'r' ? [o.x, o.y, o.x + o.w, o.y + o.h] : [o.x - o.r, o.y - o.r, o.x + o.r, o.y + o.r]; x.save(); x.beginPath(); if (o.t === 'r') x.rect(o.x, o.y, o.w, o.h); else x.arc(o.x, o.y, o.r, 0, TAU); try { paintMaterial(x, m, box, 0); } catch (e) {} x.restore(); } }
+}
+function drawObstacleUpright0(x, o) {
   if (o && o.kind === 'shape' && o.shp) { drawVecShape(x, o.shp, 0); return; } // a wall drawn with the shape tools, in its own materials
   const p = o && propCache[o.kind];
   if (!p) return _drawObstacle(x, o);
@@ -101,7 +105,7 @@ for (const [fn, id, label] of [['showPause', 'pMenuBtn', 'Back to editor'], ['sh
 }
 try { if (!localStorage.getItem('snakeCarnageEdDrafts') && localStorage.getItem('snakeCarnageMapEdits')) localStorage.setItem('snakeCarnageEdDrafts', localStorage.getItem('snakeCarnageMapEdits')); } catch (e) {} // edits from before drafts existed
 /* ---- the editor itself: desktop only, loaded on demand ---- */
-const EDITOR_FILES = ['js/editor/ed-core.js', 'js/editor/ed-shapes.js', 'js/editor/ed-materials.js', 'js/editor/ed-custom.js', 'js/editor/ed-qol.js'];
+const EDITOR_FILES = ['js/editor/ed-core.js', 'js/editor/ed-shapes.js', 'js/editor/ed-materials.js', 'js/editor/ed-custom.js', 'js/editor/ed-qol.js', 'js/editor/ed-build.js'];
 let edLoading = null;
 const editorAllowed = () => { try { return !IS_TOUCH && !document.body.classList.contains('touch') && matchMedia('(pointer: fine)').matches && innerWidth >= 900; } catch (e) { return false; } };
 function loadEditor() { // the editor's scripts, fetched once, in order

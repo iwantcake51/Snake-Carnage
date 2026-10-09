@@ -280,6 +280,14 @@ function airTick(dt) {
   if (AIR.rumble > .02) { shake = Math.max(shake, 9 * AIR.rumble); AIR.rumble *= Math.exp(-dt * 2); } else AIR.rumble = 0; // the ground keeps trembling a moment after a close one
   updateCorpses(dt); updateHats(dt); updateTailBits(dt); stumpTick(dt); fireTick(dt);
 }
+const BLAST_FRAGILE = new Set([...RAM_SMALL, ...RAM_LARGE.filter(k => k !== 'tree'), 'detail']), BLAST_HEAVY = new Set(['tree', 'rock', 'car', 'bwall']);
+function blastBreak(x, y, R, heavy) { // every screen runs the same blast, so every screen breaks the same things
+  for (const o of obstacles.filter(o => !o.pump && o.kind !== 'border' && (BLAST_FRAGILE.has(o.kind) || heavy && BLAST_HEAVY.has(o.kind)))) {
+    const ox = o.t === 'r' ? o.x + o.w / 2 : o.x, oy = o.t === 'r' ? o.y + o.h / 2 : o.y, or = o.t === 'r' ? Math.min(o.w, o.h) / 2 : o.r;
+    if (Math.hypot(ox - x, oy - y) > R + or * .5) continue;
+    NS.remote = true; try { smashObstacle(o, Math.atan2(oy - y, ox - x)); } finally { NS.remote = false; } // (not "mine": no ram stun for you)
+  }
+}
 function detonate(s) {
   if (s.kd === 'c') return clusterSplit(s); // a cluster bomb opens instead: its bomblets do the damage (38g-cluster-fire)
   if (s.kd === 'g') return gasPop(s); // a gas bomb doesn't blow up: it lets out a cloud (38g)
@@ -292,11 +300,7 @@ function detonate(s) {
   throwClods(x, y, r, cm); // (cut from the ground before the crater is burnt into it)
   if (typeof blastSnow === 'function' && blastSnow(x, y, r * 1.15) > 0 && snowy) for (let k = 0; k < Math.round(60 * fx); k++) { const a = rand(0, TAU), sp = rand(60, 360); boomBits.push({ x: x + rand(-r * .4, r * .4), y: y + rand(-r * .4, r * .4), z: rand(2, 10), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(140, 420), t: 0, life: rand(1.2, 2.4), s: rand(1.4, 3.4), tr: false, c: pick(['#eef3f8', '#dfe8f2', '#f7fbff', '#c9d6e4']) }); } // the snow there is blown off: a white burst, bare ground underneath
   scorch(x, y, r);
-  for (const o of obstacles.filter(o => (o.kind === 'tree' || o.kind === 'bush') && !o.pump)) { // trees and bushes in the blast are blown down (on every screen: each one runs the same blast)
-    const ox = o.t === 'r' ? o.x + o.w / 2 : o.x, oy = o.t === 'r' ? o.y + o.h / 2 : o.y, or = o.t === 'r' ? Math.min(o.w, o.h) / 2 : o.r;
-    if (Math.hypot(ox - x, oy - y) > r * 1.15 + or * .5) continue;
-    NS.remote = true; try { smashObstacle(o, Math.atan2(oy - y, ox - x)); } finally { NS.remote = false; } // (not "mine": no ram stun for you)
-  }
+  blastBreak(x, y, r * 1.15, !mini && !s.kd && !s.safe); // what's near it breaks: fences, benches, crates and the like in any blast; trees, boulders and cars only to a proper bomb
   for (let k = 0; k < Math.round(12 * fx); k++) { const a = rand(0, TAU), sp = rand(20, 90); soots.push({ x: x + rand(-r * .3, r * .3), y: y + rand(-r * .3, r * .3), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: r * rand(.35, .6), g: rand(18, 34), rot: rand(0, TAU), vr: rand(-.5, .5), t: -rand(.08, .35), life: rand(2.6, 4.2), a: rand(.55, .8) }); } // black, oily smoke boiling up through the fire, lit orange from inside at first
   hazes.push({ x, y, r: r * 1.3, t: 0, life: 4.5 }); // heat shimmer over the crater
   const sec = mini ? 0 : randi(3, 5);
@@ -1025,7 +1029,7 @@ Object.assign(Sfx, {
     if (!this.ok()) return; const c = this.ctx; this.flys = (this.flys || []).filter(e => e > c.currentTime); if (this.flys.length >= 3) return;
     const t0 = c.currentTime + .03, V = j.v || 1150, Cs = 3400, Hh = 520, dur = j.over + 7.5, N = Math.ceil(dur * 20) + 1, dx = Math.cos(j.a), dy = Math.sin(j.a);
     const Lx = snake ? snake.x : W / 2, Ly = snake ? snake.y : H / 2, at = u => [j.x + dx * (u - j.over) * V, j.y + dy * (u - j.over) * V];
-    const XF = 1.3, hand = (this.apprs || []).find(r => !r.taken && Math.abs(angDiff(r.a, j.a)) < .35 && Math.abs(r.end - t0) < 2.2); // the roar we've been hearing coming in: this is that jet
+    const XF = .6, hand = (this.apprs || []).find(r => !r.taken && Math.abs(angDiff(r.a, j.a)) < .35 && Math.abs(r.end - t0) < 2.2); // the roar we've been hearing coming in: this is that jet
     const dop = new Float32Array(N), gain = new Float32Array(N), wet = new Float32Array(N), cut = new Float32Array(N), pan = new Float32Array(N), rum = new Float32Array(N);
     for (let i = 0; i < N; i++) {
       const t = i / 20; let te = t; for (let k = 0; k < 4; k++) { const [px, py] = at(te); te = t - Math.hypot(px - Lx, py - Ly, Hh) / Cs; } // what you hear now left the jet a moment ago
@@ -1113,22 +1117,24 @@ Object.assign(Sfx, {
     }
     eg.connect(pn); pn.connect(this.bus || c.destination);
   },
-  jetFar(x, y, a, pre) { // a jet still miles out, on its way in: a low roar swelling out of the distance before anything is marked, handing over to its fly-by (flyby takes the roar over and crossfades it out)
+  jetFar(x, y, a, pre) { // a jet still miles out, on its way in: worked out like the fly-by (where the jet really is, so how loud, how bright, which side, what Doppler), so it starts faint and only ever grows until the fly-by takes it over
     if (!this.ok() || !(pre > 0)) return; const c = this.ctx, t = c.currentTime, Lx = snake ? snake.x : W / 2, Ly = snake ? snake.y : H / 2;
-    const V = jetV(), ca = Math.cos(a), sa = Math.sin(a), ex = x - ca * 1.4 * V, ey = y - sa * 1.4 * V; // where it will be when the fly-by takes over (about 1.4 s out)
-    const fromX = x - ca * 3200, pan = clamp((fromX - Lx) / 1600, -1, 1) * .8, panE = clamp((ex - Lx) / 650, -1, 1) * .85, near = clamp(1.15 - Math.hypot(x - Lx, y - Ly) / 1200, .3, 1), v = SETTINGS.volume * near, end = t + pre + 2.2; // someone else's jet, across the map: quieter
-    const dE = Math.hypot(ex - Lx, ey - Ly, 520), cutE = clamp(9500 * Math.pow(520 / dE, .9), 220, 12000), dopE = 3400 / (3400 - V * Math.max(.3, ((Lx - ex) * ca + (Ly - ey) * sa) / dE)); // ...and how it will sound there
-    const mix = c.createGain(), pn = c.createStereoPanner(), send = c.createGain(); pn.pan.setValueAtTime(pan, t); pn.pan.linearRampToValueAtTime(panE, t + pre);
-    mix.gain.setValueAtTime(.0001, t); mix.gain.exponentialRampToValueAtTime(.05 * v, t + pre * .45); mix.gain.exponentialRampToValueAtTime(.14 * v, t + pre); mix.gain.setValueAtTime(.14 * v, t + pre + .5); mix.gain.exponentialRampToValueAtTime(.0005, end); // swelling as it closes; if no fly-by takes over (called off), it fades on its own
-    send.gain.value = v * .35; mix.connect(pn); pn.connect(this.bus || c.destination); pn.connect(send); send.connect(this.airVerb());
-    const ns = c.createBufferSource(), lp = c.createBiquadFilter(); ns.buffer = this.noise; ns.loop = true; ns.playbackRate.setValueAtTime(.8, t); ns.playbackRate.linearRampToValueAtTime(dopE, t + pre); // the roar, its pitch rising toward the fly-by's Doppler
-    lp.type = 'lowpass'; lp.Q.value = .4; lp.frequency.setValueAtTime(260, t); lp.frequency.exponentialRampToValueAtTime(cutE, t + pre); ns.connect(lp); lp.connect(mix); // brightening as the air between thins out, to the fly-by's own brightness
+    const V = jetV(), ca = Math.cos(a), sa = Math.sin(a), Hh = 520, Cs = 3400, OV = 1.6, D = pre + 2.4, N = Math.ceil(D * 20) + 1; // OV: about how long after the marker goes down the jet is overhead
+    const near = clamp(1.15 - Math.hypot(x - Lx, y - Ly) / 1200, .3, 1), vol = SETTINGS.volume * .8 * near; // someone else's jet, across the map: quieter
+    const gain = new Float32Array(N), cut = new Float32Array(N), pan = new Float32Array(N), dop = new Float32Array(N), whine = new Float32Array(N);
+    for (let i = 0; i < N; i++) { const tau = i / 20, back = V * (pre + OV - tau), px = x - ca * back, py = y - sa * back, d = Math.hypot(px - Lx, py - Ly, Hh), g = Math.min(1, Math.pow(Hh / d, 1.15)), vr = ((px - Lx) * ca + (py - Ly) * sa) * V / d;
+      gain[i] = Math.max(.0001, vol * g * (.55 + 1.1 * Math.pow(g, .6)) / 2.4 * Math.min(1, tau / 1.2) * Math.min(1, (D - tau) / .7) ** 2); // (the tail end only matters if no fly-by takes over: called off, it trails away) // the fly-by's own loudness for that distance (in this mix), eased in from silence
+      cut[i] = clamp(9500 * Math.pow(Hh / d, .9), 160, 12000); pan[i] = clamp((px - Lx) / 650, -1, 1) * .85; dop[i] = Cs / (Cs + vr); whine[i] = 2700 * dop[i]; }
+    const mix = c.createGain(), pn = c.createStereoPanner(), send = c.createGain(); mix.gain.setValueCurveAtTime(gain, t, D); pn.pan.setValueCurveAtTime(pan, t, D);
+    send.gain.value = SETTINGS.volume * near * .3; mix.connect(pn); pn.connect(this.bus || c.destination); pn.connect(send); send.connect(this.airVerb());
+    const ns = c.createBufferSource(), lp = c.createBiquadFilter(); ns.buffer = this.noise; ns.loop = true; ns.playbackRate.setValueCurveAtTime(dop, t, D); // the roar
+    lp.type = 'lowpass'; lp.Q.value = .4; lp.frequency.setValueCurveAtTime(cut, t, D); ns.connect(lp); lp.connect(mix);
     const rb = c.createBufferSource(), rl = c.createBiquadFilter(), rg = c.createGain(); rb.buffer = this.noise; rb.loop = true; rl.type = 'lowpass'; rl.frequency.value = 120; rg.gain.value = 1.4; rb.connect(rl); rl.connect(rg); rg.connect(mix); // the rumble that carries furthest
-    const os = c.createOscillator(), of = c.createBiquadFilter(), og = c.createGain(); os.type = 'sawtooth'; os.frequency.setValueAtTime(2400, t); os.frequency.linearRampToValueAtTime(2700 * dopE, t + pre); of.type = 'lowpass'; of.frequency.setValueAtTime(400, t); of.frequency.exponentialRampToValueAtTime(cutE, t + pre); og.gain.value = .02; // the turbine whine, rising with the Doppler
+    const os = c.createOscillator(), of = c.createBiquadFilter(), og = c.createGain(); os.type = 'sawtooth'; os.frequency.setValueCurveAtTime(whine, t, D); of.type = 'lowpass'; of.frequency.setValueCurveAtTime(cut, t, D); og.gain.value = .02; // the turbine whine, rising with the Doppler
     os.connect(of); of.connect(og); og.connect(mix);
     ns.start(t, Math.random() * .5); rb.start(t, Math.random() * .5); os.start(t);
     const rec = { a, end: t + pre, mix, pn, lp, ns, os, of, taken: false, stop: at => { for (const n of [ns, rb, os]) try { n.stop(at); } catch (e) {} } };
-    rec.stop(end + .1); this.apprs = (this.apprs || []).filter(r => r.end > t - 3); this.apprs.push(rec);
+    rec.stop(t + D + .5); this.apprs = (this.apprs || []).filter(r => r.end > t - 3); this.apprs.push(rec);
   },
   gore(x, big) { // a wet burst: a body coming apart
     if (!this.ok() || !this.gate(big ? 'goreB' : 'gore', big ? .1 : .05)) return; const t = this.ctx.currentTime, o = this.out(x, big ? 1 : .55);

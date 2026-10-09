@@ -24,7 +24,7 @@
   }, { passive: false });
   addEventListener('pointerdown', e => {
     if (SETTINGS.reduceMotion || e.button) return;
-    const b = e.target.closest('#overlay button, #overlay .card, #overlay .sc, #overlay .mtile, #hudbar button'); if (!b) return;
+    const b = e.target.closest('#overlay button, #overlay .card, #overlay .sc, #overlay .mtile, #hudbar button'); if (!b || b.classList.contains('skn')) return; // (skill nodes pop instead: a square ripple over a hexagon looks wrong)
     const r = b.getBoundingClientRect(), s = Math.max(r.width, r.height) * 2.2, rp = document.createElement('span');
     rp.className = 'ripple'; rp.style.cssText = `width:${s}px;height:${s}px;left:${e.clientX - r.left - s / 2}px;top:${e.clientY - r.top - s / 2}px`;
     if (getComputedStyle(b).position === 'static') b.style.position = 'relative';

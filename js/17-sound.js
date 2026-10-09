@@ -136,6 +136,8 @@ const Sfx = {
         case 'on': this.tone(o, t, 620, 940, .07, 'square', .035); break;
         case 'off': this.tone(o, t, 940, 620, .07, 'square', .03); break;
         case 'confirm': this.tone(o, t, 784, 786, .09, 'triangle', .1); this.tone(o, t + .08, 1175, 1177, .16, 'triangle', .09); break;
+        case 'boot': { this.tone(o, t, 90, 38, .3, 'sine', .3); const h = this.burst(o, t + .02, .35, 2400, .7, .05, 'highpass'); h.frequency.setValueAtTime(1200, t); h.frequency.exponentialRampToValueAtTime(6000, t + .3); this.tone(o, t + .05, 2200, 3100, .4, 'sine', .012); break; } // a CRT thunking on: the tube's thump, a rush of static and its faint whine
+        case 'online': this.tone(o, t, 988, 990, .14, 'square', .03); break; // ONLINE: the one short beep an old machine gives when it's happy
         case 'stop': this.tone(o, t, 200, 90, .14, 'sine', .35); this.burst(o, t, .06, 1800, 1, .12); break;
       }
       return;

@@ -25,6 +25,7 @@ function mapStill(m, k) { // the map's ground and everything standing on it at k
   const mk = () => { const c = document.createElement('canvas'); c.width = Math.ceil(W * k); c.height = Math.ceil(H * k); const x = c.getContext('2d'); x.setTransform(k, 0, 0, k, 0, 0); return [c, x]; };
   const [c, x] = mk(), b = m.build();
   b.floor(x); const [oc, ox] = mk(); drawObstacleLayer(ox, b, [...borderWalls(m.border), ...b.obs], b.lights || m.lights || []); x.drawImage(oc, 0, 0, W, H); freeCanvas(oc);
+  if (b.decor) try { b.decor(x); } catch (e) {} // a custom map's top-layer shapes (roofs, signs, overlays) belong in its picture too
   return c;
 }
 function mapThumb(m) {
@@ -96,7 +97,7 @@ const MAP_BLURB = {
   Club: 'A nightclub: the DJ stage, a lit dance floor and the bar.',
 };
 const LOCAL_NAME = { human: 'people', astronaut: 'astronauts', alien: 'aliens', deer: 'deer', sheep: 'sheep' };
-const mapBlurb = m => attr(MAP_BLURB[m.name] || (m.custom ? 'A map made in the map editor.' : ''));
+const mapBlurb = m => m.custom ? `<span class="mby">Made by: <b>${attr(mapAuthor(m))}</b></span>${m.netMap ? ' · the host\'s map' : ''}` : attr(MAP_BLURB[m.name] || '');
 const mapSetting = m => m.space ? (m.indoor ? 'Space station' : 'Space') : m.indoor ? 'Indoors' : 'Outdoors';
 function mapLocals(m) { const t = [...new Set((m.pop || []).map(p => p[0]))].map(k => LOCAL_NAME[k] || k + 's'); return t.length ? t[0][0].toUpperCase() + t.join(', ').slice(1) : ''; }
 function mapFactsHtml(i) {
@@ -231,7 +232,7 @@ function browserHtml(cur = mapIdx, rand = true) { // every map at one size: pict
   return `<div class="mbr-in"><header class="mbr-head"><h3>Choose a map</h3><span class="sp"></span>
       ${rand ? `<button class="mm-q mbr-rand" id="mbRand" data-sfx="none" data-tip="A random map and random modifiers, kept secret until the run starts">${ICO.dice}<span>Random run</span></button>` : ''}
       <button class="mm-x" id="mbClose" data-sfx="close" aria-label="Close the map browser">${ICO.x}</button></header>
-    <div class="mbr-grid">${MAPS.map((m, i) => `<button class="mbr-t ${i === cur ? 'on' : ''}" data-map="${i}" aria-pressed="${i === cur}" data-sfx="select"><span class="mbr-img"><img src="${thumbs[i]}" alt="" decoding="async"></span><span class="mbr-n">${attr(m.name)}</span><span class="mbr-m">${mapSetting(m)}<span class="mbr-b">Best ${(PROG.best[m.name] || 0).toLocaleString()}</span></span></button>`).join('')}</div></div>`;
+    <div class="mbr-grid">${MAPS.map((m, i) => `<button class="mbr-t ${i === cur ? 'on' : ''}" data-map="${i}" aria-pressed="${i === cur}" data-sfx="select"><span class="mbr-img"><img src="${thumbs[i]}" alt="" decoding="async"></span><span class="mbr-n">${attr(m.name)}</span>${m.custom ? `<span class="mbr-by">Made by: ${attr(mapAuthor(m))}</span>` : ''}<span class="mbr-m">${mapSetting(m)}<span class="mbr-b">Best ${(PROG.best[m.name] || 0).toLocaleString()}</span></span></button>`).join('')}</div></div>`;
 }
 function openBrowser() {
   const box = document.getElementById('mapBrowser'); if (!box) return;

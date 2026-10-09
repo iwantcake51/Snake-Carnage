@@ -198,6 +198,7 @@ function netKick(id) { const L = NETM.links.get(id); if (L) L.sendR({ k: 'kick' 
 const netPublicPlayers = () => NETM.players.map(({ id, name, color, ready, host, touch, cos, slot, conn, ping, stats, upg, team, lvl }) => ({ id, name, color, ready, host, touch, cos, slot, conn, ping, stats, upg, team, lvl }));
 function netBroadcast(m, except) { for (const [id, L] of NETM.links) if (id !== except) L.sendR(m); }
 function netLobbyChanged() { // tell everyone, redraw the lobby
+  if (NETM.host && NETM.cfg) { const mm = MAPS[NETM.cfg.map]; NETM.cfg.mapName = mm ? mm.name : null; NETM.cfg.cm = mm && mm.custom ? mm.data : null; } // a custom map goes along whole: the others don't have it
   if (NETM.host) { const me = NETM.players.find(p => p.id === NETM.me); if (me && NETM.phase !== 'run') { const pr = netProfile(); me.lvl = pr.lvl; me.cos = pr.cos; me.upg = pr.upg; } /* the host's own skin, upgrades and level, as they are now */ netBalanceTeams(); netBroadcast({ k: 'lobby', players: netPublicPlayers(), cfg: NETM.cfg, phase: NETM.phase, code: NETM.code }); }
   if (typeof netLobbyRender === 'function') netLobbyRender();
 }
@@ -247,7 +248,7 @@ function netJoin(code, opts = {}) { // resolves when the host has welcomed us
 function netClientMsg(m, L) {
   if (NETM.host || L !== NETM.hostLink) return; // a straggler from a host we've already left (or taken over from)
   switch (m.k) {
-    case 'lobby': NETM.players = m.players; NETM.cfg = m.cfg; if (m.code) NETM.code = m.code; if (!NETM.run) NETM.phase = m.phase; netLobbyRender && netLobbyRender(); break; // in a run, the start and end messages move us along
+    case 'lobby': NETM.players = m.players; NETM.cfg = m.cfg; if (m.cfg) { const i = netMapIdx(m.cfg); if (i >= 0) m.cfg.map = i; } if (m.code) NETM.code = m.code; if (!NETM.run) NETM.phase = m.phase; netLobbyRender && netLobbyRender(); break; // in a run, the start and end messages move us along
     case 'cos': if (m.id !== NETM.me) netCosApply(m.id, m.cos); break; // someone equipped a new title or skin
     case 'ping': L.sendR({ k: 'pong', t: m.t }); break;
     case 'pong': L.rtt = L.rtt * .7 + (performance.now() - m.t) * .3; if (m.h !== undefined) netClockSample(m.h, (performance.now() - m.t) / 2); break;
@@ -276,6 +277,7 @@ function netClientHostLost(why) { // the host is gone: the earliest of the rest 
   }
 }
 function netLeave(quiet) { // back to single player
+  if (typeof dropNetMaps === 'function') setTimeout(dropNetMaps, 0);
   if (NETM.hostLink && !quiet) NETM.hostLink.sendR({ k: 'leave' });
   if (NETM.host) netBroadcast({ k: 'closed' });
   const peer = NETM.peer;

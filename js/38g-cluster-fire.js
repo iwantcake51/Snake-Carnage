@@ -251,6 +251,7 @@ function gasPop(s) { // every screen: the canister blows with a dull bang, a bub
   booms.push({ puff: true, x: s.x, y: s.y, r: 14, t: 0, dur: .4 }); shocks.push({ x: s.x, y: s.y, R: 70, t: 0, dur: .35 });
   Sfx.boom(s.x, .38); Sfx.clusterPop(s.x); Sfx.steam(s.x); shake = Math.max(shake, 5 * clamp(1 - (snake ? Math.hypot(snake.x - s.x, snake.y - s.y) : 999) / 500, 0, 1)); // still a bang, smaller than a bomb's
   gasBubbles.push({ x: s.x, y: s.y, R: s.r * 2.6, t: 0, dur: .8 });
+  blastBreak(s.x, s.y, s.r * .7, false); // the canister's own small burst still knocks over a fence or a bin
   const r = seeded(((s.sd | 0) || 1) + 13), n = 6 + Math.floor(r() * 3), life = 14 + r() * 4;
   for (let k = 0; k < n; k++) { const a = r() * TAU, d = k ? s.r * (.5 + r() * 1.3) : 0; gasPuffs.push({ x: s.x + Math.cos(a) * d, y: s.y + Math.sin(a) * d, cx: s.x, cy: s.y, r: 58 + r() * 26, t: -k * .04, life: life + r() * 2, ph: r() * TAU, v: k % 4 }); }
   if (gasPuffs.length > 54) gasPuffs.splice(0, gasPuffs.length - 54);

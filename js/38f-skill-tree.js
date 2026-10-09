@@ -8,7 +8,7 @@
    ========================================================= */
 const SK_W = 2200, SK_H = 960, SK_HUB = { x: 1100, y: 905 };
 let skCam = null, skSel = 'speed'; // the camera and the selected node survive leaving and coming back (this session)
-const skCalm = () => SETTINGS.reduceMotion || (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);
+const skCalm = () => SETTINGS.reduceMotion || document.body.classList.contains('calm') || (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);
 const skLv = () => PROG.level;
 function skWhy(n) { // every reason the next rank can't be bought right now (tokens aside), in order; [] when it can
   const r = skOwn(n.id), out = [];
@@ -65,9 +65,11 @@ function skNodeHtml(n) {
   return `<button class="skn ${n.major ? 'maj' : 'pas'} br-${n.br}" data-n="${n.id}" data-sfx="none" style="left:${n.x}px;top:${n.y}px" aria-label="${attr(skAria(n))}">${skNodeSvg(n)}<span class="skico">${upIcon(n.icon)}</span><span class="skl"><b>${n.name}</b><em>${skSub(n)}</em></span></button>`;
 }
 const skLinks = () => { const L = []; for (const n of SKILL_TREE) { if (!n.req.length) L.push({ a: null, b: n, need: 1 }); for (const [id, need] of n.req) L.push({ a: SKN[id], b: n, need }); } return L; };
-function skPath(a, b) { // an S-curve, like a snake's body: leaves the parent heading up, arrives at the child heading up
-  const x1 = a ? a.x : SK_HUB.x, y1 = a ? a.y : SK_HUB.y, x2 = b.x, y2 = b.y, my = (y1 + y2) / 2;
-  return `M${x1} ${y1}C${x1} ${my} ${x2} ${my} ${x2} ${y2}`;
+function skPath(a, b) { // an S-curve, like a snake's body: leaves the parent heading up, arrives at the child heading up, each one bent its own way so the tree grows wild rather than ruled
+  const x1 = a ? a.x : SK_HUB.x, y1 = a ? a.y : SK_HUB.y, x2 = b.x, y2 = b.y, dy = y1 - y2;
+  let h = 0; for (const ch of (a ? a.id : 'hub') + b.id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const k = (h % 1000) / 500 - 1, t = .3 + (h >> 10) % 100 / 400; // a sideways lean and how soon it turns, both from the pair's names, so the same every time
+  return `M${x1} ${y1}C${(x1 + k * 38).toFixed(1)} ${(y1 - dy * t).toFixed(1)} ${(x2 - k * 26).toFixed(1)} ${(y2 + dy * (.85 - t)).toFixed(1)} ${x2} ${y2}`;
 }
 function skLinkState(l) { const rb = skOwn(l.b.id); return rb ? 'on' : skWhy(l.b).some(q => q.k === 'req') ? 'off' : 'open'; }
 function skLinksSvg() {
@@ -177,7 +179,8 @@ function skWire() {
   view.addEventListener('pointerup', up); view.addEventListener('pointercancel', up);
   view.addEventListener('click', e => { // a tap on a node selects it (never after a drag)
     if (moved) { moved = false; return; }
-    const b = e.target.closest('.skn'); if (b) skSelect(b.dataset.n, false);
+    const b = e.target.closest('.skn'); if (!b) return; skSelect(b.dataset.n, false);
+    if (!b.classList.contains('pulse') && !b.classList.contains('unlock')) { b.classList.remove('tap'); void b.offsetWidth; b.classList.add('tap'); setTimeout(() => b.classList.remove('tap'), 400); } // the clicked skill pops
   });
   view.addEventListener('wheel', e => { e.preventDefault(); const p = local(e); skZoomSmooth(Math.exp(-clamp(e.deltaY, -120, 120) * .0016), p.x, p.y); }, { passive: false });
   skEl('skFit').onclick = () => skFit(true);
@@ -298,24 +301,53 @@ function skTravel(p) { // a short bright stretch running down a link that just o
   const t = p.cloneNode(); t.setAttribute('class', `sktrav br-${SKN[p.dataset.b].br}`); t.setAttribute('pathLength', '1'); p.parentNode.appendChild(t);
   const a = t.animate([{ strokeDashoffset: .16 }, { strokeDashoffset: -1 }], { duration: 720, easing: 'cubic-bezier(.3,.1,.3,1)' }); a.onfinish = a.oncancel = () => t.remove();
 }
-/* ---- opening: a terminal boots up, types its way to ONLINE, then the screen splits from the middle and the two black halves slide away ---- */
-const SK_BOOT = ['> skill_tree --connect', '> tokens: ' , '> branches: survival / predator / fortune', ''];
-function skBoot() {
-  const panel = overlay.querySelector('.panel.sktree'); if (!panel || skCalm()) return;
-  const el = document.createElement('div'); el.className = 'skboot'; el.setAttribute('aria-hidden', 'true');
-  el.innerHTML = '<i class="bt"></i><i class="bb"></i><i class="seam"></i><pre class="sktxt"></pre>'; panel.appendChild(el);
-  const txt = el.querySelector('.sktxt'), lines = SK_BOOT.map(l => l === '> tokens: ' ? l + skLeft() + ' ready' : l), timers = [];
-  let out = '', li = 0, ci = 0, done = false;
-  const open = () => { if (done) return; done = true; timers.forEach(clearTimeout); txt.innerHTML = esc(out) + '<b class="on">ONLINE</b>'; el.classList.add('live'); Sfx.ui('open');
-    timers.push(setTimeout(() => el.classList.add('open'), 380), setTimeout(() => el.remove(), 1300)); };
-  const type = () => { // a few characters a frame, line by line, a blip per line
-    if (done) return; if (li >= lines.length) return open();
-    const L = lines[li]; ci = Math.min(L.length, ci + 3); txt.innerHTML = esc(out + L.slice(0, ci)) + '<i class="cur"></i>';
-    if (ci >= L.length) { out += L + '\n'; li++; ci = 0; Sfx.ui('tick'); timers.push(setTimeout(type, 70)); } else timers.push(setTimeout(type, 16));
+/* ---- opening: an old terminal powers on, types its way to ONLINE over a block progress bar, then the board splits from the middle and the two black halves slide away ---- */
+function skBootLines() { // what the terminal reads out, like an old machine's start-up check: where you stand in the tree
+  const pad = (k, v) => (k + ' ').padEnd(14, '.') + ' ' + v;
+  const all = SKILL_TREE, ranks = all.reduce((n, q) => n + q.max, 0), got = all.reduce((n, q) => n + skOwn(q.id), 0), learned = all.filter(q => skOwn(q.id) > 0).length;
+  const maj = all.filter(q => q.major), majOn = maj.filter(q => skOwn(q.id) > 0).length, maxed = all.filter(q => skOwn(q.id) >= q.max).length;
+  const out = [pad('LEVEL', PROG.level), pad('TOKENS', skLeft()), pad('SKILLS', `${learned} OF ${all.length}`), pad('RANKS', `${got} OF ${ranks}`), pad('ABILITIES', `${majOn} OF ${maj.length}`), pad('MAXED', `${maxed} OF ${all.length}`), ''];
+  for (const b of Object.keys(SK_BRANCH)) { const q = all.filter(n => n.br === b), m = q.reduce((n, x) => n + x.max, 0), g = q.reduce((n, x) => n + skOwn(x.id), 0); out.push(pad(SK_BRANCH[b].name.toUpperCase(), Math.round(g / Math.max(1, m) * 100) + '%')); }
+  return out;
+}
+const SK_BOOT_MSG = ['LOADING SURVIVAL', 'LOADING PREDATOR', 'LOADING FORTUNE'];
+function skBoot() { // opening the tree: an old CRT over the board (the header and details panel stay put) powers on, types out your progress over a block progress bar, says ONLINE, then the board parts from the middle and the details panel slides in from the side
+  const panel = overlay.querySelector('.panel.sktree'), view = document.getElementById('skView'); if (!panel || !view || skCalm()) return;
+  panel.classList.add('skin');
+  const N = 32, el = document.createElement('div'); el.className = 'skboot'; el.setAttribute('aria-hidden', 'true');
+  el.innerHTML = `<i class="bt"></i><i class="bb"></i><i class="seam"></i><i class="pow"></i><div class="crt">
+    <div class="skhd"><span>SNAKE: CARNAGE</span><span>v${GAME_VERSION}</span></div>
+    <div class="sktxt"></div>
+    <div class="skbar"><div class="lbl"><span class="msg">${SK_BOOT_MSG[0]}</span><span class="pct">000%</span></div><div class="cells">${'<i></i>'.repeat(N)}</div></div>
+  </div><i class="roll"></i>`; view.appendChild(el);
+  const txt = el.querySelector('.sktxt'), cells = el.querySelectorAll('.cells i'), msg = el.querySelector('.msg'), pct = el.querySelector('.pct');
+  const lines = skBootLines(), all = lines.reduce((n, l) => n + l.length, 0), timers = [], CPS = 200; // characters a second: fast, but you can still read it go by
+  let li = -1, row = null, c = 0, dc = 0, last = 0, done = false, raf = 0, wait = .42, lit = 0, mi = 0; // (wait: the tube warms up first)
+  const bar = p => { // the block bar: whole cells only, the newest one hot, and a status line that moves on as it fills
+    const k = Math.min(N, Math.round(p * N)); if (k !== lit) { cells.forEach((q, i) => { q.className = i < k ? 'on' : ''; }); if (k > lit) Sfx.ui('tick'); lit = k; }
+    pct.textContent = String(Math.round(p * 100)).padStart(3, '0') + '%';
+    const m = p >= 1 ? -1 : Math.min(SK_BOOT_MSG.length - 1, p * SK_BOOT_MSG.length | 0); if (m !== mi) { mi = m; msg.textContent = m < 0 ? 'DONE' : SK_BOOT_MSG[m]; }
   };
-  const skip = () => { if (!done) open(); else if (el.isConnected) { el.classList.add('open'); timers.push(setTimeout(() => el.remove(), 600)); } };
+  const end = () => { cancelAnimationFrame(raf); timers.forEach(clearTimeout); };
+  const part = () => { el.classList.add('open'); panel.classList.remove('skin'); }; // the halves part and the details panel slides in, together
+  const open = () => {
+    if (done) return; done = true; end(); if (!el.isConnected) return; // (left the screen mid-boot)
+    if (row && li < lines.length) row.textContent = lines[li];
+    for (let i = Math.max(0, li + 1); i < lines.length; i++) { const d = document.createElement('div'); d.className = 'ln'; d.textContent = lines[i]; txt.appendChild(d); } // (skipped: the rest at once)
+    txt.querySelectorAll('.cur').forEach(q => q.remove()); bar(1);
+    const on = document.createElement('b'); on.className = 'on'; on.textContent = 'ONLINE'; txt.appendChild(on); el.classList.add('live'); Sfx.ui('online');
+    timers.push(setTimeout(part, 700), setTimeout(() => el.remove(), 700 + 1400)); // it holds on ONLINE a moment, then opens
+  };
+  const step = now => { // smooth typing: so many characters per second whatever the frame rate, each line sliding in as it starts
+    if (done) return; if (!el.isConnected) { done = true; return end(); } const dt = last ? Math.min(.05, (now - last) / 1000) : 0; last = now;
+    if (wait > 0) { wait -= dt; raf = requestAnimationFrame(step); return; }
+    if (!row || c >= lines[li].length) { if (row) { row.textContent = lines[li]; dc += lines[li].length; } li++; if (li >= lines.length) return open(); row = document.createElement('div'); row.className = 'ln'; txt.appendChild(row); c = 0; wait = li ? .035 : 0; }
+    c = Math.min(lines[li].length, c + dt * CPS); row.textContent = lines[li].slice(0, c | 0); const cur = document.createElement('i'); cur.className = 'cur'; row.appendChild(cur);
+    bar((dc + c) / all); raf = requestAnimationFrame(step);
+  };
+  const skip = () => { if (!el.isConnected) return; if (!done) open(); else { part(); timers.push(setTimeout(() => el.remove(), 1200)); } };
   el.addEventListener('pointerdown', skip); addEventListener('keydown', function k() { skip(); removeEventListener('keydown', k, true); }, { capture: true, once: true });
-  timers.push(setTimeout(type, 120));
+  Sfx.ui('boot'); raf = requestAnimationFrame(step);
 }
 /* ---- buying a rank: the node's outline is copied and ripples outward, fading as it grows ---- */
 function skEcho(b, big) {
