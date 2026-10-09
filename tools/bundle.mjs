@@ -3,7 +3,7 @@
 // content (js/app.<hash>.js), names the stylesheet the same way, and rewrites index.html to use them, so a visit is two
 // requests instead of seventy-odd, and a returning visitor's browser keeps both until the next change (see _headers).
 // The sound manifest goes inside the bundle too, so the game doesn't fetch it.
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, rmSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 
 const html = readFileSync('index.html', 'utf8');
@@ -24,4 +24,6 @@ let out = html.replace(tags[0][0], `<script src="${jsName}"></script>\n`);
 for (const t of tags.slice(1)) out = out.replace(t[0], '');
 out = out.replace('href="css/style.css"', `href="${cssName}"`);
 writeFileSync('index.html', out);
+// kenney/ holds whole asset packs to pick from; only the copies the game loads ship, so the packs stay off the site.
+rmSync('kenney', { recursive: true, force: true });
 console.log(`bundle: ${tags.length} scripts -> ${jsName} (${(js.length / 1024).toFixed(0)} KB), ${cssName}`);
