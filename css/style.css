@@ -1711,12 +1711,6 @@ body.touch #edBtn{display:none!important}
 .mptable tr.me td{background:rgba(255,255,255,.04)}.mptable tr.gone{opacity:.5}
 .mptable tr.team td{border-top:2px solid #3a3340;font-weight:800;color:#f3e6c4}
 .mpres .mine{opacity:.85;margin-top:2px}
-#mpHud{position:absolute;right:12px;top:58px;z-index:6;min-width:150px;max-width:220px;background:rgba(14,11,16,.74);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:6px 9px;font-size:12.5px;color:#eee;pointer-events:none}
-#mpHud .mph{display:flex;align-items:center;gap:6px;font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;opacity:.9;margin-bottom:4px}
-#mpHud .mph b{font-size:14px;letter-spacing:0}#mpHud .mplives{margin-left:auto;color:#ff5a62;letter-spacing:.05em}#mpHud .mplives i{color:#aaa;font-style:normal;font-size:10.5px;text-transform:none}
-#mpHud .mpr{display:flex;align-items:center;gap:6px;padding:1.5px 0}#mpHud .mpr span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#mpHud .mpr.me span{font-weight:800}#mpHud .mpr.down{opacity:.5}#mpHud .mpr.out{opacity:.35;text-decoration:line-through}#mpHud .mpr.away span::after{content:' ⋯';opacity:.6}
-body.phone #mpHud{top:46px;right:6px;font-size:11px;min-width:120px}
 #mpDown{position:absolute;left:50%;top:38%;translate:-50% -50%;z-index:7;text-align:center;pointer-events:none;background:rgba(14,11,16,.7);padding:12px 20px;border-radius:12px;color:#fff}
 #mpDown b{display:block;font-size:20px;margin-bottom:3px}#mpDown span{opacity:.75;font-size:13px}
 #mpPause{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:rgba(5,4,7,.45)}
@@ -1725,13 +1719,6 @@ body.phone #mpHud{top:46px;right:6px;font-size:11px;min-width:120px}
 .chteam{display:inline-block;font-style:normal;font-size:9px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:1px 5px;border-radius:999px;margin-right:6px;vertical-align:1px;color:#0b1a24;background:#5ec8f0}
 /* co-op modes: team chips in the lobby, the round clock, team rows in the score panel and the scoreboard */
 
-#mpHud .mpclk{font-variant-numeric:tabular-nums;font-weight:800;letter-spacing:.02em;text-transform:none;font-size:12.5px;color:#fff;background:rgba(255,255,255,.1);border-radius:6px;padding:0 5px}
-#mpHud .mpclk.low{color:#ff6a6a;animation:mpclk 1s steps(2) infinite}@keyframes mpclk{50%{opacity:.45}}
-#mpHud .mpt{display:flex;align-items:center;gap:6px;margin-top:4px;padding:2px 0 1px;border-top:1px solid color-mix(in srgb,var(--tc) 55%,transparent);font-weight:800}
-#mpHud .mpt span{flex:1}#mpHud .mpt.mine > span:not(.mplives)::after{content:' (you)';font-weight:600;opacity:.6;font-size:10.5px}
-#mpHud .mpt .mplives{margin-left:4px;font-size:10px}
-#mpHud .mpt ~ .mpr{padding-left:10px}
-#mpHud .mpr em{font-style:normal;font-size:10px;opacity:.6;width:10px;text-align:right}
 .mptable tr.tg td{border-top:2px solid var(--tc);background:color-mix(in srgb,var(--tc) 14%,transparent);font-weight:800}
 .mptable .rk{font-style:normal;opacity:.55;font-size:.85em;margin-right:6px;display:inline-block;width:1.1em;text-align:right}
 /* prop editor: "When it breaks" */
@@ -1800,14 +1787,6 @@ body.phone #mpHud{top:46px;right:6px;font-size:11px;min-width:120px}
 #overlay .mptoast{left:auto;right:16px;top:16px;translate:none;z-index:3;border-radius:3px;background:#1d191b;border-color:var(--edge2);font-size:14px}
 @keyframes mptoast{0%{opacity:0;translate:0 -6px}12%{opacity:1;translate:0 0}80%{opacity:1}100%{opacity:0}}
 /* in the run */
-#mpHud{font-size:14px;background:rgba(14,11,12,.88);border:1px solid var(--edge2);border-radius:3px;padding:8px 11px;min-width:170px;transition:top .2s ease}
-#mpHud .mph{font:700 12.5px var(--f-head);letter-spacing:.12em;text-transform:uppercase;color:var(--ink);opacity:1;border-bottom:1px solid var(--edge);padding-bottom:5px}
-#mpHud .mph b,#mpHud .mpr b,#mpHud .mpt b{font-family:var(--f-num);color:#fff}#mpHud .mph b{font-size:15px}
-#mpHud .mpr{padding:2.5px 0}#mpHud .mpr.me span{color:#fff;font-weight:700}
-#mpHud .mpclk{font:700 14px var(--f-num);border-radius:2px}
-#mpHud .mpt{border-top-color:var(--edge2)}#mpHud .mpt span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#mpHud .mpt.mine > span:not(.mplives)::after{content:'YOU';font:700 9px var(--f-head);letter-spacing:.1em;margin-left:6px;padding:1px 4px;border:1px solid var(--tc);border-radius:2px;color:#fff;vertical-align:1px}
-body.phone #mpHud{font-size:12px;min-width:140px}
 #mpDown{background:rgba(14,11,12,.9);padding:16px 30px;border:1px solid var(--edge2);border-radius:3px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
 #mpDown b{font:700 34px var(--f-head);letter-spacing:.06em;text-transform:uppercase;color:#ff5a5a}#mpDown span{opacity:1;color:#e2d9d3;font-size:16px}
 #mpDown .cd i{font:700 18px var(--f-num);font-style:normal;color:#fff}
@@ -3019,3 +2998,47 @@ body.calm .skboot{display:none}
 .ebgrip:hover{opacity:1}
 .pecmp.ebmin canvas,.pecmp.ebmin .ebgrip{display:none}
 .pecmp.ebcmp{cursor:default;user-select:none}
+
+/* ---- the multiplayer score panel (40e netHud): minimal and readable. Under the top-right stats; lives as hearts (a lost one
+   breaks: Kenney's broken heart shakes in and stays, dimmed); a downed player gets a skull that shakes in, and is crossed out ---- */
+#mpHud{position:absolute;right:12px;top:64px;z-index:6;width:200px;padding:7px 10px 8px;background:rgba(12,10,11,.72);border:1px solid rgba(255,255,255,.09);border-radius:6px;color:var(--ink,#eee);font:600 13px/1.25 var(--f-body);pointer-events:none;box-shadow:0 6px 18px rgba(0,0,0,.35)}
+#mpHud .mph{display:flex;align-items:center;gap:8px;padding-bottom:5px;margin-bottom:5px;border-bottom:1px solid rgba(255,255,255,.08)}
+#mpHud .mpl{font:700 11px var(--f-head);letter-spacing:.14em;text-transform:uppercase;color:var(--mute,#9a8f94)}
+#mpHud .mptot{margin-left:auto;font:700 17px var(--f-num);color:#fff;font-variant-numeric:tabular-nums}
+#mpHud .mpclk{font:700 12.5px var(--f-num);color:#fff;font-variant-numeric:tabular-nums}#mpHud .mpclk:empty{display:none}
+#mpHud .mpclk.low{color:#ff6a6a;animation:mpclk 1s steps(2) infinite}@keyframes mpclk{50%{opacity:.45}}
+#mpHud .mpg + .mpg{margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.07)}
+#mpHud .mpgh{display:flex;align-items:center;gap:7px;font:700 12px var(--f-head);letter-spacing:.08em;text-transform:uppercase}
+#mpHud .mpgh span{flex:1;color:var(--tc)}#mpHud .mpgh b{font:700 14px var(--f-num);color:#fff}
+#mpHud .mpg.mine .mpgh span::after{content:'you';margin-left:6px;font:700 9px var(--f-head);letter-spacing:.1em;color:#fff;opacity:.55}
+#mpHud .mplv{margin:2px 0 4px}
+#mpHud .mpr{display:flex;align-items:center;gap:7px;padding:2px 4px;margin:0 -4px;border-radius:3px}
+#mpHud .mpr.me{background:rgba(255,255,255,.06)}#mpHud .mpr.me .nm{color:#fff;font-weight:700}
+#mpHud .mpr .rk{width:10px;font:700 10.5px var(--f-num);font-style:normal;color:var(--mute,#9a8f94);text-align:right}#mpHud .mpr .rk:empty{display:none}
+#mpHud .mpdot{width:7px;height:7px;border-radius:50%;flex:none}
+#mpHud .mpr .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#e7dfe2}
+#mpHud .mpr b{font:700 13px var(--f-num);color:#fff;font-variant-numeric:tabular-nums}
+#mpHud .mpr .nm,#mpHud .mpr b{transition:opacity .3s,color .3s;text-decoration:line-through 1.5px transparent}
+#mpHud .mpr.down .nm,#mpHud .mpr.down b,#mpHud .mpr.out .nm,#mpHud .mpr.out b{text-decoration-color:rgba(255,90,90,.85);color:#b3a9ad} /* crossed out while they're down */
+#mpHud .mpr.out{opacity:.5}#mpHud .mpr.away .nm::after{content:' ⋯';opacity:.6}
+#mpHud .mpr .sk{display:inline-grid;width:0;height:13px;opacity:0;overflow:visible;color:#ff6a6a;transition:width .25s ease}
+#mpHud .mpr .sk svg{width:13px;height:13px}
+#mpHud .mpr.down .sk,#mpHud .mpr.out .sk{width:13px;opacity:1;animation:mpSkull .6s cubic-bezier(.3,1.4,.4,1) both}
+@keyframes mpSkull{0%{transform:scale(0) rotate(-35deg);opacity:0}45%{transform:scale(1.35) rotate(14deg);opacity:1}62%{transform:scale(1) rotate(-10deg)}78%{transform:rotate(6deg)}90%{transform:rotate(-3deg)}100%{transform:none}}
+body.phone #mpHud{width:170px;right:6px;font-size:12px}
+/* hearts: the full heart (game-icons) and the broken one (Kenney) on top of each other in one slot */
+.mplv{display:flex;flex-wrap:wrap;align-items:center;gap:3px;min-height:15px}
+.mplv .hs{position:relative;display:inline-grid;width:15px;height:15px}
+.mplv .hs svg{grid-area:1/1;width:100%;height:100%;transition:opacity .35s ease,transform .35s ease}
+.mplv .hs .gi{color:#ff4d5e;filter:drop-shadow(0 0 3px rgba(255,60,80,.45))}
+.mplv .hs .hb{color:#7c7276;opacity:0;transform:scale(.6)}
+.mplv .hs.off .gi{opacity:0;transform:scale(1.4)}
+.mplv .hs.off .hb{opacity:.6;transform:none}
+.mplv .hs.brk .hb{animation:mpHeartBreak .8s cubic-bezier(.36,.07,.19,.97) both}
+@keyframes mpHeartBreak{0%{opacity:1;color:#ff5a68;transform:scale(1.45)}14%{transform:scale(1.35) rotate(-16deg)}28%{transform:scale(1.25) rotate(13deg)}42%{transform:scale(1.15) rotate(-9deg)}56%{transform:scale(1.08) rotate(6deg)}72%{transform:rotate(-3deg);color:#ff5a68;opacity:1}100%{transform:none;color:#7c7276;opacity:.6}}
+.mplv em{font:700 12px var(--f-num);font-style:normal;color:#fff;margin-left:2px}
+#mpDown .mplv{justify-content:center;margin-top:10px;gap:5px}#mpDown .mplv .hs{width:22px;height:22px}
+#mpDown .mplvn,#mpBack .mplvn{display:block;margin-top:5px;font:600 13px var(--f-body);color:#d8ced2}
+#mpBack{position:absolute;left:50%;top:30%;translate:-50% -50%;z-index:7;text-align:center;pointer-events:none;background:rgba(12,10,11,.78);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:10px 18px;animation:fadeIn .3s ease;transition:opacity 1s ease}
+#mpBack .mplv{justify-content:center;gap:5px}#mpBack .mplv .hs{width:20px;height:20px}#mpBack.fade{opacity:0}
+body.calm .mplv .hs.brk .hb,body.calm #mpHud .mpr .sk{animation:none!important}
