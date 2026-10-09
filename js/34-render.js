@@ -93,7 +93,7 @@ function render() {
   ctx.restore();
   if (eb) lungeEdges();
   if (EDGE_K.lb > .03 || EDGE_K.fk > .03) lungeLines(); // the tint and speed lines (even with simplified effects: they're cheap)
-  drawBurnEdge(ctx); // on fire: a restrained orange glow from the edges
+  drawBurnEdge(ctx); drawBurnFlames(ctx); // on fire: a restrained orange glow from the edges, and flames licking up the bottom of the screen
   drawGasEdge(ctx); // in gas: the edges go sickly green
   drawAirFlash(ctx);
   if (NETM.run && !cam) netDrawTags(ctx); // co-op: teammates' names and where they are off screen

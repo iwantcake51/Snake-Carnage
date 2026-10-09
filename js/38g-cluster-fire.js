@@ -45,19 +45,17 @@ function simBomblet(x, y, a, sp, vz) { // the whole flight, worked out at once a
   out.push(x, y, 0);
   return { path: out, rest: t, x, y, hops };
 }
-function clusterSplit(s) { // every screen: the bomb opens just above the ground and throws its bomblets out
-  const r = seeded((s.sd | 0) || 1), n = 4 + Math.floor(r() * 3), base = r() * TAU, near = snake ? Math.hypot(snake.x - s.x, snake.y - s.y) : 999;
-  booms.push({ puff: true, x: s.x, y: s.y, r: 15, t: 0, dur: .45 }); shocks.push({ x: s.x, y: s.y, R: 60, t: 0, dur: .35 });
-  for (let k = 0; k < 14; k++) { const a = rand(0, TAU), v = rand(120, 300); boomBits.push({ spark: true, x: s.x, y: s.y, z: 14, vx: Math.cos(a) * v, vy: Math.sin(a) * v, vz: rand(30, 160), t: 0, life: rand(.2, .45) }); }
-  for (let k = 0; k < 4; k++) smoke.push({ x: s.x + rand(-6, 6), y: s.y + rand(-6, 6), vx: rand(-20, 20), vy: rand(-20, 20), r: rand(6, 10), g: rand(10, 18), rot: rand(0, TAU), vr: rand(-.6, .6), t: 0, life: rand(1, 1.6), v: k % 4, a: .6 });
-  Sfx.clusterPop(s.x); shake = Math.max(shake, 6 * clamp(1 - near / 400, 0, 1));
+function clusterSplit(s) { // every screen: the bomb goes off like any other (detonate does that) and throws its bomblets out of the blast
+  const r = seeded((s.sd | 0) || 1), n = 4 + Math.floor(r() * 3), base = r() * TAU;
+  Sfx.clusterPop(s.x);
   let settle = 0; const list = [];
   for (let k = 0; k < n; k++) {
     const a = base + k / n * TAU + (r() - .5) * .8, sp = 95 + r() * 115, vz = 120 + r() * 90, b = simBomblet(s.x, s.y, a, sp, vz);
     list.push({ ...b, k, t: 0, hop: 0, r: Math.round(CLUSTER_R * (.9 + r() * .2)), blink: r() * TAU });
     settle = Math.max(settle, b.rest);
   }
-  list.sort((p, q) => p.rest - q.rest).forEach((b, i) => { b.fuse = +(Math.max(settle, b.rest) + .55 + i * .24 + r() * .16).toFixed(3); }); // they go one after another, never together
+  const fz = list.map(() => settle + .5 + r() * 2.6).sort((p, q) => p - q); for (let i = 1; i < fz.length; i++) fz[i] = Math.max(fz[i], fz[i - 1] + .12); // each on its own random fuse, in no set order (never two at once)
+  const order = list.map((b, i) => [r(), i]).sort((p, q) => p[0] - q[0]); order.forEach(([, i], j) => { list[i].fuse = +fz[j].toFixed(3); });
   bomblets.push(...list);
   if (AUTH()) for (const b of list) for (const c of nearbyCreatures(b.x, b.y, 80, [])) if (c.alive && !c.def.fly) { c.state = 'panic'; c.fx = b.x; c.fy = b.y; c.alert = Math.max(c.alert || 0, c.def.human ? 1 : .6); c.timer = Math.max(c.timer || 0, rand(3, 5)); } // the crowd sees them land and runs
 }
@@ -194,6 +192,34 @@ function drawBurnEdge(x) { // screen space: a restrained orange glow creeping in
   x.save(); x.setTransform(DPR * ax, 0, 0, DPR, DPR * W / 2, DPR * H / 2);
   const g = x.createRadialGradient(0, 0, 0, 0, 0, H / 2 * Math.SQRT2); g.addColorStop(.55, 'rgba(255,110,20,0)'); g.addColorStop(.85, `rgba(255,100,20,${(a * .6).toFixed(3)})`); g.addColorStop(1, `rgba(255,70,10,${a.toFixed(3)})`);
   x.fillStyle = g; x.fillRect(-H, -H, H * 2, H * 2); x.restore();
+}
+let FLAME_FB = null; // the stand-in flame before the sprite atlas loads: one soft teardrop, drawn once
+function flameFallback() {
+  if (FLAME_FB) return FLAME_FB; const c = document.createElement('canvas'); c.width = 64; c.height = 128; const x = c.getContext('2d');
+  const g = x.createRadialGradient(32, 92, 2, 32, 80, 60); g.addColorStop(0, 'rgba(255,230,150,1)'); g.addColorStop(.35, 'rgba(255,140,30,.8)'); g.addColorStop(1, 'rgba(255,60,0,0)');
+  x.fillStyle = g; x.beginPath(); x.moveTo(32, 2); x.quadraticCurveTo(60, 70, 52, 104); x.quadraticCurveTo(32, 128, 12, 104); x.quadraticCurveTo(4, 70, 32, 2); x.fill(); return FLAME_FB = c;
+}
+const FLAME_SPR = ['flame_01', 'flame_02', 'flame_03', 'flame_04'];
+function drawBurnFlames(x) { // screen space: flames licking up the bottom of the screen and the lower edges while you burn; a handful of cached sprites added on, nothing rebuilt per frame
+  const s = snake, k = s && s.alive && state !== 'menu' ? s.burnK || 0 : 0; if (k < .04 || SETTINGS.fxLevel === 'Off') return;
+  const low = SETTINGS.simpleFx || SETTINGS.fxLevel === 'Low', N = low ? 7 : 13, T = SETTINGS.reduceMotion ? 0 : UT, fa = (SETTINGS.reduceFlash ? .55 : 1) * k;
+  x.save(); x.setTransform(DPR, 0, 0, DPR, 0, 0); x.globalCompositeOperation = 'lighter';
+  const fb = KSPR.ok ? null : flameFallback();
+  const gb = x.createLinearGradient(0, H, 0, H * .72); gb.addColorStop(0, `rgba(255,90,10,${(.42 * fa).toFixed(3)})`); gb.addColorStop(1, 'rgba(255,60,0,0)'); x.fillStyle = gb; x.fillRect(0, H * .72, W, H * .28); // the heat glowing up from below
+  const tongue = (cx, base, h, rot, i, col, a) => { const w = h * .8; x.globalAlpha = Math.min(1, a);
+    if (fb) { x.save(); x.translate(cx, base); x.rotate(rot); x.drawImage(fb, -w / 2, -h, w, h); x.restore(); }
+    else kDraw(x, FLAME_SPR[i & 3], col, cx + Math.sin(rot) * h * .5, base - Math.cos(rot) * h * .5, w, h, rot); };
+  for (let i = 0; i < N; i++) { // along the bottom, tallest towards the corners
+    const u = (i + .5) / N, edge = Math.abs(u - .5) * 2, f = .75 + .25 * Math.sin(T * (5.5 + i % 4) + i * 1.7) + .12 * Math.sin(T * 13 + i * 3.1), h = H * (.2 + .2 * edge * edge) * f * (.55 + .45 * k);
+    const cx = u * W + Math.sin(T * 1.3 + i) * W / N * .2, sway = Math.sin(T * 2.2 + i * .9) * .12;
+    tongue(cx, H + h * .18, h, sway, i, '#ff6a12', fa * (.75 + .25 * edge));
+    if (!low) tongue(cx, H + h * .12, h * .6, sway * 1.4, i + 1, '#ffd36a', fa * .8);
+  }
+  for (const sd of [-1, 1]) for (let i = 0; i < (low ? 2 : 4); i++) { // up the lower sides, leaning inward
+    const v = .58 + i * .11, f = .8 + .2 * Math.sin(T * (6 + i) + i * 2.3 + sd), h = W * .12 * f * (.5 + .5 * k) * (.6 + i * .2);
+    tongue(sd < 0 ? -h * .12 : W + h * .12, v * H, h, sd * -(Math.PI / 2 - .35) + Math.sin(T * 2 + i) * .1, i + 2, '#ff5a10', fa * .85);
+  }
+  x.restore();
 }
 function fireTick(dt) { // every frame of a run (from airTick)
   for (let i = firePatches.length - 1; i >= 0; i--) { const p = firePatches[i]; p.t += dt; if (p.t > p.life) { firePatches.splice(i, 1); continue; }

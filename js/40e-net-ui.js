@@ -489,5 +489,10 @@ addEventListener('keydown', e => {
   e.preventDefault(); e.stopPropagation(); if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   const me = netMe(); if (!me) return;
   if (NETM.host && netAllReady()) return netGo();
-  if (!me.ready) { const b = document.getElementById('mpReady2') || document.getElementById('mpReady'); if (b) b.click(); else netSetReady(true); if (NETM.host && netAllReady()) setTimeout(netGo, 180); } // ready up; the host's last ready starts it
+  if (!me.ready) { // ready up; if everyone else already is, Space starts the run too (a guest asks the host to)
+    const others = NETM.players.filter(p => p.conn !== false && p.id !== NETM.me).every(p => p.ready);
+    const b = document.getElementById('mpReady2') || document.getElementById('mpReady'); if (b) b.click(); else netSetReady(true);
+    if (!others) return;
+    if (NETM.host) { if (netAllReady()) setTimeout(netGo, 180); } else if (NETM.hostLink) NETM.hostLink.sendR({ k: 'rgo' });
+  }
 }, true);

@@ -63,8 +63,8 @@ function spawnWalkers(n) {
     c.path = { pts, i, dir: Math.random() < .5 ? 1 : -1 }; c.state = 'wander'; c.timer = 99;
     creatures.push(c);
     if ((Math.random() < .45 && MAPS[mapIdx].open !== undefined || Math.random() < .3) && !spawnOff('dog')) { // a dog on a lead
-      const d = makeCreature('dog', x + rand(-14, 14), y + rand(-14, 14), null); if (!free(d.x, d.y, 10)) continue;
-      d.owner = c; c.dog = d; d.born = T; creatures.push(d);
+      const sa = c.a + Math.PI / 2, d = makeCreature('dog', x + Math.cos(sa) * 11, y + Math.sin(sa) * 11, null); if (!free(d.x, d.y, 10)) continue; // right at its owner's side
+      d.owner = c; c.dog = d; d.born = T; d.leashed = true; creatures.push(d);
     }
   }
 }
@@ -73,13 +73,26 @@ function walkPath(c) { // returns a heading toward the next point along the path
   if (d < 16) { p.i += p.dir; if (p.i < 0 || p.i >= p.pts.length) { p.dir = -p.dir; p.i += p.dir * 2; } p.i = clamp(p.i, 0, p.pts.length - 1); }
   const n = p.pts[p.i]; return Math.atan2(n[1] - c.y, n[0] - c.x);
 }
-function heelDog(d) { // the dog trots near its owner, pulling ahead now and then
-  const o = d.owner, dx = o.x + Math.cos(o.a) * 10 - d.x, dy = o.y + Math.sin(o.a) * 10 - d.y, dist = Math.hypot(dx, dy);
-  return { a: Math.atan2(dy, dx) + Math.sin(T * 1.3 + d.pt * 30) * .5, k: dist > 26 ? 1.6 : dist < 12 ? 0 : .9 };
+const LEASH = { len: 30, snap: 58, clip: 22 }; // the lead's reach; past snap it has been let go of; a loose dog is clipped back on only within clip of its owner
+function leashUpdate(d) { // every screen, every frame: whether this dog is on its lead right now (it never stretches across the map, and never reappears across it)
+  const o = d.owner; if (!o || !d.alive || !o.alive) return d.leashed = false;
+  const calm = o.state !== 'panic' && d.state !== 'panic', dd = Math.hypot(o.x - d.x, o.y - d.y);
+  if (d.leashed) { if (!calm || dd > LEASH.snap) d.leashed = false; } // dropped in a panic, or pulled out of their hand
+  else if (calm && dd < LEASH.clip) d.leashed = true; // back at their side: clipped on again
+  return d.leashed;
+}
+function heelDog(d, dt) { // the host: a dog on its lead walks at its owner's side and keeps their pace; a loose one that's calm again trots back to them
+  const o = d.owner, side = o.a + Math.PI / 2 * (d.pt > .5 ? 1 : -1), lead = o.state === 'idle' ? 2 : 7 + Math.sin(T * 1.1 + d.pt * 30) * 4; // which side it walks on, and a little ahead, sniffing now and then
+  const tx = o.x + Math.cos(o.a) * lead + Math.cos(side) * 10, ty = o.y + Math.sin(o.a) * lead + Math.sin(side) * 10, dx = tx - d.x, dy = ty - d.y, dist = Math.hypot(dx, dy);
+  const pace = o.state === 'idle' ? 0 : (o.def.walk || 30) / Math.max(1, d.def.walk || 30); // the owner's walking speed, in the dog's terms
+  if (!d.leashed) return { a: Math.atan2(dy, dx), k: dist < 12 ? 0 : 1.8, back: true };
+  const od = Math.hypot(o.x - d.x, o.y - d.y); if (od > LEASH.len && dt) { const f = (od - LEASH.len) / od, nx = d.x + (o.x - d.x) * f, ny = d.y + (o.y - d.y) * f; if (!solid(nx, ny)) { d.x = nx; d.y = ny; } } // the lead pulls it along: it never gets further than its length
+  return { a: dist < 4 ? o.a : Math.atan2(dy, dx), k: dist < 3 ? pace * .9 : clamp(pace + (dist - 3) / 12, 0, 2.2) };
 }
 function drawLeashes(x) {
   x.strokeStyle = 'rgba(40,30,25,.8)'; x.lineWidth = .9; x.beginPath();
-  for (const d of creatures) { if (!d.owner || !d.alive || !d.owner.alive || d.owner.state === 'panic' || d.state === 'panic') continue; const o = d.owner, ca = Math.cos(o.a), sa = Math.sin(o.a); x.moveTo(o.x + ca * 3 - sa * 7, o.y + sa * 3 + ca * 7); x.quadraticCurveTo((o.x + d.x) / 2, (o.y + d.y) / 2 + 4, d.x + Math.cos(d.a) * 5, d.y + Math.sin(d.a) * 5); }
+  for (const d of creatures) { if (!d.owner || !leashUpdate(d)) continue; const o = d.owner, ca = Math.cos(o.a), sa = Math.sin(o.a), dd = Math.hypot(o.x - d.x, o.y - d.y), sag = Math.max(0, 6 - dd / LEASH.len * 6); // slack when close, taut when it pulls
+    x.moveTo(o.x + ca * 3 - sa * 7, o.y + sa * 3 + ca * 7); x.quadraticCurveTo((o.x + d.x) / 2, (o.y + d.y) / 2 + sag, d.x + Math.cos(d.a) * 5, d.y + Math.sin(d.a) * 5); }
   x.stroke();
 }
 /* ---- long grass that sways in the wind (open maps) ---- */

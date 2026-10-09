@@ -48,7 +48,7 @@ function showDead() {
   for (let L = run.startLevel + 1; L <= PROG.level; L++) { const ups = SKILL_TREE.filter(n => [].concat(n.lvl || []).includes(L)).map(n => n.name); unl.push({ kind: 'level', level: L, coins: 10 + L * 2, unlocks: '+1 skill token' + (ups.length ? ' · Skill Tree: ' + ups.join(', ') : '') }); }
   overlay.className = 'sumMode';
   overlay.innerHTML = `<div class="panel sum">
-    <div class="sh"><h1>${snake && snake.alive ? 'Run over' : run.deathBy === 'bomb' || run.deathBy === 'cluster' ? 'Blown up' : run.deathBy === 'fire' ? 'Burned alive' : run.deathBy === 'fuse' ? 'Fuse ran out' : run.deathBy === 'strafe' ? 'Shot up' : 'Crashed'}</h1><span class="smap">${m} · ${fmtTime(run.time)} survived</span></div>
+    <div class="sh"><h1>${snake && snake.alive ? 'Run over' : run.deathBy === 'bomb' || run.deathBy === 'cluster' ? 'Blown up' : run.deathBy === 'fire' ? 'Burned alive' : run.deathBy === 'chain' ? 'Dragged down' : run.deathBy === 'fuse' ? 'Fuse ran out' : run.deathBy === 'strafe' ? 'Shot up' : 'Crashed'}</h1><span class="smap">${m} · ${fmtTime(run.time)} survived</span></div>
     <div class="srow">
       <div class="sbig" style="--d:.15s"><b data-to="${score}">0</b><span>score${pb ? '<em class="pb">New best</em>' : `<em>Best ${best}</em>`}</span></div>
       <div class="sst" style="--d:.3s"><b data-to="${run.maxCombo}" data-suf="x">0</b><span>best combo</span></div>
