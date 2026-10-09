@@ -112,7 +112,7 @@ function airSchedule(dt) {
   const heatOf = s => Math.min(1.3, airKills(s) / 30), heat = targets.reduce((a, s) => a + heatOf(s), 0) / targets.length; // the more you (and your team) have killed, the harder they come for you
   const g = Math.max(gt, heat), k = Math.min(1, g);
   AIR.nextT = raid ? Math.max(1.6, 8.5 / (1 + 1.5 * g)) * rand(.75, 1.3) // Air raid: later on, and the bloodier it gets, they come quicker, but never a constant rain
-    : 20 / (1 + .6 * Math.min(1.2, Math.max(heat, Math.min(1, gt) * .35))) * rand(.6, 1.6) * (Math.random() < .2 ? 1.5 : 1); // a normal game: about every 22 s with no kills, every 13 or so once you've killed 30, never on a beat
+    : 22 / (1 + .35 * Math.min(1, gt)) * rand(.7, 1.4) * (Math.random() < .2 ? 1.4 : 1); // a normal game: about every 24 s if nobody kills anything (a little sooner later on), never on a beat; every kill brings the next one closer (airKillTick)
   const kind = t - t0 > (raid ? 12 : 20) && Math.random() < .18 + .12 * k ? (Math.random() < .14 ? 'bombs' : 'guns') : 'salvo';
   for (const s of targets) { // multiplayer: every player gets their own run at the same moment, and every screen sees all of them (the host sends each one out)
     const a = kind === 'guns' ? rand(0, TAU) : s.angle + (Math.random() < .5 ? 1 : -1) * (kind === 'bombs' ? rand(.35, 1.15) : rand(.9, 2.2)); // gun runs come in from anywhere; bombers cross your path
@@ -120,6 +120,11 @@ function airSchedule(dt) {
     airApproach(px, py, a, pre); netEmit({ t: 'airj', x: px, y: py, a: +a.toFixed(3), p: +pre.toFixed(2) }); // you hear it coming, miles off, before anything is marked
     AIR.queue.push({ t: pre, f: () => { if (!s.alive || s.netHidden || s.hidden || state !== 'play') return; if (kind === 'salvo') airSalvo(s, Math.max(gt, heatOf(s)), a); else strafeRun(s, Math.min(1, Math.max(gt, heatOf(s))), kind, a); } }); // each player's own run is as fierce as their own (team's) kills
   }
+}
+function airKillTick(s) { // the deciding browser: someone (any player) just ate somebody: the jets come sooner
+  if (!s || !airOn() || !AIR.warned || state !== 'play') return;
+  const floor = MOD.airRaid ? 1.2 : 3; // never right on top of the last one
+  if (AIR.nextT > floor) AIR.nextT = Math.max(floor, AIR.nextT - (MOD.airRaid ? .5 : 1.2));
 }
 function airKills(s) { // kills that count against this snake: in co-op everyone's, in Teams your team's, in free for all your own
   if (!NETM.run) return run.killed || 0;
