@@ -581,7 +581,7 @@ body.theme-panic #bar{animation:panicBar 1.4s steps(2) infinite}
 .mfx.snow i{background:#f4f8ff}
 .mfx.gold-dust i{background:#ffd970;box-shadow:0 0 6px #ffcf33;animation-name:mrise;top:auto;bottom:-5%}
 .mfx.blood-rain i{width:calc(2px * var(--z));height:calc(12px * var(--z));border-radius:2px;background:#8c0a0a;animation-duration:calc(var(--s) / 3)}
-.mfx.stars i{background:#fff;animation:twinkle var(--s) ease-in-out infinite;animation-delay:var(--d);top:calc(var(--x) * .9)}
+.mfx.stars i{background:#fff;animation:twinkle var(--s) ease-in-out infinite;animation-delay:var(--d);top:var(--y,50%)}
 @keyframes twinkle{50%{opacity:.1;scale:.4}}
 .mfx.alarm-lights{animation:alarm 2s ease-in-out infinite}.mfx.alarm-lights i{display:none}
 @keyframes alarm{0%,100%{box-shadow:inset 0 0 0 0 transparent}50%{box-shadow:inset 0 0 120px rgba(255,30,30,.28)}}
@@ -1151,9 +1151,9 @@ body.cb-overdrive #combo .cbox{animation:cbAura .5s ease-in-out infinite alterna
 .pvTheme.th-nocturne{--acc:#8b5cf6;background:#110e18}.pvTheme.th-dusk{--acc:#f2784b;background:#18110f}.pvTheme.th-bone{--acc:#e6e0d2;background:#121110}
 /* exclusive menu effects */
 .mfx.ash i{background:#9a948c;border-radius:1px;animation-duration:calc(var(--s) * 1.6);opacity:.5}
-.mfx.moths i{width:calc(4px * var(--z));height:calc(3px * var(--z));background:#d9cfb8;border-radius:50%;animation:moth var(--s) ease-in-out infinite;animation-delay:var(--d);top:calc(20% + var(--x) * .5);opacity:.55}
+.mfx.moths i{width:calc(4px * var(--z));height:calc(3px * var(--z));background:#d9cfb8;border-radius:50%;animation:moth var(--s) ease-in-out infinite;animation-delay:var(--d);top:calc(10% + var(--y,50%) * .8);opacity:.55}
 @keyframes moth{0%,100%{transform:translate(0,0)}25%{transform:translate(18px,-12px)}50%{transform:translate(-8px,10px)}75%{transform:translate(12px,6px)}}
-.mfx.fireflies i{width:3px;height:3px;background:#d8ff7a;box-shadow:0 0 8px 2px rgba(200,255,90,.6);animation:ffly var(--s) ease-in-out infinite;animation-delay:var(--d);top:calc(30% + var(--x) * .6);opacity:0}
+.mfx.fireflies i{width:3px;height:3px;background:#d8ff7a;box-shadow:0 0 8px 2px rgba(200,255,90,.6);animation:ffly var(--s) ease-in-out infinite;animation-delay:var(--d);top:calc(20% + var(--y,50%) * .7);opacity:0}
 @keyframes ffly{0%,100%{opacity:0;transform:translate(0,0)}40%{opacity:.9;transform:translate(14px,-10px)}60%{opacity:.8;transform:translate(22px,-4px)}}
 /* exclusive combo styles */
 :is(body.cb-hollow #combo,.pvCombo.cb-hollow) .cbox{background:rgba(10,8,9,.55);border:1px dashed color-mix(in srgb,var(--acc-hi) 50%,transparent)}
@@ -2711,3 +2711,13 @@ body.calm .mm *,body.calm #overlay .panel,body.calm .rs.mlob,body.calm .mmp{anim
 #overlay .btn::after{display:none!important} /* (no sweeping shine across buttons either) */
 #overlay .sbody .sgrp::before{display:none}
 #overlay .play,#overlay #againBtn,#overlay #resBtn{clip-path:none;border-radius:2px!important} /* square main buttons, like the menu's */
+/* Blizzard (menu effect): snow blown sideways on the wind in three depths. Far flakes are small, dim and slow; near ones big and soft
+   and quick. Each sways as it falls and is carried left by --w over the fall. Soft edges are a gradient, not a blur filter */
+.mfx.blizzard i{top:-6%;left:var(--x);width:calc(6px * var(--z));height:calc(6px * var(--z));border-radius:50%;background:radial-gradient(circle,#f4f8ff 0 38%,rgba(244,248,255,.55) 55%,rgba(244,248,255,0) 72%);animation:bliz var(--s) linear infinite;animation-delay:var(--d)}
+.mfx.blizzard i.l0{opacity:.7;background:#eef4ff}.mfx.blizzard i.l1{opacity:.95;background:radial-gradient(circle,#f4f8ff 0 52%,rgba(244,248,255,0) 72%)}.mfx.blizzard i.l2{opacity:.75;background:radial-gradient(circle,rgba(244,248,255,.9) 0 20%,rgba(244,248,255,.35) 50%,rgba(244,248,255,0) 72%)}
+@keyframes bliz{0%{transform:translate(0,0)}25%{transform:translate(calc(var(--w,24vw) * -.25 + var(--sw,6px)),29vh)}50%{transform:translate(calc(var(--w,24vw) * -.5),57vh)}75%{transform:translate(calc(var(--w,24vw) * -.75 - var(--sw,6px)),86vh)}100%{transform:translate(calc(var(--w,24vw) * -1),116vh)}}
+.pvFx.blizzard i{animation-name:blizP}
+@keyframes blizP{to{transform:translate(-30px,60px)}}
+.mfx.blizzard::before{content:'';position:absolute;inset:-20% -60%;background:linear-gradient(100deg,transparent 30%,rgba(230,238,255,.07) 42%,transparent 54%,transparent 64%,rgba(230,238,255,.05) 74%,transparent 86%);animation:blizGust 9s linear infinite} /* gusts of whiteout sweeping across */
+@keyframes blizGust{from{transform:translateX(25%)}to{transform:translateX(-25%)}}
+.pvFx.blizzard::before{animation-duration:4s}

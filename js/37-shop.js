@@ -26,7 +26,7 @@ function itemPreview(cat, v) { // what the item actually looks like, not an emoj
   if (cat === 'theme') return `<span class="pvTheme th-${slug(v)}"><i class="tb"></i><i class="tp"></i><i class="tc"></i><i class="tc"></i></span>`;
   if (cat === 'combo') return `<span class="pvCombo cb-${slug(v)}"><span class="cbox"><span class="cbn"><b>12</b><i>x</i></span><span class="cbar"><span></span></span></span></span>`;
   if (cat === 'card') return `<span class="pvCard cs-${slug(v)}"><i class="ci"></i><i class="cl"></i></span>`;
-  if (cat === 'effect') return v === 'None' ? '<span class="pvFx none"></span>' : `<span class="pvFx mfx ${slug(v)}">${Array.from({ length: 9 }, (_, k) => `<i style="--x:${(k * 11 + 5) % 100}%;--d:${(-k * 1.3).toFixed(1)}s;--s:${(4 + k % 3).toFixed(1)}s;--z:${(.6 + (k % 3) * .25).toFixed(2)}"></i>`).join('')}</span>`;
+  if (cat === 'effect') return v === 'None' ? '<span class="pvFx none"></span>' : `<span class="pvFx mfx ${slug(v)}">${Array.from({ length: 9 }, (_, k) => `<i class="l${k % 3}" style="--x:${(k * 11 + 5) % 100}%;--y:${(k * 37 + 13) % 86 + 7}%;--d:${(-k * 1.3).toFixed(1)}s;--s:${(4 + k % 3).toFixed(1)}s;--z:${(.6 + (k % 3) * .25).toFixed(2)}"></i>`).join('')}</span>`;
   if (cat === 'title') return v === 'None' ? '<span class="pvTitle none">No title</span>' : `<span class="pvTitle">${v}</span>`;
   return '';
 }

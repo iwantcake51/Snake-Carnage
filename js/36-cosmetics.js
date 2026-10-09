@@ -28,7 +28,7 @@ const SHOP = {
   combo: [['Default', 0], ['Minimal', 60], ['Typewriter', 80], ['Arcade', 90], ['Brutal', 120], ['Neon', 150], ['Gilded', 0, 'midas'], ['Manhunt', 0, 'allHumans'], ['Overdrive', 0, 'bottomless'], ['Hollow', 0, 'notHungry'], ['Splatter', 0, 'spitTake'], ['Marquee', 0, 'veteran']],
   theme: [['Default', 0], ['Midnight', 180], ['Toxic', 220], ['Panic', 0, 'wrongPlace'], ['Gold', 0, 'midas'], ['Blood', 0, 'paintRed'], ['Nocturne', 0, 'lightsOut'], ['Dusk', 0, 'goldenHour'], ['Bone', 0, 'apex'], ['Ocean', 200], ['Steel', 180], ['Rose', 220], ['Jade', 220], ['Ember', 260], ['Frost', 240], ['Royal', 300], ['Neon', 320]],
   card: [['Default', 0], ['Neon', 150], ['Gold Frame', 0, 'goldenOpp'], ['Bloody', 0, 'cleanup'], ['Hazard', 0, 'overachiever'], ['Chip Stack', 0, 'highRoller']],
-  effect: [['None', 0], ['Embers', 160], ['Snow', 160], ['Gold Dust', 0, 'midas'], ['Blood Rain', 0, 'paintRed'], ['Alarm Lights', 0, 'wrongPlace'], ['Stars', 0, 'worldEater'], ['Ash', 0, 'marathon'], ['Moths', 0, 'lightsOut'], ['Fireflies', 0, 'charmer']],
+  effect: [['None', 0], ['Embers', 160], ['Snow', 160], ['Blizzard', 240], ['Gold Dust', 0, 'midas'], ['Blood Rain', 0, 'paintRed'], ['Alarm Lights', 0, 'wrongPlace'], ['Stars', 0, 'worldEater'], ['Ash', 0, 'marathon'], ['Moths', 0, 'lightsOut'], ['Fireflies', 0, 'charmer']],
   title: [['None', 0], ['Rat King', 0, 'ratKing'], ['People Person', 0, 'peoplePerson'], ['Public Menace', 0, 'publicMenace'], ['Roadkill', 0, 'roadkill'],
     ['Gold Digger', 0, 'goldDigger'], ["Don't Mind Me", 0, 'dontMind'], ['Starving', 0, 'starving'], ['To-Do List', 0, 'checklist'],
     ['Thrill Seeker', 0, 'thrill'], ['Tourist', 0, 'tourist'], ['Veteran', 0, 'veteran'], ['High Roller', 0, 'highRoller'], ['Humans Only', 0, 'allHumans'],
@@ -155,7 +155,10 @@ function applyCosmetics() {
 }
 function menuFx() { // background particles behind the main menu
   const e = SETTINGS.snake.effect; if (!e || e === 'None') return '';
-  const n = 26, kind = e.toLowerCase().replace(/\s+/g, '-');
-  return `<div class="mfx ${kind}">${Array.from({ length: n }, (_, i) => `<i style="--x:${(Math.random() * 100).toFixed(1)}%;--d:${(Math.random() * -12).toFixed(2)}s;--s:${(6 + Math.random() * 8).toFixed(1)}s;--z:${(.5 + Math.random()).toFixed(2)}"></i>`).join('')}</div>`;
+  const kind = e.toLowerCase().replace(/\s+/g, '-'), R = Math.random, f = (v, d = 1) => v.toFixed(d);
+  if (kind === 'blizzard') return `<div class="mfx blizzard">${Array.from({ length: 130 }, (_, i) => { // wind-driven snow in three depths: fine and slow far off, big, soft and fast up close
+    const L = i % 9 === 0 ? 2 : i % 3 === 0 ? 1 : 0, s = [8 + R() * 4, 5 + R() * 2, 2.6 + R() * 1.2][L];
+    return `<i class="l${L}" style="--x:${f(R() * 135 - 5)}%;--d:${f(-R() * s, 2)}s;--s:${f(s, 2)}s;--z:${f([.55, 1, 2][L] * (.75 + R() * .5), 2)};--w:${f([16, 26, 40][L] + R() * 10)}vw;--sw:${f(4 + R() * 10)}px"></i>`; }).join('')}</div>`;
+  return `<div class="mfx ${kind}">${Array.from({ length: 26 }, () => `<i style="--x:${f(R() * 100)}%;--y:${f(R() * 100)}%;--d:${f(R() * -12, 2)}s;--s:${f(6 + R() * 8)}s;--z:${f(.5 + R(), 2)}"></i>`).join('')}</div>`; // (--y: where the ones that hover sit, picked on its own so they scatter instead of lining up with --x)
 }
 applyCosmetics();
