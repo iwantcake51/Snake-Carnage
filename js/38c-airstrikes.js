@@ -108,7 +108,7 @@ function airSchedule(dt) {
   if ((AIR.nextT -= dt) > 0) return;
   const raid = !!MOD.airRaid, g = Math.max((t - t0) / 180, (cr.dist - AIR.d0) / 2500), k = Math.min(1, g); // how far you've come since they started: it never stops climbing
   AIR.nextT = raid ? Math.max(1.6, 8.5 / (1 + 1.5 * g)) * rand(.75, 1.3) // Air raid: later on they come quicker, but never a constant rain
-    : Math.max(9, 26 / (1 + .6 * g)) * rand(.5, 2) * (Math.random() < .25 ? 1.8 : 1); // a normal game: now and then, with long, uneven quiet spells between
+    : 17 / (1 + .5 * Math.min(1, g)) * rand(.6, 1.6) * (Math.random() < .2 ? 1.5 : 1); // a normal game: a steady threat, about every 20 s early on and a little quicker later, never on a beat
   const targets = netSnakes().filter(s => s.alive && s.started && !s.hidden && !s.netHidden && !(s.graceT > 0) && s.segs && s.segs.length);
   if (!targets.length) return;
   const kind = t - t0 > (raid ? 12 : 20) && Math.random() < .18 + .12 * k ? (Math.random() < .14 ? 'bombs' : 'guns') : 'salvo';
