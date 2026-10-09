@@ -92,7 +92,7 @@ const netB64Dec = s => { const b = atob(s), u = new Uint8Array(b.length); for (l
 const NET_COLORS = ['#e8433a', '#3a8ee8', '#f2c230', '#3cc46a', '#b05ce8', '#f07f2a', '#2fd0c8', '#e85ca8'];
 function netProfile() { // name, color, looks and upgrade levels (the host applies your Hiss/Camouflage levels to its NPCs)
   let name = ''; try { name = localStorage.getItem('snakeCarnageName') || ''; } catch (e) {}
-  const up = {}; for (const u of UPGRADES) up[u.id] = upg(u.id);
+  const up = {}; for (const n of SKILL_TREE) up[n.id] = sk(n.id); // skill tree ranks as they count (switched-off nodes are 0)
   return { name: (name || 'Snake').slice(0, 16), cos: { ...SETTINGS.snake }, upg: up, touch: IS_TOUCH, ver: GAME_VERSION, proto: NET_PROTO, w: W, lvl: PROG.level | 0 }; // lvl: your account level, shown in the lobby
 }
 const netName = n => String(n || 'Snake').replace(/[<>&"]/g, '').trim().slice(0, 16) || 'Snake';

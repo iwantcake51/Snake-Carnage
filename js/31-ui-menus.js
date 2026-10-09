@@ -125,7 +125,7 @@ function homeHtml() {
       <nav class="mm-nav" aria-label="Main menu">
         <button class="mm-cta" id="playBtn" data-sfx="open"><span class="mm-l">Start game</span><kbd>Space</kbd></button>
         <button class="mm-it" id="coopBtn" data-sfx="open"><span class="mm-l">Play with friends</span></button>
-        <button class="mm-it" id="upBtn" data-sfx="open"><span class="mm-l">Upgrades</span>${upgradeReady() ? '<em class="mm-note hot">Ready to buy</em>' : ''}</button>
+        <button class="mm-it" id="upBtn" data-sfx="open"><span class="mm-l">Skill Tree</span>${skillReady() ? '<em class="mm-note hot">Ready to buy</em>' : ''}</button>
         <button class="mm-it" id="snakeBtn" data-sfx="open"><span class="mm-l">Cosmetics</span></button>
         <button class="mm-it" id="chBtn" data-sfx="open"><span class="mm-l">Achievements</span><em class="mm-note">${achN} / ${ACH.length}</em></button>
         <button class="mm-it" id="setBtn" data-sfx="open"><span class="mm-l">Settings</span></button>
@@ -188,7 +188,7 @@ function wireMenu() {
   const root = overlay.querySelector('.mm'), $ = id => document.getElementById(id);
   $('playBtn').onclick = () => menuGo('setup');
   $('coopBtn').onclick = () => transitionTo(netShowCoop);
-  $('upBtn').onclick = () => transitionTo(showUpgrades);
+  $('upBtn').onclick = () => transitionTo(showSkillTree);
   $('snakeBtn').onclick = () => transitionTo(showCustomize);
   $('chBtn').onclick = () => transitionTo(showChallenges);
   $('setBtn').onclick = () => { settingsFrom = 'menu'; transitionTo(() => showSettings()); };
@@ -272,7 +272,7 @@ const SEASON_PICK = ['Random', 'Spring', 'Summer', 'Autumn', 'Winter'];
 const SEASON_TIPS = { Random: 'A different season each run.', Spring: 'Blossom and fresh green.', Summer: 'Full leaf, long grass.', Autumn: 'Orange leaves everywhere.', Winter: 'Snow on the ground: you carve a groove through it, and blood soaks in.' };
 const TIME_TIPS = { Cycle: 'Every run starts at a random hour and the day keeps moving.', Day: 'Bright midday the whole run. Nowhere for you to hide.', Dawn: 'Frozen at first light: long shadows, lamps still on.', Dusk: 'Frozen at sunset: half-lit streets and long shadows.', Night: 'Pitch dark the whole run. Lamps, windows and flashlights only.' };
 const multLabel = ids => { const m = modMult(ids); return Math.abs(m - 1) < .005 ? 'Normal rewards' : 'Rewards x' + m.toFixed(2); };
-const MOD_GROUP_INFO = { Conditions: 'The world you play in: light, weather, air strikes, what breaks', Crowd: 'How people and animals behave, and how many there are', Snake: 'Your body, your skills and your upgrades', Scoring: 'How kills pay, and how the combo works', Style: 'Looks only', Controls: 'How you steer' };
+const MOD_GROUP_INFO = { Conditions: 'The world you play in: light, weather, air strikes, what breaks', Crowd: 'How people and animals behave, and how many there are', Snake: 'Your body, your abilities and your skill tree', Scoring: 'How kills pay, and how the combo works', Style: 'Looks only', Controls: 'How you steer' };
 const modKind = m => m.mult > 0 ? ['hard', 'Harder'] : m.mult < 0 ? ['easy', 'Easier'] : ['even', 'Different'];
 const modPct = m => m.mult ? (m.mult > 0 ? '+' : '') + Math.round(m.mult * 100) + '%' : '±0%';
 function showModifiers(focus) {
@@ -529,7 +529,7 @@ const SETTING_TABS = {
     ['#Steering and camera'], ['Mouse', 'With Mouse steering on (Gameplay): the snake heads for the cursor; left click lunges'], 
     ['Wheel', 'Zoom the camera in or out, always on your snake'], ['Drag', 'Pan the camera (middle mouse; left mouse, or right mouse with Mouse steering on)'], ['Double-click', 'Camera back on the snake'],
     ['Pinch', 'On a touch screen: two fingers zoom and pan; one finger still steers'],
-    ['` or F10', 'Admin panel: god mode, speed, time of day, spawning, air strikes, chips and upgrades (single player, or the host)'], ['#Menus'], ['Space', 'Start, skip the intro, play again. In a multiplayer lobby: ready up, and the host starts once everyone is ready'], ['Esc', 'Pause, back, close settings'], ['F3', 'Performance stats: off, frame rate, full']] },
+    ['` or F10', 'Admin panel: god mode, speed, time of day, spawning, air strikes, chips and the skill tree (single player, or the host)'], ['#Menus'], ['Space', 'Start, skip the intro, play again. In a multiplayer lobby: ready up, and the host starts once everyone is ready'], ['Esc', 'Pause, back, close settings'], ['F3', 'Performance stats: off, frame rate, full']] },
   Accessibility: { icon: 'access', lead: 'Make the game easier to see and more comfortable.', rows: [
     ['head', 'Visibility'],
     ['seg', 'snakeOutline', 'Snake outline', 'An outline so your snake is easy to see.', ['Off', 'Subtle', 'Strong']],

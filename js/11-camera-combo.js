@@ -94,7 +94,7 @@ function addCombo(c) {
 const comboDrain = () => combo ? 1 + Math.min(.75, Math.max(0, combo.n - 3) * .035) : 1; // bigger combos burn faster, capped at 1.75x so huge ones stay reachable
 function updateCombo(dt) {
   if (!combo) return;
-  if (!(snake && snake.camoT > 0 && upg('camo') > 2)) combo.t -= dt * comboDrain(); // Phantom: the combo holds while you're hidden
+  if (!(snake && snake.camoT > 0 && sk('phantom'))) combo.t -= dt * comboDrain(); // Phantom: the combo holds while you're hidden
   const k = Math.max(0, combo.t / comboDur()), el = document.getElementById('combo'), bar = document.getElementById('cbBar');
   if (bar) bar.style.width = (Math.min(1, k / COMBO_CAP) * 100).toFixed(1) + '%';
   el.classList.toggle('banked', k > 1); // more time banked than a fresh combo gets

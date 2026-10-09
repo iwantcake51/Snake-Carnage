@@ -4,7 +4,7 @@
    World    time of day (or let the clock run), spawn anything near you (or a golden one), panic everyone, kill
             everyone nearby, clear the crowd
    Air      a bomb ahead of you, a salvo, a strafing run, a bombing run, air raid on/off
-   Progress chips, a level, every upgrade maxed (these are saved)
+   Progress chips, a level, the whole skill tree maxed (these are saved)
    In multiplayer only the host can use it (the host's world is everyone's); guests see it greyed out.
    ========================================================= */
 const ADMIN = { open: false, god: false, noCD: false, speedK: 1, sizeK: 1, tod: null };
@@ -49,7 +49,7 @@ const ADM_ACT = {
   airRaid(on) { MOD.airRaid = on; if (on && !AIR.warned) AIR.nextT = 0; },
   chips(n) { PROG.coins += n; PROG.earned = (PROG.earned || 0) + n; saveProg(); typeof updateHud === 'function' && updateHud(); },
   level() { gainXP(Math.max(1, Math.ceil((xpNeed(PROG.level) - PROG.xp) / XP_GAIN)), 0); saveProg(); },
-  maxUpg() { for (const u of UPGRADES) PROG.upg[u.id] = u.max; saveProg(); if (state !== 'menu') { resetAbilities(); abilityHud(true); refreshTouchAbilities(); } },
+  maxUpg() { for (const n of SKILL_TREE) { PROG.tree[n.id] = n.max; delete PROG.treeOff[n.id]; } saveProg(); if (state !== 'menu') { resetAbilities(); abilityHud(true); refreshTouchAbilities(); } },
 };
 
 /* ---- the panel ---- */
@@ -79,7 +79,7 @@ function adminRender() {
       <div class="adm-row"><button data-a="bomb">Bomb ahead</button><button data-a="salvo">Salvo</button><button data-a="strafe">Strafing run</button><button data-a="bombRun">Bombing run</button></div>
       <div class="adm-row">${tg('airRaid', 'Air raid on', 'Strikes and runs keep coming (the Air raid modifier, this run only)')}</div>
       <h4>Progress <small>(saved)</small></h4>
-      <div class="adm-row"><button data-a="chips" data-n="1000">+1000 chips</button><button data-a="chips" data-n="10000">+10000 chips</button><button data-a="level">+1 level</button><button data-a="maxUpg">Max every upgrade</button></div>
+      <div class="adm-row"><button data-a="chips" data-n="1000">+1000 chips</button><button data-a="chips" data-n="10000">+10000 chips</button><button data-a="level">+1 level</button><button data-a="maxUpg">Max the skill tree</button></div>
     </div>`;
   el.querySelectorAll('[data-tg]').forEach(i => { if (i.dataset.tg === 'airRaid') i.checked = !!MOD.airRaid; i.onchange = () => { const k = i.dataset.tg; if (k === 'airRaid') ADM_ACT.airRaid(i.checked); else ADMIN[k] = i.checked; }; });
   el.querySelectorAll('[data-sl]').forEach(i => i.oninput = () => { const k = i.dataset.sl, v = +i.value; ADMIN[k] = v; if (k === 'tod') tod = v; const em = i.nextElementSibling; em.textContent = k === 'tod' ? String(Math.floor(v)).padStart(2, '0') + ':' + String(Math.floor(v % 1 * 60)).padStart(2, '0') : v.toFixed(2) + 'x'; const b = el.querySelector('[data-a="clock"]'); if (b && k === 'tod') b.disabled = false; });

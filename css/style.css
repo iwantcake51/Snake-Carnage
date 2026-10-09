@@ -744,31 +744,8 @@ body.theme-panic #bar{animation:panicBar 1.4s steps(2) infinite}
 .pbtns.row .btn{flex:1}
 .sum .small{text-align:center}
 
-/* upgrades */
-.panel.upg{width:min(1000px,97%);max-height:none;text-align:left;display:flex;flex-direction:column;padding:22px 26px 18px}
-.upgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:10px;margin-top:10px}
-.upc{display:flex;flex-direction:column;gap:8px;padding:12px 14px;border-radius:12px;background:var(--bg2);border:1px solid var(--line);animation:tileIn .4s var(--ease) backwards;animation-delay:calc(var(--i) * 40ms)}
-.upc.own{border-color:#4a2a30}
-.upc.off{opacity:.55}
-.uph{display:grid;grid-template-columns:38px 1fr;gap:10px;align-items:center}
-.upicon{display:grid;place-items:center;width:38px;height:38px;border-radius:10px;background:#2a1d21;color:var(--acc-hi)}
-.upc.own .upicon{background:var(--acc-deep);color:#ffd9d4}
 .upi{width:22px;height:22px}
-.uph b{font-size:15px;color:#fff}
-.ukey{font-style:normal;font-size:10.5px;font-weight:800;margin-left:7px;padding:1px 6px;border-radius:5px;background:#2e2a2c;color:#d8cfc7;border:1px solid #47403f}
-.uph small{display:block;color:#9b8f88;font-size:12px;margin-top:1px}
-.uptiers{list-style:none;display:flex;flex-direction:column;gap:3px;font-size:12px;color:#7d726c}
-.uptiers li::before{content:'';display:inline-block;width:6px;height:6px;border-radius:2px;background:#3a2d32;margin-right:7px;vertical-align:1px}
-.uptiers li.got{color:#cfe8d2}.uptiers li.got::before{background:#3f9a4a}
-.uptiers li.next{color:#ffe6a0}.uptiers li.next::before{background:#ffcf33}
-.upf{display:flex;align-items:center;gap:10px;margin-top:auto}
-.upf .pips{display:flex;gap:4px;margin-right:auto}
-.upf .pips i{width:18px;height:5px;border-radius:3px;background:#3a2d32}.upf .pips i.on{background:var(--acc)}
-.upf .btn{margin:0;padding:7px 14px;font-size:14px;display:flex;align-items:center;gap:5px}
-.upf .btn[disabled]{opacity:.5;cursor:default}
-.upf .maxed{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#8fdc9b}
 .tgl.sm{width:38px;height:22px}.tgl.sm::after{width:16px;height:16px}.tgl.sm.on::after{left:19px}
-.upmsg{margin-right:auto;font-size:13px;color:#ffcf33}
 .ghost .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#ffcf33;margin-left:7px;vertical-align:2px;box-shadow:0 0 8px #ffcf33}
 
 /* abilities HUD */
@@ -818,7 +795,7 @@ body.touch #abil{display:none}
 .lu em{font-size:11.5px;padding:2px 9px}
 /* clip, not hidden: a hidden overflow can still be scrolled by focus/scrollIntoView, which shoved the whole board up */
 #stage,#overlay{overflow:clip}
-#overlay.menuMode .panel.mods,#overlay.menuMode .panel.upg,#overlay .panel.sum,#overlay.menuMode .panel.pause{max-height:96%}
+#overlay.menuMode .panel.mods,#overlay .panel.sum,#overlay.menuMode .panel.pause{max-height:96%}
 
 /* challenges: tabs, secrets, permanent map goals */
 .panel.chal2{width:min(1060px,97%);height:min(720px,94%);max-height:96%!important;display:flex;flex-direction:column}
@@ -925,8 +902,7 @@ body.compact .panel.set,body.compact .panel.shop2{grid-template-columns:150px 1f
 body.compact .panel.pause{grid-template-columns:1fr;overflow-y:auto}
 body.compact .panel.sum{overflow-y:auto}
 body.compact .scols,body.compact .srow{grid-template-columns:1fr 1fr}
-body.compact .panel.mods,body.compact .panel.chal2,body.compact .panel.upg{height:98%}
-body.compact .upgrid{overflow-y:auto;max-height:calc(100% - 120px)}
+body.compact .panel.mods,body.compact .panel.chal2{height:98%}
 body.compact .modgrid{grid-template-columns:repeat(auto-fill,minmax(190px,1fr))}
 body.compact .pmwrap{grid-template-columns:150px 1fr}
 #rotate{display:none}
@@ -1043,13 +1019,6 @@ body.compact .pmwrap{grid-template-columns:150px 1fr}
 #stage.hudin #abil{animation:hudIn .28s cubic-bezier(.2,.8,.2,1) both}
 #stage.hudin #chhud{animation:hudIn .32s cubic-bezier(.2,.8,.2,1) .09s both}
 #stage.hudin #modhud{animation:hudIn .32s cubic-bezier(.2,.8,.2,1) .16s both}
-/* buying an upgrade: only that card celebrates; the rest just update */
-.upc.still{animation:none}
-.upc.leveled{animation:upPop .6s cubic-bezier(.2,.9,.25,1.2) both;border-color:var(--acc-hi)}
-@keyframes upPop{0%{transform:scale(.97);box-shadow:0 0 0 0 color-mix(in srgb,var(--acc-hi) 60%,transparent)}45%{transform:scale(1.025);box-shadow:0 0 0 6px color-mix(in srgb,var(--acc-hi) 25%,transparent),0 0 28px color-mix(in srgb,var(--acc-hi) 35%,transparent)}100%{transform:none;box-shadow:0 0 0 0 transparent}}
-.upc.leveled .pips i.last{animation:pipPop .5s cubic-bezier(.2,.9,.25,1.4) .15s both}
-@keyframes pipPop{0%{transform:scale(0);background:#fff}60%{transform:scale(1.6)}100%{transform:none}}
-.upc.leveled .uptiers li.got:nth-last-child(1),.upc.leveled .uptiers li.next{transition:color .4s}
 .coinpill.spent{animation:coinSpend .5s ease}
 @keyframes coinSpend{0%{transform:scale(1)}30%{transform:scale(.88);color:#ff8a7a}100%{transform:none}}
 /* map menu: challenges that suit your setup get a quiet nudge; impossible ones dim */
@@ -1329,10 +1298,6 @@ input[type=range]{accent-color:var(--acc)}
 #overlay ::-webkit-scrollbar{width:8px;height:8px}#overlay ::-webkit-scrollbar-thumb{background:var(--edge2);border-radius:0;border:2px solid transparent;background-clip:padding-box}
 #overlay ::-webkit-scrollbar-thumb:hover{background-color:var(--acc)}#overlay ::-webkit-scrollbar-track{background:transparent}
 /* parallax only lives on the main menu; pause and death panels sit still */
-/* buying an upgrade: the card stays its size; only the border and a soft inner wash light up */
-.upc.leveled{animation:upFlash .7s ease-out both!important;transform:none!important}
-@keyframes upFlash{0%{box-shadow:inset 0 0 0 1px var(--acc-hi),inset 0 0 26px color-mix(in srgb,var(--acc-hi) 30%,transparent)}100%{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--acc-hi) 40%,transparent),inset 0 0 0 transparent}}
-.upc.leveled .pips i.last{animation:none!important}
 .xpt{z-index:3}
 /* shop nav: one highlight that slides to the selected tab */
 .snav{position:relative}
@@ -1903,8 +1868,6 @@ body:not(.phone):not(.narrow) .sbody>h2,body:not(.phone):not(.narrow) .sbody>.le
 body:not(.phone):not(.narrow) .sbody .srow2{padding-top:9px;padding-bottom:9px;min-width:0}
 body:not(.phone):not(.narrow) .sbody .srow2 small{font-size:12.5px;line-height:1.35}
 body:not(.phone):not(.narrow) .sbody .srow2 .sseg button{padding-left:7px;padding-right:7px}
-body:not(.phone) .panel.upg{width:min(1400px,97%)}
-body:not(.phone):not(.narrow) .upgrid{grid-template-columns:repeat(4,1fr)}
 body:not(.phone) .panel.mods{width:min(1400px,97%)}
 body:not(.phone):not(.narrow) .modgrid{grid-template-columns:repeat(5,1fr)}
 body:not(.phone) .panel.chal2{width:min(1400px,97%)}
@@ -1912,7 +1875,6 @@ body:not(.phone) .panel.chal2{width:min(1400px,97%)}
 body:not(.phone):not(.narrow) .modgrid{grid-template-columns:repeat(6,1fr);gap:6px}
 body:not(.phone):not(.narrow) .modgrid .mtile{padding-top:6px;padding-bottom:6px}
 body:not(.phone):not(.narrow) .modgrid .mg{margin-top:6px}
-body:not(.phone):not(.narrow) .upc{padding:10px 12px;gap:6px}
 body:not(.phone) .panel.shop2{width:min(1400px,97%);height:calc(100% - 20px);max-height:none}
 body:not(.phone):not(.narrow) .sbody .srow2{padding-top:7px;padding-bottom:7px}
 body:not(.phone):not(.narrow) .sbody>.lead{margin-bottom:6px}
@@ -2175,12 +2137,6 @@ body.edscrubbing,body.edscrubbing *{cursor:ew-resize!important;user-select:none!
 .panel.chal2 .arw{display:block;width:100%;font-size:10.5px;color:#c9bfb6;text-align:center;line-height:1.35}
 .panel.chal2 .ach .ab small,.panel.chal2 .pmc small{text-align:center}
 
-/* upgrades: the buy button keeps one size whatever the price (or "Level 12"), and never swells on hover or after buying */
-.upc .upf{display:flex;align-items:center;gap:8px}
-.upc .upf .pips{flex:1;min-width:0}
-.upc .upf .btn{flex:none;width:104px!important;min-width:104px!important;max-width:104px!important;height:32px!important;padding:0 8px!important;display:inline-flex!important;align-items:center;justify-content:center;gap:5px;white-space:nowrap;scale:1!important;transform:none!important;font-variant-numeric:tabular-nums}
-.upc .upf .btn:hover,.upc .upf .btn:active{scale:1!important;transform:none!important}
-.upc .upf .maxed{flex:none;width:104px;text-align:center}
 
 /* shop previews for the newer UI themes */
 .pvTheme.th-ocean{--acc:#1fa3b8;background:#0e1517}.pvTheme.th-steel{--acc:#7d93ad;background:#121417}.pvTheme.th-rose{--acc:#e8507e;background:#171012}.pvTheme.th-jade{--acc:#22b07d;background:#0f1513}
@@ -2707,3 +2663,166 @@ body.calm .mm *,body.calm #overlay .panel,body.calm .rs.mlob,body.calm .mmp{anim
 .mfx.blizzard::before{content:'';position:absolute;inset:-20% -60%;background:linear-gradient(100deg,transparent 30%,rgba(230,238,255,.07) 42%,transparent 54%,transparent 64%,rgba(230,238,255,.05) 74%,transparent 86%);animation:blizGust 9s linear infinite} /* gusts of whiteout sweeping across */
 @keyframes blizGust{from{transform:translateX(25%)}to{transform:translateX(-25%)}}
 .pvFx.blizzard::before{animation-duration:4s}
+/* =====================================================================
+   SKILL TREE (38f-skill-tree): a matte board you can drag and zoom, three branch colors (mixed a touch toward the theme's
+   accent so they sit with it), majors as hexagonal scales, passives round with a tick per rank. State shows in shape
+   and border as well as color: locked = dashed outline and a lock, available = solid thin outline, bought = thick
+   outline and a tinted fill, maxed = filled solid, selected = a white ring round it, switched off = grey.
+   ===================================================================== */
+.br-move{--bc:color-mix(in oklab,#d9a648 88%,var(--acc))}
+.br-hunt{--bc:color-mix(in oklab,#d0604f 88%,var(--acc))}
+.br-res{--bc:color-mix(in oklab,#62ab8b 88%,var(--acc))}
+#overlay.menuMode .panel.sktree{width:min(1380px,98%);height:96%;max-height:96%!important;padding:0!important;display:grid;grid-template-rows:auto minmax(0,1fr);text-align:left;overflow:hidden}
+.skh{display:flex;align-items:center;gap:16px;padding:10px 16px;border-bottom:1px solid var(--hair)}
+.skh h1{margin:0!important}
+.skh .sp{flex:1}
+.sklvl{font:500 14px var(--f-body);color:var(--dim)}.sklvl b{font:700 15px var(--f-num);color:var(--ink);margin-left:3px}
+#overlay #skChips{display:inline-flex;align-items:center;gap:6px;padding:6px 11px;transition:border-color .5s}
+#skChips b{font:700 15px var(--f-num)}
+#overlay #skChips.spent{border-color:var(--gold)!important;transition:none}
+.skbody{display:grid;grid-template-columns:minmax(0,1fr) 340px;min-height:0}
+.skview{position:relative;overflow:hidden;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none;background:radial-gradient(ellipse 70% 60% at 50% 100%,rgba(255,255,255,.028),transparent 70%),#0b090a}
+.skview.dragging{cursor:grabbing}
+.skworld{position:absolute;left:0;top:0;transform-origin:0 0}
+.skworld.glide{transition:transform .45s cubic-bezier(.2,.8,.2,1)}
+.sklinks{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}
+.skln{fill:none;stroke-linecap:round;transition:stroke .35s,stroke-width .35s,opacity .35s}
+.skln.off{stroke:#2a2427;stroke-width:3}
+.skln.open{stroke:var(--bc);stroke-width:3;opacity:.5;stroke-dasharray:1 8}
+.skln.on{stroke:var(--bc);stroke-width:5}
+.skln.trunk{stroke-width:8}.skln.trunk.off,.skln.trunk.open{stroke-width:5}
+.sktrav{fill:none;stroke:color-mix(in srgb,var(--bc) 35%,#fff);stroke-width:6;stroke-linecap:round;stroke-dasharray:.16 1}
+.skhub{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;pointer-events:none;color:var(--dim)}
+.skhub svg{width:74px;height:74px;fill:none;stroke:#3a3236;stroke-width:3.2;stroke-linecap:round;margin-bottom:-2px}
+.skhub svg circle{fill:#3a3236;stroke:none}
+.skhub b{font:700 22px/1 var(--f-num);color:var(--ink)}.skhub small{font:500 12px var(--f-body);color:var(--mute)}
+.skbl{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;pointer-events:none;line-height:1}
+.skbl{--lk:clamp(1,calc(.8 / var(--z,1)),1.3)}
+.skbl span{font:700 calc(20px * var(--lk)) var(--f-head);letter-spacing:.16em;text-transform:uppercase;color:var(--bc)}
+.skbl b{font:700 calc(30px * var(--lk)) var(--f-head);color:var(--ink);margin-top:3px}
+/* nodes: the shape's center sits on the node's spot; the name hangs below */
+.skn{position:absolute;display:flex;flex-direction:column;align-items:center;width:138px;margin-left:-69px;padding:0;background:none!important;border:0;color:var(--ink);font:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;outline:none}
+.skn.maj{margin-top:-48px}.skn.pas{margin-top:-36px}
+.skshape{display:block;overflow:visible;transition:transform .09s ease-out}
+.skn.maj .skshape{width:96px;height:96px}.skn.pas .skshape{width:72px;height:72px}
+.skshape *{transition:fill .3s,stroke .3s,opacity .3s}
+.skico{position:absolute;left:50%;translate:-50% -50%;pointer-events:none;color:#5c5357;transition:color .3s;display:flex}
+.skn.maj .skico{top:48px}.skn.maj .skico svg{width:30px;height:30px}
+.skn.pas .skico{top:36px}.skn.pas .skico svg{width:21px;height:21px}
+.skl{display:flex;flex-direction:column;align-items:center;gap:2px;margin-top:1px;line-height:1.1;text-align:center;pointer-events:none}
+.skl{--lk:clamp(1,calc(.8 / var(--z,1)),1.3)} /* zoomed right out, the names stay readable */
+.skl b{font:700 calc(15.5px * var(--lk))/1.05 var(--f-head);letter-spacing:.04em;text-transform:uppercase;color:var(--dim);transition:color .3s}
+.skl b,.skl em{background:rgba(11,9,10,.82);padding:0 4px;border-radius:2px} /* a matte plate: links pass behind the names */
+.skworld.far .skl em{display:none}
+.skl em{font:500 calc(12.5px * var(--lk)) var(--f-body);font-style:normal;color:var(--mute);display:inline-flex;align-items:center;gap:3px;white-space:nowrap}
+.skl em .pc{margin-left:2px}
+.skrk{font:700 1em var(--f-num);color:var(--ink)}
+.skbr{fill:transparent;stroke:transparent;stroke-width:2}
+.sko{fill:#121011;stroke:#3a3236;stroke-width:2;stroke-dasharray:5 4}
+.ski{fill:none;stroke:none}
+.tk{fill:none;stroke:#2f282b;stroke-width:4.5;stroke-linecap:butt}
+.tk.on{stroke:var(--bc)}
+.tk.fill{stroke-dasharray:1;animation:skTick .4s cubic-bezier(.3,.7,.3,1) both}
+@keyframes skTick{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
+.skburst{fill:none;stroke:var(--bc);stroke-width:2;opacity:0;transform-box:fill-box;transform-origin:center}
+.sklock{display:none}.sklock rect{fill:#6e6660}.sklock path{stroke:#6e6660;stroke-width:1.7}
+.skn.s-locked .sklock{display:inline}
+.skn.s-avail .sko{fill:#151213;stroke:var(--bc);stroke-dasharray:none;stroke-width:2}
+.skn.s-avail .skico{color:color-mix(in srgb,var(--bc) 75%,var(--ink))}
+.skn.s-avail .skl b{color:var(--ink)}.skn.s-avail .skl em{color:var(--gold)}
+.skn.s-own .sko{fill:color-mix(in srgb,var(--bc) 22%,#121011);stroke:var(--bc);stroke-dasharray:none;stroke-width:3.5}
+.skn.s-own .skico,.skn.s-own .skl b{color:var(--ink)}.skn.s-own .skl em{color:var(--gold)}
+.skn.s-max .sko{fill:var(--bc);stroke:var(--bc);stroke-dasharray:none;stroke-width:3.5}
+.skn.s-max .ski{stroke:rgba(0,0,0,.4);stroke-width:1.6}
+.skn.s-max .skico{color:#120e0f}.skn.s-max .skl b{color:var(--ink)}.skn.s-max .skl em{color:var(--bc);font-weight:600}
+.skn.poor .skl em{color:#a7837b!important}
+.skn.lvlock .skl em{color:var(--dim)}
+.skn.s-off .skshape,.skn.s-off .skico{filter:grayscale(1);opacity:.5}.skn.s-off .skl em{color:var(--mute)!important}
+.skn:hover .skbr{stroke:rgba(255,255,255,.22)}
+.skn.sel .skbr{stroke:var(--ink);stroke-width:2.2}
+.skn.sel .skl b{color:var(--ink)}
+#overlay .panel .skn:focus-visible{outline:none}
+.skn:focus-visible .skbr{stroke:var(--acc-hi);stroke-width:3}
+.skn:active .skshape{transform:scale(.93)}
+.skn.pulse .skshape{animation:skPulse .4s ease-out}
+.skn.unlock .skshape{animation:skPop .62s cubic-bezier(.2,.9,.25,1.3)}
+.skn.unlock .skburst,.skn.pulse .skburst{animation:skBurst .65s ease-out}
+.skn.pulse .skburst{animation-duration:.45s}
+.skn.nope .skshape{animation:skNope .32s}
+@keyframes skPulse{40%{transform:scale(1.07)}}
+@keyframes skPop{0%{transform:scale(.9)}45%{transform:scale(1.13)}100%{transform:scale(1)}}
+@keyframes skBurst{from{opacity:.9;transform:scale(.85)}to{opacity:0;transform:scale(1.55)}}
+@keyframes skNope{20%{transform:translateX(-4px)}45%{transform:translateX(4px)}70%{transform:translateX(-2px)}}
+/* view controls, over the board */
+.skctl{position:absolute;left:10px;right:10px;top:10px;display:flex;flex-wrap:wrap;gap:6px;pointer-events:none}
+.skctl .sp{flex:1}
+.skctl button{pointer-events:auto;display:inline-flex;align-items:center;gap:7px;height:36px;min-width:36px;justify-content:center;padding:0 12px;background:rgba(11,9,10,.9);border:1px solid var(--hair2);border-radius:2px;color:var(--ink);font:600 14px var(--f-body);cursor:pointer}
+.skctl button:hover{border-color:var(--bc,var(--acc))}
+.skctl button:focus-visible{outline:2px solid var(--acc-hi);outline-offset:1px}
+.skctl #skIn,.skctl #skOut{padding:0;width:36px}
+.skctl .dot{width:9px;height:9px;border-radius:50%;background:var(--bc)}
+.skhint{position:absolute;left:12px;bottom:8px;margin:0;font:500 12.5px var(--f-body);color:var(--mute);pointer-events:none}
+/* the details panel: one place, never moves */
+.skinfo{border-left:1px solid var(--hair);padding:16px 18px 14px;overflow:auto;display:flex;flex-direction:column;gap:13px;background:rgba(255,255,255,.012)}
+.sk-h{display:flex;gap:12px;align-items:center}
+.sk-ic{flex:none;width:54px;height:54px;display:grid;place-items:center;border-radius:50%;background:color-mix(in srgb,var(--bc) 17%,transparent);color:var(--bc);box-shadow:inset 0 0 0 2px var(--bc)}
+.sk-ic.maj{border-radius:0;box-shadow:none;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);width:56px;height:62px}
+.sk-ic svg{width:26px;height:26px}
+.sk-h small{display:block;font:600 11.5px var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:var(--bc)}
+#overlay .panel .sk-h h2{margin:3px 0 0;font-family:var(--f-head)!important;font-weight:700!important;font-size:27px!important;line-height:1;text-transform:uppercase;letter-spacing:.02em;color:var(--ink)!important}
+.sk-h kbd{margin-left:auto;align-self:flex-start}
+.sk-rank{display:flex;align-items:center;gap:10px}
+.sk-bars{display:flex;gap:4px}
+.sk-bars i{width:24px;height:7px;background:#2e272a}
+.sk-bars i.on{background:var(--bc)}
+.sk-bars i.new{animation:skBar .45s cubic-bezier(.3,.7,.3,1) both;transform-origin:left}
+@keyframes skBar{from{transform:scaleX(0)}}
+.sk-rank b{font:700 15px var(--f-num);color:var(--ink)}
+.sk-st{margin-left:auto;font:600 11.5px var(--f-body);letter-spacing:.1em;text-transform:uppercase;color:var(--dim);padding:3px 8px;border:1px solid var(--hair2)}
+.st-max .sk-st{color:var(--bc);border-color:var(--bc)}.st-own .sk-st{color:var(--ink)}.st-locked .sk-st{border-style:dashed}.st-avail .sk-st{color:var(--gold);border-color:color-mix(in srgb,var(--gold) 50%,transparent)}
+.sk-d{margin:0;font:400 14px/1.5 var(--f-body);color:var(--dim)}
+.sk-fx{margin:0;display:flex;flex-direction:column;border-top:1px solid var(--hair)}
+.sk-fx>div{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:8px 0;border-bottom:1px solid var(--hair)}
+.sk-fx dt{font:500 13.5px var(--f-body);color:var(--dim)}
+.sk-fx dd{margin:0;display:flex;align-items:baseline;gap:7px;font:700 14px var(--f-num);color:var(--ink);white-space:nowrap}
+.sk-fx .ar{font-style:normal;color:var(--faint)}
+.sk-fx .nxt.up{color:var(--bc)}
+.sk-fx .cur.chg{animation:skChg .9s ease-out}
+@keyframes skChg{0%,40%{color:var(--bc)}}
+.sk-sec h4{margin:0 0 7px;font:600 11.5px var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:var(--mute)}
+.sk-req{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.sk-req li{display:flex;align-items:center;gap:8px;font:500 13.5px var(--f-body);color:var(--ink)}
+.sk-req li em{margin-left:auto;font:600 12.5px var(--f-num);font-style:normal;color:var(--dim)}
+.sk-req .rq{width:16px;height:16px;flex:none}
+.sk-req li.ok .rq{color:#7fbf8e}.sk-req li.no{color:var(--dim)}.sk-req li.no .rq{color:#c9705f}
+.sk-buy{margin-top:auto;display:flex;align-items:center;gap:12px;padding-top:12px;border-top:1px solid var(--hair);position:sticky;bottom:0;background:#0f0c0d}
+.sk-cost small{display:block;font:600 11px var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:var(--mute)}
+.sk-cost b{display:inline-flex;align-items:center;gap:6px;font:700 20px var(--f-num);color:var(--gold)}
+.sk-cost b.poor{color:#c9705f}
+#overlay #skBuy{margin:0 0 0 auto;min-width:168px;height:46px;transition:scale .08s ease-out}
+#overlay #skBuy:not([disabled]):active{scale:.96!important}
+#overlay #skBuy[disabled]{opacity:.55;cursor:default}
+.sk-why{margin:-4px 0 0;min-height:1.3em;font:500 13px/1.35 var(--f-body);color:#d58f74}
+.sk-why.nudge{animation:skNope .32s}
+.sk-done{display:flex;align-items:center;gap:8px;font:600 13.5px var(--f-body);color:var(--bc)}.sk-done svg{width:18px;height:18px}
+.sk-tg{display:flex;align-items:center;justify-content:space-between;gap:10px;font:500 13.5px var(--f-body);color:var(--dim)}
+/* smaller screens: the panel narrows; phones keep it beside the board (they play in landscape) */
+body.compact .skbody{grid-template-columns:minmax(0,1fr) 280px}
+body.compact .skinfo{padding:12px 13px;gap:10px}
+body.compact #overlay .panel .sk-h h2{font-size:22px!important}body.compact .sk-d{font-size:13px}
+body.compact .skh{padding:7px 12px}body.compact .skh h1{font-size:26px!important}
+body.compact .skhint{display:none}
+body.compact .skctl button span{display:none}body.compact .skctl button{padding:0 10px}
+body.touch .skctl button{height:42px;min-width:42px}
+body.touch .skn{width:150px;margin-left:-75px}
+body.touch .sk-h kbd{display:none}
+body.phone .skbody{grid-template-columns:minmax(0,1fr) 250px}
+body.phone .skinfo{padding:10px 12px;gap:9px}
+body.phone .skh{padding:6px 10px;gap:10px}body.phone #overlay .panel.sktree .skh h1{font-size:24px!important}
+body.phone #overlay .panel .sk-h h2{font-size:20px!important}body.phone .sk-ic{width:42px;height:42px}body.phone .sk-ic.maj{width:42px;height:48px}
+body.phone .sk-d{font-size:12.5px;line-height:1.4}body.phone .sk-fx>div{padding:5px 0}
+body.phone #overlay #skBuy{min-width:0;flex:1;height:44px}
+body.phone .skhint{display:none}body.phone .skctl button span{display:none}
+body.calm .skworld.glide{transition:none}
+body.calm .skn *,body.calm .skinfo *{animation:none!important}
+@media (prefers-reduced-motion:reduce){.skworld.glide{transition:none}.skn *,.skinfo *{animation:none!important}}

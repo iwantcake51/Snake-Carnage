@@ -166,7 +166,7 @@ function netHostBite(p, e) { // a guest's snake reached a creature on their scre
 }
 function netHostAbility(p, e) {
   const rs = NS.rs.get(p.id); if (!rs) return;
-  if (e.id === 'hoover') { const lv = clamp(e.lv | 0, 1, 3); rs.hoovT = [1.5, 1.5, 2, 2.5][lv]; rs.hoovLv = lv; } // their Hoover skill: hoover() pulls for them on this side (netHostRemoteSnakes)
+  if (e.id === 'hoover') { const lv = clamp(+e.lv || 1, 1, 3); rs.hoovT = clamp(+e.d || lvAt([1.5, 1.5, 2, 2.5], lv), .5, 3); rs.hoovLv = lv; } // their Hoover skill: hoover() pulls for them on this side (netHostRemoteSnakes)
   if (e.id === 'hiss') { const me = snake; snake = rs; UPG_OVR = rs.upgLv; let n = 0; try { n = hissNpc(rs, e.lv || 1); } finally { snake = me; UPG_OVR = null; } const L = NETM.links.get(p.id); if (L) L.sendR({ k: 'ev', e: [{ t: 'hissN', n }] }); }
   netEmit({ t: 'abil', pid: p.id, id: e.id, x: Math.round(rs.x), y: Math.round(rs.y) });
 }

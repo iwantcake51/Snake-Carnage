@@ -32,9 +32,9 @@ function keyAngle() {
   return dx || dy ? Math.atan2(dy, dx) : null;
 }
 function predictUTurn(side, final, boost) { // play the whole turn forward, plus the run back alongside the body: any wall or body contact?
-  const s = snake, R = snakeRadius(), sl = upg('speed'), v = s.speed * (s.dashV || 1);
+  const s = snake, R = snakeRadius(), v = s.speed * (s.dashV || 1);
   let x = s.x, y = s.y, ang = s.angle, dir = side, bad = 0, after = -1; const path = [];
-  for (let k = 0; k < 150; k++) { const dt = 1 / 60, mx = CONFIG.turnRate * dt * (1 + (sl >= 2 ? .18 : 0) + (sl >= 4 ? .18 : 0) + (sl >= 5 ? .12 : 0)) * boost, d = angDiff(ang, dir);
+  for (let k = 0; k < 150; k++) { const dt = 1 / 60, mx = CONFIG.turnRate * dt * SKV.turn() * boost, d = angDiff(ang, dir);
     ang += Math.abs(d) < .002 ? d : clamp(d * Math.min(1, dt * CONFIG.turnEase) + Math.sign(d) * mx * .18, -mx, mx);
     if (dir !== final && Math.abs(angDiff(ang, dir)) < .5) dir = final;
     x += Math.cos(ang) * v * dt; y += Math.sin(ang) * v * dt;
@@ -55,8 +55,8 @@ function predictUTurn(side, final, boost) { // play the whole turn forward, plus
   return bad;
 }
 function setHeading(a) { // one place where a new target heading is accepted (8-way rules)
-  if (snake.started && Math.abs(angDiff(snake.dir, a)) > Math.PI * .9) { // no instant reversal... unless Speed Demon V lets you whip round
-    if (upg('speed') < 5 || T - (snake.uturnAt || -9) < .6 || snake.uturnT > 0) return;
+  if (snake.started && Math.abs(angDiff(snake.dir, a)) > Math.PI * .9) { // no instant reversal... unless Momentum lets you whip round
+    if (!sk('momentum') || T - (snake.uturnAt || -9) < .6 || snake.uturnT > 0) return;
     let pickd = null; // tightest safe turn first; if that would clip the body, try a wider one; either side
     for (const boost of [2.4, 1.7, 1.25]) { for (const sd of [snake.dir - Math.PI / 2, snake.dir + Math.PI / 2]) if (!predictUTurn(sd, a, boost)) { pickd = { sd, boost }; break; } if (pickd) break; }
     if (!pickd) return; // every way round would hit a wall or your own body: no U-turn
