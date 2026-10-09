@@ -234,11 +234,18 @@ const SNAKE_SKINS = {
         const st = SKIN_H(t, 77); if (st > .986) texMix(o, p.w, (st - .986) / .014 * .85); // far stars
         return o; } },
     paint(x, F, A, B, c) {
-      const lv = [[], [], []], bright = [];
-      F.each(A, B, .3, .44, (u, k) => { const h = SKIN_H(k, 42), h2 = SKIN_H(k, 43), h3 = SKIN_H(k, 44); const tw = Math.abs(Math.sin(T * 1.6 + h * 20)); lv[tw > .66 ? 2 : tw > .33 ? 1 : 0].push([u + h * .44, (h2 * 2 - 1) * .92, .035 + h3 * .045]); if (h3 > .9) bright.push([u + h * .44, (h2 * 2 - 1) * .8]); });
+      // each star lives a few seconds: it swells in, glows, shrinks away, and comes back somewhere else in its patch of sky
+      const lv = [[], [], [], []], bright = [];
+      F.each(A, B, .3, .44, (u, k) => {
+        const h = SKIN_H(k, 42), ph = T * (.22 + .2 * h) + h * 9, cy = Math.floor(ph), e = Math.sin(Math.PI * (ph - cy)), id = k * 977 + cy;
+        if (e < .05) return;
+        const su = u + SKIN_H(id, 43) * .44, sv = (SKIN_H(id, 44) * 2 - 1) * .9, big = SKIN_H(id, 45);
+        lv[Math.min(3, e * 4 | 0)].push([su, sv, (.035 + big * .045) * (.35 + .65 * e)]);
+        if (big > .9) bright.push([su, sv, e]);
+      });
       const st = galPal(c).star; // starlight: white, tinted by your brighter color
-      lv.forEach((l, i) => { if (!l.length) return; fillP(x, rgbaOf(st, [.35, .65, .95][i]), () => l.forEach(([u, v, r]) => F.dot(x, u, v, r))); });
-      if (bright.length) { x.beginPath(); for (const [u, v] of bright) { F.at(u, v); const r = F.r * .3; x.moveTo(F.X - r, F.Y); x.lineTo(F.X + r, F.Y); x.moveTo(F.X, F.Y - r); x.lineTo(F.X, F.Y + r); } x.strokeStyle = rgbaOf(st, .8); x.lineWidth = F.R0 * .05; x.stroke(); }
+      lv.forEach((l, i) => { if (!l.length) return; fillP(x, rgbaOf(st, [.3, .55, .8, .97][i]), () => l.forEach(([u, v, r]) => F.dot(x, u, v, r))); });
+      if (bright.length) { x.beginPath(); for (const [u, v, e] of bright) { F.at(u, v); const r = F.r * .34 * e; x.moveTo(F.X - r, F.Y); x.lineTo(F.X + r, F.Y); x.moveTo(F.X, F.Y - r); x.lineTo(F.X, F.Y + r); } x.strokeStyle = rgbaOf(st, .8); x.lineWidth = F.R0 * .05; x.stroke(); }
     } },
   Garter: { scales: 1, // a stripe of your second color down the spine and one down each side, rows of dark checks between them
     base: (u, c) => c.color,
@@ -287,11 +294,12 @@ const SNAKE_SKINS = {
     base: (u, c) => c.color,
     paint(x, F, A, B, c) {
       const p = skinPal(c, 'db', (P, S) => ({ e: S, d: shade(P, -.55), m: shade(P, -.3), r2: shade(mixColor(P, S, .3), -.75) })), per = 2.25, rat = Math.min(4.2, F.uEnd * .25), uR = F.uEnd - rat;
-      const dia = (u, l, w) => F.poly(x, [[u - l, 0], [u, -w], [u + l, 0], [u, w]], 4), on = u => u < uR - 1.2;
-      fillP(x, p.d, () => F.each(A, B, 2, per, u => { if (!on(u)) return; const j = u + per / 2; F.poly(x, [[j - .45, -1.35], [j, -.84], [j + .45, -1.35]], 2); F.poly(x, [[j - .45, 1.35], [j, .84], [j + .45, 1.35]], 2); }));
-      fillP(x, p.e, () => F.each(A, B, 2, per, u => on(u) && dia(u, 1.17, .92)));
-      fillP(x, p.d, () => F.each(A, B, 2, per, u => on(u) && dia(u, .98, .76)));
-      fillP(x, p.m, () => F.each(A, B, 2, per, u => on(u) && dia(u, .48, .37)));
+      const sz = u => 1 - sstep(uR - 2.8, uR - 1, u); // the diamonds shrink away into the rattle (a hard cut-off made them pop in and out as the body flexed)
+      const dia = (u, l, w) => { const f = sz(u); if (f > .04) F.poly(x, [[u - l * f, 0], [u, -w * f], [u + l * f, 0], [u, w * f]], 4); };
+      fillP(x, p.d, () => F.each(A, B, 2, per, u => { const j = u + per / 2, f = sz(j); if (f < .04) return; const a = .45 * f, b = 1.35 - .51 * f; F.poly(x, [[j - a, -1.35], [j, -b], [j + a, -1.35]], 2); F.poly(x, [[j - a, 1.35], [j, b], [j + a, 1.35]], 2); }));
+      fillP(x, p.e, () => F.each(A, B, 2, per, u => dia(u, 1.17, .92)));
+      fillP(x, p.d, () => F.each(A, B, 2, per, u => dia(u, .98, .76)));
+      fillP(x, p.m, () => F.each(A, B, 2, per, u => dia(u, .48, .37)));
       fillP(x, p.e, () => F.each(A, B, uR, .9, u => ring(F, x, u + .22, .45)));
       fillP(x, p.r2, () => F.each(A, B, uR, .9, u => ring(F, x, u + .67, .45)));
     } },
@@ -304,7 +312,7 @@ const SNAKE_SKINS = {
       x.beginPath(); F.each(A, B, ts + 1, .36, u => F.cross(x, u, -1.3, 1.3)); x.strokeStyle = p.tr; x.lineWidth = F.R0 * .06; x.stroke();
     } },
   'Gold Plated': { gloss: 1.5, // overlapping metal plates in your first color, trimmed with your second along the lit top edge, a shadow beneath, and a glint sweeping down the body
-    base: (u, c, end) => { const p = goldPal(c), g = (T * 7) % (end + 8) - 4, k = Math.max(0, 1 - Math.abs(u - g) / 2.4); return mixColor(p.m, p.hi, k * k * .75); },
+    base: (u, c) => { const p = goldPal(c), L = 40, d = ((u - T * 7) % L + L) % L, k = Math.max(0, 1 - Math.min(d, L - d) / 2.4); return mixColor(p.m, p.hi, k * k * .75); }, // a glint every 40 radii, sweeping at a steady 7 radii a second (tied to the body's length, it jumped as the body flexed)
     paint(x, F, A, B, c) {
       const p = goldPal(c); x.lineCap = 'round';
       x.beginPath(); F.each(A, B, .8, .95, u => F.cross(x, u + .42, -1.3, 1.3, .28)); x.strokeStyle = p.lo; x.lineWidth = F.R0 * .11; x.stroke();
@@ -358,7 +366,7 @@ const SNAKE_SKINS = {
       color: (f, i, p, o) => { const q = f[i], m = sstep(-.35, .35, f[i + 1]), c = p.c;
         c[0] = p.p[0] + (p.s[0] - p.p[0]) * m; c[1] = p.p[1] + (p.s[1] - p.p[1]) * m; c[2] = p.p[2] + (p.s[2] - p.p[2]) * m;
         o[0] = p.d[0]; o[1] = p.d[1]; o[2] = p.d[2]; const q2 = q * q, q4 = q2 * q2; texMix(o, c, Math.min(1, q4 * 1.3 + q * .1)); texMix(o, p.w, q4 * q4 * q4 * .85); return o; } } },
-  Obsidian: { gloss: 1.4, // volcanic glass, your second color nearly black, with veins of your first glowing through it, and sharp glints where it fractured
+  Obsidian: { gloss: .15, // volcanic glass, your second color nearly black, with veins of your first glowing through it: crisp broken reflections along the top instead of a soft sheen, a faint glow of the veins along the far edge, and sharp glints where it fractured
     base: (u, c) => shade(c.color2, -.82),
     tex: { k: 2, flow: .3,
       field() { const a = texNoise(71, .125, .6, 4), r = texNoise(72, .125, .9, 4), w = texNoise(73, .125, .6, 2); return (u, v, o) => { o[0] = a(u, v); o[1] = 1 - Math.abs(r(u + w(u, v) * 2, v)); }; },
@@ -366,8 +374,12 @@ const SNAKE_SKINS = {
       color: (f, i, p, o) => { const k = sstep(-.35, .55, f[i]), q = f[i + 1];
         o[0] = p.g0[0] + (p.g1[0] - p.g0[0]) * k; o[1] = p.g0[1] + (p.g1[1] - p.g0[1]) * k; o[2] = p.g0[2] + (p.g1[2] - p.g0[2]) * k;
         texMix(o, p.vein, sstep(.9, .98, q) * .95); texMix(o, p.core, sstep(.975, .998, q) * .9); return o; } },
-    paint(x, F, A, B) {
-      fillP(x, 'rgba(255,255,255,.14)', () => F.each(A, B, 1.1, 1.7, (u, k) => { const h = SKIN_H(k, 130), sd = h < .5 ? -1 : 1, v = sd * (.2 + .3 * SKIN_H(k, 131)); F.poly(x, [[u, v], [u + .55 + .3 * h, v + sd * .1], [u + .18, v + sd * .32]], 1); }));
+    paint(x, F, A, B, c) {
+      const u0 = Math.max(A, .4), u1 = Math.min(B, F.uEnd - .6); x.lineCap = 'round';
+      if (u1 > u0) { x.beginPath(); F.line(x, u0, u1, .74); x.strokeStyle = rgbaOf(c.color, .16); x.lineWidth = F.R0 * .12; x.stroke(); } // the veins' glow caught along the far edge
+      x.beginPath(); F.each(A, B, .5, 3.4, (u, k) => { const h = SKIN_H(k, 132), h2 = SKIN_H(k, 133); F.line(x, u, Math.min(u + 2 + 1.1 * h2, F.uEnd - .5), -.5 + (h - .5) * .14, .25); }); // a polished face: one long reflection, broken here and there where the glass was chipped
+      x.strokeStyle = 'rgba(255,255,255,.05)'; x.lineWidth = F.R0 * .34; x.stroke(); x.strokeStyle = 'rgba(255,255,255,.1)'; x.lineWidth = F.R0 * .16; x.stroke(); x.strokeStyle = 'rgba(255,255,255,.42)'; x.lineWidth = F.R0 * .05; x.stroke();
+      fillP(x, 'rgba(255,255,255,.12)', () => F.each(A, B, 1.1, 1.7, (u, k) => { const h = SKIN_H(k, 130), sd = h < .5 ? -1 : 1, v = sd * (.2 + .3 * SKIN_H(k, 131)); F.poly(x, [[u, v], [u + .55 + .3 * h, v + sd * .1], [u + .18, v + sd * .32]], 1); }));
     } },
 };
 const lavaPal = c => skinPal(c, 'la', (P, S) => { const [C, H] = darkLight(P, S), crust = shade(mixColor(C, H, .2), -.8); return { g1: mixColor(C, H, .6), crust, rim: mixColor(crust, H, .4) }; });
