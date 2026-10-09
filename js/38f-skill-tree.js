@@ -13,7 +13,7 @@ function skWhy(n) { // every reason the next rank can't be bought right now (chi
   const r = skOwn(n.id), out = [];
   if (r >= n.max) return [{ k: 'max' }];
   if (!r) for (const [id, need] of n.req) { const have = skOwn(id); if (have < need) out.push({ k: 'req', id, need, have }); }
-  if (!r && n.lvl && skLv() < n.lvl) out.push({ k: 'lvl', need: n.lvl });
+  const nl = skNeedLv(n, r); if (nl && skLv() < nl) out.push({ k: 'lvl', need: nl, rank: r + 1 });
   return out;
 }
 const skState = n => { const r = skOwn(n.id); return r >= n.max ? 'max' : r ? 'own' : skWhy(n).length ? 'locked' : 'avail'; };
@@ -24,7 +24,7 @@ function skWhyText(n) {
   if (!q) return PROG.coins < skCost(n) ? `You need ${(skCost(n) - PROG.coins).toLocaleString()} more chips.` : '';
   if (q.k === 'max') return '';
   if (q.k === 'req') return `Locked: needs ${skReqText(q)}${SKN[q.id].max > 1 && q.have ? ` (you have rank ${q.have})` : ''} first.`;
-  return `Locked: opens at level ${q.need} (you're level ${skLv()}).`;
+  return `Locked: ${n.max > 1 && q.rank > 1 ? `rank ${q.rank}` : 'it'} opens at level ${q.need} (you're level ${skLv()}).`;
 }
 const skillReady = () => SKILL_TREE.some(n => skOwn(n.id) < n.max && !skWhy(n).length && PROG.coins >= skCost(n)); // something you can buy right now (the main menu's note)
 const skBranchRanks = br => SKILL_TREE.reduce((a, n) => a + (n.br === br ? skOwn(n.id) : 0), 0);
@@ -32,19 +32,20 @@ const skBranchRanks = br => SKILL_TREE.reduce((a, n) => a + (n.br === br ? skOwn
 /* ---- drawing ---- */
 const SK_HEX = (r) => Array.from({ length: 6 }, (_, k) => { const a = (-90 + 60 * k) * Math.PI / 180; return (Math.cos(a) * r).toFixed(1) + ',' + (Math.sin(a) * r).toFixed(1); }).join(' ');
 function skArc(r, a0, a1) { const p = a => [(Math.cos(a) * r).toFixed(2), (Math.sin(a) * r).toFixed(2)]; const [x0, y0] = p(a0), [x1, y1] = p(a1); return `M${x0} ${y0}A${r} ${r} 0 ${a1 - a0 > Math.PI ? 1 : 0} 1 ${x1} ${y1}`; }
-function skTicks(n, r) { // one arc per rank round a passive; lit = bought
+function skTicks(n, r) { // one arc per rank round the node; lit = bought
   const gap = .2, step = TAU / n.max, own = skOwn(n.id);
   return Array.from({ length: n.max }, (_, k) => { const a0 = -Math.PI / 2 + k * step + gap / 2, a1 = a0 + step - gap; return `<path class="tk${k < own ? ' on' : ''}" pathLength="1" d="${skArc(r, a0, a1)}"/>`; }).join('');
 }
 const SK_LOCK = '<g class="sklock"><rect x="-5" y="-1" width="10" height="8" rx="1.5"/><path d="M-3 -1v-2.5a3 3 0 0 1 6 0V-1" fill="none"/></g>';
 function skNodeSvg(n) {
-  if (n.major) return `<svg class="skshape" viewBox="-48 -48 96 96" aria-hidden="true"><polygon class="skbr" points="${SK_HEX(45)}"/><polygon class="sko" points="${SK_HEX(37)}"/><polygon class="ski" points="${SK_HEX(31)}"/><circle class="skburst" r="40"/><g transform="translate(26 -30)">${SK_LOCK}</g></svg>`;
+  if (n.major) return `<svg class="skshape" viewBox="-48 -48 96 96" aria-hidden="true"><polygon class="skbr" points="${SK_HEX(n.max > 1 ? 51 : 45)}"/><polygon class="sko" points="${SK_HEX(37)}"/><polygon class="ski" points="${SK_HEX(31)}"/>${n.max > 1 ? `<g class="tks">${skTicks(n, 43)}</g>` : ''}<circle class="skburst" r="40"/><g transform="translate(26 -30)">${SK_LOCK}</g></svg>`;
   return `<svg class="skshape" viewBox="-36 -36 72 72" aria-hidden="true"><circle class="skbr" r="34"/><circle class="sko" r="23"/><circle class="ski" r="19"/><g class="tks">${skTicks(n, 29)}</g><circle class="skburst" r="28"/><g transform="translate(19 -20)">${SK_LOCK}</g></svg>`;
 }
-function skSub(n) { // the small line under a node's name
-  const st = skState(n), r = skOwn(n.id), off = PROG.treeOff[n.id] && r;
-  if (n.major) return off ? 'Off' : st === 'max' ? 'Unlocked' : st === 'locked' ? (skWhy(n).find(q => q.k === 'lvl') ? `Level ${n.lvl}` : 'Locked') : `<i class="pc"></i>${skCost(n).toLocaleString()}`;
-  return `<span class="skrk">${r}/${n.max}</span>${off ? ' · Off' : st === 'max' ? ' · Max' : st === 'avail' || st === 'own' ? ` · <i class="pc"></i>${skCost(n).toLocaleString()}` : ''}`;
+function skSub(n) { // the small line under a node's name: its rank, and what the next one costs or waits on
+  const st = skState(n), r = skOwn(n.id), off = PROG.treeOff[n.id] && r, why = skWhy(n), lv = why.find(q => q.k === 'lvl');
+  const next = lv && !why.some(q => q.k === 'req') ? `Level ${lv.need}` : why.length ? 'Locked' : `<i class="pc"></i>${skCost(n).toLocaleString()}`;
+  if (n.max === 1) return off ? 'Off' : st === 'max' ? 'Unlocked' : next;
+  return `<span class="skrk">${r}/${n.max}</span>${off ? ' · Off' : st === 'max' ? ' · Max' : r || st === 'avail' || lv ? ' · ' + next : ''}`;
 }
 const skAria = n => `${n.name}, ${SK_BRANCH[n.br].name}, ${n.major ? 'major skill' : 'passive'}, rank ${skOwn(n.id)} of ${n.max}, ${({ max: n.major ? 'unlocked' : 'maxed', own: 'purchased', avail: 'available', locked: 'locked' })[skState(n)]}`;
 function skNodeHtml(n) {
@@ -198,13 +199,14 @@ function skInfo(animate, prevVals) {
   const cur = skFxVals(n, gCur), nxt = skFxVals(n, gNext), none = n.abil && !r; // an ability you don't have yet: nothing to compare against
   const fxRows = n.fx.map(([label, , fmt], i) => `<div><dt>${label}</dt><dd><span class="cur" data-i="${i}">${none ? '—' : fmt(cur[i])}</span>${max ? '' : `<i class="ar">→</i><span class="nxt ${nxt[i] !== cur[i] || none ? 'up' : ''}">${fmt(nxt[i])}</span>`}</dd></div>`).join('');
   const reqRows = [...n.req.map(([id, need]) => { const have = skOwn(id), ok = have >= need || r > 0; return `<li class="${ok ? 'ok' : 'no'}">${ok ? SK_OK : SK_NO}<span>${skReqText({ id, need })}</span>${SKN[id].max > 1 ? `<em>${Math.min(have, SKN[id].max)}/${need}</em>` : ''}</li>`; }),
-    ...(n.lvl ? [`<li class="${skLv() >= n.lvl || r ? 'ok' : 'no'}">${skLv() >= n.lvl || r ? SK_OK : SK_NO}<span>Level ${n.lvl}</span><em>you're ${skLv()}</em></li>`] : [])].join('');
+    ...(skNeedLv(n, r) && !max ? [`<li class="${skLv() >= skNeedLv(n, r) ? 'ok' : 'no'}">${skLv() >= skNeedLv(n, r) ? SK_OK : SK_NO}<span>Level ${skNeedLv(n, r)}${n.max > 1 && r ? ` for rank ${r + 1}` : ''}</span><em>you're ${skLv()}</em></li>`] : [])].join('');
   const stateWord = PROG.treeOff[n.id] && r ? 'Switched off' : ({ max: n.major ? 'Unlocked' : 'Maxed', own: 'Purchased', avail: 'Available', locked: 'Locked' })[st];
   const btnTxt = max ? (n.major ? 'Unlocked' : 'Maxed') : why.length ? (why[0].k === 'lvl' ? `Level ${why[0].need}` : 'Locked') : r ? `Upgrade to ${r + 1}/${n.max}` : n.major ? 'Unlock' : 'Buy rank 1';
   el.className = `skinfo br-${n.br} st-${st}`;
   el.innerHTML = `<div class="sk-h"><span class="sk-ic ${n.major ? 'maj' : ''}">${upIcon(n.icon)}</span><div><small>${SK_BRANCH[n.br].name} · ${n.major ? (n.abil ? 'Ability' : 'Major skill') : `Passive · ${n.max} ranks`}</small><h2>${n.name}</h2></div>${n.abil ? `<kbd data-tip="Its key (Settings › Controls)">${abilKey(n.id)}</kbd>` : ''}</div>
     <div class="sk-rank"><span class="sk-bars">${Array.from({ length: n.max }, (_, k) => `<i class="${k < r ? 'on' : ''}"></i>`).join('')}</span><b>${r}/${n.max}</b><span class="sk-st">${stateWord}</span></div>
     <p class="sk-d">${n.desc}</p>
+    ${n.ranks ? `<ol class="sk-ranks">${n.ranks.map((t, k) => `<li class="${k < r ? 'got' : k === r ? 'next' : ''}"><b>${k + 1}</b><span>${t}${skNeedLv(n, k) ? ` <em>Level ${skNeedLv(n, k)}</em>` : ''}</span></li>`).join('')}</ol>` : ''}
     <dl class="sk-fx">${fxRows}</dl>
     ${reqRows ? `<div class="sk-sec"><h4>Requires</h4><ul class="sk-req">${reqRows}</ul></div>` : ''}
     <div class="sk-buy">${max ? `<span class="sk-done">${SK_OK}${n.major ? 'Unlocked' : 'Maxed'}: nothing more to buy here</span>` : `<div class="sk-cost"><small>Cost</small><b class="${PROG.coins < cost ? 'poor' : ''}"><i class="pc"></i> ${cost.toLocaleString()}</b></div>
@@ -260,11 +262,11 @@ function skBuy(id) {
   const was = {}; for (const q of SKILL_TREE) was[q.id] = skState(q);
   const prevVals = skFxVals(n, id2 => skOwn(id2)), coins0 = PROG.coins;
   PROG.coins -= cost; PROG.tree[id] = r + 1; delete PROG.treeOff[id]; saveProg(); updateHud();
-  const major = n.major; Sfx.skill(major);
+  const major = n.major; Sfx.skill(major && !r);
   skRefresh(); skInfo(true, prevVals); skChips(coins0, PROG.coins);
   const b = overlay.querySelector(`.skn[data-n="${id}"]`);
   if (b && !skCalm()) {
-    b.classList.remove('pulse', 'unlock'); void b.getBoundingClientRect(); b.classList.add(major ? 'unlock' : 'pulse');
+    b.classList.remove('pulse', 'unlock'); void b.getBoundingClientRect(); b.classList.add(major && !r ? 'unlock' : 'pulse');
     const tk = b.querySelectorAll('.tk')[r]; if (tk) { tk.classList.remove('fill'); void tk.getBoundingClientRect(); tk.classList.add('fill'); }
     setTimeout(() => b.classList.remove('pulse', 'unlock'), 900);
   }

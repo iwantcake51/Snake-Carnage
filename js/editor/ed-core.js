@@ -1113,8 +1113,9 @@ function edUnapply() { const all = localMapEdits(); delete all[mapEditKey(MAPS[E
 /* ---- skills for play tests: any skill tree rank, only while testing; your real skill tree is untouched ---- */
 function edSkillsGet() { let s = null; try { s = JSON.parse(localStorage.getItem('snakeEdSkills')); } catch (e) {}
   if (s && !s._tree) s = treeFromUpgrades(s).t; // saved before the skill tree: the old levels, translated the same way your save was
+  if (s && s._tree === 1) treeMerge(s); // saved before speed and the ram were folded into one ranked node each
   if (s) return s; const o = {}; for (const n of SKILL_TREE) o[n.id] = PROG.treeOff[n.id] ? 0 : skOwn(n.id); return o; }
-const edSkillsSet = s => { s._tree = 1; localStorage.setItem('snakeEdSkills', JSON.stringify(s)); };
+const edSkillsSet = s => { s._tree = 2; localStorage.setItem('snakeEdSkills', JSON.stringify(s)); };
 function edSkillsDlg() {
   const cur = edSkillsGet(), row = n => `<div class="edskr"><span><b>${n.name}</b>${n.abil ? ` <kbd>${abilKey(n.id)}</kbd>` : ''}<small>${SK_BRANCH[n.br].name} · ${n.major ? 'major' : 'passive'}. ${n.desc}</small></span><div class="peseg">${Array.from({ length: n.max + 1 }, (_, l) => `<button data-u="${n.id}" data-l="${l}" class="${(cur[n.id] || 0) === l ? 'on' : ''}">${l ? (n.max > 1 ? l : 'On') : 'Off'}</button>`).join('')}</div></div>`;
   const m = edModal('Test skills', `<p>Pick any skill tree ranks to try in <b>play tests</b>. Your real skill tree and chips aren't touched.</p><div class="edsklist">${SKILL_TREE.map(row).join('')}</div>`,

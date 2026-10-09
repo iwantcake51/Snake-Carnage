@@ -18,17 +18,16 @@ const SK_BRANCH = {
   res: { name: 'Resilience', key: '3', blurb: 'Battering Ram, Hiss and getting back up' },
 };
 /* x, y: where the node sits on the tree (the screen's own units). req: [[id, rank], ...] all needed before the first rank.
+   lvl: the account level the first rank needs, or one per rank ([4, 10, 16]). ranks: optional text per rank (what each one adds).
    fx: what the details panel shows, current -> next: [label, g => number, n => text] where g(id) is a rank. */
 const pct = n => (n > 0 ? '+' : '') + Math.round(n) + '%', secs = n => (+n.toFixed(2)) + ' s', xk = n => (+n.toFixed(2)) + 'x', px = n => Math.round(n) + ' px';
 const SKILL_TREE = [
   // ---- Movement ----
-  { id: 'speed', br: 'move', major: 1, name: 'Speed Demon', icon: 'speed', cost: [150], lvl: 2, req: [], x: 626, y: 800,
-    desc: 'Opens the Movement branch. Your snake moves 5% faster.', fx: [['Speed', g => SKV.speed(g) * 100 - 100, pct]] },
-  { id: 'swift', br: 'move', name: 'Quick Scales', icon: 'swift', cost: [200, 320, 480, 700], req: [['speed', 1]], x: 497, y: 735,
-    desc: 'Each rank: 5% faster.', fx: [['Speed', g => SKV.speed(g) * 100 - 100, pct]] },
-  { id: 'sidewind', br: 'move', name: 'Sidewinder', icon: 'sidewind', cost: [260, 420, 640], req: [['swift', 1]], x: 373, y: 640,
+  { id: 'speed', br: 'move', name: 'Speed Demon', icon: 'speed', cost: [150, 200, 320, 480, 700], lvl: 2, req: [], x: 626, y: 800,
+    desc: 'Each rank: your snake moves 5% faster. The first rank opens the Movement branch.', fx: [['Speed', g => SKV.speed(g) * 100 - 100, pct]] },
+  { id: 'sidewind', br: 'move', name: 'Sidewinder', icon: 'sidewind', cost: [260, 420, 640], req: [['speed', 1]], x: 480, y: 718,
     desc: 'Each rank: your head swings round 16% quicker.', fx: [['Turn rate', g => SKV.turn(g) * 100 - 100, pct]] },
-  { id: 'momentum', br: 'move', major: 1, name: 'Momentum', icon: 'momentum', cost: [2100], lvl: 20, req: [['sidewind', 2]], x: 265, y: 470,
+  { id: 'momentum', br: 'move', major: 1, name: 'Momentum', icon: 'momentum', cost: [2100], lvl: 20, req: [['sidewind', 2]], x: 335, y: 590,
     desc: 'Smashing through things keeps half your speed instead of stalling you, and pressing the opposite way whips you round in a tight U-turn (it picks the side that clears your body and the walls).', fx: [['Speed kept through a smash', g => g('momentum') ? 50 : 0, n => n ? 'Half the stall' : 'Full stall'], ['U-turn', g => g('momentum'), n => n ? 'Yes' : 'No']] },
   { id: 'dash', br: 'move', major: 1, abil: 1, name: 'Lunge', icon: 'dash', cost: [250], lvl: 3, req: [['speed', 1]], x: 588, y: 625,
     desc: 'A short burst of speed for catching runners. You can\'t lunge while you\'re concussed.', fx: [['Burst', g => SKV.lungeK(g), xk], ['Lasts', g => SKV.lungeDur(g), secs], ['Cooldown', g => SKV.lungeCd(g), secs]] },
@@ -62,15 +61,12 @@ const SKILL_TREE = [
   { id: 'vortex', br: 'hunt', major: 1, name: 'Vortex', icon: 'vortex', cost: [2300], lvl: 21, req: [['breath', 2]], x: 996, y: 290,
     desc: 'A huge pull in a 170° cone that drags in even people running for their lives: 2.5 s of it, every 9 s.', fx: [['Pull', g => SKV.hoovDur(g), secs], ['Cone', g => SKV.hoovCone(g), n => Math.round(n) + '°'], ['Cooldown', g => SKV.hoovCd(g), secs]] },
   // ---- Resilience ----
-  { id: 'ram', br: 'res', major: 1, name: 'Battering Ram', icon: 'ram', cost: [300], lvl: 4, req: [], x: 1074, y: 800,
-    desc: 'Smash through small things instead of crashing into them: chairs, plants, crates, hay, fences, bins, glass. Without it glass still breaks, but going through it knocks you senseless.', fx: [['Smashes', g => SKV.ramTier(g), n => ['Nothing', 'Small things', 'Furniture', 'Cars and walls'][n]]] },
-  { id: 'skull', br: 'res', name: 'Thick Skull', icon: 'skull', cost: [220, 360, 540, 780], req: [['ram', 1]], x: 1207, y: 735,
+  { id: 'ram', br: 'res', major: 1, name: 'Battering Ram', icon: 'ram', cost: [300, 850, 1900], lvl: [4, 10, 16], req: [], x: 1074, y: 800,
+    ranks: ['Small things: chairs, plants, crates, hay, fences, bins, glass. Barely slows you', 'Big furniture, bushes and small trees: desks, tables, benches, couches, shelves, beds, bars, consoles, speakers, saplings. A harder knock', 'Cars, rocks and the cracked wall sections on some maps: shortcuts, but the hit leaves you seeing stars'],
+    desc: 'Smash through things instead of crashing into them; each rank takes on heavier things. Without it glass still breaks, but going through it knocks you senseless.', fx: [['Smashes', g => SKV.ramTier(g), n => ['Nothing', 'Small things', 'Furniture', 'Cars and walls'][n]]] },
+  { id: 'skull', br: 'res', name: 'Thick Skull', icon: 'skull', cost: [220, 360, 540, 780], req: [['ram', 1]], x: 1222, y: 718,
     desc: 'Each rank: you shake off a daze 10% faster, whether it came from smashing through something, a wall, or a blast nearby. It never saves you from a direct hit.', fx: [['Daze recovery', g => SKV.dazeK(g) * 100 - 100, pct]] },
-  { id: 'wreck', br: 'res', major: 1, name: 'Wrecking Ball', icon: 'wreck', cost: [850], lvl: 10, req: [['skull', 1]], x: 1327, y: 640,
-    desc: 'The ram takes on big furniture, bushes and small trees: desks, tables, benches, couches, shelves, beds, bars, consoles, speakers, saplings. A harder knock than small things.', fx: [['Smashes', g => SKV.ramTier(g), n => ['Nothing', 'Small things', 'Furniture', 'Cars and walls'][n]]] },
-  { id: 'siege', br: 'res', major: 1, name: 'Siege Head', icon: 'siege', cost: [1900], lvl: 16, req: [['wreck', 1]], x: 1435, y: 470,
-    desc: 'The ram takes on cars, rocks and the cracked wall sections on some maps: shortcuts, but the hit leaves you seeing stars.', fx: [['Smashes', g => SKV.ramTier(g), n => ['Nothing', 'Small things', 'Furniture', 'Cars and walls'][n]]] },
-  { id: 'gut', br: 'res', name: 'Iron Stomach', icon: 'gut', cost: [350, 700, 1100], req: [['skull', 1]], x: 1293, y: 470,
+  { id: 'gut', br: 'res', name: 'Iron Stomach', icon: 'gut', cost: [350, 700, 1100], req: [['skull', 1]], x: 1365, y: 590,
     desc: 'Each rank: your combo lasts 10% longer between kills.', fx: [['Combo time', g => SKV.combo(g) * 100 - 100, pct]] },
   { id: 'hiss', br: 'res', major: 1, abil: 1, name: 'Hiss', icon: 'hiss', cost: [700], lvl: 11, req: [['ram', 1]], x: 1121, y: 625,
     desc: 'A blood-curdling hiss you can see rippling out: everything nearby panics and scatters.', fx: [['Radius', g => SKV.hissR(g), px], ['Cooldown', g => SKV.hissCd(g), secs]] },
@@ -81,14 +77,15 @@ const SKILL_TREE = [
 ];
 for (const n of SKILL_TREE) n.max = n.cost.length;
 const SKN = Object.fromEntries(SKILL_TREE.map(n => [n.id, n]));
+const skNeedLv = (n, r) => Array.isArray(n.lvl) ? n.lvl[r] || 0 : r ? 0 : n.lvl || 0; // the level rank r+1 needs
 const ABIL_NODES = SKILL_TREE.filter(n => n.abil); // the five skills with a key: dash, scent, camo, hoover, hiss
 const ABILITY_IDS = new Set(ABIL_NODES.map(n => n.id));
 PROG.tree = PROG.tree || {}; PROG.treeOff = PROG.treeOff || {};
 /* ---- save migration: the old Upgrades (PROG.upg, levels per upgrade) become the same benefits on the tree, free ---- */
 function treeFromUpgrades(u, off) { // u: { speed: 0..5, ram: 0..4, gut, dash, scent, camo, hoover, hiss: 0..3 }
   const t = {}, o = {}, give = (from, id, r) => { if (r > 0) { t[id] = Math.max(t[id] || 0, Math.min(r, SKN[id].max)); if (off && off[from]) o[id] = true; } }, L = id => u[id] | 0;
-  if (L('speed')) { const s = L('speed'); give('speed', 'speed', 1); give('speed', 'swift', s - 1); give('speed', 'sidewind', s >= 5 ? 3 : s >= 4 ? 2 : s >= 2 ? 1 : 0); give('speed', 'momentum', s >= 5 ? 1 : 0); if (s >= 3) give('speed', 'skull', 3); } // Speed Demon III shook off dazes a third faster
-  if (L('ram')) { const r = L('ram'); give('ram', 'ram', 1); give('ram', 'wreck', r >= 2 ? 1 : 0); give('ram', 'siege', r >= 3 ? 1 : 0); if (r >= 4) give('ram', 'skull', L('speed') >= 3 ? 4 : 3); } // thick skull: concussions a quarter shorter
+  if (L('speed')) { const s = L('speed'); give('speed', 'speed', s); give('speed', 'sidewind', s >= 5 ? 3 : s >= 4 ? 2 : s >= 2 ? 1 : 0); give('speed', 'momentum', s >= 5 ? 1 : 0); if (s >= 3) give('speed', 'skull', 3); } // Speed Demon III shook off dazes a third faster
+  if (L('ram')) { const r = L('ram'); give('ram', 'ram', Math.min(r, 3)); if (r >= 4) give('ram', 'skull', L('speed') >= 3 ? 4 : 3); } // thick skull: concussions a quarter shorter
   give('gut', 'gut', L('gut'));
   if (L('dash')) { const r = L('dash'); give('dash', 'dash', 1); if (r >= 2) { give('dash', 'stride', 3); give('dash', 'spring', 4); } give('dash', 'pounce', r >= 3 ? 1 : 0); } // II: 0.8 s at 1.9x, 5 s; III: Pounce
   if (L('scent')) { const r = L('scent'); give('scent', 'scent', 1); if (r >= 2) { give('scent', 'gold', 1); give('scent', 'keen', 2); } if (r >= 3) { give('scent', 'crowd', 1); give('scent', 'keen', 3); } }
@@ -103,6 +100,15 @@ if (!PROG.treeV) { // once per save: carry the old upgrades over (never charged 
   for (const id in o) if (!(PROG.tree[id] > t[id])) PROG.treeOff[id] = true;
   PROG.treeV = 1; saveProg();
 }
+function treeMerge(t, off) { // tree v2: Quick Scales folded into Speed Demon's ranks, Wrecking Ball and Siege Head into Battering Ram's
+  if (!t) return t; const was = id => t[id] | 0, gone = ['swift', 'wreck', 'siege'];
+  if (was('swift')) t.speed = Math.min(5, (was('speed') || 1) + was('swift'));
+  if (was('wreck')) t.ram = Math.min(3, 2 + (was('siege') ? 1 : 0)); // (a fresh migration already gives the ram its ranks)
+  if (off) { if (off.swift) off.speed = true; if (off.wreck || off.siege) off.ram = true; }
+  for (const id of gone) { delete t[id]; if (off) delete off[id]; }
+  return t;
+}
+if (PROG.treeV < 2) { treeMerge(PROG.tree, PROG.treeOff); PROG.treeV = 2; saveProg(); }
 let UPG_OVR = null; // co-op: while the host's AI deals with another player's snake, the ranks are that player's (their profile's tree)
 const skOwn = id => Math.min(PROG.tree[id] || 0, SKN[id] ? SKN[id].max : 0); // bought, switched on or not
 const sk = id => { const n = SKN[id]; if (!n || MOD.noUpgrades || (MOD.noAbilities && n.abil)) return 0; // a node's rank as it counts right now
@@ -110,7 +116,7 @@ const sk = id => { const n = SKN[id]; if (!n || MOD.noUpgrades || (MOD.noAbiliti
   return Math.max(0, Math.min(r | 0, n.max)); };
 /* Every number the tree changes. g(id) is a rank: sk in play, a "what if" rank in the details panel. Capped and modest. */
 const SKV = {
-  speed: (g = sk) => 1 + .05 * (g('speed') + g('swift')), // up to +25%
+  speed: (g = sk) => 1 + .05 * g('speed'), // up to +25%
   turn: (g = sk) => 1 + .16 * g('sidewind'),
   lungeK: (g = sk) => g('pounce') ? 2.7 : 1.8 + .035 * g('stride'),
   lungeDur: (g = sk) => (g('pounce') ? .55 : .6) + .07 * g('stride'),
@@ -126,7 +132,7 @@ const SKV = {
   hoovDur: (g = sk) => g('vortex') ? 2.5 : 1.5 + g('breath') / 6,
   hoovCd: (g = sk) => 16 - 4 / 3 * g('breath') - 3 * g('vortex'),
   hoovCone: (g = sk) => lvAt([0, .55, 1, 1.5], SKV.hoovLv(g)) * 2 * 180 / Math.PI,
-  ramTier: (g = sk) => g('ram') ? 1 + (g('wreck') ? 1 + (g('siege') ? 1 : 0) : 0) : 0,
+  ramTier: (g = sk) => g('ram'),
   dazeK: (g = sk) => 1 + .1 * g('skull'), // how fast a daze wears off (never immunity: the daze still happens, a direct hit still kills)
   combo: (g = sk) => 1 + .1 * g('gut'),
   hissR: (g = sk) => 190 + 17 * g('rattle') + 30 * g('shock'),
@@ -137,7 +143,7 @@ const SKV = {
 const lvAt = (a, l) => { const i = Math.max(0, Math.min(a.length - 1, Math.floor(l))), f = l - i; return i >= a.length - 1 ? a[a.length - 1] : a[i] + (a[i + 1] - a[i]) * f; }; // a per-level table read at a fractional level
 /* The old upgrade levels, worked out from the tree, for code that still asks "which tier" (looks, challenges, the ram's targets) */
 const upg = id => { switch (id) {
-  case 'speed': return sk('speed') + sk('swift');
+  case 'speed': return sk('speed');
   case 'ram': return SKV.ramTier();
   case 'dash': return sk('dash') ? sk('pounce') ? 3 : sk('stride') >= 2 ? 2 : 1 : 0;
   case 'scent': return sk('scent') ? 1 + sk('gold') + (sk('gold') ? sk('crowd') : 0) : 0;
@@ -221,7 +227,6 @@ function refreshTouchAbilities() {
 function upIcon(k) { // small hand-drawn SVG glyphs (20 x 20), one per skill, so the tree and the HUD don't lean on emoji
   const P = {
     speed: '<path d="M3 13h7M5 9h8M3 5h6" stroke-width="2"/><path d="M12 4l6 6-6 6" stroke-width="2.4"/>',
-    swift: '<path d="M3 5l5 5-5 5M9 5l5 5-5 5" stroke-width="2"/><path d="M15 7l3 3-3 3" stroke-width="1.6"/>',
     sidewind: '<path d="M3 16c4 0 3-6 7-6s3-6 7-6" stroke-width="2.2"/><path d="M14 3h3v3" stroke-width="1.8"/>',
     momentum: '<path d="M5 17V8a4 4 0 0 1 8 0v4" stroke-width="2.2"/><path d="M10 10l3 3 3-3" stroke-width="2"/>',
     ram: '<path d="M3 10h9" stroke-width="3"/><path d="M12 4v12M15 6l3-2M15 14l3 2M15 10h4" stroke-width="2"/>',
@@ -242,8 +247,6 @@ function upIcon(k) { // small hand-drawn SVG glyphs (20 x 20), one per skill, so
     breath: '<path d="M2 7h9a2.5 2.5 0 1 0-2.5-2.5M2 11h13a2.5 2.5 0 1 1-2.5 2.5M2 15h6" stroke-width="1.8"/>',
     vortex: '<path d="M10 10a1.5 1.5 0 1 1 1.5 1.5A3.5 3.5 0 1 1 15 8a5.5 5.5 0 1 1-5.5-5.5" stroke-width="1.9"/>',
     skull: '<path d="M4 11a6 6 0 1 1 12 0v2.5H4z" stroke-width="1.8"/><path d="M4 13.5h12v2.5H4zM10 5v4" stroke-width="1.6"/>',
-    wreck: '<circle cx="12" cy="12" r="5" stroke-width="1.8"/><path d="M12 7L5 2" stroke-width="1.6"/><path d="M3 11l2 1M2 15l3 0M4 18l2-2" stroke-width="1.4"/>',
-    siege: '<path d="M2 5h16M2 10h16M2 15h16M6 5v5M14 5v5M10 10v5M4 15v3M16 15v3" stroke-width="1.5"/><path d="M8 2l2 5-2 3 3 4-1 4" stroke-width="2"/>',
     hiss: '<path d="M3 10c2-3 4-3 6 0s4 3 6 0" stroke-width="2.2"/><path d="M13 5l4-2M13 15l4 2M15 10h3" stroke-width="1.8"/>',
     rattle: '<path d="M10 2.5c2 0 3 1.2 3 2.5s-1 2.5-3 2.5-3-1.2-3-2.5 1-2.5 3-2.5zM10 7.5c2.3 0 3.5 1.3 3.5 2.8s-1.2 2.8-3.5 2.8-3.5-1.3-3.5-2.8 1.2-2.8 3.5-2.8zM10 13c2.6 0 4 1.3 4 2.8s-1.4 2.7-4 2.7-4-1.2-4-2.7 1.4-2.8 4-2.8z" stroke-width="1.5"/><path d="M2 6l2 1M18 6l-2 1M2 14l2-1M18 14l-2-1" stroke-width="1.4"/>',
     shock: '<circle cx="10" cy="10" r="1.8" fill="currentColor" stroke-width="1"/><path d="M5.5 5.5a6.4 6.4 0 0 0 0 9M14.5 5.5a6.4 6.4 0 0 1 0 9M3 3a10 10 0 0 0 0 14M17 3a10 10 0 0 1 0 14" stroke-width="1.7"/>',
