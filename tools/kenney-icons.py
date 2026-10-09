@@ -4,7 +4,7 @@
 #   BOARD: Kenney Board Game Icons, one SVG per icon.
 import re, zipfile
 UI = ['multiplayer', 'star', 'basket', 'trophy', 'gear', 'wrench', 'locked', 'checkmark']
-BOARD = ['suit_hearts', 'crown_a']
+BOARD = ['suit_hearts', 'crown_a', 'suit_hearts_broken', 'skull']
 CELLS = {  # icon name -> (column, row) of its cell in vector_whiteIcons.svg
   'arrowRight': (0,0), 'arrowLeft': (1,0), 'arrowUp': (2,0), 'arrowDown': (3,0), 'forward': (4,0), 'backward': (5,0), 'up': (6,0),
   'down': (7,0), 'scrollVertical': (8,0), 'scrollHorizontal': (9,0), 'menuGrid': (10,0), 'menuList': (11,0),

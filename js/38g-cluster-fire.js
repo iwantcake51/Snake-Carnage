@@ -32,9 +32,9 @@ function fireReset() { bomblets = []; firePatches = []; gasPuffs = []; gasBubble
 /* ---- cluster bombs ---- */
 function simBomblet(x, y, a, sp, vz) { // the whole flight, worked out at once at a fixed step, so every screen gets the same path: bounces off the ground and off walls, then a roll to a stop
   const out = [], hops = []; let vx = Math.cos(a) * sp, vy = Math.sin(a) * sp, z = 16, t = 0, still = 0, n = 0; const h = 1 / 60;
-  while (t < 2.4) {
+  while (t < 3.6) {
     vz -= 560 * h; z += vz * h;
-    if (z <= 0) { z = 0; if (vz < -45) { hops.push(+t.toFixed(3)); vz = -vz * .42; vx *= .7; vy *= .7; } else { vz = 0; const f = Math.exp(-h * 3.2); vx *= f; vy *= f; } }
+    if (z <= 0) { z = 0; if (vz < -38) { hops.push(+t.toFixed(3)); vz = -vz * .5; vx *= .76; vy *= .76; } else { vz = 0; const f = Math.exp(-h * 2.6); vx *= f; vy *= f; } } // (a little bouncier and slower to stop than it was: they go off the moment they come to rest)
     const nx = x + vx * h, ny = y + vy * h, inside = solid(x, y); // (one that opened over a roof drops through it: it only bounces going into something)
     if (z < 22 && !inside && solid(nx, y)) { vx = -vx * .55; hops.push(+t.toFixed(3)); } else x = nx; // off whatever's solid
     if (z < 22 && !inside && solid(x, ny)) { vy = -vy * .55; hops.push(+t.toFixed(3)); } else y = ny;
@@ -45,19 +45,16 @@ function simBomblet(x, y, a, sp, vz) { // the whole flight, worked out at once a
   out.push(x, y, 0);
   return { path: out, rest: t, x, y, hops };
 }
-function clusterSplit(s) { // every screen: the bomb opens just above the ground and throws its bomblets out
-  const r = seeded((s.sd | 0) || 1), n = 4 + Math.floor(r() * 3), base = r() * TAU, near = snake ? Math.hypot(snake.x - s.x, snake.y - s.y) : 999;
-  booms.push({ puff: true, x: s.x, y: s.y, r: 15, t: 0, dur: .45 }); shocks.push({ x: s.x, y: s.y, R: 60, t: 0, dur: .35 });
-  for (let k = 0; k < 14; k++) { const a = rand(0, TAU), v = rand(120, 300); boomBits.push({ spark: true, x: s.x, y: s.y, z: 14, vx: Math.cos(a) * v, vy: Math.sin(a) * v, vz: rand(30, 160), t: 0, life: rand(.2, .45) }); }
-  for (let k = 0; k < 4; k++) smoke.push({ x: s.x + rand(-6, 6), y: s.y + rand(-6, 6), vx: rand(-20, 20), vy: rand(-20, 20), r: rand(6, 10), g: rand(10, 18), rot: rand(0, TAU), vr: rand(-.6, .6), t: 0, life: rand(1, 1.6), v: k % 4, a: .6 });
-  Sfx.clusterPop(s.x); shake = Math.max(shake, 6 * clamp(1 - near / 400, 0, 1));
+function clusterSplit(s) { // every screen: the bomb goes off like any other (detonate does that) and throws its bomblets out of the blast
+  const r = seeded((s.sd | 0) || 1), n = 4 + Math.floor(r() * 3), base = r() * TAU;
+  Sfx.clusterPop(s.x);
   let settle = 0; const list = [];
   for (let k = 0; k < n; k++) {
     const a = base + k / n * TAU + (r() - .5) * .8, sp = 95 + r() * 115, vz = 120 + r() * 90, b = simBomblet(s.x, s.y, a, sp, vz);
     list.push({ ...b, k, t: 0, hop: 0, r: Math.round(CLUSTER_R * (.9 + r() * .2)), blink: r() * TAU });
     settle = Math.max(settle, b.rest);
   }
-  list.sort((p, q) => p.rest - q.rest).forEach((b, i) => { b.fuse = +(Math.max(settle, b.rest) + .55 + i * .24 + r() * .16).toFixed(3); }); // they go one after another, never together
+  let last = -1; list.slice().sort((p, q) => p.rest - q.rest).forEach(b => { b.fuse = +Math.max(b.rest + .12, last + .14).toFixed(3); last = b.fuse; }); // each goes off the moment it stops bouncing and rolling (never two at once)
   bomblets.push(...list);
   if (AUTH()) for (const b of list) for (const c of nearbyCreatures(b.x, b.y, 80, [])) if (c.alive && !c.def.fly) { c.state = 'panic'; c.fx = b.x; c.fy = b.y; c.alert = Math.max(c.alert || 0, c.def.human ? 1 : .6); c.timer = Math.max(c.timer || 0, rand(3, 5)); } // the crowd sees them land and runs
 }
@@ -195,6 +192,59 @@ function drawBurnEdge(x) { // screen space: a restrained orange glow creeping in
   const g = x.createRadialGradient(0, 0, 0, 0, 0, H / 2 * Math.SQRT2); g.addColorStop(.55, 'rgba(255,110,20,0)'); g.addColorStop(.85, `rgba(255,100,20,${(a * .6).toFixed(3)})`); g.addColorStop(1, `rgba(255,70,10,${a.toFixed(3)})`);
   x.fillStyle = g; x.fillRect(-H, -H, H * 2, H * 2); x.restore();
 }
+const HAZE = { a: document.createElement('canvas'), b: document.createElement('canvas') }; HAZE.ax = HAZE.a.getContext('2d'); HAZE.bx = HAZE.b.getContext('2d');
+function hazeBand(x, src, bx, by, bw, bh, side, A, T) { // one edge of the screen, worked at half size (the stretch back up softens it, as haze should): copied once, its rows slid sideways on a wave that climbs, then faded out toward the middle so there's no seam
+  const q = .5, sw = Math.max(1, Math.round(bw * q)), sh = Math.max(1, Math.round(bh * q)), { a, b, ax, bx: hx } = HAZE;
+  if (a.width < sw || a.height < sh) { a.width = b.width = Math.max(a.width, sw); a.height = b.height = Math.max(a.height, sh); }
+  ax.globalCompositeOperation = 'copy'; ax.drawImage(src, bx, by, bw, bh, 0, 0, sw, sh);
+  hx.globalCompositeOperation = 'copy'; hx.drawImage(a, 0, 0, sw, sh, 0, 0, sw, sh); hx.globalCompositeOperation = 'source-over'; // (the plain copy underneath fills the gap a slid row leaves)
+  const rh = Math.max(2, Math.round(3 * DPR * q * 2)), Aq = A * q;
+  for (let y = 0; y < sh; y += rh) { // how far a row slides: none at the band's inner edge, most at the screen's edge
+    const u = side === 'b' ? y / sh : side === 't' ? 1 - y / sh : 1, py = (by + y / q) / DPR;
+    const o = (Math.sin(py * .045 + T * 7.5) + .5 * Math.sin(py * .11 + T * 12.3)) * Aq * u * u; if (Math.abs(o) < .15) continue;
+    hx.drawImage(a, 0, y, sw, rh, o, y, sw, rh);
+  }
+  const g = side === 'l' ? hx.createLinearGradient(0, 0, sw, 0) : side === 'r' ? hx.createLinearGradient(sw, 0, 0, 0) : side === 'b' ? hx.createLinearGradient(0, sh, 0, 0) : hx.createLinearGradient(0, 0, 0, sh);
+  g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(.45, 'rgba(0,0,0,.75)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+  hx.globalCompositeOperation = 'destination-in'; hx.fillStyle = g; hx.fillRect(0, 0, sw, sh); hx.globalCompositeOperation = 'source-over';
+  x.drawImage(b, 0, 0, sw, sh, bx, by, bw, bh);
+}
+function drawBurnHaze(x) { // screen space: while you burn, heat haze ripples in from every edge of the screen (four copied bands, nothing built per frame)
+  const s = snake, k = s && s.alive && state !== 'menu' ? s.burnK || 0 : 0; if (k < .05 || SETTINGS.simpleFx || SETTINGS.reduceMotion || SETTINGS.fxLevel === 'Low') return;
+  const src = x.canvas, w = src.width, h = src.height, A = 4.5 * DPR * k, T = UT, sb = Math.round(h * .24), st = Math.round(h * .12), sw = Math.round(w * .1);
+  x.save(); x.setTransform(1, 0, 0, 1, 0, 0);
+  hazeBand(x, src, 0, h - sb, w, sb, 'b', A, T); hazeBand(x, src, 0, 0, w, st, 't', A * .6, T);
+  hazeBand(x, src, 0, st, sw, h - st - sb, 'l', A * .8, T); hazeBand(x, src, w - sw, st, sw, h - st - sb, 'r', A * .8, T);
+  x.restore();
+}
+let FLAME_FB = null; // the stand-in flame before the sprite atlas loads: one soft teardrop, drawn once
+function flameFallback() {
+  if (FLAME_FB) return FLAME_FB; const c = document.createElement('canvas'); c.width = 64; c.height = 128; const x = c.getContext('2d');
+  const g = x.createRadialGradient(32, 92, 2, 32, 80, 60); g.addColorStop(0, 'rgba(255,230,150,1)'); g.addColorStop(.35, 'rgba(255,140,30,.8)'); g.addColorStop(1, 'rgba(255,60,0,0)');
+  x.fillStyle = g; x.beginPath(); x.moveTo(32, 2); x.quadraticCurveTo(60, 70, 52, 104); x.quadraticCurveTo(32, 128, 12, 104); x.quadraticCurveTo(4, 70, 32, 2); x.fill(); return FLAME_FB = c;
+}
+const FLAME_SPR = ['flame_01', 'flame_02', 'flame_03', 'flame_04'];
+function drawBurnFlames(x) { // screen space: flames licking up the bottom of the screen and the lower edges while you burn; a handful of cached sprites added on, nothing rebuilt per frame
+  const s = snake, k = s && s.alive && state !== 'menu' ? s.burnK || 0 : 0; if (k < .04 || SETTINGS.fxLevel === 'Off') return;
+  const low = SETTINGS.simpleFx || SETTINGS.fxLevel === 'Low', N = low ? 7 : 13, T = SETTINGS.reduceMotion ? 0 : UT, fa = (SETTINGS.reduceFlash ? .55 : 1) * k;
+  x.save(); x.setTransform(DPR, 0, 0, DPR, 0, 0); x.globalCompositeOperation = 'lighter';
+  const fb = KSPR.ok ? null : flameFallback();
+  const gb = x.createLinearGradient(0, H, 0, H * .72); gb.addColorStop(0, `rgba(255,90,10,${(.42 * fa).toFixed(3)})`); gb.addColorStop(1, 'rgba(255,60,0,0)'); x.fillStyle = gb; x.fillRect(0, H * .72, W, H * .28); // the heat glowing up from below
+  const tongue = (cx, base, h, rot, i, col, a) => { const w = h * .8; x.globalAlpha = Math.min(1, a);
+    if (fb) { x.save(); x.translate(cx, base); x.rotate(rot); x.drawImage(fb, -w / 2, -h, w, h); x.restore(); }
+    else kDraw(x, FLAME_SPR[i & 3], col, cx + Math.sin(rot) * h * .5, base - Math.cos(rot) * h * .5, w, h, rot); };
+  for (let i = 0; i < N; i++) { // along the bottom, tallest towards the corners
+    const u = (i + .5) / N, edge = Math.abs(u - .5) * 2, f = .75 + .25 * Math.sin(T * (5.5 + i % 4) + i * 1.7) + .12 * Math.sin(T * 13 + i * 3.1), h = H * (.2 + .2 * edge * edge) * f * (.55 + .45 * k);
+    const cx = u * W + Math.sin(T * 1.3 + i) * W / N * .2, sway = Math.sin(T * 2.2 + i * .9) * .12;
+    tongue(cx, H + h * .18, h, sway, i, '#ff6a12', fa * (.75 + .25 * edge));
+    if (!low) tongue(cx, H + h * .12, h * .6, sway * 1.4, i + 1, '#ffd36a', fa * .8);
+  }
+  for (const sd of [-1, 1]) for (let i = 0; i < (low ? 2 : 4); i++) { // up the lower sides, leaning inward
+    const v = .58 + i * .11, f = .8 + .2 * Math.sin(T * (6 + i) + i * 2.3 + sd), h = W * .12 * f * (.5 + .5 * k) * (.6 + i * .2);
+    tongue(sd < 0 ? -h * .12 : W + h * .12, v * H, h, sd * -(Math.PI / 2 - .35) + Math.sin(T * 2 + i) * .1, i + 2, '#ff5a10', fa * .85);
+  }
+  x.restore();
+}
 function fireTick(dt) { // every frame of a run (from airTick)
   for (let i = firePatches.length - 1; i >= 0; i--) { const p = firePatches[i]; p.t += dt; if (p.t > p.life) { firePatches.splice(i, 1); continue; }
     if (p.t > 0 && Math.random() < dt * 9 * patchK(p) * FX_K()) boomBits.push({ ember: true, x: p.x + rand(-p.r, p.r) * .7, y: p.y + rand(-p.r, p.r) * .6, z: rand(2, 7), vx: rand(-14, 14), vy: rand(-28, -8), vz: rand(30, 70), t: 0, life: rand(.5, 1), g: .15 }); }
@@ -219,12 +269,14 @@ function fireFrame() { // every frame, run or not: the crackle follows how hard 
 
 /* ---- sounds ---- */
 Object.assign(Sfx, {
+  cough(x, human) { if (!this.ok() || !this.gate('cough', .12)) return; const n = human ? randi(1, 3) : 1, f = human ? rand(380, 620) : rand(700, 1000); // a dry hack or two (an animal: one short huff)
+    for (let k = 0; k < n; k++) setTimeout(() => this.noiseHit(x, human ? .09 : .05, f * rand(.9, 1.1), 1.4, human ? .13 : .08), k * rand(170, 240)); },
   noiseBuf() { if (this._nz && this._nz.sampleRate === this.ctx.sampleRate) return this._nz; const c = this.ctx, n = c.sampleRate, b = c.createBuffer(1, n, c.sampleRate), d = b.getChannelData(0); for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1; return this._nz = b; },
   noiseHit(x, vol, f, q, dur, type = 'bandpass') { if (!this.ok()) return; const c = this.ctx, t = c.currentTime, src = c.createBufferSource(), fl = c.createBiquadFilter(), g = c.createGain();
     src.buffer = this.noiseBuf(); fl.type = type; fl.frequency.value = f; fl.Q.value = q; g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + .01); g.gain.exponentialRampToValueAtTime(.0005, t + dur);
     src.connect(fl); fl.connect(g); g.connect(this.out(x, 1)); src.start(t, Math.random() * .5); src.stop(t + dur + .05); },
   clusterPop(x) { if (!this.ok()) return; this.noiseHit(x, .5, 900, .7, .35, 'lowpass'); this.tone(this.out(x, .4), this.ctx.currentTime, 180, 70, .25, 'triangle', .2); },
-  barrage() { if (!this.ok()) return; this.siren && this.siren(); const t = this.ctx.currentTime, o = this.out(undefined, .5); for (let k = 0; k < 6; k++) this.tone(o, t + .5 + k * .16, k % 2 ? 620 : 880, k % 2 ? 600 : 860, .12, 'square', .07); }, // the siren, then a fast two-tone klaxon: not the usual warning
+  barrage() { if (!this.ok()) return; this.siren && this.siren(); const t = this.ctx.currentTime, o = this.out(undefined, .5); for (let k = 0; k < 6; k++) this.tone(o, t + .5 + k * .16, k % 2 ? 620 : 880, k % 2 ? 600 : 860, .12, 'square', .07 * this.soft(.35)); }, // the siren, then a fast two-tone klaxon: not the usual warning
   clink(x) { if (!this.ok() || !this.gate('clink', .05)) return; const t = this.ctx.currentTime, o = this.out(x, .25); this.tone(o, t, rand(1700, 2300), rand(1300, 1700), .09, 'triangle', .08); this.noiseHit(x, .08, 3000, 2, .06); },
   ignite(x) { if (!this.ok()) return; this.noiseHit(x, .35, 500, .6, .6, 'lowpass'); },
   steam(x) { if (!this.ok()) return; this.noiseHit(x, .3, 5200, .8, 1.1, 'highpass'); },
@@ -272,10 +324,10 @@ function gasTick(dt) {
   if (!s.alive || s.netHidden || state !== 'play') { if (state !== 'paused') s.gasK = 0; return; }
   const g = gasPuffs.length ? inGas(s.x, s.y) : 0, was = s.gasK || 0; // what you breathe: where your head is
   s.gasK = g > .05 ? Math.min(1, was + dt * 2 * g) : Math.max(0, was - dt * .35); // it gets into you fast, and wears off slowly
-  if (g > .05 && was < .05 && performance.now() - (gasTick.at || 0) > 6000) { gasTick.at = performance.now(); notify({ kind: 'bad', icon: giSvg('gas'), title: 'GAS', sub: sk('mask') ? 'Your mask keeps it out of your eyes. Get clear.' : 'It slows you and blurs everything. Get clear.', dur: 2.2, key: 'gas' }); }
-  if (AUTH() && gasPuffs.length && (gasTick.ai = (gasTick.ai || 0) - dt) <= 0) { gasTick.ai = .4; // the crowd: coughing, they stumble out of it, slowed
-    for (const p of gasPuffs) { if (p.t < 0 || gasK(p) < .2) continue; const [px, py, pr] = gasAt(p); for (const c of nearbyCreatures(px, py, pr + 30, [])) { if (!c.alive || c.def.fly) continue;
-      c.blastStunT = Math.max(c.blastStunT || 0, T + .15); if (c.state !== 'panic') { c.state = 'panic'; c.fx = px; c.fy = py; c.alert = Math.max(c.alert || 0, c.def.human ? 1 : .6); c.timer = Math.max(c.timer || 0, rand(2.5, 4)); c.goal = null; } } } }
+  if (AUTH() && gasPuffs.length && (gasTick.ai = (gasTick.ai || 0) - dt) <= 0) { gasTick.ai = .4; // the crowd: anyone in it just walks slower and coughs (no panic, no stumbling)
+    for (const p of gasPuffs) { if (p.t < 0 || gasK(p) < .2) continue; const [px, py, pr] = gasAt(p); for (const c of nearbyCreatures(px, py, pr, [])) { if (!c.alive || c.def.fly || dist2(c.x, c.y, px, py) > pr * pr) continue;
+      c.gasT = T + .7; // (26-creature-ai: under half speed while it lasts)
+      if (T > (c.coughAt || 0)) { c.coughAt = T + rand(1.4, 3); if (c.def.human) say(c, 'act:' + pick(['*cough*', '*cough cough*', '*hack*', '*wheeze*'])); if (snake && dist2(c.x, c.y, snake.x, snake.y) < 420 * 420) Sfx.cough(c.x, c.def.human); } } } }
 }
 let gasWisps = []; // (looks only, per screen) little curls of gas lifting off the cloud
 function drawGas(x) { // Kenney's smoke and twirl particles, tinted a sickly yellow-green: a ring of smoke and a bubble's skin swell out of the middle when it goes off, then a slow churning cloud with wisps curling off it

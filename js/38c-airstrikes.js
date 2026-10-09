@@ -120,7 +120,7 @@ function airSchedule(dt) {
   AIR.nextT = raid ? (13 - 8.5 * Math.pow(ramp, 1.2)) * rand(.8, 1.25) // Air raid: every 13 s or so at first, easing down to every 4-5 s by five minutes in, and no quicker
     : 34 / (1 + .3 * Math.min(1, gt)) * rand(.8, 1.35) * (Math.random() < .25 ? 1.5 : 1); // a normal game: about every 36 s if nobody kills anything (still 28 s or so late on), never on a beat, now and then a longer lull; every kill brings the next one closer (airKillTick), never to under 10 s
   if (t - t0 > 100 && t - (AIR.barT ?? -1e9) > 240 && !strikes.length && !AIR.queue.length && Math.random() < (raid ? .05 : .07)) { // rarely, a barrage instead: never twice close together, never on top of another strike
-    AIR.barT = t; AIR.nextT = BARRAGE.dur + BARRAGE.lead + rand(45, 60); // ...and a long quiet after it
+    AIR.barT = t; AIR.nextT = BARRAGE.dur + BARRAGE.lead + AIR.nextT * .6; // ...and the strikes carry on after it, no long quiet
     for (const s of targets) { if (skOf(s, 'jam') && Math.random() < .5) { airCalledOff(s); continue; } barrage(s, raid ? ramp : Math.min(1, Math.max(gt, heatOf(s)))); }
     return;
   }
@@ -129,12 +129,13 @@ function airSchedule(dt) {
     const a = kind === 'guns' ? rand(0, TAU) : s.angle + (Math.random() < .5 ? 1 : -1) * (kind === 'bombs' ? rand(.35, 1.15) : rand(.9, 2.2)); // gun runs come in from anywhere; bombers cross your path
     if (skOf(s, 'jam') && Math.random() < .5) { airCalledOff(s); continue; } // Bad Intel: this one is called off (no jet, nothing dropped), and the clock above has already started over
     const pre = LOCK() ? rand(1.3, 1.8) : rand(2.4, 3.6), sp = (s.speed || CONFIG.snakeSpeeds.Normal) * (s.dashV || 1), px = Math.round(s.x + Math.cos(s.angle) * sp * pre), py = Math.round(s.y + Math.sin(s.angle) * sp * pre);
-    airApproach(px, py, a, pre); netEmit({ t: 'airj', x: px, y: py, a: +a.toFixed(3), p: +pre.toFixed(2) }); // you hear it coming, miles off, before anything is marked
+    const ov = +airOver(kind, raid ? ramp : Math.min(1, Math.max(gt, heatOf(s)))).toFixed(2); // when it'll be overhead, so the approach is the same jet the fly-by takes over
+    airApproach(px, py, a, pre, ov); netEmit({ t: 'airj', x: px, y: py, a: +a.toFixed(3), p: +pre.toFixed(2), o: ov }); // you hear it coming, miles off, before anything is marked
     AIR.queue.push({ t: pre, f: () => { if (!s.alive || s.netHidden || s.hidden || state !== 'play') return; if (kind === 'salvo') airSalvo(s, raid ? ramp : Math.max(gt, heatOf(s)), a); else strafeRun(s, raid ? ramp : Math.min(1, Math.max(gt, heatOf(s))), kind, a); } }); // each player's own run is as fierce as their own (team's) kills
   }
 }
-/* ---- a barrage: rare and heavy. A distinct warning, then a dozen or so bombs in a few seconds, one after another,
-   scattered round where you're heading, with a gap left on one side to get out through. Then a long quiet ---- */
+/* ---- a barrage: rare and heavy. A distinct warning sound, then a dozen or so bombs in a few seconds, one after another,
+   scattered round where you're heading, with a gap left on one side to get out through. The usual strikes carry on after ---- */
 const BARRAGE = { lead: 2.8, dur: 3.4 };
 function barrage(s, k) { // the deciding browser
   const sp = (s.speed || CONFIG.snakeSpeeds.Normal) * (s.dashV || 1), lock = LOCK(), n = 9 + Math.round(4 * Math.min(1, k)), es = Math.random() < .5 ? 1 : -1, ca = Math.cos(s.angle), sa = Math.sin(s.angle), got = [];
@@ -152,7 +153,7 @@ function barrage(s, k) { // the deciding browser
     airStrike(rx, ry, w, r, ja, f); netEmit({ t: 'air', x: rx, y: ry, w, r, j: ja, f, h: Math.round(netNow()) });
   }
 }
-function barrageWarn() { notify({ kind: 'bad', icon: giSvg('jet'), title: 'BARRAGE INCOMING', sub: 'A heavy bombardment is about to hit your path. Find the gap and get through it.', dur: 3.6, key: 'airb' }); Sfx.barrage(); }
+function barrageWarn() { Sfx.barrage(); } // no notice on screen: the sound and the markers are the warning
 function airKillTick(s, c) { // the deciding browser: someone (any player) just ate somebody: the jets come sooner (a person a fair bit, an animal far less, a small one less still)
   if (!s || !airOn() || !AIR.warned || state !== 'play') return;
   const floor = MOD.airRaid ? 3.5 : 10; // never right on top of the last one (a normal game keeps its quiet spells)
@@ -164,7 +165,11 @@ function airKills(s) { // kills that count against this snake: in co-op everyone
   const pid = s === snake ? NETM.me : s.pid, mode = netMode(), team = mode === 'teams' ? netTeamOf(pid) : null;
   return NETM.players.reduce((n, p) => mode === 'ffa' && p.id !== pid || team !== null && netTeamOf(p.id) !== team ? n : n + (p.id === NETM.me ? run.killed || 0 : (p.stats && p.stats.killed) || 0), 0);
 }
-function airApproach(x, y, a, pre) { Sfx.jetFar && Sfx.jetFar(x, y, a, pre); } // every screen
+function airApproach(x, y, a, pre, ov) { Sfx.jetFar && Sfx.jetFar(x, y, a, pre, ov); } // every screen
+function airOver(kind, k) { // about how long after its run is called in the jet is overhead (as airSalvo, strafeRun and bombRun will time it)
+  const lock = LOCK(); if (kind === 'guns') return (2.3 - .5 * k) * (lock ? .5 : 1) + STRAFE_LEN / 2 / strafeV() + .12;
+  return Math.max(.3, (kind === 'bombs' ? 2.3 - .5 * k : 3 - .5 * k + .05) * (lock ? kind === 'bombs' ? .5 : .45 : 1) - (lock ? .35 : .65));
+}
 const airPid = s => s === snake ? (NETM.run ? NETM.me : '') : s.pid; // who a Locked on strike slides after ('' = you, in single player)
 function airCalledOff(s) { // Bad Intel: the strike meant for this snake never comes
   if (s === snake) airCalledOffNote(); else if (NETM.run) netEmit({ t: 'airx', pid: s.pid });
@@ -289,7 +294,7 @@ function blastBreak(x, y, R, heavy) { // every screen runs the same blast, so ev
   }
 }
 function detonate(s) {
-  if (s.kd === 'c') return clusterSplit(s); // a cluster bomb opens instead: its bomblets do the damage (38g-cluster-fire)
+  if (s.kd === 'c') clusterSplit(s); // a cluster bomb goes off like a bomb and throws out bomblets that go off at random afterwards (38g-cluster-fire)
   if (s.kd === 'g') return gasPop(s); // a gas bomb doesn't blow up: it lets out a cloud (38g)
   const mini = !!s.mini, cm = mini ? .3 : 1; // a bomblet: the same blast, much smaller, felt much less far off
   const { x, y, r } = s, near = (snake ? Math.hypot(snake.x - x, snake.y - y) : 999) * (mini ? 2.4 : 1), fx = FX_K() * cm;
@@ -300,7 +305,7 @@ function detonate(s) {
   throwClods(x, y, r, cm); // (cut from the ground before the crater is burnt into it)
   if (typeof blastSnow === 'function' && blastSnow(x, y, r * 1.15) > 0 && snowy) for (let k = 0; k < Math.round(60 * fx); k++) { const a = rand(0, TAU), sp = rand(60, 360); boomBits.push({ x: x + rand(-r * .4, r * .4), y: y + rand(-r * .4, r * .4), z: rand(2, 10), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(140, 420), t: 0, life: rand(1.2, 2.4), s: rand(1.4, 3.4), tr: false, c: pick(['#eef3f8', '#dfe8f2', '#f7fbff', '#c9d6e4']) }); } // the snow there is blown off: a white burst, bare ground underneath
   scorch(x, y, r);
-  blastBreak(x, y, r * 1.15, !mini && !s.kd && !s.safe); // what's near it breaks: fences, benches, crates and the like in any blast; trees, boulders and cars only to a proper bomb
+  blastBreak(x, y, r * 1.15, !mini && (!s.kd || s.kd === 'c') && !s.safe); // what's near it breaks: fences, benches, crates and the like in any blast; trees, boulders and cars only to a proper bomb
   for (let k = 0; k < Math.round(12 * fx); k++) { const a = rand(0, TAU), sp = rand(20, 90); soots.push({ x: x + rand(-r * .3, r * .3), y: y + rand(-r * .3, r * .3), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: r * rand(.35, .6), g: rand(18, 34), rot: rand(0, TAU), vr: rand(-.5, .5), t: -rand(.08, .35), life: rand(2.6, 4.2), a: rand(.55, .8) }); } // black, oily smoke boiling up through the fire, lit orange from inside at first
   hazes.push({ x, y, r: r * 1.3, t: 0, life: 4.5 }); // heat shimmer over the crater
   const sec = mini ? 0 : randi(3, 5);
@@ -387,14 +392,19 @@ function pumpBlast(x, y) { // a gas pump goes up: a full blast, with the ringing
 const AIR_FRONT = .3;
 function airHitSnake(i, by) {
   const me = snake, n = me.segs.length, front = Math.max(3, Math.ceil(n * AIR_FRONT));
+  if (by === 'cluster') { // a bomblet never kills: on the head end it takes half of you and leaves nothing to eat back; anywhere else the last quarter of you comes off and drops where you can eat it back
+    if (me.cutT > 0) return; const head = i < front, keep = Math.max(BURN.min, Math.round(n * (head ? .5 : .75)));
+    if (keep >= n) { airHurt(.6); return; } // already as short as it gets: a jolt, nothing more
+    airHurt(head ? 1 : .8); return tailCut(me, keep, head);
+  }
   if (i < front) { airHurt(1); me.burstAt = i; return bombDeath(by); } // it goes up from where it was hit
   if (me.cutT > 0) return; // the same rounds walking on over the stump don't take another piece a frame later
   airHurt(.8); tailCut(me, i);
 }
-function tailCut(s, i) { // everything from piece i back is blown off and bursts into chunks you can eat back; the stump is left blunt, torn and bleeding
+function tailCut(s, i, gone) { // everything from piece i back is blown off and bursts into chunks you can eat back (gone: blown to nothing, no chunks); the stump is left blunt, torn and bleeding
   const lost = s.segs.length - i, cfg = SETTINGS.snake;
   const piece = s.segs.slice(i); snakeBurst({ segs: piece, stains: s.stains.slice(i), scale: s.scale, angle: s.segs[i].a }, cfg.color, cfg, 0, true);
-  const id = (NETM.run ? NETM.me : 'me') + ':' + (tailCut.n = (tailCut.n || 0) + 1), P = cfg.color || '#4e7cf6', Q = cfg.color2 || shade(P, .3), bits = makeTailBits(piece, lost, P, Q);
+  const id = (NETM.run ? NETM.me : 'me') + ':' + (tailCut.n = (tailCut.n || 0) + 1), P = cfg.color || '#4e7cf6', Q = cfg.color2 || shade(P, .3), bits = gone ? [] : makeTailBits(piece, lost, P, Q);
   spawnTailBits(id, bits, P, Q);
   if (NETM.run) { const m = { t: 'tcut', id, b: bits, s: piece.flatMap(g => [Math.round(g.x), Math.round(g.y)]), c: P, c2: Q, sc: +(s.scale || 1).toFixed(2), by: NETM.me }; if (NETM.host) netEmit(m); else netSend(m); } // everyone sees it burst, and anyone can eat the pieces
   s.len = i; s.lenV = Math.min(s.lenV ?? i, i); if (s.stains.length > i) s.stains.length = i; computeSegs(s);
@@ -404,7 +414,7 @@ function tailCut(s, i) { // everything from piece i back is blown off and bursts
     for (let q = 0; q < m; q++) { const px = g.x + rand(-7, 7), py = g.y + rand(-7, 7); addStain(s.stains[k], { a: Math.atan2(py - g.y, px - g.x) - g.a, d: Math.min(Math.hypot(px - g.x, py - g.y), rr - 1) / k0, r: rand(1, 2.2) / k0, c: pick(gore), e: rand(1, 1.8), gore: 1 }, 30); } }
   const t = s.segs[n - 1]; spawnBlood(t.x, t.y, t.a + Math.PI, .45, 2.6, .15, gore); bloodMist(t.x, t.y, t.a + Math.PI, .9, gore);
   shake = Math.max(shake, 16); hitStop = Math.max(hitStop, .05); AIR.rumble = Math.max(AIR.rumble, .5);
-  if (typeof toast === 'function') toast(`Tail blown off: -${lost} length. Eat the pieces to get some back`);
+  if (typeof toast === 'function') toast(gone ? `Blown in half: -${lost} length` : `Tail blown off: -${lost} length. Eat the pieces to get some back`);
 }
 function stumpHeal(s) { // it grew: the torn end and the blood soaked into it are gone
   s.stump = null;
@@ -537,9 +547,9 @@ const NM = { at: -9, n: 0, list: [] };
 function nearMiss(kind, x, y) { // (x, y): where it happened, right by your body
   if (!snake || !snake.alive || state !== 'play') return;
   const now = performance.now(), chain = now - NM.at < 4000 ? NM.n + 1 : 1; NM.at = now; NM.n = chain;
-  const xp = Math.round((kind === 'strafe' ? 14 : 18) * (1 + .25 * Math.min(4, chain - 1)) * rewardMult); run.nearMiss = (run.nearMiss || 0) + 1;
-  NM.list.push({ x: x ?? snake.x, y: y ?? snake.y, t0: now, txt: chain > 1 ? `NEAR MISS x${chain}` : 'NEAR MISS', xp }); if (NM.list.length > 4) NM.list.shift();
-  gainXP(Math.round(xp * SKV.nearK()), Math.max(1, Math.round(2 * rewardMult * SKV.nearK()))); // Daredevil
+  const ck = (1 + .25 * Math.min(4, chain - 1)) * rewardMult, xp = Math.round((kind === 'strafe' ? 14 : 18) * ck), chips = Math.max(1, Math.round((kind === 'strafe' ? 5 : 6) * ck * SKV.nearK())); run.nearMiss = (run.nearMiss || 0) + 1; // chips too, climbing with the chain like the XP
+  NM.list.push({ x: x ?? snake.x, y: y ?? snake.y, t0: now, txt: chain > 1 ? `NEAR MISS x${chain}` : 'NEAR MISS', xp, chips }); if (NM.list.length > 4) NM.list.shift();
+  gainXP(Math.round(xp * SKV.nearK()), chips); // Daredevil
   if (Sfx.ok() && Sfx.gate('nm', .3)) Sfx.tone(Sfx.out(x, .5), Sfx.ctx.currentTime, 660, 1320, .16, 'triangle', .07);
 }
 function drawNearMiss(x) { // in the world, small, right where it happened: a quick pop, a little drift up, gone in a second
@@ -548,7 +558,7 @@ function drawNearMiss(x) { // in the world, small, right where it happened: a qu
   x.save(); x.textAlign = 'center'; x.textBaseline = 'middle'; x.lineJoin = 'round';
   for (const m of NM.list) { const u = (now - m.t0) / 1150, pop = u < .12 ? .7 + 2.5 * u : 1, a = u < .1 ? u * 10 : 1 - Math.max(0, (u - .55) / .45), y = m.y - 14 - 16 * u;
     x.globalAlpha = a * .92; x.font = `800 ${(9 * pop).toFixed(1)}px system-ui, sans-serif`; x.lineWidth = 2.6; x.strokeStyle = 'rgba(0,0,0,.65)'; x.strokeText(m.txt, m.x, y); x.fillStyle = m.col || '#ffd86a'; x.fillText(m.txt, m.x, y);
-    const sub = m.xp != null ? `+${m.xp} XP` : m.sub; if (sub) { x.font = `700 ${(7.5 * pop).toFixed(1)}px system-ui, sans-serif`; x.strokeText(sub, m.x, y + 9); x.fillStyle = '#fff3cf'; x.fillText(sub, m.x, y + 9); } } // (eaten flesh chunks use these too: their own color, no XP line)
+    const sub = m.xp != null ? `+${m.xp} XP${m.chips ? `  +${m.chips} chips` : ''}` : m.sub; if (sub) { x.font = `700 ${(7.5 * pop).toFixed(1)}px system-ui, sans-serif`; x.strokeText(sub, m.x, y + 9); x.fillStyle = '#fff3cf'; x.fillText(sub, m.x, y + 9); } } // (eaten flesh chunks use these too: their own color, no XP line)
   x.restore();
 }
 function bombDeath(by = 'bomb') {
@@ -975,7 +985,9 @@ function drawShockwaves(x, src) { // src: the canvas being drawn (it already hol
       x.drawImage(grabC, 0, 0, gr.sw, gr.sh, C.x + (gr.sx - C.x) * k, C.y + (gr.sy - C.y) * k, gr.sw * k, gr.sh * k);
       x.restore();
     }
-    x.strokeStyle = `rgba(255,250,235,${(.35 * (1 - u)).toFixed(3)})`; x.lineWidth = 1.5; x.beginPath(); x.arc(w.x, w.y, rr + band * .3, 0, TAU); x.stroke();
+    const ring = rr + band * .3; x.save(); x.globalCompositeOperation = 'lighter'; x.globalAlpha = .32 * (1 - u); // the ring itself: Kenney's ring sprite, warm white, or a thin stroke before the atlas loads
+    if (!kDraw(x, 'circle_02', '#fff2dc', w.x, w.y, ring * 2.3, ring * 2.3, 0)) { x.globalAlpha = 1; x.strokeStyle = `rgba(255,250,235,${(.35 * (1 - u)).toFixed(3)})`; x.lineWidth = 1.5; x.beginPath(); x.arc(w.x, w.y, ring, 0, TAU); x.stroke(); }
+    x.restore();
   }
 }
 /* ---- at night a blast lights everything up: the whole sky for a moment, and a warm, flickering pool round it while it
@@ -1008,7 +1020,7 @@ Object.assign(Sfx, {
   siren() { // a real air raid siren far off over the town: a rotor winding up into a two-tone wail, a long hold, a slow wind down, the chopping of the rotor, and the whole sky carrying it
     if (!this.ok()) return; const c = this.ctx, t = c.currentTime, o = this.out(undefined, 1), dur = 8.6, H = 6.2; // loud and long: it has to cut through everything
     const g = c.createGain(), send = c.createGain(), f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 3200; f.Q.value = .3;
-    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(0.17, t + 1.1); g.gain.setValueAtTime(0.17, t + H); g.gain.exponentialRampToValueAtTime(.001, t + dur);
+    const pk = .17 * this.soft(.4); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(pk, t + 1.1); g.gain.setValueAtTime(pk, t + H); g.gain.exponentialRampToValueAtTime(.001, t + dur);
     send.gain.value = SETTINGS.volume * .5; f.connect(g); g.connect(o); g.connect(send); send.connect(this.airVerb());
     const chop = c.createGain(), lfo = c.createOscillator(), lg = c.createGain(); chop.gain.value = .8; lfo.type = 'sine'; lfo.frequency.setValueAtTime(5, t); lfo.frequency.linearRampToValueAtTime(14, t + 1.6); lfo.frequency.setValueAtTime(14, t + H); lfo.frequency.linearRampToValueAtTime(6, t + dur); lg.gain.value = .2; lfo.connect(lg); lg.connect(chop.gain); chop.connect(f); // the rotor chopping the air
     const pitch = (prm, k) => { prm.setValueAtTime(110 * k, t); prm.exponentialRampToValueAtTime(330 * k, t + 1.3); prm.linearRampToValueAtTime(352 * k, t + 1.9); prm.setValueAtTime(352 * k, t + H); prm.exponentialRampToValueAtTime(150 * k, t + dur); }; // winds up, wails, winds down
@@ -1017,7 +1029,7 @@ Object.assign(Sfx, {
       const os = c.createOscillator(), og = c.createGain(); os.type = ty; os.detune.value = det; pitch(os.frequency, k); vg.connect(os.detune); og.gain.value = a; os.connect(og); og.connect(chop); os.start(t); os.stop(t + dur + .1);
     }
   },
-  lockOn(x) { if (!this.ok() || !this.gate('lock', .12)) return; const t = this.ctx.currentTime, o = this.out(x, .35); this.tone(o, t, 1500, 1500, .05, 'square', .05); this.tone(o, t + .09, 1900, 1900, .06, 'square', .05); },
+  lockOn(x) { if (!this.ok() || !this.gate('lock', .12)) return; const t = this.ctx.currentTime, o = this.out(x, .35); const v = .05 * this.soft(.3); this.tone(o, t, 1500, 1500, .05, 'square', v); this.tone(o, t + .09, 1900, 1900, .06, 'square', v); },
   airVerb() { // one big outdoor echo for everything up in the sky: a long, dark, diffuse tail
     if (this.verb) return this.verb;
     const c = this.ctx, len = Math.round(c.sampleRate * 4.2), b = c.createBuffer(2, len, c.sampleRate);
@@ -1025,41 +1037,54 @@ Object.assign(Sfx, {
     const cv = c.createConvolver(), g = c.createGain(); cv.buffer = b; g.gain.value = .9; cv.connect(g); g.connect(this.bus || c.destination);
     return this.verb = cv;
   },
+  jetVoice(t, D, A, wk) { // one jet: the roar (noise, its whole spectrum moved by the Doppler), the turbine whine pitched by the same Doppler, the low rumble that carries furthest, panned, and the sky's echo. A: its curves over D seconds from t. The approach and the fly-by are one voice: the fly-by takes over these same nodes (jetTake), so there's never a seam
+    const c = this.ctx, mix = c.createGain(), pn = c.createStereoPanner(), dry = c.createGain(), send = c.createGain();
+    mix.connect(pn); pn.connect(dry); pn.connect(send); dry.connect(this.bus || c.destination); send.connect(this.airVerb());
+    const ns = c.createBufferSource(), lp = c.createBiquadFilter(), rg = c.createGain(); ns.buffer = this.noise; ns.loop = true; lp.type = 'lowpass'; lp.Q.value = .4; rg.gain.value = .55; ns.connect(lp); lp.connect(rg); rg.connect(mix);
+    const ns2 = c.createBufferSource(), rl = c.createBiquadFilter(), rgn = c.createGain(); ns2.buffer = this.noise; ns2.loop = true; rl.type = 'lowpass'; rl.frequency.value = 150; ns2.connect(rl); rl.connect(rgn); rgn.connect(pn);
+    const P = [[pn.pan, 'pan', 1], [dry.gain, 'gain', 1], [send.gain, 'wet', 1], [ns.playbackRate, 'dop', 1], [lp.frequency, 'cut', 1], [rgn.gain, 'rum', 1.1]], src = [ns, ns2];
+    for (const [ty, m, a] of [['sawtooth', 2700, .016], ['triangle', 5350, .006], ['sine', 1350, .035]]) { // the whine (kept low: it's shrill)
+      const os = c.createOscillator(), f = c.createBiquadFilter(), og = c.createGain(); os.type = ty; f.type = 'lowpass'; og.gain.value = a * wk; os.connect(f); f.connect(og); og.connect(mix); P.push([os.frequency, 'dop', m], [f.frequency, 'cut', 1]); src.push(os);
+    }
+    const v = { P, src, stop: at => { for (const n of src) try { n.stop(at); } catch (e) {} } };
+    this.jetPlay(v, A, t, D); ns.start(t, Math.random() * .5); ns2.start(t, Math.random() * .5); for (const o of src.slice(2)) o.start(t); v.stop(t + D + .1);
+    return v;
+  },
+  jetPlay(v, A, t, D) { for (const [p, k, m] of v.P) p.setValueCurveAtTime(m === 1 ? A[k] : A[k].map(x => x * m), t, D); v.A = A; v.t = t; v.D = D; },
+  jetAt(v, k, at) { const a = v.A[k], u = clamp((at - v.t) / v.D * (a.length - 1), 0, a.length - 1), i = Math.floor(u); return i + 1 < a.length ? a[i] + (a[i + 1] - a[i]) * (u - i) : a[i]; }, // where one of its curves is at a given moment
+  jetTake(v, A, now, D) { // the fly-by takes the approach's voice over from where it is right now
+    const c = this.ctx; for (const [p] of v.P) { if (p.cancelAndHoldAtTime) p.cancelAndHoldAtTime(now); else { const x = p.value; p.cancelScheduledValues(c.currentTime); p.setValueAtTime(x, c.currentTime); } }
+    this.jetPlay(v, A, now + .01, D); v.stop(now + D + .2);
+  },
+  jetCurves(N) { return { pan: new Float32Array(N), gain: new Float32Array(N), wet: new Float32Array(N), dop: new Float32Array(N), cut: new Float32Array(N), rum: new Float32Array(N) }; },
+  jetHear(A, i, px, py, Lx, Ly, vx, vy, env, vol) { // one moment of a jet at (px, py), moving (vx, vy), heard from (Lx, Ly): how loud, how bright, which side, what Doppler
+    const Hh = 520, Cs = 3400, d = Math.hypot(px - Lx, py - Ly, Hh), g = Math.min(1, Math.pow(Hh / d, 1.15)), vr = ((px - Lx) * vx + (py - Ly) * vy) / d;
+    A.dop[i] = Cs / (Cs + vr); A.gain[i] = Math.max(.0001, vol * g * env); A.wet[i] = Math.max(.0001, vol * Math.pow(g, .5) * .32 * env); // the echo dies slower than the jet itself: far off, it's mostly sky
+    A.cut[i] = clamp(9500 * Math.pow(Hh / d, .9), 160, 12000); A.pan[i] = clamp((px - Lx) / 650, -1, 1) * .85; A.rum[i] = Math.max(.0001, Math.pow(Hh / d, .7) * env);
+  },
+  jetHand(a, t0) { // the approach we've been hearing for this jet, if there is one: about the same heading, due about now
+    let best = null, bs = 1e9;
+    for (const r of this.apprs || []) { if (r.taken || t0 > r.v.t + r.v.D - .3) continue; const da = Math.abs(angDiff(r.a, a)), dt = Math.abs(r.end - t0); if (da > 1.2 || dt > 2.5) continue; const sc = da + dt * .4; if (sc < bs) { bs = sc; best = r; } }
+    return best;
+  },
   flyby(j) { // a jet passing over, heard where it really is: Doppler, distance, the air soaking up the highs, the delay of sound, and the sky's echo
-    if (!this.ok()) return; const c = this.ctx; this.flys = (this.flys || []).filter(e => e > c.currentTime); if (this.flys.length >= 3) return;
-    const t0 = c.currentTime + .03, V = j.v || 1150, Cs = 3400, Hh = 520, dur = j.over + 7.5, N = Math.ceil(dur * 20) + 1, dx = Math.cos(j.a), dy = Math.sin(j.a);
-    const Lx = snake ? snake.x : W / 2, Ly = snake ? snake.y : H / 2, at = u => [j.x + dx * (u - j.over) * V, j.y + dy * (u - j.over) * V];
-    const XF = .6, hand = (this.apprs || []).find(r => !r.taken && Math.abs(angDiff(r.a, j.a)) < .35 && Math.abs(r.end - t0) < 2.2); // the roar we've been hearing coming in: this is that jet
-    const dop = new Float32Array(N), gain = new Float32Array(N), wet = new Float32Array(N), cut = new Float32Array(N), pan = new Float32Array(N), rum = new Float32Array(N);
+    if (!this.ok()) return; const c = this.ctx; this.flys = (this.flys || []).filter(e => e > c.currentTime);
+    const t0 = c.currentTime + .03, hand = this.jetHand(j.a, t0); if (!hand && this.flys.length >= 3) return; // (the jet we've been hearing come in always gets its fly-by)
+    const V = j.v || 1150, Cs = 3400, Hh = 520, N = Math.ceil((j.over + 7.5) * 20) + 1, dur = (N - 1) / 20, dx = Math.cos(j.a), dy = Math.sin(j.a);
+    const Lx = snake ? snake.x : W / 2, Ly = snake ? snake.y : H / 2, at = u => [j.x + dx * (u - j.over) * V, j.y + dy * (u - j.over) * V], vol = SETTINGS.volume * .8 * this.soft(.4), A = this.jetCurves(N);
     for (let i = 0; i < N; i++) {
       const t = i / 20; let te = t; for (let k = 0; k < 4; k++) { const [px, py] = at(te); te = t - Math.hypot(px - Lx, py - Ly, Hh) / Cs; } // what you hear now left the jet a moment ago
-      const [px, py] = at(te), d = Math.hypot(px - Lx, py - Ly, Hh), vr = ((px - Lx) * dx + (py - Ly) * dy) * V / d;
-      const g = Math.min(1, Math.pow(Hh / d, 1.15)), fade = (hand ? Math.sin(Math.PI / 2 * Math.min(1, t / XF)) : Math.min(1, t / .6)) * Math.min(1, (dur - t) / 1.5); // taking over from the approach: an equal-power crossfade
-      dop[i] = Cs / (Cs + vr); gain[i] = Math.max(.0001, g * fade); wet[i] = Math.max(.0001, Math.pow(g, .5) * .32 * fade); // the echo dies slower than the jet itself: far off, it's mostly sky
-      cut[i] = clamp(9500 * Math.pow(Hh / d, .9), 220, 12000); pan[i] = clamp((px - Lx) / 650, -1, 1) * .85; rum[i] = Math.max(.0001, Math.pow(Hh / d, .7) * fade);
+      const [px, py] = at(te); this.jetHear(A, i, px, py, Lx, Ly, dx * V, dy * V, (hand ? 1 : Math.min(1, t / .6)) * Math.min(1, (dur - t) / 1.5), vol);
     }
-    const vol = SETTINGS.volume * .8, scaled = (a, k) => a.map(v => Math.max(.0001, v * k)), curve = (prm, arr) => prm.setValueCurveAtTime(arr, t0, dur);
-    const mix = c.createGain(), pn = c.createStereoPanner(), dry = c.createGain(), send = c.createGain();
-    mix.connect(pn); pn.connect(dry); pn.connect(send); dry.connect(this.bus || c.destination); send.connect(this.airVerb());
-    curve(pn.pan, pan); curve(dry.gain, scaled(gain, vol)); curve(send.gain, scaled(wet, vol));
-    const ns = c.createBufferSource(), lp = c.createBiquadFilter(), rg = c.createGain(); ns.buffer = this.noise; ns.loop = true; curve(ns.playbackRate, dop); // the roar: noise, its whole spectrum moved by the Doppler
-    lp.type = 'lowpass'; lp.Q.value = .4; curve(lp.frequency, cut); rg.gain.value = .55; ns.connect(lp); lp.connect(rg); rg.connect(mix);
-    for (const [ty, m, a] of [['sawtooth', 2700, .016], ['triangle', 5350, .006], ['sine', 1350, .035]]) { // the turbine whine, pitched by the same Doppler (kept low: it's shrill)
-      const os = c.createOscillator(), f = c.createBiquadFilter(), og = c.createGain(); os.type = ty; curve(os.frequency, scaled(dop, m)); f.type = 'lowpass'; curve(f.frequency, cut); og.gain.value = a;
-      os.connect(f); f.connect(og); og.connect(mix); os.start(t0); os.stop(t0 + dur + .1);
-    }
-    const ns2 = c.createBufferSource(), rl = c.createBiquadFilter(), rgn = c.createGain(); ns2.buffer = this.noise; ns2.loop = true; rl.type = 'lowpass'; rl.frequency.value = 150; curve(rgn.gain, scaled(rum, 1.1)); // the low rumble carries furthest
-    ns2.connect(rl); rl.connect(rgn); rgn.connect(pn);
-    ns.start(t0, Math.random() * .5); ns2.start(t0, Math.random() * .5); ns.stop(t0 + dur + .1); ns2.stop(t0 + dur + .1);
+    if (hand) { // it carries straight on from the approach: every curve starts exactly where the approach is and eases onto the fly-by's own over a second and a half, and nothing gets quieter or duller on the way in, so you hear one jet the whole way
+      hand.taken = true; const XF = 1.5; let pk = 0; for (let i = 1; i < N; i++) if (A.gain[i] > A.gain[pk]) pk = i;
+      for (const k of ['pan', 'gain', 'wet', 'dop', 'cut', 'rum']) {
+        const a = A[k], a0 = this.jetAt(hand.v, k, t0 + .01), up = k !== 'pan' && k !== 'dop';
+        for (let i = 0; i < N; i++) { const u = Math.min(1, i / 20 / XF), e = u * u * (3 - 2 * u); a[i] = a0 + (a[i] - a0) * e; if (up && i && i <= pk && a[i] < a[i - 1]) a[i] = a[i - 1]; } // (until it's overhead it only ever grows)
+      }
+      this.jetTake(hand.v, A, t0, dur);
+    } else this.jetVoice(t0, dur, A, this.soft(.1));
     this.flys.push(t0 + dur);
-    if (hand) { // the approach melts into the fly-by: it slides to the fly-by's own pitch, brightness, side and loudness while it crossfades out, so you hear one jet the whole way
-      hand.taken = true; const now = t0, hold = prm => { if (prm.cancelAndHoldAtTime) prm.cancelAndHoldAtTime(now); else { prm.cancelScheduledValues(now); prm.setValueAtTime(prm.value, now); } }, set = (prm, v, tc = .35) => { hold(prm); prm.setTargetAtTime(v, now + .005, tc); };
-      const g0 = Math.min(1, Math.pow(Hh / Math.hypot(at(0)[0] - Lx, at(0)[1] - Ly, Hh), 1.15)), match = vol * g0 * (.55 + 1.1 * Math.pow(g0, .6)) / 2.4; // what the fly-by starts at, in the approach's own mix
-      set(hand.pn.pan, pan[0]); set(hand.lp.frequency, cut[0]); set(hand.ns.playbackRate, dop[0]); set(hand.os.frequency, 2700 * dop[0]); set(hand.of.frequency, cut[0]);
-      const cur = Math.max(.0001, hand.mix.gain.value), n = 40, xf = new Float32Array(n);
-      for (let i = 0; i < n; i++) { const u = i / (n - 1); xf[i] = Math.max(.0001, (cur + (match - cur) * Math.min(1, u * 2.5)) * Math.cos(Math.PI / 2 * u)); }
-      hold(hand.mix.gain); hand.mix.gain.setValueCurveAtTime(xf, now + .01, XF); hand.stop(now + XF + .3);
-    }
   },
   release(x) { // the bomb coming off the rack, high up: a muffled metallic clunk, and the sky carries it
     if (!this.ok()) return; const c = this.ctx, t = c.currentTime, o = this.out(x, .45), g = c.createGain(); g.gain.value = SETTINGS.volume * .3; g.connect(this.airVerb());
@@ -1067,14 +1092,14 @@ Object.assign(Sfx, {
   },
   whistle(x, dur) { // the bomb falling: a shriek dropping in pitch as it closes in, air tearing past it, louder all the way down
     if (!this.ok()) return; const c = this.ctx, t = c.currentTime, o = this.out(x, .5);
-    for (const [f0, f1, a] of [[2600, 700, .07], [3900, 1050, .025]]) {
+    for (const [f0, f1, a0] of [[2600, 700, .07], [3900, 1050, .025]]) { const a = a0 * this.soft(.2);
       const os = c.createOscillator(), g = c.createGain(), lfo = c.createOscillator(), lg = c.createGain(); os.type = 'sine';
       os.frequency.setValueAtTime(f0, t); os.frequency.exponentialRampToValueAtTime(f1, t + dur); lfo.frequency.value = 23; lg.gain.value = f0 * .012; lfo.connect(lg); lg.connect(os.frequency); // a flutter off the fins
       g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(a, t + dur * .85); g.gain.exponentialRampToValueAtTime(.001, t + dur + .02);
       os.connect(g); g.connect(o); os.start(t); lfo.start(t); os.stop(t + dur + .05); lfo.stop(t + dur + .05);
     }
     const src = c.createBufferSource(), bp = c.createBiquadFilter(), rg = c.createGain(); src.buffer = this.noise; bp.type = 'bandpass'; bp.Q.value = 1.6; // the air rushing past
-    bp.frequency.setValueAtTime(3200, t); bp.frequency.exponentialRampToValueAtTime(900, t + dur); rg.gain.setValueAtTime(.0001, t); rg.gain.exponentialRampToValueAtTime(.22, t + dur); rg.gain.exponentialRampToValueAtTime(.001, t + dur + .03);
+    bp.frequency.setValueAtTime(3200, t); bp.frequency.exponentialRampToValueAtTime(900, t + dur); rg.gain.setValueAtTime(.0001, t); rg.gain.exponentialRampToValueAtTime(.22 * this.soft(.45), t + dur); rg.gain.exponentialRampToValueAtTime(.001, t + dur + .03);
     src.connect(bp); bp.connect(rg); rg.connect(o); src.start(t, Math.random() * .4); src.stop(t + dur + .05);
   },
   cookOff(x) { if (!this.ok() || !this.gate('cook', .07)) return; const t = this.ctx.currentTime, o = this.out(x, .6); this.tone(o, t, 140, 45, .25, 'sine', .45); this.burst(o, t, .18, 1100, .7, .45, 'lowpass'); this.burst(o, t, .04, 3800, 1.2, .25); },
@@ -1091,12 +1116,12 @@ Object.assign(Sfx, {
   tinnitus(k = 1) { // your ears ring: a high whine that bypasses everything (it's inside your head), while the world goes muffled and slowly comes back
     if (!this.ok()) return; const c = this.ctx, t = c.currentTime; if ((this.ringUntil || 0) > t + .4) return; this.ringUntil = t + 3.2 + 1.5 * k; // already ringing: another close one doesn't start it over
     const g = c.createGain(); g.connect(this.head || c.destination);
-    const v = SETTINGS.volume * .05 * k; g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(.0002, v), t + .3); g.gain.setValueAtTime(Math.max(.0002, v), t + 1.2); g.gain.exponentialRampToValueAtTime(.0001, t + 3.2 + 1.5 * k);
+    const v = SETTINGS.volume * .05 * k * this.soft(.15); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(.0002, v), t + .3); g.gain.setValueAtTime(Math.max(.0002, v), t + 1.2); g.gain.exponentialRampToValueAtTime(.0001, t + 3.2 + 1.5 * k);
     for (const [f, a] of [[3900, 1], [3912, .6]]) { const os = c.createOscillator(), og = c.createGain(); os.type = 'sine'; os.frequency.setValueAtTime(f, t); os.frequency.linearRampToValueAtTime(f - 160, t + 4.5); og.gain.value = a; os.connect(og); og.connect(g); os.start(t); os.stop(t + 4.8 + 1.5 * k); } // two close tones: it wavers
   },
   strafeWarn(x) { // a fast, urgent double warble: something coming in low
     if (!this.ok()) return; const t = this.ctx.currentTime, o = this.out(x, .35);
-    for (let i = 0; i < 4; i++) this.tone(o, t + .12 + i * .13, i % 2 ? 1250 : 1650, i % 2 ? 1250 : 1650, .1, 'square', .045);
+    for (let i = 0; i < 4; i++) this.tone(o, t + .12 + i * .13, i % 2 ? 1250 : 1650, i % 2 ? 1250 : 1650, .1, 'square', .045 * this.soft(.3));
   },
   gun(x, dur, a) { // the cannon: so many rounds a second they run together into one tearing BRRRT. The rounds land before its sound gets to you; then it echoes away into the distance the way the jet went
     if (!this.ok()) return; const c = this.ctx, t = c.currentTime, o = this.out(x, 1), D = .3, d = Math.min(1.4, dur + .1);
@@ -1117,24 +1142,14 @@ Object.assign(Sfx, {
     }
     eg.connect(pn); pn.connect(this.bus || c.destination);
   },
-  jetFar(x, y, a, pre) { // a jet still miles out, on its way in: worked out like the fly-by (where the jet really is, so how loud, how bright, which side, what Doppler), so it starts faint and only ever grows until the fly-by takes it over
-    if (!this.ok() || !(pre > 0)) return; const c = this.ctx, t = c.currentTime, Lx = snake ? snake.x : W / 2, Ly = snake ? snake.y : H / 2;
-    const V = jetV(), ca = Math.cos(a), sa = Math.sin(a), Hh = 520, Cs = 3400, OV = 1.6, D = pre + 2.4, N = Math.ceil(D * 20) + 1; // OV: about how long after the marker goes down the jet is overhead
-    const near = clamp(1.15 - Math.hypot(x - Lx, y - Ly) / 1200, .3, 1), vol = SETTINGS.volume * .8 * near; // someone else's jet, across the map: quieter
-    const gain = new Float32Array(N), cut = new Float32Array(N), pan = new Float32Array(N), dop = new Float32Array(N), whine = new Float32Array(N);
-    for (let i = 0; i < N; i++) { const tau = i / 20, back = V * (pre + OV - tau), px = x - ca * back, py = y - sa * back, d = Math.hypot(px - Lx, py - Ly, Hh), g = Math.min(1, Math.pow(Hh / d, 1.15)), vr = ((px - Lx) * ca + (py - Ly) * sa) * V / d;
-      gain[i] = Math.max(.0001, vol * g * (.55 + 1.1 * Math.pow(g, .6)) / 2.4 * Math.min(1, tau / 1.2) * Math.min(1, (D - tau) / .7) ** 2); // (the tail end only matters if no fly-by takes over: called off, it trails away) // the fly-by's own loudness for that distance (in this mix), eased in from silence
-      cut[i] = clamp(9500 * Math.pow(Hh / d, .9), 160, 12000); pan[i] = clamp((px - Lx) / 650, -1, 1) * .85; dop[i] = Cs / (Cs + vr); whine[i] = 2700 * dop[i]; }
-    const mix = c.createGain(), pn = c.createStereoPanner(), send = c.createGain(); mix.gain.setValueCurveAtTime(gain, t, D); pn.pan.setValueCurveAtTime(pan, t, D);
-    send.gain.value = SETTINGS.volume * near * .3; mix.connect(pn); pn.connect(this.bus || c.destination); pn.connect(send); send.connect(this.airVerb());
-    const ns = c.createBufferSource(), lp = c.createBiquadFilter(); ns.buffer = this.noise; ns.loop = true; ns.playbackRate.setValueCurveAtTime(dop, t, D); // the roar
-    lp.type = 'lowpass'; lp.Q.value = .4; lp.frequency.setValueCurveAtTime(cut, t, D); ns.connect(lp); lp.connect(mix);
-    const rb = c.createBufferSource(), rl = c.createBiquadFilter(), rg = c.createGain(); rb.buffer = this.noise; rb.loop = true; rl.type = 'lowpass'; rl.frequency.value = 120; rg.gain.value = 1.4; rb.connect(rl); rl.connect(rg); rg.connect(mix); // the rumble that carries furthest
-    const os = c.createOscillator(), of = c.createBiquadFilter(), og = c.createGain(); os.type = 'sawtooth'; os.frequency.setValueCurveAtTime(whine, t, D); of.type = 'lowpass'; of.frequency.setValueCurveAtTime(cut, t, D); og.gain.value = .02; // the turbine whine, rising with the Doppler
-    os.connect(of); of.connect(og); og.connect(mix);
-    ns.start(t, Math.random() * .5); rb.start(t, Math.random() * .5); os.start(t);
-    const rec = { a, end: t + pre, mix, pn, lp, ns, os, of, taken: false, stop: at => { for (const n of [ns, rb, os]) try { n.stop(at); } catch (e) {} } };
-    rec.stop(t + D + .5); this.apprs = (this.apprs || []).filter(r => r.end > t - 3); this.apprs.push(rec);
+  jetFar(x, y, a, pre, ov = 1.8) { // a jet still miles out, on its way in, overhead at (x, y) ov seconds after the marker goes down: worked out like the fly-by (where the jet really is, so how loud, how bright, which side, what Doppler), so it starts faint and only ever grows; the fly-by then takes over this same voice
+    if (!this.ok() || !(pre > 0)) return; const c = this.ctx, t = c.currentTime + .02, Lx = snake ? snake.x : W / 2, Ly = snake ? snake.y : H / 2;
+    const V = jetV(), ca = Math.cos(a), sa = Math.sin(a), Hh = 520, Cs = 3400, N = Math.ceil((pre + 3) * 20) + 1, D = (N - 1) / 20, vol = SETTINGS.volume * .8 * this.soft(.4), A = this.jetCurves(N);
+    const pos = u => { const back = V * (pre + ov - u); return [x - ca * back, y - sa * back]; };
+    for (let i = 0; i < N; i++) { const tau = i / 20; let te = tau; for (let k = 0; k < 4; k++) { const [px, py] = pos(te); te = tau - Math.hypot(px - Lx, py - Ly, Hh) / Cs; }
+      const [px, py] = pos(te); this.jetHear(A, i, px, py, Lx, Ly, ca * V, sa * V, Math.sin(Math.PI / 2 * Math.min(1, tau / 1.4)) * Math.min(1, (D - tau) / 1.6) ** 2, vol); } // eased in from silence; the tail end only matters if no fly-by takes over (called off: it trails away)
+    const v = this.jetVoice(t, D, A, this.soft(.1));
+    this.apprs = (this.apprs || []).filter(r => !r.taken && r.v.t + r.v.D > t); this.apprs.push({ a, end: t + pre, v, taken: false });
   },
   gore(x, big) { // a wet burst: a body coming apart
     if (!this.ok() || !this.gate(big ? 'goreB' : 'gore', big ? .1 : .05)) return; const t = this.ctx.currentTime, o = this.out(x, big ? 1 : .55);

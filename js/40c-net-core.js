@@ -174,6 +174,7 @@ const netRekey = (a, b) => { if (typeof netSyncRekey === 'function') netSyncReke
 function netHostMsg(p, L, m) {
   switch (m.k) {
     case 'ready': p.ready = !!m.v; netLobbyChanged(); break;
+    case 'rgo': if (p.ready && !NETM.run && netAllReady()) setTimeout(netGo, 180); break; // a guest readied up last with Space: everyone's in, so it starts
     case 'team': if (NETM.phase !== 'run' && NETM.cfg && NETM.cfg.mode === 'teams') { p.team = Math.max(0, Math.min(NETM.cfg.teams - 1, m.v | 0)); netLobbyChanged(); } break;
     case 'leave': netHostLost(p.id, 'left'); break;
     case 'lvl': p.lvl = m.v | 0; netLobbyChanged(); break;

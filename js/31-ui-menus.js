@@ -544,7 +544,7 @@ const SETTING_TABS = {
   Audio: { icon: 'audio', lead: 'Everything you hear.', rows: [
     ['head', 'Volume'],
     ['slider', 'volume', 'Master volume', 'How loud everything is.', 0, 1, .05],
-    ['toggle', 'softHigh', 'Soften high sounds', 'Tones down shrill, high-pitched sounds: jet whine, ear ringing, alarms.'],
+    ['toggle', 'softHigh', 'Soften high sounds', 'Turns shrill, high-pitched sounds way down: jets, falling bombs, ear ringing, beeps and alarms.'],
     ['head', 'Interface'],
     ['toggle', 'uiSounds', 'Menu sounds', 'Click and hover sounds in menus.']] },
   Controls: { icon: 'controls', lead: 'Click a key to change it, then press the new one. Esc cancels, Backspace puts the default back. On a phone or tablet, drag anywhere on the board to steer.', binds: true, keys: [

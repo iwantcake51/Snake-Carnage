@@ -149,6 +149,7 @@ function netHostEvents(p, list) { // what a guest asks for or reports
       else if (e.t === 'brk') { const o = NS.obsById.get(e.o); if (o && obstacles.includes(o)) { netBreak(o, e.w, e.a, false); netEmit({ t: 'brk', o: e.o, w: e.w, a: e.a, by: p.id }); } }
       else if (e.t === 'abil') netHostAbility(p, e);
       else if (e.t === 'tcut') { tcutApply(e); netEmit({ ...e, by: p.id }); }
+      else if (e.t === 'chl') { chainLenApply({ ...e, by: p.id }); netEmit({ ...e, by: p.id }); } // Enchained: a guest's length changed; here and on to the others
       else if (e.t === 'brn') { brnApply(e); netEmit({ ...e, by: p.id }); } // a guest's tail burning off: show it here and pass it on // a guest's tail was shot off: show it here and pass it on
       else if (e.t === 'fboom') { detonate({ x: e.x, y: e.y, r: e.r || 60 }); netEmit({ ...e, by: p.id }); } // a guest's Short fuse went off: the blast here (the crowd), and on everyone's screen
       else if (e.t === 'beat') { tailBitGone(e.id); netEmit({ t: 'beat', id: e.id, by: p.id }); } // a guest ate one of the pieces
@@ -197,6 +198,7 @@ function netSyncPlayerGone(p, why) { if (!NETM.run) return; if (why === 'left' |
    left to bring them back, or when the round's time runs out. */
 function netPlayerDown(pid, x, y) {
   if (!NETM.run || !NETM.host || NS.down.get(pid)) return;
+  chainDown(pid); // Enchained: the host's own snake goes with them (each guest does the same on its own screen)
   const p = netPlayer(pid); if (p) p.deaths = (p.deaths || 0) + 1;
   const k = netPool(pid), back = !MOD.oneLife && (NS.pools[k] || 0) > 0; if (back && NS.pools[k] < 999) NS.pools[k]--; /* 999: unlimited */ // One life: nobody comes back
   const sp = back ? netSpawnPoint() : null; // where they'll come back: picked now, so they can see it while they wait
@@ -352,7 +354,7 @@ function netApply(e, local) {
     case 'brn': if (e.by !== NETM.me) brnApply(e); break; // a piece of someone's tail burned off // the host called in a bomb: same spot, and it lands when it does on the host's screen
     case 'airw': airWarn(); break;
     case 'airs': airStrafe(e.x, e.y, e.a, Math.max(.15, e.w - netLag(e.h))); break; // ...or a strafing run
-    case 'airj': airApproach(e.x, e.y, e.a, e.p); break;
+    case 'airj': airApproach(e.x, e.y, e.a, e.p, e.o); break;
     case 'airx': if (e.pid === NETM.me) airCalledOffNote(); break; // Bad Intel: the strike meant for you was called off // a jet on its way in, still miles off
     case 'evt': evt = e.v ? { ...e.v } : null; if (evt) { evt.shown = false; Sfx.chime(); showEvent(); } break;
     case 'tod': if (Math.abs(angDiff(tod / 24 * TAU, e.v / 24 * TAU)) > .01) tod = e.v; break;
@@ -360,6 +362,7 @@ function netApply(e, local) {
     case 'clk': NS.clock = e.v; break;
     case 'team': if (NS.cfg) (NS.cfg.teamOf = NS.cfg.teamOf || {})[e.pid] = e.v; break;
     case 'down': netDownApply(e); break;
+    case 'chl': if (e.by !== NETM.me) chainLenApply(e); break; // Enchained: a teammate's length changed
     case 'up': netUpApply(e); break;
     case 'left': NS.rs.delete(e.pid); break;
   }
@@ -439,7 +442,27 @@ function netDeathCam(down) { // dying: the camera eases out to the whole map; ba
   if (down) { if (NS.zoomBack === undefined) NS.zoomBack = UCAM.tz; UCAM.rate = 1.6; UCAM.tz = 1 / baseZoom(); UCAM.tpx = UCAM.tpy = 0; }
   else { UCAM.rate = 3; UCAM.tz = UCAM.keep ?? NS.zoomBack ?? UCAM.tz; NS.zoomBack = undefined; UCAM.tpx = UCAM.tpy = 0; } // back in: the zoom you last chose yourself
 }
+/* ---- Enchained (MOD.enchained): teammates go down together and share one length ---- */
+const netChained = pid => MOD.enchained && NETM.run && pid !== NETM.me && NS.cfg && NS.cfg.mode !== 'ffa' && (NS.cfg.mode !== 'teams' || netTeamOf(pid) === netTeamOf(NETM.me));
+function chainDown(pid) { // a teammate went down: so do you, a beat later
+  if (!netChained(pid)) return;
+  setTimeout(() => { const s = snake; if (!NETM.run || !s || !s.alive || s.netHidden) return; run.deathBy = 'chain'; airHurt && airHurt(.6); die(); }, 220);
+}
+function chainLenTick() { // every frame: any change in your length (a meal, a tail blown or burned off) goes to your chained teammates
+  const s = snake; if (!MOD.enchained || !NETM.run || !s) return;
+  if (!s.alive || s.netHidden || s.lenSeen === undefined) { s.lenSeen = s.alive && !s.netHidden ? s.len : undefined; return; } // (a fresh body starts its own count: respawning isn't a change to share)
+  const d = s.len - s.lenSeen; if (!d) return; s.lenSeen = s.len;
+  const m = { t: 'chl', d, by: NETM.me }; if (NETM.host) netEmit(m); else netSend(m);
+}
+function chainLenApply(e) { // a chained teammate grew or shrank: so do you
+  const s = snake; if (!netChained(e.by) || !s || !s.alive || s.netHidden) return;
+  const n = Math.max(3, Math.round(s.len + e.d)); if (n === s.len) return;
+  if (n > s.len) { while (s.stains.length < n) s.stains.push([]); }
+  else { s.lenV = Math.min(s.lenV ?? n, n); if (s.stains.length > n) s.stains.length = n; }
+  s.len = s.lenSeen = n; if (n < s.segs.length) computeSegs(s);
+}
 function netDownApply(e) {
+  if (!NS.down.has(e.pid)) chainDown(e.pid); // (only the first word of it: the down list is sent again to anyone joining)
   if (!NS.down.has(e.pid)) NS.down.set(e.pid, { out: !!e.out }); // the host's own entry keeps its respawn timer
   if (e.pid === NETM.me) NS.spawnAt = e.sx !== undefined ? { x: e.sx, y: e.sy, a: e.sa, segs: null } : null; // where you'll come back (drawSpawnGhost)
   const p = netPlayer(e.pid);
@@ -451,7 +474,7 @@ function netUpApply(e) {
   NS.down.delete(e.pid);
   if (e.pid === NETM.me) { // back in: fresh body, a moment of grace
     NS.spawnAt = null; const keep = snake ? snake.started : true; snake = newSnake({ x: e.x, y: e.y, a: e.a }); snake.started = keep; snake.graceT = 1.5; NS.deadAt = 0; netDeathCam(false); netDownBanner && netDownBanner(null);
-    Sfx.whoosh && Sfx.whoosh(); resetAbilities(); NS.burst = false;
+    Sfx.whoosh && Sfx.whoosh(); resetAbilities(); NS.burst = false; typeof netBackLives === 'function' && netBackLives(); // and how many lives are left
   } else { const rs = NS.rs.get(e.pid); if (rs) rs.stains = rs.stains.map(() => []); } // a fresh body: the old blood stays where it fell
   netHud && netHud();
 }
@@ -476,6 +499,7 @@ function netBroke(o, what, ang) { // my snake broke something: tell the others
 /* ---- the frame: called from update() every frame, whatever the state ---- */
 function netTick(dt) {
   if (!NETM.on) return;
+  chainLenTick();
   if (NETM.host) netHostTick(dt); else netClientTick(dt);
 }
 function netSyncReset(wasRun, keepSession) {

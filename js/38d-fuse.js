@@ -84,14 +84,14 @@ drawCorpses = function (x) { _fuseDrawCorpses(x); drawFuseBomb(x); };
 Object.assign(Sfx, {
   fuseArm() { if (!this.ok()) return; const t = this.ctx.currentTime, o = this.out(undefined, .8);
     this.burst(o, t, .03, 2400, 3, .5); this.burst(o, t + .07, .035, 1800, 3, .5); this.tone(o, t + .02, 120, 90, .12, 'square', .12); // clack-clack: strapped on
-    for (let i = 0; i < 3; i++) this.tone(o, t + .16 + i * .07, 1400 + i * 500, 1400 + i * 500, .05, 'square', .06); }, // and armed: three rising beeps
+    for (let i = 0; i < 3; i++) this.tone(o, t + .16 + i * .07, 1400 + i * 500, 1400 + i * 500, .05, 'square', .06 * this.soft(.3)); }, // and armed: three rising beeps
   fuseTick(u) { if (!this.ok()) return; const t = this.ctx.currentTime, o = this.out(undefined, .55 + .45 * u);
     this.burst(o, t, .014, 4200, 4, .5); this.tone(o, t, 900, 600, .03, 'square', .07); // the mechanism: a hard click
-    this.tone(o, t + .005, 1700 + 1500 * u, 1700 + 1500 * u, .045, 'square', .04 + .05 * u); // the beep climbs as it gets close
+    this.tone(o, t + .005, 1700 + 1500 * u, 1700 + 1500 * u, .045, 'square', (.04 + .05 * u) * this.soft(.3)); // the beep climbs as it gets close
     if (u > .7) this.tone(o, t, 60, 40, .12, 'sine', .25 * (u - .5)); }, // and a thump you feel in your chest
-  fuseReset() { if (!this.ok() || !this.gate('fzr', .2)) return; const t = this.ctx.currentTime, o = this.out(undefined, .5); this.tone(o, t, 2400, 1500, .07, 'triangle', .07); this.tone(o, t + .07, 1500, 1000, .08, 'triangle', .05); },
+  fuseReset() { if (!this.ok() || !this.gate('fzr', .2)) return; const t = this.ctx.currentTime, o = this.out(undefined, .5); this.tone(o, t, 2400, 1500, .07, 'triangle', .07 * this.soft(.3)); this.tone(o, t + .07, 1500, 1000, .08, 'triangle', .05 * this.soft(.3)); },
   fuseFlat(d) { if (!this.ok()) return; const t = this.ctx.currentTime, o = this.out(undefined, 1), L = Math.max(.15, d); // one long tone right up to the bang
-    this.tone(o, t, 3100, 3100, L + .05, 'square', .06); this.tone(o, t, 3115, 3115, L + .05, 'sine', .07); const f = this.burst(o, t, L, 3000, 1, .25); f.frequency.setValueAtTime(2000, t); f.frequency.exponentialRampToValueAtTime(7000, t + L); },
+    const q = this.soft(.25); this.tone(o, t, 3100, 3100, L + .05, 'square', .06 * q); this.tone(o, t, 3115, 3115, L + .05, 'sine', .07 * q); const f = this.burst(o, t, L, 3000, 1, .25 * this.soft(.45)); f.frequency.setValueAtTime(2000, t); f.frequency.exponentialRampToValueAtTime(7000, t + L); },
   fuseSizzle(v) { // the fuse burning: a hissing crackle, louder and brighter as it gets close
     if (!this.ctx || (!this.fz && !(v > 0))) return;
     if (!this.fz) { const c = this.ctx, src = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain(), am = c.createGain(), lfo = c.createOscillator(), lg = c.createGain();

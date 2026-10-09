@@ -80,7 +80,7 @@ function updateCreature(c, dt) {
   if (blastStunned) {
     c.stuck = 0; c.goalP = 0; // being stunned is not a failed navigation attempt
   } else if (c.state === 'idle') {
-    if (c.timer <= 0) { c.state = 'wander'; c.timer = rand(2, 5); c.wa = pickWander(c); }
+    if (c.timer <= 0 || (c.leashed && c.owner && c.owner.state === 'wander')) { c.state = 'wander'; c.timer = rand(2, 5); c.wa = pickWander(c); }
     else if (!c.convo && solid(c.x + Math.cos(c.a) * 16, c.y + Math.sin(c.a) * 16)) { const a = openDir(c); c.a += clamp(angDiff(c.a, a), -dt * 3, dt * 3); } // nobody stands with their nose to a wall
   } else if (c.state === 'wander') {
     spd = d.walk * (c.alert > .3 ? 1.7 : 1) * (c.dance ? .22 : 1) * (MOD.blind && d.human ? .72 : 1); // cautious people walk briskly; dancers barely move; the blind feel their way
@@ -89,7 +89,7 @@ function updateCreature(c, dt) {
       else { c.timer = rand(1.5, 4); c.wa = pickWander(c); }
     }
     if (c.path && c.alert < .3) { c.wa = walkPath(c); c.timer = Math.max(c.timer, 1); } // strolling the path
-    if (c.owner && c.owner.alive && c.owner.state !== 'panic' && c.alert < .3) { const h = heelDog(c); c.wa = h.a; spd *= h.k; c.timer = Math.max(c.timer, 1); if (c.state === 'idle') c.state = 'wander'; }
+    if (c.owner && c.owner.alive && c.owner.state !== 'panic' && c.alert < .3 && (c.leashed || Math.hypot(c.owner.x - c.x, c.owner.y - c.y) < 240)) { const h = heelDog(c, dt); c.wa = h.a; spd = c.def.walk * h.k; c.timer = Math.max(c.timer, 1); if (c.state === 'idle') c.state = 'wander'; } // on its lead: at its owner's side, at their pace (a loose one nearby comes back to be clipped on)
     const z = c.zone;
     if (z && (c.x < z.x || c.x > z.x + z.w || c.y < z.y || c.y > z.y + z.h)) c.wa = Math.atan2(z.y + z.h / 2 - c.y, z.x + z.w / 2 - c.x);
     if (c.detour) { if ((c.detour.t -= dt) <= 0) c.detour = null; else c.wa = c.detour.a; } // walking away from whatever it got stuck on
@@ -116,7 +116,7 @@ function updateCreature(c, dt) {
   if (c.adren > 0) c.adren -= dt;
   c.runFor = c.state === 'panic' ? (c.runFor || 0) + dt : 0; // how long they've been running flat out (winded voices)
   if (c.pukeT > 0) spd *= c.pukeRun ? .7 : 0; // bent double, or stumbling on
-  spd *= SETTINGS.creatureSpeed * (MOD.fastHumans ? 1.3 : MOD.slowCrowd ? .75 : 1) * (c.spdK || 1) * (c.adren > 0 ? 1.45 : 1) * (c.slowT > T ? .5 : 1); // a Hiss II victim staggers // some people are just faster; fear gives a short burst
+  spd *= SETTINGS.creatureSpeed * (MOD.fastHumans ? 1.3 : MOD.slowCrowd ? .75 : 1) * (c.spdK || 1) * (c.adren > 0 ? 1.45 : 1) * (c.slowT > T ? .5 : 1) * (c.gasT > T ? .45 : 1); // a Hiss II victim staggers // some people are just faster; fear gives a short burst
   // smooth the desired heading so it can't flip back and forth (no spinning in place)
   c.wantA = c.wantA === undefined ? want : c.wantA + angDiff(c.wantA, want) * Math.min(1, dt * 7);
   let moved = 0, mv = spd;

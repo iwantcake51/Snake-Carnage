@@ -11,11 +11,11 @@ This folder is a source library, not part of the game. Netlify deletes it before
 - **Audio** goes into `sounds/`, listed in `sounds/manifest.json`.
 
 In use now:
-- Particle Pack: smoke, fire, flame, scorch, dirt, muzzle flash, star and flare.
+- Particle Pack: smoke, fire, flame, scorch, dirt, muzzle flash, stars, flare, rings, sparks and a swipe.
 - Foliage Sprites: the leaves, the low plants seen from above and the scattered petals.
 - Light Masks: a flashlight cone, a lamp's pool, window panes and water caustics.
 - Game Icons: multiplayer, star, basket, trophy, gear, wrench, lock and checkmark.
-- Board Game Icons: the heart and the crown.
+- Board Game Icons: the heart, the crown, the broken heart and the skull.
 
 ## Adding packs on GitHub
 

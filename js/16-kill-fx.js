@@ -20,7 +20,7 @@ function deathFxTick(dt) {
   const gone = NETM.run ? !!NS.deadAt : (state === 'dead' || state === 'play') && !!snake && !snake.alive;
   stage.classList.toggle('snakedown', gone); // (your skills step aside while you're down)
   if (!gone) dfxSince = 0; else if (!dfxSince) dfxSince = performance.now();
-  const dead = gone && performance.now() - dfxSince < 10000; // ten seconds down (spectating with no lives left, say): the red and grey ease off and you just watch
+  const dead = gone; // the red and grey stay for as long as you're down, however long you sit on the death screen; they only lift when you're back
   const down = dead && !(typeof corpses !== 'undefined' && corpses.length && snake && snake.netHidden), k0 = dfxK, t0 = dtK; // blown up: the color stays while you go off
   dfxK += ((down ? 1 : 0) - dfxK) * (1 - Math.exp(-dt * (down ? 7 : 3.2)));
   if (dfxK < .004 && !down) dfxK = 0;

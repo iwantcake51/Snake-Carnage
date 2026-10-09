@@ -104,6 +104,7 @@ function updateChunks(dt) {
     if (c.z <= 0) { c.z = 0; if (c.vz < -80) { c.vz = -c.vz * .3; c.vx *= .55; c.vy *= .55; c.vr *= .5; if (c.sz > 8 && Math.random() < .5) Sfx.splat && Sfx.splat(c.x, true); } else { const f = Math.exp(-dt * 9); c.vx *= f; c.vy *= f; c.vr *= f; c.vz = 0; if (c.vx * c.vx + c.vy * c.vy < 25) { settleChunk(c); chunks.splice(i, 1); } } } // lands, bounces, skids to a stop
   }
   for (let i = impacts.length - 1; i >= 0; i--) if ((impacts[i].t += dt) > impacts[i].dur) impacts.splice(i, 1);
+  for (let i = kbits.length - 1; i >= 0; i--) { const b = kbits[i]; if ((b.t += dt) > b.life) { kbits.splice(i, 1); continue; } if (b.t > 0) { b.x += b.vx * dt; b.y += b.vy * dt; const f = Math.exp(-dt * 3); b.vx *= f; b.vy *= f; b.rot += (b.vr || 0) * dt; } }
   updateLeafFall(dt);
 }
 function drawChunks(x) {
@@ -119,13 +120,35 @@ function impactFx(cx, cy, size, ang, hard) { // the hit: a white flash, a shock 
   impacts.push({ x: cx, y: cy, r: clamp(size * .55, 10, 40) * (hard ? 1.4 : 1), t: 0, dur: hard ? .5 : .36, a: ang, hard, lines: Array.from({ length: hard ? 14 : 9 }, () => [ang + gauss() * (hard ? 1.6 : 1), rand(.6, 1.3)]) });
   if (hard && !SETTINGS.reduceFlash) hitStop = Math.max(hitStop, .045); // a hard one: the world catches for a moment
 }
+/* Kenney's particle sprites on top of a smash (smashLook): puffs of the thing's own dust, the flare of the hit, sparks off
+   hard things, a swipe through wood and soft things, glints off glass. Every one has a plain fallback: before the atlas
+   loads they're simply not drawn, and the procedural debris and dust carry the smash on their own. */
+let kbits = [];
+function smashSprites(o, fx, ang, cx, cy, size, hard) {
+  if (!KSPR.ok) return; const fk = FX_K(), dc = fx && fx.dustC ? fx.dustC : hard ? '#a49a90' : mixColor(o.color || '#888888', '#a8a096', .55);
+  const glass = (fx && fx.preset === 'glass') || o.kind === 'glass' || o.kind === 'window', metal = (fx && (fx.sound === 'metal' || fx.sound === 'zap')) || ['car', 'pump', 'bin', 'lamp', 'sign'].includes(o.kind);
+  const add = (n, b) => kbits.push({ n, x: cx, y: cy, vx: 0, vy: 0, rot: rand(0, TAU), vr: 0, t: 0, a: 1, add: false, ...b });
+  for (let i = 0; i < Math.round((hard ? 5 : 3) * fk); i++) { const a = ang + rand(-1.2, 1.2), sp = rand(20, 70) * clamp(size / 30, .7, 1.8); add(pick(['dirt_01', 'dirt_02', 'dirt_03']), { x: cx + rand(-size, size) * .25, y: cy + rand(-size, size) * .25, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r0: size * rand(.35, .55), r1: size * rand(.95, 1.4), vr: rand(-.8, .8), life: rand(.8, 1.3), a: .5, c: dc, t: -rand(0, .08) }); } // the thing's own dust, puffing out and fading
+  if (!SETTINGS.reduceFlash) add('star_01', { r0: size * 1.5, r1: size * 2.1, life: .16, a: .85, c: '#fff4dc', add: true, rot: ang }); // the flare of the hit
+  if (hard || metal) for (let i = 0; i < Math.round((metal ? 4 : 2) * fk); i++) add(pick(['spark_01', 'spark_02', 'spark_03']), { x: cx + rand(-size, size) * .3, y: cy + rand(-size, size) * .3, r0: size * rand(.8, 1.3), r1: size * rand(1, 1.6), life: rand(.1, .22), c: metal ? '#bfe0ff' : '#ffd9a0', add: true, t: -rand(0, .08) }); // crackling off stone and metal
+  else if (!glass) add('slash_01', { r0: size * 1.3, r1: size * 1.6, life: .2, a: .55, c: '#fff2e0', add: true, rot: ang + Math.PI / 2 }); // a swipe through wood and soft things
+  if (glass) for (let i = 0; i < Math.round(6 * fk); i++) { const a = rand(0, TAU), sp = rand(30, 120); add(pick(['star_06', 'star_08']), { x: cx + rand(-size, size) * .3, y: cy + rand(-size, size) * .3, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r0: rand(5, 9), r1: rand(2, 4), life: rand(.3, .6), c: '#e8f6ff', add: true, vr: rand(-4, 4), t: -rand(0, .15) }); } // glints off the shards
+}
+function drawKbits(x) {
+  for (const b of kbits) { if (b.t < 0) continue; const u = b.t / b.life, r = b.r0 + (b.r1 - b.r0) * (1 - (1 - u) ** 2), al = b.a * (b.add ? (1 - u) ** 1.5 : u < .15 ? u / .15 : 1 - (u - .15) / .85); if (al <= .01) continue;
+    x.globalCompositeOperation = b.add ? 'lighter' : 'source-over'; x.globalAlpha = al; kDraw(x, b.n, b.c, b.x, b.y, r * 2, r * 2, b.rot); }
+  x.globalAlpha = 1; x.globalCompositeOperation = 'source-over';
+}
 function drawImpacts(x) {
+  if (kbits.length) drawKbits(x);
   if (!impacts.length) return;
   x.save(); x.globalCompositeOperation = 'lighter'; x.lineCap = 'round';
   for (const m of impacts) {
     const u = m.t / m.dur, e = 1 - (1 - u) ** 3, R = m.r;
     if (m.t < .07) { x.fillStyle = `rgba(255,252,240,${((1 - m.t / .07) * (SETTINGS.reduceFlash ? .3 : .75)).toFixed(3)})`; circ(x, m.x, m.y, R * 1.1); }
-    x.strokeStyle = `rgba(255,245,225,${(.55 * (1 - u)).toFixed(3)})`; x.lineWidth = 3.5 * (1 - u) + .5; x.beginPath(); x.arc(m.x, m.y, R * (.6 + 2.2 * e), 0, TAU); x.stroke();
+    const rr = R * (.6 + 2.2 * e); x.globalAlpha = .75 * (1 - u); // the shock ring: Kenney's ring sprite, or a stroked circle before the atlas loads
+    if (!kDraw(x, 'circle_04', '#fff1dc', m.x, m.y, rr * 2.25, rr * 2.25, 0)) { x.globalAlpha = 1; x.strokeStyle = `rgba(255,245,225,${(.55 * (1 - u)).toFixed(3)})`; x.lineWidth = 3.5 * (1 - u) + .5; x.beginPath(); x.arc(m.x, m.y, rr, 0, TAU); x.stroke(); }
+    x.globalAlpha = 1;
     x.strokeStyle = `rgba(255,255,255,${(.5 * (1 - u)).toFixed(3)})`; x.lineWidth = 1.4;
     for (const [a, l] of m.lines) { const r0 = R * (.7 + 1.6 * e), r1 = r0 + R * l * (1 - u) * 1.4; x.beginPath(); x.moveTo(m.x + Math.cos(a) * r0, m.y + Math.sin(a) * r0); x.lineTo(m.x + Math.cos(a) * r1, m.y + Math.sin(a) * r1); x.stroke(); }
   }
@@ -140,7 +163,7 @@ function smashLook(o, fx, ang) { // everything a smash looks like on top of its 
   const { cx, cy, size } = bfxBox(o), hard = o.kind === 'bwall' || o.kind === 'rock' || (fx && fx.preset === 'stone');
   const soft = fx && (fx.shape === 'confetti' || fx.shape === 'fluff' || fx.n === 0 || fx.preset === 'glass');
   if (!soft) breakChunks(o, ang, hard ? 1.4 : 1);
-  if (!(fx && fx.n === 0)) impactFx(cx, cy, size, ang, hard);
+  if (!(fx && fx.n === 0)) { impactFx(cx, cy, size, ang, hard); smashSprites(o, fx, ang, cx, cy, size, hard); }
   if (!soft) dustBillow(cx, cy, size, fx ? fx.dustC : hard ? '#aaa096' : mixColor(o.color || '#888888', '#a8a096', .55), ang, hard ? 1.4 : 1);
 }
 

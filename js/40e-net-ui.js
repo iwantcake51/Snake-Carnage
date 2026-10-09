@@ -194,8 +194,8 @@ function netLobbyRender() {
   if ($('mpShare')) $('mpShare').onclick = () => navigator.share({ title: 'Snake: Carnage co-op', text: `Join my Snake: Carnage game. Code ${NETM.code}`, url: link }).catch(() => {});
   $('mpLeave').onclick = () => { netLeave(); state = 'menu'; showMenu(); };
   $('mpBack').onclick = () => transitionTo(showMenu);
-  $('mpNames').onchange = e => { SETTINGS.mpNames = e.target.checked; saveSettings(); };
-  $('mpArrows').onchange = e => { SETTINGS.mpArrows = e.target.checked; saveSettings(); };
+  $('mpNames').onchange = e => { SETTINGS.mpNames = e.target.checked; saveSettings(); Sfx.ui(e.target.checked ? 'on' : 'off'); };
+  $('mpArrows').onchange = e => { SETTINGS.mpArrows = e.target.checked; saveSettings(); Sfx.ui(e.target.checked ? 'on' : 'off'); };
   $('mpReady').onclick = () => netSetReady(!me.ready);
   netWireRows(box);
   if (host) {
@@ -266,19 +266,63 @@ function netDrawTags(x) { // screen space: names over teammates, and an arrow at
   x.restore();
 }
 /* ---- the score panel: the team (co-op), the standings (free for all) or every team (Teams), with lives and the round clock ---- */
-const netHearts = (n, title) => `<span class="mplives" title="${title}">${n >= 999 ? kiSvg('suitHearts') + ' ∞' : kiSvg('suitHearts').repeat(Math.min(12, n)) + (n > 12 ? '+' : '')}${n ? '' : '<i>no lives left</i>'}</span>`;
+/* lives as a row of hearts (game-icons' heart). One that's lost turns into Kenney's broken heart, which shakes as it takes
+   the heart's place and then stays, dimmed, so you can see how many are gone. More than ten: one heart and a count. */
+const NET_HEART_MAX = 10;
+const netHeartEl = () => `<i class="hs">${giSvg('heart')}${kiSvg('suitHeartsBroken', 'hb')}</i>`;
+function netHeartsSync(box, cur, max) {
+  if (!box) return;
+  if (cur >= 999) { if (box.dataset.m !== 'inf') { box.dataset.m = 'inf'; box.innerHTML = netHeartEl() + '<em>∞</em>'; box.firstChild.classList.add('on'); } return; }
+  max = Math.max(max || 0, cur);
+  if (max > NET_HEART_MAX) { // a big pool: one heart and how many
+    if (box.dataset.m !== 'n') { box.dataset.m = 'n'; box.innerHTML = netHeartEl() + '<em></em>'; box._n = cur; }
+    const h = box.firstChild; h.classList.toggle('on', cur > 0); h.classList.toggle('off', !cur); box.lastChild.textContent = '×' + cur;
+    if (cur < box._n) { h.classList.remove('brk'); void h.offsetWidth; h.classList.add('brk'); clearTimeout(h._t); h._t = setTimeout(() => cur && h.classList.remove('brk'), 1100); }
+    box._n = cur; return;
+  }
+  if (box.dataset.m !== 's' || +box.dataset.max !== max) { box.dataset.m = 's'; box.dataset.max = max; box.innerHTML = netHeartEl().repeat(max); box._n = undefined; }
+  const first = box._n === undefined;
+  for (let i = 0; i < max; i++) { const h = box.children[i], on = i < cur, was = h.classList.contains('on');
+    if (first || on !== was) { h.classList.toggle('on', on); h.classList.toggle('off', !on); h.classList.toggle('brk', !on && was && !first); } }
+  box._n = cur;
+}
+const netPoolMax = k => Math.max((NS.cfg && NS.cfg.pools && NS.cfg.pools[k]) || 0, NS.pools[k] || 0);
+/* ---- the score panel: the team (co-op), the standings (free for all) or every team (Teams), with lives and the round clock.
+   Built once and updated in place (so a heart breaking or a skull shaking in plays once, not on every refresh) ---- */
+function netHudRow(box, r, rank) {
+  let el = box.querySelector(`.mpr[data-id="${CSS.escape(r.p.id)}"]`);
+  if (!el) { el = document.createElement('div'); el.dataset.id = r.p.id; el.innerHTML = `<em class="rk"></em><i class="mpdot"></i><span class="nm"></span><i class="sk">${kiSvg('skull')}</i><b></b>`; }
+  const cls = `mpr${r.p.id === NETM.me ? ' me' : ''}${r.d ? (r.d.out ? ' out' : ' down') : ''}${r.p.conn === false ? ' away' : ''}`; if (el.className !== cls) el.className = cls;
+  const q = el.children; if (rank !== undefined && q[0].textContent !== String(rank)) q[0].textContent = rank; if (rank === undefined && q[0].textContent) q[0].textContent = '';
+  if (q[1].style.background !== r.p.color) q[1].style.background = r.p.color; if (q[2].textContent !== r.p.name) q[2].textContent = r.p.name; const sc = String(r.s); if (q[4].textContent !== sc) q[4].textContent = sc;
+  return el;
+}
+function netHudOrder(box, els) { // only touch the order when it changed (moving a node would restart its animations)
+  const cur = [...box.children]; if (cur.length === els.length && cur.every((c, i) => c === els[i])) return;
+  for (const c of cur) if (!els.includes(c)) c.remove(); els.forEach((e, i) => { if (box.children[i] !== e) box.insertBefore(e, box.children[i] || null); });
+}
 function netHud() {
   let el = document.getElementById('mpHud');
   if (!NETM.run) { if (el) el.remove(); return; }
-  if (!el) { el = document.createElement('div'); el.id = 'mpHud'; (document.getElementById('stage') || document.body).appendChild(el); }
-  const mode = netMode(), left = netTimeLeft(), clock = left === null ? '' : `<span class="mpclk ${left <= 30 ? 'low' : ''}">${fmtClock(left * 1000)}</span>`;
+  if (!el) { el = document.createElement('div'); el.id = 'mpHud'; el.innerHTML = '<div class="mph"><span class="mpl"></span><span class="mpclk"></span><b class="mptot"></b></div><div class="mpgs"></div>'; (document.getElementById('stage') || document.body).appendChild(el); netHudPlace(); }
+  const mode = netMode(), left = netTimeLeft(), ck = el.querySelector('.mpclk');
   const rows = NETM.players.map(p => { const st = p.id === NETM.me ? { score } : p.stats || {}, d = NS.down.get(p.id); return { p, s: st.score || 0, d }; }).sort((a, b) => b.s - a.s);
-  const row = (r, i) => `<div class="mpr ${r.p.id === NETM.me ? 'me' : ''} ${r.d ? (r.d.out ? 'out' : 'down') : ''} ${r.p.conn === false ? 'away' : ''}">${i !== undefined ? `<em>${i + 1}</em>` : ''}<i class="mpdot" style="background:${r.p.color}"></i><span>${esc(r.p.name)}</span><b>${r.s}</b></div>`;
-  if (mode === 'ffa') el.innerHTML = `<div class="mph">Free for all ${clock}${netHearts(netLivesOf(NETM.me), 'Your lives')}</div>` + rows.map(row).join('');
-  else if (mode === 'teams') {
-    const T = NET_TEAMS.slice(0, NS.cfg.teams).map((t, i) => ({ t, i, m: rows.filter(r => netTeamOf(r.p.id) === i) })).filter(q => q.m.length).map(q => ({ ...q, s: q.m.reduce((a, r) => a + r.s, 0) })).sort((a, b) => b.s - a.s);
-    el.innerHTML = `<div class="mph">Teams ${clock}</div>` + T.map(q => `<div class="mpt ${q.i === netTeamOf(NETM.me) ? 'mine' : ''}" style="--tc:${q.t.c}"><i class="mpdot" style="background:${q.t.c}"></i><span>${q.t.n}</span><b>${q.s}</b>${netHearts(NS.pools['t' + q.i] || 0, q.t.n + ' lives')}</div>` + q.m.map(r => row(r)).join('')).join('');
-  } else el.innerHTML = `<div class="mph">Team <b>${rows.reduce((a, r) => a + r.s, 0)}</b>${clock}${netHearts(NS.pools.all || 0, 'Shared lives')}</div>` + rows.map(r => row(r)).join('');
+  const lbl = mode === 'ffa' ? 'Free for all' : mode === 'teams' ? 'Teams' : 'Co-op', tot = mode === 'coop' ? String(rows.reduce((a, r) => a + r.s, 0)) : '';
+  if (el.querySelector('.mpl').textContent !== lbl) el.querySelector('.mpl').textContent = lbl; if (el.querySelector('.mptot').textContent !== tot) el.querySelector('.mptot').textContent = tot;
+  const ct = left === null ? '' : fmtClock(left * 1000); if (ck.textContent !== ct) ck.textContent = ct; ck.classList.toggle('low', left !== null && left <= 30);
+  const groups = mode === 'teams'
+    ? NET_TEAMS.slice(0, NS.cfg.teams).map((t, i) => ({ k: 't' + i, t, mine: i === netTeamOf(NETM.me), m: rows.filter(r => netTeamOf(r.p.id) === i) })).filter(g => g.m.length).map(g => ({ ...g, s: g.m.reduce((a, r) => a + r.s, 0) })).sort((a, b) => b.s - a.s)
+    : [{ k: mode === 'ffa' ? 'p:' + NETM.me : 'all', m: rows, rank: mode === 'ffa' }];
+  const gsBox = el.querySelector('.mpgs'), gEls = [];
+  for (const g of groups) {
+    let ge = gsBox.querySelector(`.mpg[data-k="${g.k}"]`);
+    if (!ge) { ge = document.createElement('div'); ge.className = 'mpg'; ge.dataset.k = g.k; ge.innerHTML = `${g.t ? `<div class="mpgh" style="--tc:${g.t.c}"><i class="mpdot" style="background:${g.t.c}"></i><span>${esc(g.t.n)}</span><b></b></div>` : ''}<div class="mplv" title="${mode === 'ffa' ? 'Your lives' : g.t ? esc(g.t.n) + ' lives' : 'Shared lives'}"></div><div class="mprs"></div>`; }
+    if (g.t) { ge.classList.toggle('mine', g.mine); const b = ge.querySelector('.mpgh b'), sv = String(g.s); if (b.textContent !== sv) b.textContent = sv; }
+    netHeartsSync(ge.querySelector('.mplv'), NS.pools[g.k] || 0, netPoolMax(g.k));
+    const rb = ge.querySelector('.mprs'); netHudOrder(rb, g.m.map((r, i) => netHudRow(rb, r, g.rank ? i + 1 : undefined)));
+    gEls.push(ge);
+  }
+  netHudOrder(gsBox, gEls);
 }
 let netHudT = 0;
 const _netUpdateHud = updateHud;
@@ -287,10 +331,20 @@ function netDownBanner(out) {
   let el = document.getElementById('mpDown');
   if (out === null || out === undefined) { if (el) el.remove(); return; }
   if (!el) { el = document.createElement('div'); el.id = 'mpDown'; (document.getElementById('stage') || document.body).appendChild(el); el._t0 = performance.now(); }
-  const mode = netMode(), timed = NS.cfg && NS.cfg.len > 0;
+  const mode = netMode(), timed = NS.cfg && NS.cfg.len > 0, k = netPool(NETM.me), n = NS.pools[k] || 0;
   el.className = out ? 'out' : ''; clearTimeout(el._ft); el._ft = setTimeout(() => el.classList.add('fade'), Math.max(0, 10000 - (performance.now() - el._t0))); // "You died" fades away after ten seconds
-  el.innerHTML = out ? `<b>You died</b><span>Out of lives. ${mode === 'ffa' ? 'Watching the others.' : 'Watching your team.'} The run ends ${timed ? "when time's up or " : 'when '}everyone is down.</span>` : '<b>You died</b><span class="cd">Back in <i></i></span>';
+  el.innerHTML = (out ? `<b>You died</b><span>Out of lives. ${mode === 'ffa' ? 'Watching the others.' : 'Watching your team.'} The run ends ${timed ? "when time's up or " : 'when '}everyone is down.</span>` : '<b>You died</b><span class="cd">Back in <i></i></span>') + '<div class="mplv"></div><small class="mplvn"></small>';
+  const after = n >= 999 ? 999 : NETM.host || out ? n : Math.max(0, n - 1); // (a guest hears about the life it cost a moment after it hears it went down)
+  netHeartsSync(el.querySelector('.mplv'), after + (out || after >= 999 ? 0 : 1), netPoolMax(k)); netHeartsSync(el.querySelector('.mplv'), after, netPoolMax(k)); // the one you just lost breaks
+  netLivesLeft(el.querySelector('.mplvn'), after);
   netDownTick();
+}
+function netLivesLeft(e, n) { if (e) e.textContent = n >= 999 ? 'Unlimited lives' : n ? `${n} ${n === 1 ? 'life' : 'lives'} left${netMode() === 'ffa' ? '' : ' for the team'}` : 'No lives left'; }
+function netBackLives() { // back in: how many lives are left, for a moment
+  const k = netPool(NETM.me), n = NS.pools[k] || 0; let el = document.getElementById('mpLivesBack'); if (el) el.remove();
+  el = document.createElement('div'); el.id = 'mpLivesBack'; el.innerHTML = '<div class="mplv"></div><small class="mplvn"></small>'; (document.getElementById('stage') || document.body).appendChild(el);
+  netHeartsSync(el.querySelector('.mplv'), n, netPoolMax(k)); netLivesLeft(el.querySelector('.mplvn'), n);
+  setTimeout(() => el.classList.add('fade'), 2200); setTimeout(() => el.remove(), 3200);
 }
 /* spectating: while you're down your camera follows a teammate */
 function netSpectate() {
@@ -333,14 +387,15 @@ function netDownTick() { // the respawn countdown on the banner
 }
 function netUiCleanup() { // a run ended or you left: nothing of it stays on screen
   NS.spawnAt = null; if (spawnFx) spawnFx.c.style.display = 'none';
-  for (const id of ['mpHud', 'dTint', 'dFx', 'mpDown']) { const el = document.getElementById(id); if (el) el.remove(); }
+  for (const id of ['mpHud', 'dTint', 'dFx', 'mpDown', 'mpLivesBack']) { const el = document.getElementById(id); if (el) el.remove(); }
   dfxK = 0; const st = document.getElementById('stage'); if (st) { st.style.removeProperty('--dfx'); st.classList.remove('dying'); }
 }
-function netHudPlace() { // the score panel shares the top-right corner with the combo counter: it moves down below the combo while one is showing
-  const el = document.getElementById('mpHud'), cb = document.getElementById('combo'); if (!el) return;
-  let top = '';
-  if (cb && (cb.classList.contains('show') || cb.classList.contains('out'))) { const r = cb.getBoundingClientRect(), pr = (el.offsetParent || document.body).getBoundingClientRect(); if (r.height && r.right > pr.left + pr.width * .5) top = Math.round(r.bottom - pr.top + 10) + 'px'; }
-  if (el.style.top !== top) el.style.top = top;
+function netHudPlace() { // the score panel sits under the top-right stats (score, chips, level, pause), and under the combo counter while one is showing
+  const el = document.getElementById('mpHud'); if (!el) return;
+  const pr = (el.offsetParent || document.body).getBoundingClientRect(); let y = 0;
+  for (const id of ['combo']) { const cb = document.getElementById(id); if (cb && (cb.classList.contains('show') || cb.classList.contains('out'))) { const r = cb.getBoundingClientRect(); if (r.height && r.right > pr.left + pr.width * .5) y = Math.max(y, r.bottom); } }
+  const hb = document.querySelector('#hudbar .hb-r'); if (hb && !document.getElementById('hudbar').hidden) { const r = hb.getBoundingClientRect(); if (r.height) y = Math.max(y, r.bottom); }
+  const top = y ? Math.round(y - pr.top + 8) + 'px' : ''; if (el.style.top !== top) el.style.top = top;
 }
 /* ---- pause in co-op: the world can't stop for one player ---- */
 const _netPause = pauseGame;
@@ -489,5 +544,10 @@ addEventListener('keydown', e => {
   e.preventDefault(); e.stopPropagation(); if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   const me = netMe(); if (!me) return;
   if (NETM.host && netAllReady()) return netGo();
-  if (!me.ready) { const b = document.getElementById('mpReady2') || document.getElementById('mpReady'); if (b) b.click(); else netSetReady(true); if (NETM.host && netAllReady()) setTimeout(netGo, 180); } // ready up; the host's last ready starts it
+  if (!me.ready) { // ready up; if everyone else already is, Space starts the run too (a guest asks the host to)
+    const others = NETM.players.filter(p => p.conn !== false && p.id !== NETM.me).every(p => p.ready);
+    const b = document.getElementById('mpReady2') || document.getElementById('mpReady'); if (b) b.click(); else netSetReady(true);
+    if (!others) return;
+    if (NETM.host) { if (netAllReady()) setTimeout(netGo, 180); } else if (NETM.hostLink) NETM.hostLink.sendR({ k: 'rgo' });
+  }
 }, true);

@@ -169,12 +169,16 @@ function applyCosmetics() {
   cosChanged();
   document.body.className = document.body.className.replace(/\bcb-\S+/g, '').trim(); if (c.combo && c.combo !== 'Default') document.body.classList.add('cb-' + c.combo.toLowerCase());
 }
+let MFX = null; // the menu's particles: made once per effect, with a clock, so every rebuild of the menu carries on where they were instead of starting them all over
 function menuFx() { // background particles behind the main menu
   const e = SETTINGS.snake.effect; if (!e || e === 'None') return '';
   const kind = e.toLowerCase().replace(/\s+/g, '-'), R = Math.random, f = (v, d = 1) => v.toFixed(d);
-  if (kind === 'blizzard') return `<div class="mfx blizzard">${Array.from({ length: 130 }, (_, i) => { // wind-driven snow in three depths: fine and slow far off, big, soft and fast up close
-    const L = i % 9 === 0 ? 2 : i % 3 === 0 ? 1 : 0, s = [8 + R() * 4, 5 + R() * 2, 2.6 + R() * 1.2][L];
-    return `<i class="l${L}" style="--x:${f(R() * 135 - 5)}%;--d:${f(-R() * s, 2)}s;--s:${f(s, 2)}s;--z:${f([.55, 1, 2][L] * (.75 + R() * .5), 2)};--w:${f([16, 26, 40][L] + R() * 10)}vw;--sw:${f(4 + R() * 10)}px"></i>`; }).join('')}</div>`;
-  return `<div class="mfx ${kind}">${Array.from({ length: 26 }, () => `<i style="--x:${f(R() * 100)}%;--y:${f(R() * 100)}%;--d:${f(R() * -12, 2)}s;--s:${f(6 + R() * 8)}s;--z:${f(.5 + R(), 2)}"></i>`).join('')}</div>`; // (--y: where the ones that hover sit, picked on its own so they scatter instead of lining up with --x)
+  if (!MFX || MFX.kind !== kind) MFX = { kind, t0: performance.now(), parts: kind === 'blizzard'
+    ? Array.from({ length: 130 }, (_, i) => { // wind-driven snow in three depths: fine and slow far off, big, soft and fast up close
+      const L = i % 9 === 0 ? 2 : i % 3 === 0 ? 1 : 0, sp = [8 + R() * 4, 5 + R() * 2, 2.6 + R() * 1.2][L];
+      return { c: `l${L}`, d: -R() * sp, st: `--x:${f(R() * 135 - 5)}%;--s:${f(sp, 2)}s;--z:${f([.55, 1, 2][L] * (.75 + R() * .5), 2)};--w:${f([16, 26, 40][L] + R() * 10)}vw;--sw:${f(4 + R() * 10)}px` }; })
+    : Array.from({ length: 26 }, () => ({ c: '', d: R() * -12, st: `--x:${f(R() * 100)}%;--y:${f(R() * 100)}%;--s:${f(6 + R() * 8)}s;--z:${f(.5 + R(), 2)}` })) }; // (--y: where the ones that hover sit, picked on its own so they scatter instead of lining up with --x)
+  const el = (performance.now() - MFX.t0) / 1000; // how long they've been going: each delay is pushed back by it, so they pick up mid-flight
+  return `<div class="mfx ${kind}" style="animation-delay:${f(-el, 2)}s">${MFX.parts.map(q => `<i${q.c ? ` class="${q.c}"` : ''} style="${q.st};--d:${f(q.d - el, 2)}s"></i>`).join('')}</div>`;
 }
 applyCosmetics();
