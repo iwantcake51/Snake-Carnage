@@ -2694,8 +2694,10 @@ i.tok{display:inline-block;width:.86em;height:.96em;vertical-align:-.1em;backgro
 .skn.maj .skshape{width:96px;height:96px}.skn.pas .skshape{width:72px;height:72px}
 .skshape *{transition:fill .3s,stroke .3s,opacity .3s}
 .skico{position:absolute;left:50%;translate:-50% -50%;pointer-events:none;color:#5c5357;transition:color .3s;display:flex}
-.skn.maj .skico{top:48px}.skn.maj .skico svg{width:30px;height:30px}
-.skn.pas .skico{top:36px}.skn.pas .skico svg{width:21px;height:21px}
+.skn.maj .skico{top:48px}.skn.maj .skico svg{width:38px;height:38px}
+.skn.pas .skico{top:36px}.skn.pas .skico svg{width:28px;height:28px}
+/* a soft round fade at the edge of every skill icon: game-icons art often runs right to the edge of its square (Vortex is a whole square), so it would end in a hard cut-off */
+.skico svg,.sk-ic svg{-webkit-mask-image:radial-gradient(circle,#000 58%,rgba(0,0,0,.6) 66%,transparent 76%);mask-image:radial-gradient(circle,#000 58%,rgba(0,0,0,.6) 66%,transparent 76%)}
 .skl{display:flex;flex-direction:column;align-items:center;gap:2px;margin-top:1px;line-height:1.1;text-align:center;pointer-events:none}
 .skl{--lk:clamp(1,calc(.8 / var(--z,1)),1.3)} /* zoomed right out, the names stay readable */
 .skl b{white-space:nowrap;font:700 calc(15.5px * var(--lk))/1.05 var(--f-head);letter-spacing:.04em;text-transform:uppercase;color:var(--dim);transition:color .3s}
@@ -2757,7 +2759,7 @@ i.tok{display:inline-block;width:.86em;height:.96em;vertical-align:-.1em;backgro
 .sk-h{display:flex;gap:12px;align-items:center}
 .sk-ic{flex:none;width:54px;height:54px;display:grid;place-items:center;border-radius:50%;background:color-mix(in srgb,var(--bc) 17%,transparent);color:var(--bc);box-shadow:inset 0 0 0 2px var(--bc)}
 .sk-ic.maj{border-radius:0;box-shadow:none;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);width:56px;height:62px}
-.sk-ic svg{width:26px;height:26px}
+.sk-ic svg{width:32px;height:32px}
 .sk-h small{display:block;font:600 11.5px var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:var(--bc)}
 #overlay .panel .sk-h h2{margin:3px 0 0;font-family:var(--f-head)!important;font-weight:700!important;font-size:27px!important;line-height:1;text-transform:uppercase;letter-spacing:.02em;color:var(--ink)!important}
 .sk-h kbd{margin-left:auto;align-self:flex-start}
@@ -2825,7 +2827,7 @@ body.phone #overlay #skTok{padding:4px 9px}body.phone #skTok .tkw{display:none}
 body.phone .skctl{top:6px;left:6px;right:6px;gap:5px}body.phone .skctl button{height:38px;min-width:38px;padding:0 9px}
 body.phone .skinfo{padding:10px 11px 0;gap:8px}
 body.phone .sk-h{gap:9px}body.phone .sk-h small{font-size:10.5px;letter-spacing:.08em}
-body.phone #overlay .panel .sk-h h2{font-size:19px!important}body.phone .sk-ic{width:38px;height:38px}body.phone .sk-ic.maj{width:38px;height:44px}body.phone .sk-ic svg{width:20px;height:20px}
+body.phone #overlay .panel .sk-h h2{font-size:19px!important}body.phone .sk-ic{width:38px;height:38px}body.phone .sk-ic.maj{width:38px;height:44px}body.phone .sk-ic svg{width:25px;height:25px}
 body.phone .sk-rank{flex-wrap:wrap;gap:6px 8px}body.phone .sk-bars i{width:14px;height:6px}body.phone .sk-st{font-size:10.5px;padding:2px 6px}
 body.phone .sk-d{font-size:12.5px;line-height:1.4}
 body.phone .sk-fx>div{padding:5px 0}body.phone .sk-fx dt{font-size:12.5px}body.phone .sk-fx dd{font-size:13px}
