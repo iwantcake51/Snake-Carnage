@@ -83,7 +83,8 @@ function drawVomit(x) { for (const p of puke) { x.fillStyle = p.c; circ(x, p.x, 
 let smoke = [];
 const SMOKE_SPR = [];
 function smokeSprite(v, rgb) { // rgb: tint it (dust in a material's own color)
-  const key = rgb ? v + ':' + rgb.join(',') : v; if (SMOKE_SPR[key]) return SMOKE_SPR[key];
+  const key = (KSPR.ok ? 'k' : '') + (rgb ? v + ':' + rgb.join(',') : v); if (SMOKE_SPR[key]) return SMOKE_SPR[key];
+  if (KSPR.ok) { const s = kTint(K_SMOKE[v & 3], rgb ? rgb.map(c => c * 1.15) : [236, 226, 212], 96, 2); if (s) return SMOKE_SPR[key] = s; } // Kenney's smoke, once the atlas is in
   const S = 64, c = document.createElement('canvas'); c.width = c.height = S; const x = c.getContext('2d'), img = x.createImageData(S, S), d = img.data, o0 = v * 17.3;
   for (let j = 0; j < S; j++) for (let i = 0; i < S; i++) {
     const dx = (i - S / 2) / (S / 2), dy = (j - S / 2) / (S / 2), r = Math.hypot(dx, dy);

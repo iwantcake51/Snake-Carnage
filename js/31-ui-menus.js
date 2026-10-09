@@ -534,7 +534,7 @@ const SETTING_TABS = {
     ['#Steering and camera'], ['Mouse', 'With Mouse steering on (Gameplay): the snake heads for the cursor; left click lunges'], 
     ['Wheel', 'Zoom the camera in or out, always on your snake'], ['Drag', 'Pan the camera (middle mouse; left mouse, or right mouse with Mouse steering on)'], ['Double-click', 'Camera back on the snake'],
     ['Pinch', 'On a touch screen: two fingers zoom and pan; one finger still steers'],
-    ['` or F10', 'Admin panel: god mode, speed, time of day, spawning, air strikes, chips and the skill tree (single player, or the host)'], ['#Menus'], ['Space', 'Start, skip the intro, play again. In a multiplayer lobby: ready up, and the host starts once everyone is ready'], ['Esc', 'Pause, back, close settings'], ['F3', 'Performance stats: off, frame rate, full'], ['#Credits'], ['Icons', 'game-icons.net, by Lorc, Delapouite and contributors (CC BY 3.0)']] },
+    ['` or F10', 'Admin panel: god mode, speed, time of day, spawning, air strikes, chips and the skill tree (single player, or the host)'], ['#Menus'], ['Space', 'Start, skip the intro, play again. In a multiplayer lobby: ready up, and the host starts once everyone is ready'], ['Esc', 'Pause, back, close settings'], ['F3', 'Performance stats: off, frame rate, full'], ['#Credits'], ['Icons', 'game-icons.net, by Lorc, Delapouite and contributors (CC BY 3.0)'], ['Effects', 'Smoke, fire, scorch and leaf sprites by Kenney (kenney.nl, CC0)']] },
   Accessibility: { icon: 'access', lead: 'Make the game easier to see and more comfortable.', rows: [
     ['head', 'Visibility'],
     ['seg', 'snakeOutline', 'Snake outline', 'An outline so your snake is easy to see.', ['Off', 'Subtle', 'Strong']],

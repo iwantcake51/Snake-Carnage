@@ -508,7 +508,7 @@ function strafeHit(s, d) {
   const j = clamp(gauss() * s.hw * .5, -s.hw, s.hw), x = s.x0 + s.ca * d - s.sa * j, y = s.y0 + s.sa * d + s.ca * j;
   if (x < 2 || y < 2 || x > W - 2 || y > H - 2) return;
   const hard = solid(x, y), fx = FX_K();
-  tracers.push({ x, y, t: 0, life: .07, f: true }); // the round going off
+  tracers.push({ x, y, t: 0, life: .07, f: true, a: s.a, m: randi(1, 3) }); // the round going off
   if (Math.random() < .35) tracers.push({ x, y, a: s.a, t: 0, life: .09 }); // a tracer streaking in from the jet
   for (let k = 0; k < (hard ? 6 : 3); k++) { const b = s.a + rand(-1.3, 1.3) + (hard && Math.random() < .5 ? Math.PI : 0), v = rand(150, 420); boomBits.push({ spark: true, x, y, z: rand(1, 4), vx: Math.cos(b) * v, vy: Math.sin(b) * v, vz: rand(20, 160), t: 0, life: rand(.12, .35) }); }
   if (AUTH()) { let hit = false; for (const c of nearbyCreatures(x, y, 20, [])) if (c.alive && dist2(c.x, c.y, x, y) < (c.def.r + 5) ** 2) { hit = true; const ang = s.a + rand(-.4, .4), amt = c.def.blood; eatWorld(c, ang, amt, null); if (NETM.run) netKillEvent(c, 'air', ang, amt); } if (hit) creatures = creatures.filter(c => c.alive); } // a round landing on someone
@@ -577,7 +577,8 @@ function scorch(x, y, r) {
   for (let k = 0; k <= 18; k++) { const b = k / 18 * TAU, d = r * .62 * (1 + .18 * Math.sin(b * 3 + a) + .1 * Math.sin(b * 7 - a)); k ? bctx.lineTo(x + Math.cos(b) * d, y + Math.sin(b) * d) : bctx.moveTo(x + Math.cos(b) * d, y + Math.sin(b) * d); } bctx.closePath(); bctx.fill();
   const pit = bctx.createRadialGradient(x, y, 0, x, y, r * .55); pit.addColorStop(0, 'rgba(15,10,6,.85)'); pit.addColorStop(1, 'rgba(15,10,6,0)'); bctx.fillStyle = pit; bctx.beginPath(); bctx.arc(x, y, r * .55, 0, TAU); bctx.fill();
   bctx.restore();
-  bctx.save(); bctx.translate(x, y); bctx.rotate(a); bctx.globalAlpha = .88; bctx.drawImage(scorchSprite(randi(0, 3)), -s / 2, -s / 2, s, s); bctx.restore();
+  if (KSPR.ok) { bctx.save(); bctx.globalAlpha = .75; kDraw(bctx, 'dirt_0' + randi(1, 3), shade(soil, -.1), x, y, r * 2.9, r * 2.9, a + 1, 128); bctx.globalAlpha = .95; kDraw(bctx, 'scorch_0' + randi(1, 3), '#0b0907', x, y, s * 1.1, s * 1.1, a, 128, 3); bctx.restore(); } // the dirt it threw out, and the burn
+  else { bctx.save(); bctx.translate(x, y); bctx.rotate(a); bctx.globalAlpha = .88; bctx.drawImage(scorchSprite(randi(0, 3)), -s / 2, -s / 2, s, s); bctx.restore(); }
   bctx.save(); bctx.lineCap = 'round'; bctx.strokeStyle = 'rgba(10,8,6,.75)'; // the ground split open around it: jagged cracks running out, thinning as they go, some forking
   const crack = (px, py, b, len, w, depth) => { const n = 6, st = len / n; for (let q = 0; q < n; q++) { b += rand(-.5, .5); const nx = px + Math.cos(b) * st, ny = py + Math.sin(b) * st; bctx.lineWidth = Math.max(.4, w * (1 - q / n)); bctx.beginPath(); bctx.moveTo(px, py); bctx.lineTo(nx, ny); bctx.stroke(); px = nx; py = ny; if (depth && Math.random() < .22) crack(px, py, b + rand(.5, 1) * (Math.random() < .5 ? 1 : -1), len * .4, w * .6 * (1 - q / n), 0); } };
   for (let k = randi(7, 11); k > 0; k--) { const b = rand(0, TAU); crack(x + Math.cos(b) * r * .5, y + Math.sin(b) * r * .5, b, r * rand(.7, 1.7), rand(1.4, 2.6), 1); }
@@ -718,6 +719,7 @@ function drawAirstrikes(x) { // drawn under the fog (so markers in it stay hidde
     for (const f of fires) drawFire(x, f);
     for (const c of clods) if (c.burn) { const fl = .7 + .3 * Math.sin(T * 31 + c.ph), py = c.y - c.z * .3, rr = (c.sz * .9 + 4) * (1 + c.z * .006), g = x.createRadialGradient(c.x, py, 0, c.x, py, rr); g.addColorStop(0, `rgba(255,230,140,${.9 * fl})`); g.addColorStop(.45, `rgba(255,120,30,${.6 * fl})`); g.addColorStop(1, 'rgba(200,40,0,0)'); x.fillStyle = g; circ(x, c.x, py, rr); } // wreckage still on fire
     for (const r of tracers) { const k = 1 - r.t / r.life;
+      if (r.f && r.a !== undefined && KSPR.ok) { x.globalAlpha = k; kDraw(x, 'muzzle_0' + r.m, [255, 222, 150], r.x + Math.cos(r.a) * 9, r.y + Math.sin(r.a) * 9, 14, 24, r.a + Math.PI / 2, 64); kDraw(x, 'flare_01', '#fff3d0', r.x, r.y, 30, 30, 0, 64); x.globalAlpha = 1; continue; } // the round going off: a spray of flame the way it was going
       if (r.f) { const g = x.createRadialGradient(r.x, r.y, 0, r.x, r.y, 8); g.addColorStop(0, `rgba(255,245,200,${k})`); g.addColorStop(1, 'rgba(255,160,60,0)'); x.fillStyle = g; circ(x, r.x, r.y, 8); continue; }
       const L = 110 * k + 12, ca = Math.cos(r.a), sa = Math.sin(r.a); x.strokeStyle = `rgba(255,${200 + 40 * k | 0},120,${(.9 * k).toFixed(3)})`; x.lineWidth = 2; x.beginPath(); x.moveTo(r.x - ca * L, r.y - sa * L - L * .35); x.lineTo(r.x, r.y); x.stroke(); } // tracers coming in at a slant
     for (const b of booms) drawBoom(x, b);
@@ -761,11 +763,18 @@ function drawAirFog(x) {
 function drawSoot(x, p) {
   if (p.t < 0) return;
   const k = p.t / p.life, al = p.a * Math.min(1, p.t * 5) * (1 - k) ** 1.2;
+  if (KSPR.ok) { p.kv ??= Math.random() * 4 | 0; x.globalAlpha = al; const ok = kDraw(x, K_SMOKE[p.kv], [44, 37, 33], p.x, p.y, p.r * 2.3, p.r * 2.3 * (.82 + .18 * Math.sin(p.rot * 3)), p.rot, 96, 3); x.globalAlpha = 1; if (ok) return; }
   const g = x.createRadialGradient(p.x, p.y, p.r * .1, p.x, p.y, p.r); g.addColorStop(0, `rgba(28,22,19,${al.toFixed(3)})`); g.addColorStop(.6, `rgba(38,32,28,${(al * .7).toFixed(3)})`); g.addColorStop(1, 'rgba(50,44,40,0)');
   x.fillStyle = g; x.save(); x.translate(p.x, p.y); x.rotate(p.rot); x.scale(1, .82 + .18 * Math.sin(p.rot * 3)); x.translate(-p.x, -p.y); circ(x, p.x, p.y, p.r); x.restore();
 }
 function drawFire(x, f) { // a patch of ground still burning in the crater: flickering tongues of flame
   const a = clamp(Math.min(f.t * 4, (f.life - f.t) / 1.2), 0, 1) * (.75 + .25 * Math.sin(T * 23 + f.ph));
+  if (KSPR.ok) {
+    const g = x.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.r * 1.3); g.addColorStop(0, `rgba(255,150,50,${(a * .55).toFixed(3)})`); g.addColorStop(1, 'rgba(160,30,0,0)'); x.fillStyle = g; circ(x, f.x, f.y, f.r * 1.3);
+    for (let k = 0; k < 3; k++) { const fl = Math.sin(T * (13 + k * 5) + f.ph + k * 2), rr = f.r * [3.6, 2.6, 1.7][k] * (.88 + .12 * fl); x.globalAlpha = a * [.9, .8, 1][k]; // wisps of flame, the fire in them, a hot heart
+      kDraw(x, k ? (k > 1 ? 'fire_02' : 'fire_01') : 'flame_0' + (1 + (f.ph * 7 | 0) % 4), [[255, 110, 30], [255, 160, 60], [255, 232, 150]][k], f.x + Math.sin(T * 7 + f.ph + k) * 1.5, f.y - k * f.r * .25, rr, rr, (k & 1 ? -1 : 1) * T * (1.2 + k * .5) + f.ph, 64, k ? 1 : 3); }
+    x.globalAlpha = 1; return;
+  }
   for (let k = 0; k < 3; k++) {
     const fl = Math.sin(T * (11 + k * 4) + f.ph + k * 2), rr = f.r * (1 - k * .25) * (.85 + .15 * fl), ox = Math.sin(T * 7 + f.ph + k) * 1.5, oy = -k * f.r * .35 - Math.abs(fl) * 1.5;
     const g = x.createRadialGradient(f.x + ox, f.y + oy, 0, f.x + ox, f.y + oy, rr); g.addColorStop(0, `rgba(255,${k ? 200 : 240},${k ? 80 : 170},${a})`); g.addColorStop(.5, `rgba(255,110,20,${a * .6})`); g.addColorStop(1, 'rgba(160,30,0,0)');
@@ -798,6 +807,7 @@ function drawStrikeMark(x, s) {
   }
   x.restore();
 }
+const K_HEAT = [[255, 244, 200], [255, 214, 120], [255, 170, 75], [245, 128, 45], [205, 86, 28], [150, 54, 18]]; // a fireball cooling, white-yellow to deep red
 function drawBoom(x, b) {
   if (b.t < 0) return;
   const u = b.t / b.dur, R = b.r;
@@ -806,7 +816,9 @@ function drawBoom(x, b) {
     const f = 1 - (1 - Math.min(1, u * 2)) ** 2, a = (1 - u) ** 1.3, rr = R * (.5 + .8 * f);
     const g = x.createRadialGradient(b.x, b.y - f * 6, 0, b.x, b.y - f * 6, rr);
     g.addColorStop(0, `rgba(255,${235 - 90 * u | 0},${150 - 120 * u | 0},${a})`); g.addColorStop(.55, `rgba(240,${100 - 50 * u | 0},20,${a * .65})`); g.addColorStop(1, 'rgba(90,20,5,0)');
-    x.fillStyle = g; circ(x, b.x, b.y - f * 6, rr); return;
+    x.fillStyle = g; circ(x, b.x, b.y - f * 6, rr);
+    if (KSPR.ok) { b.kr ??= Math.random() * TAU; x.globalAlpha = a * .85; kDraw(x, b.sec ? 'fire_02' : 'fire_01', K_HEAT[Math.min(5, u * 6 | 0)], b.x, b.y - f * 6, rr * 2.3, rr * 2.3, b.kr + u * 1.5, 128); x.globalAlpha = 1; }
+    return;
   }
   if (b.t < .12) { x.fillStyle = `rgba(255,255,245,${(1 - b.t / .12) * .95})`; circ(x, b.x, b.y, R * 2.4); } // the flash
   if (b.t < .3) { const k = 1 - b.t / .3, L = R * (5 + 4 * (1 - k)); x.save(); x.translate(b.x, b.y); x.scale(1, .06 + .05 * k); const g = x.createRadialGradient(0, 0, 0, 0, 0, L); g.addColorStop(0, `rgba(255,250,235,${(.8 * k).toFixed(3)})`); g.addColorStop(.35, `rgba(255,190,120,${(.35 * k).toFixed(3)})`); g.addColorStop(1, 'rgba(255,150,80,0)'); x.fillStyle = g; circ(x, 0, 0, L); x.restore(); } // a streak of light across the lens
@@ -814,6 +826,11 @@ function drawBoom(x, b) {
   const g = x.createRadialGradient(b.x, b.y, 0, b.x, b.y, rr); // the fireball
   g.addColorStop(0, `rgba(255,252,230,${a})`); g.addColorStop(.3, `rgba(255,205,90,${a * .95})`); g.addColorStop(.65, `rgba(240,100,25,${a * .7})`); g.addColorStop(1, 'rgba(120,30,10,0)');
   x.fillStyle = g; circ(x, b.x, b.y, rr);
+  if (KSPR.ok) { // the fireball's texture: a rolling flame turning as it burns out, and a lens star on the flash
+    b.kr ??= Math.random() * TAU; x.globalAlpha = a * .9; kDraw(x, 'flame_0' + (1 + (b.kr * 10 | 0) % 4), K_HEAT[Math.min(5, u * 6 | 0)], b.x, b.y, rr * 2.6, rr * 2.6, b.kr - u * 2, 128, 2);
+    if (b.t < .22) { x.globalAlpha = (1 - b.t / .22) * (SETTINGS.reduceFlash ? .35 : .9); kDraw(x, 'star_08', '#fff6e0', b.x, b.y, R * 7, R * 7, b.kr, 128); }
+    x.globalAlpha = 1;
+  }
   const w = 1 - (1 - Math.min(1, u * 1.6)) ** 2; // the blast front
   x.strokeStyle = `rgba(255,235,200,${(.6 * (1 - u)).toFixed(3)})`; x.lineWidth = 9 * (1 - u) + .5; x.beginPath(); x.arc(b.x, b.y, R * (1 + 3 * w), 0, TAU); x.stroke();
 }
