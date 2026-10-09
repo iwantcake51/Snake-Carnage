@@ -104,17 +104,18 @@ addEventListener('keydown', e => {
     if (state === 'ready' || state === 'play') applyDir();
     if (state === 'ready') { snake.started = true; state = 'play'; }
   } else if (e.code === 'Space' || e.code === 'Enter') {
+    const t = e.target; if (state === 'menu' && t && t !== document.body && t.closest && t.closest('#overlay button, #overlay [role=button], #overlay a') && t.matches(':focus-visible')) return; // a control reached with the keyboard: Space and Enter press that control
     e.preventDefault();
     if (state === 'intro') return endIntro();
     if (overlay.querySelector('.casebox')) return;
     if (state === 'paused' && overlay.querySelector('.pause')) return resumeGame();
     if (state === 'dead' && document.getElementById('againBtn') && !runSummaryBusy()) return startGame();
-    if (state === 'menu' && overlay.querySelector('.menu')) startGame();
+    if (state === 'menu' && overlay.querySelector('.mm')) menuSpace();
   } else if (e.code === 'Escape') {
     if (['play', 'ready', 'intro', 'held'].includes(state)) pauseGame();
     else if (state === 'paused') overlay.querySelector('.pause') ? resumeGame() : transitionTo(showPause);
     else if (state === 'dead' && document.getElementById('againBtn')) returnToMenu();
-    else if (state === 'menu' && !overlay.querySelector('.menu') && !overlay.querySelector('.casebox')) transitionTo(showMenu);
+    else if (state === 'menu' && !overlay.querySelector('.casebox')) menuEsc();
   }
   else if (act === 'nv' && !e.repeat) toggleNV();
   else if (e.repeat) return; // holding a skill key fires it once, not a stream of sounds
@@ -239,5 +240,5 @@ const stickUp = e => {
   const el = touchEl.querySelector('.stick'); el.classList.remove('on'); el.querySelector('.knob').style.translate = '0px 0px';
 };
 touchEl.addEventListener('pointerup', stickUp); touchEl.addEventListener('pointercancel', stickUp);
-addEventListener('touchmove', e => { if (e.target.closest && e.target.closest('#stage') && !e.target.closest('.sgrid,.modgrid,.sbody,.achg,.cards,.menu,.panel,.sumbox')) e.preventDefault(); }, { passive: false }); // no page scroll / rubber-banding while steering
+addEventListener('touchmove', e => { if (e.target.closest && e.target.closest('#stage') && !e.target.closest('.sgrid,.modgrid,.sbody,.achg,.mm,.rs,.mmp,.panel,.sumbox')) e.preventDefault(); }, { passive: false }); // no page scroll / rubber-banding while steering
 addEventListener('pointerdown', e => { if (e.pointerType === 'touch') enableTouch(); }, true);

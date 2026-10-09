@@ -197,15 +197,13 @@ function frame(now) {
   perfRunTick(now); if (PERF.mode !== 'Off') perfFrame(now);
 }
 
-let plxQ = null; // mouse parallax: main menu only, at most once a frame. Over the blurred pause/death backdrop every nudge re-blurs the whole screen, so it stays still there
-document.addEventListener('pointermove', e => { // on the document: during play the game holds the pointer, so the overlay itself only heard moves after a click
-  if ((state !== 'menu' && state !== 'paused' && state !== 'dead') || SETTINGS.reduceMotion) return;
+let plxQ = null; // menus only: the map picture behind them drifts a few pixels against the mouse, at most once a frame. The menus themselves stay put
+document.addEventListener('pointermove', e => {
+  if (state !== 'menu' || SETTINGS.reduceMotion) return;
   const first = !plxQ; plxQ = [e.clientX, e.clientY]; if (!first) return;
   requestAnimationFrame(() => {
-    const r = overlay.getBoundingClientRect(), mx = (plxQ[0] - r.left) / r.width * 2 - 1, my = (plxQ[1] - r.top) / r.height * 2 - 1; plxQ = null;
-    overlay.style.setProperty('--mx', mx.toFixed(2)); overlay.style.setProperty('--my', my.toFixed(2));
-    if (state !== 'menu') return; // over a paused or finished game only the panel drifts; moving the game under the blur is what made it lag
-    stage.style.setProperty('--bx', (-mx * 14).toFixed(1) + 'px'); stage.style.setProperty('--by', (-my * 10).toFixed(1) + 'px'); // backdrop drifts with the mouse
+    const r = stage.getBoundingClientRect(), mx = (plxQ[0] - r.left) / r.width * 2 - 1, my = (plxQ[1] - r.top) / r.height * 2 - 1; plxQ = null;
+    if (typeof menuArt !== 'undefined') menuArt.style.translate = `${(-mx * 14).toFixed(1)}px ${(-my * 10).toFixed(1)}px`; // set on the one element: nothing else restyles
   });
 });
 /* ---- club: the dance floor lights up in time with the beat ---- */

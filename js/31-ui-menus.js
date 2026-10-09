@@ -17,22 +17,40 @@ function updateHud() {
 let thumbs = null;
 const stage = document.getElementById('stage'), intro = document.getElementById('intro');
 const thumbCache = new Map(); // map (and, for a custom map, its last save) -> preview
-function makeThumbs() { // rendered preview of every map (used by the cards, the roll and the intro)
-  return MAPS.map(m => {
-    const key = m.custom ? `${m.custom}:${(m.data.meta || {}).modified || 0}:${W}` : `${m.name}:${W}`; if (thumbCache.has(key)) return thumbCache.get(key);
-    const url = mapThumb(m); thumbCache.set(key, url); return url;
-  });
+const thumbKey = m => m.custom ? `${m.custom}:${(m.data.meta || {}).modified || 0}:${W}` : `${m.name}:${W}`;
+function makeThumbs() { // a small picture of every map (the map browser, the roll, the multiplayer lobby)
+  return MAPS.map(m => { const key = thumbKey(m); if (thumbCache.has(key)) return thumbCache.get(key); const url = mapThumb(m); thumbCache.set(key, url); return url; });
+}
+function mapStill(m, k) { // the map's ground and everything standing on it at k pixels per world unit: no people, no lighting
+  const mk = () => { const c = document.createElement('canvas'); c.width = Math.ceil(W * k); c.height = Math.ceil(H * k); const x = c.getContext('2d'); x.setTransform(k, 0, 0, k, 0, 0); return [c, x]; };
+  const [c, x] = mk(), b = m.build();
+  b.floor(x); const [oc, ox] = mk(); drawObstacleLayer(ox, b, [...borderWalls(m.border), ...b.obs], b.lights || m.lights || []); x.drawImage(oc, 0, 0, W, H); freeCanvas(oc);
+  return c;
 }
 function mapThumb(m) {
-  {
-    const k = Math.min(DPR, 480 / MW * 1.25); // drawn straight at about the card's size, not at full screen resolution
-    const mk = () => { const c = document.createElement('canvas'); c.width = Math.ceil(W * k); c.height = Math.ceil(H * k); const x = c.getContext('2d'); x.setTransform(k, 0, 0, k, 0, 0); return [c, x]; };
-    const [c, x] = mk(), b = m.build();
-    b.floor(x); const [oc, ox] = mk(); drawObstacleLayer(ox, b, [...borderWalls(m.border), ...b.obs], b.lights || m.lights || []); x.drawImage(oc, 0, 0, W, H);
-    const t = document.createElement('canvas'); t.width = 480; t.height = 320; const tx = t.getContext('2d'); tx.imageSmoothingQuality = 'high';
-    tx.drawImage(c, XO * k, 0, MW * k, H * k, 0, 0, 480, 320); // every card, built-in or custom, shows the middle of the map: the part every screen width has
-    const url = t.toDataURL ? t.toDataURL() : ''; freeCanvas(c, oc, t); return url;
-  }
+  const k = Math.min(DPR, 480 / MW * 1.25), c = mapStill(m, k); // drawn straight at about the tile's size, not at full screen resolution
+  const t = document.createElement('canvas'); t.width = 480; t.height = 320; const tx = t.getContext('2d'); tx.imageSmoothingQuality = 'high';
+  tx.drawImage(c, XO * k, 0, MW * k, H * k, 0, 0, 480, 320); // every tile, built-in or custom, shows the middle of the map: the part every screen width has
+  const url = t.toDataURL ? t.toDataURL('image/jpeg', .88) : ''; freeCanvas(c, t); return url;
+}
+const artCache = new Map();
+function mapArt(i) { // the whole map, big: the backdrop behind every menu and the run setup's preview. Drawn once per map, then kept
+  const m = MAPS[i]; if (!m) return ''; const key = thumbKey(m);
+  if (!artCache.has(key)) { let url = ''; try { const c = mapStill(m, Math.min(1.5, 1440 / W)); url = c.toDataURL('image/jpeg', .82); freeCanvas(c); } catch (e) { url = (thumbs || [])[i] || ''; } artCache.set(key, url); }
+  return artCache.get(key);
+}
+const menuArt = (() => { const d = document.createElement('div'); d.id = 'menuArt'; d.setAttribute('aria-hidden', 'true'); d.innerHTML = '<img alt=""><img alt="">'; stage.insertBefore(d, document.getElementById('overlay')); return d; })(); // a still picture: the menus never draw the live world
+function menuBackdrop(i) { // crossfade to this map's picture once it's ready (drawn a beat later the first time, so the click itself never waits on it)
+  const apply = url => {
+    const p = document.getElementById('rsArt'); if (p && url && mapIdx === i) p.src = url;
+    if (!url || menuArt.dataset.src === url) return; menuArt.dataset.src = url;
+    const [a, b] = menuArt.children, nx = a.classList.contains('on') ? b : a, cur = nx === a ? b : a;
+    nx.src = url; const show = () => { if (menuArt.dataset.src !== url) return; nx.classList.add('on'); cur.classList.remove('on'); };
+    (nx.decode ? nx.decode() : Promise.resolve()).then(show, show);
+  };
+  if (!MAPS[i]) return; clearTimeout(menuBackdrop.t);
+  if (artCache.has(thumbKey(MAPS[i]))) return apply(artCache.get(thumbKey(MAPS[i])));
+  menuBackdrop.t = setTimeout(() => { if (mapIdx === i) apply(mapArt(i)); }, 140);
 }
 function makeSplatSVG() { // flat blood splatter behind the title (seeded, so it looks the same every time)
   let sd = 11; const r = () => (sd = sd * 16807 % 2147483647) / 2147483647;
@@ -48,7 +66,7 @@ function makeSplatSVG() { // flat blood splatter behind the title (seeded, so it
   return `<svg class="splat" viewBox="0 0 400 160" preserveAspectRatio="none" aria-hidden="true"><g fill="#4a0306">${blob}${spikes}${drops}</g><g fill="#6d070b" opacity=".5">${light}</g></svg>`;
 }
 const SPLAT = makeSplatSVG();
-function placeThumb(seg, instant) { // sliding pill behind the selected option
+function placeThumb(seg, instant) { // sliding pill (or underline) under the selected option
   const on = seg.querySelector('button.on'), th = seg.querySelector('.sthumb');
   if (!on || !th) return;
   if (instant) th.style.transition = 'none';
@@ -60,62 +78,205 @@ function transitionTo(fn) { // animate the current screen out, then show the nex
   if (!cur || SETTINGS.reduceMotion || overlay.style.display === 'none') return fn();
   cur.classList.add('leaving');
   let done = false; const go = () => { if (done) return; done = true; fn(); };
-  requestAnimationFrame(() => { const an = cur.getAnimations ? cur.getAnimations().find(x => x.animationName === 'panelOut') : null; if (an) an.finished.then(go, go); }); // swap when the close has actually played, even if the click was busy
+  requestAnimationFrame(() => { const an = cur.getAnimations ? cur.getAnimations().find(x => x.animationName === 'panelOut' || x.animationName === 'mmOut') : null; if (an) an.finished.then(go, go); }); // swap when the close has actually played, even if the click was busy
   setTimeout(go, 450); // fallback
+}
+/* =========================================================
+   MAIN MENU: one screen, two views.
+   Home: the selected map's picture behind everything, the logo, one column of choices (Start game strongest, the rest
+   plain text), a small profile (level, XP, chips, title) and the map editor tucked into the footer on desktops.
+   Run setup (Start game): the map large with its name, a line about it and a few facts; beside it the time of day, the
+   season, the modifiers and this map's challenges, with Start run always in view. Change map opens the map browser over
+   it. Picking a map, a time or a season changes the page in place: nothing is rebuilt, nothing scrolls back.
+   ========================================================= */
+let menuView = 'home'; // which view the menu reopens on (back from Modifiers, Settings…); a run or the editor resets it
+const MAP_BLURB = {
+  'Open Field': 'A mown hayfield with one farm track, a fence and an old oak. Nowhere to hide.',
+  Meadow: 'A lake with a campsite on the shore and dirt trails out to the edges.',
+  Town: 'A small-town grid: the square and its fountain, the church, the shops, the diner and a gas station.',
+  Maze: 'A hedge maze, grown fresh every run, with a fountain garden at its heart. Dead ends are the point.',
+  Farm: 'Barn and silo, the farmhouse, a pig pen, the sheep paddock and the crop field.',
+  Park: 'A city park: the loop round the duck pond, a playground and the bandstand.',
+  Pool: 'A lido on a tiled deck, with changing rooms, a snack bar and a lawn with a fountain.',
+  Office: 'Reception, the glass boardroom and the corner office over an open-plan floor.',
+  Checkerboard: 'A giant outdoor chess set, a few pieces still standing, floodlit from the corners.',
+  Moon: 'A small lunar base: domes on pressurized tubes, a landing pad and a rover.',
+  Mars: 'A research outpost: greenhouse, habitat and lab, and a return rocket on a scorched pad.',
+  'Alien Facility': 'A specimen lab, a control room and a cryo bay above the hangar with the saucer.',
+  'Space Station': 'A command module ringed by a corridor, four bays and an airlock full of suits.',
+  Bunker: 'Barracks, mess hall and the generator room off one corridor. Some days it goes into lockdown.',
+  Club: 'A nightclub: the DJ stage, a lit dance floor and the bar.',
+};
+const LOCAL_NAME = { human: 'people', astronaut: 'astronauts', alien: 'aliens', deer: 'deer', sheep: 'sheep' };
+const mapBlurb = m => attr(MAP_BLURB[m.name] || (m.custom ? 'A map made in the map editor.' : ''));
+const mapSetting = m => m.space ? (m.indoor ? 'Space station' : 'Space') : m.indoor ? 'Indoors' : 'Outdoors';
+function mapLocals(m) { const t = [...new Set((m.pop || []).map(p => p[0]))].map(k => LOCAL_NAME[k] || k + 's'); return t.length ? t[0][0].toUpperCase() + t.join(', ').slice(1) : ''; }
+function mapFactsHtml(i) {
+  const m = MAPS[i], best = PROG.best[m.name] || 0, pm = permChallenges(m.name).length;
+  return [['Setting', mapSetting(m)], ['Locals', mapLocals(m) || 'Nobody'], ['Best score', best ? best.toLocaleString() : 'Not set yet'], ['Map goals', pm ? `${pmDoneCount(m.name)} of ${pm} done` : 'None']]
+    .map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
+}
+const seasonWhy = m => SEASON_MAPS.has(m.name) || (m.custom && m.seasons) ? '' : m.space ? 'No seasons in space.' : m.indoor ? 'Indoors, so the season never shows here.' : m.custom ? 'Seasons are switched off for this map.' : 'This map looks the same all year round.';
+const ICO = {
+  back: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg>',
+  x: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+  dice: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2.5"/><g fill="currentColor" stroke="none"><circle cx="9" cy="9" r="1.4"/><circle cx="15" cy="9" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="9" cy="15" r="1.4"/><circle cx="15" cy="15" r="1.4"/></g></svg>',
+};
+function profileHtml() { // level, XP, chips and the title you wear: once, here, and nowhere else on the menu
+  const need = xpNeed(PROG.level), t = SETTINGS.snake.title;
+  return `<div class="mm-prof" aria-label="Your profile">
+    <div class="pf-a"><span class="pf-lv">Level <b>${PROG.level}</b></span>${t && t !== 'None' ? `<span class="pf-title" data-tiph="${attr(titleTip(t))}">${attr(t)}</span>` : ''}</div>
+    <div class="pf-xp" role="progressbar" aria-label="Experience" aria-valuemin="0" aria-valuemax="${need}" aria-valuenow="${PROG.xp}"><i style="width:${(PROG.xp / need * 100).toFixed(1)}%"></i></div>
+    <div class="pf-b"><span>${PROG.xp.toLocaleString()} / ${need.toLocaleString()} XP</span><span class="pf-chips"><i class="pc"></i>${PROG.coins.toLocaleString()}<span class="vh"> chips</span></span></div></div>`;
+}
+function homeHtml() {
+  const achN = ACH.filter(a => PROG.ach[a.id]).length, ed = typeof editorAllowed === 'function' && editorAllowed();
+  return `<section class="mm-home" data-v="home">
+    <div class="mm-col">
+      <h1 class="mm-logo" aria-label="Snake: Carnage"><span class="l1">Snake</span><span class="l2">${SPLAT}<b>Carnage</b></span></h1>
+      <nav class="mm-nav" aria-label="Main menu">
+        <button class="mm-cta" id="playBtn" data-sfx="open"><span class="mm-l">Start game</span><kbd>Space</kbd></button>
+        <button class="mm-it" id="coopBtn" data-sfx="open"><span class="mm-l">Play with friends</span></button>
+        <button class="mm-it" id="upBtn" data-sfx="open"><span class="mm-l">Upgrades</span>${upgradeReady() ? '<em class="mm-note hot">Ready to buy</em>' : ''}</button>
+        <button class="mm-it" id="snakeBtn" data-sfx="open"><span class="mm-l">Cosmetics</span></button>
+        <button class="mm-it" id="chBtn" data-sfx="open"><span class="mm-l">Achievements</span><em class="mm-note">${achN} / ${ACH.length}</em></button>
+        <button class="mm-it" id="setBtn" data-sfx="open"><span class="mm-l">Settings</span></button>
+      </nav>
+    </div>
+    ${profileHtml()}
+    <footer class="mm-foot"><span class="mm-ver">v${GAME_VERSION}</span>${ed ? '<button class="mm-q" id="edBtn" data-sfx="open">Map editor</button>' : ''}<span class="sp"></span>
+      <button class="mm-mapcap" id="mapCap" data-sfx="open" aria-label="Selected map: ${attr(MAPS[mapIdx].name)}. Open the run setup"><small>Map</small><b data-mapname>${attr(MAPS[mapIdx].name)}</b></button></footer>
+  </section>`;
+}
+const segHtml = (id, label, keys, cur, names, key) => `<div class="rs-seg" id="${id}" role="radiogroup" aria-label="${label}"><i class="sthumb"></i>${keys.map(k => `<button role="radio" aria-checked="${k === cur}" class="${k === cur ? 'on' : ''}" data-${key}="${k}" data-sfx="tab">${names ? names[k] : k}</button>`).join('')}</div>`;
+function setupHtml() {
+  const m = MAPS[mapIdx];
+  return `<section class="rs" data-v="setup" aria-label="Run setup">
+    <header class="rs-head"><button class="mm-back" id="rsBack" data-sfx="close">${ICO.back}<span>Back</span></button><h2>Run setup</h2></header>
+    <div class="rs-grid">
+      <div class="rs-main">
+        <button class="rs-prev" id="rsPrev" data-sfx="open" aria-label="Change map"><img id="rsArt" alt="" src="${artCache.get(thumbKey(m)) || thumbs[mapIdx]}"></button>
+        <div class="rs-info">
+          <div class="rs-title"><h3 id="rsName" data-mapname>${attr(m.name)}</h3><button class="mm-q" id="rsChange" data-sfx="open">Change map</button></div>
+          <p class="rs-desc" id="rsDesc">${mapBlurb(m)}</p>
+          <dl class="rs-facts" id="rsFacts">${mapFactsHtml(mapIdx)}</dl>
+        </div>
+      </div>
+      <aside class="rs-side">
+        <div class="rs-scroll">
+          <section class="rs-sec"><h4>Time of day</h4>${segHtml('rsTime', 'Time of day', Object.keys(TIME_MODES), SETTINGS.timeMode, TIME_MODES, 'time')}<p class="rs-hint" id="rsTimeTip">${TIME_TIPS[SETTINGS.timeMode] || ''}</p></section>
+          <section class="rs-sec" id="rsSeason"><h4>Season</h4>${segHtml('rsSea', 'Season', SEASON_PICK, SETTINGS.season || 'Random', null, 'season')}<p class="rs-hint" id="rsSeaTip"></p></section>
+          <section class="rs-sec"><div class="rs-sh"><h4>Modifiers</h4><button class="mm-q" id="modBtn" data-sfx="open">Edit modifiers</button></div><div class="rs-mods" id="modline">${modLine()}</div></section>
+          <section class="rs-sec rs-ch" id="mapch">${mapChallengesHtml()}</section>
+        </div>
+      </aside>
+    </div>
+    <div class="rs-foot"><button class="rs-start" id="startBtn" data-sfx="none"><span class="mm-l">Start run</span><kbd>Space</kbd></button></div>
+    <div class="mbr" id="mapBrowser" role="dialog" aria-modal="true" aria-label="Choose a map" hidden></div>
+  </section>`;
 }
 function showMenu() {
   if (typeof clearRunHud === 'function') clearRunHud(); // back from a run (or a multiplayer round, straight back to the lobby): the run's modifier strip, chips and challenges go with it
+  if (state !== 'menu') menuView = 'home'; // back from a run or the editor: the front page
   state = 'menu'; endIntro(true); creatures = []; /* nobody in the background behind the menus */ setTimeout(warmCanopies, 1500);
   if (!thumbs || thumbs.length !== MAPS.length || MAPS.some(m => m.custom)) thumbs = makeThumbs(); // custom maps come and go (cached, so this is cheap)
+  if (!MAPS[mapIdx]) mapIdx = 0;
   MOD = {}; rewardMult = 1; document.body.classList.remove('minimal');
   stage.classList.remove('bars', 'paused'); cv.style.scale = '1.05';
-  overlay.className = 'menuMode';
-  overlay.innerHTML = `<div class="menu">${menuFx()}
-    <div class="mleft">
-      <div class="logo"><span class="l1">Snake<i class="drip" style="--x:14%;--h:16px;--d:0s"></i><i class="drip" style="--x:46%;--h:24px;--d:1.4s"></i><i class="drip" style="--x:81%;--h:11px;--d:2.6s"></i></span><span class="l2">${SPLAT}Carnage</span></div>
-      <p class="tag">Slither in, eat the locals, and stay out of the light.</p>
-      <div class="mlevel"><span>Level ${PROG.level}${SETTINGS.snake.title !== 'None' ? `<em class="mtitle" data-tiph="${attr(titleTip(SETTINGS.snake.title))}">${SETTINGS.snake.title}</em>` : ''}</span><span class="xp" title="${PROG.xp} / ${xpNeed(PROG.level)} XP"><span class="xpfill" style="width:${(PROG.xp / xpNeed(PROG.level) * 100).toFixed(1)}%"></span></span><span class="coin"><i class="pc"></i> ${PROG.coins}</span></div>
-      <button class="play" id="playBtn" data-sfx="none"><span>Play ${MAPS[mapIdx].name}</span><small>Space</small></button>
-      <div class="modline" id="modline">${modLine()}</div>
-      <div class="seg tseg" role="group" aria-label="Time of day"><i class="sthumb"></i>${Object.keys(TIME_MODES).map(k => `<button data-sfx="tab" data-time="${k}" class="${k === SETTINGS.timeMode ? 'on' : ''}" data-tip="${TIME_TIPS[k]}">${TIME_MODES[k]}</button>`).join('')}</div>
-      <div class="seg tseg seaseg ${MAPS[mapIdx].indoor || MAPS[mapIdx].space ? 'dim' : ''}" role="group" aria-label="Season"><i class="sthumb"></i>${SEASON_PICK.map(k => `<button data-sfx="tab" data-season="${k}" class="${k === (SETTINGS.season || 'Random') ? 'on' : ''}" data-tip="${SEASON_TIPS[k]}">${k}</button>`).join('')}</div>
-      <div class="mrow"><button class="ghost" id="upBtn" data-sfx="open">Upgrades${upgradeReady() ? '<i class="dot"></i>' : ''}</button><button class="ghost" id="snakeBtn" data-sfx="open">Shop</button></div>
-      <div class="mrow"><button class="ghost" id="modBtn" data-sfx="open">Modifiers</button><button class="ghost" id="chBtn" data-sfx="open">Challenges</button></div>
-      <div class="mrow"><button class="ghost" id="setBtn" data-sfx="open">Settings</button></div>
-      <div class="ver">v${GAME_VERSION}</div>
-    </div>
-    <div class="mright"><h2>Choose a map</h2><div class="mapch" id="mapch">${mapChallengesHtml()}</div><div class="cards">${MAPS.map((m, i) => `<button class="card ${i === mapIdx ? 'on' : ''}" data-sfx="select" data-map="${i}" style="--i:${i}"><img src="${thumbs[i]}" alt=""><span class="cn">${m.name}</span><span class="cb">Best ${PROG.best[m.name] || 0} · ${chDoneCount(m.name)}/${activeChallenges(m.name).length} ✓</span></button>`).join('')}<button class="card rnd" data-sfx="none" data-map="rand" style="--i:${MAPS.length}">🎲<span class="cn">Random</span></button></div></div>
-  </div>`;
+  overlay.className = 'menuMode mmMode';
+  overlay.innerHTML = `<div class="mm" data-view="${menuView}">${menuFx()}${homeHtml()}${setupHtml()}</div>`;
   overlay.style.display = 'flex';
-  overlay.querySelectorAll('.card').forEach(card => {
-    card.onpointermove = e => { // tilt toward the cursor
-      const r = card.getBoundingClientRect(), px = (e.clientX - r.left) / r.width - .5, py = (e.clientY - r.top) / r.height - .5;
-      card.style.setProperty('--ry', (px * 11).toFixed(1) + 'deg'); card.style.setProperty('--rx', (-py * 9).toFixed(1) + 'deg'); card.style.setProperty('--px', px.toFixed(3)); card.style.setProperty('--py', py.toFixed(3)); // gentle: a few degrees, the picture shifts a little against it
-    };
-    card.onpointerleave = () => { for (const [k, v] of [['--rx', '0deg'], ['--ry', '0deg'], ['--px', 0], ['--py', 0]]) card.style.setProperty(k, v); };
-    card.onclick = () => card.dataset.map === 'rand' ? randomRoll() : selectMap(+card.dataset.map);
-  });
-  const seg = overlay.querySelector('.seg');
-  seg.querySelectorAll('button').forEach(b => b.onclick = () => {
-    SETTINGS.timeMode = b.dataset.time; saveSettings(); seg.querySelectorAll('button').forEach(o => o.classList.toggle('on', o === b)); placeThumb(seg);
-  });
-  placeThumb(seg, true); requestAnimationFrame(() => placeThumb(seg, true));
-  const sseg = overlay.querySelector('.seaseg'); // the season, picked the same way as the time of day
-  if (sseg) { sseg.querySelectorAll('button').forEach(b => b.onclick = () => { SETTINGS.season = b.dataset.season; saveSettings(); sseg.querySelectorAll('button').forEach(o => o.classList.toggle('on', o === b)); placeThumb(sseg); if (state === 'menu') { clearTimeout(selT); selT = setTimeout(() => { if (state === 'menu') loadMap(mapIdx); }, 60); } }); // (the map behind the menu re-dresses for it)
-    placeThumb(sseg, true); requestAnimationFrame(() => placeThumb(sseg, true)); }
-  document.getElementById('playBtn').onclick = startGame;
-  document.getElementById('setBtn').onclick = () => { settingsFrom = 'menu'; transitionTo(() => showSettings()); };
-  document.getElementById('snakeBtn').onclick = () => transitionTo(showCustomize);
-  document.getElementById('modBtn').onclick = () => transitionTo(() => showModifiers());
-  overlay.querySelectorAll('#modline .mchip[data-mod]').forEach(ch => { ch.style.cursor = 'pointer'; ch.onclick = () => transitionTo(() => showModifiers(ch.dataset.mod)); }); // jump straight to that modifier
-  document.getElementById('upBtn').onclick = () => transitionTo(showUpgrades);
-  document.getElementById('chBtn').onclick = () => transitionTo(showChallenges);
+  wireMenu(); menuGo(menuView, true); menuBackdrop(mapIdx);
 }
-function modLine(list) { // active modifiers, visible before the run starts
+function menuGo(v, first) { // switch between the menu's two views: a short fade, the buttons themselves never move
+  const root = overlay.querySelector('.mm'); if (!root) return;
+  menuView = v; root.dataset.view = v;
+  for (const s of root.querySelectorAll('[data-v]')) { const on = s.dataset.v === v; s.inert = !on; s.setAttribute('aria-hidden', String(!on)); }
+  if (v === 'setup') { root.querySelectorAll('.rs-seg').forEach(sg => placeThumb(sg, true)); requestAnimationFrame(() => root.querySelectorAll('.rs-seg').forEach(sg => placeThumb(sg, true))); }
+  if (!first || menuGo.kbd) { const f = root.querySelector(v === 'setup' ? '#startBtn' : '#playBtn'); if (f) f.focus({ preventScroll: true }); }
+}
+function wireMenu() {
+  const root = overlay.querySelector('.mm'), $ = id => document.getElementById(id);
+  $('playBtn').onclick = () => menuGo('setup');
+  $('coopBtn').onclick = () => transitionTo(netShowCoop);
+  $('upBtn').onclick = () => transitionTo(showUpgrades);
+  $('snakeBtn').onclick = () => transitionTo(showCustomize);
+  $('chBtn').onclick = () => transitionTo(showChallenges);
+  $('setBtn').onclick = () => { settingsFrom = 'menu'; transitionTo(() => showSettings()); };
+  if ($('edBtn')) $('edBtn').onclick = () => startEditor(mapIdx);
+  $('mapCap').onclick = () => menuGo('setup');
+  $('rsBack').onclick = () => menuGo('home');
+  $('rsPrev').onclick = $('rsChange').onclick = () => openBrowser();
+  $('startBtn').onclick = () => startGame();
+  $('modBtn').onclick = () => transitionTo(() => showModifiers());
+  root.querySelectorAll('#modline .mchip[data-mod]').forEach(ch => { ch.tabIndex = 0; ch.setAttribute('role', 'button'); ch.onclick = () => transitionTo(() => showModifiers(ch.dataset.mod)); }); // jump straight to that modifier
+  const hint = (seg, tipEl, tips, key, cur) => { // the line under a choice describes whichever option you point at, then goes back to the picked one
+    seg.querySelectorAll('button').forEach(b => { b.onpointerenter = b.onfocus = () => { if (!b.disabled) tipEl.textContent = tips[b.dataset[key]] || ''; }; });
+    seg.onpointerleave = () => { const w = key === 'season' && seasonWhy(MAPS[mapIdx]); tipEl.textContent = w || tips[cur()] || ''; };
+  };
+  const pick = (seg, b) => { seg.querySelectorAll('button').forEach(o => { o.classList.toggle('on', o === b); o.setAttribute('aria-checked', o === b); }); placeThumb(seg); };
+  const ts = $('rsTime'), ss = $('rsSea');
+  ts.querySelectorAll('button').forEach(b => b.onclick = () => { SETTINGS.timeMode = b.dataset.time; saveSettings(); pick(ts, b); $('rsTimeTip').textContent = TIME_TIPS[b.dataset.time] || ''; root.querySelector('#mapch').innerHTML = mapChallengesHtml(); });
+  ss.querySelectorAll('button').forEach(b => b.onclick = () => { SETTINGS.season = b.dataset.season; saveSettings(); pick(ss, b); $('rsSeaTip').textContent = SEASON_TIPS[b.dataset.season] || ''; });
+  hint(ts, $('rsTimeTip'), TIME_TIPS, 'time', () => SETTINGS.timeMode); hint(ss, $('rsSeaTip'), SEASON_TIPS, 'season', () => SETTINGS.season || 'Random');
+  seasonState();
+  root.addEventListener('keydown', menuKeys);
+}
+function seasonState() { // seasons only show on some outdoor maps: elsewhere the control stays, greyed, with the reason under it
+  const sec = document.getElementById('rsSeason'); if (!sec) return;
+  const why = seasonWhy(MAPS[mapIdx]); sec.classList.toggle('off', !!why);
+  sec.querySelectorAll('button').forEach(b => { b.disabled = !!why; });
+  document.getElementById('rsSeaTip').textContent = why || SEASON_TIPS[SETTINGS.season || 'Random'] || '';
+}
+function menuKeys(e) { // arrow keys: up and down the menu, across a choice, around the map browser
+  const t = e.target, k = e.key; if (!t.closest || !/^Arrow/.test(k)) return;
+  const move = (list, i) => { e.preventDefault(); e.stopPropagation(); const el = list[(i + list.length) % list.length]; if (el) el.focus(); return el; };
+  if (t.closest('.mm-nav')) { const l = [...t.closest('.mm-nav').querySelectorAll('button')], i = l.indexOf(t.closest('button')); if (k === 'ArrowDown') move(l, i + 1); else if (k === 'ArrowUp') move(l, i - 1); return; }
+  if (t.closest('.rs-seg')) { const l = [...t.closest('.rs-seg').querySelectorAll('button:not(:disabled)')], i = l.indexOf(t); const d = k === 'ArrowRight' || k === 'ArrowDown' ? 1 : k === 'ArrowLeft' || k === 'ArrowUp' ? -1 : 0; if (d) { const el = move(l, i + d); if (el) el.click(); } return; }
+  if (t.closest('.mbr-grid')) { const l = [...t.closest('.mbr-grid').querySelectorAll('.mbr-t')], i = l.indexOf(t.closest('.mbr-t')); if (i < 0) return;
+    const cols = Math.max(1, l.filter(x => x.offsetTop === l[0].offsetTop).length);
+    const d = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: cols, ArrowUp: -cols }[k]; if (d) { const j = i + d; if (j >= 0 && j < l.length) move(l, j); else { e.preventDefault(); e.stopPropagation(); } } }
+}
+function browserHtml(cur = mapIdx, rand = true) { // every map at one size: picture, name, where it is, your best there. Random is a plain button, not a tile
+  return `<div class="mbr-in"><header class="mbr-head"><h3>Choose a map</h3><span class="sp"></span>
+      ${rand ? `<button class="mm-q mbr-rand" id="mbRand" data-sfx="none" data-tip="A random map and random modifiers, kept secret until the run starts">${ICO.dice}<span>Random run</span></button>` : ''}
+      <button class="mm-x" id="mbClose" data-sfx="close" aria-label="Close the map browser">${ICO.x}</button></header>
+    <div class="mbr-grid">${MAPS.map((m, i) => `<button class="mbr-t ${i === cur ? 'on' : ''}" data-map="${i}" aria-pressed="${i === cur}" data-sfx="select"><span class="mbr-img"><img src="${thumbs[i]}" alt="" decoding="async"></span><span class="mbr-n">${attr(m.name)}</span><span class="mbr-m">${mapSetting(m)}<span class="mbr-b">Best ${(PROG.best[m.name] || 0).toLocaleString()}</span></span></button>`).join('')}</div></div>`;
+}
+function openBrowser() {
+  const box = document.getElementById('mapBrowser'); if (!box) return;
+  box.innerHTML = browserHtml(); box.hidden = false; box.classList.remove('shut'); overlay.querySelector('.mm').classList.add('browsing');
+  box.querySelector('#mbClose').onclick = () => closeBrowser();
+  box.querySelector('#mbRand').onclick = () => { closeBrowser(true); randomRoll(); };
+  box.querySelectorAll('.mbr-t').forEach(t => t.onclick = () => { selectMap(+t.dataset.map); setTimeout(() => closeBrowser(), SETTINGS.reduceMotion ? 0 : 160); });
+  box.onclick = e => { if (e.target === box) closeBrowser(); }; // a click beside the sheet closes it
+  const on = box.querySelector('.mbr-t.on'); requestAnimationFrame(() => { if (on) { on.scrollIntoView({ block: 'nearest' }); on.focus({ preventScroll: true }); } });
+}
+function closeBrowser(instant) {
+  const box = document.getElementById('mapBrowser'); if (!box || box.hidden) return false;
+  const root = overlay.querySelector('.mm'); if (root) root.classList.remove('browsing');
+  const end = () => { box.hidden = true; box.classList.remove('shut'); box.innerHTML = ''; };
+  if (instant || SETTINGS.reduceMotion) end(); else { box.classList.add('shut'); setTimeout(() => { if (box.classList.contains('shut')) end(); }, 180); }
+  const f = document.getElementById('rsChange'); if (f && !instant) f.focus({ preventScroll: true });
+  return true;
+}
+function menuSpace() { // Space on the menu: Start game opens the setup, and in the setup it starts the run
+  const root = overlay.querySelector('.mm'); if (!root || overlay.querySelector('.casebox')) return;
+  if (!document.getElementById('mapBrowser').hidden) return;
+  if (root.dataset.view === 'home') menuGo('setup'); else startGame();
+}
+addEventListener('keydown', () => { menuGo.kbd = true; }, true); addEventListener('pointerdown', () => { menuGo.kbd = false; }, true); // focus follows the keyboard, not the mouse
+function menuEsc() { // Esc: shut the map browser, then back to the front page; on any other menu screen, the same as its Done/Back button
+  const root = overlay.querySelector('.mm');
+  if (typeof netPick !== 'undefined' && netPick && overlay.querySelector('.mlob')) { netPick = null; return netLobbyRender(); } // the lobby's map browser
+  if (root) { if (closeBrowser()) return; if (root.dataset.view === 'setup' && !root.classList.contains('party')) menuGo('home'); return; }
+  const b = overlay.querySelector('#backBtn, #mpBack'); if (b) b.click(); else transitionTo(showMenu);
+}
+function modLine(list, readOnly) { // active modifiers, visible before the run starts
   const ids = list || SETTINGS.mods || [];
   if (!ids.length) return '<span class="mchip dim">No modifiers</span>';
   const mm = modMult(ids);
-  return ids.map(id => { const m = MODS.find(q => q.id === id) || {}; return `<span class="mchip" data-mod="${id}" data-tip="${m.desc} (click to edit)">${m.name}</span>`; }).join('') +
+  return ids.map(id => { const m = MODS.find(q => q.id === id) || {}; return `<span class="mchip" data-mod="${id}" data-tip="${attr(m.desc)}${readOnly ? '' : ' (click to edit)'}">${m.name}</span>`; }).join('') +
     (Math.abs(mm - 1) > .005 ? `<span class="mchip mult ${mm < 1 ? 'down' : ''}">Rewards x${mm.toFixed(2)}</span>` : ''); // no meaningless x1.00 chip
 }
 const SEASON_PICK = ['Random', 'Spring', 'Summer', 'Autumn', 'Winter'];
@@ -246,24 +407,24 @@ function chFit(ch) { // does this challenge suit how the next run is set up? A g
   if ((mods.has('fog') || mods.has('fow')) && ['unaware'].includes(ch.k)) return ['good', 'Fog makes sneaking easier'];
   return null;
 }
-function mapChallengesHtml() { // the selected map's current challenges: name, progress, reward, difficulty, rotation timer
+function mapChallengesHtml() { // the selected map's current challenges, compact: difficulty, name, what to do, a hint if your setup suits it, progress, reward
   const m = MAPS[mapIdx].name, done = PROG.chDone[m] || {}, best = PROG.chBest[m] || {};
-  return `<div class="mch"><b>${m} challenges</b><span>New set in <b data-rot>${fmtClock(rotLeft())}</b></span></div><div class="mcg">` +
-    [...activeChallenges(m)].sort((p, q) => TIER_ORDER[p.tier] - TIER_ORDER[q.tier]).map((ch, i) => { const v = done[ch.id] ? ch.n : (best[ch.id] || 0);
-      const fit = !done[ch.id] && chFit(ch);
-      return `<div class="mc ${done[ch.id] ? 'done' : ''} ${fit ? 'fit-' + fit[0] : ''}" style="--i:${i}" data-tip="${ch.t}. Reward: ${rewardText(ch).replace(/<[^>]+>/g, '')} chips${fit ? '. ' + fit[1] : ''}"><em class="tier ${ch.tier}">${TIERS[ch.tier].label}</em><b>${done[ch.id] ? '✔ ' : ''}${ch.name}</b><small>${ch.t}</small>
-        <span class="pbar"><span style="width:${(v / ch.n * 100).toFixed(0)}%"></span></span><span class="mcf"><span>${v}${chUnit(ch)}/${ch.n}${chUnit(ch)}</span><span class="rw3">+${chReward(ch).chips} <i class="pc"></i></span></span></div>`; }).join('') + '</div>';
+  return `<h4>Challenges<span class="rs-rot">New set in <b data-rot>${fmtClock(rotLeft())}</b></span></h4><ul class="rs-chl">` +
+    [...activeChallenges(m)].sort((p, q) => TIER_ORDER[p.tier] - TIER_ORDER[q.tier]).map(ch => { const d = done[ch.id], v = d ? ch.n : Math.min(best[ch.id] || 0, ch.n), fit = !d && chFit(ch), u = chUnit(ch);
+      return `<li class="rc ${d ? 'done' : ''} ${fit ? 'fit-' + fit[0] : ''}"><span class="rc-tier t-${ch.tier}">${TIERS[ch.tier].label}</span><span class="rc-body"><b>${d ? '<i class="rc-ck" aria-label="Done"></i>' : ''}${ch.name}</b><small>${ch.t}</small>${fit ? `<em>${fit[1]}</em>` : ''}</span><span class="rc-n"><b>${v}${u} / ${ch.n}${u}</b><span data-tip="Reward: ${attr(rewardText(ch).replace(/<[^>]+>/g, ''))} chips">+${chReward(ch).chips}<i class="pc"></i></span></span><i class="rc-bar" style="width:${(v / ch.n * 100).toFixed(0)}%"></i></li>`; }).join('') + '</ul>';
 }
-let selT = 0;
-function selectMap(i) { // updates the menu in place, so nothing else resets. The heavy map load runs a beat later, and only for the map you land on
-  mapIdx = i; clearTimeout(selT); selT = setTimeout(() => { if (state === 'menu' && mapIdx === i) loadMap(i); }, 60);
-  overlay.querySelectorAll('.card[data-map]').forEach(c => c.classList.toggle('on', c.dataset.map === String(i)));
-  const card = overlay.querySelector(`.card[data-map="${i}"]`);
-  if (card) { card.classList.remove('picked'); void card.offsetWidth; card.classList.add('picked'); }
-  const pb = document.querySelector('#playBtn span');
-  if (pb) { pb.textContent = 'Play ' + MAPS[i].name; pb.classList.remove('bump'); void pb.offsetWidth; pb.classList.add('bump'); }
-  const ss = overlay.querySelector('.seaseg'); if (ss) ss.classList.toggle('dim', !!(MAPS[i].indoor || MAPS[i].space)); // seasons only show outdoors
+function selectMap(i) { // in place: the browser's frame, the name, the line about it, the facts, the season, the challenges and the backdrop. Nothing is rebuilt and nothing scrolls back
+  if (!MAPS[i]) return; mapIdx = i; const m = MAPS[i];
+  overlay.querySelectorAll('.mbr-t').forEach(t => { const on = t.dataset.map === String(i); t.classList.toggle('on', on); t.setAttribute('aria-pressed', on); });
+  overlay.querySelectorAll('[data-mapname]').forEach(e => { e.textContent = m.name; });
+  const cap = document.getElementById('mapCap'); if (cap) cap.setAttribute('aria-label', `Selected map: ${m.name}. Open the run setup`);
+  const d = document.getElementById('rsDesc'); if (d) d.innerHTML = mapBlurb(m);
+  const f = document.getElementById('rsFacts'); if (f) f.innerHTML = mapFactsHtml(i);
+  const p = document.getElementById('rsArt'); if (p) p.src = artCache.get(thumbKey(m)) || thumbs[i];
+  const info = overlay.querySelector('.rs-info'); if (info && !SETTINGS.reduceMotion) { info.classList.remove('swap'); void info.offsetWidth; info.classList.add('swap'); }
+  seasonState();
   const mc = document.getElementById('mapch'); if (mc) { mc.innerHTML = mapChallengesHtml(); mc.classList.remove('swap'); void mc.offsetWidth; mc.classList.add('swap'); }
+  menuBackdrop(i);
 }
 function randomRoll() { // case-opening roll; the pick stays secret until the game itself reveals it
   const chosen = (mapIdx + randi(1, MAPS.length - 1)) % MAPS.length;

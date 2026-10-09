@@ -6,7 +6,7 @@ function pauseGame() {
   Sfx.ui('open'); showPause();
 }
 function showPause() {
-  overlay.style.setProperty('--mx', 0); overlay.style.setProperty('--my', 0); cv.style.translate = ''; // no parallax over the paused game
+  cv.style.translate = ''; // no parallax over the paused game
   state = 'paused'; stage.classList.remove('bars'); stage.classList.add('paused');
   const ids = runMods;
   overlay.className = 'menuMode pauseMode'; overlay.style.display = 'flex';

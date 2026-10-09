@@ -345,7 +345,7 @@ const Sfx = {
 };
 addEventListener('pointerdown', () => Sfx.init());
 let hoverBtn = null;
-const HOVER_SFX = '.play,.card,.ghost,.tab,.btn,.seg button,.sseg button';
+const HOVER_SFX = '.play,.ghost,.tab,.btn,.seg button,.sseg button,.mm-cta,.mm-it,.rs-start,.mbr-t';
 document.addEventListener('pointerover', e => { // soft tick on the important buttons only
   const b = e.target.closest ? e.target.closest(HOVER_SFX) : null;
   if (b !== hoverBtn) { hoverBtn = b; if (b) Sfx.ui('hover'); }
