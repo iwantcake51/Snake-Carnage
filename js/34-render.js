@@ -77,6 +77,7 @@ function render() {
     for (let y = 0; y < cv.height; y += bh) { const o = Math.sin(y / cv.height * 7 + T * 3.6) * amp + Math.sin(T * 2.1 + y * .012) * amp * .4; ctx.drawImage(sceneC, 0, y, cv.width, bh, o, y, cv.width, bh); }
     if (!SETTINGS.reduceFlash) chromaSplit(.5 * bz);
   }
+  if (dfxSince && px <= 1 && !SETTINGS.reduceFlash && !SETTINGS.simpleFx) { const u = (performance.now() - dfxSince) / 700; if (u < 1) chromaSplit(.9 * (1 - u) ** 1.5); } // the moment you die: the picture shudders apart
   if (snake && snake.ramT > 0 && px <= 1 && !SETTINGS.reduceFlash) { const bk = Math.pow(snake.ramT / (snake.ramMax || 1), .6) * (snake.stunFx || 1); concussBloom(bk * (snake.wallStun > 0 ? .26 : .1)); } // any daze blooms; walls much more
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   if (nightVision) { // green phosphor look done in-canvas, so the overlays after it keep their real colors
@@ -121,7 +122,7 @@ function render() {
   const wantStart = state === 'ready' && !cam;
   if (wantStart !== !!render.startShown) { render.startShown = wantStart; wantStart ? showResume('to begin') : hideResume(); }
   const sat = (SETTINGS.desaturate && !nightVision ? clamp(1 - killFlash * .5, .45, 1) : 1) * (1 - .93 * stun) * (1 - .92 * dfxK) * (1 - .78 * bz); // dying drains it to grey; so does a blast close by
-  const f = nightVision ? `contrast(1.15) brightness(${((.95 - SETTINGS.darkness * .2) * (1 - .2 * boomDaze())).toFixed(2)})${dfxK ? ` grayscale(${(.92 * dfxK).toFixed(2)})` : ''}` : `saturate(${sat.toFixed(2)}) brightness(${((1 - SETTINGS.darkness) * (1 - .14 * dfxK) * (1 - .2 * boomDaze())).toFixed(2)}) contrast(${(1.08 + .08 * dfxK).toFixed(2)})`;
+  const f = nightVision ? `contrast(1.15) brightness(${((.95 - SETTINGS.darkness * .2) * (1 - .2 * boomDaze())).toFixed(2)})${dfxK ? ` grayscale(${(.92 * dfxK).toFixed(2)})` : ''}` : `saturate(${sat.toFixed(2)}) brightness(${((1 - SETTINGS.darkness) * (1 - .36 * dfxK) * (1 - .2 * boomDaze())).toFixed(2)}) contrast(${(1.08 + .42 * dfxK).toFixed(2)})`; // dying: grey and hard, the blacks crushed under the red
   if (f !== lastFilter) { cv.style.filter = f; lastFilter = f; }
   const ic = MAPS[mapIdx].indoor ? 'tod_indoor' : light.day > .5 ? 'tod_day' : light.day > .05 ? 'tod_dusk' : 'tod_night', clock = String(Math.floor(tod)).padStart(2, '0') + ':' + String(Math.floor(tod % 1 * 60)).padStart(2, '0');
   if (clockEl.textContent !== clock) clockEl.textContent = clock;

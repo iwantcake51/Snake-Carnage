@@ -214,6 +214,7 @@ function topicFits(tp) { // can this topic be talked about here, now?
   if (tp.dark && !darkOut()) return false;
   if (tp.light && darkOut()) return false;
   if (tp.not && season && tp.not.split(' ').includes(season.id)) return false;
+  if (tp.rain && season && (season.id === 'winter' || season.late)) return false; // no wondering about rain while it snows
   return true;
 }
 function talkPool() { const k = mapKey(); return (TALK[k] || []).concat(MAPS[mapIdx].club ? [] : TALK.generic.map(t => (t.generic = true, t))).concat(weatherTalk().map(t => (t.generic = true, t))).filter(topicFits); } // people talk about the weather they're actually standing in

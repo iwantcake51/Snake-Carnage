@@ -179,8 +179,11 @@ function airSalvo(s, g, a) { // a salvo of bombs walked along this snake's path 
     let w = warn / Math.sqrt(fs) + j * (lock ? rand(.22, .32) : raid ? rand(.3, .45) : rand(.55, .9)) + rand(.02, .08); // a fast one gives less warning; one after another, never two at once
     for (let q = 0; q < 6; q++) { const o = strikes.find(o => Math.abs(o.t - w) < .11); if (!o) break; w = o.t + .11 + rand(0, .05); }
     w = +w.toFixed(2);
-    const lead = lock ? w * rand(.92, 1.02) : w * rand(.4, 1.05), side = gauss() * (lock ? 14 : Math.random() < .15 ? 230 : 100); // aimed roughly where you'll be, but they scatter: some way off, the odd one wide (Locked on: right where you'll be)
-    const x = clamp(s.x + Math.cos(s.angle) * sp * lead - Math.sin(s.angle) * side, 24, W - 24), y = clamp(s.y + Math.sin(s.angle) * sp * lead + Math.cos(s.angle) * side, 24, H - 24);
+    // a guess at which way you'll go: each bomb picks a heading somewhere in a cone ahead (wider the further out it lands), leaning the way you're already turning, and they spread across it so one may be dead ahead and another off to a side (Locked on: no guessing)
+    const lead = lock ? w * rand(.92, 1.02) : w * rand(.45, 1.05), turn = clamp(angDiff(s.angle, s.dir ?? s.angle), -.7, .7) * .8, cone = .5 + .35 * Math.min(1, lead / 2.5);
+    const pick = (j + .5) / n * 2 - 1 + rand(-.45, .45), guess = lock ? 0 : turn + Math.sign(pick) * Math.pow(Math.min(1, Math.abs(pick)), .85) * cone * (Math.random() < .12 ? 1.5 : 1), ga = s.angle + guess;
+    const side = gauss() * (lock ? 14 : 40), dist = sp * lead * (lock ? 1 : Math.cos(guess * .5)); // (a sharp turn covers less ground ahead)
+    const x = clamp(s.x + Math.cos(ga) * dist - Math.sin(ga) * side, 24, W - 24), y = clamp(s.y + Math.sin(ga) * dist + Math.cos(ga) * side, 24, H - 24);
     const ja = j === 0 ? +jetA.toFixed(3) : undefined, f = +((lock ? .3 : .65) / fs).toFixed(2); // they take longer to fall: you see them coming
     const kd = j === sj ? spec : undefined, sd = kd ? randi(1, 2 ** 30) : undefined, rr = kd === 'i' ? Math.round(r * .8) : r; // (an incendiary's own blast is smaller: its fire does the rest)
     const rx = Math.round(x), ry = Math.round(y), tk = lock ? airPid(s) : undefined; airStrike(rx, ry, w, rr, ja, f, tk, kd, sd);
@@ -224,7 +227,7 @@ function airWarn() {
   Sfx.siren();
 }
 function airStrike(x, y, w, r = AIR_R, jetA, f = .5, tk, kd, sd) { // (kd: 'c' a cluster bomb, 'i' an incendiary; sd: the seed every screen builds its bomblets or fire patches from) // every screen: mark the spot and start its clock (f: how long the bomb takes to fall into view and land; shorter is faster; tk: Locked on, the player it slides after)
-  strikes.push({ x, y, t: w, dur: w, r, f: clamp(f || .5, .12, 1.2), tk, kd, sd, rot: ((x * 131 + y * 71) % 628) / 100, ph: 0, whistled: false }); // (the marker's turn comes from where it is, so it looks the same on every screen)
+  strikes.push({ x, y, t: w, dur: w, r, f: clamp(f || .5, .12, 1.2), tk, kd, sd, ja: jetA ?? (strikes.length ? strikes[strikes.length - 1].ja : undefined), rot: ((x * 131 + y * 71) % 628) / 100, ph: 0, whistled: false }); // (the marker's turn comes from where it is, so it looks the same on every screen)
   if (jetA !== undefined) { const j = { x, y, a: jetA, u: 0, over: Math.max(.2, w - (LOCK() ? .35 : .65)), dropped: false, v: jetV() }; jets.push(j); Sfx.flyby(j); }
   Sfx.lockOn(x);
 }
@@ -825,42 +828,68 @@ function drawFire(x, f) { // a patch of ground still burning in the crater: flic
     x.fillStyle = g; circ(x, f.x + ox, f.y + oy, rr);
   }
 }
-function drawStrikeMark(x, s) {
+function drawStrikeMark(x, s) { // a bomb, an incendiary and a cluster bomb each have their own marker, different enough to tell apart at a glance
   const p = clamp(1 - s.t / s.dur, 0, 1), on = Math.sin(s.ph) > 0, R = s.r, rot = s.rot + T * .7;
   x.save(); x.translate(s.x, s.y);
-  const glow = x.createRadialGradient(0, 0, R * .2, 0, 0, R * 1.5); glow.addColorStop(0, `rgba(255,30,20,${(on ? .26 : .12) + .14 * p})`); glow.addColorStop(.7, `rgba(255,30,20,${(on ? .16 : .07) + .08 * p})`); glow.addColorStop(1, 'rgba(255,30,20,0)');
-  x.fillStyle = glow; circ(x, 0, 0, R * 1.5); // the danger zone
-  x.lineWidth = 2.6; x.strokeStyle = on ? 'rgba(255,50,40,1)' : 'rgba(200,20,20,.8)'; x.beginPath(); x.arc(0, 0, R, 0, TAU); x.stroke(); // the edge of the blast
-  x.save(); x.rotate(-rot * 1.6); x.setLineDash([7, 6]); x.lineWidth = 1.4; x.strokeStyle = 'rgba(255,90,80,.75)'; x.beginPath(); x.arc(0, 0, R + 7, 0, TAU); x.stroke(); x.restore(); // a dashed ring turning the other way
-  x.save(); x.rotate(rot); x.strokeStyle = on ? '#ff3b30' : '#d11'; x.lineWidth = 2.2; x.lineCap = 'round'; // the crosshair
-  for (let q = 0; q < 4; q++) { x.rotate(Math.PI / 2); x.beginPath(); x.moveTo(R * .32, 0); x.lineTo(R * 1.32, 0); x.stroke(); x.beginPath(); x.moveTo(R - 4, -5); x.lineTo(R + 4, -5); x.moveTo(R - 4, 5); x.lineTo(R + 4, 5); x.stroke(); }
-  x.restore();
-  const d = R * (1.05 + 1.5 * (1 - p) ** 2), b = R * .32; // lock-on brackets close in as it comes down
-  x.strokeStyle = `rgba(255,${on ? 220 : 160},${on ? 200 : 120},.95)`; x.lineWidth = 2;
-  for (let q = 0; q < 4; q++) { const sx = q & 1 ? 1 : -1, sy = q & 2 ? 1 : -1, cx = sx * d * .72, cy = sy * d * .72; x.beginPath(); x.moveTo(cx - sx * b, cy); x.lineTo(cx, cy); x.lineTo(cx, cy - sy * b); x.stroke(); }
-  x.strokeStyle = 'rgba(255,255,255,.9)'; x.lineWidth = 3; x.beginPath(); x.arc(0, 0, R - 6, -Math.PI / 2, -Math.PI / 2 + TAU * (1 - p)); x.stroke(); // time left
-  x.fillStyle = on ? '#fff' : '#ff4a3a'; circ(x, 0, 0, 2.6); x.strokeStyle = '#ff3b30'; x.lineWidth = 1.5; x.beginPath(); x.arc(0, 0, 6, 0, TAU); x.stroke();
-  if (s.t < s.f) { // the bomb coming down: its shadow grows under it as it falls into view (quicker for a fast one)
-    const u = 1 - s.t / s.f, h = 320 * (1 - u) ** 2;
-    x.fillStyle = `rgba(0,0,0,${.2 + .35 * u})`; ell(x, 0, 0, 3 + 8 * u, 2 + 5 * u);
-    x.save(); x.translate(0, -h); const k = .7 + .5 * u; x.scale(k, k);
-    x.strokeStyle = 'rgba(255,255,255,.35)'; x.lineWidth = 1; for (const o of [-3, 0, 3]) { x.beginPath(); x.moveTo(o, -14); x.lineTo(o, -30 - Math.abs(o) * 2); x.stroke(); } // speed lines
-    x.fillStyle = s.kd === 'c' ? '#4f4620' : s.kd === 'i' ? '#5a2216' : '#2f3527'; ell(x, 0, 0, 4.2, 9); x.fillStyle = s.kd === 'c' ? '#d9b23a' : s.kd === 'i' ? '#e0602a' : '#474f3b'; ell(x, -1.2, -1, 1.6, 6); // the casing (a cluster bomb's yellow, an incendiary's red)
-    x.fillStyle = '#252a1e'; x.beginPath(); x.moveTo(-5, -12); x.lineTo(5, -12); x.lineTo(2, -6); x.lineTo(-2, -6); x.closePath(); x.fill(); // tail fins
-    x.fillStyle = '#c9a227'; x.fillRect(-4, -3, 8, 1.4); x.restore();
-  }
-  if (s.kd) { // a cluster bomb or an incendiary says so: its own colour round the ring, and what it is underneath
-    const c = s.kd === 'c' ? '#ffc23a' : '#ff6a1a';
-    x.save(); x.rotate(-rot * .8); x.strokeStyle = c; x.lineWidth = 2.2; x.setLineDash(s.kd === 'c' ? [3, 5] : [9, 4]); x.beginPath(); x.arc(0, 0, R + 12, 0, TAU); x.stroke(); x.setLineDash([]);
-    if (s.kd === 'c') { x.fillStyle = c; for (let q = 0; q < 5; q++) { const a = q / 5 * TAU; circ(x, Math.cos(a) * (R + 12), Math.sin(a) * (R + 12), 2.6); } } // the bomblets it carries
-    else { x.fillStyle = c; for (let q = 0; q < 6; q++) { const a = q / 6 * TAU, px = Math.cos(a) * (R + 12), py = Math.sin(a) * (R + 12); x.save(); x.translate(px, py); x.rotate(a + Math.PI / 2); x.beginPath(); x.moveTo(0, -5); x.quadraticCurveTo(3.2, -1, 0, 3); x.quadraticCurveTo(-3.2, -1, 0, -5); x.fill(); x.restore(); } } // little flames
+  const zone = (r, g, b) => { const glow = x.createRadialGradient(0, 0, R * .2, 0, 0, R * 1.5); glow.addColorStop(0, `rgba(${r},${g},${b},${(on ? .26 : .12) + .14 * p})`); glow.addColorStop(.7, `rgba(${r},${g},${b},${(on ? .16 : .07) + .08 * p})`); glow.addColorStop(1, `rgba(${r},${g},${b},0)`); x.fillStyle = glow; circ(x, 0, 0, R * 1.5); };
+  const sweep = () => { x.strokeStyle = 'rgba(255,255,255,.9)'; x.lineWidth = 3; x.beginPath(); x.arc(0, 0, R - 6, -Math.PI / 2, -Math.PI / 2 + TAU * (1 - p)); x.stroke(); }; // time left
+  if (s.kd === 'i') { // INCENDIARY: orange, a ring of flickering flame, a flame in the middle, and flame ticks round where the fire can spread
+    zone(255, 110, 20);
+    x.beginPath(); for (let k = 0; k <= 72; k++) { const a = k / 72 * TAU, r = R + 3.2 * Math.sin(a * 9 + T * 7) + 1.8 * Math.sin(a * 14 - T * 11); k ? x.lineTo(Math.cos(a) * r, Math.sin(a) * r) : x.moveTo(Math.cos(a) * r, Math.sin(a) * r); } x.closePath();
+    x.fillStyle = `rgba(255,120,30,${(.1 + .08 * p).toFixed(3)})`; x.fill(); x.lineWidth = 2.8; x.strokeStyle = on ? '#ffb347' : '#ff6a1a'; x.stroke();
+    x.save(); x.rotate(-rot * .6); x.fillStyle = '#ff7a1a';
+    for (let q = 0; q < 8; q++) { const a = q / 8 * TAU, fl = 1 + .25 * Math.sin(T * 9 + q * 2); x.save(); x.translate(Math.cos(a) * (R + 13), Math.sin(a) * (R + 13)); x.rotate(a + Math.PI / 2); x.scale(fl, fl); x.beginPath(); x.moveTo(0, -6); x.quadraticCurveTo(3.6, -1, 0, 3.5); x.quadraticCurveTo(-3.6, -1, 0, -6); x.fill(); x.restore(); }
     x.restore();
-    x.font = '800 9px system-ui, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.lineWidth = 3; x.strokeStyle = 'rgba(0,0,0,.75)';
-    const L = s.kd === 'c' ? 'CLUSTER' : 'FIRE'; x.strokeText(L, 0, R + 24); x.fillStyle = c; x.fillText(L, 0, R + 24);
+    const fh = R * .5 * (1 + .06 * Math.sin(T * 13)), g = x.createLinearGradient(0, fh * .5, 0, -fh); g.addColorStop(0, '#ff4a12'); g.addColorStop(.6, '#ffa030'); g.addColorStop(1, '#ffe08a'); // a flame where the crosshair would be
+    x.fillStyle = g; x.beginPath(); x.moveTo(0, -fh); x.bezierCurveTo(fh * .55, -fh * .35, fh * .5, fh * .35, 0, fh * .5); x.bezierCurveTo(-fh * .5, fh * .35, -fh * .55, -fh * .35, 0, -fh); x.fill();
+    x.fillStyle = 'rgba(255,240,200,.85)'; x.beginPath(); x.ellipse(0, fh * .12, fh * .16, fh * .28, 0, 0, TAU); x.fill();
+    sweep();
+  } else if (s.kd === 'c') { // CLUSTER: yellow and black hazard stripes, a dashed circle as far as the bomblets scatter, and a spread of little targets in the middle
+    zone(255, 190, 40);
+    x.save(); x.globalAlpha = .55 + .3 * p; x.setLineDash([3, 7]); x.lineWidth = 1.6; x.strokeStyle = '#ffd23f'; x.beginPath(); x.arc(0, 0, R * 2.5, 0, TAU); x.stroke(); x.setLineDash([]); x.restore(); // how far they scatter
+    x.save(); x.rotate(rot * .5); x.lineWidth = 5; const N = 20; for (let q = 0; q < N; q++) { x.strokeStyle = q & 1 ? '#151208' : (on ? '#ffd23f' : '#e0a91f'); x.beginPath(); x.arc(0, 0, R, q / N * TAU, (q + 1) / N * TAU); x.stroke(); } x.restore(); // the hazard ring
+    x.save(); x.rotate(-rot * .9); x.strokeStyle = '#ffd23f'; x.fillStyle = 'rgba(255,210,63,.25)'; x.lineWidth = 1.6;
+    for (let q = 0; q < 5; q++) { const a = q / 5 * TAU, rr = R * .5, px = Math.cos(a) * rr, py = Math.sin(a) * rr; x.beginPath(); x.arc(px, py, 5, 0, TAU); x.fill(); x.stroke(); x.beginPath(); x.moveTo(px - 7, py); x.lineTo(px + 7, py); x.moveTo(px, py - 7); x.lineTo(px, py + 7); x.stroke(); }
+    x.restore(); x.fillStyle = on ? '#fff' : '#ffd23f'; circ(x, 0, 0, 2.6);
+    sweep();
+  } else { // an ordinary bomb: red ring, crosshair, lock-on brackets
+    zone(255, 30, 20);
+    x.lineWidth = 2.6; x.strokeStyle = on ? 'rgba(255,50,40,1)' : 'rgba(200,20,20,.8)'; x.beginPath(); x.arc(0, 0, R, 0, TAU); x.stroke(); // the edge of the blast
+    x.save(); x.rotate(-rot * 1.6); x.setLineDash([7, 6]); x.lineWidth = 1.4; x.strokeStyle = 'rgba(255,90,80,.75)'; x.beginPath(); x.arc(0, 0, R + 7, 0, TAU); x.stroke(); x.restore(); // a dashed ring turning the other way
+    x.save(); x.rotate(rot); x.strokeStyle = on ? '#ff3b30' : '#d11'; x.lineWidth = 2.2; x.lineCap = 'round'; // the crosshair
+    for (let q = 0; q < 4; q++) { x.rotate(Math.PI / 2); x.beginPath(); x.moveTo(R * .32, 0); x.lineTo(R * 1.32, 0); x.stroke(); x.beginPath(); x.moveTo(R - 4, -5); x.lineTo(R + 4, -5); x.moveTo(R - 4, 5); x.lineTo(R + 4, 5); x.stroke(); }
+    x.restore();
+    const d = R * (1.05 + 1.5 * (1 - p) ** 2), b = R * .32; // lock-on brackets close in as it comes down
+    x.strokeStyle = `rgba(255,${on ? 220 : 160},${on ? 200 : 120},.95)`; x.lineWidth = 2;
+    for (let q = 0; q < 4; q++) { const sx = q & 1 ? 1 : -1, sy = q & 2 ? 1 : -1, cx = sx * d * .72, cy = sy * d * .72; x.beginPath(); x.moveTo(cx - sx * b, cy); x.lineTo(cx, cy); x.lineTo(cx, cy - sy * b); x.stroke(); }
+    sweep();
+    x.fillStyle = on ? '#fff' : '#ff4a3a'; circ(x, 0, 0, 2.6); x.strokeStyle = '#ff3b30'; x.lineWidth = 1.5; x.beginPath(); x.arc(0, 0, 6, 0, TAU); x.stroke();
   }
+  if (s.t < s.f) drawFallingBomb(x, s, 1 - s.t / s.f); // the bomb coming down
+  if (s.kd) { const c = s.kd === 'c' ? '#ffd23f' : '#ff7a1a', L = s.kd === 'c' ? 'CLUSTER' : 'FIRE', ly = s.kd === 'c' ? R * 2.5 + 11 : R + 28; // what it is, underneath
+    x.font = '900 10px system-ui, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.lineWidth = 3.5; x.strokeStyle = 'rgba(0,0,0,.8)'; x.strokeText(L, 0, ly); x.fillStyle = c; x.fillText(L, 0, ly); }
   x.restore();
 }
 const K_HEAT = [[255, 244, 200], [255, 214, 120], [255, 170, 75], [245, 128, 45], [205, 86, 28], [150, 54, 18]]; // a fireball cooling, white-yellow to deep red
+function drawFallingBomb(x, s, u) { // (in the marker's frame) it comes down at a slant along the jet's line, nose first, fins buzzing, smeared by its own speed; its shadow sharpens under it
+  const a = s.ja ?? s.rot, h = 340 * (1 - u) ** 2, back = h * .42, ca = Math.cos(a), sa = Math.sin(a); // up in the air it's still behind the target, back the way the jet came
+  const bx = -ca * back, by = -sa * back * .55 - h, vx = ca * .42, vy = sa * .42 * .55 + 1; // where it is, and which way it's moving on screen
+  const k = .85 + .6 * u, nose = Math.atan2(vy, vx) - Math.PI / 2, wob = Math.sin(T * 34 + s.rot * 9) * .07 * (1 - u * .5);
+  const sh = .18 + .45 * u, sr = 2.5 + 8 * u; x.fillStyle = `rgba(0,0,0,${sh.toFixed(3)})`; ell(x, -ca * back * .15, -sa * back * .1, sr, sr * .62); // the shadow
+  const body = s.kd === 'c' ? ['#4f4620', '#7a6c2c', '#d9b23a'] : s.kd === 'i' ? ['#5a2216', '#8a3a24', '#ff7a2a'] : ['#2f3527', '#4b5540', '#c9a227'];
+  const blur = SETTINGS.reduceMotion ? 0 : 4; // the motion blur: fading copies trailing back up its path, and a soft streak
+  x.save(); x.translate(bx, by); x.rotate(nose + wob); x.scale(k, k);
+  if (blur) { const L = 26 + 40 * (1 - u), g = x.createLinearGradient(0, 0, 0, -L); g.addColorStop(0, 'rgba(255,255,255,.28)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.beginPath(); x.moveTo(-3.6, -2); x.lineTo(3.6, -2); x.lineTo(1.2, -L); x.lineTo(-1.2, -L); x.closePath(); x.fill(); // the air it tears through
+    for (let q = blur; q >= 1; q--) { x.globalAlpha = .16 * (1 - q / (blur + 1)); x.fillStyle = body[0]; ell(x, 0, -q * (3.5 + 5 * (1 - u)), 4.3, 9.2); } x.globalAlpha = 1; }
+  x.fillStyle = body[0]; x.beginPath(); x.moveTo(-5.6, -13); x.lineTo(5.6, -13); x.lineTo(2.4, -6.5); x.lineTo(-2.4, -6.5); x.closePath(); x.fill(); // tail fins
+  x.fillStyle = '#1b1f16'; x.fillRect(-.6, -13.5, 1.2, 6);
+  const gb = x.createLinearGradient(-4.4, 0, 4.4, 0); gb.addColorStop(0, body[0]); gb.addColorStop(.38, body[1]); gb.addColorStop(1, shade(body[0], -.35)); // a rounded casing: lit down one side
+  x.fillStyle = gb; x.beginPath(); x.ellipse(0, 0, 4.4, 9.4, 0, 0, TAU); x.fill();
+  x.fillStyle = body[2]; x.fillRect(-4.1, -4.2, 8.2, 1.6); // its band (the kind's colour)
+  x.fillStyle = 'rgba(255,255,255,.35)'; x.beginPath(); x.ellipse(-1.6, 1.5, .9, 4.6, 0, 0, TAU); x.fill(); // a glint along it
+  x.fillStyle = shade(body[0], -.45); x.beginPath(); x.ellipse(0, 7.6, 2.4, 1.8, 0, 0, TAU); x.fill(); // the nose
+  x.restore();
+}
 function drawBoom(x, b) {
   if (b.t < 0) return;
   const u = b.t / b.dur, R = b.r;

@@ -308,7 +308,7 @@ function netDownTick() { // the respawn countdown on the banner
   if (el.textContent !== t) el.textContent = t;
 }
 function netUiCleanup() { // a run ended or you left: nothing of it stays on screen
-  for (const id of ['mpHud', 'dTint', 'mpDown']) { const el = document.getElementById(id); if (el) el.remove(); }
+  for (const id of ['mpHud', 'dTint', 'dFx', 'mpDown']) { const el = document.getElementById(id); if (el) el.remove(); }
   dfxK = 0; const st = document.getElementById('stage'); if (st) { st.style.removeProperty('--dfx'); st.classList.remove('dying'); }
 }
 function netHudPlace() { // the score panel shares the top-right corner with the combo counter: it moves down below the combo while one is showing

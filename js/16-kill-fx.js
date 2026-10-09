@@ -26,8 +26,9 @@ function deathFxTick(dt) {
   if (dfxK < .004 && !down) dfxK = 0;
   if (dead) dtK = 1; else { dtK += -dtK * (1 - Math.exp(-dt * 3.2)); if (dtK < .004) dtK = 0; } // the red lands the instant you die, and only fades once you're back
   if (Math.abs(dfxK - k0) < 1e-4 && dtK === t0 && (dfxK === 0 || dfxK > .999)) return;
-  let tint = document.getElementById('dTint'); if (!tint && dtK > 0) { tint = document.createElement('div'); tint.id = 'dTint'; stage.appendChild(tint); }
-  stage.style.setProperty('--dfx', dfxK.toFixed(3)); stage.style.setProperty('--dtint', dtK.toFixed(3)); stage.classList.toggle('dying', dfxK > 0 || dtK > 0); if (tint && dtK === 0) tint.remove(); // .dying: the canvas filter follows frame by frame, no CSS easing on top
+  let tint = document.getElementById('dTint'); if (!tint && dtK > 0) { tint = document.createElement('div'); tint.id = 'dTint'; stage.appendChild(tint);
+    const fx = document.createElement('div'); fx.id = 'dFx'; fx.innerHTML = '<i class="dBeat"></i><i class="dGrain"></i><i class="dBar t"></i><i class="dBar b"></i>'; fx.classList.toggle('still', !!SETTINGS.reduceMotion); fx.classList.toggle('soft', !!SETTINGS.reduceFlash); stage.appendChild(fx); } // over the red wash (its own layer: the wash colours, these darken): a heartbeat that thumps twice and holds, film grain, black bars closing in
+  stage.style.setProperty('--dfx', dfxK.toFixed(3)); stage.style.setProperty('--dtint', dtK.toFixed(3)); stage.classList.toggle('dying', dfxK > 0 || dtK > 0); if (tint && dtK === 0) { tint.remove(); const fx = document.getElementById('dFx'); if (fx) fx.remove(); } // .dying: the canvas filter follows frame by frame, no CSS easing on top
 }
 function killFx(x, y, amount) {
   killV = Math.min(.5, killV + .12 + .18 * amount); // only a whisper on screen; the impact is on the target itself
