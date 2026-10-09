@@ -35,6 +35,7 @@ const netPlayerSlot = slot => NETM.players.find(p => p.slot === slot);
 const netEmit = e => { if (NETM.run && NETM.host) NS.evQ.push(e); };
 const netSend = e => { if (NETM.run && !NETM.host) NS.out.push(e); };
 const netIsGuest = () => NETM.run && !NETM.host;
+const netLag = h => h === undefined || NETM.host || NETM.clockOff === undefined ? 0 : clamp((netHostTime() - h) / 1000, 0, 1); // how long a host event took to get here (its clock vs. ours, kept in step by the pings)
 /* ---- remote snakes: built from a stream of head positions; the body simply follows the path the head took ---- */
 function rsNew(p) {
   return { pid: p.id, name: p.name, color: netColorOf(p), cos: p.cos || SETTINGS.snake, upgLv: p.upg || {}, x: 0, y: 0, angle: 0, dir: 0, len: CONFIG.startLen, scale: 1, hist: [], segs: [], stains: [],
@@ -334,9 +335,9 @@ function netApply(e, local) {
     case 'beat': if (e.by !== NETM.me) tailBitGone(e.id); break; // someone ate one of the pieces
     case 'hissN': crHiss(e.n || 0); break;
     case 'scr': crScream(e.n || 0); break;
-    case 'air': airStrike(e.x, e.y, e.w, e.r, e.j, e.f); break; // the host called in a bomb
+    case 'air': airStrike(e.x, e.y, Math.max(.15, e.w - netLag(e.h)), e.r, e.j, e.f); break; // the host called in a bomb: same spot, and it lands when it does on the host's screen
     case 'airw': airWarn(); break;
-    case 'airs': airStrafe(e.x, e.y, e.a, e.w); break; // ...or a strafing run
+    case 'airs': airStrafe(e.x, e.y, e.a, Math.max(.15, e.w - netLag(e.h))); break; // ...or a strafing run
     case 'airj': airApproach(e.x, e.y, e.a, e.p); break; // a jet on its way in, still miles off
     case 'evt': evt = e.v ? { ...e.v } : null; if (evt) { evt.shown = false; Sfx.chime(); showEvent(); } break;
     case 'tod': if (Math.abs(angDiff(tod / 24 * TAU, e.v / 24 * TAU)) > .01) tod = e.v; break;

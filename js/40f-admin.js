@@ -42,7 +42,7 @@ const ADM_ACT = {
     creatures = creatures.filter(c => c.alive); },
   clear() { for (const c of creatures) if (!(c.def && c.def.fly)) c.alive = false; creatures = creatures.filter(c => c.alive); }, // (co-op: the host's sync tells everyone they're gone)
   bomb() { const s = adminSnake(); if (!s) return; const sp = s.speed * (s.dashV || 1), x = clamp(s.x + Math.cos(s.angle) * sp * 1.6, 30, W - 30), y = clamp(s.y + Math.sin(s.angle) * sp * 1.6, 30, H - 30);
-    airStrike(x, y, 2, AIR_R, s.angle + 1.4); netEmit({ t: 'air', x: Math.round(x), y: Math.round(y), w: 2, r: AIR_R, j: +(s.angle + 1.4).toFixed(3) }); },
+    const ja = +(s.angle + 1.4).toFixed(3); airStrike(Math.round(x), Math.round(y), 2, AIR_R, ja); netEmit({ t: 'air', x: Math.round(x), y: Math.round(y), w: 2, r: AIR_R, j: ja, h: Math.round(netNow()) }); },
   salvo() { const s = adminSnake(); if (!s) return; airSalvo(s, 1); },
   strafe() { const s = adminSnake(); if (s) strafeRun(s, .5, 'guns'); },
   bombRun() { const s = adminSnake(); if (s) strafeRun(s, .6, 'bombs'); },
