@@ -17,7 +17,7 @@ const COLOR_NAMES = { '#4e7cf6': 'Cobalt', '#3fa34d': 'Moss', '#d63c3c': 'Brick'
 const colorName = hex => COLOR_NAMES[hex.toLowerCase()] || hex.toUpperCase();
 const CUSTOM_PRICE = { primary: 2500, full: 6000 }; // the luxury tier: any color you want
 const SHOP = {
-  pattern: [['Solid', 0], ['Stripes', 0], ['Spots', 25], ['Gradient', 35], ['Zebra', 45], ['Checker', 45], ['Diamond', 70], ['Neon', 120], ['Rainbow', 160], ['Lava', 160], ['Galaxy', 220], ['Garter', 70], ['Kingsnake', 85], ['Coral', 95], ['Emerald', 110], ['Python', 120], ['Diamondback', 140],
+  pattern: [['Solid', 0], ['Stripes', 0], ['Spots', 25], ['Gradient', 35], ['Zebra', 45], ['Checker', 45], ['Diamond', 70], ['Neon', 120], ['Rainbow', 160], ['Lava', 160], ['Galaxy', 220], ['Obsidian', 240], ['Plasma', 260], ['Garter', 70], ['Kingsnake', 85], ['Coral', 95], ['Emerald', 110], ['Python', 120], ['Diamondback', 140],
     ['Rat Fur', 0, 'ratProblem'], ['Gold Plated', 0, 'goldDigger'], ['Blood Soaked', 0, 'cleanup'], ['Hazard', 0, 'masochist'], ['Lunar', 0, 'lunar'], ['Martian', 0, 'martian']],
   hat: [['None', 0], ['Party hat', 20], ['Flower', 20], ['Beanie', 25], ['Bow', 25], ['Top hat', 30], ['Cone', 30], ['Chef', 40], ['Antenna', 40], ['Cowboy', 50],
     ['Headphones', 50], ['Graduation', 50], ['Santa', 60], ['Sombrero', 60], ['Mohawk', 60], ['Pirate', 70], ['Propeller', 70], ['Viking', 80], ['Horns', 90],

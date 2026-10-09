@@ -74,15 +74,42 @@ function drawSnakeBody(x, s, cfg) {
     x.globalAlpha = 1;
   }
   const skin = skinOf(cfg), F = skinFrame(pts, n, TB); // body-space coordinates for the skin's markings (29b-skins)
-  for (let i = n - 1; i >= 0; i--) { // the skin's ground: one band per segment, each exactly its slice of the tube
-    const g = pts[i], a = cam ? cam.a[i] : 0;
-    const sts = s.stains[i] || [], soak = Math.min(.55, sts.length / 50);
+  // the skin's ground: one band per segment, each exactly its slice of the tube. The colour is worked out at every segment (skin, blood
+  // soaking in, camouflage), then each band fades from the colour at its front cut to the one at its back cut, so a skin that changes
+  // along the body flows from one segment into the next instead of stepping. Where neighbours match it's a plain fill
+  const sc = new Array(n), sa = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const g = pts[i], a = cam ? cam.a[i] : 0, sts = s.stains[i], soak = sts ? Math.min(.55, sts.length / 50) : 0;
     let base = skin.base(F.uSeg(i), cfg, F.uEnd);
     if (soak) base = mixColor(base, soakCol(sts), soak);
-    if (a > .01) { base = mixColor(base, groundColAt(g.x, g.y), (.42 + .14 * cam.lv) * a); x.globalAlpha = 1 - (.56 + .06 * cam.lv + .2 * (cam.still || 0)) * a; } // takes on the colors around it
-    x.fillStyle = base; x.beginPath(); tubeRun(x, E0, i, i + 1, .4); x.fill(); // overlapping the band in front a hair, under it, so no seam shows
-    x.globalAlpha = 1;
+    if (a > .01) { base = mixColor(base, groundColAt(g.x, g.y), (.42 + .14 * cam.lv) * a); sa[i] = 1 - (.56 + .06 * cam.lv + .2 * (cam.still || 0)) * a; } // takes on the colors around it
+    else sa[i] = 1;
+    sc[i] = base;
   }
+  const { BL, BR } = E0, paintOf = (c, al) => al < .999 ? rgbaOf(c, al.toFixed(3)) : c;
+  const cutC = k => k <= 0 ? sc[0] : k >= n ? sc[n - 1] : sc[k - 1] === sc[k] ? sc[k] : mixColor(sc[k - 1], sc[k], .5), cutA = k => k <= 0 ? sa[0] : k >= n ? sa[n - 1] : (sa[k - 1] + sa[k]) / 2;
+  // a noise skin fills the bands with its texture instead (blood stains and camouflage don't tint it; camouflage fades it). Each band is
+  // two triangles cut along its diagonal, each mapped exactly onto its corners: neighbours share corners, so the texture never steps
+  const pat = skin.tex ? skinPattern(x, cfg) : null, R = E0.R, fo = pat ? ((skin.tex.flow || 0) * T) % TEX.L : 0;
+  const uc = k => (k <= 0 ? 0 : k >= n ? F.uEnd : (F.uSeg(k - 1) + F.uSeg(k)) / 2) - fo; // where each cut sits in the texture
+  let cB = pat ? '' : cutC(n), aB = pat ? 1 : cutA(n); // the back cut of the band being drawn (tail first)
+  for (let i = n - 1; i >= 0; i--) {
+    const j = 2 * i;
+    if (pat) {
+      const tip = i === n - 1, ua = uc(i), ub = uc(i + 1), half = !tip && sa[i] > .999; x.globalAlpha = sa[i]; x.fillStyle = pat;
+      if (!texTri(pat, ua, -1, ub, tip ? 0 : -1, ua, 1, BL[j], BL[j + 1], BL[j + 2], BL[j + 3], BR[j], BR[j + 1])) texBand(pat, F, pts, TB, i, fo); // the whole band (its left half shows)
+      x.beginPath(); tubeRun(x, E0, i, i + 1, .4); x.fill();
+      if (half && texTri(pat, ua, 1, ub, 1, ub, -1, BR[j], BR[j + 1], BR[j + 2], BR[j + 3], BL[j + 2], BL[j + 3])) { // its right half, over it
+        x.beginPath(); x.moveTo(BR[j], BR[j + 1]); x.quadraticCurveTo(R[j], R[j + 1], BR[j + 2], BR[j + 3]); x.lineTo(BL[j + 2], BL[j + 3]); x.closePath(); x.fill(); }
+    } else {
+      const cF = cutC(i), aF = cutA(i), fx = (BL[j] + BR[j]) / 2, fy = (BL[j + 1] + BR[j + 1]) / 2, bx = (BL[j + 2] + BR[j + 2]) / 2, by = (BL[j + 3] + BR[j + 3]) / 2;
+      if ((cF === cB && Math.abs(aF - aB) < .004) || Math.abs(fx - bx) + Math.abs(fy - by) < .05) x.fillStyle = paintOf(sc[i], sa[i]);
+      else { const gr = x.createLinearGradient(fx, fy, bx, by); gr.addColorStop(0, paintOf(cF, aF)); gr.addColorStop(1, paintOf(cB, aB)); x.fillStyle = gr; }
+      x.beginPath(); tubeRun(x, E0, i, i + 1, .4); x.fill(); // overlapping the band in front a hair, under it, so no seam shows
+      cB = cF; aB = aF;
+    }
+  }
+  x.globalAlpha = 1;
   // the skin's markings, then blood stains, on top of the ground. Each piece paints the markings anchored in its own stretch of body,
   // clipped to that stretch plus two segments either side, so a marking can run across a cut but is never painted twice
   const stained = (a, b) => { for (let i = a; i < b; i++) if (s.stains[i] && s.stains[i].length) return true; return false; };
