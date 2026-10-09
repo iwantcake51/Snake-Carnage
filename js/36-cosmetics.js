@@ -73,7 +73,7 @@ function statEat(c) { // cheap counters, every kill
 function statRunEnd() { // once per run
   const m = MAPS[mapIdx].name; if (!PROG.mapsPlayed.includes(m)) PROG.mapsPlayed.push(m);
   if (runMods.length) PROG.modRuns++;
-  if (score >= 150) PROG.maxModsRun = Math.max(PROG.maxModsRun, runMods.length);
+  if (score >= 50) PROG.maxModsRun = Math.max(PROG.maxModsRun, runMods.length);
   if (!run.aliveAdded) { run.aliveAdded = true; PROG.aliveT = (PROG.aliveT || 0) + (run.aliveT || 0); } // every second alive, across every run (The Long Haul)
   PROG.maxPanic = Math.max(PROG.maxPanic, run.maxPanic || 0);
   checkAch(); saveProg();
@@ -86,45 +86,45 @@ function titleTier(t) { const e = (SHOP.title || []).find(r => r[0] === t), a = 
 const titleCol = t => TITLE_COL[titleTier(t)] || TITLE_COL.gold;
 const titleBadge = (t, cls = '') => t && t !== 'None' ? `<span class="ttl t-${titleTier(t)} ${cls}" style="--tc:${titleCol(t)}" title="Title">${kiSvg('star')}<span>${attr(t)}</span></span>` : '';
 const ACH = [
-  ['ratProblem', 'Rat Problem', 'Eat {n} rats', () => PROG.kT.rat || 0, 120, 'medium'],
-  ['ratKing', 'Rat King', 'Eat {n} rats', () => PROG.kT.rat || 0, 500, 'hard'],
-  ['peoplePerson', 'People Person', 'Eat {n} humans', () => PROG.kH, 750, 'easy'],
-  ['publicMenace', 'Public Menace', 'Eat {n} humans', () => PROG.kH, 5000, 'hard'],
-  ['roadkill', 'Roadkill', 'Eat {n} animals', () => PROG.kA, 1500, 'medium'],
-  ['goldDigger', 'Gold Digger', 'Eat {n} golden humans', () => PROG.goldH, 40, 'hard'],
-  ['goldenOpp', 'Golden Opportunity', 'Eat {n} golden animals', () => PROG.goldA, 25, 'hard'],
-  ['midas', 'Midas Touch', 'Eat {n} golden targets in total', () => PROG.goldH + PROG.goldA, 100, 'rare'],
-  ['dontMind', "Don't Mind Me", 'Eat {n} targets before they notice you', () => PROG.unawareT, 1000, 'medium'],
-  ['starving', 'Starving', 'Reach a {n}x combo', () => PROG.bestCombo1, 25, 'rare'],
-  ['allHumans', 'Humans Only', 'Reach a {n}x combo eating only humans', () => PROG.bestHCombo, 16, 'hard'],
-  ['wrongPlace', 'Mass Panic', 'Have {n} people panicking at once', () => PROG.maxPanic, 25, 'hard'],
-  ['badHood', 'Runners', 'Eat {n} people while they run', () => PROG.panicKillsT, 2000, 'medium'],
-  ['cleanup', 'Body Count', 'Eat {n} things in total', () => PROG.kH + PROG.kA, 7500, 'hard'],
+  ['ratProblem', 'Rat Problem', 'Eat {n} rats', () => PROG.kT.rat || 0, 50, 'medium'],
+  ['ratKing', 'Rat King', 'Eat {n} rats', () => PROG.kT.rat || 0, 200, 'hard'],
+  ['peoplePerson', 'People Person', 'Eat {n} humans', () => PROG.kH, 250, 'easy'],
+  ['publicMenace', 'Public Menace', 'Eat {n} humans', () => PROG.kH, 1500, 'hard'],
+  ['roadkill', 'Roadkill', 'Eat {n} animals', () => PROG.kA, 400, 'medium'],
+  ['goldDigger', 'Gold Digger', 'Eat {n} golden humans', () => PROG.goldH, 10, 'hard'],
+  ['goldenOpp', 'Golden Opportunity', 'Eat {n} golden animals', () => PROG.goldA, 8, 'hard'],
+  ['midas', 'Midas Touch', 'Eat {n} golden targets in total', () => PROG.goldH + PROG.goldA, 40, 'rare'],
+  ['dontMind', "Don't Mind Me", 'Eat {n} targets before they notice you', () => PROG.unawareT, 300, 'medium'],
+  ['starving', 'Starving', 'Reach a {n}x combo', () => PROG.bestCombo1, 20, 'rare'],
+  ['allHumans', 'Humans Only', 'Reach a {n}x combo eating only humans', () => PROG.bestHCombo, 12, 'hard'],
+  ['wrongPlace', 'Mass Panic', 'Have {n} people panicking at once', () => PROG.maxPanic, 20, 'hard'],
+  ['badHood', 'Runners', 'Eat {n} people while they run', () => PROG.panicKillsT, 600, 'medium'],
+  ['cleanup', 'Body Count', 'Eat {n} things in total', () => PROG.kH + PROG.kA, 2000, 'hard'],
   ['paintRed', 'Paint the Town Red', 'Get {n}% of your body bloody', () => PROG.maxGore, 90, 'medium'],
-  ['checklist', 'To-Do List', 'Complete {n} map challenges', () => PROG.chTotal, 100, 'medium'],
-  ['overachiever', 'Overachiever', 'Complete {n} map challenges', () => PROG.chTotal, 500, 'hard'],
-  ['thrill', 'Thrill Seeker', 'Play {n} runs with modifiers on', () => PROG.modRuns, 100, 'medium'],
-  ['masochist', 'Masochist', 'Score 150+ in a run with {n} or more modifiers', () => PROG.maxModsRun, 5, 'rare'],
+  ['checklist', 'To-Do List', 'Complete {n} map challenges', () => PROG.chTotal, 40, 'medium'],
+  ['overachiever', 'Overachiever', 'Complete {n} map challenges', () => PROG.chTotal, 150, 'hard'],
+  ['thrill', 'Thrill Seeker', 'Play {n} runs with modifiers on', () => PROG.modRuns, 30, 'medium'],
+  ['masochist', 'Masochist', 'Score 50+ in a run with {n} or more modifiers', () => PROG.maxModsRun, 5, 'rare'],
   ['veteran', 'Veteran', 'Reach level {n}', () => PROG.level, 25, 'hard'],
-  ['highRoller', 'High Roller', 'Earn {n} chips in total', () => PROG.earned, 30000, 'medium'],
-  ['tourist', 'Tourist', 'Play {n} different maps', () => PROG.mapsPlayed.length, 10, 'easy'],
-  ['worldEater', 'World Eater', 'Complete a challenge on {n} different maps', () => PROG.chMaps.length, 14, 'rare'],
-  ['lunar', 'Lunar Lunch', 'Eat {n} astronauts', () => PROG.kT.astronaut || 0, 300, 'medium'],
-  ['martian', 'Little Green Men', 'Eat {n} aliens', () => PROG.kT.alien || 0, 300, 'medium'],
+  ['highRoller', 'High Roller', 'Earn {n} chips in total', () => PROG.earned, 10000, 'medium'],
+  ['tourist', 'Tourist', 'Play {n} different maps', () => PROG.mapsPlayed.length, 8, 'easy'],
+  ['worldEater', 'World Eater', 'Complete a challenge on {n} different maps', () => PROG.chMaps.length, 10, 'rare'],
+  ['lunar', 'Lunar Lunch', 'Eat {n} astronauts', () => PROG.kT.astronaut || 0, 100, 'medium'],
+  ['martian', 'Little Green Men', 'Eat {n} aliens', () => PROG.kT.alien || 0, 100, 'medium'],
   ['cartographer', 'Cartographer', 'Play every map at least once', () => PROG.mapsPlayed.length, () => MAPS.length, 'medium'],
-  ['smasher', 'Wrecking Ball', 'Smash through {n} pieces of furniture', () => PROG.smashed || 0, 400, 'medium'],
-  ['toolkit', 'Toolkit', 'Use abilities {n} times', () => PROG.abilUses || 0, 750, 'medium'],
-  ['marathon', 'Marathon', 'Survive {n} minutes in one run', () => Math.floor((PROG.longestRun || 0) / 60), 15, 'hard'],
-  ['goldRush', 'Gold Rush', 'Eat {n} golden targets in one run', () => PROG.maxGoldRun || 0, 5, 'rare'],
-  ['bottomless', 'Bottomless', 'Reach a {n}x combo', () => PROG.bestCombo1, 45, 'rare'],
+  ['smasher', 'Wrecking Ball', 'Smash through {n} pieces of furniture', () => PROG.smashed || 0, 120, 'medium'],
+  ['toolkit', 'Toolkit', 'Use abilities {n} times', () => PROG.abilUses || 0, 250, 'medium'],
+  ['marathon', 'Marathon', 'Survive {n} minutes in one run', () => Math.floor((PROG.longestRun || 0) / 60), 10, 'hard'],
+  ['goldRush', 'Gold Rush', 'Eat {n} golden targets in one run', () => PROG.maxGoldRun || 0, 3, 'rare'],
+  ['bottomless', 'Bottomless', 'Reach a {n}x combo', () => PROG.bestCombo1, 35, 'rare'],
   ['apex', 'Apex Predator', 'Reach level {n}', () => PROG.level, 40, 'rare'],
-  ['notFast', 'Not Fast Enough', 'Catch {n} people mid-sprint, when the fear kicks in', () => PROG.adrenKills || 0, 200, 'medium'],
-  ['karma', "That's Karma", 'Eat {n} people over time, then die within 2 seconds of eating someone', () => PROG.karma ? Math.max(PROG.kH, 1000) : Math.min(PROG.kH, 999), 1000, 'hard'],
+  ['notFast', 'Not Fast Enough', 'Catch {n} people mid-sprint, when the fear kicks in', () => PROG.adrenKills || 0, 60, 'medium'],
+  ['karma', "That's Karma", 'Eat {n} people over time, then die within 2 seconds of eating someone', () => PROG.karma ? Math.max(PROG.kH, 400) : Math.min(PROG.kH, 399), 400, 'hard'],
   ['allHard', 'Glutton for Punishment', `Survive ${GLUTTON_T} seconds with at least ${GLUTTON_MODS} harder modifiers on, and not one modifier that doesn't make it harder`, () => PROG.glutton || 0, 1, 'rare', { chips: 8000, tokens: 5, xp: 12000 }], // the hardest thing in the game: it pays like it
-  ['dangerClose', 'Danger Close', 'Live through {n} near misses from the air', () => PROG.nearT || 0, 250, 'hard'],
-  ['longHaul', 'The Long Haul', 'Stay alive for {n} hours in total', () => Math.floor((PROG.aliveT || 0) / 3600), 10, 'hard'],
-  ['demolition', 'Demolition Crew', 'Smash through {n} pieces of furniture', () => PROG.smashed || 0, 2500, 'rare'],
-  ['boneyard', 'Boneyard', 'Eat {n} things in total', () => PROG.kH + PROG.kA, 20000, 'rare'],
+  ['dangerClose', 'Danger Close', 'Live through {n} near misses from the air', () => PROG.nearT || 0, 75, 'hard'],
+  ['longHaul', 'The Long Haul', 'Stay alive for {n} minutes in total, across all your runs', () => Math.floor((PROG.aliveT || 0) / 60), 60, 'medium'],
+  ['demolition', 'Demolition Crew', 'Smash through {n} pieces of furniture', () => PROG.smashed || 0, 500, 'rare'],
+  ['boneyard', 'Boneyard', 'Eat {n} things in total', () => PROG.kH + PROG.kA, 5000, 'rare'],
   // secret: the name and goal stay hidden until earned; the clue is all you get
   ['charmer', 'Snake Charmer', 'Coil all the way around a light', () => PROG.coiled || 0, 1, 'hard', { secret: 1, clue: 'Wrap yourself around something bright.' }],
   ['ouroboros', 'Ouroboros', 'Bite your own tail while 60+ segments long', () => PROG.ouro || 0, 1, 'hard', { secret: 1, clue: 'Get really long. Then get hungry for yourself.' }],
@@ -135,7 +135,7 @@ const ACH = [
   ['goldenHour', 'Golden Hour', 'Eat a golden target at dawn or dusk', () => PROG.goldenHour || 0, 1, 'hard', { secret: 1, clue: 'Gold at sunrise or sunset.' }],
   ['lastCall', 'Last Call', 'Eat {n} people in one run at the club', () => PROG.clubMax || 0, 25, 'rare', { secret: 1, clue: 'Empty the dance floor.' }],
 ].map(([id, name, what, stat, n, tier, ex = {}]) => { const goal = typeof n === 'function' ? n : () => n; return { id, name, get n() { return goal(); }, get what() { return what.replace('{n}', goal()); }, stat, tier, ...ex }; });
-const ACH_XP = { easy: 500, medium: 1200, hard: 3000, rare: 6000 }, ACH_CHIPS = { easy: 250, medium: 600, hard: 1500, rare: 3500 }; // every achievement pays XP and chips on the side; the cosmetics are the real prize
+const ACH_XP = { easy: 300, medium: 700, hard: 1500, rare: 3000 }, ACH_CHIPS = { easy: 150, medium: 350, hard: 800, rare: 1800 }; // every achievement pays XP and chips on the side; the cosmetics are the real prize
 const achXP = a => a.xp || ACH_XP[a.tier] || 0, achChips = a => a.chips || ACH_CHIPS[a.tier] || 0, achXPPaid = a => Math.round(achXP(a) * XP_GAIN * (typeof SKV === 'object' ? SKV.xpK() : 1)); // (Paid: what it really adds, Quick Study and all)
 const achRewards = id => [['color', COLOR_ITEMS], ['color2', COLOR_ITEMS], ...Object.entries(SHOP)].flatMap(([cat, l]) => l.filter(i => i[2] === id).map(i => [cat, i[0]]));
 if (PROG.ach && PROG.ach.allHard && !PROG.gluttonPaid) { // earned under the old rule (every harder modifier at the start of a run) when it paid almost nothing: the new reward, once
