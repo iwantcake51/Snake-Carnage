@@ -141,7 +141,7 @@ if (PROG.treeV < 2) { treeMerge(PROG.tree, PROG.treeOff); PROG.treeV = 2; savePr
 let UPG_OVR = null; // co-op: while the host's AI deals with another player's snake, the ranks are that player's (their profile's tree)
 const skOwn = id => Math.min(PROG.tree[id] || 0, SKN[id] ? SKN[id].max : 0); // bought, switched on or not
 const skDepth = n => n._d ?? (n._d = n.req.length ? 1 + Math.max(...n.req.map(([id]) => skDepth(SKN[id]))) : 0); // how far out from the trunk a node sits
-const skRankCost = (n, r) => n.cost[Math.min(r, n.max - 1)] + skDepth(n) + Math.floor(r / 2) + (n.max > 1 && r === n.max - 1 ? 2 : 0) + (n.major ? 1 : 0); // what rank r+1 costs: its base, +1 for every step out from the trunk, +1 every other rank, +2 for the last (it masters the skill), and +1 on any major
+const skRankCost = (n, r) => n.cost[Math.min(r, n.max - 1)] + skDepth(n) + (n.major ? Math.floor(r / 2) : Math.ceil(r / 2)) + (n.max > 1 && r === n.max - 1 ? 2 : 0) + (n.major ? 1 : 0); // what rank r+1 costs: its base, +1 for every step out from the trunk, +1 every other rank (a passive's from its second rank on: the first is at the set price, the next already costs more), +2 for the last (it masters the skill), and +1 on any major
 const skSpent = (t = PROG.tree, cost = skRankCost) => SKILL_TREE.reduce((a, n) => { for (let r = 0; r < Math.min(t[n.id] | 0, n.max); r++) a += cost(n, r); return a; }, 0); // tokens in the tree
 const skTokens = () => PROG.level - 1 + (PROG.tokBonus | 0) - skSpent(); // one per level past 1 (plus what the chip-bought skills were worth); can dip below 0 after an admin max-out
 if (PROG.treeV < 3) { PROG.tokBonus = (PROG.tokBonus | 0) + skSpent(undefined, (n, r) => n.cost[r]); PROG.treeV = 3; saveProg(); }

@@ -387,14 +387,19 @@ function pumpBlast(x, y) { // a gas pump goes up: a full blast, with the ringing
 const AIR_FRONT = .3;
 function airHitSnake(i, by) {
   const me = snake, n = me.segs.length, front = Math.max(3, Math.ceil(n * AIR_FRONT));
+  if (by === 'cluster') { // a bomblet never kills: on the head end it takes half of you and leaves nothing to eat back; anywhere else the last quarter of you comes off and drops where you can eat it back
+    if (me.cutT > 0) return; const head = i < front, keep = Math.max(BURN.min, Math.round(n * (head ? .5 : .75)));
+    if (keep >= n) { airHurt(.6); return; } // already as short as it gets: a jolt, nothing more
+    airHurt(head ? 1 : .8); return tailCut(me, keep, head);
+  }
   if (i < front) { airHurt(1); me.burstAt = i; return bombDeath(by); } // it goes up from where it was hit
   if (me.cutT > 0) return; // the same rounds walking on over the stump don't take another piece a frame later
   airHurt(.8); tailCut(me, i);
 }
-function tailCut(s, i) { // everything from piece i back is blown off and bursts into chunks you can eat back; the stump is left blunt, torn and bleeding
+function tailCut(s, i, gone) { // everything from piece i back is blown off and bursts into chunks you can eat back (gone: blown to nothing, no chunks); the stump is left blunt, torn and bleeding
   const lost = s.segs.length - i, cfg = SETTINGS.snake;
   const piece = s.segs.slice(i); snakeBurst({ segs: piece, stains: s.stains.slice(i), scale: s.scale, angle: s.segs[i].a }, cfg.color, cfg, 0, true);
-  const id = (NETM.run ? NETM.me : 'me') + ':' + (tailCut.n = (tailCut.n || 0) + 1), P = cfg.color || '#4e7cf6', Q = cfg.color2 || shade(P, .3), bits = makeTailBits(piece, lost, P, Q);
+  const id = (NETM.run ? NETM.me : 'me') + ':' + (tailCut.n = (tailCut.n || 0) + 1), P = cfg.color || '#4e7cf6', Q = cfg.color2 || shade(P, .3), bits = gone ? [] : makeTailBits(piece, lost, P, Q);
   spawnTailBits(id, bits, P, Q);
   if (NETM.run) { const m = { t: 'tcut', id, b: bits, s: piece.flatMap(g => [Math.round(g.x), Math.round(g.y)]), c: P, c2: Q, sc: +(s.scale || 1).toFixed(2), by: NETM.me }; if (NETM.host) netEmit(m); else netSend(m); } // everyone sees it burst, and anyone can eat the pieces
   s.len = i; s.lenV = Math.min(s.lenV ?? i, i); if (s.stains.length > i) s.stains.length = i; computeSegs(s);
@@ -404,7 +409,7 @@ function tailCut(s, i) { // everything from piece i back is blown off and bursts
     for (let q = 0; q < m; q++) { const px = g.x + rand(-7, 7), py = g.y + rand(-7, 7); addStain(s.stains[k], { a: Math.atan2(py - g.y, px - g.x) - g.a, d: Math.min(Math.hypot(px - g.x, py - g.y), rr - 1) / k0, r: rand(1, 2.2) / k0, c: pick(gore), e: rand(1, 1.8), gore: 1 }, 30); } }
   const t = s.segs[n - 1]; spawnBlood(t.x, t.y, t.a + Math.PI, .45, 2.6, .15, gore); bloodMist(t.x, t.y, t.a + Math.PI, .9, gore);
   shake = Math.max(shake, 16); hitStop = Math.max(hitStop, .05); AIR.rumble = Math.max(AIR.rumble, .5);
-  if (typeof toast === 'function') toast(`Tail blown off: -${lost} length. Eat the pieces to get some back`);
+  if (typeof toast === 'function') toast(gone ? `Blown in half: -${lost} length` : `Tail blown off: -${lost} length. Eat the pieces to get some back`);
 }
 function stumpHeal(s) { // it grew: the torn end and the blood soaked into it are gone
   s.stump = null;

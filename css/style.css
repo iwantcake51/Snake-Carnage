@@ -997,7 +997,7 @@ body.compact .pmwrap{grid-template-columns:150px 1fr}
 .xp,.sbar{overflow:visible!important}
 /* XP bars: light from the filled part spills softly into the empty stripes */
 .xpfill,.sfill{position:absolute}
-.xp .xpfill::after,.sbar .sfill::after{content:'';display:block;position:absolute;top:0;bottom:0;right:-26px;width:30px;pointer-events:none;border-radius:0 999px 999px 0;
+.xp .xpfill::after,.sbar .sfill::after{content:'';display:block;position:absolute;top:0;bottom:0;right:-86px;width:90px;pointer-events:none;border-radius:0 999px 999px 0; /* a long glow running on ahead of the fill */
   background:radial-gradient(ellipse 100% 70% at 0% 50%,color-mix(in srgb,var(--acc-hi) 55%,transparent) 0%,color-mix(in srgb,var(--acc-hi) 22%,transparent) 38%,transparent 72%);mix-blend-mode:screen}
 .xp,.sbar{overflow:hidden!important}
 /* before the round: just the map, the people and the start prompt. The HUD comes in once you move */
