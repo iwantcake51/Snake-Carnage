@@ -182,8 +182,9 @@ function skWire() {
   view.addEventListener('pointerup', up); view.addEventListener('pointercancel', up);
   view.addEventListener('click', e => { // a tap on a node selects it (never after a drag)
     if (moved) { moved = false; return; }
-    const b = e.target.closest('.skn'); if (!b) return; skSelect(b.dataset.n, false);
-    if (!b.classList.contains('pulse') && !b.classList.contains('unlock')) { b.classList.remove('tap'); void b.offsetWidth; b.classList.add('tap'); setTimeout(() => b.classList.remove('tap'), 400); } // the clicked skill pops
+    const b = e.target.closest('.skn'); if (!b) return; const same = b.dataset.n === skSel; skSelect(b.dataset.n, false);
+    if (same) Sfx.ui('select'); // clicking the one already picked still answers, every time
+    skTapPop(b);
   });
   view.addEventListener('wheel', e => { e.preventDefault(); const p = local(e); skZoomSmooth(Math.exp(-clamp(e.deltaY, -120, 120) * .0016), p.x, p.y); }, { passive: false });
   skEl('skFit').onclick = () => skFit(true);
@@ -298,6 +299,11 @@ function skReset() { // two presses: the first asks, the second hands every toke
   b.textContent = 'Reset tree'; b.classList.remove('arm');
   skRefresh(); skInfo(false); skTokAnim(t0, skLeft());
   if (typeof netLobbySyncProfile === 'function' && NETM.on) netLobbySyncProfile();
+}
+function skTapPop(b) { // the clicked skill and its icon pop. Each click adds its own little pop on top of whatever is already playing (composite 'add'), so clicking fast never snaps or restarts it: they just stack and settle
+  if (skCalm()) return; const sh = b.querySelector('.skshape'), ic = b.querySelector('.skico'), ez = 'cubic-bezier(.2,.9,.3,1.3)';
+  if (sh) sh.animate([{ transform: 'scale(1)' }, { transform: 'scale(.92)', offset: .18 }, { transform: 'scale(1.08)', offset: .55 }, { transform: 'scale(1)' }], { duration: 340, easing: ez, composite: 'add' });
+  if (ic) ic.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.32)', offset: .4 }, { transform: 'scale(1)' }], { duration: 380, easing: ez, composite: 'add' });
 }
 function skSmooth(list) { // a link that was dotted closes up: the dots stretch and run together into a solid line, thickening as they go
   for (const p of list) { const w0 = parseFloat(getComputedStyle(p).strokeWidth) || 3, glow = p.classList.contains('skgl');
