@@ -131,7 +131,6 @@ kbd{display:inline-block;min-width:22px;text-align:center;background:#231d20;bor
 
 @keyframes drip{0%{transform:scaleY(.05);opacity:1}55%{transform:scaleY(1)}80%{transform:scaleY(1);opacity:1}100%{transform:scaleY(1.1);opacity:0}}
 
-.splat{position:absolute;left:-12%;top:-30%;width:124%;height:160%;z-index:-1;pointer-events:none}
 /* hover / press on everything clickable */
 .play,.ghost,.btn,.chip,.sw,#bar button,.tab,.seg button,.sseg button,.tgl{transition:scale .24s var(--spring),background .2s,border-color .2s,box-shadow .25s,color .2s,translate .3s var(--ease)}
 .play:hover,.ghost:hover,.btn:hover,.chip:hover,.sw:hover,#bar button:hover{scale:1.06}
@@ -2196,8 +2195,6 @@ body.edscrubbing,body.edscrubbing *{cursor:ew-resize!important;user-select:none!
 .pvTheme.th-ocean{--acc:#1fa3b8;background:#0e1517}.pvTheme.th-steel{--acc:#7d93ad;background:#121417}.pvTheme.th-rose{--acc:#e8507e;background:#171012}.pvTheme.th-jade{--acc:#22b07d;background:#0f1513}
 .pvTheme.th-ember{--acc:#e8541c;background:#18100c}.pvTheme.th-frost{--acc:#8fd8ff;background:#0f1418}.pvTheme.th-royal{--acc:#7a4fd8;background:#110e18}.pvTheme.th-neon{--acc:#ff2fd0;background:#0d0a12}
 
-/* logo: the splat sits low, behind and under "Carnage" (not across the middle of "Snake"), and lighter on the letters; drips hang from the bottom of "Snake" */
-
 /* v1.45: challenge cards dead centre: the check mark hangs off the left of the name (the name itself is centred), the tier tag loses its inline gap, wide previews size to their content */
 .panel.chal2 .ach .ab>b,.panel.chal2 .pmc>b{position:relative}
 .panel.chal2 .ck{position:absolute;right:100%;margin-right:.32em;font-style:normal}
@@ -2371,7 +2368,6 @@ body:has(#stage.menuBg) #bar{visibility:hidden} /* score, best, clock and the le
 .mm-logo .l1{font:600 24px/1 var(--f-head);letter-spacing:.46em;text-transform:uppercase;color:var(--ink);margin:0 0 6px 3px}
 .mm-logo .l2{position:relative;isolation:isolate;display:block}
 .mm-logo .l2 b{display:block;font:800 108px/.82 var(--f-head);letter-spacing:0;text-transform:uppercase;color:var(--acc);text-shadow:0 2px 0 rgba(0,0,0,.35)}
-.mm-logo .splat{position:absolute;left:2%;top:58%;width:96%;height:66%;z-index:-1;opacity:1;pointer-events:none}
 .mm-nav{display:flex;flex-direction:column;width:min(350px,100%)}
 .mm-cta{margin-bottom:var(--s3)}
 .mm-it{position:relative;display:flex;align-items:center;justify-content:space-between;gap:var(--s3);min-height:48px;padding:0 var(--s2) 0 var(--s4);background:none;border:0;border-radius:2px;

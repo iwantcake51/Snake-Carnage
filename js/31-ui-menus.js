@@ -52,20 +52,6 @@ function menuBackdrop(i) { // crossfade to this map's picture once it's ready (d
   if (artCache.has(thumbKey(MAPS[i]))) return apply(artCache.get(thumbKey(MAPS[i])));
   menuBackdrop.t = setTimeout(() => { if (mapIdx === i) apply(mapArt(i)); }, 140);
 }
-function makeSplatSVG() { // flat blood splatter behind the title (seeded, so it looks the same every time)
-  let sd = 11; const r = () => (sd = sd * 16807 % 2147483647) / 2147483647;
-  let blob = '', spikes = '', drops = '', light = '';
-  for (let i = 0; i < 28; i++) { const a = r() * TAU, d = Math.sqrt(r()); blob += `<circle cx="${(200 + Math.cos(a) * d * 125).toFixed(1)}" cy="${(80 + Math.sin(a) * d * 36).toFixed(1)}" r="${(12 + r() * 26).toFixed(1)}"/>`; }
-  for (let i = 0; i < 18; i++) {
-    const a = r() * TAU, len = 70 + r() * 120, wd = 3 + r() * 7, ca = Math.cos(a), sa = Math.sin(a);
-    const bx = 200 + ca * 70, by = 80 + sa * 26, tx = 200 + ca * len * 1.35, ty = 80 + sa * len * .55;
-    spikes += `<polygon points="${(bx - sa * wd).toFixed(1)},${(by + ca * wd).toFixed(1)} ${tx.toFixed(1)},${ty.toFixed(1)} ${(bx + sa * wd).toFixed(1)},${(by - ca * wd).toFixed(1)}"/>`;
-    drops += `<circle cx="${(tx + ca * (8 + r() * 14)).toFixed(1)}" cy="${(ty + sa * (4 + r() * 8)).toFixed(1)}" r="${(2 + r() * 4).toFixed(1)}"/>`;
-  }
-  for (let i = 0; i < 6; i++) light += `<circle cx="${(140 + r() * 120).toFixed(1)}" cy="${(60 + r() * 40).toFixed(1)}" r="${(6 + r() * 12).toFixed(1)}"/>`;
-  return `<svg class="splat" viewBox="0 0 400 160" preserveAspectRatio="none" aria-hidden="true"><g fill="#4a0306">${blob}${spikes}${drops}</g><g fill="#6d070b" opacity=".5">${light}</g></svg>`;
-}
-const SPLAT = makeSplatSVG();
 function placeThumb(seg, instant) { // sliding pill (or underline) under the selected option
   const on = seg.querySelector('button.on'), th = seg.querySelector('.sthumb');
   if (!on || !th) return;
@@ -133,7 +119,7 @@ function homeHtml() {
   const achN = ACH.filter(a => PROG.ach[a.id]).length, ed = typeof editorAllowed === 'function' && editorAllowed();
   return `<section class="mm-home" data-v="home">
     <div class="mm-col">
-      <h1 class="mm-logo" aria-label="Snake: Carnage"><span class="l1">Snake</span><span class="l2">${SPLAT}<b>Carnage</b></span></h1>
+      <h1 class="mm-logo" aria-label="Snake: Carnage"><span class="l1">Snake</span><span class="l2"><b>Carnage</b></span></h1>
       <nav class="mm-nav" aria-label="Main menu">
         <button class="mm-cta" id="playBtn" data-sfx="open"><span class="mm-l">Start game</span><kbd>Space</kbd></button>
         <button class="mm-it" id="coopBtn" data-sfx="open"><span class="mm-l">Play with friends</span></button>
