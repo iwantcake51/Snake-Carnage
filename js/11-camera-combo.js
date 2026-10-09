@@ -62,7 +62,7 @@ const COMBO_STYLES = { // how each bought combo style behaves (the look itself i
   Brutal: { shake: 1.8, shatter: true }, Neon: { shake: .6, shatter: false }, Gilded: { shake: .8, shatter: true }, Manhunt: { shake: 1.4, shatter: true }, Overdrive: { shake: 1.6, shatter: true, step: true },
   Hollow: { shake: .4, shatter: false }, Splatter: { shake: 1.3, shatter: true }, Marquee: { shake: .5, shatter: false } };
 const comboStyle = () => COMBO_STYLES[SETTINGS.snake && SETTINGS.snake.combo] || COMBO_STYLES.Default;
-const comboDur = () => 6.5 * (MOD.halfCombo ? .5 : 1) * (MOD.comboFocus ? .75 : 1) * (MOD.comboCushion ? 1.5 : 1) * comboGutMult();
+const comboDur = () => 6.5 * (MOD.comboFocus ? .5 : 1) * /* Short fuse */ (MOD.comboCushion ? 1.5 : 1) * comboGutMult();
 const COMBO_CAP = 1.8; // the timer can bank up to 1.8x its normal length
 const comboGain = c => comboDur() * (c.golden ? .9 : c.def.human ? .55 : c.def.score >= 2 ? .45 : .32); // bigger, juicier targets buy more time
 const typeLabel = c => (c.golden ? 'Golden ' : '') + (c.def.alien ? 'alien' : c.type === 'astronaut' ? 'astronaut' : c.def.human ? 'human' : c.type).replace(/^./, m => m.toUpperCase());
@@ -94,7 +94,7 @@ function addCombo(c) {
 const comboDrain = () => combo ? 1 + Math.min(.75, Math.max(0, combo.n - 3) * .035) : 1; // bigger combos burn faster, capped at 1.75x so huge ones stay reachable
 function updateCombo(dt) {
   if (!combo) return;
-  if (!(snake && snake.camoT > 0 && upg('camo') > 2)) combo.t -= dt * comboDrain(); // Phantom: the combo holds while you're hidden
+  if (!(snake && snake.camoT > 0 && sk('phantom'))) combo.t -= dt * comboDrain(); // Phantom: the combo holds while you're hidden
   const k = Math.max(0, combo.t / comboDur()), el = document.getElementById('combo'), bar = document.getElementById('cbBar');
   if (bar) bar.style.width = (Math.min(1, k / COMBO_CAP) * 100).toFixed(1) + '%';
   el.classList.toggle('banked', k > 1); // more time banked than a fresh combo gets

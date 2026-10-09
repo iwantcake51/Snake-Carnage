@@ -76,7 +76,7 @@ function startGame(opts = {}) {
   stage.classList.remove('paused', 'stunned'); dropped = []; debris = []; beams = []; trail = []; strayBugs = []; ringPops = []; mist = []; shake = 0; deadT = 0; loopErrs = 0;
   runMods = (opts.mods || SETTINGS.mods || []).filter(id => MODS.some(m => m.id === id)); { const set = new Set(runMods); runMods = runMods.filter(id => !modBlockReason(id, set)); } // nothing that can't actually do anything this run // the random map also rolls its own modifiers; ids that no longer exist are dropped
   MOD = Object.fromEntries(runMods.map(id => [id, true])); rewardMult = modMult(runMods);
-  if (!PROG.allHard && runMods.length && allHardMods(runMods)) { PROG.allHard = 1; saveProg(); setTimeout(() => { if (typeof checkAch === 'function') checkAch(); }, 2500); } // Glutton for Punishment
+  run.hardMods = hardModCount(runMods); run.softMods = softModCount(runMods); // Glutton for Punishment counts these (39-progress: progressTick)
   document.body.classList.toggle('minimal', !!SETTINGS.minimalUi); // (a setting now, not a modifier)
   setTimeout(() => { if (MAPS[mapIdx].name === 'Bunker' && bunkerLock && state !== 'menu') notify({ kind: 'reset', title: 'Lockdown', sub: 'The alarms are going. Red lights only down here today.', dur: 4 }); }, 3200);
   if (opts.net) { if (NS.prevTime === undefined) NS.prevTime = SETTINGS.timeMode; SETTINGS.timeMode = opts.net.time; } // co-op: the host's clock settings, for this session only
@@ -155,10 +155,10 @@ document.getElementById('menuBtn').onclick = () => { if (['play', 'ready', 'intr
 let boardScale = 1;
 function fit() {
   const small = innerHeight < 560 || innerWidth < 760; document.body.classList.toggle('phone', small); // phones: thin bar, no margins
-  const barH = (small ? 0 : 30) + (bar.offsetHeight || 40), pad = small ? 4 : 24; // the real bar height: the board never runs off the bottom
+  const barH = small ? 0 : 24, pad = small ? 4 : 24; // no bar above the board any more (the stats sit on it), just a margin
   const vh = (window.visualViewport && visualViewport.height) || innerHeight, top = small ? Math.max(0, cv.getBoundingClientRect().top) : 0; // a phone: measure where the board really starts (the bar is scaled), so it runs exactly to the bottom
   const s = boardScale = Math.min((innerWidth - pad) / W, small ? (vh - top) / H : (innerHeight - barH) / H, 2.2); // render the game larger when there's room
-  cv.style.width = W * s + 'px'; cv.style.height = H * s + 'px'; bar.style.width = W * s + 'px';
+  cv.style.width = W * s + 'px'; cv.style.height = H * s + 'px';
   applyUiScale();
 }
 const UI_SCALES = { Small: .85, Medium: 1, Large: 1.15, 'Extra Large': 1.3 };

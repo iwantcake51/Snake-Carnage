@@ -140,7 +140,7 @@ function updateCreature(c, dt) {
   if (!free(c.x, c.y, d.r * .6)) unstick(c, dt); // ended up inside something (shoved, spawned, a door shut): walk out of it
   else if ((c.stuck || 0) > 1.4) { const a = escapeDir(c); if (a !== null) { c.a = a; c.steerA = a; c.steerT = .5; c.detour = { a, t: .8 }; } c.stuck = .5; } // long stuck: pick the clearest way out and commit
   if (c.hv) { // Hoover Mouth's drift: capped, damped, and blocked by walls like any other movement
-    const hv = c.hv, sp = Math.hypot(hv.vx, hv.vy), cap = 150; if (sp > cap) { hv.vx *= cap / sp; hv.vy *= cap / sp; }
+    const hv = c.hv, sp = Math.hypot(hv.vx, hv.vy), cap = hv.cap || 150; if (sp > cap) { hv.vx *= cap / sp; hv.vy *= cap / sp; }
     const nx = c.x + hv.vx * dt, ny = c.y + hv.vy * dt, rr = d.r * .8;
     if (free(nx, ny, rr)) { c.x = nx; c.y = ny; } else if (free(nx, c.y, rr)) { c.x = nx; hv.vy *= .3; } else if (free(c.x, ny, rr)) { c.y = ny; hv.vx *= .3; } else { hv.vx = hv.vy = 0; }
     const damp = Math.exp(-dt * 5); hv.vx *= damp; hv.vy *= damp; if (Math.abs(hv.vx) + Math.abs(hv.vy) < 1) c.hv = null;

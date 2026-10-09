@@ -23,12 +23,12 @@ The host picks one in the lobby.
 
 - **Host:** main menu → **Play with friends** → enter a name → **Host**. Share the 6-character code, or use **Invite** (`…/?join=CODE`).
 - **Join:** **Play with friends** → type the code → **Join**, or open the invite link. Friends you've played with show up under **Played with recently**; tap one to join their last lobby.
-- **The lobby is the main menu.** Once you're in one, the main menu stays usable: level up upgrades, buy and change skins in the shop, check challenges or change settings while you wait.
+- **The lobby is the main menu.** Once you're in one, the main menu stays usable: buy skills on the skill tree, buy and change skins in the shop, check challenges or change settings while you wait.
   - A party panel replaces the logo: the lobby code, every player with their account level and a glowing dot (green ready, red not yet).
   - The big button readies you up (click again to unready). For the host it becomes **Start** once everyone, the host included, is ready. **Space** does the same.
   - **Game setup** (host) or **Game details** (guests) opens the full setup: map, time of day, mode, teams, round length, respawn time and modifiers. The host can also pick the map and the time of day straight from the main menu; guests see the host's picks.
   - On every other menu a small **Lobby** tab sits at the right edge with a dot per player; point at it to see who's ready and ready up yourself (the host can start from it too).
-  - A new skin, an upgrade or a level reaches everyone else as soon as you're back on a menu, so the run uses what you just bought.
+  - A new skin, a skill or a level reaches everyone else as soon as you're back on a menu, so the run uses what you just bought.
   - The host can kick players from Game setup. Name tags and off-screen arrows can be switched off there.
   - Starting closes the screen to black for everyone, like a pair of shutters meeting on a red seam with the mode, and opens it on the new world once it has loaded.
 - **Lives:**

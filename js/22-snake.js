@@ -17,7 +17,7 @@ let SCALE_OVR = 0; // co-op: drawing a teammate's snake at its own size
 const snakeScale = () => SCALE_OVR || (snake && snake.scale) || 1;
 const snakeRadius = () => CONFIG.snakeR * snakeScale();
 const snakeSegmentSpacing = () => CONFIG.segSpacing * snakeScale();
-const snakeEatRadius = () => snakeRadius() * .8;
+const snakeEatRadius = () => snakeRadius() * .8 * SKV.jaws(); // Wide Jaws: a longer reach
 const snakeHitRadius = () => Math.max(snakeRadius(), CONFIG.snakeR * .9) * .72; // against walls and objects: a small snake never gets a thinner hitbox than ~90% of normal, so gaps that are solid stay solid
 /* size modifiers: Big / Small hold one size all run; Start Big shrinks back to normal over the first 90 s of play; Start Tiny
    starts small and every meal grows it back toward full size. The size changes ease in, they never pop. */
@@ -79,16 +79,16 @@ function updateSnake(dt) {
   updateSize(s, dt);
   if (mouseSteerOn()) mouseSteer(); // Mouse steering: head for the cursor
   // ease toward the target heading: quick to start, settles softly, capped so it never snaps
-  const sl = upg('speed'), d = angDiff(s.angle, s.dir), mx = CONFIG.turnRate * dt * (1 + (sl >= 2 ? .18 : 0) + (sl >= 4 ? .18 : 0) + (sl >= 5 ? .12 : 0)) * (s.uturnT > 0 ? s.uturnK || 2.4 : 1) * (MOD.wideTurns ? .5 : MOD.quickTurn ? 1.6 : 1); // Wide turns / Quick turn modifiers. Speed Demon: snappier turns, and a fast whip round on a U-turn
+  const d = angDiff(s.angle, s.dir), mx = Math.min(CONFIG.turnRate * dt * SKV.turn() * ((s.dashV || 1) > 1.2 ? SKV.lungeTurn() : 1), (s.dashV || 1) > 1.2 ? s.speed * s.dashV * dt / (snakeRadius() * 1.7) : 99) /* mid-lunge the turn can't get tighter than the body is wide */ * (s.uturnT > 0 ? s.uturnK || 2.4 : 1) * (MOD.wideTurns ? .5 : MOD.quickTurn ? 1.6 : 1); // Wide turns / Quick turn modifiers. Sidewinder: snappier turns; Whiplash: sharper mid-lunge; Momentum: a fast whip round on a U-turn
   const ad = Math.abs(d); s.angle += Math.sign(d) * Math.min(ad, mx, ad * (1 - Math.exp(-dt * CONFIG.turnEase)) + mx * .18); // never past the target: overshooting it made the head flick side to side every frame, worse the lower the frame rate
   if (s.uturnT > 0) { s.uturnT -= dt; if (s.uturnTo !== undefined && Math.abs(angDiff(s.angle, s.dir)) < .5) { s.dir = s.uturnTo; s.uturnTo = undefined; } } // second half of the U-turn
-  const stunK = MOD.quickRecovery ? 2 : MOD.heavyImpact ? .5 : 1; // Quick recovery / Heavy impact: dazes wear off twice as fast, or half as fast
+  const stunK = MOD.quickRecovery ? 2 : MOD.heavyImpact ? .5 : 1; // Quick recovery / Heavy impact: dazes wear off twice as fast, or half as fast (Thick Skull makes them weaker to begin with: smashObstacle, detonate)
   if (s.wallStun > 0) { const k = s.wallStun / (s.wallMax || 3.4); s.wallStun -= dt * stunK; s.angle += (Math.sin(T * 4.7) * 1.5 + Math.sin(T * 2.3 + 1.3)) * k * dt; } // seeing stars: it can't hold a line
-  for (const k of ['dashT', 'camoT', 'hissT', 'ramT', 'boomT']) if (s[k] > 0) s[k] -= dt * (k === 'ramT' && sl >= 3 ? 1.33 : 1) * (k === 'ramT' || k === 'boomT' ? stunK : 1); // Speed Demon III shakes off dazes faster
-  if (s.camoT > 0) { const turning = Math.abs(angDiff(s.angle, s.dir)) > .05 || s.dashT > 0; s.still = clamp((s.still || 0) + (turning ? -dt * (upg('camo') > 2 ? 1.2 : 4) : dt * 1.1), 0, 1); } else s.still = 0; // camouflage settles in on a straight line
+  for (const k of ['dashT', 'camoT', 'hissT', 'ramT', 'boomT', 'lustT']) if (s[k] > 0) s[k] -= dt * (k === 'ramT' || k === 'boomT' ? stunK : 1);
+  if (s.camoT > 0) { const turning = Math.abs(angDiff(s.angle, s.dir)) > .05 || s.dashT > 0; s.still = clamp((s.still || 0) + (turning ? -dt * (sk('phantom') ? 1.2 : 4) : dt * 1.1), 0, 1); } else s.still = 0; // camouflage settles in on a straight line
   const dk = s.dashT > 0 ? s.dashK || 1.8 : 1; s.dashV = dk >= (s.dashV || 1) ? dk : 1 + ((s.dashV || 1) - 1) * Math.exp(-dt * 3.2); // lunge hits at once, then the speed bleeds off over about a second
   if (s.dashT > 0 && (s.wallStun > 0 || s.boomT > 0)) s.dashT = 0; // concussed: no lunging
-  const v = s.speed * s.dashV * (s.camoT > 0 && upg('camo') > 1 ? 1.15 : 1) * /* Stalker: faster while hidden */ (s.ramT > 0 ? 1 - (s.ramDeep || .5) * (s.ramT / (s.ramMax || 1)) : 1) * (1 - .55 * boomSlow(s)); // ... or reeling from a blast // a lunge, or a stagger after smashing through something
+  const v = s.speed * s.dashV * (s.camoT > 0 ? SKV.camoSpeed() : 1) * /* Deep Cover: faster while hidden */ (s.lustT > 0 ? 1 + (SKV.lust() - 1) * Math.min(1, s.lustT / .4) : 1) * /* Bloodlust, easing off at the end */ (s.ramT > 0 ? 1 - (s.ramDeep || .5) * (s.ramT / (s.ramMax || 1)) : 1) * (1 - .55 * boomSlow(s)); // ... or reeling from a blast // a lunge, or a stagger after smashing through something
   // unit vector * speed => identical speed in all 8 directions
   if (MOD.slippery) s.mvA = s.mvA === undefined ? s.angle : s.mvA + angDiff(s.mvA, s.angle) * (1 - Math.exp(-dt * 2.8)); else s.mvA = s.angle; // Slippery: the body keeps sliding the old way a moment after you turn
   const vq = v * (MOD.quickTurn ? .9 : 1);
@@ -131,8 +131,8 @@ const HOOVER_R = 76, HOOVER_NB = []; let hoovFx = [];
 const hooverMouth = s => { const f = snakeRadius() * .7; return [s.x + Math.cos(s.angle) * f, s.y + Math.sin(s.angle) * f]; };
 function hoover(s, dt) {
   if (s.hoovT > 0) s.hoovT -= dt;
-  const sk = s.hoovT > 0 ? clamp(s.hoovLv || upg('hoover') || 1, 1, 3) : 0; if (!sk && !MOD.hoover) return; // the skill while it lasts, or the modifier's steady pull
-  const P = sk ? [0, 1.5, 1.9, 2.6][sk] : 1, [hx, hy] = hooverMouth(s), R = HOOVER_R * (sk ? [0, 1.6, 1.95, 2.4][sk] : 1) * Math.sqrt(s.scale || 1), ca = Math.cos(s.angle), sa = Math.sin(s.angle), cone = .35, half = [0, .55, 1.0, 1.5][sk], ch = Math.cos(half); // the skill's pull is a cone in front of the mouth: about 30, 57 and 86 degrees either side by level
+  const sk = s.hoovT > 0 ? clamp(s.hoovLv || SKV.hoovLv() || 1, 1, 3) : 0; if (!sk && !MOD.hoover) return; // the skill while it lasts, or the modifier's steady pull
+  const P = sk ? lvAt([0, 1.5, 2.3, 3.6], sk) : 1, [hx, hy] = hooverMouth(s), R = HOOVER_R * (sk ? lvAt([0, 1.6, 1.95, 2.4], sk) : 1) * Math.sqrt(s.scale || 1), ca = Math.cos(s.angle), sa = Math.sin(s.angle), cone = .35, half = lvAt([0, .55, 1.0, 1.5], sk), ch = Math.cos(half); // the skill's pull is a cone in front of the mouth: about 30, 57 and 86 degrees either side by level (1..3, fractional with Deep Breath)
   for (const c of nearbyCreatures(hx, hy, R, HOOVER_NB)) {
     if (!c.alive || c.def.fly) continue;
     const dx = hx - c.x, dy = hy - c.y, d = Math.hypot(dx, dy) || 1;
@@ -140,7 +140,7 @@ function hoover(s, dt) {
     if (T - (c.hvT ?? -1) > .1) { c.hvT = T; c.hvLos = los(c.x, c.y, hx, hy); } // line of sight, re-checked ten times a second
     if (!c.hvLos) continue;
     const k = Math.pow(1 - d / R, sk ? 1.4 : 2.2) * front, acc = (30 + 620 * k) * (c.def.human && !sk ? .75 : 1) * P; // the skill drags people as hard as anything else // a whisper at the edge, a real tug at the lips
-    const hv = c.hv || (c.hv = { vx: 0, vy: 0 }); hv.vx += dx / d * acc * dt; hv.vy += dy / d * acc * dt;
+    const hv = c.hv || (c.hv = { vx: 0, vy: 0 }); hv.vx += dx / d * acc * dt; hv.vy += dy / d * acc * dt; hv.cap = sk ? 150 * (.75 + sk * .35) : 150; // a stronger pull drags them faster (26-creature-ai caps the drift)
     if (sk && c.def.human && c.state !== 'panic' && Math.random() < dt * 4) { c.alert = 1; if (typeof panic === 'function' && AUTH()) panic(c, s.x, s.y, rand(2, 3)); } // being dragged off your feet: they know
     if (k > .05 && Math.random() < dt * (sk ? 60 : 30) * k * Math.min(1, FX_K())) { // a few motes of dust (or blood, off a bloody one) streaming into the mouth
       const a = rand(0, TAU), rr = c.def.r * rand(.4, 1.1);
@@ -158,7 +158,7 @@ function updateHoovFx(dt) {
 }
 function drawHoovFx(x) {
   const s = snake; if (s && s.hoovT > 0 && s.alive && !s.netHidden) { // the skill: air spiralling into the open mouth
-    const [hx, hy] = hooverMouth(s), lv = clamp(s.hoovLv || 1, 1, 3), R = HOOVER_R * [0, 1.6, 1.95, 2.4][lv] * .55, k = Math.min(1, s.hoovT * 3) * Math.min(1, (ABIL.hoover.dur - s.hoovT) * 6 + .2), half = [0, .55, 1.0, 1.5][lv];
+    const [hx, hy] = hooverMouth(s), lv = clamp(s.hoovLv || 1, 1, 3), R = HOOVER_R * lvAt([0, 1.6, 1.95, 2.4], lv) * .55, k = Math.min(1, s.hoovT * 3) * Math.min(1, (ABIL.hoover.dur - s.hoovT) * 6 + .2), half = lvAt([0, .55, 1.0, 1.5], lv);
     x.save(); x.lineCap = 'round';
     { const RR = R / .55, g = x.createRadialGradient(hx, hy, 4, hx, hy, RR); g.addColorStop(0, `rgba(230,222,205,${(.16 * k).toFixed(3)})`); g.addColorStop(1, 'rgba(230,222,205,0)'); x.fillStyle = g; x.beginPath(); x.moveTo(hx, hy); x.arc(hx, hy, RR, s.angle - half, s.angle + half); x.closePath(); x.fill(); } // the reach of the pull, faintly
     for (let i = 0; i < 9; i++) { const ph = ((T * 1.6 + i / 9) % 1), r = R * (1 - ph), a0 = s.angle + i * 2.4 - T * 7 + ph * 3; x.strokeStyle = `rgba(230,222,205,${(.32 * k * Math.sin(ph * Math.PI)).toFixed(3)})`; x.lineWidth = 1 + 1.6 * (1 - ph); x.beginPath(); x.arc(hx, hy, Math.max(2, r), a0, a0 + 1.1); x.stroke(); }
@@ -300,7 +300,7 @@ function eatWorld(c, ang, amount, s) {
 function eatReward(c, amount, ang) {
   const s = snake, sx = Math.cos(ang), sy = Math.sin(ang);
   if (s.camoT > 0) s.camoT = Math.min(s.camoMax || 8, s.camoT + 1); // every kill while hidden keeps you hidden a second longer
-  if (s.dashT > 0 && upg('dash') > 2) { abilCD.dash = Math.min(abilCD.dash || 0, T + 1.2); s.dashT = Math.max(s.dashT, .3); } // pounce: straight into the next one
+  if (s.dashT > 0 && sk('pounce')) { abilCD.dash = Math.min(abilCD.dash || 0, T + 1.2); s.dashT = Math.max(s.dashT, .3); } // pounce: straight into the next one
   for (let k = 0; k < 14 * amount; k++) {
     const i = randi(0, Math.min(3, s.segs.length - 1)), g = s.segs[i], R = snakeRadius();
     stainSnake(i, g.x + rand(-R, R), g.y + rand(-R, R), rand(1.5, 4) * s.scale, pick(bloodOf(c)));
@@ -312,14 +312,18 @@ function eatReward(c, amount, ang) {
   addCombo(c); combo.t = Math.max(.6, combo.t + mb.ct);
   const gold = c.golden ? (MOD.rareAppetite ? 9 : 5) : 1, frenzy = evt && evt.type === 'frenzy' ? 2 : 1;
   const cm = MOD.comboFocus ? 1 + (combo.n - 1) * .12 : MOD.comboCushion ? 1 + Math.floor((combo.n - 1) / 4) * .15 : 1 + Math.floor((combo.n - 1) / 3) * .25;
-  const ph = s.camoT > 0 && upg('camo') > 2 ? 1.25 : 1; // Phantom: hidden kills pay more
+  const ph = s.camoT > 0 && sk('phantom') ? 1.25 : 1; // Phantom: hidden kills pay more
   const pts = Math.max(1, Math.round(c.def.score * gold * frenzy * rewardMult * cm * mb.m * ph * (1 + (run.bonus || 0))));
   score += pts; run.score = score;
   c.def.human ? (kills.h++, run.humans++) : (kills.a++, run.animals++);
   run.byType[c.type] = (run.byType[c.type] || 0) + 1; run.killed++; if (c.golden) { run.goldens++; c.def.human ? PROG.goldH = (PROG.goldH || 0) + 1 : PROG.goldA = (PROG.goldA || 0) + 1; } // lifetime golden tally
-  const kxp = Math.round((c.def.human ? 12 : c.def.score * 4) * gold * rewardMult * mb.m * ph);
+  s.chainN = T - (s.chainAt ?? -9) <= 3 ? (s.chainN || 0) + 1 : 0; s.chainAt = T; // kills within 3 s of each other chain (Hot Streak)
+  const fk = (c.golden ? SKV.goldK() : 1) * SKV.streakK(undefined, s.chainN), lucky = Math.random() < SKV.luckyP(); // Golden Touch, Hot Streak, Lucky Bite
+  const kxp = Math.round((c.def.human ? 12 : c.def.score * 4) * gold * rewardMult * mb.m * ph * fk);
   crEat(c, pts, kxp); statEat(c); progressEat(c);
-  gainXP(kxp, Math.max(1, Math.round(c.def.score * .6 * gold * rewardMult * mb.m)));
+  gainXP(kxp, Math.max(1, Math.round(c.def.score * .6 * gold * rewardMult * mb.m * fk)) * (lucky ? 2 : 1));
+  if (lucky) notify({ kind: 'info', icon: '◆', title: 'Lucky bite', right: 'x2 chips', dur: 1.3, key: 'lucky' });
+  if (sk('lust')) s.lustT = 1.5; // Bloodlust: a rush of speed after every kill
   modHud();
   killFx(c.x, c.y, amount);
   shake = Math.min(CONFIG.shakeMax * .4, shake + .5 + 2.5 * amount); // just a nudge: the hit is felt on the target, not the camera

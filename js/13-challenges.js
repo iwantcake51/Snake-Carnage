@@ -291,7 +291,7 @@ function checkChallenges() {
     if (r.bonus) run.bonus = (run.bonus || 0) + r.bonus;
     PROG.chTotal = (PROG.chTotal || 0) + 1; PROG.chMaps = [...new Set([...(PROG.chMaps || []), m])]; // lifetime, for achievements
     (run.chList = run.chList || []).push({ name: ch.name, tier: ch.tier, t: ch.t, got: `${Math.min(v, ch.n * 9)}${chUnit(ch)} of ${ch.n}${chUnit(ch)}`, at: run.time, xp: Math.round(r.xp * rewardMult), chips: Math.round(r.chips * rewardMult), bonus: r.bonus || 0 });
-    challengePopup(ch, r); gainXP(Math.round(r.xp * rewardMult), Math.round(r.chips * rewardMult));
+    challengePopup(ch, r); gainXP(Math.round(r.xp * rewardMult * SKV.taskK()), Math.round(r.chips * rewardMult * SKV.taskK())); // Taskmaster
   }
   checkPermChallenges();
   saveProg();

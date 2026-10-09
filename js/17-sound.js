@@ -174,6 +174,11 @@ const Sfx = {
     if (type === 'dog' || type === 'chicken') this.voice(o, t + a[2] + .06, ...a);
   },
   buy() { if (!this.ok()) return; const t = this.ctx.currentTime, o = this.out(); this.tone(o, t, 988, 990, .09, 'square', .06); this.tone(o, t + .09, 1319, 1320, .25, 'square', .06); },
+  skill(major) { // a skill tree purchase: a soft, precise two-note confirm; a major skill adds a low knock under it and a third note
+    if (!this.ok()) return; const t = this.ctx.currentTime, o = this.out(undefined, .9);
+    this.tone(o, t, 740, 742, .08, 'triangle', .07); this.tone(o, t + .065, 1109, 1111, .16, 'triangle', .06);
+    if (major) { this.tone(o, t, 150, 70, .22, 'sine', .22); this.tone(o, t + .14, 1480, 1482, .28, 'triangle', .05); this.burst(o, t, .05, 2600, 1, .05); }
+  },
   deny() { if (!this.ok()) return; const t = this.ctx.currentTime, o = this.out(); this.tone(o, t, 160, 120, .18, 'square', .08); this.tone(o, t + .1, 140, 100, .18, 'square', .06); },
   levelUpOld() { if (!this.ok()) return; const t = this.ctx.currentTime, o = this.out(); [523, 659, 784, 1047].forEach((f, k) => this.tone(o, t + k * .09, f, f, .3, 'triangle', .1)); },
   levelUp() { // impact, quick rising arpeggio, sparkle tail

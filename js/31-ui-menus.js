@@ -1,7 +1,7 @@
 /* =========================================================
    UI
    ========================================================= */
-const overlay = document.getElementById('overlay'), bar = document.getElementById('bar');
+const overlay = document.getElementById('overlay'), bar = document.getElementById('hudbar'); // (the in-game stats: score, best, chips, level top-left; map, time of day and pause top-right)
 function getBest() { try { return +localStorage.getItem('snakeCarnageBest_' + MAPS[mapIdx].name) || 0; } catch (e) { return 0; } }
 function updateHud() {
   document.getElementById('score').textContent = score;
@@ -125,7 +125,7 @@ function homeHtml() {
       <nav class="mm-nav" aria-label="Main menu">
         <button class="mm-cta" id="playBtn" data-sfx="open"><span class="mm-l">Start game</span><kbd>Space</kbd></button>
         <button class="mm-it" id="coopBtn" data-sfx="open"><span class="mm-l">Play with friends</span></button>
-        <button class="mm-it" id="upBtn" data-sfx="open"><span class="mm-l">Upgrades</span>${upgradeReady() ? '<em class="mm-note hot">Ready to buy</em>' : ''}</button>
+        <button class="mm-it" id="upBtn" data-sfx="open"><span class="mm-l">Skill Tree</span>${skillReady() ? `<em class="mm-note hot">${tokN(skLeft())} to spend</em>` : ''}</button>
         <button class="mm-it" id="snakeBtn" data-sfx="open"><span class="mm-l">Cosmetics</span></button>
         <button class="mm-it" id="chBtn" data-sfx="open"><span class="mm-l">Achievements</span><em class="mm-note">${achN} / ${ACH.length}</em></button>
         <button class="mm-it" id="setBtn" data-sfx="open"><span class="mm-l">Settings</span></button>
@@ -154,7 +154,7 @@ function setupHtml() {
         <div class="rs-scroll">
           <section class="rs-sec"><h4>Time of day</h4>${segHtml('rsTime', 'Time of day', Object.keys(TIME_MODES), SETTINGS.timeMode, TIME_MODES, 'time')}<p class="rs-hint" id="rsTimeTip">${TIME_TIPS[SETTINGS.timeMode] || ''}</p></section>
           <section class="rs-sec" id="rsSeason"><h4>Season</h4>${segHtml('rsSea', 'Season', SEASON_PICK, SETTINGS.season || 'Random', null, 'season')}<p class="rs-hint" id="rsSeaTip"></p></section>
-          <section class="rs-sec"><div class="rs-sh"><h4>Modifiers</h4><button class="mm-q" id="modBtn" data-sfx="open">Edit modifiers</button></div><div class="rs-mods" id="modline">${modLine()}</div></section>
+          <section class="rs-sec"><div class="rs-sh"><h4>Modifiers</h4><span class="rs-mact"><button class="mm-q" id="modClr" data-sfx="off" ${(SETTINGS.mods || []).length ? '' : 'hidden'}>Clear</button><button class="mm-q" id="modBtn" data-sfx="open">Edit modifiers</button></span></div><div class="rs-mods" id="modline">${modLine()}</div></section>
           <section class="rs-sec rs-ch" id="mapch">${mapChallengesHtml()}</section>
         </div>
       </aside>
@@ -188,7 +188,7 @@ function wireMenu() {
   const root = overlay.querySelector('.mm'), $ = id => document.getElementById(id);
   $('playBtn').onclick = () => menuGo('setup');
   $('coopBtn').onclick = () => transitionTo(netShowCoop);
-  $('upBtn').onclick = () => transitionTo(showUpgrades);
+  $('upBtn').onclick = () => transitionTo(showSkillTree);
   $('snakeBtn').onclick = () => transitionTo(showCustomize);
   $('chBtn').onclick = () => transitionTo(showChallenges);
   $('setBtn').onclick = () => { settingsFrom = 'menu'; transitionTo(() => showSettings()); };
@@ -198,7 +198,8 @@ function wireMenu() {
   $('rsPrev').onclick = $('rsChange').onclick = () => openBrowser();
   $('startBtn').onclick = () => startGame();
   $('modBtn').onclick = () => transitionTo(() => showModifiers());
-  root.querySelectorAll('#modline .mchip[data-mod]').forEach(ch => { ch.tabIndex = 0; ch.setAttribute('role', 'button'); ch.onclick = () => transitionTo(() => showModifiers(ch.dataset.mod)); }); // jump straight to that modifier
+  wireModLine(root);
+  $('modClr').onclick = () => { SETTINGS.mods = []; saveSettings(); const ml = $('modline'); ml.innerHTML = modLine(); wireModLine(root); $('modClr').hidden = true; if (typeof updateHud === 'function') updateHud(); $('modBtn').focus({ preventScroll: true }); }; // clear them right here, no trip into the Modifiers screen
   const hint = (seg, tipEl, tips, key, cur) => { // the line under a choice describes whichever option you point at, then goes back to the picked one
     seg.querySelectorAll('button').forEach(b => { b.onpointerenter = b.onfocus = () => { if (!b.disabled) tipEl.textContent = tips[b.dataset[key]] || ''; }; });
     seg.onpointerleave = () => { const w = key === 'season' && seasonWhy(MAPS[mapIdx]); tipEl.textContent = w || tips[cur()] || ''; };
@@ -261,18 +262,23 @@ function menuEsc() { // Esc: shut the map browser, then back to the front page; 
   if (root) { if (closeBrowser()) return; if (root.dataset.view === 'setup' && !root.classList.contains('party')) menuGo('home'); return; }
   const b = overlay.querySelector('#backBtn, #mpBack'); if (b) b.click(); else transitionTo(showMenu);
 }
+function wireModLine(root) { // the run setup's chips: click one to take that modifier off, right here (Edit modifiers is the way into the full list)
+  root.querySelectorAll('#modline .mchip[data-mod]').forEach(ch => { ch.tabIndex = 0; ch.setAttribute('role', 'button'); ch.setAttribute('aria-label', 'Remove ' + ch.textContent);
+    ch.onclick = () => { SETTINGS.mods = (SETTINGS.mods || []).filter(id => id !== ch.dataset.mod); saveSettings(); Sfx.ui('off');
+      root.querySelector('#modline').innerHTML = modLine(); wireModLine(root); const c = root.querySelector('#modClr'); if (c) c.hidden = !SETTINGS.mods.length; };
+    ch.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); ch.click(); } }; }); }
 function modLine(list, readOnly) { // active modifiers, visible before the run starts
   const ids = list || SETTINGS.mods || [];
   if (!ids.length) return '<span class="mchip dim">No modifiers</span>';
   const mm = modMult(ids);
-  return ids.map(id => { const m = MODS.find(q => q.id === id) || {}; return `<span class="mchip" data-mod="${id}" data-tip="${attr(m.desc)}${readOnly ? '' : ' (click to edit)'}">${m.name}</span>`; }).join('') +
+  return ids.map(id => { const m = MODS.find(q => q.id === id) || {}; return `<span class="mchip" data-mod="${id}" data-tip="${attr(m.desc)}${readOnly || list ? '' : ' (click to remove)'}">${m.name}</span>`; }).join('') +
     (Math.abs(mm - 1) > .005 ? `<span class="mchip mult ${mm < 1 ? 'down' : ''}">Rewards x${mm.toFixed(2)}</span>` : ''); // no meaningless x1.00 chip
 }
 const SEASON_PICK = ['Random', 'Spring', 'Summer', 'Autumn', 'Winter'];
 const SEASON_TIPS = { Random: 'A different season each run.', Spring: 'Blossom and fresh green.', Summer: 'Full leaf, long grass.', Autumn: 'Orange leaves everywhere.', Winter: 'Snow on the ground: you carve a groove through it, and blood soaks in.' };
 const TIME_TIPS = { Cycle: 'Every run starts at a random hour and the day keeps moving.', Day: 'Bright midday the whole run. Nowhere for you to hide.', Dawn: 'Frozen at first light: long shadows, lamps still on.', Dusk: 'Frozen at sunset: half-lit streets and long shadows.', Night: 'Pitch dark the whole run. Lamps, windows and flashlights only.' };
 const multLabel = ids => { const m = modMult(ids); return Math.abs(m - 1) < .005 ? 'Normal rewards' : 'Rewards x' + m.toFixed(2); };
-const MOD_GROUP_INFO = { Conditions: 'The world you play in: light, weather, air strikes, what breaks', Crowd: 'How people and animals behave, and how many there are', Snake: 'Your body, your skills and your upgrades', Scoring: 'How kills pay, and how the combo works', Style: 'Looks only', Controls: 'How you steer' };
+const MOD_GROUP_INFO = { Conditions: 'The world you play in: light, weather, air strikes, what breaks', Crowd: 'How people and animals behave, and how many there are', Snake: 'Your body, your abilities and your skill tree', Scoring: 'How kills pay, and how the combo works', Style: 'Looks only', Controls: 'How you steer' };
 const modKind = m => m.mult > 0 ? ['hard', 'Harder'] : m.mult < 0 ? ['easy', 'Easier'] : ['even', 'Different'];
 const modPct = m => m.mult ? (m.mult > 0 ? '+' : '') + Math.round(m.mult * 100) + '%' : '±0%';
 function showModifiers(focus) {
@@ -287,7 +293,7 @@ function showModifiers(focus) {
         <span class="m2d">${m.desc}</span>
         <span class="m2tags"><i class="m2k">${kl}</i>${(m.not || []).length ? `<i class="m2not">Not with ${m.not.map(o => (MODS.find(q => q.id === o) || {}).name).filter(Boolean).join(', ')}</i>` : ''}</span></button>`; }).join('')}</div></section>`).join('')}</div>
       <aside class="m2info" id="m2info"></aside></div>
-    <div class="mbtns"><span class="sp"></span><button class="btn alt" id="shufBtn" data-sfx="select">Shuffle</button><button class="btn alt" id="clrBtn" data-sfx="off">Clear</button><button class="btn" id="backBtn" data-sfx="confirm">Done</button></div></div>`;
+    <div class="mbtns"><span class="sp"></span><button class="btn alt" id="shufBtn" data-sfx="select">Shuffle</button><button class="btn" id="backBtn" data-sfx="confirm">Done</button></div></div>`;
   const blocker = id => modBlockReason(id, ids), info = document.getElementById('m2info');
   let shown = null;
   const showInfo = id => { // the side panel: everything about the one you're pointing at, or a summary of what's on
@@ -329,7 +335,6 @@ function showModifiers(focus) {
     overlay.querySelectorAll('.m2c').forEach((t, i) => { t.classList.remove('shuf'); void t.offsetWidth; t.style.setProperty('--d', (i * 10) + 'ms'); t.classList.add('shuf'); });
     shown = null; sync();
   };
-  document.getElementById('clrBtn').onclick = () => { ids.clear(); shown = null; sync(); };
   document.getElementById('backBtn').onclick = () => transitionTo(showMenu);
   sync();
   if (focus) requestAnimationFrame(() => { const t = overlay.querySelector(`.m2c[data-m="${focus}"]`); if (!t) return; showInfo(focus); t.scrollIntoView({ block: 'center', behavior: SETTINGS.reduceMotion ? 'auto' : 'smooth' }); t.classList.add('flash'); });
@@ -529,7 +534,7 @@ const SETTING_TABS = {
     ['#Steering and camera'], ['Mouse', 'With Mouse steering on (Gameplay): the snake heads for the cursor; left click lunges'], 
     ['Wheel', 'Zoom the camera in or out, always on your snake'], ['Drag', 'Pan the camera (middle mouse; left mouse, or right mouse with Mouse steering on)'], ['Double-click', 'Camera back on the snake'],
     ['Pinch', 'On a touch screen: two fingers zoom and pan; one finger still steers'],
-    ['` or F10', 'Admin panel: god mode, speed, time of day, spawning, air strikes, chips and upgrades (single player, or the host)'], ['#Menus'], ['Space', 'Start, skip the intro, play again. In a multiplayer lobby: ready up, and the host starts once everyone is ready'], ['Esc', 'Pause, back, close settings'], ['F3', 'Performance stats: off, frame rate, full']] },
+    ['` or F10', 'Admin panel: god mode, speed, time of day, spawning, air strikes, chips and the skill tree (single player, or the host)'], ['#Menus'], ['Space', 'Start, skip the intro, play again. In a multiplayer lobby: ready up, and the host starts once everyone is ready'], ['Esc', 'Pause, back, close settings'], ['F3', 'Performance stats: off, frame rate, full'], ['#Credits'], ['Icons', 'game-icons.net, by Lorc, Delapouite and contributors (CC BY 3.0)']] },
   Accessibility: { icon: 'access', lead: 'Make the game easier to see and more comfortable.', rows: [
     ['head', 'Visibility'],
     ['seg', 'snakeOutline', 'Snake outline', 'An outline so your snake is easy to see.', ['Off', 'Subtle', 'Strong']],

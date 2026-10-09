@@ -1110,11 +1110,15 @@ function edApply() {
 }
 function edUnapply() { const all = localMapEdits(); delete all[mapEditKey(MAPS[ED.map].name)]; localStorage.setItem('snakeCarnageMapEdits', JSON.stringify(all)); edStatus(`Normal runs on ${MAPS[ED.map].name} use the original map again (your editor copy is kept)`); }
 
-/* ---- skills for play tests: any upgrade at any level, only while testing; your real upgrades are untouched ---- */
-function edSkillsGet() { try { const s = JSON.parse(localStorage.getItem('snakeEdSkills')); if (s) return s; } catch (e) {} const o = {}; for (const u of UPGRADES) o[u.id] = PROG.upgOff[u.id] ? 0 : PROG.upg[u.id] || 0; return o; }
+/* ---- skills for play tests: any skill tree rank, only while testing; your real skill tree is untouched ---- */
+function edSkillsGet() { let s = null; try { s = JSON.parse(localStorage.getItem('snakeEdSkills')); } catch (e) {}
+  if (s && !s._tree) s = treeFromUpgrades(s).t; // saved before the skill tree: the old levels, translated the same way your save was
+  if (s && s._tree === 1) treeMerge(s); // saved before speed and the ram were folded into one ranked node each
+  if (s) return s; const o = {}; for (const n of SKILL_TREE) o[n.id] = PROG.treeOff[n.id] ? 0 : skOwn(n.id); return o; }
+const edSkillsSet = s => { s._tree = 2; localStorage.setItem('snakeEdSkills', JSON.stringify(s)); };
 function edSkillsDlg() {
-  const cur = edSkillsGet(), row = u => `<div class="edskr"><span><b>${u.name}</b>${u.key ? ` <kbd>${u.key}</kbd>` : ''}<small>${(u.desc || '').replace(/<[^>]+>/g, '')}</small></span><div class="peseg">${Array.from({ length: u.max + 1 }, (_, l) => `<button data-u="${u.id}" data-l="${l}" class="${(cur[u.id] || 0) === l ? 'on' : ''}">${l ? ['I', 'II', 'III', 'IV', 'V'][l - 1] : 'Off'}</button>`).join('')}</div></div>`;
-  const m = edModal('Test skills', `<p>Pick any upgrade levels to try in <b>play tests</b>. Your real upgrades and coins aren't touched.</p><div class="edsklist">${UPGRADES.map(row).join('')}</div>`,
-    [['Use my upgrades', mm => { localStorage.removeItem('snakeEdSkills'); edStatus('Play tests use your own upgrades'); }, ''], ['Everything maxed', mm => { const o = {}; for (const u of UPGRADES) o[u.id] = u.max; localStorage.setItem('snakeEdSkills', JSON.stringify(o)); edStatus('Play tests: every skill maxed'); }, ''], ['Done', null, 'edprimary']]);
-  m.querySelectorAll('[data-u]').forEach(b => b.onclick = () => { const s = edSkillsGet(); s[b.dataset.u] = +b.dataset.l; localStorage.setItem('snakeEdSkills', JSON.stringify(s)); m.querySelectorAll(`[data-u="${b.dataset.u}"]`).forEach(c => c.classList.toggle('on', c === b)); });
+  const cur = edSkillsGet(), row = n => `<div class="edskr"><span><b>${n.name}</b>${n.abil ? ` <kbd>${abilKey(n.id)}</kbd>` : ''}<small>${SK_BRANCH[n.br].name} · ${n.major ? 'major' : 'passive'}. ${n.desc}</small></span><div class="peseg">${Array.from({ length: n.max + 1 }, (_, l) => `<button data-u="${n.id}" data-l="${l}" class="${(cur[n.id] || 0) === l ? 'on' : ''}">${l ? (n.max > 1 ? l : 'On') : 'Off'}</button>`).join('')}</div></div>`;
+  const m = edModal('Test skills', `<p>Pick any skill tree ranks to try in <b>play tests</b>. Your real skill tree and chips aren't touched.</p><div class="edsklist">${SKILL_TREE.map(row).join('')}</div>`,
+    [['Use my skill tree', mm => { localStorage.removeItem('snakeEdSkills'); edStatus('Play tests use your own skill tree'); }, ''], ['Everything maxed', mm => { const o = {}; for (const n of SKILL_TREE) o[n.id] = n.max; edSkillsSet(o); edStatus('Play tests: every skill maxed'); }, ''], ['Done', null, 'edprimary']]);
+  m.querySelectorAll('[data-u]').forEach(b => b.onclick = () => { const s = edSkillsGet(); s[b.dataset.u] = +b.dataset.l; edSkillsSet(s); m.querySelectorAll(`[data-u="${b.dataset.u}"]`).forEach(c => c.classList.toggle('on', c === b)); });
 }

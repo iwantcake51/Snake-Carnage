@@ -33,11 +33,16 @@
    itself and checks only its own snake. Only the host kills the crowd.
    ========================================================= */
 const AIR = { queue: [], warned: false, nextT: 0, flash: 0, sky: 0, rumble: 0, d0: 0, muf: 0, mufH: 0 }; // flash: the white-out on screen; sky: how much a blast is lighting up the night
-const AIR_START = 90, AIR_R = 44, AIR_RAID_START = 6; // seconds into the run before the first strike (Air raid: almost straight away); blast radius
+const AIR_START = 60, AIR_R = 44, AIR_RAID_START = 6; // seconds into the run before the first strike (Air raid: almost straight away); blast radius
 const STRAFE_V = 560, STRAFE_HW = 13, STRAFE_LEN = 820; // how fast the rounds walk down the lane, its half width and length
 let strikes = [], booms = [], boomBits = [], corpses = [], fallenHats = [], jets = [], shocks = [], fires = [], soots = [], hazes = [], later = [], clods = [], strafes = [], tracers = [];
 const airMap = () => { const m = MAPS[mapIdx]; return !!m && !m.indoor && !m.space; }; // outdoors, on Earth
-const airOn = () => airMap() && !MOD.noAir; // outdoors on Earth, always (the Clear skies modifier is the way to switch them off)
+const airOn = () => airMap() && !MOD.noAir;
+/* Locked on (modifier): no guessing. Every strike is aimed right where you're heading and, for a split second after it's
+   marked, slides after you; the jets come in twice as fast and the bombs fall far quicker, so there's much less time to get out */
+const LOCK = () => !!MOD.lockOn, jetV = () => LOCK() ? 2200 : 1150, strafeV = () => LOCK() ? 980 : STRAFE_V;
+const snakeOfPid = id => !NETM.run || !id || id === NETM.me ? snake : (NS.rs && NS.rs.get(id)) || null; // the snake a tracking marker follows, on any screen
+function skOf(s, id) { if (s === snake) return sk(id); const o = UPG_OVR; UPG_OVR = s.upgLv || {}; try { return sk(id); } finally { UPG_OVR = o; } } // another player's rank (the host deciding for them) // outdoors on Earth, always (the Clear skies modifier is the way to switch them off)
 function airReset() { tailBits = []; strikes = []; booms = []; boomBits = []; corpses = []; fallenHats = []; jets = []; shocks = []; fires = []; soots = []; hazes = []; later = []; clods = []; strafes = []; tracers = []; AIR.crowdTalk = null; AIR.queue = []; NM.list = []; NM.n = 0; AIR.warned = false; AIR.nextT = 0; AIR.flash = 0; AIR.sky = 0; AIR.rumble = 0; AIR.d0 = 0; AIR.muf = 0; AIR.mufH = 0; if (Sfx.lp) Sfx.daze(0); }
 /* reeling from a blast: full strength for the first second, then it fades over the next 1.2 */
 const boomSlow = s => s && s.boomT > 0 ? (s.boomK || 0) * clamp(s.boomT / 1.2, 0, 1) : 0;
@@ -97,7 +102,7 @@ function airCrowdReact(kind, x, y, r = AIR_R, seen) {
 function airJetReact(j, dt) {
   if (!AUTH() || (j.reactT = (j.reactT || 0) - dt) > 0) return;
   j.reactT = .25;
-  const d = (j.u - j.over) * 1150;
+  const d = (j.u - j.over) * (j.v || 1150);
   airCrowdReact('jet', j.x + Math.cos(j.a) * d, j.y + Math.sin(j.a) * d, AIR_R, j.listeners || (j.listeners = new Set()));
 }
 /* ---- calling them in (the deciding browser only) ---- */
@@ -116,7 +121,8 @@ function airSchedule(dt) {
   const kind = t - t0 > (raid ? 30 : 20) && Math.random() < .18 + .12 * k ? (Math.random() < .14 ? 'bombs' : 'guns') : 'salvo';
   for (const s of targets) { // multiplayer: every player gets their own run at the same moment, and every screen sees all of them (the host sends each one out)
     const a = kind === 'guns' ? rand(0, TAU) : s.angle + (Math.random() < .5 ? 1 : -1) * (kind === 'bombs' ? rand(.35, 1.15) : rand(.9, 2.2)); // gun runs come in from anywhere; bombers cross your path
-    const pre = rand(2.4, 3.6), sp = (s.speed || CONFIG.snakeSpeeds.Normal) * (s.dashV || 1), px = Math.round(s.x + Math.cos(s.angle) * sp * pre), py = Math.round(s.y + Math.sin(s.angle) * sp * pre);
+    if (skOf(s, 'jam') && Math.random() < .5) { airCalledOff(s); continue; } // Bad Intel: this one is called off (no jet, nothing dropped), and the clock above has already started over
+    const pre = LOCK() ? rand(1.3, 1.8) : rand(2.4, 3.6), sp = (s.speed || CONFIG.snakeSpeeds.Normal) * (s.dashV || 1), px = Math.round(s.x + Math.cos(s.angle) * sp * pre), py = Math.round(s.y + Math.sin(s.angle) * sp * pre);
     airApproach(px, py, a, pre); netEmit({ t: 'airj', x: px, y: py, a: +a.toFixed(3), p: +pre.toFixed(2) }); // you hear it coming, miles off, before anything is marked
     AIR.queue.push({ t: pre, f: () => { if (!s.alive || s.netHidden || s.hidden || state !== 'play') return; if (kind === 'salvo') airSalvo(s, raid ? ramp : Math.max(gt, heatOf(s)), a); else strafeRun(s, raid ? ramp : Math.min(1, Math.max(gt, heatOf(s))), kind, a); } }); // each player's own run is as fierce as their own (team's) kills
   }
@@ -133,19 +139,24 @@ function airKills(s) { // kills that count against this snake: in co-op everyone
   return NETM.players.reduce((n, p) => mode === 'ffa' && p.id !== pid || team !== null && netTeamOf(p.id) !== team ? n : n + (p.id === NETM.me ? run.killed || 0 : (p.stats && p.stats.killed) || 0), 0);
 }
 function airApproach(x, y, a, pre) { Sfx.jetFar && Sfx.jetFar(x, y, a, pre); } // every screen
+const airPid = s => s === snake ? (NETM.run ? NETM.me : '') : s.pid; // who a Locked on strike slides after ('' = you, in single player)
+function airCalledOff(s) { // Bad Intel: the strike meant for this snake never comes
+  if (s === snake) airCalledOffNote(); else if (NETM.run) netEmit({ t: 'airx', pid: s.pid });
+}
+function airCalledOffNote() { notify({ kind: 'info', icon: '✈', title: 'Bad intel', sub: 'The strike on you was called off.', dur: 2.2, key: 'airx' }); }
 function airSalvo(s, g, a) { // a salvo of bombs walked along this snake's path (g: how far into the raid: bigger, faster salvos)
-  const raid = !!MOD.airRaid, k = Math.min(1, g), n = raid ? Math.min(4, 1 + Math.floor(Math.random() * (1 + 2.2 * Math.min(1, g)))) : Math.min(3, 1 + Math.floor(Math.random() * (1 + .6 * g))), warn = 3 - .5 * k, sp = (s.speed || CONFIG.snakeSpeeds.Normal) * (s.dashV || 1); // a normal game: smaller salvos
+  const raid = !!MOD.airRaid, lock = LOCK(), k = Math.min(1, g), n = raid ? Math.min(4, 1 + Math.floor(Math.random() * (1 + 2.2 * Math.min(1, g)))) : Math.min(3, 1 + Math.floor(Math.random() * (1 + .6 * g))), warn = (3 - .5 * k) * (lock ? .45 : 1), sp = (s.speed || CONFIG.snakeSpeeds.Normal) * (s.dashV || 1); // a normal game: smaller salvos
   const jetA = a ?? s.angle + (Math.random() < .5 ? 1 : -1) * rand(.9, 2.2); // the jet crosses your path
   for (let j = 0; j < n; j++) { // a salvo walks along the path
     const b = bombKind(), r = Math.round(AIR_R * b.r), fs = b.f; // each bomb its own size and speed
-    let w = warn / Math.sqrt(fs) + j * (raid ? rand(.3, .45) : rand(.55, .9)) + rand(.02, .08); // a fast one gives less warning; one after another, never two at once
+    let w = warn / Math.sqrt(fs) + j * (lock ? rand(.22, .32) : raid ? rand(.3, .45) : rand(.55, .9)) + rand(.02, .08); // a fast one gives less warning; one after another, never two at once
     for (let q = 0; q < 6; q++) { const o = strikes.find(o => Math.abs(o.t - w) < .11); if (!o) break; w = o.t + .11 + rand(0, .05); }
     w = +w.toFixed(2);
-    const lead = w * rand(.4, 1.05), side = gauss() * (Math.random() < .15 ? 230 : 100); // aimed roughly where you'll be, but they scatter: some way off, the odd one wide
+    const lead = lock ? w * rand(.92, 1.02) : w * rand(.4, 1.05), side = gauss() * (lock ? 14 : Math.random() < .15 ? 230 : 100); // aimed roughly where you'll be, but they scatter: some way off, the odd one wide (Locked on: right where you'll be)
     const x = clamp(s.x + Math.cos(s.angle) * sp * lead - Math.sin(s.angle) * side, 24, W - 24), y = clamp(s.y + Math.sin(s.angle) * sp * lead + Math.cos(s.angle) * side, 24, H - 24);
-    const ja = j === 0 ? +jetA.toFixed(3) : undefined, f = +(.65 / fs).toFixed(2); // they take longer to fall: you see them coming
-    const rx = Math.round(x), ry = Math.round(y); airStrike(rx, ry, w, r, ja, f);
-    netEmit({ t: 'air', x: rx, y: ry, w, r, j: ja, f, h: Math.round(netNow()) }); // (h: the host's clock, so guests can take off the time it spent in transit)
+    const ja = j === 0 ? +jetA.toFixed(3) : undefined, f = +((lock ? .3 : .65) / fs).toFixed(2); // they take longer to fall: you see them coming
+    const rx = Math.round(x), ry = Math.round(y), tk = lock ? airPid(s) : undefined; airStrike(rx, ry, w, r, ja, f, tk);
+    netEmit({ t: 'air', x: rx, y: ry, w, r, j: ja, f, tk, h: Math.round(netNow()) }); // (h: the host's clock, so guests can take off the time it spent in transit)
   }
 }
 function bombKind() { // a size and a falling speed: mostly ordinary, some big ones, some small, some that come down fast or slow
@@ -154,44 +165,45 @@ function bombKind() { // a size and a falling speed: mostly ordinary, some big o
 }
 function strafeRun(s, k, kind, a0) { // the deciding browser: a gun run (or now and then a bombing run) close to this snake, from any direction, that tries NOT to cross its body or the way it's heading
   if (kind === 'bombs' || (kind !== 'guns' && Math.random() < .14)) return bombRun(s, k, a0); // bombing runs are the rare one
-  const sp = (s.speed || CONFIG.snakeSpeeds.Normal) * (s.dashV || 1), warn = +(2.3 - .5 * k).toFixed(2), L = STRAFE_LEN, base = a0 ?? rand(0, TAU);
-  const lead = warn + L / 2 / STRAFE_V, hx = s.x + Math.cos(s.angle) * sp * lead, hy = s.y + Math.sin(s.angle) * sp * lead; // where the head will be as the rounds come through
+  const sp = (s.speed || CONFIG.snakeSpeeds.Normal) * (s.dashV || 1), lock = LOCK(), warn = +((2.3 - .5 * k) * (lock ? .5 : 1)).toFixed(2), L = STRAFE_LEN, base = a0 ?? rand(0, TAU);
+  const lead = warn + L / 2 / strafeV(), hx = s.x + Math.cos(s.angle) * sp * lead, hy = s.y + Math.sin(s.angle) * sp * lead; // where the head will be as the rounds come through
   let best = null, bs = -1e9;
   for (let n = 0; n < 16; n++) {
-    const a = n ? base + rand(-.7, .7) : base, off = rand(55, 170) * (Math.random() < .5 ? 1 : -1), ca = Math.cos(a), sa = Math.sin(a);
+    const a = n ? base + rand(-.7, .7) : base, off = lock ? rand(-10, 10) : rand(55, 170) * (Math.random() < .5 ? 1 : -1), ca = Math.cos(a), sa = Math.sin(a); // (Locked on: the lane runs right through where your head will be)
     const x = clamp(hx - sa * off, 40, W - 40), y = clamp(hy + ca * off, 40, H - 40), x0 = x - ca * L / 2, y0 = y - sa * L / 2;
     const lane = (px, py) => { const dx = px - x0, dy = py - y0, al = dx * ca + dy * sa; return al < -20 || al > L + 20 ? Infinity : Math.abs(dy * ca - dx * sa); };
     let clr = Infinity; for (let i = 0; i < s.segs.length; i += 2) clr = Math.min(clr, lane(s.segs[i].x, s.segs[i].y)); // the body as it is now...
     for (let q = 0; q <= 10; q++) { const u = q / 10 * lead * 1.25; clr = Math.min(clr, lane(s.x + Math.cos(s.angle) * sp * u, s.y + Math.sin(s.angle) * sp * u)); } // ...and the way it's going
     const sc = Math.min(clr, 120) - Math.abs(Math.abs(off) - 95) * .15; // clear of you, but close enough to tear past
+    if (lock) { best = { x, y, a }; break; }
     if (sc > bs) { bs = sc; best = { x, y, a }; } if (clr > STRAFE_HW + 60 && n > 3) break;
   }
   const x = Math.round(best.x), y = Math.round(best.y), a = +best.a.toFixed(3); airStrafe(x, y, a, warn); netEmit({ t: 'airs', x, y, a, w: warn, h: Math.round(netNow()) });
 }
 function bombRun(s, k, a0) { // a jet flying a line across your path, letting a string of bombs go: they land one after another, walking down the line
-  const sp = (s.speed || CONFIG.snakeSpeeds.Normal) * (s.dashV || 1), warn = 2.3 - .5 * k, a = a0 ?? s.angle + (Math.random() < .5 ? 1 : -1) * rand(.35, 1.15);
-  const n = Math.min(7, 4 + Math.round(2 * k + Math.random())), gap = 84, walk = 520, r = Math.round(AIR_R * .85); // bombs every 78 px, landing 0.12 s apart
+  const sp = (s.speed || CONFIG.snakeSpeeds.Normal) * (s.dashV || 1), lock = LOCK(), warn = (2.3 - .5 * k) * (lock ? .5 : 1), a = a0 ?? s.angle + (Math.random() < .5 ? 1 : -1) * rand(.35, 1.15);
+  const n = Math.min(7, 4 + Math.round(2 * k + Math.random())), gap = 84, walk = lock ? 900 : 520, r = Math.round(AIR_R * .85); // bombs every 78 px, landing 0.12 s apart
   const lead = warn + (n - 1) / 2 * gap / walk, px = s.x + Math.cos(s.angle) * sp * lead, py = s.y + Math.sin(s.angle) * sp * lead; // the middle of the string lands where you'll be
   let jet = +a.toFixed(3);
   for (let i = 0; i < n; i++) {
     const o = (i - (n - 1) / 2) * gap, x = px + Math.cos(a) * o, y = py + Math.sin(a) * o; if (x < 24 || y < 24 || x > W - 24 || y > H - 24) continue;
-    const w = +(warn + i * gap / walk).toFixed(2), rr = Math.round(r * rand(.88, 1.14)), f = +(.5 / rand(.85, 1.25)).toFixed(2);
+    const w = +(warn + i * gap / walk).toFixed(2), rr = Math.round(r * rand(.88, 1.14)), f = +((lock ? .25 : .5) / rand(.85, 1.25)).toFixed(2);
     airStrike(Math.round(x), Math.round(y), w, rr, jet, f); netEmit({ t: 'air', x: Math.round(x), y: Math.round(y), w, r: rr, j: jet, f, h: Math.round(netNow()) }); jet = undefined; // one jet, flying the line
   }
 }
 function airWarn() {
-  notify({ kind: 'bad', icon: '✈️', title: MOD.airRaid ? 'AIR RAID' : 'AIR STRIKE INBOUND', sub: 'The military is bombing and strafing your path. Stay out of the red rings and lanes.', dur: 4.2, key: 'air' });
+  notify({ kind: 'bad', icon: giSvg('jet'), title: MOD.airRaid ? 'AIR RAID' : 'AIR STRIKE INBOUND', sub: 'The military is bombing and strafing your path. Stay out of the red rings and lanes.', dur: 4.2, key: 'air' });
   Sfx.siren();
 }
-function airStrike(x, y, w, r = AIR_R, jetA, f = .5) { // every screen: mark the spot and start its clock (f: how long the bomb takes to fall into view and land; shorter is faster)
-  strikes.push({ x, y, t: w, dur: w, r, f: clamp(f || .5, .2, 1.2), rot: ((x * 131 + y * 71) % 628) / 100, ph: 0, whistled: false }); // (the marker's turn comes from where it is, so it looks the same on every screen)
-  if (jetA !== undefined) { const j = { x, y, a: jetA, u: 0, over: Math.max(.3, w - .65), dropped: false }; jets.push(j); Sfx.flyby(j); }
+function airStrike(x, y, w, r = AIR_R, jetA, f = .5, tk) { // every screen: mark the spot and start its clock (f: how long the bomb takes to fall into view and land; shorter is faster; tk: Locked on, the player it slides after)
+  strikes.push({ x, y, t: w, dur: w, r, f: clamp(f || .5, .12, 1.2), tk, rot: ((x * 131 + y * 71) % 628) / 100, ph: 0, whistled: false }); // (the marker's turn comes from where it is, so it looks the same on every screen)
+  if (jetA !== undefined) { const j = { x, y, a: jetA, u: 0, over: Math.max(.2, w - (LOCK() ? .35 : .65)), dropped: false, v: jetV() }; jets.push(j); Sfx.flyby(j); }
   Sfx.lockOn(x);
 }
 function airStrafe(x, y, a, w) { // every screen: mark the lane through (x, y) and start the clock
   const ca = Math.cos(a), sa = Math.sin(a), len = STRAFE_LEN;
-  strafes.push({ x0: x - ca * len / 2, y0: y - sa * len / 2, a, ca, sa, len, t: -w, warn: w, front: 0, next: 0, hw: STRAFE_HW, ph: 0, gun: false, done: 0 });
-  const j = { x, y, a, u: 0, over: w + len / 2 / STRAFE_V + .12, dropped: true, low: true }; jets.push(j); Sfx.flyby(j); // it comes in low, right behind its rounds
+  const v = strafeV(); strafes.push({ x0: x - ca * len / 2, y0: y - sa * len / 2, a, ca, sa, len, t: -w, warn: w, front: 0, next: 0, hw: STRAFE_HW, ph: 0, gun: false, done: 0, v });
+  const j = { x, y, a, u: 0, over: w + len / 2 / v + .12, dropped: true, low: true, v: jetV() }; jets.push(j); Sfx.flyby(j); // it comes in low, right behind its rounds
   Sfx.lockOn(x); Sfx.strafeWarn(x);
 }
 /* ---- every frame ---- */
@@ -199,14 +211,15 @@ function airTick(dt) {
   if (AUTH()) { airSchedule(dt); for (let i = AIR.queue.length - 1; i >= 0; i--) if ((AIR.queue[i].t -= dt) <= 0) { const q = AIR.queue[i]; AIR.queue.splice(i, 1); q.f(); } } // jets already on their way in
   for (let i = strikes.length - 1; i >= 0; i--) {
     const s = strikes[i]; s.t -= dt; s.ph += dt * (3 + 11 * (1 - s.t / s.dur) ** 2) * TAU; // flashes faster as it comes down
+    if (s.tk !== undefined && s.dur - s.t < .4) { const q = snakeOfPid(s.tk); if (q && q.alive) { const sp = (q.speed || CONFIG.snakeSpeeds.Normal) * (q.dashV || 1), tx = q.x + Math.cos(q.angle) * sp * Math.max(0, s.t), ty = q.y + Math.sin(q.angle) * sp * Math.max(0, s.t), dx = tx - s.x, dy = ty - s.y, d = Math.hypot(dx, dy), m = Math.min(d, 260 * dt); if (d > 1) { s.x = clamp(s.x + dx / d * m, 24, W - 24); s.y = clamp(s.y + dy / d * m, 24, H - 24); } } } // Locked on: for a split second it slides after you
     if (!s.whistled && s.t < s.f * 1.8) { s.whistled = true; Sfx.whistle(s.x, Math.max(.2, s.t)); }
     if (s.t <= 0) { strikes.splice(i, 1); detonate(s); }
   }
   for (let i = strafes.length - 1; i >= 0; i--) {
     const s = strafes[i], prev = s.front; s.t += dt; s.ph += dt * (1.6 + 3.4 * clamp(1 + s.t / s.warn, 0, 1) ** 2) * TAU; // a smooth pulse, quickening as it gets close (no hard on/off strobe)
     if (s.t < 0) continue;
-    if (!s.gun) { s.gun = true; Sfx.gun(s.x0 + s.ca * s.len / 2, s.len / STRAFE_V, s.a); }
-    s.front = Math.min(s.len, s.t * STRAFE_V);
+    if (!s.gun) { s.gun = true; Sfx.gun(s.x0 + s.ca * s.len / 2, s.len / (s.v || STRAFE_V), s.a); }
+    s.front = Math.min(s.len, s.t * (s.v || STRAFE_V));
     while (s.next <= s.front) { strafeHit(s, s.next); s.next += rand(12, 20); }
     if (s.front > prev) strafeSweep(s, prev, s.front);
     if (s.front >= s.len && (s.done += dt) > .8) strafes.splice(i, 1);
@@ -260,16 +273,17 @@ function detonate(s) {
   for (let k = 0; k < Math.round(16 * fx); k++) { const a = k / 16 * TAU + rand(-.2, .2), sp = rand(220, 330); smoke.push({ x: x + Math.cos(a) * r * .7, y: y + Math.sin(a) * r * .7, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: rand(10, 16), g: rand(14, 26), rot: rand(0, TAU), vr: rand(-.6, .6), t: 0, life: rand(1.2, 2), v: k % 4, a: rand(.5, .75) }); } // a skirt of dust racing out along the ground
   for (let k = 0; k < randi(4, 6); k++) { const a = rand(0, TAU), sp = rand(200, 420), sz = rand(7, 11); if (clods.length > 70) clods.shift(); // burning wreckage arcing out, trailing smoke, still alight where it lands
     clods.push({ x: x + rand(-6, 6), y: y + rand(-6, 6), z: 4, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(380, 600), rot: rand(0, TAU), vr: rand(-12, 12), sz, spr: clodSprite(x, y, sz, '#2a1d14'), t: 0, life: rand(6, 9), rest: false, soil: '#2a1d14', burn: true, ph: rand(0, 99) }); }
-  const mf = Math.pow(clamp(1 - near / 600, 0, 1), 1.4); if (mf > AIR.muf) { AIR.muf = mf; AIR.mufH = .5 + 1.6 * mf; } // the further off, the less it deafens you
+  const mf = Math.pow(clamp(1 - near / 600, 0, 1), 1.4) * SKV.dazeCut(); if (mf > AIR.muf) { AIR.muf = mf; AIR.mufH = .5 + 1.6 * mf; } // the further off, the less it deafens you
   const kk = clamp(1 - near / 380, .2, 1);
   shake = Math.max(shake, 24 * kk); AIR.flash = Math.max(AIR.flash, clamp(1 - near / 480, .15, 1) * (SETTINGS.reduceFlash ? .25 : .8)); AIR.sky = 1;
   if (near < 180) hitStop = Math.max(hitStop, .06); // the world catches its breath
   if (snake && near > 1) { const k = 260 * kk; camF.kv.x += (snake.x - x) / near * k; camF.kv.y += (snake.y - y) / near * k; } // the camera gets shoved away from it
   Sfx.boom(x, clamp(1.2 - near / 900, .5, 1.2));
-  if (near < 150 && (state === 'play' || state === 'dead' || NETM.run)) Sfx.tinnitus(clamp(1.15 - near / 150, .25, 1)); // too close: your ears ring
+  if (near < 150 && SKV.dazeCut() > .25 && (state === 'play' || state === 'dead' || NETM.run)) Sfx.tinnitus(clamp(1.15 - near / 150, .25, 1) * SKV.dazeCut()); // too close: your ears ring
   if (snake && snake.alive && near < 220) { // close enough to knock you about: slowed, drained of colour, dimmed, reeling, everything else's outlines gone; all of it by how close it was
     const dz = Math.pow(1 - near / 220, 1.1); AIR.rumble = Math.max(AIR.rumble, dz);
-    if (dz >= boomSlow(snake)) { snake.boomK = dz; snake.boomT = 1.4 + 1.2 * dz; }
+    const cut = SKV.dazeCut(), dk = dz * cut; // Thick Skull: a weaker, shorter concussion
+    if (dk >= boomSlow(snake)) { snake.boomK = dk; snake.boomT = (1.4 + 1.2 * dz) * cut; }
     if (dz > .25) snake.dashT = 0;
   }
   // you: any part of the body inside the blast (not a pump going up: that knocks you about, it doesn't kill you)
@@ -467,7 +481,7 @@ function nearMiss(kind, x, y) { // (x, y): where it happened, right by your body
   const now = performance.now(), chain = now - NM.at < 4000 ? NM.n + 1 : 1; NM.at = now; NM.n = chain;
   const xp = Math.round((kind === 'strafe' ? 14 : 18) * (1 + .25 * Math.min(4, chain - 1)) * rewardMult); run.nearMiss = (run.nearMiss || 0) + 1;
   NM.list.push({ x: x ?? snake.x, y: y ?? snake.y, t0: now, txt: chain > 1 ? `NEAR MISS x${chain}` : 'NEAR MISS', xp }); if (NM.list.length > 4) NM.list.shift();
-  gainXP(xp, Math.max(1, Math.round(2 * rewardMult)));
+  gainXP(Math.round(xp * SKV.nearK()), Math.max(1, Math.round(2 * rewardMult * SKV.nearK()))); // Daredevil
   if (Sfx.ok() && Sfx.gate('nm', .3)) Sfx.tone(Sfx.out(x, .5), Sfx.ctx.currentTime, 660, 1320, .16, 'triangle', .07);
 }
 function drawNearMiss(x) { // in the world, small, right where it happened: a quick pop, a little drift up, gone in a second
@@ -847,7 +861,7 @@ function airLightHoles(lg, dark) {
   lg.globalAlpha = 1;
 }
 function drawJet(x, j) { // only its shadow: it's far up, crossing the screen over the target at the moment it lets go
-  const v = 1150, d = (j.u - j.over) * v, px = j.x + Math.cos(j.a) * d + (j.low ? 28 : 60), py = j.y + Math.sin(j.a) * d + (j.low ? 42 : 90);
+  const v = j.v || 1150, d = (j.u - j.over) * v, px = j.x + Math.cos(j.a) * d + (j.low ? 28 : 60), py = j.y + Math.sin(j.a) * d + (j.low ? 42 : 90);
   if (px < -300 || py < -300 || px > W + 300 || py > H + 300) return;
   x.save(); x.translate(px, py); x.rotate(j.a); x.scale(j.low ? 2.3 : 2.6, j.low ? 2.3 : 2.6); x.fillStyle = j.low ? 'rgba(0,0,0,.36)' : 'rgba(0,0,0,.26)';
   x.beginPath(); x.moveTo(22, 0); x.lineTo(14, -2.2); x.lineTo(2, -3); x.lineTo(-6, -19); x.lineTo(-11, -19); x.lineTo(-7, -3); x.lineTo(-15, -2.5); x.lineTo(-20, -8); x.lineTo(-23, -8); x.lineTo(-21, 0);
@@ -879,7 +893,7 @@ Object.assign(Sfx, {
   },
   flyby(j) { // a jet passing over, heard where it really is: Doppler, distance, the air soaking up the highs, the delay of sound, and the sky's echo
     if (!this.ok()) return; const c = this.ctx; this.flys = (this.flys || []).filter(e => e > c.currentTime); if (this.flys.length >= 3) return;
-    const t0 = c.currentTime + .03, V = 1150, Cs = 3400, Hh = 520, dur = j.over + 7.5, N = Math.ceil(dur * 20) + 1, dx = Math.cos(j.a), dy = Math.sin(j.a);
+    const t0 = c.currentTime + .03, V = j.v || 1150, Cs = 3400, Hh = 520, dur = j.over + 7.5, N = Math.ceil(dur * 20) + 1, dx = Math.cos(j.a), dy = Math.sin(j.a);
     const Lx = snake ? snake.x : W / 2, Ly = snake ? snake.y : H / 2, at = u => [j.x + dx * (u - j.over) * V, j.y + dy * (u - j.over) * V];
     const dop = new Float32Array(N), gain = new Float32Array(N), wet = new Float32Array(N), cut = new Float32Array(N), pan = new Float32Array(N), rum = new Float32Array(N);
     for (let i = 0; i < N; i++) {

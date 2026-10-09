@@ -1,0 +1,8 @@
+# The bundled script and stylesheet are named by their content, so a browser can keep them until they change
+/js/app.*
+  Cache-Control: public, max-age=31536000, immutable
+/css/style.*.css
+  Cache-Control: public, max-age=31536000, immutable
+# PeerJS only changes with the game version it's requested with (?v=)
+/js/vendor/*
+  Cache-Control: public, max-age=31536000, immutable

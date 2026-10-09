@@ -13,18 +13,10 @@
 <body>
 <div id="rotate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>Turn your phone sideways<small>Snake: Carnage plays in landscape.</small></div>
 <div id="wrap">
-  <div id="bar">
-    <span class="bstat" data-tip="Score this run"><svg class="bi" viewBox="0 0 16 16"><path d="M8 1.5C6 5 3.5 7.6 3.5 10.2a4.5 4.5 0 0 0 9 0C12.5 7.6 10 5 8 1.5z" fill="#d0191f"/><path d="M6 10.5a2 2 0 0 0 1.6 2" stroke="#ff8a80" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg><span id="score">0</span></span>
-    <span class="bstat dim" data-tip="Best score on this map"><svg class="bi" viewBox="0 0 16 16"><path d="M4 2h8v3.5a4 4 0 0 1-8 0zM4 3.5H2v1.2A2.5 2.5 0 0 0 4.4 7.2M12 3.5h2v1.2a2.5 2.5 0 0 1-2.4 2.5M8 9.5V12M5 14h6" stroke="#ffcf33" stroke-width="1.5" fill="none" stroke-linejoin="round" stroke-linecap="round"/></svg><span id="best">0</span></span>
-    <span id="mapName"></span>
-    <span id="clock"></span>
-    <span class="lvl">Lv <b id="lvl">1</b></span><span class="xp" id="xpbar"><span class="xpfill" id="xpfill"></span><span class="xpt" id="xptxt"></span></span><span class="money"><i class="pc"></i><span id="coins">0</span></span>
-    <button id="menuBtn" title="Menu" data-sfx="open">☰</button>
-  </div>
   <div id="stage"><canvas id="c"></canvas><div id="edgeFx" style="display:none"><i class="elines"></i></div>
     <div id="hudLo" class="hudLayer"><div id="rewards"></div><div id="combo"></div><div id="evt"></div><div id="chhud"></div><div id="modhud"></div><div id="modbar"></div><div id="abil"></div></div>
     <div id="overlay"></div><div id="intro"></div>
-    <div id="hudHi" class="hudLayer"><div id="gold"></div><div id="notes"></div><div id="modintro"></div><div id="resume"></div><div id="lvlup"></div></div>
+    <div id="hudHi" class="hudLayer"><div id="hudbar" hidden><div class="hb-l"><span id="mapName"></span><span id="clock"></span></div><div class="hb-r"><div class="hb-st"><div class="hb-row"><span class="bstat" data-tip="Score this run"><i class="bi" data-gi="score"></i><span id="score">0</span></span><span class="bstat dim" data-tip="Best score on this map"><i class="bi" data-gi="best"></i><span id="best">0</span></span><span class="money" data-tip="Chips"><i class="pc"></i><span id="coins">0</span></span></div><div class="hb-row"><span class="lvl">Lv <b id="lvl">1</b></span><span class="xp" id="xpbar"><span class="xpfill" id="xpfill"></span><span class="xpt" id="xptxt"></span></span></div></div><button id="menuBtn" title="Pause (Esc)" aria-label="Pause" data-sfx="open"><i data-gi="pause"></i></button></div></div><div id="gold"></div><div id="notes"></div><div id="modintro"></div><div id="resume"></div><div id="lvlup"></div></div>
     <div id="touch"></div><div class="cine top"></div><div class="cine bot"></div></div>
 </div>
 <script src="js/01-config.js"></script>
@@ -32,6 +24,7 @@
 <script src="js/03-utils.js"></script>
 <script src="js/03b-workers.js"></script>
 <script src="js/03c-dropdown.js"></script>
+<script src="js/03d-game-icons.js"></script>
 <script src="js/04-canvas.js"></script>
 <script src="js/05-maps.js"></script>
 <script src="js/05b-map-extend.js"></script>
@@ -86,6 +79,7 @@
 <script src="js/38c-airstrikes.js"></script>
 <script src="js/38d-fuse.js"></script>
 <script src="js/38e-audio.js"></script>
+<script src="js/38f-skill-tree.js"></script>
 <script src="js/39-progress.js"></script>
 <script src="js/40-summary.js"></script>
 <script src="js/40b-editor-runtime.js"></script>
