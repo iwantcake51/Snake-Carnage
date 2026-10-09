@@ -9,11 +9,12 @@ const KSPR_NAMES = [ // the atlas order: keep in step with NAMES in tools/kenney
   'scorch_01', 'scorch_02', 'scorch_03', 'dirt_01', 'dirt_02', 'dirt_03', 'muzzle_01', 'muzzle_02', 'muzzle_03', 'star_06', 'star_08', 'flare_01', 'circle_05',
   'leaf_1', 'leaf_2', 'leaf_3', 'leaf_4', 'leaf_5', 'leaf_6', 'leaf_7', 'leaf_8', 'leaf_9', // foliage sprite_0081-0089: leaves, long to maple
   'plant_1', 'plant_2', 'plant_3', 'plant_4', 'petals_1', 'petals_2', // sprite_0096-0101: low plants seen from above, scattered petals
-  'cone_e_noise', 'circle_a_noise', 'window_e_noise', 'caustics_1', 'caustics_2' // Light Masks: a flashlight cone, a lamp's pool, window panes, water caustics (seamless)
+  'cone_e_noise', 'circle_a_noise', 'window_e_noise', 'caustics_1', 'caustics_2', // Light Masks: a flashlight cone, a lamp's pool, window panes, water caustics (seamless)
+  'smoke_01', 'smoke_02', 'smoke_06', 'smoke_09', 'smoke_10', 'twirl_01', 'twirl_02', 'twirl_03', 'circle_03' // gas clouds (38g): wispy puffs, smoke rings, swirls, the bubble's skin
 ];
 const KSPR_CELL = 128, KSPR_COLS = 8, KSPR_IX = Object.fromEntries(KSPR_NAMES.map((n, i) => [n, i]));
 const KSPR = { img: null, ok: false, tints: new Map(), masks: new Map(), ready: [] }; // ready: what to redo once the atlas is in
-const K_SMOKE = ['smoke_04', 'smoke_05', 'smoke_07', 'smoke_08'], K_LEAF = KSPR_NAMES.filter(n => n.startsWith('leaf_')), K_PLANT = ['plant_1', 'plant_2', 'plant_3']; // plant_4 reads as frost: it's in the atlas, never scattered
+const K_SMOKE = ['smoke_04', 'smoke_05', 'smoke_07', 'smoke_08'], K_GAS = ['smoke_01', 'smoke_02', 'smoke_06'], K_TWIRL = ['twirl_01', 'twirl_02', 'twirl_03'], K_LEAF = KSPR_NAMES.filter(n => n.startsWith('leaf_')), K_PLANT = ['plant_1', 'plant_2', 'plant_3']; // plant_4 reads as frost: it's in the atlas, never scattered
 if (location.protocol !== 'file:') { const im = new Image(); im.onload = () => { KSPR.img = im; KSPR.ok = true; for (const f of KSPR.ready) try { f(); } catch (e) { console.warn(e); } }; im.src = 'sprites/kenney.png?v=' + GAME_VERSION; }
 const kReady = f => KSPR.ok ? f() : KSPR.ready.push(f);
 function kMask(name, size, dense) { // the sprite alone at this size (drawn `dense` times over itself, to thicken a faint one)

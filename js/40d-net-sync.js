@@ -199,8 +199,9 @@ function netPlayerDown(pid, x, y) {
   if (!NETM.run || !NETM.host || NS.down.get(pid)) return;
   const p = netPlayer(pid); if (p) p.deaths = (p.deaths || 0) + 1;
   const k = netPool(pid), back = !MOD.oneLife && (NS.pools[k] || 0) > 0; if (back && NS.pools[k] < 999) NS.pools[k]--; /* 999: unlimited */ // One life: nobody comes back
-  NS.down.set(pid, { at: performance.now() + (back ? (NS.cfg && NS.cfg.respawn) || 5 : 0) * 1000, out: !back }); // real time, like the round clock
-  const ev = [{ t: 'down', pid, x, y, out: !back }, { t: 'lives', k, n: NS.pools[k] || 0 }];
+  const sp = back ? netSpawnPoint() : null; // where they'll come back: picked now, so they can see it while they wait
+  NS.down.set(pid, { at: performance.now() + (back ? (NS.cfg && NS.cfg.respawn) || 5 : 0) * 1000, out: !back, sp }); // real time, like the round clock
+  const ev = [{ t: 'down', pid, x, y, out: !back, ...(sp ? { sx: sp.x, sy: sp.y, sa: sp.a } : {}) }, { t: 'lives', k, n: NS.pools[k] || 0 }];
   for (const e of ev) netEmit(e); netClientEvent({ k: 'ev', e: ev }, true);
 }
 function netLivesTick(dt) {
@@ -208,7 +209,7 @@ function netLivesTick(dt) {
   netClockTick();
   if ((NS.clkT -= dt) <= 0) { NS.clkT = 2; netEmit({ t: 'clk', v: +NS.clock.toFixed(2) }); }
   if (NS.cfg.len > 0 && NS.clock >= NS.cfg.len * 60) return netEndRun('time');
-  for (const [pid, d] of NS.down) if (!d.out && performance.now() >= d.at) { NS.down.delete(pid); const sp = netSpawnPoint(); netEmit({ t: 'up', pid, x: sp.x, y: sp.y, a: sp.a }); netClientEvent({ k: 'ev', e: [{ t: 'up', pid, x: sp.x, y: sp.y, a: sp.a }] }, true); }
+  for (const [pid, d] of NS.down) if (!d.out && performance.now() >= d.at) { NS.down.delete(pid); const sp = spawnStillGood(d.sp) ? d.sp : netSpawnPoint(); netEmit({ t: 'up', pid, x: sp.x, y: sp.y, a: sp.a }); netClientEvent({ k: 'ev', e: [{ t: 'up', pid, x: sp.x, y: sp.y, a: sp.a }] }, true); }
   const active = NETM.players.filter(p => p.conn !== false);
   if (active.length && active.every(p => { const d = NS.down.get(p.id); return d && d.out; })) netEndRun('wiped');
 }
@@ -218,17 +219,27 @@ function netClockTick() { // the round clock is real time: a slow frame rate slo
 }
 function netClockRuns() { return (snake && snake.started) || [...NS.rs.values()].some(r => r.started); } // the round clock starts with the first player to move
 const netTimeLeft = () => NS.cfg && NS.cfg.len > 0 ? Math.max(0, NS.cfg.len * 60 - NS.clock) : null;
-function netSpawnPoint() { // somewhere open, not on top of anyone, facing into space
-  const st = MAPS[mapIdx].start || { x: W / 2, y: H / 2, a: 0 }, ss = netSnakes().filter(s => s.alive);
-  let best = { x: st.x, y: st.y, a: st.a }, bs = -1;
-  for (let k = 0; k < 60; k++) {
-    const x = rand(B + 60, W - B - 60), y = rand(B + 60, H - B - 60); if (!free(x, y, 26)) continue;
-    let a = 0, L = 0; for (let j = 0; j < 8; j++) { const q = j * Math.PI / 4; let d = 0; for (; d < 140; d += 10) if (!free(x + Math.cos(q) * d, y + Math.sin(q) * d, 14)) break; if (d > L) { L = d; a = q; } }
-    const near = Math.min(400, ...ss.map(s => Math.hypot(s.x - x, s.y - y)), ...creatures.filter(c => c.alive).map(c => Math.hypot(c.x - x, c.y - y) * 3));
-    const sc = L * 2 + Math.min(near, 250); if (sc > bs) { bs = sc; best = { x: Math.round(x), y: Math.round(y), a }; }
+function netSpawnPoint() { // somewhere open with a long clear run ahead and room for the body behind, away from everyone, bombs, fire and gas
+  const st = MAPS[mapIdx].start || { x: W / 2, y: H / 2, a: 0 }, ss = netSnakes().filter(s => s.alive && !s.netHidden), cs = creatures.filter(c => c.alive);
+  let best = null, bs = -1e9;
+  for (let k = 0; k < 90; k++) {
+    const x = rand(B + 70, W - B - 70), y = rand(B + 70, H - B - 70); if (!free(x, y, 26) || spawnDanger(x, y) > 0) continue;
+    for (let j = 0; j < 16; j++) { const a = j * Math.PI / 8, ahead = spawnRay(x, y, a, 320); if (ahead < 150) continue; // never nose-first into a wall
+      if (spawnRay(x, y, a + Math.PI, 100) < 90) continue; // the body is laid out behind the head
+      const side = Math.min(spawnRay(x, y, a - .4, 160), spawnRay(x, y, a + .4, 160));
+      const near = Math.min(400, ...ss.map(s => Math.hypot(s.x - x, s.y - y)), ...cs.map(c => Math.hypot(c.x - x, c.y - y) * 3));
+      const sc = ahead * 1.5 + side + Math.min(near, 250); if (sc > bs) { bs = sc; best = { x: Math.round(x), y: Math.round(y), a: +a.toFixed(3) }; } }
   }
-  return best;
+  return best || { x: st.x, y: st.y, a: st.a };
 }
+function spawnRay(x, y, a, max) { const ca = Math.cos(a), sa = Math.sin(a); let d = 0; for (; d < max; d += 10) if (!free(x + ca * d, y + sa * d, 14)) break; return d; } // how far it's clear that way
+function spawnDanger(x, y) { // a marked bomb, a fire or a gas cloud right there
+  let n = 0; for (const s of strikes) if (dist2(x, y, s.x, s.y) < (s.r + 70) ** 2) n++;
+  for (const p of firePatches) if (dist2(x, y, p.x, p.y) < (p.r + 60) ** 2) n++;
+  for (const p of gasPuffs) if (dist2(x, y, p.x, p.y) < (p.r + 50) ** 2) n++;
+  return n;
+}
+const spawnStillGood = sp => sp && free(sp.x, sp.y, 26) && !spawnDanger(sp.x, sp.y) && spawnRay(sp.x, sp.y, sp.a, 150) >= 120; // (the spot shown while you waited, unless something has moved into it)
 /* ---- starting and ending runs ---- */
 function netStartRun() { // host: everyone loads the same world
   if (!NETM.host) return;
@@ -430,6 +441,7 @@ function netDeathCam(down) { // dying: the camera eases out to the whole map; ba
 }
 function netDownApply(e) {
   if (!NS.down.has(e.pid)) NS.down.set(e.pid, { out: !!e.out }); // the host's own entry keeps its respawn timer
+  if (e.pid === NETM.me) NS.spawnAt = e.sx !== undefined ? { x: e.sx, y: e.sy, a: e.sa, segs: null } : null; // where you'll come back (drawSpawnGhost)
   const p = netPlayer(e.pid);
   if (e.pid === NETM.me) { if (snake) { if (!NS.burst && snake.segs) snakeBurst(snake, (SETTINGS.snake || {}).color, SETTINGS.snake); NS.burst = true; snake.alive = false; snake.netHidden = true; } if (!NS.deadAt) NS.deadAt = performance.now(); NS.respawnIn = e.out ? 0 : (NS.cfg && NS.cfg.respawn) || 5; netDeathCam(true); netDownBanner && netDownBanner(e.out); }
   else { const rs = NS.rs.get(e.pid); if (rs && rs.segs && rs.segs.length) snakeBurst(rs, (rs.cos && rs.cos.color) || (p && p.color), rs.cos); else if (e.x !== undefined) snakeBurst({ segs: [{ x: e.x, y: e.y, a: 0 }] }, p && p.color); if (p && typeof netNotify === 'function') netNotify(`${p.name} died${e.out ? ' (out of lives)' : ''}`, p.color); }
@@ -438,7 +450,7 @@ function netDownApply(e) {
 function netUpApply(e) {
   NS.down.delete(e.pid);
   if (e.pid === NETM.me) { // back in: fresh body, a moment of grace
-    const keep = snake ? snake.started : true; snake = newSnake({ x: e.x, y: e.y, a: e.a }); snake.started = keep; snake.graceT = 1.5; NS.deadAt = 0; netDeathCam(false); netDownBanner && netDownBanner(null);
+    NS.spawnAt = null; const keep = snake ? snake.started : true; snake = newSnake({ x: e.x, y: e.y, a: e.a }); snake.started = keep; snake.graceT = 1.5; NS.deadAt = 0; netDeathCam(false); netDownBanner && netDownBanner(null);
     Sfx.whoosh && Sfx.whoosh(); resetAbilities(); NS.burst = false;
   } else { const rs = NS.rs.get(e.pid); if (rs) rs.stains = rs.stains.map(() => []); } // a fresh body: the old blood stays where it fell
   netHud && netHud();

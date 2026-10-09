@@ -253,7 +253,7 @@ function goldenBanner(animal, c) { // each golden target gets its own note; seve
   const who = c && c.def.alien ? 'ALIEN' : c && c.type === 'astronaut' ? 'ASTRONAUT' : 'HUMAN';
   notify({ kind: 'goldH', title: 'GOLDEN ' + who, sub: 'Find them before the gold wears off.', dur: 5.5, bar: true }); Sfx.golden();
 }
-const [rimC, rimX] = makeLayer(), OUTLINE_FULL = 30; // how many of the nearest get the full outline
+const [rimC, rimX] = makeLayer(), OUTLINE_FULL = 60; // how many of the nearest get the full outline
 function drawTargetOutlines(x) { // clean silhouette rim around everything edible: black by day, white at night
   // every rim goes into one layer (stroke the outline, then cut the body out of it: only the outer rim stays, no lines
   // across heads or arms) and the layer is drawn once. A scratch canvas per creature meant a round trip to the graphics
@@ -263,7 +263,7 @@ function drawTargetOutlines(x) { // clean silhouette rim around everything edibl
   let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
   rimX.lineCap = rimX.lineJoin = 'round';
   const near = new Set(); // the full outline (arms, legs, tails) for the ones close to you; further out, just body and head, which is far cheaper
-  if (snake) { const d2 = []; for (const c of creatures) if (c.alive && !c.def.fly) d2.push([dist2(c.x, c.y, snake.x, snake.y), c]); if (d2.length > OUTLINE_FULL) d2.sort((a, b) => a[0] - b[0]); for (let i = 0; i < Math.min(OUTLINE_FULL, d2.length); i++) if (d2[i][0] < 420 * 420) near.add(d2[i][1]); }
+  if (snake) { const d2 = []; for (const c of creatures) if (c.alive && !c.def.fly) d2.push([dist2(c.x, c.y, snake.x, snake.y), c]); if (d2.length > OUTLINE_FULL) d2.sort((a, b) => a[0] - b[0]); for (let i = 0; i < Math.min(OUTLINE_FULL, d2.length); i++) if (d2[i][0] < 900 * 900) near.add(d2[i][1]); }
   for (const c of creatures) { // one small shape per creature (one big merged path is what chokes a graphics chip)
     if (!c.alive || c.def.fly) continue;
     const a = playerSees(c.x, c.y); if (a <= .02) continue;

@@ -31,8 +31,8 @@ const ANIMAL_SHAPE = { rabbit: [6.6, 4.8, -1, 5, 3.3], deer: [11.2, 6.2, -1, 12,
    drawn: a person's legs, shoes and sleeves; an animal's feet, tail, ears, wings, beak or antlers. Returns the filled parts
    as one path and the thin parts (legs, tails) as strokes with their widths, in the creature's own frame (+x forward). */
 function creatureSil(c, lite) { // lite: just the body and head (far away, where limbs wouldn't read anyway)
-  const f = new Path2D(), lines = [], d = c.def; f.beginPath = () => {}; shapePath(f, c);
-  if (lite) return { f, lines };
+  const f = new Path2D(), lines = [], d = c.def; f.beginPath = () => {}; if (!d.human) shapePath(f, c); // (a person's body and head are added below, twisted and leaned as they're drawn)
+  if (lite && !d.human) return { f, lines };
   let k = 1, ox = 0, oy = 0, rc = 1, rs = 0; // the frame a part was drawn in: scale, then a turn and a shift
   const P = (x, y) => [ox + (x * rc - y * rs) * k, oy + (x * rs + y * rc) * k];
   const E = (x, y, rx, ry, rot = 0) => { const [px, py] = P(x, y); f.moveTo(px + Math.cos(rot + Math.atan2(rs, rc)) * rx * k, py + Math.sin(rot + Math.atan2(rs, rc)) * rx * k); f.ellipse(px, py, rx * k, ry * k, rot + Math.atan2(rs, rc), 0, TAU); };
@@ -47,15 +47,19 @@ function creatureSil(c, lite) { // lite: just the body and head (far away, where
       f.moveTo(mx + Math.cos(r) * rx, my + Math.sin(r) * rx); f.ellipse(mx, my, rx, hw, r, 0, TAU); } };
   const feetSil = (fx, bx, wy, r) => { const m = c.moveAmt, sw = Math.sin(c.phase), lift = Math.cos(c.phase), st = 2.4 * m * AN.gait.amp; // as feet() places them
     for (const [x0, y, dir] of [[fx, -wy, 1], [bx, wy, 1], [fx, wy, -1], [bx, -wy, -1]]) { const up = Math.max(0, lift * dir) * m; C(x0 + sw * st * dir, y * (1 + up * .08), r * (1 + up * .22)); } };
-  if (d.human) { // as drawHumanBody: two striding legs, the shoes, then the arms on twisted shoulders
+  if (d.human) { // as drawHumanBody: two striding legs, the shoes, then (shoulders twisted against the hips, leaning into a run) the arms, the body, the head and what's on it
     const L = c.look, s = Math.sin(c.phase) * c.moveAmt, [a1, b1, a2, b2] = armPos(c), fy = L.w * .38, run = c.state === 'panic' || c.state === 'flee', stride = (run ? 7.8 : 5.2) * (c.strideK || 1) * AN.walk.amp;
     const cp = Math.cos(c.phase) * c.moveAmt, l1 = Math.max(0, cp), l2 = Math.max(0, -cp), f1 = s * stride, f2 = -s * stride, y1 = -fy - l1 * .5, y2 = fy + l2 * .5;
-    const lw = L.legs === 'leggings' ? 2.9 : L.legs === 'cargo' ? 4 : L.legs === 'skirt' ? 2.8 : L.legs === 'shorts' ? 3 : 3.6;
-    Ln(lw, -.6, -fy * .8, f1 * .5, -fy - l1 * .4, f1 + 2.4, y1); Ln(lw, -.6, fy * .8, f2 * .5, fy + l2 * .4, f2 + 2.4, y2); // each leg runs on over its shoe
-    if (L.legs === 'skirt') E(-.3, 0, L.d + 1.4, L.w * .82);
+    if (!lite) { const lw = L.legs === 'leggings' ? 2.9 : L.legs === 'cargo' ? 4 : L.legs === 'skirt' ? 2.8 : L.legs === 'shorts' ? 3 : 3.6;
+      Ln(lw, -.6, -fy * .8, f1 * .5, -fy - l1 * .4, f1 + 2.4, y1); Ln(lw, -.6, fy * .8, f2 * .5, fy + l2 * .4, f2 + 2.4, y2); // each leg runs on over its shoe
+      if (L.legs === 'skirt') E(-.3, 0, L.d + 1.4, L.w * .82); }
     rc = Math.cos(-s * .07); rs = Math.sin(-s * .07); if (run) ox = 1.3 * c.moveAmt;
-    for (const [ax, ay] of [[a1, b1], [a2, b2]]) { if (L.sleeves === 'long') Ln(4.4, 0, ay * .86, ax + .9, ay); else E(ax * .35, ay * .9, 2.7, 2.5); } // (the hands are in shapePath already)
-    if (L.acc === 'backpack') E(-L.d - 1.1, 0, 2.3, L.w * .55);
+    E(0, 0, L.d, L.w); if (L.outfit === 'alien') E(.6, 0, 6, 5.6); else C(.6, 0, 4.8); C(a1, b1, 2.5); C(a2, b2, 2.5); // body, head, hands
+    if (L.hat === 'straw') C(-.2, 0, 7.4); else if (L.hat === 'helmet') { C(.2, 0, 6.6); E(5.8, 0, 1.6, 2.4); } else if (L.hat === 'cap') E(4.6, 0, 2.4, 3.6);
+    if (L.outfit === 'hoodie') E(-2.6, 0, 3.6, 5.4);
+    if (lite) return { f, lines };
+    for (const [ax, ay] of [[a1, b1], [a2, b2]]) { if (L.sleeves === 'long') Ln(4.4, 0, ay * .86, ax + .9, ay); else E(ax * .35, ay * .9, 2.7, 2.5); } // (the hands are above)
+    if (L.acc === 'backpack') E(-L.d - 1.1, 0, 2.3, L.w * .55); else if (L.acc === 'bag') E(-1, L.w + 2.2, 2.8, 2);
     return { f, lines };
   }
   const T0 = typeof T === 'number' ? T : 0, sd = c.seed ?? .5;

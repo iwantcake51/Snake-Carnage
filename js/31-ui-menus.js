@@ -166,7 +166,7 @@ function setupHtml() {
 function showMenu() {
   if (typeof clearRunHud === 'function') clearRunHud(); // back from a run (or a multiplayer round, straight back to the lobby): the run's modifier strip, chips and challenges go with it
   if (state !== 'menu') menuView = 'home'; // back from a run or the editor: the front page
-  state = 'menu'; endIntro(true); creatures = []; /* nobody in the background behind the menus */ setTimeout(warmCanopies, 1500);
+  state = 'menu'; chHold(false); endIntro(true); creatures = []; /* nobody in the background behind the menus */ setTimeout(warmCanopies, 1500);
   if (!thumbs || thumbs.length !== MAPS.length || MAPS.some(m => m.custom)) thumbs = makeThumbs(); // custom maps come and go (cached, so this is cheap)
   if (!MAPS[mapIdx]) mapIdx = 0;
   MOD = {}; rewardMult = 1; document.body.classList.remove('minimal');

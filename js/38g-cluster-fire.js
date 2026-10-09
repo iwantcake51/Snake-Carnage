@@ -27,7 +27,7 @@ function nearWater(x, y, pad) { // inside a pond, a pool or a fountain, or withi
     if (S.round ? Math.hypot(x - S.cx, y - S.cy) < S.hw + pad : Math.abs(x - S.cx) < S.hw + pad && Math.abs(y - S.cy) < S.hh + pad) return true; }
   return false;
 }
-function fireReset() { bomblets = []; firePatches = []; gasPuffs = []; if (snake) { burnClear(snake); snake.gasK = 0; } }
+function fireReset() { bomblets = []; firePatches = []; gasPuffs = []; gasBubbles = []; gasStains = []; gasWisps = []; if (snake) { burnClear(snake); snake.gasK = 0; } }
 
 /* ---- cluster bombs ---- */
 function simBomblet(x, y, a, sp, vz) { // the whole flight, worked out at once at a fixed step, so every screen gets the same path: bounces off the ground and off walls, then a roll to a stop
@@ -243,37 +243,78 @@ Object.assign(Sfx, {
    colour the longer you're in it, and it eases off once you're out. Battle Hardened (id skull) takes the edge off the
    slowdown, as it does every slowdown; the Gas Mask (id mask) takes away everything it does to your eyes, but not the
    slowdown. Every screen builds the same cloud from the strike's seed; each one only gasses its own snake ---- */
-let gasPuffs = [];
-const gasK = p => clamp(Math.min(p.t * 1.6, (p.life - p.t) / 2.5), 0, 1);
-function gasPop(s) { // every screen: the canister bursts with a hiss and the cloud rolls out
-  booms.push({ puff: true, x: s.x, y: s.y, r: 12, t: 0, dur: .35 }); shocks.push({ x: s.x, y: s.y, R: 50, t: 0, dur: .3 });
-  Sfx.clusterPop(s.x); Sfx.steam(s.x);
-  const r = seeded(((s.sd | 0) || 1) + 13), n = 5 + Math.floor(r() * 3), life = 13 + r() * 4;
-  for (let k = 0; k < n; k++) { const a = r() * TAU, d = k ? s.r * (.3 + r() * .9) : 0; gasPuffs.push({ x: s.x + Math.cos(a) * d, y: s.y + Math.sin(a) * d, r: 40 + r() * 20, t: -k * .12, life: life + r() * 2, ph: r() * TAU, v: k % 4 }); }
-  if (gasPuffs.length > 48) gasPuffs.splice(0, gasPuffs.length - 48);
+let gasPuffs = [], gasBubbles = [], gasStains = [];
+const gasK = p => clamp(Math.min(.2 + p.t * 1.6, (p.life - p.t) / 2.5), 0, 1);
+const gasE = p => 1 - (1 - clamp(p.t / .9, 0, 1)) ** 3; // how far a puff has rolled out from the middle (in under a second, fast then settling)
+const gasAt = p => { const e = gasE(p); return [p.cx + (p.x - p.cx) * e, p.cy + (p.y - p.cy) * e, p.r * (.3 + .7 * e)]; }; // where it is and how big, right now
+function gasPop(s) { // every screen: the canister blows with a dull bang, a bubble of gas swells out of the middle, and the cloud rolls out from it
+  booms.push({ puff: true, x: s.x, y: s.y, r: 14, t: 0, dur: .4 }); shocks.push({ x: s.x, y: s.y, R: 70, t: 0, dur: .35 });
+  Sfx.boom(s.x, .38); Sfx.clusterPop(s.x); Sfx.steam(s.x); shake = Math.max(shake, 5 * clamp(1 - (snake ? Math.hypot(snake.x - s.x, snake.y - s.y) : 999) / 500, 0, 1)); // still a bang, smaller than a bomb's
+  gasBubbles.push({ x: s.x, y: s.y, R: s.r * 2.6, t: 0, dur: .8 });
+  const r = seeded(((s.sd | 0) || 1) + 13), n = 6 + Math.floor(r() * 3), life = 14 + r() * 4;
+  for (let k = 0; k < n; k++) { const a = r() * TAU, d = k ? s.r * (.5 + r() * 1.3) : 0; gasPuffs.push({ x: s.x + Math.cos(a) * d, y: s.y + Math.sin(a) * d, cx: s.x, cy: s.y, r: 58 + r() * 26, t: -k * .04, life: life + r() * 2, ph: r() * TAU, v: k % 4 }); }
+  if (gasPuffs.length > 54) gasPuffs.splice(0, gasPuffs.length - 54);
+  const m = 4 + Math.floor(r() * 3); // where it settles, the ground is stained (fades over most of a minute)
+  for (let k = 0; k <= m; k++) { const a = r() * TAU, d = k ? s.r * (.4 + r() * 1.4) : 0; gasStains.push({ x: s.x + Math.cos(a) * d, y: s.y + Math.sin(a) * d, R: k ? 16 + r() * 22 : 44 + r() * 12, sd: (s.sd | 0) * 7 + k, t: -.6 - r() * .8, life: 40 + r() * 15, spr: null }); }
+  if (gasStains.length > 60) gasStains.splice(0, gasStains.length - 60);
   if (AUTH()) airCrowdReact('blast', s.x, s.y, s.r * .6);
 }
 const gasMove = (p, dt) => { p.x += Math.cos(p.ph + T * .15) * 3 * dt; p.y += Math.sin(p.ph * 1.7 + T * .12) * 3 * dt; }; // it drifts a little (the same way everywhere: it only depends on the clock)
-function inGas(x, y) { let k = 0; for (const p of gasPuffs) { if (p.t < 0) continue; const d2 = dist2(x, y, p.x, p.y), R = p.r * .9; if (d2 < R * R) k = Math.max(k, gasK(p) * (1 - Math.sqrt(d2) / R * .4)); } return k; }
+function inGas(x, y) { let k = 0; for (const p of gasPuffs) { if (p.t < 0) continue; const [px, py, pr] = gasAt(p), d2 = dist2(x, y, px, py), R = pr * .9; if (d2 < R * R) k = Math.max(k, gasK(p) * (1 - Math.sqrt(d2) / R * .4)); } return k; }
 const gasSlow = s => s && s.gasK > 0 ? .45 * s.gasK * SKV.dazeCut() : 0; // Battle Hardened: less slowed, as by everything else
 const gasScreen = () => snake && snake.alive && snake.gasK > 0 && !sk('mask') ? snake.gasK : 0; // the Gas Mask: none of it reaches your eyes
 function gasTick(dt) {
   for (let i = gasPuffs.length - 1; i >= 0; i--) { const p = gasPuffs[i]; p.t += dt; if (p.t > p.life) { gasPuffs.splice(i, 1); continue; } gasMove(p, dt); }
+  for (let i = gasBubbles.length - 1; i >= 0; i--) if ((gasBubbles[i].t += dt) > gasBubbles[i].dur) gasBubbles.splice(i, 1);
+  for (let i = gasStains.length - 1; i >= 0; i--) if ((gasStains[i].t += dt) > gasStains[i].life) gasStains.splice(i, 1);
   const s = snake; if (!s) return;
   if (!s.alive || s.netHidden || state !== 'play') { if (state !== 'paused') s.gasK = 0; return; }
   const g = gasPuffs.length ? inGas(s.x, s.y) : 0, was = s.gasK || 0; // what you breathe: where your head is
   s.gasK = g > .05 ? Math.min(1, was + dt * 2 * g) : Math.max(0, was - dt * .35); // it gets into you fast, and wears off slowly
   if (g > .05 && was < .05 && performance.now() - (gasTick.at || 0) > 6000) { gasTick.at = performance.now(); notify({ kind: 'bad', icon: giSvg('gas'), title: 'GAS', sub: sk('mask') ? 'Your mask keeps it out of your eyes. Get clear.' : 'It slows you and blurs everything. Get clear.', dur: 2.2, key: 'gas' }); }
   if (AUTH() && gasPuffs.length && (gasTick.ai = (gasTick.ai || 0) - dt) <= 0) { gasTick.ai = .4; // the crowd: coughing, they stumble out of it, slowed
-    for (const p of gasPuffs) { if (p.t < 0 || gasK(p) < .2) continue; for (const c of nearbyCreatures(p.x, p.y, p.r + 30, [])) { if (!c.alive || c.def.fly) continue;
-      c.blastStunT = Math.max(c.blastStunT || 0, T + .15); if (c.state !== 'panic') { c.state = 'panic'; c.fx = p.x; c.fy = p.y; c.alert = Math.max(c.alert || 0, c.def.human ? 1 : .6); c.timer = Math.max(c.timer || 0, rand(2.5, 4)); c.goal = null; } } } }
+    for (const p of gasPuffs) { if (p.t < 0 || gasK(p) < .2) continue; const [px, py, pr] = gasAt(p); for (const c of nearbyCreatures(px, py, pr + 30, [])) { if (!c.alive || c.def.fly) continue;
+      c.blastStunT = Math.max(c.blastStunT || 0, T + .15); if (c.state !== 'panic') { c.state = 'panic'; c.fx = px; c.fy = py; c.alert = Math.max(c.alert || 0, c.def.human ? 1 : .6); c.timer = Math.max(c.timer || 0, rand(2.5, 4)); c.goal = null; } } } }
 }
-function drawGas(x) { // a low, rolling cloud, sickly yellow-green
-  const T = animT('gas'); // (this animation's own clock: Animation editor)
-  for (const p of gasPuffs) { if (p.t < 0) continue; const k = gasK(p); if (k < .01) continue;
-    const g = x.createRadialGradient(p.x, p.y, p.r * .2, p.x, p.y, p.r); g.addColorStop(0, `rgba(185,220,75,${(.24 * k).toFixed(3)})`); g.addColorStop(.7, `rgba(150,190,55,${(.15 * k).toFixed(3)})`); g.addColorStop(1, 'rgba(120,150,40,0)');
-    x.fillStyle = g; circ(x, p.x, p.y, p.r);
-    x.globalAlpha = .42 * k; kDraw(x, K_SMOKE[p.v], [196, 230, 96], p.x, p.y, p.r * 2.1, p.r * 2.1, p.ph + T * .08, 96, 2); x.globalAlpha = 1; }
+let gasWisps = []; // (looks only, per screen) little curls of gas lifting off the cloud
+function drawGas(x) { // Kenney's smoke and twirl particles, tinted a sickly yellow-green: a ring of smoke and a bubble's skin swell out of the middle when it goes off, then a slow churning cloud with wisps curling off it
+  const T = animT('gas'), kk = KSPR.ok; // (this animation's own clock: Animation editor)
+  for (const b of gasBubbles) { const u = b.t / b.dur, e = 1 - (1 - u) ** 3, R = b.R * e, a = (1 - u) ** 1.4; if (R < 1) continue; // the burst: a smoke ring rolling outward, a thin bubble skin on it
+    if (kk) { x.globalAlpha = .75 * a; kDraw(x, u < .5 ? 'smoke_10' : 'smoke_09', [218, 250, 120], b.x, b.y, R * 2.3, R * 2.3, b.x * .01 + u * 1.2, 128, 2); x.globalAlpha = .55 * a; kDraw(x, 'circle_03', [228, 255, 160], b.x, b.y, R * 2.1, R * 2.1, 0, 128, 1); x.globalAlpha = 1; }
+    else { const g = x.createRadialGradient(b.x, b.y, R * .1, b.x, b.y, R); g.addColorStop(0, `rgba(190,225,80,${(.12 * a).toFixed(3)})`); g.addColorStop(.82, `rgba(170,210,70,${(.3 * a).toFixed(3)})`); g.addColorStop(1, 'rgba(170,210,70,0)');
+      x.fillStyle = g; circ(x, b.x, b.y, R); x.strokeStyle = `rgba(225,255,150,${(.7 * a).toFixed(3)})`; x.lineWidth = 2 + 3 * (1 - u); x.beginPath(); x.arc(b.x, b.y, R * .96, 0, TAU); x.stroke(); } }
+  for (const p of gasPuffs) { if (p.t < 0) continue; const k = gasK(p); if (k < .01) continue; const [px, py, pr] = gasAt(p);
+    const g = x.createRadialGradient(px, py, pr * .2, px, py, pr); g.addColorStop(0, `rgba(185,220,75,${(.18 * k).toFixed(3)})`); g.addColorStop(.7, `rgba(150,190,55,${(.1 * k).toFixed(3)})`); g.addColorStop(1, 'rgba(120,150,40,0)');
+    x.fillStyle = g; circ(x, px, py, pr); // a soft body under the particles (and all there is before the atlas loads)
+    if (!kk) continue;
+    x.globalAlpha = .5 * k; kDraw(x, K_GAS[p.v % 3], [214, 246, 118], px, py, pr * 2.2, pr * 2.2, p.ph + T * .07, 128, 2); // two layers of smoke turning against each other: it churns
+    x.globalAlpha = .38 * k; kDraw(x, K_GAS[(p.v + 1) % 3], [190, 228, 96], px + Math.sin(T * .4 + p.ph) * pr * .12, py + Math.cos(T * .33 + p.ph) * pr * .1, pr * 1.8, pr * 1.8, -p.ph - T * .05, 128, 2);
+    x.globalAlpha = .22 * k; kDraw(x, K_TWIRL[p.v % 3], [215, 245, 130], px, py, pr * 1.5, pr * 1.5, p.ph * 2 + T * .35, 128, 2); x.globalAlpha = 1; // and a swirl through it
+    if (Math.random() < .05 * k * FX_K() && gasWisps.length < 60) gasWisps.push({ x: px + rand(-pr, pr) * .6, y: py + rand(-pr, pr) * .5, t: 0, life: rand(1.6, 2.6), s: rand(14, 26), rot: rand(0, TAU), vr: rand(-1, 1), v: Math.random() * 3 | 0 }); }
+  if (gasWisps.length) { const now = performance.now() / 1000, dt = Math.min(.05, now - (drawGas.at || now)); drawGas.at = now; // wisps curl up off the cloud and thin away
+    for (let i = gasWisps.length - 1; i >= 0; i--) { const w = gasWisps[i]; if ((w.t += dt) > w.life) { gasWisps.splice(i, 1); continue; } const u = w.t / w.life; w.y -= 9 * dt; w.x += Math.sin(w.t * 2 + w.rot) * 6 * dt; w.rot += w.vr * dt;
+      x.globalAlpha = .4 * Math.sin(Math.PI * u); kDraw(x, K_GAS[w.v], [200, 236, 110], w.x, w.y, w.s * (1 + u), w.s * (1 + u), w.rot, 64, 2); } x.globalAlpha = 1; } else drawGas.at = 0;
+}
+function gasStainSpr(st) { // one stain, painted once: overlapping blotches, a darker dried rim, a few drips round it
+  const R = st.R, S = Math.ceil(R * 2.6), c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d'), r = seeded(st.sd || 1), h = S / 2;
+  for (let i = 0; i < 9; i++) { const a = r() * TAU, d = R * .45 * r(), rr = R * (.4 + r() * .5); g.fillStyle = `rgba(${150 + r() * 30 | 0},${175 + r() * 30 | 0},${40 + r() * 25 | 0},.32)`; g.beginPath(); g.ellipse(h + Math.cos(a) * d, h + Math.sin(a) * d, rr, rr * (.7 + r() * .3), r() * TAU, 0, TAU); g.fill(); }
+  g.globalCompositeOperation = 'source-atop'; const rg = g.createRadialGradient(h, h, R * .5, h, h, R * 1.15); rg.addColorStop(0, 'rgba(90,110,20,0)'); rg.addColorStop(1, 'rgba(90,110,20,.55)'); g.fillStyle = rg; g.fillRect(0, 0, S, S); // the edge dries darker
+  g.globalCompositeOperation = 'source-over'; for (let i = 0; i < 6; i++) { const a = r() * TAU, d = R * (1 + r() * .25); g.fillStyle = 'rgba(140,165,40,.35)'; g.beginPath(); g.arc(h + Math.cos(a) * d, h + Math.sin(a) * d, 1.2 + r() * 2.2, 0, TAU); g.fill(); }
+  return c;
+}
+function drawGasStains(x) { // on the ground, under everyone: they come up as the cloud settles and fade over most of a minute
+  if (!gasStains.length) return;
+  for (const st of gasStains) { if (st.t < 0) continue; const a = Math.min(1, st.t / 2) * clamp((st.life - st.t) / 18, 0, 1); if (a < .01) continue;
+    if (!st.spr) st.spr = gasStainSpr(st); const S = st.spr.width; x.globalAlpha = a; x.drawImage(st.spr, st.x - S / 2, st.y - S / 2); }
+  x.globalAlpha = 1;
+}
+let GAS_STATIC = null;
+function gasStatic() { // four frames of TV snow, made once
+  if (GAS_STATIC) return GAS_STATIC; GAS_STATIC = [];
+  for (let f = 0; f < 4; f++) { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'), im = g.createImageData(128, 128), d = im.data;
+    for (let i = 0; i < d.length; i += 4) { const v = Math.random() * 255 | 0, on = Math.random() < .55; d[i] = v * .9; d[i + 1] = v; d[i + 2] = v * .75; d[i + 3] = on ? 90 + Math.random() * 120 | 0 : 0; }
+    g.putImageData(im, 0, 0); GAS_STATIC.push(g.createPattern(c, 'repeat')); }
+  return GAS_STATIC;
 }
 function drawGasEdge(x) { // screen space: while you're breathing it, the edges go a sickly green and swim
   const k = gasScreen(); if (k < .02) return;
@@ -281,4 +322,7 @@ function drawGasEdge(x) { // screen space: while you're breathing it, the edges 
   x.save(); x.setTransform(DPR * ax, 0, 0, DPR, DPR * W / 2, DPR * H / 2);
   const g = x.createRadialGradient(0, 0, 0, 0, 0, H / 2 * Math.SQRT2 * (1 + wob)); g.addColorStop(.45, 'rgba(120,150,40,0)'); g.addColorStop(1, `rgba(95,120,25,${(.42 * k).toFixed(3)})`);
   x.fillStyle = g; x.fillRect(-H, -H, H * 2, H * 2); x.restore();
+  const sa = .3 * Math.pow(k, 1.6) * (SETTINGS.reduceFlash ? .5 : 1); if (sa < .01) return; // static creeps in the longer you breathe it
+  const fr = gasStatic(), f = SETTINGS.reduceFlash ? 0 : (UT * 24 | 0) % fr.length;
+  x.save(); x.setTransform(DPR * 1.5, 0, 0, DPR * 1.5, 0, 0); x.globalAlpha = sa; x.fillStyle = fr[f]; x.translate(-(Math.random() * 128 | 0), -(Math.random() * 128 | 0)); x.fillRect(0, 0, W + 256, H + 256); x.restore();
 }

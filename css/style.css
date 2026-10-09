@@ -2961,3 +2961,5 @@ body.calm .skboot{display:none}
 .skecho{position:absolute;left:50%;top:0;translate:-50% 0;overflow:visible;pointer-events:none;fill:none;stroke:var(--bc);stroke-width:3;filter:drop-shadow(0 0 6px var(--bc));animation:skEcho .95s cubic-bezier(.2,.65,.35,1) forwards}
 .skn.maj .skecho{width:96px;height:96px}.skn.pas .skecho{width:72px;height:72px}
 @keyframes skEcho{0%{transform:scale(1);opacity:1;stroke-width:5}45%{opacity:.75}100%{transform:scale(var(--k,1.9));opacity:0;stroke-width:1.2}}
+/* where you'll respawn (drawSpawnGhost): a canvas of its own, above the death tint and grain, below the HUD */
+#spawnFx{position:absolute;z-index:7;pointer-events:none;background:transparent!important;border-radius:0 0 10px 10px}

@@ -29,7 +29,7 @@ function render() {
   x.drawImage(groundC, 0, 0, W, H);
   if (MAPS[mapIdx].club) drawDanceFloor(x);
   drawCustomFx(x, 'floor'); // moving materials on the ground (custom maps and edited shapes only; empty otherwise)
-  drawPlants(x); drawGrass(x);
+  drawPlants(x); drawGrass(x); drawGasStains(x); // (gas bomb stains: under the blood and everyone)
   for (const b of bucketList) { if (!b.fd) continue; x.globalAlpha = bucketAlpha(b); x.drawImage(b.f, 0, 0, W, H); }
   x.globalAlpha = 1; drawSnow(x); // (no fake pool reflections: the pools are just blood)
   if (shadowsOn()) { x.globalAlpha = L.salpha; x.drawImage(shadowC, 0, 0, W, H); x.globalAlpha = 1; } // baked sun shadows (Static and Full)
@@ -200,9 +200,10 @@ function frame(now) {
   if (state === 'editor') return; // the map editor draws itself
   const menu = state === 'menu'; // menus show a CSS backdrop instead of the map: the game costs nothing there
   if (menu !== !!frame.cov) { frame.cov = menu; stage.classList.toggle('menuBg', menu); }
-  if (menu) { UT += dt; return; }
+  if (menu) { UT += dt; if ((rotT -= dt) <= 0) { rotT = .5; checkRotation(); updateRotClocks(); } return; } // (in the menu a new set of challenges rolls in live)
   try { update(dt * timeScale()); } catch (e) { loopError(e, 'update'); } // (3rd Eye's Focus slows the world)
   try { render(); } catch (e) { loopError(e, 'render'); }
+  drawSpawnGhost(); // waiting to respawn in multiplayer: where you'll come back, on its own layer over the death effects
   perfRunTick(now); if (PERF.mode !== 'Off') perfFrame(now);
 }
 

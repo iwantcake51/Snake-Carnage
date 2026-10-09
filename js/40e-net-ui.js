@@ -302,12 +302,37 @@ function netSpectate() {
 const _netTick = netTick;
 netTick = function (dt) { _netTick(dt); netSpectate(); netDownTick(); if (NETM.run && performance.now() - netHudT > 500) { netHudT = performance.now(); netHud(); } if (NETM.run && performance.now() - netHudPlaceT > 120) { netHudPlaceT = performance.now(); netHudPlace(); } };
 let netHudPlaceT = 0;
+let spawnFx = null; // its own canvas, above the death tint and grain (#dTint, #dFx), so the dying screen never hides or greys it
+function drawSpawnGhost() { // while you wait to come back: a pulsing outline of your snake where you'll appear, facing the way you'll go, with the countdown
+  const sp = NS.spawnAt, on = NETM.run && sp && snake && snake.netHidden && state !== 'menu';
+  if (!on) { if (spawnFx && spawnFx.c.style.display !== 'none') spawnFx.c.style.display = 'none'; return; }
+  if (!spawnFx) { const c = document.createElement('canvas'); c.id = 'spawnFx'; c.setAttribute('aria-hidden', 'true'); c.width = cv.width; c.height = cv.height; document.getElementById('stage').appendChild(c); spawnFx = { c, x: c.getContext('2d') }; }
+  const c = spawnFx.c; if (c.style.display === 'none') c.style.display = '';
+  if (c.width !== cv.width || c.height !== cv.height) { c.width = cv.width; c.height = cv.height; }
+  const L = cv.offsetLeft + 'px', Tp = cv.offsetTop + 'px', Wd = cv.offsetWidth + 'px', Ht = cv.offsetHeight + 'px'; if (c.style.left !== L || c.style.top !== Tp || c.style.width !== Wd || c.style.height !== Ht) Object.assign(c.style, { left: L, top: Tp, width: Wd, height: Ht }); // exactly over the game
+  const x = spawnFx.x; x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, c.width, c.height); x.setTransform(DPR, 0, 0, DPR, 0, 0); applyView(x);
+  if (!sp.segs) { try { sp.segs = newSnake({ x: sp.x, y: sp.y, a: sp.a }).segs.map(g => ({ x: g.x, y: g.y })); } catch (e) { sp.segs = [{ x: sp.x, y: sp.y }]; } }
+  const g = sp.segs, n = g.length, R = snakeRadius(), t = performance.now() / 1000, pu = .5 + .5 * Math.sin(t * 5), col = (SETTINGS.snake && SETTINGS.snake.color) || '#4e7cf6';
+  const left = Math.max(0, NS.respawnIn - (performance.now() - (NS.deadAt || performance.now())) / 1000), near = 1 - Math.min(1, left / 2);
+  x.save(); x.lineCap = x.lineJoin = 'round';
+  const body = () => { x.beginPath(); x.moveTo(g[0].x, g[0].y); for (let i = 1; i < n; i++) x.lineTo(g[i].x, g[i].y); };
+  x.globalAlpha = .35 + .15 * pu + .25 * near; x.strokeStyle = col; x.lineWidth = R * 2; body(); x.stroke(); // the body, see-through, in your own color
+  x.globalAlpha = .7 + .3 * pu; x.strokeStyle = '#fff'; x.lineWidth = 2.4; x.shadowColor = 'rgba(255,255,255,.9)'; x.shadowBlur = 8; x.setLineDash([6, 5]); x.lineDashOffset = -t * 18; // its outline, marching and glowing
+  for (const s of [1, -1]) { x.beginPath(); for (let i = 0; i < n; i++) { const p = g[Math.max(0, i - 1)], q = g[Math.min(n - 1, i + 1)], a = Math.atan2(q.y - p.y, q.x - p.x), w = R * (1 - .45 * i / n); x[i ? 'lineTo' : 'moveTo'](g[i].x - Math.sin(a) * w * s, g[i].y + Math.cos(a) * w * s); } x.stroke(); }
+  x.setLineDash([]); x.beginPath(); x.arc(g[0].x, g[0].y, R * (1.05 + .25 * pu), 0, TAU); x.stroke(); // the head, breathing
+  const ca = Math.cos(sp.a), sa = Math.sin(sp.a), hx = sp.x + ca * (R * 2.2 + 6 * pu), hy = sp.y + sa * (R * 2.2 + 6 * pu); // which way you'll be heading
+  x.fillStyle = '#fff'; x.beginPath(); x.moveTo(hx + ca * 8, hy + sa * 8); x.lineTo(hx - sa * 6, hy + ca * 6); x.lineTo(hx + sa * 6, hy - ca * 6); x.closePath(); x.fill();
+  x.shadowBlur = 0; x.globalAlpha = .95; x.font = '800 11px system-ui, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.lineWidth = 3; x.strokeStyle = 'rgba(0,0,0,.7)';
+  const txt = left > .05 ? `BACK IN ${Math.ceil(left)}` : 'GO!', tx = g[n - 1].x - ca * (R + 16), ty = g[n - 1].y - sa * (R + 16); x.strokeText(txt, tx, ty); x.fillText(txt, tx, ty); // behind the tail, clear of the body
+  x.restore();
+}
 function netDownTick() { // the respawn countdown on the banner
   const el = document.querySelector('#mpDown .cd i'); if (!el || !NS.deadAt) return;
   const left = Math.max(0, Math.ceil(NS.respawnIn - (performance.now() - NS.deadAt) / 1000)), t = left ? `${left}…` : 'now…';
   if (el.textContent !== t) el.textContent = t;
 }
 function netUiCleanup() { // a run ended or you left: nothing of it stays on screen
+  NS.spawnAt = null; if (spawnFx) spawnFx.c.style.display = 'none';
   for (const id of ['mpHud', 'dTint', 'dFx', 'mpDown']) { const el = document.getElementById(id); if (el) el.remove(); }
   dfxK = 0; const st = document.getElementById('stage'); if (st) { st.style.removeProperty('--dfx'); st.classList.remove('dying'); }
 }

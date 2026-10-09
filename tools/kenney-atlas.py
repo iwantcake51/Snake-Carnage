@@ -12,6 +12,7 @@ NAMES = [
   ('muzzle_01', FX), ('muzzle_02', FX), ('muzzle_03', FX), ('star_06', FX), ('star_08', FX), ('flare_01', FX), ('circle_05', FX),
 ] + [('sprite_%04d' % n, FOL) for n in list(range(81, 90)) + list(range(96, 102))] + [
   ('cone_e_noise', LM), ('circle_a_noise', LM), ('window_e_noise', LM), ('water_caustics_c', LM), ('water_caustics_d', LM),
+  ('smoke_01', FX), ('smoke_02', FX), ('smoke_06', FX), ('smoke_09', FX), ('smoke_10', FX), ('twirl_01', FX), ('twirl_02', FX), ('twirl_03', FX), ('circle_03', FX), # gas: wispy puffs, smoke rings, swirls, the bubble's skin
 ]
 zips = {p: zipfile.ZipFile(p) for p in (FX, FOL, LM)}
 def find(z, name):

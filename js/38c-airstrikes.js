@@ -48,7 +48,7 @@ function airReset() { fireReset(); AIR.barT = undefined; scorched = []; tailBits
 /* reeling from a blast: full strength for the first second, then it fades over the next 1.2 */
 const boomSlow = s => s && s.boomT > 0 ? (s.boomK || 0) * clamp(s.boomT / 1.2, 0, 1) : 0;
 const boomDaze = () => snake && snake.alive ? boomSlow(snake) : 0;
-const airBusy = () => bomblets.length || firePatches.length || gasPuffs.length || strikes.length || booms.length || boomBits.length || corpses.length || fallenHats.length || jets.length || shocks.length || fires.length || soots.length || hazes.length || later.length || clods.length || strafes.length || tracers.length;
+const airBusy = () => bomblets.length || firePatches.length || gasPuffs.length || gasBubbles.length || strikes.length || booms.length || boomBits.length || corpses.length || fallenHats.length || jets.length || shocks.length || fires.length || soots.length || hazes.length || later.length || clods.length || strafes.length || tracers.length;
 /* Host-only perception, using the existing voice/interruption and bubble replication.
    No knowledge of target rings: react only to a passing aircraft or actual impacts. */
 function airCrowdReact(kind, x, y, r = AIR_R, seen) {
@@ -144,7 +144,7 @@ function barrage(s, k) { // the deciding browser
     let best = null;
     for (let q = 0; q < 10 && !best; q++) {
       const side = Math.random() < .82 ? -es * rand(-40, 230) : es * rand(215, 280); // most of them on the path and one side of it; the other side stays clear, bar the odd one well out
-      const x = clamp(s.x + ca * sp * u - sa * side, 24, W - 24), y = clamp(s.y + sa * sp * u + ca * side, 24, H - 24);
+      const [x, y] = airInside(s.x + ca * sp * u - sa * side, s.y + sa * sp * u + ca * side, s.x, s.y);
       if (got.every(g => dist2(g[0], g[1], x, y) > (r + g[2]) ** 2 * .8)) best = [x, y, r]; // never piled on top of each other
     }
     if (!best) continue; got.push(best);
@@ -170,6 +170,11 @@ function airCalledOff(s) { // Bad Intel: the strike meant for this snake never c
   if (s === snake) airCalledOffNote(); else if (NETM.run) netEmit({ t: 'airx', pid: s.pid });
 }
 function airCalledOffNote() { notify({ kind: 'info', icon: '✈', title: 'Bad intel', sub: 'The strike on you was called off.', dur: 2.2, key: 'airx' }); }
+function airInside(x, y, fx, fy) { // keep bombs off the very edge of the map and out of its corners: one aimed out there comes down a little way in, toward where it was aimed from (now and then one still lands near the edge)
+  const M = B + 75; if (x >= M && x <= W - M && y >= M && y <= H - M) return [x, y];
+  if (Math.random() < .12) return [clamp(x, B + 30, W - B - 30), clamp(y, B + 30, H - B - 30)];
+  const cx = clamp(x, M, W - M), cy = clamp(y, M, H - M), k = rand(0, .3); return [cx + (clamp(fx, M, W - M) - cx) * k, cy + (clamp(fy, M, H - M) - cy) * k];
+}
 function airSalvo(s, g, a) { // a salvo of bombs walked along this snake's path (g: how far into the raid: bigger, faster salvos)
   const raid = !!MOD.airRaid, lock = LOCK(), k = Math.min(1, g), n = raid ? Math.min(4, 1 + Math.floor(Math.random() * (1 + 2.2 * Math.min(1, g)))) : Math.min(3, 1 + Math.floor(Math.random() * (1 + .6 * g))), warn = (3 - .5 * k) * (lock ? .45 : 1), sp = (s.speed || CONFIG.snakeSpeeds.Normal) * (s.dashV || 1); // a normal game: smaller salvos
   const jetA = a ?? s.angle + (Math.random() < .5 ? 1 : -1) * rand(.9, 2.2); // the jet crosses your path
@@ -183,7 +188,7 @@ function airSalvo(s, g, a) { // a salvo of bombs walked along this snake's path 
     const lead = lock ? w * rand(.92, 1.02) : w * rand(.45, 1.05), turn = clamp(angDiff(s.angle, s.dir ?? s.angle), -.7, .7) * .8, cone = .5 + .35 * Math.min(1, lead / 2.5);
     const pick = (j + .5) / n * 2 - 1 + rand(-.45, .45), guess = lock ? 0 : turn + Math.sign(pick) * Math.pow(Math.min(1, Math.abs(pick)), .85) * cone * (Math.random() < .12 ? 1.5 : 1), ga = s.angle + guess;
     const side = gauss() * (lock ? 14 : 40), dist = sp * lead * (lock ? 1 : Math.cos(guess * .5)); // (a sharp turn covers less ground ahead)
-    const x = clamp(s.x + Math.cos(ga) * dist - Math.sin(ga) * side, 24, W - 24), y = clamp(s.y + Math.sin(ga) * dist + Math.cos(ga) * side, 24, H - 24);
+    const [x, y] = airInside(s.x + Math.cos(ga) * dist - Math.sin(ga) * side, s.y + Math.sin(ga) * dist + Math.cos(ga) * side, s.x, s.y);
     const ja = j === 0 ? +jetA.toFixed(3) : undefined, f = +((lock ? .3 : .65) / fs).toFixed(2); // they take longer to fall: you see them coming
     const kd = j === sj ? spec : undefined, sd = kd ? randi(1, 2 ** 30) : undefined, rr = kd === 'i' ? Math.round(r * .8) : r; // (an incendiary's own blast is smaller: its fire does the rest)
     const rx = Math.round(x), ry = Math.round(y), tk = lock ? airPid(s) : undefined; airStrike(rx, ry, w, rr, ja, f, tk, kd, sd);
@@ -214,10 +219,10 @@ function strafeRun(s, k, kind, a0) { // the deciding browser: a gun run (or now 
 function bombRun(s, k, a0) { // a jet flying a line across your path, letting a string of bombs go: they land one after another, walking down the line
   const sp = (s.speed || CONFIG.snakeSpeeds.Normal) * (s.dashV || 1), lock = LOCK(), warn = (2.3 - .5 * k) * (lock ? .5 : 1), a = a0 ?? s.angle + (Math.random() < .5 ? 1 : -1) * rand(.35, 1.15);
   const n = Math.min(7, 4 + Math.round(2 * k + Math.random())), gap = 84, walk = lock ? 900 : 520, r = Math.round(AIR_R * .85); // bombs every 78 px, landing 0.12 s apart
-  const lead = warn + (n - 1) / 2 * gap / walk, px = s.x + Math.cos(s.angle) * sp * lead, py = s.y + Math.sin(s.angle) * sp * lead; // the middle of the string lands where you'll be
+  const lead = warn + (n - 1) / 2 * gap / walk, [px, py] = airInside(s.x + Math.cos(s.angle) * sp * lead, s.y + Math.sin(s.angle) * sp * lead, s.x, s.y); // the middle of the string lands where you'll be (kept off the edge)
   let jet = +a.toFixed(3);
   for (let i = 0; i < n; i++) {
-    const o = (i - (n - 1) / 2) * gap, x = px + Math.cos(a) * o, y = py + Math.sin(a) * o; if (x < 24 || y < 24 || x > W - 24 || y > H - 24) continue;
+    const o = (i - (n - 1) / 2) * gap, x = px + Math.cos(a) * o, y = py + Math.sin(a) * o; if (x < B + 45 || y < B + 45 || x > W - B - 45 || y > H - B - 45) continue; // (none right on the edge)
     const w = +(warn + i * gap / walk).toFixed(2), rr = Math.round(r * rand(.88, 1.14)), f = +((lock ? .25 : .5) / rand(.85, 1.25)).toFixed(2);
     airStrike(Math.round(x), Math.round(y), w, rr, jet, f); netEmit({ t: 'air', x: Math.round(x), y: Math.round(y), w, r: rr, j: jet, f, h: Math.round(netNow()) }); jet = undefined; // one jet, flying the line
   }
@@ -451,7 +456,7 @@ function eatTailBits(s) { // run over them to swallow them back (yours or anyone
   for (let k = 0; k < 3 * ate; k++) { const i = randi(0, Math.min(3, s.segs.length - 1)), g = s.segs[i]; stainSnake(i, g.x + rand(-6, 6), g.y + rand(-6, 6), rand(1.2, 2.6), pick(['#a50d16', '#7c0710'])); }
 }
 function chunkImpact(s, x, y, n, own, P, grew) { // biting a chunk back down: a jolt, a red spray from the jaws, the head swells a moment, and a word in the world
-  shake = Math.max(shake, Math.min(9, 4 + 1.6 * n)); if (!SETTINGS.reduceFlash) hitStop = Math.max(hitStop, .035);
+  shake = Math.max(shake, Math.min(2.5, 1 + .4 * n)); if (!SETTINGS.reduceFlash) hitStop = Math.max(hitStop, .02); // a small jolt, not a blast
   const a = s.angle ?? Math.atan2(y - s.y, x - s.x); spawnBlood(s.x + Math.cos(a) * 6, s.y + Math.sin(a) * 6, a, Math.min(.6, .18 + .08 * n), 1.4, .25); bloodMist(s.x, s.y, a, Math.min(1, .4 + .15 * n), [BLOOD, '#a50d16', '#6e0710']);
   for (let k = 0; k < 6 + 3 * n; k++) { const b = a + rand(-1.4, 1.4), sp = rand(60, 170); boomBits.push({ x: s.x, y: s.y, z: rand(2, 6), vx: Math.cos(b) * sp, vy: Math.sin(b) * sp, vz: rand(40, 110), t: 0, life: rand(.5, .9), g: .6, s: rand(1.4, 2.8), c: k % 3 ? '#b3121e' : P || '#7c0710' }); } // gristle flying from the bite
   ringPops.push({ x, y, t: 0 }); s.drip = Math.max(s.drip || 0, 1.2 + .4 * n); s.dripCol = BLOOD; // and the jaws drip for a bit
@@ -895,16 +900,16 @@ function drawStrikeMark(x, s) { // a bomb, an incendiary and a cluster bomb each
   x.restore();
 }
 const K_HEAT = [[255, 244, 200], [255, 214, 120], [255, 170, 75], [245, 128, 45], [205, 86, 28], [150, 54, 18]]; // a fireball cooling, white-yellow to deep red
-function drawFallingBomb(x, s, u) { // (in the marker's frame) it comes down at a slant along the jet's line, nose first, fins buzzing, smeared by its own speed; its shadow sharpens under it
-  const a = s.ja ?? s.rot, h = 340 * (1 - u) ** 2, back = h * .42, ca = Math.cos(a), sa = Math.sin(a); // up in the air it's still behind the target, back the way the jet came
+function drawFallingBomb(x, s, u) { // (in the marker's frame) it comes down at a slant along the jet's line, nose first, fins buzzing, smeared by its own speed; its shadow sharpens under it. It falls faster all the way down (it's dropping, never braking)
+  const a = s.ja ?? s.rot, h = 340 * (1 - (.45 * u + .55 * u * u)), back = h * .42, ca = Math.cos(a), sa = Math.sin(a); // up in the air it's still behind the target, back the way the jet came
   const bx = -ca * back, by = -sa * back * .55 - h, vx = ca * .42, vy = sa * .42 * .55 + 1; // where it is, and which way it's moving on screen
   const k = .85 + .6 * u, nose = Math.atan2(vy, vx) - Math.PI / 2, wob = Math.sin(T * 34 + s.rot * 9) * .07 * (1 - u * .5);
   const sh = .18 + .45 * u, sr = 2.5 + 8 * u; x.fillStyle = `rgba(0,0,0,${sh.toFixed(3)})`; ell(x, -ca * back * .15, -sa * back * .1, sr, sr * .62); // the shadow
   const body = s.kd === 'c' ? ['#4f4620', '#7a6c2c', '#d9b23a'] : s.kd === 'i' ? ['#5a2216', '#8a3a24', '#ff7a2a'] : s.kd === 'g' ? ['#34421c', '#5c7330', '#b8e04c'] : ['#2f3527', '#4b5540', '#c9a227'];
   const blur = SETTINGS.reduceMotion ? 0 : 4; // the motion blur: fading copies trailing back up its path, and a soft streak
   x.save(); x.translate(bx, by); x.rotate(nose + wob); x.scale(k, k);
-  if (blur) { const L = 26 + 40 * (1 - u), g = x.createLinearGradient(0, 0, 0, -L); g.addColorStop(0, 'rgba(255,255,255,.28)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.beginPath(); x.moveTo(-3.6, -2); x.lineTo(3.6, -2); x.lineTo(1.2, -L); x.lineTo(-1.2, -L); x.closePath(); x.fill(); // the air it tears through
-    for (let q = blur; q >= 1; q--) { x.globalAlpha = .16 * (1 - q / (blur + 1)); x.fillStyle = body[0]; ell(x, 0, -q * (3.5 + 5 * (1 - u)), 4.3, 9.2); } x.globalAlpha = 1; }
+  if (blur) { const L = 26 + 40 * u, g = x.createLinearGradient(0, 0, 0, -L); g.addColorStop(0, 'rgba(255,255,255,.28)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.beginPath(); x.moveTo(-3.6, -2); x.lineTo(3.6, -2); x.lineTo(1.2, -L); x.lineTo(-1.2, -L); x.closePath(); x.fill(); // the air it tears through
+    for (let q = blur; q >= 1; q--) { x.globalAlpha = .16 * (1 - q / (blur + 1)); x.fillStyle = body[0]; ell(x, 0, -q * (3.5 + 5 * u), 4.3, 9.2); } x.globalAlpha = 1; }
   x.fillStyle = body[0]; x.beginPath(); x.moveTo(-5.6, -13); x.lineTo(5.6, -13); x.lineTo(2.4, -6.5); x.lineTo(-2.4, -6.5); x.closePath(); x.fill(); // tail fins
   x.fillStyle = '#1b1f16'; x.fillRect(-.6, -13.5, 1.2, 6);
   const gb = x.createLinearGradient(-4.4, 0, 4.4, 0); gb.addColorStop(0, body[0]); gb.addColorStop(.38, body[1]); gb.addColorStop(1, shade(body[0], -.35)); // a rounded casing: lit down one side

@@ -84,6 +84,7 @@ function startGame(opts = {}) {
   nightVision = false; endCombo(true); document.getElementById('rewards').innerHTML = ''; hideResume(); clearNotes();
   camF.x = camF.y = camF.k.x = camF.k.y = camF.kv.x = camF.kv.y = 0; resetUserCam(true);
   const sz = opts.net ? opts.net.season : pickSeason(MAPS[mapIdx]), myst = !!opts.mystery, gen = startGame.gen = (startGame.gen || 0) + 1;
+  chHold(true); // this run's challenges: the current set, held until you're back in the menu
   state = 'loading'; cam = null; stage.classList.toggle('msteer', !!SETTINGS.mouseSteer); steer.keyT = steer.moveT = 0;
   hideOverlay(); cv.style.translate = '0px 0px'; cv.style.scale = '1';
   if (document.activeElement) document.activeElement.blur();
