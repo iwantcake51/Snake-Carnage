@@ -695,7 +695,7 @@ function snakeBurst(s, skin, cfg, from, part) { // from: the piece it was hit on
     n, o, steps, k: 0, t: 0, dur: clamp(.2 + steps * .005, .28, 1) * (part ? .8 : 1), P, Q, cols: [P, P, shade(P, -.2), shade(P, -.4), Q, Q, shade(Q, -.25), '#a50d16', '#c8161e', '#7c0710', '#b8101a'], end: 0 }; // its own two colors, and real red blood
   corpses.push(c);
   if (!part && cfg.hat && cfg.hat !== 'None') dropHat(segs[0].x, segs[0].y, s.angle ?? segs[0].a, s.scale || 1, cfg.hat);
-  popSeg(c, o); c.k = 1;
+  popSeg(c, o); c.k = 1; deathRing(segs[o].x, segs[o].y, CONFIG.snakeR * (s.scale || 1), c.cols.slice(-4), !part); // a ring of mist where it starts
   addBloodAmount((part ? .8 : 1.4) * ({ Minimal: .3, Reduced: .6 }[SETTINGS.bloodAmt] || 1)); bleedIntoWater(segs[o].x, segs[o].y, part ? .6 : 1, P);
   if (!part) Sfx.crash(segs[o].x); Sfx.gore(segs[o].x, true);
 }
@@ -721,7 +721,7 @@ function updateCorpses(dt) {
   for (let i = corpses.length - 1; i >= 0; i--) {
     const c = corpses[i]; c.t += dt;
     const want = Math.min(c.steps, Math.floor(c.t / c.dur * c.steps) + 1);
-    while (c.k < want) { const a = c.o - c.k, b = c.o + c.k; if (a >= 0) popSeg(c, a); if (b < c.n) popSeg(c, b); c.k++; } // outward from where it was hit, toward the head and the tail at once
+    while (c.k < want) { const a = c.o - c.k, b = c.o + c.k; if (a >= 0) popSeg(c, a); if (b < c.n) popSeg(c, b); c.k++; } // outward from where it was hit, toward the head and the tail at once (hit at one end: it runs down to the other)
     if (c.k >= c.steps && (c.end += dt) > .9) corpses.splice(i, 1); // kept a moment after the tail goes (not drawn): the color stays until the blood has landed
   }
 }
@@ -932,7 +932,7 @@ function drawStrikeMark(x, s) { // a bomb, an incendiary and a cluster bomb each
     x.fillStyle = on ? '#fff' : '#ff4a3a'; circ(x, 0, 0, 2.6); x.strokeStyle = '#ff3b30'; x.lineWidth = 1.5; x.beginPath(); x.arc(0, 0, 6, 0, TAU); x.stroke();
   }
   if (s.t < s.f) { x.globalAlpha = 1; drawFallingBomb(x, s, 1 - s.t / s.f); x.globalAlpha = ma; } // the bomb coming down
-  if (s.kd && s.kd !== 'g') { const c = s.kd === 'c' ? '#ffd23f' : '#ff7a1a', L = s.kd === 'c' ? 'CLUSTER' : 'FIRE', ly = s.kd === 'c' ? R * 2.5 + 11 : R + 28; // what it is, underneath
+  if (s.kd) { const c = s.kd === 'c' ? '#ffd23f' : s.kd === 'g' ? '#b8e04c' : '#ff7a1a', L = s.kd === 'c' ? 'CLUSTER' : s.kd === 'g' ? 'GAS' : 'FIRE', ly = s.kd === 'c' ? R * 2.5 + 11 : R + 28; // what it is, underneath
     x.font = '900 10px system-ui, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.lineWidth = 3.5; x.strokeStyle = 'rgba(0,0,0,.8)'; x.strokeText(L, 0, ly); x.fillStyle = c; x.fillText(L, 0, ly); }
   x.restore();
 }

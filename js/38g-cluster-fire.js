@@ -141,7 +141,7 @@ function burnOut(s) { // into the water: out at once, in a cloud of steam
   notify({ kind: 'info', icon: giSvg('fire'), title: 'Put out', dur: 1.4, key: 'burn' });
 }
 function burnDamage(s) { // a piece of the tail burns off: charred bits and blood; at the shortest it can be, the next one kills it
-  if (s.len <= BURN.min) { airHurt(1); return bombDeath('fire'); }
+  if (s.len <= BURN.min) { airHurt(1); s.burstAt = s.segs.length - 1; return bombDeath('fire'); } // burned down from the tail: it goes up from there
   const keep = Math.max(BURN.min, s.len - (s.len > 24 ? 2 : 1)), piece = s.segs.slice(keep), cfg = SETTINGS.snake, P = cfg.color || '#4e7cf6', Q = cfg.color2 || shade(P, .3);
   burnBits(piece, P, Q);
   if (NETM.run) { const m = { t: 'brn', s: piece.flatMap(g => [Math.round(g.x), Math.round(g.y)]), c: P, c2: Q, by: NETM.me }; if (NETM.host) netEmit(m); else netSend(m); } // everyone sees it burn off

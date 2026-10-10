@@ -1,8 +1,8 @@
 /* =========================================================
    INPUT
-   Keyboard: 8 directions, no key = keep going straight.
-   Mouse steering (a Gameplay setting): the snake heads for the cursor at any angle, turning as fast as the keys turn it;
-   left click lunges. A held key takes over until the mouse moves again. The touch stick snaps to 8 directions.
+   Movement is like slither.io: the head swings round at a steady rate, so every turn is a smooth arc (CONFIG.turnRate, slower the bigger you are).
+   Mouse steering (on by default, a Gameplay setting): the snake heads for the cursor at any angle; left click lunges.
+   Keyboard: 8 directions, no key = keep going straight; a held key takes over until the mouse moves again. The touch stick steers at any angle.
    ========================================================= */
 /* ---- key bindings: every action has a default key; Settings › Controls can rebind any of them (SETTINGS.keys keeps only the changed ones).
    The arrow keys always move too, unless you've bound one of them to something else. Esc, Space and Enter stay fixed. ---- */
@@ -34,7 +34,7 @@ function keyAngle() {
 function predictUTurn(side, final, boost) { // play the whole turn forward, plus the run back alongside the body: any wall or body contact?
   const s = snake, R = snakeRadius(), v = s.speed * (s.dashV || 1);
   let x = s.x, y = s.y, ang = s.angle, dir = side, bad = 0, after = -1; const path = [];
-  for (let k = 0; k < 150; k++) { const dt = 1 / 60, mx = CONFIG.turnRate * dt * SKV.turn() * boost, d = angDiff(ang, dir);
+  for (let k = 0; k < 150; k++) { const dt = 1 / 60, mx = CONFIG.turnRate * dt * SKV.turn() * boost * turnSizeK(s), d = angDiff(ang, dir);
     ang += Math.abs(d) < .002 ? d : clamp(d * Math.min(1, dt * CONFIG.turnEase) + Math.sign(d) * mx * .18, -mx, mx);
     if (dir !== final && Math.abs(angDiff(ang, dir)) < .5) dir = final;
     x += Math.cos(ang) * v * dt; y += Math.sin(ang) * v * dt;
@@ -73,6 +73,7 @@ function applyDir() {
   setHeading(a);
 }
 const mouseSteerOn = () => !!SETTINGS.mouseSteer && !IS_TOUCH;
+if (!SETTINGS.steerV) { SETTINGS.steerV = 1; SETTINGS.mouseSteer = true; saveSettings(); } // movement went slither.io-style: the cursor steers by default (it can still be switched off)
 function mouseAim() { // the heading from the head to the cursor, worked out fresh each frame (the snake moves under a still cursor); null with the cursor off the game or on the head
   if (!steer.over || !snake) return null;
   const p = boardPoint(steer.cx, steer.cy), r = 22 * (snake.scale || 1);
@@ -87,14 +88,16 @@ function mouseSteer() { // every frame: aim at the cursor, at the same turn rate
 }
 function steerSafe(s, a) { // mouse steering chases the cursor every frame, so a fast, tight swing (a lunge with every turning skill) can loop the head into its own body: look about half a second ahead
   const segs = s.segs; if (!segs || segs.length < 10 || MOD.noSelf) return true; // (No self collision: the body is no danger)
-  const R = snakeRadius(), dv = s.dashV || 1, v = s.speed * dv, rate = CONFIG.turnRate * SKV.turn() * (dv > 1.2 ? SKV.lungeTurn() : 1) * (MOD.wideTurns ? .5 : MOD.quickTurn ? 1.6 : 1), dt = 1 / 30;
+  const R = snakeRadius(), dv = s.dashV || 1, v = s.speed * dv, rate = CONFIG.turnRate * SKV.turn() * (dv > 1.2 ? SKV.lungeTurn() : 1) * (MOD.wideTurns ? .5 : MOD.quickTurn ? 1.6 : 1) * turnSizeK(s), dt = 1 / 30;
   let ang = s.angle, x = s.x, y = s.y;
   for (let k = 0; k < 14; k++) { const d = angDiff(ang, a); ang += Math.sign(d) * Math.min(Math.abs(d), rate * dt); x += Math.cos(ang) * v * dt; y += Math.sin(ang) * v * dt;
     for (let i = 8; i < segs.length; i += 2) if (dist2(x, y, segs[i].x, segs[i].y) < (R * 1.3) ** 2) return false; }
   return true;
 }
-function steerAnalog(a) { // the touch stick snaps to the nearest of 8 directions
-  setHeading(Math.round(a / (Math.PI / 4)) * (Math.PI / 4));
+function steerAnalog(a) { // the touch stick steers at any angle, like the cursor (and, like it, holds the line while swinging round would run into the body)
+  const s = snake; if (!steerSafe(s, a)) { const alt = [s.angle, s.angle - 1.2, s.angle + 1.2].find(q => steerSafe(s, q)); s.dir = alt ?? s.angle; return; }
+  if (Math.abs(angDiff(s.angle, a)) > 1.4 && Math.abs(angDiff(s.dir, a)) > .6) s.hardTurnT = T;
+  s.dir = a;
 }
 function unhold() { state = 'play'; hideResume(); stage.classList.remove('paused'); }
 function goInput() { // any steering input: starts the run, or continues after a pause
@@ -218,7 +221,7 @@ function stickMove(cx, cy) {
   if (d < 12) return; // dead zone
   const a = Math.atan2(dy, dx);
   steer.touch = a;
-  if (state === 'ready' || state === 'held') { setHeading(Math.round(a / (Math.PI / 4)) * (Math.PI / 4)); goInput(); }
+  if (state === 'ready' || state === 'held') { setHeading(a); goInput(); }
   else if (state === 'play') steerAnalog(a);
 }
 function enableTouch() { if (document.body.classList.contains('touch')) return; IS_TOUCH = true; document.body.classList.add('touch'); if (!touchEl.firstElementChild) buildTouch(); }

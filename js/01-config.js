@@ -11,8 +11,8 @@ const H = 640, B = 16, TAU = Math.PI * 2;
 let W = (() => { try { const f = +sessionStorage.getItem('snakeCarnageW'); if (f >= 960 && f <= 1472 && f % 128 === 64) return f; } catch (e) {} try { const sw = Math.max(screen.width, screen.height), sh = Math.min(screen.width, screen.height), phone = sh < 600 && matchMedia('(pointer: coarse)').matches; if (phone) return 960 + 128 * Math.max(0, Math.min(4, Math.floor((640 * sw / Math.max(1, sh - 28) - 960) / 128))); /* a phone: never wider than the screen minus the thin top bar, so the board always runs top to bottom (any spare room goes to the sides) */ return 960 + 128 * Math.max(0, Math.min(4, Math.round((640 * sw / Math.max(1, sh - 60) - 960) / 128))); } catch (e) { return 960; } })();
 const CONFIG = {
   snakeSpeeds: { Slow: 110, Normal: 140, Fast: 185 },
-  turnRate: 17,          // rad/s, max swing speed of the head toward the new 8-way heading
-  turnEase: 15,          // how quickly a turn settles (higher = snappier, eases out near the end)
+  turnRate: 4.6,         // rad/s, how fast the head swings round toward where you're steering: slow and steady, like slither.io, so a turn is a smooth arc (bigger snakes a little slower still: turnSizeK)
+  turnEase: 9,           // how softly a turn settles onto the new heading (higher = snappier)
   segSpacing: 9,
   snakeR: 10,
   startLen: 6,
@@ -24,7 +24,7 @@ const CONFIG = {
 const SETTINGS_MIGRATE = s => { if (s.noticeSnake && s.mods && !s.mods.includes('noticeSnake')) s.mods.push('noticeSnake'); delete s.noticeSnake; return s; }; // moved from Settings to a modifier
 const SETTINGS = Object.assign({
   darkness: .2, pixel: 1, creatureSpeed: .55, timeMode: 'Cycle', dayMinutes: 4, bloodFade: 'Normal', customHour: 22, volume: .7,
-  lightQ: 'Medium', vomit: true, fxLevel: 'Normal', bloodQ: 'High', snowQ: 'Full', season: 'Random', minimalUi: false, shakeK: 1, bloodBlur: true, reduceFlash: false, bloodAmt: 'Full', simpleFx: false, mouseSteer: false, // lighting: High adds the color drain in the dark, slow on many graphics chips, so it's opt-in
+  lightQ: 'Medium', vomit: true, fxLevel: 'Normal', bloodQ: 'High', snowQ: 'Full', season: 'Random', minimalUi: false, shakeK: 1, bloodBlur: true, reduceFlash: false, bloodAmt: 'Full', simpleFx: false, mouseSteer: true, // lighting: High adds the color drain in the dark, slow on many graphics chips, so it's opt-in
   vignette: true, desaturate: true, shake: true, noticeSnake: false, uiSounds: true, softHigh: false, mods: [], reduceMotion: false, bubbleSize: 'Normal', strongOutlines: false, snakeOutline: 'Subtle', uiScale: 'Auto', renderRes: 'Auto', fogQ: 'High', treeQ: 'High', fpsCap: 'VSync', fullscreen: false, autoQ: true, perfHud: 'Off', bloom: true, 
 }, (() => { try { return SETTINGS_MIGRATE(JSON.parse(localStorage.getItem('snakeCarnageSettings')) || {}); } catch (e) { return {}; } })());
 if (!SETTINGS.mapOutlines) SETTINGS.mapOutlines = SETTINGS.strongOutlines ? 'Strong' : 'Subtle'; // "Strong outlines" became "Map outlines"
