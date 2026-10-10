@@ -20,7 +20,7 @@ const clientToCanvas = (cx, cy) => { const r = cv.getBoundingClientRect(); retur
    Smoothly eased toward its targets. While playing the camera stays on the snake (pan is a limited offset that can never
    lose it off screen); before the run and while paused or dead you can look anywhere on the map. The view never shows
    past the map edge (zoom >= 1), and a small snake is framed a little closer by default. */
-const UCAM = { z: 1, tz: 1, px: 0, py: 0, tpx: 0, tpy: 0, fx: W / 2, fy: H / 2, ax: W / 2, ay: H / 2, lt: 0, mode: 'free' };
+const UCAM = { z: 1, tz: 1, px: 0, py: 0, tpx: 0, tpy: 0, dx: 0, dy: 0, fx: W / 2, fy: H / 2, ax: W / 2, ay: H / 2, lt: 0, mode: 'free' };
 const UCAM_MAX = 2.6;
 const ucamFree = () => !snake || (state !== 'play' && state !== 'held'); // not steering right now: free look
 const baseZoom = () => { const s = snake && snake.scale || 1; return s < .95 ? 1 + (1 - s) * .45 : 1; };
@@ -40,24 +40,30 @@ function userCam() { // -> { z, fx, fy } to draw with, or null when the camera i
   UCAM.z += (UCAM.tz - UCAM.z) * k; UCAM.px += (UCAM.tpx - UCAM.px) * pk; UCAM.py += (UCAM.tpy - UCAM.py) * pk;
   if (UCAM.back && Math.abs(UCAM.px - UCAM.tpx) + Math.abs(UCAM.py - UCAM.tpy) < .5) UCAM.back = false;
   const z = clamp(UCAM.z * z0, 1, UCAM_MAX * z0);
-  if (z < 1.003) { UCAM.fx = W / 2; UCAM.fy = H / 2; return null; }
+  if (z < 1.003) { UCAM.fx = W / 2; UCAM.fy = H / 2; UCAM.dx = UCAM.dy = 0; return null; }
+  const dr = ucamDrift(z), dk = UCAM.anc ? 0 : 1 - Math.exp(-dt * 3); UCAM.dx += (dr[0] - UCAM.dx) * dk; UCAM.dy += (dr[1] - UCAM.dy) * dk; // before the run, zoomed in or not, the view leans toward the cursor (held still while a zoom eases, so the spot under the pointer stays put)
   const hw = W / 2 / z, hh = H / 2 / z, zt = clamp(UCAM.tz * z0, 1, UCAM_MAX * z0), thw = W / 2 / zt, thh = H / 2 / zt; // the pan target is held to the zoom it's heading for, so easing in never trims it
   if (mode === 'follow') { const mx = Math.max(0, thw - 70), my = Math.max(0, thh - 70); UCAM.tpx = clamp(UCAM.tpx, -mx, mx); UCAM.tpy = clamp(UCAM.tpy, -my, my); } // the snake always stays in frame
   const [bx, by] = ucamBase();
   if (mode === 'free' && UCAM.anc) { // zooming toward the pointer: the spot under it stays put the whole way, not just at the end
-    const A = UCAM.anc; UCAM.fx = clamp(A.wx - (A.cx - W / 2) / z, hw, W - hw); UCAM.fy = clamp(A.wy - (A.cy - H / 2) / z, hh, H - hh);
-    UCAM.px = UCAM.fx - bx; UCAM.py = UCAM.fy - by; if (Math.abs(UCAM.z - UCAM.tz) < .002) UCAM.anc = null;
-    return { z, fx: UCAM.fx, fy: UCAM.fy };
+    const A = UCAM.anc, fx = clamp(A.wx - (A.cx - W / 2) / z, hw, W - hw), fy = clamp(A.wy - (A.cy - H / 2) / z, hh, H - hh);
+    UCAM.fx = fx - UCAM.dx; UCAM.fy = fy - UCAM.dy; UCAM.px = UCAM.fx - bx; UCAM.py = UCAM.fy - by; if (Math.abs(UCAM.z - UCAM.tz) < .002) UCAM.anc = null;
+    return { z, fx, fy };
   }
   const tx = clamp(bx + UCAM.px, hw, W - hw), ty = clamp(by + UCAM.py, hh, H - hh);
   if (mode === 'free') { UCAM.tpx = clamp(UCAM.tpx, thw - bx, W - thw - bx); UCAM.tpy = clamp(UCAM.tpy, thh - by, H - thh - by); } // free look: no panning off the map
   const fk = UCAM.back ? 1 : 1 - Math.exp(-dt * 16); UCAM.fx += (tx - UCAM.fx) * fk; UCAM.fy += (ty - UCAM.fy) * fk;
-  return { z, fx: UCAM.fx, fy: UCAM.fy };
+  return { z, fx: clamp(UCAM.fx + UCAM.dx, hw, W - hw), fy: clamp(UCAM.fy + UCAM.dy, hh, H - hh) }; // (dx, dy: the lean toward the cursor, on top)
+}
+function ucamDrift(z) { // the lean toward the cursor before the run (world units): like the drift at full view (lookAround), less the further in you are
+  if (state !== 'ready' || !snake || snake.started || typeof look === 'undefined') return [0, 0];
+  return [(look.mx - W / 2) * .5 / z, (look.my - H / 2) * .5 / z];
 }
 function ucamTakeLook() { // your own zoom or drag takes the camera from the pre-round drift (lookAround in 34-render) exactly where it is (and hands it back the same way when you zoom out: render)
   if (typeof look === 'undefined' || !snake) return;
   if (!(look.z > 1.002) || UCAM.z * baseZoom() > 1.003) return; // it wasn't showing anything of its own (or your zoom already had the camera)
-  const z0 = baseZoom(); UCAM.mode = 'free'; UCAM.z = UCAM.tz = look.z / z0; UCAM.ax = UCAM.fx = look.fx; UCAM.ay = UCAM.fy = look.fy; UCAM.px = UCAM.py = UCAM.tpx = UCAM.tpy = 0; look.z = 1;
+  const z0 = baseZoom(), [dx, dy] = ucamDrift(look.z); UCAM.mode = 'free'; UCAM.z = UCAM.tz = look.z / z0; UCAM.dx = dx; UCAM.dy = dy; // the lean carries straight on
+  UCAM.ax = UCAM.fx = look.fx - dx; UCAM.ay = UCAM.fy = look.fy - dy; UCAM.px = UCAM.py = UCAM.tpx = UCAM.tpy = 0; look.z = 1;
 }
 function zoomAt(cx, cy, factor) { // while you steer: zoom in on your snake, always the centre of the view. Before the run, paused or dead (free look): toward the pointer, like a map
   const before = canvasToWorld(cx, cy); if (ucamFree()) ucamTakeLook(); const z0 = baseZoom();
