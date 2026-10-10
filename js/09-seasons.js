@@ -116,7 +116,7 @@ function seasonDetails(x) { // flowers, leaf litter, dead tufts: only on grass, 
   if (id !== 'winter') { // low plants seen from above (clover, little ferns) in a darker shade of the grass they grow in: kept apart and drawn live so they sway (drawPlants); fallen blossom in spring
     const q = seeded(Math.round(season.seed * 131) + mapIdx * 29 + 7), n = Math.round(W * H / (season.late ? 56000 : 32000));
     for (let k = 0; k < n; k++) { const px = q() * W, py = q() * H, rot = q() * TAU, sz = 8 + q() * 9, v = q() * 3 | 0, al = .6 + q() * .3; if (!onGrass(px, py)) continue;
-      const c = floorColAt(px, py); plants.push({ x: px, y: py, rot, sz, v, al, ph: q() * TAU, c: [c[0] * .5, c[1] * .74, c[2] * .42].map(u => Math.round(u / 12) * 12) }); }
+      const c = floorColAt(px, py); plants.push({ x: px, y: py, rot, sz, v, al, ph: q() * TAU, c: [c[0] * .78, c[1] * .94, c[2] * .7].map(u => Math.min(252, Math.round(u / 12) * 12)) }); } // just a shade deeper and greener than the grass it grows in
   }
   if (KSPR.ok && id !== 'winter') {
     const q = seeded(Math.round(season.seed * 131) + mapIdx * 29 + 8);
@@ -133,7 +133,9 @@ function drawPlants(x) {
   const still = SETTINGS.treeQ === 'Low' || SETTINGS.reduceMotion, pt = animT('plants'), pa = AN.plants.amp; // (tree quality Low: nothing sways)
   for (const p of plants) { const spr = kTint(K_PLANT[p.v], p.c, 32); if (!spr) continue;
     const w = still ? 0 : (Math.sin(pt * 1.7 + p.x * .018 + p.y * .01) * .6 + Math.sin(pt * 2.6 + p.ph) * .25) * pa; // the gust that bends the grass, and each plant's own flutter
-    x.globalAlpha = p.al; x.save(); x.translate(p.x + w * 1.2, p.y + w * .3); x.rotate(p.rot + w * .14); x.scale(1 + w * .04, 1 - Math.abs(w) * .05); x.drawImage(spr, -p.sz / 2, -p.sz / 2, p.sz, p.sz); x.restore(); }
+    x.save(); x.translate(p.x + w * 1.2, p.y + w * .3); x.rotate(p.rot + w * .14); x.scale(1 + w * .04, 1 - Math.abs(w) * .05);
+    const sh = kTint(K_PLANT[p.v], '#141e0a', 32); if (sh) { const ra = -(p.rot + w * .14), ox = 1.2 * Math.cos(ra) - 1.4 * Math.sin(ra), oy = 1.2 * Math.sin(ra) + 1.4 * Math.cos(ra); x.globalAlpha = p.al * .32; x.drawImage(sh, -p.sz / 2 + ox, -p.sz / 2 + oy, p.sz, p.sz); } // its shadow on the grass under it, so it stands up off the ground
+    x.globalAlpha = p.al; x.drawImage(spr, -p.sz / 2, -p.sz / 2, p.sz, p.sz); x.restore(); }
   x.globalAlpha = 1;
 }
 
