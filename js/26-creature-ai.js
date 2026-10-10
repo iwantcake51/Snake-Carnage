@@ -134,7 +134,12 @@ function updateCreature(c, dt) {
     const a = c.steerA;
     if (c.state === 'wander' && Math.abs(angDiff(want, a)) > .01) c.wa = a;
     if (d.hop) { const tr = (c.hopT > 0 ? 0 : 14) * dt; c.a += clamp(angDiff(c.a, a), -tr, tr); } // frogs aim while sitting, not mid-air
-    else if (c.state === 'wander') turnToward(c, a + (!c.path && !c.leave && !c.owner && !c.detour && !c.zone && d.human ? Math.sin(T * .55 + (c.mz ??= Math.random() * 40)) * .14 + Math.sin(T * 1.3 + c.mz * 1.7) * .05 : 0), 4, 3.2, dt); // (an aimless stroll meanders a little: nobody ambles in a dead straight line) else turnToward(c, a, 8, 7, dt); // strolling: lazy curves; running: quick, but still a curve
+    else { // a body's eased turn on open ground; with anything in the way (a wall, a tree, a car, a person) or a hard swerve, it turns now, at full rate, so it never runs into what it's steering round
+      const run = c.state !== 'wander', pr = d.r + 8 + (run ? 16 : 0), clear = free(c.x + Math.cos(c.a) * pr, c.y + Math.sin(c.a) * pr, d.r * .8), err = angDiff(c.a, a);
+      if (!clear || Math.abs(err) > (run ? .55 : .9)) { const tr = (run ? 10 : 5) * dt, da = clamp(err, -tr, tr); c.a += da; c.av = dt > 0 ? da / dt : 0; }
+      else if (!run) turnToward(c, a + (!c.path && !c.leave && !c.owner && !c.detour && !c.zone && d.human ? Math.sin(T * .55 + (c.mz ??= Math.random() * 40)) * .14 + Math.sin(T * 1.3 + c.mz * 1.7) * .05 : 0), 4, 3.2, dt); // strolling: lazy curves (an aimless stroll meanders a little)
+      else turnToward(c, a, 8, 7, dt); // running in the open: quick, but still a curve
+    }
     const nx = c.x + Math.cos(c.a) * mv * dt, ny = c.y + Math.sin(c.a) * mv * dt;
     if (mv <= 0) { /* sitting between hops */ }
     else if (free(nx, ny, d.r * .8)) { moved = mv * dt; c.x = nx; c.y = ny; }
