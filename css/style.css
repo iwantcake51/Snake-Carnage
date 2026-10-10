@@ -3349,3 +3349,5 @@ body.compact .mm .rs-title h3{font-size:28px!important}
 .mm .mm-note.hot{animation:mmHot 1.6s ease-in-out infinite;font-weight:700!important}
 @keyframes mmHot{0%,100%{filter:brightness(1);text-shadow:0 0 0 transparent}50%{filter:brightness(1.75);text-shadow:0 0 6px var(--acc-hi),0 0 16px color-mix(in srgb,var(--acc-hi) 65%,transparent)}} /* (its color is pinned with !important above, which an animation can't move: it brightens instead) */
 @media (prefers-reduced-motion:reduce){.mm .mm-note.hot{animation:none}}
+.mm .mm-note.hot{display:inline-flex!important;align-items:center;gap:7px}
+.mm .mm-note.hot::before{content:''!important;display:inline-block!important;flex:none;width:7px;height:7px;border-radius:50%;background:var(--acc-hi)} /* the dot in front of "N tokens to spend" (it pulses with the text) */
