@@ -3345,3 +3345,7 @@ body.phone .mm .mm-logo .l2 b{font-size:44px!important}
 .mm .rs-title h3{font:900 34px/1 var(--fw)!important;font-stretch:118%;font-variation-settings:"wdth" 118;letter-spacing:-.01em}
 body.compact .mm .rs-title h3{font-size:28px!important}
 .mm .rs-facts dt,.mm .rs-facts small,.mm .rs-info small{font-family:var(--fw)!important}
+/* "N tokens to spend" on the main menu: pulses up to near white with a glow in the accent, so it catches the eye */
+.mm .mm-note.hot{animation:mmHot 1.6s ease-in-out infinite;font-weight:700!important}
+@keyframes mmHot{0%,100%{filter:brightness(1);text-shadow:0 0 0 transparent}50%{filter:brightness(1.75);text-shadow:0 0 6px var(--acc-hi),0 0 16px color-mix(in srgb,var(--acc-hi) 65%,transparent)}} /* (its color is pinned with !important above, which an animation can't move: it brightens instead) */
+@media (prefers-reduced-motion:reduce){.mm .mm-note.hot{animation:none}}
