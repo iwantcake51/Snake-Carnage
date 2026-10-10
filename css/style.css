@@ -3296,3 +3296,52 @@ body.phone #overlay .panel.sktree .skbody{border-width:2px;border-radius:8px}
 .pf-lv b{font-weight:900!important;font-size:24px!important}
 body.phone .mm-it{font-size:17px!important}
 body.phone .mm-cta{font-size:19px!important}
+/* =====================================================================
+   MAIN MENU, FORMAL: the menu (home, run setup, the map browser) drops the grindhouse props (marker scrawl, torn
+   edges, tape, tilt, stamps, the highlighter swipe) for something more composed: the wide Archivo throughout, clean
+   rectangles with a crisp printed shadow, straight photos, quiet labels. Still no soft glows, glass or gradients.
+   ===================================================================== */
+.mm{--fw:"Archivo",var(--f-body)}
+.mm .mm-logo .l1{font:800 22px/1 var(--fw)!important;font-stretch:118%;font-variation-settings:"wdth" 118;letter-spacing:.01em!important;text-transform:none!important;rotate:0deg;margin:0 0 6px 2px!important;text-shadow:none!important;color:var(--dim)!important}
+.mm .mm-logo .l2 b{font:900 82px/.9 var(--fw)!important;font-stretch:118%;font-variation-settings:"wdth" 118;letter-spacing:-.015em!important;text-shadow:4px 4px 0 var(--hm-shadow)!important}
+body.compact .mm .mm-logo .l2 b{font-size:66px!important}
+body.phone .mm .mm-logo .l1{font-size:15px!important;margin-bottom:2px!important}
+body.phone .mm .mm-logo .l2 b{font-size:44px!important}
+/* the main buttons: a clean slab with a crisp shadow, pressed when clicked */
+.mm .mm-cta,.mm .rs-start{rotate:0deg!important}
+.mm .mm-cta::before,.mm .rs-start::before,.mm .mm-cta::after,.mm .rs-start::after{clip-path:none!important;border-radius:3px!important}
+.mm .mm-cta::after,.mm .rs-start::after{translate:4px 4px}
+.mm kbd,.mm .mm-cta kbd,.mm .rs-start kbd{font:700 11px/1 var(--fw)!important;letter-spacing:.04em!important;border:1px solid currentColor!important;border-radius:3px!important;rotate:0deg!important;padding:4px 6px!important;opacity:.75!important}
+/* the list: a plain accent bar beside the one you're on, no swipe */
+.mm .mm-it::before{scale:1 0!important;left:0!important;right:auto!important;width:3px;top:12px!important;bottom:12px!important;background:var(--acc)!important;-webkit-mask:none!important;mask:none!important;transform-origin:center!important}
+.mm .mm-it:hover::before,.mm .mm-it:focus-visible::before{scale:1 1!important}
+.mm .mm-it:hover .mm-l,.mm .mm-it:focus-visible .mm-l{translate:6px 0}
+.mm .mm-note{font:600 12px/1 var(--fw)!important;rotate:0deg!important;letter-spacing:.01em!important;text-transform:none!important}
+.mm .mm-note.hot{color:var(--acc-hi)!important}
+/* the profile card: square on, no tape */
+.mm .mm-prof{rotate:0deg!important;border:1px solid var(--hair2)!important;border-radius:3px!important;box-shadow:5px 5px 0 var(--hm-shadow)!important;background:rgba(14,11,12,.92)!important}
+.mm .mm-prof::before{display:none!important}
+.mm .pf-lv,.mm .mm-mapcap small,.mm .mm-ver{font:600 11px var(--fw)!important;letter-spacing:.08em!important;text-transform:uppercase}
+.mm .pf-lv b{font-size:24px!important;letter-spacing:0!important}
+/* run setup: quiet labels in the menu's own type, solid hairlines, plain boxes */
+.mm .rs-sec h4,.mm .rs-head h2{font:700 12px var(--fw)!important;letter-spacing:.08em!important;border-bottom:1px solid var(--hair)!important}
+.mm .rs-head h2{border:0!important}
+.mm .rs-sec h4 span{font:500 12px var(--fw)!important;letter-spacing:0!important}
+.mm .rs-seg{border-bottom:1px solid var(--hair)!important}
+.mm .rs-ch{border:1px solid var(--hair)!important;border-radius:3px!important;box-shadow:none!important}
+.mm .rs-ch:hover{translate:none!important;box-shadow:none!important;border-color:var(--hair2)!important}
+.mm .rs-ch .rs-t{font:700 11px var(--fw)!important;letter-spacing:.06em!important;border:0!important;padding:0!important;rotate:0deg!important;-webkit-mask:none!important;mask:none!important}
+.mm .mm-back{border:1px solid var(--hair2)!important;border-radius:3px!important;box-shadow:none!important;font:600 14px var(--fw)!important}
+/* the map browser: straight pictures in a thin frame, the picked one outlined in the accent */
+.mm .mbr-in{border:1px solid var(--hair2)!important;border-radius:3px!important;box-shadow:8px 8px 0 rgba(4,2,3,.7)!important}
+.mm .mbr-in::before{display:none!important}
+.mm .mbr-head h3{font:900 26px/1 var(--fw)!important;font-stretch:118%;font-variation-settings:"wdth" 118}
+.mm .mbr-img{rotate:0deg!important;border:2px solid var(--hair2)!important;box-shadow:3px 3px 0 rgba(4,2,3,.7)}
+.mm .mbr-t:hover .mbr-img{translate:0 -2px;border-color:var(--ink)!important}
+.mm .mbr-t.on .mbr-img{border-color:var(--acc)!important}
+.mm .mbr-n{font:700 15px/1.2 var(--fw)!important}
+.mm .mbr-t.on .mbr-n::after{font:700 11px var(--fw)!important;letter-spacing:.08em!important;text-transform:uppercase!important;rotate:0deg}
+.mm .mbr-m,.mm .mbr-by{font:500 12px var(--fw)!important}
+.mm .rs-title h3{font:900 34px/1 var(--fw)!important;font-stretch:118%;font-variation-settings:"wdth" 118;letter-spacing:-.01em}
+body.compact .mm .rs-title h3{font-size:28px!important}
+.mm .rs-facts dt,.mm .rs-facts small,.mm .rs-info small{font-family:var(--fw)!important}
