@@ -225,7 +225,7 @@ function bombKd(tt, sp = 1) { // the deciding browser: one bomb's kind (nothing 
 /* ---- artillery: later in a run, now and then a battery of cannons miles off the map lobs a few shells at you instead of a jet coming over.
    Each lands with a far bigger blast than a bomb, but you get a long time to get clear: the cannon's report, the marker, then the shell
    whistling all the way down, slowly ---- */
-const ARTY = { after: 210, raid: 120, gap: 70, p: .12, r: 1.25, fall: 3.6, warn: [6.2, 7.4] };
+const ARTY = { after: 210, raid: 120, gap: 70, p: .12, r: [1.3, 1.65], fall: 3.6, warn: [6.2, 7.4] };
 function artyTailSpot(s, D) { // a point D up the body from the end of this snake's tail (past the head on its heading if the body is shorter than that)
   const g = s.segs; let left = D;
   for (let i = g.length - 1; i > 0; i--) { const a = g[i], b = g[i - 1], L = Math.hypot(b.x - a.x, b.y - a.y); if (L >= left) { const u = left / (L || 1); return [a.x + (b.x - a.x) * u, a.y + (b.y - a.y) * u, Math.atan2(b.y - a.y, b.x - a.x)]; } left -= L; }
@@ -233,13 +233,16 @@ function artyTailSpot(s, D) { // a point D up the body from the end of this snak
 }
 function artySalvo(s, k) { // the deciding browser: a salvo of shells on the end of this snake's tail as it is when they're fired (k: how far into the raid). Unlike the bombs, which lead your head, the guns are laid on your tail: keep moving and they shell the ground you've just crossed (no doubling back), stall or coil up and they take the end of you
   const n = 1 + (Math.random() < .35 + .4 * k ? 1 : 0) + (k > .6 && Math.random() < .35 ? 1 : 0), ca = +rand(0, TAU).toFixed(3); // (ca: the way the shells come in, from the battery off the map)
+  const body = s.segs.reduce((d, g, i) => i ? d + Math.hypot(g.x - s.segs[i - 1].x, g.y - s.segs[i - 1].y) : 0, 0); let up = body * rand(0, .12), pr = 0; // (up: how far up the body from the tail's end the next shell goes)
   for (let j = 0; j < n; j++) {
+    const r = Math.round(AIR_R * rand(...ARTY.r)); // each shell its own size: always bigger than a bomb, never huge
+    if (j) { up += (pr + r) * rand(1.05, 1.2); if (up > body * .6) break; } pr = r; // each one after the first walked further up the body, its edge clear of the last one's (never past the back 60% of it: a short snake just gets fewer)
     let w = rand(...ARTY.warn) + j * rand(.9, 1.5) + airEW(s);
     for (let q = 0; q < 6; q++) { const o = strikes.find(o => Math.abs(o.t - w) < .11); if (!o) break; w = o.t + .11 + rand(0, .05); }
     w = +w.toFixed(2);
-    const body = s.segs.reduce((d, g, i) => i ? d + Math.hypot(g.x - s.segs[i - 1].x, g.y - s.segs[i - 1].y) : 0, 0), [tx, ty, ta] = artyTailSpot(s, body * rand(0, .12) + j * AIR_R * rand(2.1, 2.4)), side = gauss() * 14; // right on the end of the tail, each shell after the first walked further up it (a blast's width apart, so they don't stack)
+    const [tx, ty, ta] = artyTailSpot(s, up), side = gauss() * 14; // right on the end of the tail
     const [x, y] = airInside(tx - Math.sin(ta) * side, ty + Math.cos(ta) * side, s.x, s.y);
-    const rx = Math.round(x), ry = Math.round(y), r = Math.round(AIR_R * ARTY.r * rand(.92, 1.08)), f = +(ARTY.fall * rand(.92, 1.1)).toFixed(2), ew = airEW(s) || undefined, ep = ew ? airPid(s) : undefined;
+    const rx = Math.round(x), ry = Math.round(y), f = +(ARTY.fall * rand(.92, 1.1)).toFixed(2), ew = airEW(s) || undefined, ep = ew ? airPid(s) : undefined;
     airStrike(rx, ry, w, r, ca, f, undefined, 'a', undefined, ew, ep); netEmit({ t: 'air', x: rx, y: ry, w, r, j: ca, f, kd: 'a', ew, ep, h: Math.round(netNow()) });
   }
 }
