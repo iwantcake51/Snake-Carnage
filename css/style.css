@@ -3121,3 +3121,145 @@ body.phone .sk-ic svg.gi{width:38px;height:38px}
 /* the board's path headings and each branch's root knot (38f skHubHtml) */
 .skpath{position:absolute;transform:translate(-50%,-50%);pointer-events:none;white-space:nowrap;--lk:clamp(1,calc(.8 / var(--z,1)),1.3);font:700 calc(13px * var(--lk)) var(--f-head);letter-spacing:.22em;text-transform:uppercase;color:color-mix(in srgb,var(--bc) 70%,transparent);padding-bottom:6px;border-bottom:1px solid color-mix(in srgb,var(--bc) 35%,transparent)}
 .skhub .knot{box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--bc) 70%,#3d3437)!important}
+/* =====================================================================
+   HAND-MADE LAYER: the menus and HUD as if printed, cut out and stamped by hand (grindhouse poster meets case file),
+   not a template dashboard. Signage-style headlines, typewriter labels and numbers, a marker for the odd scrawl;
+   hard printed shadows instead of soft glows; buttons with cut edges; tags as rubber stamps; tape on the sheets;
+   wobbly hand-drawn boxes; a marker swipe and a squiggle where something is picked. Every color still comes from the
+   UI theme's variables. Last in the file on purpose: it wins over the layers above.
+   ===================================================================== */
+:root{--f-head:"Big Shoulders Display","Barlow Condensed",Impact,sans-serif;--f-body:"Archivo","Barlow","Segoe UI",system-ui,sans-serif;--f-num:"Courier Prime","Courier New",ui-monospace,monospace;--f-hand:"Permanent Marker","Segoe Print","Comic Sans MS",cursive;
+  --hm-shadow:#040203;--hm-tape:rgba(232,218,184,.26);--hm-box:3px 9px 4px 8px / 8px 3px 9px 4px;--hm-box2:7px 3px 8px 2px / 3px 8px 2px 7px;
+  --hm-rag:polygon(0 6%,2% 0,23% 3%,49% 0,76% 2%,98% 0,100% 9%,99% 52%,100% 94%,97% 100%,71% 97%,44% 100%,18% 98%,1% 100%,0 88%,1% 45%);
+  --hm-squig:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 10' preserveAspectRatio='none'%3E%3Cpath d='M2 6C14 2 24 8 37 5S61 2 74 6s27 2 44-3' fill='none' stroke='%23000' stroke-width='3.2' stroke-linecap='round'/%3E%3C/svg%3E");
+  --hm-swipe:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 40' preserveAspectRatio='none'%3E%3Cpath d='M6 9 Q60 3 120 6 T196 5 L193 33 Q150 38 98 34 T3 36 Q7 22 6 9Z' fill='%23000'/%3E%3C/svg%3E");
+    --hm-ink:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.55' numOctaves='3' seed='4'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 12 0 0 0 -3.3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+/* ---- the logo: "Snake" scrawled in marker over a screen-printed CARNAGE ---- */
+.mm-logo .l1{font:400 40px/1 var(--f-hand)!important;letter-spacing:0!important;text-transform:none!important;color:var(--ink)!important;rotate:-7deg;margin:0 0 -16px 10px!important;position:relative;z-index:2;text-shadow:3px 3px 0 var(--hm-shadow)}
+.mm-logo .l2 b{font:900 122px/.8 var(--f-head)!important;letter-spacing:-.01em!important;text-shadow:5px 5px 0 var(--hm-shadow),-1px 0 0 color-mix(in srgb,var(--acc) 40%,#fff)!important}
+body.compact .mm-logo .l2 b{font-size:92px!important}
+body.phone .mm-logo .l1{font-size:26px!important;margin-bottom:-8px!important}
+body.phone .mm-logo .l2 b{font-size:64px!important}
+
+/* ---- main actions: a cut-out slab of the accent with a hard printed shadow, pressed down when clicked ---- */
+.mm-cta,.rs-start,#overlay .btn:not(.alt):not(#backBtn):not(#pMenuBtn),#overlay .play,#overlay #againBtn,#overlay #resBtn{position:relative!important;isolation:isolate;background:none!important;box-shadow:none!important;border:0!important;
+  font-family:var(--f-head)!important;font-weight:900!important;letter-spacing:.03em!important;transition:translate .08s ease!important}
+.mm-cta::before,.rs-start::before,#overlay .btn:not(.alt):not(#backBtn):not(#pMenuBtn)::before,#overlay .play::before,#overlay #againBtn::before,#overlay #resBtn::before{content:''!important;display:block!important;position:absolute;inset:0;z-index:-1;background:var(--acc)!important;clip-path:var(--hm-rag);transition:background .12s ease;animation:none!important;opacity:1!important}
+.mm-cta::after,.rs-start::after,#overlay .btn:not(.alt):not(#backBtn):not(#pMenuBtn)::after,#overlay .play::after,#overlay #againBtn::after,#overlay #resBtn::after{content:''!important;display:block!important;position:absolute;inset:0;z-index:-2;background:var(--hm-shadow)!important;clip-path:var(--hm-rag);translate:5px 5px;transition:translate .08s ease;animation:none!important;opacity:1!important}
+.mm-cta:hover::before,.rs-start:hover::before,#overlay .btn:not(.alt):not(#backBtn):not(#pMenuBtn):hover::before,#overlay .play:hover::before,#overlay #againBtn:hover::before,#overlay #resBtn:hover::before{background:color-mix(in srgb,var(--acc) 86%,#fff)!important}
+.mm-cta:active,.rs-start:active,#overlay .btn:not(.alt):not(#backBtn):not(#pMenuBtn):active,#overlay .play:active,#overlay #againBtn:active,#overlay #resBtn:active{translate:3px 3px}
+.mm-cta:active::after,.rs-start:active::after,#overlay .btn:not(.alt):not(#backBtn):not(#pMenuBtn):active::after,#overlay .play:active::after,#overlay #againBtn:active::after,#overlay #resBtn:active::after{translate:2px 2px}
+.rs-start:disabled::before{background:#2a2426!important}
+.mm-cta.mpwait::before,.rs-start.mpwait::before{background:#2a2426!important}
+.mm-cta{rotate:-.6deg;font-size:30px!important}
+.rs-start{font-size:30px!important}
+/* the key hint on them: a little stamped label */
+.mm kbd,.rs kbd,.mm-cta kbd,.rs-start kbd{font:700 12px/1 var(--f-num)!important;letter-spacing:.04em!important;text-transform:uppercase;background:none!important;border:2px solid currentColor!important;border-radius:2px!important;padding:3px 6px!important;rotate:-3deg;opacity:.8!important}
+
+/* ---- quiet buttons (Done, Back, Shuffle, Quit): a box drawn by hand ---- */
+#overlay .btn.alt,#overlay .panel .ghost,#overlay .panel #backBtn,#overlay .panel #pMenuBtn,.mm-back,.mm-x,.mm-tog{border:2px solid var(--hair2)!important;border-radius:var(--hm-box)!important;background:none!important;font-family:var(--f-head)!important;font-weight:800!important;letter-spacing:.04em!important;box-shadow:3px 3px 0 var(--hm-shadow)!important;transition:translate .08s ease,border-color .15s ease!important}
+#overlay .btn.alt:hover,#overlay .panel .ghost:hover,#overlay .panel #backBtn:hover,#overlay .panel #pMenuBtn:hover,.mm-back:hover,.mm-x:hover,.mm-tog:hover{border-color:var(--ink)!important}
+#overlay .btn.alt:active,#overlay .panel #backBtn:active,#overlay .panel #pMenuBtn:active,.mm-back:active{translate:2px 2px;box-shadow:1px 1px 0 var(--hm-shadow)!important}
+.mm-back{font:700 15px var(--f-body)!important}
+
+/* ---- the main menu's list: a marker swipe behind the one you're on ---- */
+.mm-it{font:700 25px/1.1 var(--f-head)!important;letter-spacing:.02em!important;text-transform:uppercase}
+.mm-it:hover,.mm-it:focus-visible{background:none!important}
+.mm-it::before{content:'';position:absolute;left:4px;right:28%;top:7px;bottom:6px;z-index:-1;background:color-mix(in srgb,var(--acc) 55%,transparent);-webkit-mask:var(--hm-swipe) 0 0/100% 100% no-repeat;mask:var(--hm-swipe) 0 0/100% 100% no-repeat;scale:0 1;transform-origin:left;transition:scale .18s cubic-bezier(.3,.8,.3,1)}
+.mm-it:hover::before,.mm-it:focus-visible::before{scale:1 1}
+.mm-it{isolation:isolate}
+.mm-it:hover .mm-l,.mm-it:focus-visible .mm-l{background-size:0 2px!important}
+.mm-note{font:400 15px/1 var(--f-hand)!important;font-style:normal!important;letter-spacing:0!important;text-transform:none!important;rotate:-3deg}
+.mm-note.hot{color:var(--acc-hi)!important}
+.mm-note.hot::before{display:none!important}
+/* the profile card: a tag pinned on with tape */
+.mm-prof{rotate:1.2deg;background:#17120f!important;border:2px solid var(--hair2)!important;border-radius:var(--hm-box2)!important;box-shadow:6px 6px 0 var(--hm-shadow)!important;position:relative}
+.mm-prof::before{content:'';position:absolute;left:50%;top:-12px;width:78px;height:22px;translate:-50% 0;rotate:-4deg;background:var(--hm-tape);clip-path:polygon(3% 0,97% 6%,100% 30%,96% 52%,100% 74%,97% 100%,2% 94%,0 70%,4% 48%,0 24%);pointer-events:none}
+.pf-lv{font:700 13px var(--f-num)!important;letter-spacing:.06em!important}
+.pf-lv b{font:900 30px/1 var(--f-head)!important}
+.mm-mapcap small{font:700 12px var(--f-num)!important;letter-spacing:.06em!important;text-transform:lowercase}
+.mm-mapcap b{font:900 30px/1 var(--f-head)!important;letter-spacing:.01em}
+.mm-ver{font:700 12px var(--f-num)!important}
+
+/* ---- sheets: tape at the top instead of an accent bar, a hard printed shadow instead of a soft glow ---- */
+#overlay .panel{box-shadow:10px 10px 0 rgba(4,2,3,.72)!important;border:2px solid var(--hair)!important;border-radius:var(--hm-box2)!important;background:var(--grain),#120e0f!important}
+#overlay .panel::before{content:''!important;display:block!important;position:absolute;left:64px;top:-13px;width:116px;height:26px;rotate:-3deg;background:var(--hm-tape)!important;clip-path:polygon(2% 4%,98% 0,96% 26%,100% 50%,97% 76%,99% 100%,1% 96%,4% 72%,0 47%,3% 22%);pointer-events:none;z-index:3}
+#overlay .panel h1,#overlay .snav h1,#overlay .chhead h1{font:900 42px/.95 var(--f-head)!important;letter-spacing:0!important;text-shadow:3px 3px 0 var(--hm-shadow)}
+#overlay .panel h2{font-family:var(--f-head)!important;font-weight:800!important}
+/* section labels: typed, not tracked out */
+#overlay .panel h3,#overlay .panel .sgrp,#overlay .mg,.rs-sec h4,.mlob-sec h4,.rs-head h2{font:700 13px var(--f-num)!important;letter-spacing:.05em!important;text-transform:uppercase;color:var(--dim)!important;border-bottom:1px dashed var(--hair2)!important}
+.rs-head h2{border:0!important;font-size:14px!important}
+.rs-sec h4 span,.mlob-sec h4 span{font:400 13px var(--f-num)!important;letter-spacing:0!important}
+#overlay .panel .lead,#overlay .panel p.lead{font:400 14.5px/1.5 var(--f-body)!important}
+
+/* ---- picking things: a marker swipe for the side tabs, a squiggle under the picked choice ---- */
+#overlay .tab{font:600 15px/1.2 var(--f-body)!important;position:relative;isolation:isolate}
+#overlay .tab.on{box-shadow:none!important;background:none!important;color:var(--ink)!important}
+#overlay .tab.on::after{content:'';position:absolute;inset:5px 6px 4px 2px;z-index:-1;background:color-mix(in srgb,var(--acc) 42%,transparent);-webkit-mask:var(--hm-swipe) 0 0/100% 100% no-repeat;mask:var(--hm-swipe) 0 0/100% 100% no-repeat}
+#overlay .tab:not(.on):hover{background:none!important;color:var(--ink)!important}
+.rs-seg .sthumb,#overlay .sseg .sthumb{height:7px!important;bottom:-4px!important;background:var(--acc)!important;-webkit-mask:var(--hm-squig) 0 0/100% 100% no-repeat;mask:var(--hm-squig) 0 0/100% 100% no-repeat;border-radius:0!important}
+#overlay .ctabs button.on{box-shadow:none!important;position:relative}
+#overlay .ctabs button.on::after{content:'';position:absolute;left:6px;right:6px;bottom:-4px;height:7px;background:var(--acc);-webkit-mask:var(--hm-squig) 0 0/100% 100% no-repeat;mask:var(--hm-squig) 0 0/100% 100% no-repeat}
+.rs-seg button,#overlay .sseg button,#overlay .ctabs button{font-family:var(--f-body)!important}
+.rs-seg,#overlay .sseg,#overlay .ctabs{border-bottom:1px dashed var(--hair2)!important}
+
+/* ---- cards: each its own little hand-cut card, a hard shadow under it ---- */
+#overlay .ach,#overlay .upc,#overlay .pmc,#overlay .sc,#overlay .m2c,.rs-ch{border:2px solid var(--hair)!important;border-radius:var(--hm-box)!important;box-shadow:3px 3px 0 rgba(4,2,3,.7)!important;background:rgba(255,248,235,.03)!important}
+#overlay .ach:nth-child(3n+1),#overlay .m2c:nth-child(3n+1),#overlay .sc:nth-child(4n+2),.rs-ch:nth-child(odd){border-radius:var(--hm-box2)!important}
+#overlay .sc:hover,#overlay .upc:hover,#overlay .m2c:hover,.rs-ch:hover{border-color:var(--hair2)!important;translate:-1px -1px!important;box-shadow:4px 4px 0 rgba(4,2,3,.75)!important}
+#overlay .sc.on,#overlay .m2c.on{border-color:var(--acc)!important;box-shadow:3px 3px 0 color-mix(in srgb,var(--acc) 45%,#000)!important}
+#overlay .ach.secret,#overlay .sc.locked{border-style:dashed!important;box-shadow:none!important}
+#overlay .ach b,#overlay .upc b,#overlay .pmc b,#overlay .m2c b,#overlay .mtile b{font-family:var(--f-head)!important;font-weight:800!important}
+
+/* ---- tags and rewards: rubber stamps, a little crooked, the ink not quite even ---- */
+#overlay .tier,.tier,#overlay .mptag,.stamp,.rs-ch .rs-t,.m2c .pct,.m2c em,#overlay .ach .tg{font:700 11px/1 var(--f-num)!important;letter-spacing:.06em!important;text-transform:uppercase;border:2px solid currentColor!important;border-radius:2px!important;background:none!important;padding:2px 5px!important;rotate:-2.5deg;-webkit-mask:var(--hm-ink);mask:var(--hm-ink)}
+#overlay .ach:nth-child(even) .tier,#overlay .m2c:nth-child(even) .pct{rotate:2deg}
+#overlay .coinpill{font:700 14px var(--f-num)!important;border:2px solid var(--hair2)!important;border-radius:var(--hm-box)!important}
+
+/* ---- numbers: typed ---- */
+.v,.mpct,.xpt,.price,.cnum,.stat b,.pstats b,.sbig,#overlay .srow b{font-family:var(--f-num)!important;font-weight:700!important}
+
+/* ---- in a run: the stat strip and prompts in the same hand ---- */
+#hudbar,#hudbar *{font-family:var(--f-num)!important}
+#hudbar b,#hudbar .v{font-weight:700!important}
+#resume .rp{border-radius:var(--hm-box)!important;border:2px solid rgba(255,255,255,.18);box-shadow:5px 5px 0 rgba(4,2,3,.75)!important;backdrop-filter:none!important;background:rgba(18,14,15,.92)!important;animation:noteIn .4s var(--spring) backwards!important;font-family:var(--f-body)!important}
+#resume .rp b{font:400 17px/1 var(--f-hand)!important;letter-spacing:0;rotate:-2deg}
+#resume kbd{border-radius:3px 5px 3px 4px!important;box-shadow:0 2px 0 #6d665e,2px 3px 0 rgba(0,0,0,.45)!important;font-family:var(--f-num)!important}
+.note b,#notes b{font-family:var(--f-head)!important;font-weight:800!important}
+#tip{border-radius:var(--hm-box)!important;box-shadow:4px 4px 0 rgba(4,2,3,.75)!important}
+#tip .thead{font-family:var(--f-head)!important;font-weight:800!important}
+
+/* the overlay's catch-all font rule (#overlay *:not(...)) out-weighs a plain class: these carry an extra id test (:not(#_)) so the hand-made type wins */
+#overlay:not(#_) :is(.panel h1,.snav h1,.chhead h1,.panel h2,.m2info h4,.ach b,.upc b,.pmc b,.m2c b,.mtile b,.sbig,.pstats b,.btn,.play,.note b,.thead){font-family:var(--f-head)!important}
+#overlay:not(#_) :is(.panel h1,.snav h1,.chhead h1){font-weight:900!important;font-size:46px!important;letter-spacing:0!important}
+#overlay:not(#_) :is(.ach b,.upc b,.pmc b,.m2c b,.mtile b,.m2info h4){font-weight:800!important;letter-spacing:.02em!important}
+#overlay:not(#_) :is(.ach b){font-size:20px!important}
+#overlay:not(#_) :is(.m2c b){font-size:19px!important}
+#overlay:not(#_) :is(.panel h3,.panel .sgrp,.mg,.tier,.stamp,.mptag,.coinpill,.v,.mpct,.xpt,.price,.cnum,.stat b,.srow b,.m2c .pct,.ctabs button em,#rewards .rw,.rw){font-family:var(--f-num)!important}
+#overlay:not(#_) :is(.panel h3,.panel .sgrp,.mg){font-weight:700!important;font-size:13px!important;letter-spacing:.05em!important}
+#hudbar:not(#_),#hudbar:not(#_) *{font-family:var(--f-num)!important}
+#resume:not(#_) .rp b{font-family:var(--f-hand)!important}
+/* focus on a cut-out button: its printed shadow turns bone white instead of a rectangle round a ragged shape */
+.mm-cta:focus-visible,.rs-start:focus-visible,#overlay .btn:not(.alt):focus-visible,#overlay .play:focus-visible,#overlay #againBtn:focus-visible,#overlay #resBtn:focus-visible{outline:0!important}
+.mm-cta:focus-visible::after,.rs-start:focus-visible::after,#overlay .btn:not(.alt):not(#backBtn):not(#pMenuBtn):focus-visible::after,#overlay .play:focus-visible::after,#overlay #againBtn:focus-visible::after,#overlay #resBtn:focus-visible::after{background:var(--ink)!important}
+
+/* (the old buttons clip their own overflow for a shine that's gone: the printed shadow has to show past the edge) */
+#overlay .play,#overlay .btn:not(.alt),#overlay #againBtn,#overlay #resBtn{overflow:visible!important}
+/* the pause screen's tabs: typed, a squiggle under the open one */
+.panel.pause .ptabs button{font:700 13px var(--f-num)!important;letter-spacing:.04em!important;border-bottom-color:transparent!important;position:relative}
+.panel.pause .ptabs button.on::after{content:'';position:absolute;left:6px;right:6px;bottom:-5px;height:7px;background:var(--acc);-webkit-mask:var(--hm-squig) 0 0/100% 100% no-repeat;mask:var(--hm-squig) 0 0/100% 100% no-repeat}
+/* the map browser: a sheet of photos, each pinned a little crooked, the picked one circled in marker */
+.mbr-in{border:2px solid var(--hair2)!important;border-radius:var(--hm-box2)!important;box-shadow:10px 10px 0 rgba(4,2,3,.72)!important;position:relative}
+.mbr-in::before{content:'';position:absolute;left:72px;top:-13px;width:116px;height:26px;rotate:-3deg;background:var(--hm-tape);clip-path:polygon(2% 4%,98% 0,96% 26%,100% 50%,97% 76%,99% 100%,1% 96%,4% 72%,0 47%,3% 22%);pointer-events:none;z-index:3}
+.mbr-head h3{font:900 34px/1 var(--f-head)!important;letter-spacing:0!important}
+.mbr-img{border:3px solid #e9e1d3!important;border-radius:1px!important;box-shadow:4px 4px 0 rgba(4,2,3,.75);transition:rotate .15s ease,translate .15s ease}
+.mbr-t:nth-child(4n+1) .mbr-img{rotate:-.7deg}.mbr-t:nth-child(4n+2) .mbr-img{rotate:.5deg}.mbr-t:nth-child(4n+3) .mbr-img{rotate:-.3deg}.mbr-t:nth-child(4n) .mbr-img{rotate:.8deg}
+.mbr-t:hover .mbr-img{rotate:0deg;translate:-1px -2px;border-color:#fff!important}
+.mbr-t.on .mbr-img{border-color:var(--acc)!important}
+.mbr-n{font:800 18px/1.15 var(--f-head)!important;letter-spacing:.01em}
+.mbr-t.on .mbr-n::after{font:400 14px var(--f-hand)!important;letter-spacing:0!important;text-transform:lowercase!important;display:inline-block;rotate:-4deg;color:var(--acc-hi)}
+.mbr-m,.mbr-by{font-family:var(--f-num)!important;font-size:12px!important}
+/* (older layers grow .btn::before past the button for a glow: the cut-out backing sits exactly on the button) */
+.mm-cta::before,.rs-start::before,#overlay .btn:not(.alt):not(#backBtn):not(#pMenuBtn)::before,#overlay .play::before,#overlay #againBtn::before,#overlay #resBtn::before,
+.mm-cta::after,.rs-start::after,#overlay .btn:not(.alt):not(#backBtn):not(#pMenuBtn)::after,#overlay .play::after,#overlay #againBtn::after,#overlay #resBtn::after{inset:0!important;width:auto!important;height:auto!important;margin:0!important;transform:none!important;filter:none!important;border-radius:0!important}
