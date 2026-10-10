@@ -1,7 +1,7 @@
 /* =========================================================
    FOOT TRAFFIC: until somebody moves, the world doesn't wait for you. Wherever a path runs off the edge of the map
-   (a gate), people (some with a dog on a lead) and now and then an animal come walking in along it, and calm ones
-   already on the map stroll off down one and are gone once they're out. It keeps the crowd about the size it started,
+   (a gate), people (some with a dog on a lead) and now and then an animal come walking in along it, and calm people
+   already on the map stroll off down one and are gone once they're out (animals never walk off). It keeps the crowd about the size it started,
    and it stops the moment any snake moves: whoever is already on their way out finishes leaving, everyone else stays.
    The deciding browser only (spawns and despawns reach guests as 'sp' and 'gone').
    ========================================================= */
@@ -54,8 +54,8 @@ function trafficDog(o) { // a dog on a lead comes in (or goes out) at its owner'
   const sa = o.a + Math.PI / 2, d = makeCreature('dog', o.x + Math.cos(sa) * 10 - Math.cos(o.a) * 6, o.y + Math.sin(sa) * 10 - Math.sin(o.a) * 6, null);
   d.a = o.a; d.owner = o; o.dog = d; d.born = T; d.leashed = true; d.transit = { follow: o }; creatures.push(d);
 }
-function trafficDepart() { // someone calm, out of everyone's way, walks off the map down the nearest path
-  const ok = c => c.alive && !c.transit && !c.leave && !c.def.fly && !c.zone && !c.convo && !c.golden && (c.state === 'wander' || c.state === 'idle') && c.alert < .3 && !(c.owner && c.leashed) && !c.def.hop; // (hoppers stay: they'd glide off)
+function trafficDepart() { // someone calm, out of everyone's way, walks off the map down the nearest path (people only: animals stay on the map, and a dog on a lead goes with its owner)
+  const ok = c => c.alive && c.def.human && !c.transit && !c.leave && !c.zone && !c.convo && !c.golden && (c.state === 'wander' || c.state === 'idle') && c.alert < .3;
   const cand = [];
   for (const c of creatures) {
     if (!ok(c)) continue;
