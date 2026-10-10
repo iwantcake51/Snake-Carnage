@@ -3263,3 +3263,35 @@ body.phone .mm-logo .l2 b{font-size:64px!important}
 /* (older layers grow .btn::before past the button for a glow: the cut-out backing sits exactly on the button) */
 .mm-cta::before,.rs-start::before,#overlay .btn:not(.alt):not(#backBtn):not(#pMenuBtn)::before,#overlay .play::before,#overlay #againBtn::before,#overlay #resBtn::before,
 .mm-cta::after,.rs-start::after,#overlay .btn:not(.alt):not(#backBtn):not(#pMenuBtn)::after,#overlay .play::after,#overlay #againBtn::after,#overlay #resBtn::after{inset:0!important;width:auto!important;height:auto!important;margin:0!important;transform:none!important;filter:none!important;border-radius:0!important}
+/* ---- the Skill Tree is a computer: an old beige terminal, the board and the details panel on its curved glass screen,
+   a model badge, vents and a power light along the base. (No tape on this one: it's a machine, not a sheet.) ---- */
+#overlay.menuMode .panel.sktree{--case:#cdc3ab;--case2:#b3a88e;--case-ink:#2e2820;padding:12px 24px 44px!important;border:0!important;border-radius:22px 22px 16px 16px!important;
+  background:var(--grain),linear-gradient(180deg,#d9d0b9 0,var(--case) 38%,var(--case2) 100%)!important;
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.55),inset 0 -4px 0 rgba(0,0,0,.18),inset 3px 0 0 rgba(255,255,255,.2),inset -3px 0 0 rgba(0,0,0,.12),12px 12px 0 rgba(4,2,3,.75)!important;color:var(--case-ink)}
+#overlay .panel.sktree::before{content:''!important;display:block!important;position:absolute!important;left:auto!important;right:30px!important;top:auto!important;bottom:17px!important;width:9px!important;height:9px!important;rotate:0deg!important;clip-path:none!important;border-radius:50%!important;
+  background:radial-gradient(circle at 35% 35%,#d8ffb8,#59e01e 45%,#2b7a0c)!important;box-shadow:0 0 6px 1px rgba(110,240,60,.7),0 0 0 3px rgba(0,0,0,.18)!important;z-index:2!important;animation:skLed 4s ease-in-out infinite}
+@keyframes skLed{0%,100%{opacity:1}50%{opacity:.82}}
+#overlay .panel.sktree::after{content:'SNAKE·CARNAGE   MODEL 84';position:absolute;left:28px;right:54px;bottom:13px;height:18px;pointer-events:none;white-space:pre;
+  font:800 13px/18px var(--f-head);letter-spacing:.2em;color:rgba(46,40,32,.78);text-shadow:0 1px 0 rgba(255,255,255,.45);
+  background:repeating-linear-gradient(90deg,rgba(40,34,26,.45) 0 3px,transparent 3px 9px) right 0 top 3px/200px 12px no-repeat}
+/* the header: a strip on the casing, the title embossed in the plastic, the numbers on little LCD readouts */
+#overlay .panel.sktree .skh{border:0!important;background:none!important;padding:2px 2px 10px!important}
+#overlay:not(#_) .panel.sktree .skh h1{color:#3a3228!important;text-shadow:0 1px 0 rgba(255,255,255,.55),0 -1px 0 rgba(0,0,0,.25)!important;font-size:36px!important}
+#overlay .panel.sktree .skh .mm-back{color:var(--case-ink)!important;border-color:rgba(46,40,32,.55)!important;box-shadow:2px 2px 0 rgba(46,40,32,.35)!important;background:rgba(255,255,255,.18)!important}
+#overlay .panel.sktree .skh .mm-q{color:#3d352b!important;text-decoration-color:rgba(46,40,32,.45)!important}
+#overlay .panel.sktree .skh .sklvl{color:#3d352b!important}
+#overlay .panel.sktree .skh .sklvl b{color:#1e1914!important}
+#overlay .panel.sktree .skh .coinpill,#overlay .panel.sktree .skh .sktok{background:#14120f!important;border:2px solid #6f6553!important;border-radius:4px!important;box-shadow:inset 0 2px 4px rgba(0,0,0,.7),0 1px 0 rgba(255,255,255,.45)!important}
+/* the screen: recessed glass in a black bezel, rounded like a tube, a faint glare across the top */
+#overlay .panel.sktree .skbody{position:relative;border-radius:26px/22px;overflow:hidden;border:10px solid #121110;
+  box-shadow:0 0 0 2px rgba(0,0,0,.35),0 2px 0 3px rgba(255,255,255,.35),inset 0 0 40px rgba(0,0,0,.85),inset 0 0 0 2px #050404;background:#0b090a}
+#overlay .panel.sktree .skbody::after{content:'';position:absolute;inset:0;pointer-events:none;z-index:40;border-radius:inherit;
+  background:radial-gradient(ellipse 60% 40% at 22% 6%,rgba(255,255,255,.07),transparent 70%),radial-gradient(ellipse 120% 110% at 50% 50%,transparent 62%,rgba(0,0,0,.45) 100%)}
+#overlay .panel.sktree .skinfo{border-left:1px solid rgba(255,255,255,.06)!important}
+body.phone #overlay.menuMode .panel.sktree{padding:6px 10px 26px!important;border-radius:12px!important}
+body.phone #overlay .panel.sktree::after{bottom:6px;font-size:10px;line-height:14px;height:14px;left:14px;right:36px;background-size:120px 8px}
+body.phone #overlay .panel.sktree::before{bottom:9px!important;right:16px!important;width:7px!important;height:7px!important}
+body.phone #overlay .panel.sktree .skbody{border-width:5px;border-radius:14px}
+#overlay:not(#_) .panel.sktree .skh .mm-back,#overlay:not(#_) .panel.sktree .skh .mm-back *{color:#2e2820!important}
+#overlay:not(#_) .panel.sktree .skh .mm-back{border:2px solid rgba(46,40,32,.6)!important;box-shadow:2px 2px 0 rgba(46,40,32,.4)!important;background:rgba(255,255,255,.22)!important}
+#overlay:not(#_) .panel.sktree .skh .mm-back:hover{background:rgba(255,255,255,.4)!important}
