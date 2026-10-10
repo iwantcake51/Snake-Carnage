@@ -368,12 +368,12 @@ const SNAKE_SKINS = {
         o[0] = p.d[0]; o[1] = p.d[1]; o[2] = p.d[2]; const q2 = q * q, q4 = q2 * q2; texMix(o, c, Math.min(1, q4 * 1.3 + q * .1)); texMix(o, p.w, q4 * q4 * q4 * .85); return o; } } },
   Obsidian: { gloss: .15, // volcanic glass, your second color nearly black, with veins of your first glowing through it: crisp broken reflections along the top instead of a soft sheen, a faint glow of the veins along the far edge, and sharp glints where it fractured
     base: (u, c) => shade(c.color2, -.82),
-    tex: { k: 2, flow: .3,
+    tex: { k: 2, flow: .3, res: 2, // (a finer texture: the veins are thin, and coarser they'd step)
       field() { const a = texNoise(71, .125, .6, 4), r = texNoise(72, .125, .9, 4), w = texNoise(73, .125, .6, 2); return (u, v, o) => { o[0] = a(u, v); o[1] = 1 - Math.abs(r(u + w(u, v) * 2, v)); }; },
       pal: (P, S) => ({ g0: rgbOf(shade(S, -.9)), g1: rgbOf(shade(mixColor(S, P, .15), -.72)), vein: rgbOf(P), core: rgbOf(mixColor(mixColor(P, S, .25), '#ffffff', .55)) }),
       color: (f, i, p, o) => { const k = sstep(-.35, .55, f[i]), q = f[i + 1];
         o[0] = p.g0[0] + (p.g1[0] - p.g0[0]) * k; o[1] = p.g0[1] + (p.g1[1] - p.g0[1]) * k; o[2] = p.g0[2] + (p.g1[2] - p.g0[2]) * k;
-        texMix(o, p.vein, sstep(.9, .98, q) * .95); texMix(o, p.core, sstep(.975, .998, q) * .9); return o; } },
+        texMix(o, p.vein, sstep(.87, .975, q) * .95); texMix(o, p.core, sstep(.955, .997, q) * .85); return o; } }, // edges soft enough to span a few texels
     paint(x, F, A, B, c) {
       const u0 = Math.max(A, .4), u1 = Math.min(B, F.uEnd - .6); x.lineCap = 'round';
       if (u1 > u0) { x.beginPath(); F.line(x, u0, u1, .74); x.strokeStyle = rgbaOf(c.color, .16); x.lineWidth = F.R0 * .12; x.stroke(); } // the veins' glow caught along the far edge
