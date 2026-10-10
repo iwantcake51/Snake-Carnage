@@ -119,11 +119,11 @@ function drawSnakeBody(x, s, cfg) {
       const g = pts[i], r = segR(i, n), al = cam ? cam.a[i] : 0, sts = s.stains[i];
       if (!sts || !sts.length) continue;
       x.globalAlpha = SNAKE_BLOOD_A * (al > .01 ? 1 - (.56 + .06 * cam.lv + .2 * (cam.still || 0)) * al : 1); // blood on the body is half see-through: the skin shows through it
-      x.save(); x.translate(g.x, g.y); x.rotate(g.a); x.drawImage(stainSprite(sts), -r, -r, r * 2, r * 2); x.restore();
+      x.save(); x.translate(g.x, g.y); x.rotate(g.a); x.drawImage(stainSprite(sts), -r * 2, -r * 2, r * 4, r * 4); x.restore(); // (twice the segment: the body's outline is the clip)
       x.globalAlpha = 1;
     }
   };
-  if (skin.paint || stained(0, n)) inPieces(2, markPiece, (a, b) => !!skin.paint || (a < 4 && stained(a, Math.min(b, 4)))); // stains alone only need the clip on the neck, where the body is narrower
+  if (skin.paint || stained(0, n)) inPieces(2, markPiece, (a, b) => !!skin.paint || stained(a, b)); // blood is clipped to the body wherever there is any (its sprites reach past their own segment)
   if (!SETTINGS.simpleFx) { // round it off: a lit ridge along the spine, darker flanks, a few scale rows
     const R0 = CONFIG.snakeR * (s.scale || 1), Ein = tubeEdges(TB, -.4), gl = skin.gloss ?? 1;
     const rows = skin.scales && n < 70;
@@ -233,7 +233,7 @@ function camoField(s, n) {
   return { a, avg: sum / n, lv, still };
 }
 const grabC = document.createElement('canvas'), grx = grabC.getContext('2d');
-const SNAKE_BLOOD_A = .86; // how solid the blood on a snake's body is (its edges and highlight carry the wet look, so it can sit a little thicker; the skin still shows through)
+const SNAKE_BLOOD_A = .82; // how solid the blood on a snake's body is (its edges and highlight carry the wet look, so it can sit a little thicker; the skin still shows through)
 function grabScene(A, B, src = render.src) { // copy just this patch of the frame once (drawing the scene onto itself forces a full copy every call)
   const sx = Math.max(0, Math.floor(A.x)), sy = Math.max(0, Math.floor(A.y)), sw = Math.min(src.width, Math.ceil(B.x)) - sx, sh = Math.min(src.height, Math.ceil(B.y)) - sy;
   if (sw <= 0 || sh <= 0) return null;

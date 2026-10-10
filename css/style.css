@@ -3102,3 +3102,10 @@ body.calm #overlay .sbar .sfill{animation:none}
 #cinefx .blast{background:radial-gradient(ellipse 70% 66% at 50% 50%,transparent 30%,rgba(120,10,6,.45) 66%,rgba(40,0,0,.9) 100%);mix-blend-mode:normal}
 #cinefx .gas{background:radial-gradient(ellipse 74% 70% at 50% 50%,transparent 34%,rgba(96,130,20,.35) 68%,rgba(40,60,8,.75) 100%)}
 #cinefx .fire{background:radial-gradient(ellipse 74% 70% at 50% 60%,transparent 40%,rgba(255,110,20,.28) 72%,rgba(140,30,0,.7) 100%)}
+/* skill icons, big: these beat the generic svg.gi{width:1em} (same weight, later in the file), which had been shrinking every skill icon to 16 px */
+.sk-ic svg.gi{width:52px;height:52px}
+.sk-ic.maj svg.gi{width:56px;height:56px}
+.skn.maj .skico svg.gi{width:52px;height:52px}
+.skn.pas .skico svg.gi{width:36px;height:36px}
+#abil .ab svg.gi,#touch .ab svg.gi{width:24px;height:24px}
+body.phone .sk-ic svg.gi{width:38px;height:38px}

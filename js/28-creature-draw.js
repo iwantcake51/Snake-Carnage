@@ -542,27 +542,27 @@ function drawHat(x, hat) { // head-local frame, +x = forward; hats sit behind th
   }
 }
 const soakCol = sts => { const c = sts[sts.length - 1].c; if (!c || c === BLOOD) return '#4a0606'; const v = rgbOf2(c); return '#' + v.map(n => Math.round(n * .55).toString(16).padStart(2, '0')).join(''); };
-const STAIN_TMP = []; // scratch canvases for building stain sprites (reused)
-function stainSprite(sts) { // re-rendered only when that segment gets new blood: one wet, glossy layer soaked onto the scales
-  const R0 = CONFIG.snakeR, S = 4, N = R0 * 2 * S; // 4 px per unit for crisp scaling
+const STAIN_TMP = []; // scratch canvas for building stain sprites (reused)
+function stainSprite(sts) { // re-rendered only when that segment gets new blood. Twice the segment's size and never cut to a circle:
+  // the body's own outline clips it (29-snake-draw), so blood runs across segments without a seam
+  const R0 = CONFIG.snakeR, S = 4, H = R0 * 2, N = H * 2 * S; // 4 px per unit, covering 2 radii each way
   if (!sts.spr) { sts.spr = document.createElement('canvas'); sts.spr.width = sts.spr.height = N; sts.dirty = true; }
   if (sts.dirty) {
-    const tmp = k => { let c = STAIN_TMP[k]; if (!c || c.width !== N) { c = STAIN_TMP[k] = document.createElement('canvas'); c.width = c.height = N; } const g = c.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over'; g.filter = 'none'; g.globalAlpha = 1; g.clearRect(0, 0, N, N); return [c, g]; };
-    const drop = (x, cx, cy, rx, ry) => { // a splash smeared back along the body: round at the front, drawn out into a tail behind
-      x.beginPath(); x.ellipse(cx, cy, rx, ry, 0, -Math.PI / 2, Math.PI / 2); x.quadraticCurveTo(cx - rx * 1.9, cy + ry * .35, cx - rx * 2.3, cy + ry * .05); x.quadraticCurveTo(cx - rx * 1.7, cy - ry * .55, cx, cy - ry); x.closePath(); x.fill(); };
-    const [bc, bx] = tmp(0); bx.setTransform(S, 0, 0, S, R0 * S, R0 * S); bx.beginPath(); bx.arc(0, 0, R0, 0, TAU); bx.clip(); // the blob: every drop, each in its own shade of its color
-    let k = 0;
-    for (const st of sts) { const e = st.e || 1.4, cx = Math.cos(st.a) * st.d - st.r * (e - 1) * .4, cy = Math.sin(st.a) * st.d, rx = st.r * e * .62, c = st.c || BLOOD;
-      bx.fillStyle = shade(c, -.1 + ((k++ * 37) % 7) / 7 * .16); drop(bx, cx, cy, rx, st.r);
-      if (st.r > 2.2) { bx.beginPath(); bx.arc(cx + rx * .9, cy + st.r * .5, st.r * .28, 0, TAU); bx.fill(); } } // a flung droplet ahead of it
+    let bc = STAIN_TMP[0]; if (!bc || bc.width !== N) { bc = STAIN_TMP[0] = document.createElement('canvas'); bc.width = bc.height = N; }
+    const bx = bc.getContext('2d'); bx.setTransform(1, 0, 0, 1, 0, 0); bx.clearRect(0, 0, N, N); bx.setTransform(S, 0, 0, S, H * S, H * S);
+    for (const st of sts) { // a splash: a few overlapping round lobes (never a clean ellipse), drawn out a little along the body, with fine droplets flung round it
+      const e = Math.min(1.6, st.e || 1.3), cx = Math.cos(st.a) * st.d - st.r * (e - 1) * .35, cy = Math.sin(st.a) * st.d, r = st.r * .78, c = st.c || BLOOD;
+      let h = Math.abs(Math.sin(st.a * 91.7 + st.d * 13.3 + st.r * 7.1)) * 1e4; const rnd = () => (h = (h * 9301 + 49297) % 233280) / 233280; // the same splash every time it's redrawn
+      bx.fillStyle = shade(c, -.06 - rnd() * .12);
+      bx.beginPath(); bx.ellipse(cx, cy, r * (.8 + .25 * e), r * .78, 0, 0, TAU); bx.fill();
+      for (let k = 0, n = 3 + (rnd() * 3 | 0); k < n; k++) { const a = rnd() * TAU, d = r * (.35 + .45 * rnd()), q = r * (.35 + .35 * rnd()); bx.beginPath(); bx.arc(cx + Math.cos(a) * d * e, cy + Math.sin(a) * d, q, 0, TAU); bx.fill(); }
+      bx.fillStyle = shade(c, -.2); for (let k = 0, n = 2 + (rnd() * 4 | 0); k < n; k++) { const a = rnd() * TAU, d = r * (1.3 + 1.3 * rnd()); bx.beginPath(); bx.arc(cx + Math.cos(a) * d, cy + Math.sin(a) * d, Math.max(.25, r * (.08 + .14 * rnd())), 0, TAU); bx.fill(); } // spatter
+    }
+    const tmp = k => { let c = STAIN_TMP[k]; if (!c || c.width !== N) c = STAIN_TMP[k] = Object.assign(document.createElement('canvas'), { width: N, height: N }); const g = c.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.filter = 'none'; g.clearRect(0, 0, N, N); return [c, g]; };
+    const [mc, mx] = tmp(1); mx.filter = `blur(${S * .6}px)`; mx.drawImage(bc, 0, 0); mx.filter = 'none'; // the blob, softened: thin toward its edges
+    const [dc, dx] = tmp(2); dx.fillStyle = 'rgb(32,0,5)'; dx.fillRect(0, 0, N, N); dx.globalCompositeOperation = 'destination-out'; dx.drawImage(mc, 0, 0); // dark only where it's thin
     const x = sts.spr.getContext('2d'); x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, N, N); x.drawImage(bc, 0, 0);
-    const [rc, rx2] = tmp(1); // the edges darken softly where it's thinnest and drying: dark everywhere except the blurred middle of the blob
-    rx2.fillStyle = 'rgba(35,0,4,.55)'; rx2.fillRect(0, 0, N, N); rx2.globalCompositeOperation = 'destination-out'; rx2.filter = `blur(${S * .7}px)`; rx2.drawImage(bc, 0, 0); rx2.filter = 'none';
-    x.globalCompositeOperation = 'source-atop'; x.drawImage(rc, 0, 0);
-    const [hc, hx] = tmp(2); // wet: a thin highlight along the edges that face the light (top left), the blob less a copy of itself nudged that way
-    hx.drawImage(bc, -S * .35, -S * .35); hx.globalCompositeOperation = 'source-in'; hx.fillStyle = 'rgba(255,215,215,.5)'; hx.fillRect(0, 0, N, N);
-    hx.globalCompositeOperation = 'destination-out'; hx.drawImage(bc, S * .5, S * .5);
-    x.drawImage(hc, 0, 0); x.globalCompositeOperation = 'source-over';
+    x.globalCompositeOperation = 'source-atop'; x.globalAlpha = .5; x.drawImage(dc, 0, 0); x.globalCompositeOperation = 'source-over'; x.globalAlpha = 1; // matte, a touch darker at the edges where it's drying (no shine: it read as plastic)
     sts.dirty = false;
   }
   return sts.spr;
