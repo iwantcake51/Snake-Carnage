@@ -694,6 +694,8 @@ body.theme-gold .play,body.theme-toxic .play{color:#1b1406}
 #resume{left:50%;top:50%;bottom:auto;translate:-50% -50%}
 #resume .rp{padding:11px 18px;font-size:14px}
 #resume.gone .rp{animation:resumeOut .3s ease-in forwards}
+#resume{transition:opacity .25s ease}
+#resume.hov{opacity:.5} /* hovered: half see-through (32-ui-customize), back to full off it */
 @keyframes resumeOut{to{opacity:0;scale:.92;filter:blur(2px)}}
 
 /* time of day picker in the menu */

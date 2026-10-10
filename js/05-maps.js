@@ -325,11 +325,10 @@ const MAPS = [
           const roads = list => { // [rect, along y?, quiet?]: worn road, its tyre streaks running along the street; quiet streets a shade darker
             for (const v of [false, true]) { const part = list.filter(l => l[1] === v); if (part.length && !(real && texShape(x, 'road', q => part.forEach(([r]) => q.fillRect(...r)), undefined, v ? 0 : Math.PI / 2))) part.forEach(([r, , qt]) => asph(r, qt ? '#3f3f45' : '#45454c')); }
             if (real && GTEX.ok) { x.fillStyle = 'rgba(0,0,0,.08)'; list.forEach(([r, , qt]) => qt && x.fillRect(...r)); } };
-          const concrete = (r, tint) => { if (real && texShape(x, 'walk', q => q.fillRect(...r))) { x.fillStyle = tint; x.fillRect(...r); return true; } return false; };
           grass([16, 16, 928, 46], 31, false); grass([904, 16, 40, 608], 32, false); // the verges at the edge of town
           grass(SQ, 33); grass([678, 122, 166, 150], 34); grass([678, 560, 166, 64], 35); // the square, the churchyard, the front lawns
           lots([[16, 122, 198, 98], [16, 368, 388, 152], [266, 520, 138, 104], [484, 368, 110, 180]], '#4a4a51'); // service yard, market lot, loading side, diner lot
-          if (!concrete([678, 368, 166, 116], 'rgba(40,38,34,.3)')) { x.fillStyle = '#8f8c86'; x.fillRect(678, 368, 166, 116); } x.fillStyle = '#9a978f'; for (let i = 678; i < 844; i += 28) x.fillRect(i, 368, 1, 116); // forecourt concrete, darker with oil and tyres
+          lots([[678, 368, 166, 116]], '#4d4d54'); // the gas station's forecourt: asphalt
           x.fillStyle = '#cfc6b4'; x.fillRect(SQ[0], SQC[1] - 8, SQ[2], 16); x.fillRect(SQC[0] - 8, SQ[1], 16, SQ[3]); circ(x, SQC[0], SQC[1], 48); // the square's paths and plaza
           x.strokeStyle = '#bfb5a1'; x.lineWidth = 1; x.beginPath(); x.arc(SQC[0], SQC[1], 48, 0, TAU); x.stroke();
           x.fillStyle = '#cfc6b4'; x.fillRect(728, 256, 16, 16); x.fillRect(712, 560, 12, 12); x.fillRect(808, 560, 12, 8); x.fillRect(758, 560, 26, 10); // church path, garden paths, the driveway
