@@ -20,7 +20,8 @@ function render() {
   if (cw > 0) { V.ox += (Math.sin(T * 1.25) * 7 + Math.sin(T * 2.9) * 2) * cw; V.oy += (Math.sin(T * .95 + 1.2) * 5 + Math.sin(T * 2.3) * 1.5) * cw; } // the room sways after a wall
   const st0 = snake && snake.ramT > 0 ? Math.min(1, Math.pow(snake.ramT / (snake.ramMax || 1), .6) * (snake.stunFx || 1)) : 0;
   const olOff = st0 > .3 || boomDaze() > .05; // (a light knock leaves them) // smashed through something, or shaken by a blast
-  render.olk = (render.olk ?? 1) + ((olOff ? 0 : 1) - (render.olk ?? 1)) * (olOff ? .25 : .03); // everything else's outlines drop out fast, stay gone while dizzy, then creep back (yours stays)
+  const olT = (olOff ? 0 : 1) * (typeof GAS_SEE === 'number' ? GAS_SEE : 1); // (in gas you can't make out anyone's outline either: 38g)
+  render.olk = (render.olk ?? 1) + (olT - (render.olk ?? 1)) * (olT < (render.olk ?? 1) ? .25 : .03); // everything else's outlines drop out fast, stay gone while dizzy or in gas, then creep back (yours stays)
   render.dazed = st0 > .3;
   x.setTransform(DPR, 0, 0, DPR, 0, 0);
   x.fillStyle = MAPS[mapIdx].border; x.fillRect(0, 0, W, H);

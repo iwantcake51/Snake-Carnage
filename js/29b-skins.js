@@ -110,14 +110,14 @@ function texRamp(stops, t, o) { // o = the color at t along stops [[t, [r, g, b]
 }
 const texMix = (o, c, k) => { o[0] += (c[0] - o[0]) * k; o[1] += (c[1] - o[1]) * k; o[2] += (c[2] - o[2]) * k; return o; };
 const TEX_CACHE = new Map(), TEX_PAT = new WeakMap();
-function texFields(t) { // the noise itself: once per skin, whatever the colors
-  if (t.vals) return;
-  const { w, h, ppu, v0 } = TEX, k = t.k || 1, f = t.field(), vals = new Float32Array(w * h * k), o = new Float32Array(k);
-  for (let y = 0; y < h; y++) { const v = -v0 + (y + .5) / h * 2 * v0; for (let x = 0; x < w; x++) { f((x + .5) / ppu, v, o); vals.set(o, (y * w + x) * k); } }
-  t.vals = vals;
+function texFields(t, until) { // the noise itself: once per skin, whatever the colors. until: a time to stop by and carry on later (true once it's done)
+  if (t.vals) return true;
+  const r = t.res || 1, w = TEX.w * r, h = TEX.h * r, ppu = TEX.ppu * r, v0 = TEX.v0, k = t.k || 1, b = t.build || (t.build = { f: t.field(), vals: new Float32Array(w * h * k), o: new Float32Array(k), y: 0 }), { f, vals, o } = b;
+  for (; b.y < h; b.y++) { if (until && performance.now() > until) return false; const y = b.y, v = -v0 + (y + .5) / h * 2 * v0; for (let x = 0; x < w; x++) { f((x + .5) / ppu, v, o); vals.set(o, (y * w + x) * k); } }
+  t.vals = vals; t.build = null; return true;
 }
-function skinTex(name, cfg) { // the texture canvas for this skin in these colors
-  const t = SNAKE_SKINS[name].tex, key = name + cfg.color + cfg.color2, { w, h } = TEX, k = t.k || 1;
+function skinTex(name, cfg) { // the texture canvas for this skin in these colors (res: a finer texture, that many pixels for each of TEX's)
+  const t = SNAKE_SKINS[name].tex, key = name + cfg.color + cfg.color2, w = TEX.w * (t.res || 1), h = TEX.h * (t.res || 1), k = t.k || 1;
   let c = TEX_CACHE.get(key); if (c) return c;
   texFields(t);
   c = document.createElement('canvas'); c.width = w; c.height = h;
@@ -129,16 +129,16 @@ function skinTex(name, cfg) { // the texture canvas for this skin in these color
 }
 function skinPattern(x, cfg) { // a pattern of the texture for this canvas (patterns are made per context)
   const c = skinTex(cfg.pattern, cfg); let m = TEX_PAT.get(x); if (!m) TEX_PAT.set(x, m = new Map());
-  let p = m.get(c); if (!p) { if (m.size > 24) m.clear(); p = x.createPattern(c, 'repeat'); m.set(c, p); }
+  let p = m.get(c); if (!p) { if (m.size > 24) m.clear(); p = x.createPattern(c, 'repeat'); p.res = SNAKE_SKINS[cfg.pattern].tex.res || 1; m.set(c, p); }
   return p;
 }
 function texBand(p, F, pts, B, i, u0) { // fallback: lays the texture over band i in segment i's own frame (u0: the texture's offset down the body)
-  const g = pts[i], ca = Math.cos(g.a), sn = Math.sin(g.a), k = F.R0 / TEX.ppu, r = B.rad[i], q = r * 2 * TEX.v0 / TEX.h, u = F.uSeg(i) - u0;
+  const g = pts[i], ca = Math.cos(g.a), sn = Math.sin(g.a), rs = p.res || 1, k = F.R0 / (TEX.ppu * rs), r = B.rad[i], q = r * 2 * TEX.v0 / (TEX.h * rs), u = F.uSeg(i) - u0;
   p.setTransform({ a: -ca * k, b: -sn * k, c: -sn * q, d: ca * q, e: g.x + ca * F.R0 * u + sn * r * TEX.v0, f: g.y + sn * F.R0 * u - ca * r * TEX.v0 });
   return p;
 }
 function texTri(p, u0, v0, u1, v1, u2, v2, x0, y0, x1, y1, x2, y2) { // maps the texture's (u, v) at three corners exactly onto three points. Triangles that share two
-  const ku = TEX.ppu, kv = TEX.h / (2 * TEX.v0), a0 = u0 * ku, b0 = (v0 + TEX.v0) * kv;   // corners agree all along the line through them, so the texture runs on without a seam
+  const rs = p.res || 1, ku = TEX.ppu * rs, kv = TEX.h * rs / (2 * TEX.v0), a0 = u0 * ku, b0 = (v0 + TEX.v0) * kv; // corners agree all along the line through them, so the texture runs on without a seam
   const a = (u1 - u0) * ku, b = (v1 - v0) * kv, c = (u2 - u0) * ku, d = (v2 - v0) * kv, det = a * d - b * c;
   if (Math.abs(det) < 1e-6) return false;
   const e1x = x1 - x0, e1y = y1 - y0, e2x = x2 - x0, e2y = y2 - y0, A = (e1x * d - e2x * b) / det, C = (e2x * a - e1x * c) / det, Bm = (e1y * d - e2y * b) / det, D = (e2y * a - e1y * c) / det;
@@ -368,12 +368,12 @@ const SNAKE_SKINS = {
         o[0] = p.d[0]; o[1] = p.d[1]; o[2] = p.d[2]; const q2 = q * q, q4 = q2 * q2; texMix(o, c, Math.min(1, q4 * 1.3 + q * .1)); texMix(o, p.w, q4 * q4 * q4 * .85); return o; } } },
   Obsidian: { gloss: .15, // volcanic glass, your second color nearly black, with veins of your first glowing through it: crisp broken reflections along the top instead of a soft sheen, a faint glow of the veins along the far edge, and sharp glints where it fractured
     base: (u, c) => shade(c.color2, -.82),
-    tex: { k: 2, flow: .3,
+    tex: { k: 2, flow: .3, res: 2, // (a finer texture: the veins are thin, and coarser they'd step)
       field() { const a = texNoise(71, .125, .6, 4), r = texNoise(72, .125, .9, 4), w = texNoise(73, .125, .6, 2); return (u, v, o) => { o[0] = a(u, v); o[1] = 1 - Math.abs(r(u + w(u, v) * 2, v)); }; },
       pal: (P, S) => ({ g0: rgbOf(shade(S, -.9)), g1: rgbOf(shade(mixColor(S, P, .15), -.72)), vein: rgbOf(P), core: rgbOf(mixColor(mixColor(P, S, .25), '#ffffff', .55)) }),
       color: (f, i, p, o) => { const k = sstep(-.35, .55, f[i]), q = f[i + 1];
         o[0] = p.g0[0] + (p.g1[0] - p.g0[0]) * k; o[1] = p.g0[1] + (p.g1[1] - p.g0[1]) * k; o[2] = p.g0[2] + (p.g1[2] - p.g0[2]) * k;
-        texMix(o, p.vein, sstep(.9, .98, q) * .95); texMix(o, p.core, sstep(.975, .998, q) * .9); return o; } },
+        texMix(o, p.vein, sstep(.87, .975, q) * .95); texMix(o, p.core, sstep(.955, .997, q) * .85); return o; } }, // edges soft enough to span a few texels
     paint(x, F, A, B, c) {
       const u0 = Math.max(A, .4), u1 = Math.min(B, F.uEnd - .6); x.lineCap = 'round';
       if (u1 > u0) { x.beginPath(); F.line(x, u0, u1, .74); x.strokeStyle = rgbaOf(c.color, .16); x.lineWidth = F.R0 * .12; x.stroke(); } // the veins' glow caught along the far edge
@@ -381,16 +381,96 @@ const SNAKE_SKINS = {
       x.strokeStyle = 'rgba(255,255,255,.05)'; x.lineWidth = F.R0 * .34; x.stroke(); x.strokeStyle = 'rgba(255,255,255,.1)'; x.lineWidth = F.R0 * .16; x.stroke(); x.strokeStyle = 'rgba(255,255,255,.42)'; x.lineWidth = F.R0 * .05; x.stroke();
       fillP(x, 'rgba(255,255,255,.12)', () => F.each(A, B, 1.1, 1.7, (u, k) => { const h = SKIN_H(k, 130), sd = h < .5 ? -1 : 1, v = sd * (.2 + .3 * SKIN_H(k, 131)); F.poly(x, [[u, v], [u + .55 + .3 * h, v + sd * .1], [u + .18, v + sd * .32]], 1); }));
     } },
+  Camo: { scales: 1, gloss: .45, // woodland camouflage in your colors: broad patches of a darker mix, bright ones of your second color and black brush strokes, all with soft, torn edges
+    base: (u, c) => camoPal(c).b,
+    tex: { k: 3,
+      field() { const w1 = texNoise(81, .125, .5, 2), w2 = texNoise(82, .125, .5, 2), a = texNoise(83, .375, .8, 3), b = texNoise(84, .25, .9, 3), d = texNoise(85, .375, 1.2, 3);
+        return (u, v, o) => { const uu = u + w1(u, v) * .9, vv = v + w2(u, v) * .35; o[0] = a(uu, vv); o[1] = b(uu + 7.25, vv); o[2] = d(uu + 3.125, vv * 1.1 + .4); }; }, // (the patches warped, so their edges tear like a real print's)
+      pal: (P, S) => { const m = camoPal({ color: P, color2: S }); return { b: rgbOf(m.b), m: rgbOf(m.m), l: rgbOf(m.l), d: rgbOf(m.d) }; },
+      color: (f, i, p, o) => { o[0] = p.b[0]; o[1] = p.b[1]; o[2] = p.b[2];
+        texMix(o, p.m, sstep(-.04, .03, f[i])); texMix(o, p.l, sstep(.22, .29, f[i + 1])); texMix(o, p.d, sstep(.29, .36, f[i + 2])); return o; } } },
+  Bones: { gloss: .55, // the skeleton showing through dark skin: a chain of vertebrae down the spine, ribs curving back down the flanks, the tail's bones shrinking to its tip. The bones in your second color, the skin your first, nearly black
+    base: (u, c) => bonePal(c).g,
+    paint(x, F, A, B, c) {
+      const p = bonePal(c), per = .84, ribEnd = Math.max(3, F.uEnd * .62), lo = Math.max(A, 1.9 - per);
+      const rib = (u, sd, g, f) => { const t = v => (Math.abs(v) - .16) / 1.0, w = v => ((.17 - .08 * t(v)) / 2 + g) * f, cu = v => u + .52 * Math.pow(t(v), 1.5) + .05; // from the spine out and back, thinning toward its end
+        F.band(x, v => cu(v) - w(v), v => cu(v) + w(v), sd > 0 ? .16 : -1.16, sd > 0 ? 1.16 : -.16, 8); };
+      const ribs = g => F.each(lo, Math.min(B, ribEnd), 1.25, per, u => { if (u < 1.9) return; const f = 1 - sstep(ribEnd - 3, ribEnd, u); if (f < .15) return; rib(u, 1, g, f); rib(u, -1, g, f); }); // (they thin away at the back of the ribcage)
+      const verts = k => F.each(A, B, 1.25, per, (u, j) => F.blob(x, u, 0, .27 * k, .21 * k, .3 + (j % 5) * .1, .12, 12)); // the vertebrae
+      const wings = k => F.each(A, Math.min(B, ribEnd + 2), 1.25, per, u => F.poly(x, [[u - .075 * k, -.4 * k], [u + .075 * k, -.4 * k], [u + .075 * k, .4 * k], [u - .075 * k, .4 * k]], 2)); // and their wings
+      fillP(x, p.glow, () => { ribs(.075); verts(1.75); wings(1.6); }); // the faint glow of bone through skin
+      fillP(x, p.rim, () => { ribs(.03); verts(1.25); wings(1.25); });
+      fillP(x, p.bone, () => { ribs(0); verts(1); wings(1); });
+      fillP(x, p.mar, () => F.each(A, B, 1.25, per, u => F.dot(x, u, 0, .07))); // the marrow
+    } },
+  'Stained Glass': { gloss: 1.25, // leaded glass: panes in every shade between your two colors (round the color wheel), each its own sheet of rolled glass (a ripple and streaks
+    // running its own way, a few seeds of air) lit from behind, brightest in its middle and with a glint on one corner, set in rounded lead came that catches the
+    // light on one side, soldered where the leads meet; a soft gleam slides down the body and a pane edge glints now and then
+    base: (u, c) => mixColor(c.color, c.color2, .5),
+    tex: { k: 7, res: 2,
+      field: () => glassField(91),
+      pal: (P, S) => { const f = hslPath(P, S), ramp = [], M = mixColor(P, S, .5), lead = shade(M, -.86);
+        for (let i = 0; i < 16; i++) ramp.push(rgbOf(f(i / 15)));
+        return { ramp, lead: rgbOf(lead), dark: [0, 0, 0], came: rgbOf(mixColor(lead, '#ffffff', .4)), solder: rgbOf(mixColor(lead, '#ffffff', .52)), dim: rgbOf(shade(M, -.72)), hi: [255, 255, 255] }; },
+      color: (f, i, p, o) => { const h = f[i], e = f[i + 1], r = f[i + 2], vx = f[i + 3], gr = f[i + 4], sp = f[i + 5], lit = f[i + 6];
+        const c = p.ramp[Math.min(15, h * 16 | 0)], tone = SKIN_H(h * 1e6 | 0, 92), lk = (.74 + .42 * tone) * (1 + .1 * gr); // each pane its own shade, rippled
+        o[0] = c[0] * lk; o[1] = c[1] * lk; o[2] = c[2] * lk;
+        if (tone > .86) texMix(o, p.hi, .3); // now and then a paler sheet
+        texMix(o, p.hi, Math.max(0, .62 - r) * .36 + Math.max(0, gr - .35) * .25 + sp * .5); // lit from behind: brighter toward its middle, streaks and seeds catching it, a glint on one corner
+        texMix(o, p.dim, (1 - sstep(.07, .22, e)) * .42); // and darker where it meets the lead
+        const L = 1 - sstep(.055, .1, e); // the came, its edge soft enough not to break into steps
+        if (L > 0) { const hl = Math.sin(Math.PI * Math.min(1, e / .078)), cm = [p.lead[0], p.lead[1], p.lead[2]]; // across it, nothing on its ridge or at the glass, so no edge thinner than the texture
+          texMix(cm, p.came, hl * Math.max(0, lit) * .8); texMix(cm, p.dark, hl * Math.max(0, -lit) * .5); // its rounded top catches the light on the side that faces it
+          texMix(o, cm, L); }
+        const sd = Math.hypot(e, vx); if (sd < .13) { const cm = [p.lead[0], p.lead[1], p.lead[2]]; texMix(cm, p.solder, .55 + .45 * Math.max(0, 1 - sd / .07)); texMix(o, cm, 1 - sstep(.07, .13, sd)); } // a blob of solder where the leads meet
+        return o; } },
+    paint(x, F, A, B, c) {
+      const u0 = Math.max(A, .6), u1 = Math.min(B, F.uEnd - .4); if (u1 <= u0) return;
+      x.save(); x.globalCompositeOperation = 'lighter';
+      fillP(x, 'rgba(255,255,255,.08)', () => F.each(u0, u1, (T * 1.6) % 7.5 - 7.5, 7.5, u => F.band(x, v => u - .5 + .35 * v, v => u + .5 + .35 * v, -1.3, 1.3, 4))); // a gleam sliding slowly down the panes
+      x.beginPath(); let any = false; // and a glint on the glass now and then, each in its own stretch of the body
+      F.each(u0, u1, .4, 1.7, (u, k) => { const h = SKIN_H(k, 93), ph = T * (.16 + .1 * h) + h * 7, cy = Math.floor(ph), e = Math.sin(Math.PI * Math.min(1, (ph - cy) * 3)), id = k * 613 + cy;
+        if ((ph - cy) * 3 > 1 || SKIN_H(id, 94) < .45) return;
+        F.at(u + SKIN_H(id, 95) * 1.7, (SKIN_H(id, 96) * 2 - 1) * .75); const r = F.r * .36 * e; if (r < .3) return; any = true;
+        x.moveTo(F.X - r, F.Y); x.lineTo(F.X + r, F.Y); x.moveTo(F.X, F.Y - r); x.lineTo(F.X, F.Y + r); x.moveTo(F.X - r * .42, F.Y - r * .42); x.lineTo(F.X + r * .42, F.Y + r * .42); x.moveTo(F.X + r * .42, F.Y - r * .42); x.lineTo(F.X - r * .42, F.Y + r * .42); });
+      if (any) { x.strokeStyle = 'rgba(255,255,255,.75)'; x.lineWidth = F.R0 * .055; x.lineCap = 'round'; x.stroke(); }
+      x.restore();
+    } },
 };
 const lavaPal = c => skinPal(c, 'la', (P, S) => { const [C, H] = darkLight(P, S), crust = shade(mixColor(C, H, .2), -.8); return { g1: mixColor(C, H, .6), crust, rim: mixColor(crust, H, .4) }; });
 const galPal = c => skinPal(c, 'gx', (P, S) => ({ d: shade(mixColor(P, S, .3), -.88), star: mixColor(darkLight(P, S)[1], '#ffffff', .75) }));
 const goldPal = c => skinPal(c, 'go', (P, S) => ({ m: P, hi: mixColor(mixColor(P, S, .3), '#ffffff', .6), hiA: rgbaOf(mixColor(S, '#ffffff', .2), .75), lo: shade(P, -.45) }));
 const lunPal = c => skinPal(c, 'lu', (P, S) => ({ b: P, mare: shade(mixColor(P, S, .55), -.2), lit: mixColor(P, '#ffffff', .25), sh: shade(P, -.42), fl: shade(mixColor(P, S, .3), -.2) }));
 const marPal = c => skinPal(c, 'ma', (P, S) => ({ b: P, rust: shade(mixColor(P, S, .45), -.2), dust: S, rock: shade(mixColor(P, S, .5), -.55) }));
+const camoPal = c => skinPal(c, 'cm', (P, S) => { const [D] = darkLight(P, S); return { b: P, m: shade(mixColor(P, S, .45), -.28), l: mixColor(keepSeen(S, P), P, .15), d: shade(mixColor(D, P, .5), -.72) }; });
+const bonePal = c => skinPal(c, 'bn', (P, S) => { const g = shade(mixColor(P, S, .12), -.74), bone = mixColor(keepSeen(S, g), '#ffffff', .18); return { g, bone, rim: mixColor(g, bone, .38), glow: rgbaOf(bone, .13), mar: shade(mixColor(bone, P, .3), -.35) }; });
+function glassField(seed) { // Voronoi panes in body space, seamless down the body: o[0] the pane's own number, o[1] how far to the lead (its true distance, so the lead
+  // is even), o[2] how far from the pane's middle, o[3] how far to the next lead along (both small where leads meet), o[4] the glass's ripple and streaks, running
+  // the pane's own way, and seeds of air, o[5] the glint on its corner, o[6] how the lead beside it faces the light
+  const nu = 56, rows = 3, su = TEX.L / nu, sv = 2 * TEX.v0 / rows, LX = -.45, LY = -.89, R = rows + 2, Q = new Float64Array(nu * R * 4), X = new Float64Array(15), Y = new Float64Array(15);
+  for (let m = 0; m < nu; m++) for (let r = 0; r < R; r++) { const j = r - 1, k = m * 131 + (j + 2) * 977, q = (m * R + r) * 4; // each pane's middle, worked out once
+    Q[q] = (m + .15 + .7 * SKIN_H(k, seed)) * su; Q[q + 1] = -TEX.v0 + (j + .15 + .7 * SKIN_H(k, seed + 1)) * sv; Q[q + 2] = SKIN_H(k, seed + 2); Q[q + 3] = k; }
+  const ripple = texNoise(seed + 3, 1.5, 1.4, 3), streak = texNoise(seed + 4, .5, 3.2, 3), seeds = texNoise(seed + 5, 5, 5, 1);
+  return (u, v, o) => {
+    const ci = Math.floor(u / su), cj = Math.min(rows - 1, Math.max(0, Math.floor((v + TEX.v0) / sv))); let d1 = 1e9, b = 0, n = 0, h = 0, k = 0;
+    for (let di = -2; di <= 2; di++) { const i = ci + di, m = ((i % nu) + nu) % nu, sh = (i - m) * su;
+      for (let dj = -1; dj <= 1; dj++, n++) { const q = (m * R + cj + dj + 1) * 4, px = Q[q] + sh, py = Q[q + 1], d = (u - px) * (u - px) + (v - py) * (v - py); X[n] = px; Y[n] = py; if (d < d1) { d1 = d; b = n; h = Q[q + 2]; k = Q[q + 3]; } } }
+    d1 = Math.sqrt(d1); const bx = X[b], by = Y[b]; let e1 = 1e9, e2 = 1e9, lit = 0;
+    for (let n = 0; n < 15; n++) { if (n === b) continue; // the distance to each edge of the pane: across to the line halfway to each neighbour
+      const dx = X[n] - bx, dy = Y[n] - by, l = Math.hypot(dx, dy) || 1, ea = -((u - (bx + X[n]) / 2) * dx + (v - (by + Y[n]) / 2) * dy) / l;
+      if (ea < e1) { e2 = e1; e1 = ea; lit = -(dx * LX + dy * LY) / l; } else if (ea < e2) e2 = ea; }
+    const a = SKIN_H(k, seed + 6) * Math.PI, ca = Math.cos(a), sa = Math.sin(a), lu = (u - bx) * ca + (v - by) * sa, lv = (v - by) * ca - (u - bx) * sa; // the sheet's own grain
+    const sx = u - bx + su * .2, sy = v - by + sv * .22, sd = Math.hypot(sx / su, sy / sv);
+    o[0] = h; o[1] = Math.max(0, e1); o[2] = d1 / (su * .62); o[3] = Math.max(0, e2);
+    o[4] = ripple(u, v) * .55 + streak(lu + k % 37 * 1.7, lv) * .75 + Math.max(0, seeds(u, v) - .62) * 3;
+    o[5] = Math.pow(Math.max(0, 1 - sd / .2), 2) * (.25 + .75 * SKIN_H(k, seed + 7)); o[6] = lit;
+  };
+}
 const skinOf = cfg => SNAKE_SKINS[cfg.pattern] || SNAKE_SKINS.Solid;
 function segColor(i, n, cfg) { return skinOf(cfg).base(i * .9, cfg, n * .9); } // the skin's ground color at segment i, for code that wants one color (eyes, after-images)
 setTimeout(() => { // after loading, work the noise out in idle moments, one skin at a time, so the shop never stalls showing them
   const idle = f => window.requestIdleCallback ? requestIdleCallback(f, { timeout: 5000 }) : setTimeout(f, 300);
-  const todo = Object.values(SNAKE_SKINS).filter(sk => sk.tex), step = () => { const sk = todo.shift(); if (!sk) return; texFields(sk.tex); idle(step); };
+  const todo = Object.values(SNAKE_SKINS).filter(sk => sk.tex), step = d => { const sk = todo[0]; if (!sk) return; // a few rows at a time, while the page has nothing else to do
+    if (texFields(sk.tex, performance.now() + Math.max(4, Math.min(12, d && d.timeRemaining ? d.timeRemaining() : 8)))) todo.shift(); idle(step); };
   idle(step);
 }, 2500);

@@ -159,7 +159,7 @@ function netHostEvents(p, list) { // what a guest asks for or reports
 }
 function netHostBite(p, e) { // a guest's snake reached a creature on their screen: take their word for it, within reason
   const c = NS.byId.get(e.id), rs = NS.rs.get(p.id); if (!c || !c.alive || !rs || NS.down.get(p.id)) return;
-  const r = CONFIG.snakeR * .8 * (rs.scale || 1) + c.def.r, slack = 70; // their screen is a little behind ours: allow for it
+  const r = CONFIG.snakeR * .8 * (rs.scale || 1) + c.def.r * CR_HIT, slack = 70; // their screen is a little behind ours: allow for it
   if (dist2(e.x, e.y, c.x, c.y) > (r + slack) ** 2 || dist2(e.x, e.y, rs.x, rs.y) > 200 * 200) return;
   const me = snake; snake = rs; let amount; try { amount = eatWorld(c, rs.angle, eatAmount(c, rs), rs); } finally { snake = me; }
   creatures = creatures.filter(q => q.alive);
@@ -302,6 +302,7 @@ function netFinishRun(board) { // every player: the run is over, keep the lobby
   const m = MAPS[mapIdx].name; PROG.best[m] = Math.max(PROG.best[m] || 0, score); PROG.runs++; PROG.kills += kills.h + kills.a; PROG.coopRuns = (PROG.coopRuns || 0) + 1;
   checkChallenges(); statRunEnd(); updateHud(); saveProg && saveProg();
   state = 'dead'; deadT = 0; endCombo(true);
+  const sv = paySurvival(); if (sv) notify({ kind: 'info', icon: giSvg('hourglass'), title: 'Survival bonus', sub: `${sv.m} min alive · +${sv.xp} XP · +${sv.chips} chips`, dur: 4, key: 'surv' }); // every full minute you were alive this round
   if (typeof netShowResults === 'function') netShowResults(board);
 }
 /* ---- GUEST ---- */

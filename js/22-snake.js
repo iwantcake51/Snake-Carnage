@@ -74,12 +74,14 @@ function computeSegs(s) {
   if (frac > 1e-3 && n > 1) { const g = segs[n - 1], p = segs[n - 2]; g.x = p.x + (g.x - p.x) * frac; g.y = p.y + (g.y - p.y) * frac; } // the newest tail piece slides out of the one before it
 }
 
+const CR_HIT = 1.25; // people and animals are a little easier to catch: the bite reaches this much further than their bodies
+const turnSizeK = s => clamp(1.1 - (s.segs ? s.segs.length : 0) / 450, .72, 1.1); // like slither.io: a long snake swings round slower than a short one
 function updateSnake(dt) {
   const s = snake; if (!s.started || !s.alive) return;
   updateSize(s, dt);
   if (mouseSteerOn()) mouseSteer(); // Mouse steering: head for the cursor
   // ease toward the target heading: quick to start, settles softly, capped so it never snaps
-  const d = angDiff(s.angle, s.dir), mx = Math.min(CONFIG.turnRate * dt * SKV.turn() * ((s.dashV || 1) > 1.2 ? SKV.lungeTurn() : 1), (s.dashV || 1) > 1.2 ? s.speed * s.dashV * dt / (snakeRadius() * 1.7) : 99) /* mid-lunge the turn can't get tighter than the body is wide */ * (s.uturnT > 0 ? s.uturnK || 2.4 : 1) * (MOD.wideTurns ? .5 : MOD.quickTurn ? 1.6 : 1); // Wide turns / Quick turn modifiers. Sidewinder: snappier turns; Whiplash: sharper mid-lunge; Momentum: a fast whip round on a U-turn
+  const d = angDiff(s.angle, s.dir), mx = Math.min(CONFIG.turnRate * dt * SKV.turn() * ((s.dashV || 1) > 1.2 ? SKV.lungeTurn() : 1), (s.dashV || 1) > 1.2 ? s.speed * s.dashV * dt / (snakeRadius() * 1.7) : 99) /* mid-lunge the turn can't get tighter than the body is wide */ * (s.uturnT > 0 ? s.uturnK || 2.4 : 1) * (MOD.wideTurns ? .5 : MOD.quickTurn ? 1.6 : 1) * turnSizeK(s); // Wide turns / Quick turn modifiers; and the bigger you are, the wider you turn Sidewinder: snappier turns; Whiplash: sharper mid-lunge; Momentum: a fast whip round on a U-turn
   const ad = Math.abs(d); s.angle += Math.sign(d) * Math.min(ad, mx, ad * (1 - Math.exp(-dt * CONFIG.turnEase)) + mx * .18); // never past the target: overshooting it made the head flick side to side every frame, worse the lower the frame rate
   if (s.uturnT > 0) { s.uturnT -= dt; if (s.uturnTo !== undefined && Math.abs(angDiff(s.angle, s.dir)) < .5) { s.dir = s.uturnTo; s.uturnTo = undefined; } } // second half of the U-turn
   const stunK = MOD.quickRecovery ? 2 : MOD.heavyImpact ? .5 : 1; // Quick recovery / Heavy impact: dazes wear off twice as fast, or half as fast (Thick Skull makes them weaker to begin with: smashObstacle, detonate)
@@ -109,7 +111,7 @@ function updateSnake(dt) {
 
   hoover(s, dt);
   let ate = false;
-  for (const c of nearbyCreatures(s.x, s.y, r + 16, EAT_NB)) if (c.alive && dist2(s.x, s.y, c.x, c.y) < (r + c.def.r) ** 2) { eat(c); ate = true; } // biggest body radius is ~14
+  for (const c of nearbyCreatures(s.x, s.y, r + 20, EAT_NB)) if (c.alive && dist2(s.x, s.y, c.x, c.y) < (r + c.def.r * CR_HIT) ** 2) { eat(c); ate = true; } // biggest body radius is ~14 (a bit more as a target: CR_HIT)
   if (ate) creatures = creatures.filter(c => c.alive);
 
   if (s.drip > 0) { // blood dripping from the jaws for a while after a kill
@@ -287,6 +289,7 @@ function eatWorld(c, ang, amount, s) {
   pools.push({ x: c.x, y: c.y, r: 2, c: pc, max: (3 + amount * 8.5) * rand(.85, 1.15) * ({ Minimal: .5, Reduced: .75 }[SETTINGS.bloodAmt] || 1), ang,
                lobes: Array.from({ length: randi(7, 11) }, () => ({ dx: rand(-.6, .6), dy: rand(-.6, .6), s: rand(.35, 1) })) });
   bloodMist(c.x, c.y, ang, amount, bloodOf(c));
+  deathRing(c.x, c.y, c.def.r, bloodOf(c), c.def.r > 9); // it goes up in a ring of mist
   Sfx.eat(c.x, c.def.human, amount, c.def.alien ? 'alien' : '');
   if (s && s !== snake && s.drip !== undefined) { s.drip = 2.5 * amount; s.dripCol = bloodOf(c); }
   if (AUTH()) { // the crowd: who saw it, where to avoid now, who comes to take their place
@@ -338,14 +341,16 @@ function ramSpot(o, x, y) { // a custom prop can say WHERE it breaks (its intera
   return polyHit(ip, x, y, snakeHitRadius() + 2);
 }
 let crashHit = null; // what you ran into: it flashes as the run ends
-const deathDelay = () => (IS_TOUCH ? .3 : .7) + (['bomb', 'fuse', 'cluster', 'fire'].includes(run.deathBy) ? 1.5 : 0); // a beat to feel the impact (the hit flashes, the screen shakes), then the crash screen. Phones get it fast. Blown up: time to watch yourself go off
+const deathDelay = () => (IS_TOUCH ? .5 : 1) + (['bomb', 'fuse', 'cluster', 'fire'].includes(run.deathBy) ? 1.5 : 0); // a beat to feel the impact (the hit flashes, the screen shakes), then the crash screen. Phones get it fast. Blown up: time to watch yourself go off
 function die() {
   if (NETM.run) return netLocalDown(); // co-op: you go down, the team carries on (see 40d-net-sync)
+  const burst = !snake.netHidden && snake.segs && snake.segs.length; // you go up, from the head that hit (a blast, fire or the fuse have already burst you from where they got you)
+  if (burst) { snake.netHidden = true; snakeBurst(snake, SETTINGS.snake.color, SETTINGS.snake, 0); }
   snake.alive = false; state = 'dead'; deadT = deathDelay(); deadAt = performance.now(); shake = 10;
-  Sfx.crash(snake.x);
+  if (!burst) Sfx.crash(snake.x); // (the burst has its own)
   const m = MAPS[mapIdx].name;
   PROG.best[m] = Math.max(PROG.best[m] || 0, score); PROG.runs++; PROG.kills += kills.h + kills.a;
   if (run.lastHumanT !== undefined && T - run.lastHumanT < 2 && PROG.kH >= 250) PROG.karma = 1; // ate someone, then died for it
-  checkChallenges(); statRunEnd();
+  checkChallenges(); statRunEnd(); paySurvival(); // (the bonus for every minute alive: on the summary)
   updateHud();
 }

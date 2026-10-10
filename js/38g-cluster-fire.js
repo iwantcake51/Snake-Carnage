@@ -27,7 +27,7 @@ function nearWater(x, y, pad) { // inside a pond, a pool or a fountain, or withi
     if (S.round ? Math.hypot(x - S.cx, y - S.cy) < S.hw + pad : Math.abs(x - S.cx) < S.hw + pad && Math.abs(y - S.cy) < S.hh + pad) return true; }
   return false;
 }
-function fireReset() { bomblets = []; firePatches = []; gasPuffs = []; gasBubbles = []; gasStains = []; gasWisps = []; if (snake) { burnClear(snake); snake.gasK = 0; } }
+function fireReset() { GAS_SEE = 1; bomblets = []; firePatches = []; gasPuffs = []; gasBubbles = []; gasStains = []; gasWisps = []; if (snake) { burnClear(snake); snake.gasK = 0; } }
 
 /* ---- cluster bombs ---- */
 function simBomblet(x, y, a, sp, vz) { // the whole flight, worked out at once at a fixed step, so every screen gets the same path: bounces off the ground and off walls, then a roll to a stop
@@ -69,8 +69,8 @@ function bombletTick(dt) {
 function drawBomblets(x) { // where each one will stop (marked from the moment it splits), and the bomblet itself: bouncing, then lying there blinking faster and faster
   for (const b of bomblets) { const left = b.fuse - b.t, u = clamp(1 - left / b.fuse, 0, 1), on = Math.sin(b.blink + b.t * (8 + 26 * u)) > 0;
     x.save(); x.translate(b.x, b.y);
-    x.globalAlpha = .18 + .14 * u; x.fillStyle = '#ff7a1a'; circ(x, 0, 0, b.r);
-    x.globalAlpha = .9; x.strokeStyle = on ? '#ffd23f' : '#ff5a1f'; x.lineWidth = 1.6; x.setLineDash([4, 3]); x.beginPath(); x.arc(0, 0, b.r, 0, TAU); x.stroke(); x.setLineDash([]);
+    const ma = GAS_SEE; x.globalAlpha = (.18 + .14 * u) * ma; x.fillStyle = '#ff7a1a'; circ(x, 0, 0, b.r); // (in gas you can't make the marks out)
+    x.globalAlpha = .9 * ma; x.strokeStyle = on ? '#ffd23f' : '#ff5a1f'; x.lineWidth = 1.6; x.setLineDash([4, 3]); x.beginPath(); x.arc(0, 0, b.r, 0, TAU); x.stroke(); x.setLineDash([]);
     x.strokeStyle = '#fff'; x.lineWidth = 2; x.beginPath(); x.arc(0, 0, b.r - 3, -Math.PI / 2, -Math.PI / 2 + TAU * (1 - u)); x.stroke(); // time left
     x.restore();
     const [px, py, pz] = bombletPos(b);
@@ -141,7 +141,7 @@ function burnOut(s) { // into the water: out at once, in a cloud of steam
   notify({ kind: 'info', icon: giSvg('fire'), title: 'Put out', dur: 1.4, key: 'burn' });
 }
 function burnDamage(s) { // a piece of the tail burns off: charred bits and blood; at the shortest it can be, the next one kills it
-  if (s.len <= BURN.min) { airHurt(1); return bombDeath('fire'); }
+  if (s.len <= BURN.min) { airHurt(1); s.burstAt = s.segs.length - 1; return bombDeath('fire'); } // burned down from the tail: it goes up from there
   const keep = Math.max(BURN.min, s.len - (s.len > 24 ? 2 : 1)), piece = s.segs.slice(keep), cfg = SETTINGS.snake, P = cfg.color || '#4e7cf6', Q = cfg.color2 || shade(P, .3);
   burnBits(piece, P, Q);
   if (NETM.run) { const m = { t: 'brn', s: piece.flatMap(g => [Math.round(g.x), Math.round(g.y)]), c: P, c2: Q, by: NETM.me }; if (NETM.host) netEmit(m); else netSend(m); } // everyone sees it burn off
@@ -315,14 +315,16 @@ function gasPop(s) { // every screen: the canister blows with a dull bang, a bub
 const gasMove = (p, dt) => { p.x += Math.cos(p.ph + T * .15) * 3 * dt; p.y += Math.sin(p.ph * 1.7 + T * .12) * 3 * dt; }; // it drifts a little (the same way everywhere: it only depends on the clock)
 function inGas(x, y) { let k = 0; for (const p of gasPuffs) { if (p.t < 0) continue; const [px, py, pr] = gasAt(p), d2 = dist2(x, y, px, py), R = pr * .9; if (d2 < R * R) k = Math.max(k, gasK(p) * (1 - Math.sqrt(d2) / R * .4)); } return k; }
 const gasSlow = s => s && s.gasK > 0 ? .45 * s.gasK * SKV.dazeCut() : 0; // Battle Hardened: less slowed, as by everything else
+let GAS_SEE = 1; // how much of the outlines and the bomb markers you can make out: gone while you're in gas, back slowly once you're clear (the Gas Mask keeps your eyes clear)
 const gasScreen = () => snake && snake.alive && snake.gasK > 0 && !sk('mask') ? snake.gasK : 0; // the Gas Mask: none of it reaches your eyes
 function gasTick(dt) {
   for (let i = gasPuffs.length - 1; i >= 0; i--) { const p = gasPuffs[i]; p.t += dt; if (p.t > p.life) { gasPuffs.splice(i, 1); continue; } gasMove(p, dt); }
   for (let i = gasBubbles.length - 1; i >= 0; i--) if ((gasBubbles[i].t += dt) > gasBubbles[i].dur) gasBubbles.splice(i, 1);
   for (let i = gasStains.length - 1; i >= 0; i--) if ((gasStains[i].t += dt) > gasStains[i].life) gasStains.splice(i, 1);
   const s = snake; if (!s) return;
-  if (!s.alive || s.netHidden || state !== 'play') { if (state !== 'paused') s.gasK = 0; return; }
+  if (!s.alive || s.netHidden || state !== 'play') { if (state !== 'paused') { s.gasK = 0; GAS_SEE = 1; } return; }
   const g = gasPuffs.length ? inGas(s.x, s.y) : 0, was = s.gasK || 0; // what you breathe: where your head is
+  GAS_SEE = g > .05 && !sk('mask') ? Math.max(0, GAS_SEE - dt * 3) : Math.min(1, GAS_SEE + dt / 4.5); // in it: the outlines and the markers are gone in a moment; out of it, they take a few seconds to come back
   s.gasK = g > .05 ? Math.min(1, was + dt * 2 * g) : Math.max(0, was - dt * .35); // it gets into you fast, and wears off slowly
   if (AUTH() && gasPuffs.length && (gasTick.ai = (gasTick.ai || 0) - dt) <= 0) { gasTick.ai = .4; // the crowd: anyone in it just walks slower and coughs (no panic, no stumbling)
     for (const p of gasPuffs) { if (p.t < 0 || gasK(p) < .2) continue; const [px, py, pr] = gasAt(p); for (const c of nearbyCreatures(px, py, pr, [])) { if (!c.alive || c.def.fly || dist2(c.x, c.y, px, py) > pr * pr) continue;

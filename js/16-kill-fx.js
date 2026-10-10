@@ -46,6 +46,7 @@ function bloodMist(x, y, dirA, amount, cols) {
   }
 }
 function updateMist(dt) {
+  for (let i = dRings.length - 1; i >= 0; i--) if ((dRings[i].t += dt) > dRings[i].life) dRings.splice(i, 1);
   for (let i = mist.length - 1; i >= 0; i--) {
     const m = mist[i]; m.t += dt; if (m.t > m.life) { mist[i] = mist[mist.length - 1]; mist.pop(); continue; }
     const f = Math.exp(-dt * 4); m.vx *= f; m.vy *= f; m.x += m.vx * dt; m.y += m.vy * dt; m.r += m.g * dt;
@@ -54,6 +55,39 @@ function updateMist(dt) {
 function drawMist(x) {
   for (const m of mist) {
     const k = 1 - m.t / m.life; x.globalAlpha = m.a * k * k; x.fillStyle = m.c; circ(x, m.x, m.y, m.r);
+  }
+  x.globalAlpha = 1;
+  if (dRings.length) drawRings(x);
+}
+/* DEATH RING: whatever dies goes up in a small ring of mist in its own blood color (the same red as the blood on the ground)
+   that bursts outward fast and is gone just as fast, a faint haze of the blood inside it. Each ring is one cached sprite,
+   Kenney smoke puffs laid round in a circle and filled flat in the blood color (soft round puffs before the atlas loads),
+   stretched as it spreads: one draw a frame per ring, nothing built after the first of each color */
+let dRings = [];
+const RING_SPR = new Map(), RING_S = 112, RING_R = 34, RING_V = 4; // the sprite's size and its ring's radius in its own pixels; how many different rings per color
+const RING_PUFF = (() => { const c = document.createElement('canvas'); c.width = c.height = 48; const x = c.getContext('2d'), g = x.createRadialGradient(24, 24, 0, 24, 24, 24); g.addColorStop(0, 'rgba(0,0,0,.8)'); g.addColorStop(.55, 'rgba(0,0,0,.38)'); g.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = g; x.fillRect(0, 0, 48, 48); return c; })();
+function ringSprite(col, v) {
+  const key = col + '|' + v + '|' + (KSPR.ok ? 1 : 0); let c = RING_SPR.get(key); if (c) return c;
+  if (RING_SPR.size > 48) RING_SPR.clear();
+  c = document.createElement('canvas'); c.width = c.height = RING_S; const x = c.getContext('2d'), m = RING_S / 2;
+  const hz = x.createRadialGradient(m, m, 0, m, m, RING_R); hz.addColorStop(0, 'rgba(0,0,0,.3)'); hz.addColorStop(.75, 'rgba(0,0,0,.16)'); hz.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = hz; x.fillRect(0, 0, RING_S, RING_S); // the faint blood mist inside
+  for (let k = 0, n = 13; k < n; k++) { // the ring: puffs of smoke, each a little in or out and its own size
+    const j = Math.sin(v * 91.7 + k * 12.9898) * 43758.5453, f = j - Math.floor(j), a = v * 1.9 + k / n * TAU + (f - .5) * .4, rr = RING_R * (.88 + f * .22), sz = RING_R * (.66 + f * .38);
+    const s = KSPR.ok && kMask(K_SMOKE[(k + v) % 4], 64, 2); x.globalAlpha = s ? .95 : .85;
+    x.save(); x.translate(m + Math.cos(a) * rr, m + Math.sin(a) * rr); x.rotate(a + f * 3); x.drawImage(s || RING_PUFF, -sz / 2, -sz / 2, sz, sz); x.restore();
+  }
+  x.globalAlpha = 1; x.globalCompositeOperation = 'source-in'; x.fillStyle = col; x.fillRect(0, 0, RING_S, RING_S); // all of it the blood's own color
+  RING_SPR.set(key, c); return c;
+}
+function deathRing(x, y, r, cols, big) { // r: the body's radius; cols: its blood
+  if (dRings.length >= (SETTINGS.fxLevel === 'Low' ? 6 : 16)) dRings.shift();
+  dRings.push({ x, y, r0: r * .6, r1: big ? r * 3 + 12 : r * 2.4 + 8, t: 0, life: big ? .45 : .34, col: pick(cols && cols.length ? cols : [BLOOD]), v: Math.random() * RING_V | 0 });
+}
+function drawRings(x) {
+  const A = { Minimal: .4, Reduced: .7 }[SETTINGS.bloodAmt] || 1;
+  for (const g of dRings) {
+    const u = g.t / g.life, e = 1 - Math.pow(1 - u, 3), R = g.r0 + (g.r1 - g.r0) * e, D = R * RING_S / RING_R; // out fast, easing off
+    x.globalAlpha = Math.pow(1 - u, 1.4) * A; x.drawImage(ringSprite(g.col, g.v), g.x - D / 2, g.y - D / 2, D, D);
   }
   x.globalAlpha = 1;
 }
