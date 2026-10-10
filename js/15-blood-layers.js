@@ -182,7 +182,7 @@ function updateBlood(dt) { // every live drop moves every frame at every quality
     const pl = pools[i];
     pl.r += (pl.max - pl.r) * dt * (pl.r > pl.max * .85 ? .9 : 2.2); markF(); // spreads fast, then slowly settles
     if (snowAt(pl.x, pl.y) > .12) stainDisk(pl.x, pl.y, pl.r * 1.1, dt * pl.r * .5, rgbOf2(pl.c || BLOOD)); // a pool in snow soaks in
-    else { fctx.fillStyle = pl.c || BLOOD;
+    else { fctx.fillStyle = bloodFill(fctx, pl.c);
     for (const l of pl.lobes) ell(fctx, pl.x + l.dx * pl.r, pl.y + l.dy * pl.r, pl.r * l.s, pl.r * l.s * .85);
     fctx.globalAlpha = .1; fctx.fillStyle = shade(pl.c || BLOOD, -.5); ell(fctx, pl.x + pl.lobes[0].dx * pl.r * .3, pl.y + pl.lobes[0].dy * pl.r * .3, pl.r * .6, pl.r * .5); fctx.globalAlpha = 1; } // thicker, darker toward the middle
     for (let j = -2; j <= 2; j++) for (let k = -2; k <= 2; k++) {
@@ -191,7 +191,7 @@ function updateBlood(dt) { // every live drop moves every frame at every quality
     }
     if (pl.r > pl.max * .985) {
       if (snowAt(pl.x, pl.y) < .12) { // settled: a few drops around the edge, and it stays glossy for a while
-        fctx.fillStyle = pl.c || BLOOD;
+        fctx.fillStyle = bloodFill(fctx, pl.c);
         for (let k = Math.round(randi(4, 9) * BQ().sat); k > 0; k--) { const a = (pl.ang || 0) + rand(-1.6, 1.6), d = pl.r * rand(1.05, 1.7), dr = rand(.6, 1.8); circ(fctx, pl.x + Math.cos(a) * d, pl.y + Math.sin(a) * d, dr); if (dr > 1.2 && Math.random() < .5) { fctx.lineWidth = dr * .8; fctx.strokeStyle = pl.c || BLOOD; fctx.beginPath(); fctx.moveTo(pl.x + Math.cos(a) * pl.r * .8, pl.y + Math.sin(a) * pl.r * .8); fctx.lineTo(pl.x + Math.cos(a) * d, pl.y + Math.sin(a) * d); fctx.stroke(); } }
         if (pl.max > 7) { gloss.push({ x: pl.x, y: pl.y, r: pl.r, c: pl.c || BLOOD, t: T, l: pl.lobes }); if (gloss.length > 30) gloss.shift(); }
       }

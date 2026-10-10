@@ -19,8 +19,28 @@ function spawnGiblets(c, dirA) {
     if (d.human && !d.alien && Math.random() < .25) col = Math.random() < .5 ? c.look.skin : c.look.top; // a scrap of skin or shirt
     else if (!d.human && Math.random() < .35) col = d.col;                                     // a tuft of fur
     gibs.push({ x: c.x + rand(-3, 3), y: c.y + rand(-3, 3), z: rand(5, 11), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(60, 170),
-      rot: rand(0, TAU), vr: rand(-14, 14), s: rand(2.2, 3.6) * (d.human ? 1 : .9), shape: randi(0, 2), col, bl, gold: !!c.golden, landed: false, rest: 0, life: rand(5, 15), age: 0, a: 1 });
+      rot: rand(0, TAU), vr: rand(-14, 14), s: rand(2.2, 3.6) * (d.human ? 1 : .9), shape: randi(0, 2), col, bl, rag: Array.from({ length: 9 }, () => rand(.68, 1.15)), po: [rand(0, 14), rand(0, 14)], gold: !!c.golden, landed: false, rest: 0, life: rand(5, 15), age: 0, a: 1 });
   }
+}
+/* a chunk's surface: marbled meat in its own color (muscle fibers running one way, darker; streaks of fat, paler; dark flecks), a
+   small seamless tile per color, built once, laid on each chunk at its own offset and turning with it */
+const FLESH_TILE = new Map(), FLESH_PAT = new WeakMap();
+function fleshTile(col) {
+  let c = FLESH_TILE.get(col); if (c) return c;
+  const N = 32, [r, g, b] = rgbOf2(col), fat = tileNoise(N, 4, 21), grain = tileNoise(N, 8, 23, 2), fleck = tileNoise(N, 16, 27, 1);
+  c = document.createElement('canvas'); c.width = c.height = N; const x = c.getContext('2d'), im = x.createImageData(N, N), d = im.data;
+  for (let i = 0; i < N * N; i++) {
+    const px = i % N, py = i / N | 0, fib = Math.sin((px + py * .35 + grain[i] * 6) / N * Math.PI * 2 * 6) * .5 + .5; // fibers: six bands across the tile, wavering
+    const f = Math.max(0, fat[i] - .62) * 2.6, dk = fleck[i] > .8 ? (fleck[i] - .8) * 3 : 0, k = (.8 + .28 * fib) * (1 - dk * .5);
+    d[4 * i] = Math.min(255, r * k + (255 - r * k) * f * .55); d[4 * i + 1] = Math.min(255, g * k + (225 - g * k) * f * .5); d[4 * i + 2] = Math.min(255, b * k + (215 - b * k) * f * .5); d[4 * i + 3] = 255;
+  }
+  x.putImageData(im, 0, 0); if (FLESH_TILE.size > 40) FLESH_TILE.clear(); FLESH_TILE.set(col, c); return c;
+}
+function fleshFill(x, col, ox, oy) {
+  if (!col || !col.startsWith('#')) return col;
+  let m = FLESH_PAT.get(x); if (!m) FLESH_PAT.set(x, m = new Map());
+  let p = m.get(col); if (!p) { p = x.createPattern(fleshTile(col), 'repeat'); m.set(col, p); }
+  p.setTransform(new DOMMatrix([.45, 0, 0, .45, ox, oy])); return p; // small: a fiber every couple of pixels on a chunk a few pixels across
 }
 const GUTS = ['#c96a78', '#d9858f', '#b5525f', '#e3a0a6']; // coils of gut when a snake bursts (snakeBurst lives in 38c-airstrikes)
 function gibBlocked(x, y, z) { // walls stop chunks; water is low, so they fly (or skid) right into it
@@ -81,19 +101,21 @@ function drawGiblets(x) {
     if (g.z > 1) { x.globalAlpha = .18 * g.a; x.fillStyle = '#000'; ell(x, g.x, g.y, s, s * .6); } // shadow while airborne
     if (g.fl) { x.globalAlpha = .35 * g.a; x.strokeStyle = '#fff'; x.lineWidth = .6; x.beginPath(); x.ellipse(g.x, g.y, s * 1.4 + g.bob, s + g.bob, 0, 0, TAU); x.stroke(); } // ring around a floating chunk
     x.globalAlpha = g.a; x.fillStyle = g.col;
-    x.save(); x.translate(g.x, y); x.rotate(g.rot);
+    x.save(); x.translate(g.x, y); x.rotate(g.rot); if (g.po) x.fillStyle = fleshFill(x, g.col, g.po[0], g.po[1]); // marbled meat, turning with the chunk
     x.beginPath();
     if (g.shape === 3) { // a coil of gut: a fat, wet, curling tube
       x.lineCap = 'round'; x.beginPath(); x.moveTo(-s * 1.3, s * .2); x.bezierCurveTo(-s * .7, -s * 1.1, s * .1, s * 1.1, s * 1.3, -s * .2);
       x.strokeStyle = 'rgba(70,0,6,.8)'; x.lineWidth = s * 1.05; x.stroke(); x.strokeStyle = g.col; x.lineWidth = s * .8; x.stroke();
       x.strokeStyle = 'rgba(255,230,230,.28)'; x.lineWidth = s * .22; x.stroke(); x.lineCap = 'butt'; x.restore(); continue;
     }
-    if (g.shape === 0) x.ellipse(0, 0, s, s * .65, 0, 0, TAU);
+    if (g.rag && g.shape < 2) { const n = g.rag.length, ey = g.shape ? .8 : .65; for (let k = 0; k < n; k++) { const t = k / n * TAU, rr = s * g.rag[k] * (g.shape && k % 2 ? .78 : 1); k ? x.lineTo(Math.cos(t) * rr, Math.sin(t) * rr * ey) : x.moveTo(Math.cos(t) * rr, Math.sin(t) * rr * ey); } x.closePath(); } // a torn, ragged chunk
+    else if (g.shape === 0) x.ellipse(0, 0, s, s * .65, 0, 0, TAU);
     else if (g.shape === 1) { x.moveTo(-s, -s * .5); x.lineTo(s * .9, -s * .7); x.lineTo(s * .6, s * .7); x.lineTo(-s * .8, s * .5); x.closePath(); }
     else { x.arc(-s * .35, 0, s * .6, 0, TAU); x.moveTo(s * .9, s * .1); x.arc(s * .4, s * .1, s * .5, 0, TAU); }
     x.fill(); x.strokeStyle = g.gold ? 'rgba(110,80,10,.8)' : g.bl === ALIEN_BLOOD ? 'rgba(20,60,8,.8)' : 'rgba(70,0,6,.75)'; x.lineWidth = .7; x.stroke(); // thin dark edge
     if (g.gold) { x.fillStyle = 'rgba(255,250,220,.55)'; circ(x, s * .2, -s * .25, s * .22); } // a metallic glint
-    x.fillStyle = 'rgba(255,255,255,.18)'; circ(x, -s * .25, -s * .2, s * .28); // tiny wet highlight
+    x.fillStyle = 'rgba(40,0,4,.18)'; circ(x, s * .2, s * .18, s * .5); // a darker, wetter underside
+    x.fillStyle = 'rgba(255,255,255,.22)'; circ(x, -s * .25, -s * .2, s * .24); // tiny wet highlight
     x.restore();
   }
   x.globalAlpha = 1;

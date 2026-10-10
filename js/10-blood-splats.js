@@ -1,9 +1,44 @@
 /* =========================================================
    BLOOD SYSTEM
    ========================================================= */
+/* BLOOD TEXTURE: blood isn't one flat color. Each blood color gets a seamless 128 px tile, built once: the color itself on
+   average, darker where it pooled thicker, clotted flecks, the odd lighter streak where it ran thin. Splats and pools fill with
+   it as a pattern anchored to the world, so overlapping splats share one texture and never show a seam (a fill costs the same) */
+function tileNoise(n, cells, seed, oct = 3) { // periodic value noise, n x n, about 0..1, wrapping at the edges
+  const out = new Float32Array(n * n); let amp = 1, tot = 0;
+  for (let o = 0; o < oct; o++, amp *= .5) {
+    const c = cells << o, g = new Float32Array(c * c); for (let i = 0; i < c * c; i++) { const h = Math.sin((i + 1) * 12.9898 + seed * 78.233 + o * 37.7) * 43758.5453; g[i] = h - Math.floor(h); }
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+      const fx = x / n * c, fy = y / n * c, ix = fx | 0, iy = fy | 0, tx = fx - ix, ty = fy - iy, sx = tx * tx * (3 - 2 * tx), sy = ty * ty * (3 - 2 * ty);
+      const a = g[iy * c + ix], b = g[iy * c + (ix + 1) % c], d = g[((iy + 1) % c) * c + ix], e = g[((iy + 1) % c) * c + (ix + 1) % c];
+      out[y * n + x] += ((a + (b - a) * sx) * (1 - sy) + (d + (e - d) * sx) * sy) * amp;
+    }
+    tot += amp;
+  }
+  for (let i = 0; i < n * n; i++) out[i] /= tot; return out;
+}
+const BLOOD_TILE = new Map(), BLOOD_PAT = new WeakMap();
+function bloodTile(col) {
+  let c = BLOOD_TILE.get(col); if (c) return c;
+  const N = 128, [r, g, b] = rgbOf2(col), thick = tileNoise(N, 4, 3), mid = tileNoise(N, 12, 7, 2), fine = tileNoise(N, 16, 5, 2), run = tileNoise(N, 3, 9, 2);
+  c = document.createElement('canvas'); c.width = c.height = N; const x = c.getContext('2d'), im = x.createImageData(N, N), d = im.data;
+  for (let i = 0; i < N * N; i++) {
+    const t = thick[i], f = fine[i], clot = f > .66 ? Math.min(1, (f - .66) * 3.2) : 0, thin = Math.max(0, run[i] - .58) * 2.2; // clots: fine dark flecks; thin: where it ran out
+    const k = (.78 + .44 * t) * (.86 + .28 * mid[i]) * (1 - clot * .6) * (1 + thin * .5) * (.94 + .12 * f); // about 1 on average: still the blood's own color
+    d[4 * i] = Math.min(255, r * k + thin * 34); d[4 * i + 1] = Math.min(255, g * k + thin * 6); d[4 * i + 2] = Math.min(255, b * k + thin * 6); d[4 * i + 3] = 255;
+  }
+  x.putImageData(im, 0, 0); if (BLOOD_TILE.size > 24) BLOOD_TILE.clear(); BLOOD_TILE.set(col, c); return c;
+}
+function bloodFill(x, col, px = 0, py = 0, a = 0) { // the textured fill for this blood color on this canvas, lined up with the world under a local translate/rotate
+  col = col || BLOOD; if (!col.startsWith('#')) return col;
+  let m = BLOOD_PAT.get(x); if (!m) BLOOD_PAT.set(x, m = new Map());
+  let p = m.get(col); if (!p) { p = x.createPattern(bloodTile(col), 'repeat'); m.set(col, p); }
+  p.setTransform(a ? new DOMMatrix().rotateSelf(-a * 180 / Math.PI).translateSelf(-px, -py) : new DOMMatrix([1, 0, 0, 1, -px, -py]));
+  return p;
+}
 function splat(x, px, py, vx, vy, r, c, onWall) { // flat single-color splats with organic, directional shapes
   const sp = Math.hypot(vx, vy), a = Math.atan2(vy, vx), st = 1 + Math.min(sp / 170, onWall ? 1.1 : 2.4), dq = BQ().detail; // dq: shape detail by blood quality (0 plain, 1 some, 2 full)
-  x.save(); x.translate(px, py); x.rotate(a); x.fillStyle = c || BLOOD; x.globalAlpha = 1;
+  x.save(); x.translate(px, py); x.rotate(a); x.fillStyle = bloodFill(x, c, px, py, a); x.globalAlpha = 1; // (textured, lined up with the world)
   if (!dq) { if (sp < 110 || r > 3.2) { circ(x, 0, 0, r); circ(x, r * .4, 0, r * .6); } else { ell(x, 0, 0, r * st, r * .9); circ(x, r * st * 1.4, 0, r * .3); } x.restore(); return; } // Low: one cheap shape per drop
   if (sp < 110 || r > 3.2) { // slow or heavy drop: lumpy round blob, big ones get a crown of spikes
     circ(x, 0, 0, r);
