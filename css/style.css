@@ -3351,3 +3351,6 @@ body.compact .mm .rs-title h3{font-size:28px!important}
 @media (prefers-reduced-motion:reduce){.mm .mm-note.hot{animation:none}}
 .mm .mm-note.hot{display:inline-flex!important;align-items:center;gap:7px}
 .mm .mm-note.hot::before{content:''!important;display:inline-block!important;flex:none;width:7px;height:7px;border-radius:50%;background:var(--acc-hi)} /* the dot in front of "N tokens to spend" (it pulses with the text) */
+/* what got you, exactly: under "You died" on the multiplayer banner, typed like a report */
+#mpDown .mpwhy{display:block;margin:0 0 6px;font:700 16px var(--f-num);font-style:normal;color:#ffc9bd}
+.mpmine .mpwhy{color:#ff8f7a}

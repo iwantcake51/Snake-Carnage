@@ -106,8 +106,8 @@ function updateSnake(dt) {
   const grace = s.graceT > 0; if (grace) s.graceT -= dt; // co-op respawn: a moment to get clear of your own tail and the bombs
   const hitO = obstacleHitBy(hx, hy, hr); // walls and the map's edge always count, spawn protection or not
   if (hitO && canRam(hitO) && ramSpot(hitO, hx, hy)) { smashObstacle(hitO, s.angle); studyHit('smash'); } // Battering Ram: furniture gives way
-  else if (hitO) { crashHit = { o: hitO, t: T }; return die(); }
-  if (!grace && !MOD.noSelf) for (let i = 8; i < s.segs.length; i++) if (dist2(s.x, s.y, s.segs[i].x, s.segs[i].y) < (snakeRadius() * 1.1) ** 2) { if (s.segs.length >= 60) { PROG.ouro = 1; checkAch(); } crashHit = { seg: i, t: T }; return die(); }
+  else if (hitO) { crashHit = { o: hitO, t: T }; run.deathBy = 'crash'; return die(); }
+  if (!grace && !MOD.noSelf) for (let i = 8; i < s.segs.length; i++) if (dist2(s.x, s.y, s.segs[i].x, s.segs[i].y) < (snakeRadius() * 1.1) ** 2) { if (s.segs.length >= 60) { PROG.ouro = 1; checkAch(); } crashHit = { seg: i, t: T }; run.deathBy = 'self'; return die(); }
 
   hoover(s, dt);
   let ate = false;
@@ -344,7 +344,28 @@ function ramSpot(o, x, y) { // a custom prop can say WHERE it breaks (its intera
   return polyHit(ip, x, y, snakeHitRadius() + 2);
 }
 let crashHit = null; // what you ran into: it flashes as the run ends
-const deathDelay = () => (IS_TOUCH ? .5 : 1) + (['bomb', 'fuse', 'cluster', 'fire'].includes(run.deathBy) ? 1.5 : 0); // a beat to feel the impact (the hit flashes, the screen shakes), then the crash screen. Phones get it fast. Blown up: time to watch yourself go off
+const deathDelay = () => (IS_TOUCH ? .5 : 1) + (['bomb', 'fuse', 'cluster', 'fire', 'artillery'].includes(run.deathBy) ? 1.5 : 0); // a beat to feel the impact (the hit flashes, the screen shakes), then the crash screen. Phones get it fast. Blown up: time to watch yourself go off
+/* what killed you, exactly: worked out where it happened (deathCause), then told as a line (deathText): "Crashed into a car", "Sam was shelled by artillery" */
+const DEATH_THING = { border: 'the edge of the map', wall: 'a wall', bwall: 'a brick wall', building: 'a building', barn: 'a barn', silo: 'a silo', tree: 'a tree', bush: 'a bush', hedge: 'a hedge', rock: 'a boulder', car: 'a car',
+  fence: 'a fence', hay: 'a hay bale', crate: 'a crate', bench: 'a bench', bin: 'a bin', lamp: 'a lamp post', table: 'a table', chair: 'a chair', desk: 'a desk', couch: 'a couch', bed: 'a bed', shelf: 'a shelf', bar: 'the bar',
+  booth: 'a booth', console: 'a console', speaker: 'a speaker', dj: 'the DJ booth', plant: 'a plant', barrier: 'a barrier', glass: 'a glass wall', water: 'the water', tent: 'a tent', campfire: 'the campfire', gazebo: 'the gazebo',
+  slide: 'the slide', chess: 'a chess table', pillar: 'a pillar', dome: 'a dome', module: 'a module', lander: 'a lander', saucer: 'the saucer', pod: 'a pod', cryo: 'a cryo pod', reactor: 'the reactor', generator: 'a generator',
+  solar: 'a solar panel', tube: 'a tube', holo: 'a hologram', detail: 'something' };
+function deathCause() { // the deciding moment, as a small record that can travel to the other players
+  const by = run.deathBy || 'crash', c = { by };
+  if (by === 'crash' && crashHit && crashHit.o) { const o = crashHit.o; c.o = o.pump ? 'a gas pump' : o.dumpster ? 'a dumpster' : DEATH_THING[o.kind] || (o.def && o.def.name ? 'a ' + String(o.def.name).toLowerCase() : 'something'); }
+  if (by === 'bomb' && run.deathKd) c.kd = run.deathKd;
+  if (by === 'chain' && run.deathFrom) c.from = run.deathFrom;
+  return c;
+}
+function deathText(c, who) { // who: a player's name ("Sam crashed into a tree"); none: you ("Crashed into a tree")
+  c = c || {}; const bomb = { i: 'an incendiary bomb', c: 'a cluster bomb' }[c.kd] || 'a bomb', you = !who;
+  const was = you ? '' : 'was ', t = { crash: `crashed into ${c.o || 'something'}`, self: `bit ${you ? 'your' : 'their'} own tail`, bomb: `${was}blown up by ${bomb}`, artillery: `${was}shelled by artillery`,
+    cluster: `${was}blown up by a bomblet`, strafe: `${was}shot up by a strafing run`, fire: 'burned to death', fuse: "your dead man's switch went off",
+    chain: c.from ? `${was}dragged down with ${c.from}` : `${was}dragged down by the chain` }[c.by] || 'died';
+  if (c.by === 'fuse' && !you) return `${who}'s dead man's switch went off`;
+  return you ? t[0].toUpperCase() + t.slice(1) : `${who} ${t}`;
+}
 function die() {
   if (NETM.run) return netLocalDown(); // co-op: you go down, the team carries on (see 40d-net-sync)
   const burst = !snake.netHidden && snake.segs && snake.segs.length; // you go up, from the head that hit (a blast, fire or the fuse have already burst you from where they got you)
