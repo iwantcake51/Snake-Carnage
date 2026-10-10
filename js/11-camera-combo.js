@@ -54,9 +54,9 @@ function userCam() { // -> { z, fx, fy } to draw with, or null when the camera i
   const fk = UCAM.back ? 1 : 1 - Math.exp(-dt * 16); UCAM.fx += (tx - UCAM.fx) * fk; UCAM.fy += (ty - UCAM.fy) * fk;
   return { z, fx: UCAM.fx, fy: UCAM.fy };
 }
-function ucamTakeLook() { // your own zoom or drag takes the camera from the pre-round drift (lookAround in 34-render) exactly where it is, and that drift stays off until the run starts
-  if (typeof look === 'undefined' || !snake || look.off === snake) return; look.off = snake;
-  if (!(look.z > 1.002) || UCAM.z * baseZoom() > 1.003) { look.z = 1; return; } // it wasn't showing anything of its own (or your zoom already had the camera)
+function ucamTakeLook() { // your own zoom or drag takes the camera from the pre-round drift (lookAround in 34-render) exactly where it is (and hands it back the same way when you zoom out: render)
+  if (typeof look === 'undefined' || !snake) return;
+  if (!(look.z > 1.002) || UCAM.z * baseZoom() > 1.003) return; // it wasn't showing anything of its own (or your zoom already had the camera)
   const z0 = baseZoom(); UCAM.mode = 'free'; UCAM.z = UCAM.tz = look.z / z0; UCAM.ax = UCAM.fx = look.fx; UCAM.ay = UCAM.fy = look.fy; UCAM.px = UCAM.py = UCAM.tpx = UCAM.tpy = 0; look.z = 1;
 }
 function zoomAt(cx, cy, factor) { // while you steer: zoom in on your snake, always the centre of the view. Before the run, paused or dead (free look): toward the pointer, like a map
