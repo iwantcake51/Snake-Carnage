@@ -209,17 +209,20 @@ function drawSnakeNightRim(x) { // white rim at night, readable over dark ground
   let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
   for (const g of pts) { if (g.x < x0) x0 = g.x; if (g.x > x1) x1 = g.x; if (g.y < y0) y0 = g.y; if (g.y > y1) y1 = g.y; }
   // (a lunge's after-images aren't rimmed: each carries its own dark outline, painted into it once, and re-rimming every one of them every frame was a big part of what a lunge cost)
-  const pad = snakeRadius() + 6, prev = snake._rimBox; x0 -= pad; y0 -= pad; x1 += pad; y1 += pad;
+  const pad = snakeRadius() * 2.6 + 10, prev = snake._rimBox; x0 -= pad; y0 -= pad; x1 += pad; y1 += pad;
   if (prev) snx.clearRect(prev[0], prev[1], prev[2] - prev[0], prev[3] - prev[1]); else snx.clearRect(-60, -60, W + 120, H + 120);
   snake._rimBox = [x0, y0, x1, y1];
-  // one ring per segment, then every disc cut back out, leaving only the outer edge. Each circle is its own draw (the graphics
-  // chip draws circles directly; all of them as one path would be rasterized over the whole body's box), solid white here and
-  // made see-through when the layer goes on, so the overlapping rings don't add up
-  snx.strokeStyle = '#fff'; snx.lineWidth = strong ? 3.6 : 2.4;
-  for (let i = 0; i < n; i++) { const g = pts[i]; snx.beginPath(); snx.arc(g.x, g.y, segR(i, n) + .4, 0, TAU); snx.stroke(); }
-  snx.globalCompositeOperation = 'destination-out'; snx.fillStyle = '#000'; // cut every disc back out, so one rim runs round the outside
-  for (let i = 0; i < n; i++) { const g = pts[i]; snx.beginPath(); snx.arc(g.x, g.y, segR(i, n) + .4, 0, TAU); snx.fill(); }
-  snx.globalCompositeOperation = 'source-over';
+  // the body's own tube (head, flanks and the pointed tail, spike and all), stroked a piece at a time, then every piece cut back out,
+  // leaving only the outer edge. Pieces, not one path: the graphics chip rasterizes a path over its whole box, and a long snake's
+  // box is most of the screen. Solid white here and made see-through when the layer goes on, so the overlaps don't add up
+  const TB = snake._tb && snake._tb.n === n ? snake._tb : tubeBase(pts, n, snake.cut), prevSeg = SEG_SNAKE; SEG_SNAKE = snake;
+  try {
+    const E = tubeEdges(TB, .4), pieces = []; for (let a = 0; a < n; a += TUBE_PIECE) pieces.push([a, Math.min(n, a + TUBE_PIECE)]);
+    snx.strokeStyle = '#fff'; snx.lineWidth = strong ? 3.6 : 2.4; snx.lineJoin = 'round';
+    for (const [a, b] of pieces) { snx.beginPath(); tubeRun(snx, E, a, b); snx.stroke(); }
+    snx.globalCompositeOperation = 'destination-out'; snx.fillStyle = '#000'; // cut the body back out, so one rim runs round the outside
+    for (const [a, b] of pieces) { snx.beginPath(); tubeRun(snx, E, a, b); snx.fill(); }
+  } finally { SEG_SNAKE = prevSeg; snx.globalCompositeOperation = 'source-over'; }
   if (MOD.fog || MOD.fow) { snx.globalCompositeOperation = 'destination-out'; snx.drawImage(visC, 0, 0, W, H); snx.globalCompositeOperation = 'source-over'; } // only the part of the body you can see
   const bx = Math.max(0, x0), by = Math.max(0, y0), bw = Math.min(W, x1) - bx, bh = Math.min(H, y1) - by;
   if (bw > 0 && bh > 0) { const ga = x.globalAlpha; x.globalAlpha = ga * (strong ? .95 : .8); x.drawImage(snOC, bx * DPR, by * DPR, bw * DPR, bh * DPR, bx, by, bw, bh); x.globalAlpha = ga; }
