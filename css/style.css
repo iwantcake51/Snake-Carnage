@@ -3109,3 +3109,10 @@ body.calm #overlay .sbar .sfill{animation:none}
 .skn.pas .skico svg.gi{width:36px;height:36px}
 #abil .ab svg.gi,#touch .ab svg.gi{width:24px;height:24px}
 body.phone .sk-ic svg.gi{width:38px;height:38px}
+/* multiplayer scores as slot-machine reels (slotSet in 40e-net-ui) */
+.slot{display:inline-flex;height:1.15em;line-height:1.15em;overflow:hidden;vertical-align:bottom;font-variant-numeric:tabular-nums}
+.slot .rl{display:inline-block;height:1.15em;overflow:hidden}
+.slot .st{display:flex;flex-direction:column;will-change:transform}
+.slot .st i{font-style:normal;height:1.15em;line-height:1.15em;text-align:center}
+.slot.win{animation:slotWin .9s ease-out}
+@keyframes slotWin{0%,30%{color:#ffd23f;text-shadow:0 0 8px rgba(255,210,63,.75)}}

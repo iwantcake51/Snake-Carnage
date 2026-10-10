@@ -88,7 +88,7 @@ const SKILL_TREE = [
     desc: 'Air strikes aimed at you show up early, as a teal radar marker that turns into the real one.', fx: [['Extra warning', g => SKV.warn(g), secs]] },
   { id: 'debt', br: 'surv', name: 'Blood Debt', icon: 'debt', cost: [2, 3, 4], lvl: 15, req: [['skull', 2]], x: 600, y: 430,
     desc: 'Lose a piece of yourself, and your next few meals pay double XP and chips. Twice a run; the extra is capped at 20% of what eating has paid you this run.', fx: [['Meals paid twice after a hit', g => BD.meals[g('debt')], n => n ? n + ' meals' : 'None'], ['Times a run', g => g('debt') ? BD.acts : 0, n => n ? String(n) : '—'], ['Capped at', g => g('debt') ? BD.cap * 100 : 0, n => n ? n + '% of eating pay' : '—']] },
-  { id: 'ram', br: 'surv', major: 1, name: 'Battering Ram', icon: 'ram', cost: [2, 3, 4], req: [], x: 800, y: 770,
+  { id: 'ram', br: 'surv', major: 1, name: 'Battering Ram', icon: 'ram', cost: [2, 3, 4], req: [], x: 840, y: 800,
     ranks: ['Small things: chairs, crates, fences, glass', 'Furniture, bushes and small trees', 'Cars, rocks and cracked walls (leaves you dazed)'],
     desc: 'Smash through things instead of crashing. Higher ranks break heavier things.', fx: [['Smashes', g => SKV.ramTier(g), n => ['Nothing', 'Small things', 'Furniture', 'Cars and walls'][n]]] },
   { id: 'momentum', br: 'surv', major: 1, name: 'Momentum', icon: 'momentum', cost: [4], lvl: 16, inv: 8, req: [['ram', 2]], x: 900, y: 620,
