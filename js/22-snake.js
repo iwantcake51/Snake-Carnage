@@ -84,13 +84,13 @@ function updateSnake(dt) {
   const d = angDiff(s.angle, s.dir), mx = Math.min(CONFIG.turnRate * dt * SKV.turn() * ((s.dashV || 1) > 1.2 ? SKV.lungeTurn() : 1), (s.dashV || 1) > 1.2 ? s.speed * s.dashV * dt / (snakeRadius() * 1.7) : 99) /* mid-lunge the turn can't get tighter than the body is wide */ * (s.uturnT > 0 ? s.uturnK || 2.4 : 1) * (MOD.wideTurns ? .5 : MOD.quickTurn ? 1.6 : 1) * turnSizeK(s); // Wide turns / Quick turn modifiers; and the bigger you are, the wider you turn Sidewinder: snappier turns; Whiplash: sharper mid-lunge; Momentum: a fast whip round on a U-turn
   const ad = Math.abs(d); s.angle += Math.sign(d) * Math.min(ad, mx, ad * (1 - Math.exp(-dt * CONFIG.turnEase)) + mx * .18); // never past the target: overshooting it made the head flick side to side every frame, worse the lower the frame rate
   if (s.uturnT > 0) { s.uturnT -= dt; if (s.uturnTo !== undefined && Math.abs(angDiff(s.angle, s.dir)) < .5) { s.dir = s.uturnTo; s.uturnTo = undefined; } } // second half of the U-turn
-  const stunK = MOD.quickRecovery ? 2 : MOD.heavyImpact ? .5 : 1; // Quick recovery / Heavy impact: dazes wear off twice as fast, or half as fast (Thick Skull makes them weaker to begin with: smashObstacle, detonate)
+  const stunK = MOD.quickRecovery ? 2 : MOD.heavyImpact ? .5 : 1; // Quick recovery / Heavy impact: dazes wear off twice as fast, or half as fast (Battle Hardened makes them shorter to begin with: smashObstacle, detonate)
   if (s.wallStun > 0) { const k = s.wallStun / (s.wallMax || 3.4); s.wallStun -= dt * stunK; s.angle += (Math.sin(T * 4.7) * 1.5 + Math.sin(T * 2.3 + 1.3)) * k * dt; } // seeing stars: it can't hold a line
-  for (const k of ['dashT', 'camoT', 'hissT', 'ramT', 'boomT', 'lustT']) if (s[k] > 0) s[k] -= dt * (k === 'ramT' || k === 'boomT' ? stunK : 1);
+  for (const k of ['dashT', 'camoT', 'hissT', 'ramT', 'boomT']) if (s[k] > 0) s[k] -= dt * (k === 'ramT' || k === 'boomT' ? stunK : 1);
   if (s.camoT > 0) { const turning = Math.abs(angDiff(s.angle, s.dir)) > .05 || s.dashT > 0; s.still = clamp((s.still || 0) + (turning ? -dt * (sk('phantom') ? 1.2 : 4) : dt * 1.1), 0, 1); } else s.still = 0; // camouflage settles in on a straight line
   const dk = s.dashT > 0 ? s.dashK || 1.8 : 1; s.dashV = dk >= (s.dashV || 1) ? dk : 1 + ((s.dashV || 1) - 1) * Math.exp(-dt * 3.2); // lunge hits at once, then the speed bleeds off over about a second
   if (s.dashT > 0 && (s.wallStun > 0 || s.boomT > 0)) s.dashT = 0; // concussed: no lunging
-  const v = s.speed * s.dashV * (s.camoT > 0 ? SKV.camoSpeed() : 1) * /* Deep Cover: faster while hidden */ (s.lustT > 0 ? 1 + (SKV.lust() - 1) * Math.min(1, s.lustT / .4) : 1) * /* Bloodlust, easing off at the end */ (s.ramT > 0 ? 1 - (s.ramDeep || .5) * (s.ramT / (s.ramMax || 1)) : 1) * (1 - .55 * boomSlow(s)) * (1 - gasSlow(s)); // ... or reeling from a blast, or choking on gas // a lunge, or a stagger after smashing through something
+  const v = s.speed * s.dashV * (s.camoT > 0 ? SKV.camoSpeed() : 1) * /* Deep Cover: faster while hidden */ (s.ramT > 0 ? 1 - (s.ramDeep || .5) * (s.ramT / (s.ramMax || 1)) : 1) * (1 - .55 * boomSlow(s)) * (1 - gasSlow(s)); // ... or reeling from a blast, or choking on gas // a lunge, or a stagger after smashing through something
   // unit vector * speed => identical speed in all 8 directions
   if (MOD.slippery) s.mvA = s.mvA === undefined ? s.angle : s.mvA + angDiff(s.mvA, s.angle) * (1 - Math.exp(-dt * 2.8)); else s.mvA = s.angle; // Slippery: the body keeps sliding the old way a moment after you turn
   const vq = v * (MOD.quickTurn ? .9 : 1);
@@ -105,7 +105,7 @@ function updateSnake(dt) {
   for (const o of obstacles) if (o.kind === 'lamp' && dist2(hx, hy, o.x, o.y) < (hr + o.r) ** 2) { breakLamp(o, s.angle); break; } // posts snap instead of stopping you
   const grace = s.graceT > 0; if (grace) s.graceT -= dt; // co-op respawn: a moment to get clear of your own tail and the bombs
   const hitO = obstacleHitBy(hx, hy, hr); // walls and the map's edge always count, spawn protection or not
-  if (hitO && canRam(hitO) && ramSpot(hitO, hx, hy)) smashObstacle(hitO, s.angle); // Battering Ram: furniture gives way
+  if (hitO && canRam(hitO) && ramSpot(hitO, hx, hy)) { smashObstacle(hitO, s.angle); studyHit('smash'); } // Battering Ram: furniture gives way
   else if (hitO) { crashHit = { o: hitO, t: T }; return die(); }
   if (!grace && !MOD.noSelf) for (let i = 8; i < s.segs.length; i++) if (dist2(s.x, s.y, s.segs[i].x, s.segs[i].y) < (snakeRadius() * 1.1) ** 2) { if (s.segs.length >= 60) { PROG.ouro = 1; checkAch(); } crashHit = { seg: i, t: T }; return die(); }
 
@@ -327,7 +327,8 @@ function eatReward(c, amount, ang) {
   crEat(c, pts, kxp); statEat(c); progressEat(c);
   gainXP(kxp, Math.max(1, Math.round(c.def.score * .6 * gold * rewardMult * mb.m * fk * cbK)) * (lucky ? 2 : 1));
   if (lucky) notify({ kind: 'info', icon: '◆', title: 'Lucky bite', right: 'x2 chips', dur: 1.3, key: 'lucky' });
-  if (sk('lust')) s.lustT = 1.5; // Bloodlust: a rush of speed after every kill
+  lustRefund(); // Bloodlust: every kill takes a little off the abilities still recharging
+  studyHit(c.golden ? 'golden' : c.def.human ? 'person' : 'animal'); if (combo.n >= 10) studyHit('combo'); // Quick Study
   modHud();
   killFx(c.x, c.y, amount);
   shake = Math.min(CONFIG.shakeMax * .4, shake + .5 + 2.5 * amount); // just a nudge: the hit is felt on the target, not the camera

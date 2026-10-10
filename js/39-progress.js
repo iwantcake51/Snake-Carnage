@@ -47,7 +47,7 @@ function checkPermChallenges() {
     (run.unlocks = run.unlocks || []).push({ kind: 'perm', name: c.name, map, xp, chips });
     (run.chList = run.chList || []).push({ name: c.name, tier: c.tier, perm: true, t: c.t, got: `${v}${c.unit || ''} of ${c.n}${c.unit || ''}`, at: run.time, xp, chips, map });
     notify({ kind: 'unlock', icon: giSvg('medal'), title: `Permanent: ${c.name}`, sub: `${c.t} · +${xp} XP, +${chips} <i class="pc"></i>`, dur: 5 });
-    gainXP(Math.round(xp * SKV.taskK()), Math.round(chips * SKV.taskK())); saveProg(); // Taskmaster
+    gainXP(Math.round(xp * SKV.taskK()), Math.round(chips * SKV.taskK())); studyHit('challenge'); saveProg(); // Taskmaster, Quick Study
   }
 }
 

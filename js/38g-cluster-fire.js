@@ -315,7 +315,7 @@ function gasPop(s) { // every screen: the canister blows with a dull bang, a bub
 }
 const gasMove = (p, dt) => { p.x += Math.cos(p.ph + T * .15) * 3 * dt; p.y += Math.sin(p.ph * 1.7 + T * .12) * 3 * dt; }; // it drifts a little (the same way everywhere: it only depends on the clock)
 function inGas(x, y) { let k = 0; for (const p of gasPuffs) { if (p.t < 0) continue; const [px, py, pr] = gasAt(p), d2 = dist2(x, y, px, py), R = pr * .9; if (d2 < R * R) k = Math.max(k, gasK(p) * (1 - Math.sqrt(d2) / R * .4)); } return k; }
-const gasSlow = s => s && s.gasK > 0 ? .45 * s.gasK * SKV.dazeCut() : 0; // Battle Hardened: less slowed, as by everything else
+const gasSlow = s => s && s.gasK > 0 ? .45 * s.gasK : 0;
 let GAS_SEE = 1; // how much of the outlines and the bomb markers you can make out: gone while you're in gas, back slowly once you're clear (the Gas Mask keeps your eyes clear)
 const gasScreen = () => snake && snake.alive && snake.gasK > 0 && !sk('mask') ? snake.gasK : 0; // the Gas Mask: none of it reaches your eyes
 function gasTick(dt) {
@@ -326,7 +326,7 @@ function gasTick(dt) {
   if (!s.alive || s.netHidden || state !== 'play') { if (state !== 'paused') { s.gasK = 0; GAS_SEE = 1; } return; }
   const g = gasPuffs.length ? inGas(s.x, s.y) : 0, was = s.gasK || 0; // what you breathe: where your head is
   GAS_SEE = g > .05 && !sk('mask') ? Math.max(0, GAS_SEE - dt * 3) : Math.min(1, GAS_SEE + dt / 4.5); // in it: the outlines and the markers are gone in a moment; out of it, they take a few seconds to come back
-  s.gasK = g > .05 ? Math.min(1, was + dt * 2 * g) : Math.max(0, was - dt * .35); // it gets into you fast, and wears off slowly
+  s.gasK = g > .05 ? Math.min(1, was + dt * 2 * g) : Math.max(0, was - dt * .35 / SKV.stunCut()); // it gets into you fast, and wears off slowly (Battle Hardened: sooner)
   if (AUTH() && gasPuffs.length && (gasTick.ai = (gasTick.ai || 0) - dt) <= 0) { gasTick.ai = .4; // the crowd: anyone in it just walks slower and coughs (no panic, no stumbling)
     for (const p of gasPuffs) { if (p.t < 0 || gasK(p) < .2) continue; const [px, py, pr] = gasAt(p); for (const c of nearbyCreatures(px, py, pr, [])) { if (!c.alive || c.def.fly || dist2(c.x, c.y, px, py) > pr * pr) continue;
       c.gasT = T + .7; // (26-creature-ai: under half speed while it lasts)

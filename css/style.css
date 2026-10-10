@@ -2776,8 +2776,10 @@ i.tok{display:inline-block;width:.86em;height:.96em;vertical-align:-.1em;backgro
 .sk-fx .ar{font-style:normal;color:var(--faint)}
 .sk-fx .nxt.up{color:var(--bc)}
 .sk-fx .cur.chg{animation:skChg .9s ease-out}
-.sk-fx .mst{align-self:center;font:700 11px var(--f-num);color:var(--gold);background:color-mix(in srgb,var(--gold) 13%,transparent);border:1px solid color-mix(in srgb,var(--gold) 38%,transparent);border-radius:3px;padding:1px 5px;line-height:1.35;animation:skMst .5s ease-out both}
-@keyframes skMst{from{opacity:0;transform:translateX(-4px)}}
+.sk-ranks li span{flex:1}
+.sk-ranks li>.tok{flex:none;align-self:center;margin-left:2px}.sk-ranks li em.sk-rc{flex:none;width:12px;color:#cfc2f5;font:700 12.5px var(--f-num);text-align:right}
+.sk-undo{display:flex;flex-direction:column;gap:6px}.sk-undo p{margin:0;font:500 12.5px/1.35 var(--f-body);color:var(--dim)}.sk-undo p b{color:var(--ink);font-weight:600}
+#overlay #skUndo{align-self:flex-start;height:36px;padding:0 14px;display:inline-flex;align-items:center;gap:10px}#overlay #skUndo span{display:inline-flex;align-items:center;gap:5px;color:#cfc2f5;font:700 13px var(--f-num)}
 @keyframes skChg{0%,40%{color:var(--bc)}}
 .sk-sec h4{margin:0 0 7px;font:600 11.5px var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:var(--mute)}
 .sk-req{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
