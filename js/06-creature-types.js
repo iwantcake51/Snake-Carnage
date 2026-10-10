@@ -3,10 +3,10 @@
    ========================================================= */
 const TYPES = {
   human:   { human: true, r: 9, walk: 26, run: 92, score: 3, grow: 3, blood: 1, sight: 150 },
-  rabbit:  { r: 6, walk: 26, run: 125, score: 1, grow: 1, blood: 0.25, sight: 110, bl: 7, bw: 5, hr: 4, col: '#a08a6e', ears: 'long', tail: 'puff', hop: true,
-             hopP: { d: [16, 26], ds: [34, 54], h: [4, 6], hs: [7, 10], t: [.24, .32], ts: [.2, .26] } },
+  rabbit:  { r: 6, walk: 21, run: 98, score: 1, grow: 1, blood: 0.25, sight: 110, bl: 7, bw: 5, hr: 4, col: '#a08a6e', ears: 'long', tail: 'puff', hop: true,
+             hopP: { d: [12, 20], ds: [25, 40], h: [4, 6], hs: [7, 10], t: [.24, .32], ts: [.21, .27] } }, // (shorter bounds: a fleeing rabbit can be caught)
   deer:    { r: 10, walk: 22, run: 120, score: 2, grow: 2, blood: 0.85, sight: 170, bl: 13, bw: 6.5, hr: 4.5, col: '#b07a45', ears: 'short', tail: 'puff' },
-  frog:    { r: 5, walk: 10, run: 70, score: 1, grow: 1, blood: 0.12, sight: 60, bl: 4.5, bw: 4.5, hr: 3.5, col: '#5e9e3a', legs: true, hop: true },
+  frog:    { r: 5, walk: 8, run: 52, score: 1, grow: 1, blood: 0.12, sight: 60, bl: 4.5, bw: 4.5, hr: 3.5, col: '#5e9e3a', legs: true, hop: true },
   dog:     { r: 9, walk: 30, run: 105, score: 2, grow: 2, blood: 0.5, sight: 120, bl: 10, bw: 5.5, hr: 4.5, col: '#8b5a2b', ears: 'flop', tail: 'line' },
   cat:     { r: 7, walk: 22, run: 110, score: 1, grow: 1, blood: 0.3, sight: 120, bl: 8, bw: 4.5, hr: 4, col: '#e08a3c', ears: 'short', tail: 'long' },
   chicken: { r: 6, walk: 16, run: 75, score: 1, grow: 1, blood: 0.22, sight: 80, bl: 6, bw: 5, hr: 3.3, col: '#f4f4ef', comb: true, beak: true },

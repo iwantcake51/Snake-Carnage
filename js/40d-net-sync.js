@@ -350,7 +350,7 @@ function netApply(e, local) {
     case 'beat': if (e.by !== NETM.me) tailBitGone(e.id); break; // someone ate one of the pieces
     case 'hissN': crHiss(e.n || 0); break;
     case 'scr': crScream(e.n || 0); break;
-    case 'air': airStrike(e.x, e.y, Math.max(.15, e.w - netLag(e.h)), e.r, e.j, e.f, e.tk, e.kd, e.sd); break; // (kd, sd: a cluster bomb or an incendiary, and the seed its bomblets or fires are built from, the same on every screen)
+    case 'air': airStrike(e.x, e.y, Math.max(.15, e.w - netLag(e.h)), e.r, e.j, e.f, e.tk, e.kd, e.sd, e.ew, e.ep); break; // (kd, sd: a cluster bomb or an incendiary, and the seed its bomblets or fires are built from, the same on every screen)
     case 'airb': if (e.pid === NETM.me) barrageWarn(); break; // a barrage on its way to you
     case 'brn': if (e.by !== NETM.me) brnApply(e); break; // a piece of someone's tail burned off // the host called in a bomb: same spot, and it lands when it does on the host's screen
     case 'airw': airWarn(); break;

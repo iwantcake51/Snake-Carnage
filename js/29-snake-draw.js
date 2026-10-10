@@ -233,7 +233,7 @@ function camoField(s, n) {
   return { a, avg: sum / n, lv, still };
 }
 const grabC = document.createElement('canvas'), grx = grabC.getContext('2d');
-const SNAKE_BLOOD_A = .5; // how solid the blood on a snake's body is
+const SNAKE_BLOOD_A = .86; // how solid the blood on a snake's body is (its edges and highlight carry the wet look, so it can sit a little thicker; the skin still shows through)
 function grabScene(A, B, src = render.src) { // copy just this patch of the frame once (drawing the scene onto itself forces a full copy every call)
   const sx = Math.max(0, Math.floor(A.x)), sy = Math.max(0, Math.floor(A.y)), sw = Math.min(src.width, Math.ceil(B.x)) - sx, sh = Math.min(src.height, Math.ceil(B.y)) - sy;
   if (sw <= 0 || sh <= 0) return null;

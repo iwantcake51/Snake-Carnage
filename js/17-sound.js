@@ -59,6 +59,11 @@ const Sfx = {
     const t = this.ctx.currentTime; this.lp.frequency.setTargetAtTime(Math.min(base, f), t, .12); this.bus.gain.setTargetAtTime((this.muffled ? .9 : 1) * (1 - (wall ? .35 : deep ? .3 : .15) * Math.min(1, k)), t, .12);
   },
   ok() { return this.ctx && this.ctx.state === 'running' && SETTINGS.volume > 0; },
+  defer(f) { // build part of a sound a frame or two later, a couple of milliseconds a frame (a blast's debris and echo start later anyway), so one big sound never stalls the frame it starts in
+    (this.dq || (this.dq = [])).push(f); if (this.dqOn) return; this.dqOn = true;
+    const pump = () => { const t0 = performance.now(); while (this.dq.length && performance.now() - t0 < 2) { try { this.dq.shift()(); } catch (e) {} } if (this.dq.length) requestAnimationFrame(pump); else this.dqOn = false; };
+    requestAnimationFrame(pump);
+  },
   out(x, vol = 1) {
     const c = this.ctx, g = c.createGain(); g.gain.value = SETTINGS.volume * vol;
     const dst = !this.bus || (x === undefined && (state === 'menu' || state === 'paused')) ? c.destination : this.bus; // menu sounds stay crisp; the world gets muffled

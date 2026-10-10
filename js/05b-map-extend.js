@@ -25,7 +25,7 @@ function stripKit(st) { // placement helpers in strip coordinates
   };
 }
 const paintRect = (x, r, c) => { x.fillStyle = c; x.fillRect(...r); };
-const grassStrip = (x, st) => { x.save(); x.beginPath(); x.rect(st.s < 0 ? 0 : st.seam, 0, XO + B, H); x.clip(); checker(x, ...GRASS, 32); x.restore(); };
+const grassStrip = (x, st) => { if (GTEX.drawn.has(x)) return; x.save(); x.beginPath(); x.rect(st.s < 0 ? 0 : st.seam, 0, XO + B, H); x.clip(); checker(x, ...GRASS, 32); x.restore(); };
 function clipStrip(x, st, fn) { x.save(); x.beginPath(); x.rect(st.s < 0 ? 0 : st.seam, 0, XO + B, H); x.clip(); fn(); x.restore(); }
 
 /* ---- per-map strips. Each gets (st, k, e): k = stripKit, e = { obs, lights, paths, floor: [fn], cover: [fn] } ---- */
@@ -49,7 +49,7 @@ const MAP_EXT = {
   },
   Town: (st, k, e) => {
     const w = st.w, L = st.s < 0, slabs = (x, r) => { x.save(); x.beginPath(); x.rect(...r); x.clip(); x.fillStyle = '#b9b3a7'; x.fillRect(...r); x.fillStyle = '#c6c0b3'; for (let i = 0; i < W; i += 24) for (let j = 0; j < H; j += 24) if ((i / 24 + j / 24) % 2) x.fillRect(i, j, 24, 24); x.restore(); };
-    const asph = (x, r, c = '#45454c') => paintRect(x, r, c), grass = (x, r) => { paintRect(x, r, '#93bf55'); const g = seeded(r[0] + r[1]); for (let n = 0; n < r[2] * r[3] / 60; n++) { x.fillStyle = g() < .5 ? '#86b24b' : '#a2cb62'; x.fillRect(r[0] + g() * r[2], r[1] + g() * r[3], 2, 2); } };
+    const asph = (x, r, c = '#45454c') => paintRect(x, r, c), grass = (x, r) => { if (texShape(x, 'lawn', q => q.fillRect(...r))) return; paintRect(x, r, '#93bf55'); const g = seeded(r[0] + r[1]); for (let n = 0; n < r[2] * r[3] / 60; n++) { x.fillStyle = g() < .5 ? '#86b24b' : '#a2cb62'; x.fillRect(r[0] + g() * r[2], r[1] + g() * r[3], 2, 2); } };
     const full = k.rect(0, 0, w, H);
     e.floor.push(x => { slabs(x, full); grass(x, k.rect(0, 16, w, 46)); }); // pavement everywhere, the town's grass verge along the top
     // Main and Hill run on (road rects are extended in extendBuild); paint them here with curbs and Main's centre line
@@ -72,7 +72,7 @@ const MAP_EXT = {
       // south block: the market lot carries on with one more parking row, entered from West Ave; a garden centre beside the market
       e.floor.push(x => { asph(x, k.rect(blockU, 368, room, 152)); paintRect(x, k.rect(AVE, 470, SW, 40), '#d2cbbd');
         x.strokeStyle = '#e6e6e6'; x.lineWidth = 2; const n = Math.floor((room - 30) / 26); for (let i = 0; i <= n; i++) { const xx = k.X(w - 4 - i * 26); x.beginPath(); x.moveTo(xx, 416); x.lineTo(xx, 460); x.stroke(); }
-        const isl = k.rect(w - 4 - n * 26 - 20, 416, 20, 44); paintRect(x, isl, '#8e887c'); paintRect(x, [isl[0] + 2, 418, 16, 40], '#93bf55'); });
+        const isl = k.rect(w - 4 - n * 26 - 20, 416, 20, 44); paintRect(x, isl, '#8e887c'); if (!texShape(x, 'lawn', q => q.fillRect(isl[0] + 2, 418, 16, 40))) paintRect(x, [isl[0] + 2, 418, 16, 40], '#93bf55'); });
       const n = Math.floor((room - 30) / 26);
       for (let i = 0; i < n; i++) if ((i * 7 + 3) % 5 < 3) e.obs.push(k.R(w - 4 - (i + 1) * 26 + 3, 419, 20, 38, CAR_COLS[(i * 3 + 1) % CAR_COLS.length], 'car'));
       e.obs.push(k.R(blockU + 10, 528, room - 10, 96, '#7a8a5a', 'building', { roof: 'flat', shop: '#3a7a3a', front: 'n' }));
@@ -116,7 +116,7 @@ const MAP_EXT = {
   },
   Pool: (st, k, e) => {
     const w = st.w;
-    e.floor.push(x => clipStrip(x, st, () => checker(x, ...GRASS, 32)));
+    e.floor.push(x => clipStrip(x, st, () => { if (!GTEX.drawn.has(x)) checker(x, ...GRASS, 32); }));
     if (w < 112) return;
     if (st.s < 0) { // the entrance: the paved path from the changing rooms runs out to a gate in the fence line
       e.floor.push(x => paintRect(x, k.rect(0, 126, w + 24, 40), '#e8e2d6'));

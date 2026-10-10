@@ -542,19 +542,28 @@ function drawHat(x, hat) { // head-local frame, +x = forward; hats sit behind th
   }
 }
 const soakCol = sts => { const c = sts[sts.length - 1].c; if (!c || c === BLOOD) return '#4a0606'; const v = rgbOf2(c); return '#' + v.map(n => Math.round(n * .55).toString(16).padStart(2, '0')).join(''); };
-function stainSprite(sts) { // re-rendered only when that segment gets new blood
-  const R0 = CONFIG.snakeR, S = 4; // 4 px per unit for crisp scaling
-  if (!sts.spr) { sts.spr = document.createElement('canvas'); sts.spr.width = sts.spr.height = R0 * 2 * S; sts.dirty = true; }
+const STAIN_TMP = []; // scratch canvases for building stain sprites (reused)
+function stainSprite(sts) { // re-rendered only when that segment gets new blood: one wet, glossy layer soaked onto the scales
+  const R0 = CONFIG.snakeR, S = 4, N = R0 * 2 * S; // 4 px per unit for crisp scaling
+  if (!sts.spr) { sts.spr = document.createElement('canvas'); sts.spr.width = sts.spr.height = N; sts.dirty = true; }
   if (sts.dirty) {
-    const x = sts.spr.getContext('2d');
-    x.setTransform(S, 0, 0, S, R0 * S, R0 * S); x.clearRect(-R0, -R0, R0 * 2, R0 * 2);
-    x.save(); x.beginPath(); x.arc(0, 0, R0, 0, TAU); x.clip();
-    for (const st of sts) { // flat streaks smeared backward along the body
-      const e = st.e || 1.4, cx = Math.cos(st.a) * st.d - st.r * (e - 1) * .5, cy = Math.sin(st.a) * st.d;
-      x.fillStyle = st.c || BLOOD;
-      ell(x, cx, cy, st.r * e, st.r); if (st.r > 2.2) circ(x, cx - st.r * e * .8, cy + st.r * .3, st.r * .45);
-    }
-    x.restore(); sts.dirty = false;
+    const tmp = k => { let c = STAIN_TMP[k]; if (!c || c.width !== N) { c = STAIN_TMP[k] = document.createElement('canvas'); c.width = c.height = N; } const g = c.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over'; g.filter = 'none'; g.globalAlpha = 1; g.clearRect(0, 0, N, N); return [c, g]; };
+    const drop = (x, cx, cy, rx, ry) => { // a splash smeared back along the body: round at the front, drawn out into a tail behind
+      x.beginPath(); x.ellipse(cx, cy, rx, ry, 0, -Math.PI / 2, Math.PI / 2); x.quadraticCurveTo(cx - rx * 1.9, cy + ry * .35, cx - rx * 2.3, cy + ry * .05); x.quadraticCurveTo(cx - rx * 1.7, cy - ry * .55, cx, cy - ry); x.closePath(); x.fill(); };
+    const [bc, bx] = tmp(0); bx.setTransform(S, 0, 0, S, R0 * S, R0 * S); bx.beginPath(); bx.arc(0, 0, R0, 0, TAU); bx.clip(); // the blob: every drop, each in its own shade of its color
+    let k = 0;
+    for (const st of sts) { const e = st.e || 1.4, cx = Math.cos(st.a) * st.d - st.r * (e - 1) * .4, cy = Math.sin(st.a) * st.d, rx = st.r * e * .62, c = st.c || BLOOD;
+      bx.fillStyle = shade(c, -.1 + ((k++ * 37) % 7) / 7 * .16); drop(bx, cx, cy, rx, st.r);
+      if (st.r > 2.2) { bx.beginPath(); bx.arc(cx + rx * .9, cy + st.r * .5, st.r * .28, 0, TAU); bx.fill(); } } // a flung droplet ahead of it
+    const x = sts.spr.getContext('2d'); x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, N, N); x.drawImage(bc, 0, 0);
+    const [rc, rx2] = tmp(1); // the edges darken softly where it's thinnest and drying: dark everywhere except the blurred middle of the blob
+    rx2.fillStyle = 'rgba(35,0,4,.55)'; rx2.fillRect(0, 0, N, N); rx2.globalCompositeOperation = 'destination-out'; rx2.filter = `blur(${S * .7}px)`; rx2.drawImage(bc, 0, 0); rx2.filter = 'none';
+    x.globalCompositeOperation = 'source-atop'; x.drawImage(rc, 0, 0);
+    const [hc, hx] = tmp(2); // wet: a thin highlight along the edges that face the light (top left), the blob less a copy of itself nudged that way
+    hx.drawImage(bc, -S * .35, -S * .35); hx.globalCompositeOperation = 'source-in'; hx.fillStyle = 'rgba(255,215,215,.5)'; hx.fillRect(0, 0, N, N);
+    hx.globalCompositeOperation = 'destination-out'; hx.drawImage(bc, S * .5, S * .5);
+    x.drawImage(hc, 0, 0); x.globalCompositeOperation = 'source-over';
+    sts.dirty = false;
   }
   return sts.spr;
 }

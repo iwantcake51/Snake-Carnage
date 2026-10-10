@@ -280,6 +280,11 @@ function drawTrunk(x, o) { // baked: trunk and the main limbs, which show throug
 function windAt(px, py, ph, id = 'trees') { // a slow gust rolls across the map; each tree also has its own wobble (id: whose speed and strength, in the Animation editor)
   const T = animT(id); return (Math.sin(T * .9 - px * .006 - py * .003) * .6 + Math.sin(T * 1.7 + ph) * .25 + Math.sin(T * .43 + ph * 2.3) * .2) * AN[id].amp;
 }
+function treeStill(x, o) { // a tree or bush exactly as the game draws it, without the sway, on any canvas (map pictures, the editor); shares the game's sprites
+  if (!(o.r > 0) || !isFinite(o.x) || !isFinite(o.y)) return false;
+  try { treeInfo(o); const key = `${o.kind}${o.x},${o.y},${o.r}:${seasonId()}`; if (!CANOPY.has(key)) { if (CANOPY.size > 260) CANOPY.clear(); CANOPY.set(key, buildCanopy(o)); }
+    drawTrunk(x, o); drawTreeStatic(x, { o, ...CANOPY.get(key) }); return true; } catch (e) { return false; }
+}
 let treeBake = null; // Low tree quality: every canopy painted once into one layer
 function drawTreeStatic(x, t) { const o = t.o, s = t.S;
   if (t.limbs) for (const l of t.limbs) x.drawImage(l.c, o.x - s / 2, o.y - s / 2, s, s); else x.drawImage(t.lo, o.x - s / 2, o.y - s / 2, s, s);

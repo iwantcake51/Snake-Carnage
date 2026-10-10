@@ -165,7 +165,7 @@ function buildMaze() {
     if ((v[r - 1][c] || v[r][c] || h[r][c - 1] || h[r][c]) && Math.random() < .3 && posts.length < Math.round(cols * .9)) posts.push(LAMP(x0, y0, { lantern: true }));
   }
   obs.push(...posts, Object.assign(C(W / 2, H / 2, 34, '#4aa3df', 'water'), { fountain: true }), LAMP(W / 2 - 70, H / 2 - 60), LAMP(W / 2 + 70, H / 2 - 60), LAMP(W / 2 - 70, H / 2 + 60), LAMP(W / 2 + 70, H / 2 + 60));
-  return { obs, floor(x) { checker(x, ...GRASS, 32); x.fillStyle = '#d6c9a8'; x.beginPath(); x.arc(W / 2, H / 2, 105, 0, TAU); x.fill(); x.strokeStyle = '#bfb08c'; x.lineWidth = 2; for (let k = 1; k < 4; k++) { x.beginPath(); x.arc(W / 2, H / 2, 46 + k * 18, 0, TAU); x.stroke(); } },
+  return { obs, floor(x) { if (!mapGround(x, 'lawn')) checker(x, ...GRASS, 32); if (!texShape(x, 'dirt', g => { g.beginPath(); g.arc(W / 2, H / 2, 105, 0, TAU); g.fill(); })) { x.fillStyle = '#d6c9a8'; x.beginPath(); x.arc(W / 2, H / 2, 105, 0, TAU); x.fill(); } /* the garden's lawn and its gravel plaza */ x.strokeStyle = '#bfb08c'; x.lineWidth = 2; for (let k = 1; k < 4; k++) { x.beginPath(); x.arc(W / 2, H / 2, 46 + k * 18, 0, TAU); x.stroke(); } },
            start: { x: B + cw / 2, y: B + ch / 2, a: v[0][1] ? Math.PI / 2 : 0 } };
 }
 
@@ -319,7 +319,7 @@ const MAPS = [
         floor(x) {
           const paveA = '#b9b3a7', paveB = '#c6c0b3';
           x.fillStyle = paveA; x.fillRect(0, 0, W, H); x.fillStyle = paveB; for (let i = 0; i < W; i += 24) for (let j = 0; j < H; j += 24) if ((i / 24 + j / 24) % 2) x.fillRect(i, j, 24, 24); // sidewalk slabs
-          const grass = (r, seed, edge = true) => { x.fillStyle = '#93bf55'; x.fillRect(...r); const g = seeded(seed); for (let k = 0; k < r[2] * r[3] / 60; k++) { x.fillStyle = g() < .5 ? '#86b24b' : '#a2cb62'; x.fillRect(r[0] + g() * r[2], r[1] + g() * r[3], 2, 2); } if (edge) { x.strokeStyle = 'rgba(70,90,40,.35)'; x.lineWidth = 1.5; x.strokeRect(r[0] + .75, r[1] + .75, r[2] - 1.5, r[3] - 1.5); } };
+          const grass = (r, seed, edge = true) => { if (!texShape(x, 'lawn', q => q.fillRect(...r))) { x.fillStyle = '#93bf55'; x.fillRect(...r); const g = seeded(seed); for (let k = 0; k < r[2] * r[3] / 60; k++) { x.fillStyle = g() < .5 ? '#86b24b' : '#a2cb62'; x.fillRect(r[0] + g() * r[2], r[1] + g() * r[3], 2, 2); } } /* real lawn grass (the flat green and its flecks are the stand-in) */ if (edge) { x.strokeStyle = 'rgba(70,90,40,.35)'; x.lineWidth = 1.5; x.strokeRect(r[0] + .75, r[1] + .75, r[2] - 1.5, r[3] - 1.5); } };
           const asph = (r, c = '#4b4b52') => { x.fillStyle = c; x.fillRect(...r); };
           grass([16, 16, 928, 46], 31, false); grass([904, 16, 40, 608], 32, false); // the verges at the edge of town
           grass(SQ, 33); grass([678, 122, 166, 150], 34); grass([678, 560, 166, 64], 35); // the square, the churchyard, the front lawns
@@ -426,7 +426,7 @@ const MAPS = [
     }
   },
   {
-    name: 'Pool', icon: '🏊', border: '#5a7f8f', start: { x: 480, y: 100, a: 0 }, times: { midday: 2, afternoon: 2.5, sunset: 2, evening: 2, night: 1.5 },
+    name: 'Pool', icon: '🏊', border: '#5a7f8f', start: { x: 480, y: 100, a: 0 }, ground: x => mapGround(x, 'lawn'), times: { midday: 2, afternoon: 2.5, sunset: 2, evening: 2, night: 1.5 },
     pop: [['human', 16], ['dog', 1], ['duck', 3, { x: 60, y: 380, w: 220, h: 200 }]],
     build: () => ({ // the pool and its deck, a lawn with a fountain, the changing rooms and the snack bar; nothing fences you in.
       // Paved paths: changing rooms -> deck, snack bar -> deck, the walkway north-south through the deck, and a branch to the fountain plaza.
@@ -442,7 +442,7 @@ const MAPS = [
       lights: [{ x: 345, y: 194, r: 56, kind: 'pool', fix: 'pool' }, { x: 480, y: 194, r: 56, kind: 'pool', fix: 'pool' }, { x: 615, y: 194, r: 56, kind: 'pool', fix: 'pool' },
                { x: 345, y: 336, r: 56, kind: 'pool', fix: 'pool' }, { x: 480, y: 336, r: 56, kind: 'pool', fix: 'pool' }, { x: 615, y: 336, r: 56, kind: 'pool', fix: 'pool' }],
       floor(x) {
-        checker(x, ...GRASS, 32);
+        if (!mapGround(x, 'lawn')) checker(x, ...GRASS, 32); // the lawn round the pool
         x.fillStyle = '#e8e2d6'; x.fillRect(250, 140, 460, 250); x.fillRect(16, 126, 240, 40); x.fillRect(450, 16, 60, 130); x.fillRect(450, 390, 60, 234);
         x.fillRect(760, 116, 40, 70); x.fillRect(706, 156, 94, 30); x.fillRect(236, 462, 218, 36); // the snack bar's path to the deck; the branch to the fountain plaza
         x.strokeStyle = 'rgba(150,140,120,.35)'; x.lineWidth = 1; for (const r of [[760, 116, 40, 70], [706, 156, 94, 30], [236, 462, 218, 36]]) x.strokeRect(r[0] + .5, r[1] + .5, r[2] - 1, r[3] - 1);

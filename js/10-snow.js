@@ -78,7 +78,7 @@ function shadeSnow(x0, y0, x1, y1) { // light from the upper left, AO in hollows
     const pk = .86 + .14 * sstep(.22, .42, d); // packed snow in a groove is greyer than fresh powder
     let R = (148 + 95 * Math.min(1, L)) * pk, G = (166 + 81 * Math.min(1, L)) * pk, B = (204 + 49 * Math.min(1, L)) * (pk * .5 + .5);
     if (L > 1) { const e = (L - 1) * 40; R += e; G += e; B += e * .5; }
-    const TX = globalThis.__snowTex; if (TX) { const n = globalThis.__snowTexN, q = ((j % n) * n + (i % n)) * 3, q2 = (((i + 97) % n) * n + (n - 1 - (j + 53) % n)) * 3, f = (.35 + .65 * sstep(.05, .4, d)) / 170; // real snow's crystals and relief, anchored to the map, fainter on a thin dusting
+    const TX = globalThis.__snowTex; if (TX) { const n = globalThis.__snowTexN, q = ((j % n) * n + (i % n)) * 3, q2 = (((i + 97) % n) * n + (n - 1 - (j + 53) % n)) * 3, f = (.35 + .65 * sstep(.05, .4, d)) * 2.5 / 170; // real snow's crystals and relief, anchored to the map, fainter on a thin dusting (the tile is soft: x2.5 makes it just noticeable, about +-5%)
       const w = .5 + .5 * Math.sin(i * .011 + Math.sin(j * .007) * 2) * Math.sin(j * .013 + 1.3), v = 1 - w; // and the same texture turned a quarter, mixed in by a slow drift across the map: no grid of repeats
       R *= 1 + (TX[q] * v + TX[q2] * w - 170) * f; G *= 1 + (TX[q + 1] * v + TX[q2 + 1] * w - 170) * f; B *= 1 + (TX[q + 2] * v + TX[q2 + 2] * w - 170) * f; }
     const s = snowS[k];

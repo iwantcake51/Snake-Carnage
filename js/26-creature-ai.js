@@ -179,13 +179,13 @@ function hopSpeed(c, dt, spd) { // returns this frame's speed: fast while airbor
   const scared = c.state === 'panic' || c.state === 'flee';
   if (c.hopT > 0) { // in the air
     c.hopT -= dt; const p = 1 - Math.max(0, c.hopT) / c.hopDur; c.hz = Math.sin(p * Math.PI) * c.hopH;
-    if (c.hopT <= 0) { c.hz = 0; c.hopW = scared ? rand(.06, .2) : rand(.35, .9) * (Math.random() < .2 ? 2 : 1); } // land, then sit a moment
+    if (c.hopT <= 0) { c.hz = 0; c.hopW = scared ? rand(.1, .26) : rand(.35, .9) * (Math.random() < .2 ? 2 : 1); } // land, then sit a moment
     return c.hopV;
   }
   c.hz = 0;
   if (spd <= 0) return 0;
   if ((c.hopW = (c.hopW ?? rand(0, .5)) - dt) > 0) return 0;
-  const P = c.def.hopP || { d: [12, 22], ds: [26, 42], h: [3, 5], hs: [5, 8], t: [.22, .3], ts: [.18, .24] }; // frogs by default; rabbits bound further and higher
+  const P = c.def.hopP || { d: [9, 16], ds: [19, 30], h: [3, 5], hs: [5, 8], t: [.22, .3], ts: [.19, .25] }; // frogs by default; rabbits bound further and higher
   const dist = scared ? rand(...P.ds) : rand(...P.d) * (spd / c.def.walk > 1.5 ? 1.4 : 1);
   c.hopDur = scared ? rand(...P.ts) : rand(...P.t); c.hopT = c.hopDur; c.hopH = scared ? rand(...P.hs) : rand(...P.h); c.hopV = dist / c.hopDur;
   return c.hopV;

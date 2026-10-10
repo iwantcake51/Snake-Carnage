@@ -169,7 +169,7 @@ function stormBomb(st, s, q) {
   if (!best) return;
   const tt = (run.time || 0) - (MOD.airRaid ? AIR_RAID_START : AIR_START), kd0 = bombKd(tt, .5), kd = kd0 === 'c' ? undefined : kd0, sd = kd ? randi(1, 2 ** 30) : undefined, rr = kd === 'i' ? Math.round(r * .8) : r; // (half as many special ones in a storm, and no cluster bombs: a sky full of gas would hide every marker, and bomblets on top of a storm are too much)
   const rx = Math.round(best[0]), ry = Math.round(best[1]), ja = st.n++ % 6 === 0 ? +(s.angle + st.es * rand(1.2, 1.9)).toFixed(3) : undefined, f = +((lock ? .3 : .45) / rand(.9, 1.2)).toFixed(2); // (a jet for every sixth: enough to fill the sky without a voice for every bomb)
-  airStrike(rx, ry, w, rr, ja, f, undefined, kd, sd); netEmit({ t: 'air', x: rx, y: ry, w, r: rr, j: ja, f, kd, sd, h: Math.round(netNow()) });
+  const ew = airEW(s) || undefined, ep = ew ? airPid(s) : undefined; airStrike(rx, ry, w, rr, ja, f, undefined, kd, sd, ew, ep); netEmit({ t: 'air', x: rx, y: ry, w, r: rr, j: ja, f, kd, sd, ew, ep, h: Math.round(netNow()) });
 }
 function barrageWarn() { Sfx.barrage(); } // no notice on screen: the sound and the markers are the warning
 function airKillTick(s, c) { // the deciding browser: someone (any player) just ate somebody: the jets come sooner (a person a fair bit, an animal far less, a small one less still)
@@ -209,8 +209,8 @@ function airSalvo(s, g, a) { // a salvo of bombs walked along this snake's path 
     const [x, y] = airInside(s.x + Math.cos(ga) * dist - Math.sin(ga) * side, s.y + Math.sin(ga) * dist + Math.cos(ga) * side, s.x, s.y);
     const ja = j === 0 ? +jetA.toFixed(3) : undefined, f = +((lock ? .3 : .65) / fs).toFixed(2); // they take longer to fall: you see them coming
     const kd = bombKd(tt), sd = kd ? randi(1, 2 ** 30) : undefined, rr = kd === 'i' ? Math.round(r * .8) : r; // what this one is (BOMB_KINDS); an incendiary's own blast is smaller: its fire does the rest
-    const rx = Math.round(x), ry = Math.round(y), tk = lock ? airPid(s) : undefined; airStrike(rx, ry, w, rr, ja, f, tk, kd, sd);
-    netEmit({ t: 'air', x: rx, y: ry, w, r: rr, j: ja, f, tk, kd, sd, h: Math.round(netNow()) }); // (h: the host's clock, so guests can take off the time it spent in transit)
+    const rx = Math.round(x), ry = Math.round(y), tk = lock ? airPid(s) : undefined, ew = airEW(s) || undefined, ep = ew ? airPid(s) : undefined; airStrike(rx, ry, w, rr, ja, f, tk, kd, sd, ew, ep);
+    netEmit({ t: 'air', x: rx, y: ry, w, r: rr, j: ja, f, tk, kd, sd, ew, ep, h: Math.round(netNow()) }); // (h: the host's clock, so guests can take off the time it spent in transit)
   }
 }
 const BOMB_KINDS = [[undefined, 45], ['g', 30], ['i', 17], ['c', 8]]; // what a bomb is: plain bombs most of all, gas a little less often, incendiaries less again, cluster bombs the rarest
@@ -248,15 +248,15 @@ function bombRun(s, k, a0) { // a jet flying a line across your path, letting a 
   for (let i = 0; i < n; i++) {
     const o = (i - (n - 1) / 2) * gap, x = px + Math.cos(a) * o, y = py + Math.sin(a) * o; if (x < B + 45 || y < B + 45 || x > W - B - 45 || y > H - B - 45) continue; // (none right on the edge)
     const w = +(warn + i * gap / walk).toFixed(2), rr = Math.round(r * rand(.88, 1.14)), f = +((lock ? .25 : .5) / rand(.85, 1.25)).toFixed(2);
-    airStrike(Math.round(x), Math.round(y), w, rr, jet, f); netEmit({ t: 'air', x: Math.round(x), y: Math.round(y), w, r: rr, j: jet, f, h: Math.round(netNow()) }); jet = undefined; // one jet, flying the line
+    const ew = airEW(s) || undefined, ep = ew ? airPid(s) : undefined; airStrike(Math.round(x), Math.round(y), w, rr, jet, f, undefined, undefined, undefined, ew, ep); netEmit({ t: 'air', x: Math.round(x), y: Math.round(y), w, r: rr, j: jet, f, ew, ep, h: Math.round(netNow()) }); jet = undefined; // one jet, flying the line
   }
 }
 function airWarn() {
   notify({ kind: 'bad', icon: giSvg('jet'), title: MOD.airRaid ? 'AIR RAID' : 'AIR STRIKE INBOUND', sub: 'The military is bombing and strafing your path. Stay out of the red rings and lanes.', dur: 4.2, key: 'air' });
   Sfx.siren();
 }
-function airStrike(x, y, w, r = AIR_R, jetA, f = .5, tk, kd, sd) { // (kd: 'c' a cluster bomb, 'i' an incendiary; sd: the seed every screen builds its bomblets or fire patches from) // every screen: mark the spot and start its clock (f: how long the bomb takes to fall into view and land; shorter is faster; tk: Locked on, the player it slides after)
-  strikes.push({ x, y, t: w, dur: w, r, f: clamp(f || .5, .12, 1.2), tk, kd, sd, ja: jetA ?? (strikes.length ? strikes[strikes.length - 1].ja : undefined), rot: ((x * 131 + y * 71) % 628) / 100, ph: 0, whistled: false }); // (the marker's turn comes from where it is, so it looks the same on every screen)
+function airStrike(x, y, w, r = AIR_R, jetA, f = .5, tk, kd, sd, ew, ep) { // (ew, ep: Early Warning's extra seconds at the start of w, and whose perk it is: only they see it that early, as the teal radar marker) // (kd: 'c' a cluster bomb, 'i' an incendiary; sd: the seed every screen builds its bomblets or fire patches from) // every screen: mark the spot and start its clock (f: how long the bomb takes to fall into view and land; shorter is faster; tk: Locked on, the player it slides after)
+  strikes.push({ x, y, t: w, dur: w, r, f: clamp(f || .5, .12, 1.2), tk, kd, sd, ew: ew > 0 ? Math.min(ew, w - .2) : 0, ep, ja: jetA ?? (strikes.length ? strikes[strikes.length - 1].ja : undefined), rot: ((x * 131 + y * 71) % 628) / 100, ph: 0, whistled: false }); // (the marker's turn comes from where it is, so it looks the same on every screen)
   if (jetA !== undefined) { const j = { x, y, a: jetA, u: 0, over: Math.max(.2, w - (LOCK() ? .35 : .65)), dropped: false, v: jetV() }; jets.push(j); Sfx.flyby(j); }
   Sfx.lockOn(x);
 }
@@ -336,7 +336,7 @@ function detonate(s) {
     later.push({ t: dl, f: () => { Sfx.cookOff(sx); for (let q = 0; q < 10; q++) { const b = rand(0, TAU), v = rand(120, 380); boomBits.push({ spark: true, x: sx, y: sy, z: rand(4, 12), vx: Math.cos(b) * v, vy: Math.sin(b) * v, vz: rand(40, 200), t: 0, life: rand(.2, .5) }); } } }); }
   if (s.kd === 'i') fireSpread(s); // an incendiary: small patches of burning ground (38g-cluster-fire)
   for (let k = 0; k < n(mini ? 1 : s.kd === 'i' ? 2 : 4); k++) { const a = rand(0, TAU), d = rand(0, .55) * r; fires.push({ x: x + Math.cos(a) * d, y: y + Math.sin(a) * d, r: rand(5, 10), t: 0, life: rand(2.5, 5), ph: rand(0, 99) }); } // the crater keeps burning
-  const gpal = groundPalette(x, y, r);
+  const gpal = groundPalette(x, y, r); { const main = booms.find(q => !q.puff && q.x === x && q.y === y && q.t === 0); if (main) main.dust = shade(gpal[gpal.length - 1] || '#b49a78', .25); } // the dust ring is the ground's own color
   for (let k = 0; k < Math.round(56 * cm * bm); k++) { const a = rand(0, TAU), sp = rand(90, 420); boomBits.push({ x: x + rand(-6, 6), y: y + rand(-6, 6), z: rand(2, 10), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(120, 380), t: 0, life: rand(1.6, 3.2), s: rand(1.5, 4.2), tr: Math.random() < .35, c: pick(gpal) }); } // crumbs of whatever the ground was, thrown high
   for (let k = 0; k < Math.round(48 * cm * bm); k++) { const a = rand(0, TAU), sp = rand(180, 620); boomBits.push({ spark: true, x, y, z: rand(4, 16), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(40, 260), t: 0, life: rand(.25, .75) }); }
   for (let k = 0; k < Math.round(40 * fx); k++) { const a = rand(0, TAU), sp = rand(40, 260); boomBits.push({ ember: true, x: x + rand(-8, 8), y: y + rand(-8, 8), z: rand(6, 20), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(60, 240), t: 0, life: rand(1.2, 2.8), g: .35 }); } // glowing embers that drift down
@@ -892,8 +892,21 @@ function drawFire(x, f) { // a patch of ground still burning in the crater: flic
     x.fillStyle = g; circ(x, f.x + ox, f.y + oy, rr);
   }
 }
+function drawEarlyMark(x, s, a) { // Early Warning: a teal radar contact where a strike on you is coming, before the real marker (so it's plain the perk caught it)
+  const R = s.r, sp = T * 2.4 + s.rot; x.save(); x.translate(s.x, s.y); x.globalAlpha = a;
+  x.fillStyle = 'rgba(60,210,200,.1)'; circ(x, 0, 0, R);
+  x.beginPath(); x.moveTo(0, 0); x.arc(0, 0, R, sp - .9, sp); x.closePath(); x.fillStyle = 'rgba(110,240,230,.22)'; x.fill(); // the sweep
+  x.strokeStyle = 'rgba(170,255,248,.95)'; x.lineWidth = 1.6; x.beginPath(); x.moveTo(0, 0); x.lineTo(Math.cos(sp) * R, Math.sin(sp) * R); x.stroke();
+  x.setLineDash([9, 7]); x.lineWidth = 2; x.strokeStyle = 'rgba(110,240,230,.9)'; x.beginPath(); x.arc(0, 0, R, -sp * .25, -sp * .25 + TAU); x.stroke(); x.setLineDash([]);
+  const ph = (T * 1.5) % 1; x.globalAlpha = a * (1 - ph) * .8; x.lineWidth = 1.4; x.beginPath(); x.arc(0, 0, R * (.2 + .8 * ph), 0, TAU); x.stroke(); // pings going out
+  x.globalAlpha = a; x.fillStyle = 'rgba(170,255,248,.95)'; x.font = '700 9px system-ui, sans-serif'; x.textAlign = 'center'; x.fillText('EARLY WARNING', 0, -R - 7);
+  x.restore();
+}
+const gasMarkA = () => typeof sk === 'function' && sk('mask') ? 1 - .5 * clamp(((snake && snake.gasK) || 0) * 4, 0, 1) : GAS_SEE; // how much of the markers you can make out: gone in gas, half with the Gas Mask
 function drawStrikeMark(x, s) { // a bomb, an incendiary and a cluster bomb each have their own marker, different enough to tell apart at a glance
-  const p = clamp(1 - s.t / s.dur, 0, 1), on = Math.sin(s.ph) > 0, R = s.r, rot = s.rot + T * .7, ma = GAS_SEE; // ma: in gas the marker can't be made out (the bomb itself still can)
+  const el = s.dur - s.t, ew = s.ew || 0, mine = !NETM.run || s.ep === NETM.me; let fa = 1; // Early Warning: the early stretch is the teal radar marker (yours only), crossfading into this one
+  if (ew) { if (!mine && el < ew) return; if (mine && el < ew + .3) { drawEarlyMark(x, s, clamp((ew + .3 - el) / .6, 0, 1) * gasMarkA()); if (el < ew - .3) return; } fa = clamp((el - (mine ? ew - .3 : ew)) / (mine ? .6 : .15), 0, 1); }
+  const p = clamp((el - ew) / Math.max(.05, s.dur - ew), 0, 1), on = Math.sin(s.ph) > 0, R = s.r, rot = s.rot + T * .7, ma = gasMarkA() * fa; // ma: in gas the marker can't be made out (the bomb itself still can)
   x.save(); x.translate(s.x, s.y); x.globalAlpha = ma;
   const zone = (r, g, b) => { const glow = x.createRadialGradient(0, 0, R * .2, 0, 0, R * 1.5); glow.addColorStop(0, `rgba(${r},${g},${b},${(on ? .26 : .12) + .14 * p})`); glow.addColorStop(.7, `rgba(${r},${g},${b},${(on ? .16 : .07) + .08 * p})`); glow.addColorStop(1, `rgba(${r},${g},${b},0)`); x.fillStyle = glow; circ(x, 0, 0, R * 1.5); };
   const sweep = () => { x.strokeStyle = 'rgba(255,255,255,.9)'; x.lineWidth = 3; x.beginPath(); x.arc(0, 0, R - 6, -Math.PI / 2, -Math.PI / 2 + TAU * (1 - p)); x.stroke(); }; // time left
@@ -983,7 +996,13 @@ function drawBoom(x, b) {
     if (b.t < .22) { x.globalAlpha = (1 - b.t / .22) * (SETTINGS.reduceFlash ? .35 : .9); kDraw(x, 'star_08', '#fff6e0', b.x, b.y, R * 7, R * 7, b.kr, 128); }
     x.globalAlpha = 1;
   }
-  const w = 1 - (1 - Math.min(1, u * 1.6)) ** 2; // the blast front
+  const w = 1 - (1 - Math.min(1, u * 1.6)) ** 2, w2 = 1 - (1 - Math.min(1, u * 1.1)) ** 2; // the blast front, and the dust it shoves along behind it
+  if (KSPR.ok) { // Kenney rings: a hot, bright front racing out, and a slower, wider ring of the ground's own dust
+    const d = R * (1 + 3 * w) * 2.25, d2 = R * (1.2 + 3.6 * w2) * 2.3;
+    x.globalAlpha = .55 * (1 - u) ** 1.2; kDraw(x, 'circle_05', b.dust || '#b49a78', b.x, b.y, d2, d2, b.kr || 0, 128);
+    x.globalAlpha = .85 * (1 - u) ** 1.5; kDraw(x, 'circle_04', '#ffe2b0', b.x, b.y, d, d, -(b.kr || 0), 128, 2);
+    x.globalAlpha = 1; return;
+  }
   x.strokeStyle = `rgba(255,235,200,${(.6 * (1 - u)).toFixed(3)})`; x.lineWidth = 9 * (1 - u) + .5; x.beginPath(); x.arc(b.x, b.y, R * (1 + 3 * w), 0, TAU); x.stroke();
 }
 /* ---- the shockwave: a ring racing out that bends the picture behind it like a lens (the scene inside the ring is
@@ -1141,10 +1160,11 @@ Object.assign(Sfx, {
     this.burst(o, t, .16, 2200, .7, .7 * k); this.burst(o, t, .05, 5000, 1, .4 * k, 'highpass');
     this.tone(o, t, 90, 24, 1.6, 'sine', 1.1 * k); this.tone(o, t, 48, 30, 2.2, 'sine', .7 * k); // sub
     this.burst(o, t, 2.2, 320, .5, .95 * k, 'lowpass'); this.burst(o, t + .05, 1.2, 900, .6, .35 * k, 'lowpass');
-    for (let i = 0; i < 14; i++) this.burst(o, t + .15 + Math.random() * 1.4, rand(.03, .09), rand(600, 3400), 2, rand(.05, .14) * k); // stuff landing
-    const e = this.out(x, .5); this.burst(e, t + .38, 1.2, 260, .6, .4 * k, 'lowpass'); this.burst(e, t + .85, 1.4, 200, .6, .22 * k, 'lowpass'); // the echo rolling back off the far side
-    const vg = c.createGain(); vg.gain.value = SETTINGS.volume * .7 * k; vg.connect(this.airVerb()); this.burst(vg, t, .5, 500, .5, .9, 'lowpass'); this.tone(vg, t, 70, 30, .8, 'sine', .6); this.burst(vg, t, .12, 2000, .7, .4); // and the whole sky answering
-    for (let i = 0; i < 6; i++) this.burst(o, t + .5 + Math.random() * 1.8, rand(.04, .1), rand(1500, 4000), 3, rand(.03, .07) * k); // crackling fire
+    // the rest is built over the next frames (Sfx.defer): it all starts later than this moment anyway, so it sounds the same and the blast's frame doesn't stall
+    for (let j = 0; j < 14; j += 4) this.defer(() => { for (let i = j; i < Math.min(14, j + 4); i++) this.burst(o, t + .15 + Math.random() * 1.4, rand(.03, .09), rand(600, 3400), 2, rand(.05, .14) * k); }); // stuff landing
+    this.defer(() => { const e = this.out(x, .5); this.burst(e, t + .38, 1.2, 260, .6, .4 * k, 'lowpass'); this.burst(e, t + .85, 1.4, 200, .6, .22 * k, 'lowpass'); }); // the echo rolling back off the far side
+    this.defer(() => { const vg = c.createGain(); vg.gain.value = SETTINGS.volume * .7 * k; vg.connect(this.airVerb()); this.burst(vg, t, .5, 500, .5, .9, 'lowpass'); this.tone(vg, t, 70, 30, .8, 'sine', .6); this.burst(vg, t, .12, 2000, .7, .4); }); // and the whole sky answering
+    this.defer(() => { for (let i = 0; i < 6; i++) this.burst(o, t + .5 + Math.random() * 1.8, rand(.04, .1), rand(1500, 4000), 3, rand(.03, .07) * k); }); // crackling fire
   },
   tinnitus(k = 1) { // your ears ring: a high whine that bypasses everything (it's inside your head), while the world goes muffled and slowly comes back
     if (!this.ok()) return; const c = this.ctx, t = c.currentTime; if ((this.ringUntil || 0) > t + .4) return; this.ringUntil = t + 3.2 + 1.5 * k; // already ringing: another close one doesn't start it over

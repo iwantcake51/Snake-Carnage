@@ -28,7 +28,7 @@ const SKILL_TREE = [
   { id: 'speed', br: 'pred', name: 'Speed Demon', icon: 'speed', cost: [1, 1, 2, 2, 3], req: [], x: 1085, y: 790,
     desc: '5% faster per rank.', fx: [['Speed', g => SKV.speed(g) * 100 - 100, pct]] },
   { id: 'sidewind', br: 'pred', name: 'Sidewinder', icon: 'sidewind', cost: [1, 2, 3], req: [], x: 950, y: 770,
-    desc: 'Turn quicker: tighter arcs, faster dodges.', fx: [['Turn rate', g => SKV.turn(g) * 100 - 100, pct]] },
+    desc: 'Turn quicker: tighter arcs, faster dodges, and sharper turns mid-lunge.', fx: [['Turn rate', g => SKV.turn(g) * 100 - 100, pct], ['Turning while lunging', g => SKV.turn(g) * SKV.lungeTurn(g) * 100 - 100, pct]] },
   { id: 'dash', br: 'pred', major: 1, abil: 1, name: 'Lunge', icon: 'dash', cost: [2], req: [['speed', 1], ['sidewind', 1]], any: 1, x: 1015, y: 640,
     desc: 'A quick burst of speed. Not while dazed.', fx: [['Burst', g => SKV.lungeK(g), xk], ['Lasts', g => SKV.lungeDur(g), secs], ['Cooldown', g => SKV.lungeCd(g), secs]] },
   { id: 'stride', br: 'pred', name: 'Long Stride', icon: 'stride', cost: [1, 2, 3], req: [['dash', 1]], x: 1085, y: 490,
@@ -37,13 +37,13 @@ const SKILL_TREE = [
     desc: 'A harder, shorter lunge that recharges faster. Eating mid-lunge keeps it going.', fx: [['Burst', g => SKV.lungeK(g), xk], ['Cooldown', g => SKV.lungeCd(g), secs]] },
   { id: 'spring', br: 'pred', name: 'Coiled Spring', icon: 'spring', cost: [1, 1, 2, 3], req: [['dash', 1]], x: 935, y: 505,
     desc: 'Lunge recharges faster.', fx: [['Lunge cooldown', g => SKV.lungeCd(g), secs]] },
-  { id: 'whip', br: 'pred', name: 'Whiplash', icon: 'whip', cost: [1, 2, 2], req: [['spring', 1]], x: 930, y: 350,
-    desc: 'Turn sharper while lunging.', fx: [['Turning while lunging', g => SKV.lungeTurn(g) * 100 - 100, pct]] },
   // ---- Predator, hunting: the bite, Hoover Mouth and Hiss ----
   { id: 'jaws', br: 'pred', name: 'Wide Jaws', icon: 'jaws', cost: [1, 2, 3], req: [], x: 1215, y: 780,
     desc: 'Your bite reaches further.', fx: [['Bite reach', g => SKV.jaws(g) * 100 - 100, pct]] },
   { id: 'lust', br: 'pred', major: 1, name: 'Bloodlust', icon: 'lust', cost: [3], req: [['jaws', 2]], x: 1180, y: 300,
     desc: 'Every kill shaves a little time off your recharging abilities.', fx: [['Each kill takes off', g => SKV.lustBack(g), secs], ['At most, per use', g => g('lust') ? 50 : 0, n => n + '% of the cooldown']] },
+  { id: 'wind', br: 'pred', name: 'Second Wind', icon: 'wind', cost: [2, 3, 4], req: [['jaws', 1]], x: 1140, y: 690,
+    desc: 'Every target you eat takes a little time off abilities that are recharging.', fx: [['Each meal takes off', g => SKV.windBack(g), secs], ['At most, per use', g => g('wind') ? 25 : 0, n => n ? n + '% of the cooldown' : '—']] },
   { id: 'hoover', br: 'pred', major: 1, abil: 1, name: 'Hoover Mouth', icon: 'hoover', cost: [2], req: [['jaws', 1]], x: 1255, y: 625,
     desc: 'Suck in everything in front of you. Not through walls.', fx: [['Pull', g => SKV.hoovDur(g), secs], ['Strength', g => SKV.hoovPull(g), xk], ['Cone', g => SKV.hoovCone(g), n => Math.round(n) + '°'], ['Cooldown', g => SKV.hoovCd(g), secs]] },
   { id: 'breath', br: 'pred', name: 'Deep Breath', icon: 'breath', cost: [1, 2, 3], req: [['hoover', 1]], x: 1275, y: 455,
@@ -77,18 +77,21 @@ const SKILL_TREE = [
   // ---- Survival, toughness: dazes, smashing through things, gas, bombs ----
   { id: 'skull', br: 'surv', name: 'Battle Hardened', icon: 'skull', cost: [1, 1, 2, 3], req: [], x: 600, y: 800,
     desc: 'Shake off dazes faster. A direct hit still kills.', fx: [['Stun recovery', g => (SKV.stunCut(g) - 1) * 100, pct]] },
-  { id: 'gut', br: 'surv', name: 'Iron Stomach', icon: 'gut', cost: [1, 2, 3], req: [['skull', 1]], x: 545, y: 630,
+  { id: 'heat', br: 'surv', name: 'Heat Resistant', icon: 'heat', cost: [1, 2, 3], req: [['skull', 1]], x: 700, y: 560,
+    desc: 'While you burn, pieces burn off less often. It never stops the blast itself or the fire catching.', fx: [['Time between burns', g => BURN.tick / SKV.heatK(g), secs], ['Fewer burn ticks', g => (1 - SKV.heatK(g)) * 100, n => n ? '-' + Math.round(n) + '%' : '0%']] },
+  { id: 'gut', br: 'surv', name: 'Iron Stomach', icon: 'gut', cost: [1, 2, 3], req: [['skull', 1]], x: 510, y: 640,
     desc: 'Your combo lasts longer.', fx: [['Combo time', g => SKV.combo(g) * 100 - 100, pct]] },
-  { id: 'mask', br: 'surv', major: 1, name: 'Gas Mask', icon: 'mask', cost: [2], req: [['skull', 1]], x: 640, y: 470,
-    desc: 'Gas stops messing with your screen. It still slows you.', fx: [['Gas on your screen', g => g('mask') ? 0 : 100, n => n ? 'Full' : 'None']] },
-  { id: 'jam', br: 'surv', major: 1, name: 'Early Warning', icon: 'jam', cost: [3], req: [['skull', 2]], x: 725, y: 300,
-    desc: 'Air strikes aimed at you are marked a little sooner.', fx: [['Extra warning', g => SKV.warn(g), secs]] },
-  { id: 'debt', br: 'surv', name: 'Blood Debt', icon: 'debt', cost: [2, 3, 4], lvl: 15, req: [['skull', 2]], x: 535, y: 345,
-    desc: 'Lose a piece of yourself, and your next few meals pay double XP and chips. Twice a run; the extra is capped at 20% of what eating has paid you this run.', fx: [['Meals paid twice after a hit', g => BD.meals[g('debt')], n => n ? n + ' meals' : 'None'], ['Times a run', g => g('debt') ? BD.acts : 0, n => n ? String(n) : '—'], ['Extra capped at', g => g('debt') ? BD.cap * 100 : 0, n => n ? n + '% of eating pay' : '—']] },
-  { id: 'ram', br: 'surv', major: 1, name: 'Battering Ram', icon: 'ram', cost: [2, 3, 4], req: [], x: 750, y: 755,
+  { id: 'mask', br: 'surv', major: 1, name: 'Gas Mask', icon: 'mask', cost: [2], req: [['skull', 1]], x: 765, y: 665,
+    desc: 'Gas stops messing with your screen, and bomb markers stay half visible in it. It still slows you.', fx: [['Gas on your screen', g => g('mask') ? 0 : 100, n => n ? 'Full' : 'None']] },
+  { id: 'jam', br: 'surv', major: 1, name: 'Early Warning', icon: 'jam', cost: [3, 4], req: [['mask', 1]], x: 765, y: 435,
+    ranks: ['Strikes aimed at you show up 0.75 s sooner', '1.25 s sooner'],
+    desc: 'Air strikes aimed at you show up early, as a teal radar marker that turns into the real one.', fx: [['Extra warning', g => SKV.warn(g), secs]] },
+  { id: 'debt', br: 'surv', name: 'Blood Debt', icon: 'debt', cost: [2, 3, 4], lvl: 15, req: [['skull', 2]], x: 600, y: 430,
+    desc: 'Lose a piece of yourself, and your next few meals pay double XP and chips. Twice a run; the extra is capped at 20% of what eating has paid you this run.', fx: [['Meals paid twice after a hit', g => BD.meals[g('debt')], n => n ? n + ' meals' : 'None'], ['Times a run', g => g('debt') ? BD.acts : 0, n => n ? String(n) : '—'], ['Capped at', g => g('debt') ? BD.cap * 100 : 0, n => n ? n + '% of eating pay' : '—']] },
+  { id: 'ram', br: 'surv', major: 1, name: 'Battering Ram', icon: 'ram', cost: [2, 3, 4], req: [], x: 800, y: 770,
     ranks: ['Small things: chairs, crates, fences, glass', 'Furniture, bushes and small trees', 'Cars, rocks and cracked walls (leaves you dazed)'],
     desc: 'Smash through things instead of crashing. Higher ranks break heavier things.', fx: [['Smashes', g => SKV.ramTier(g), n => ['Nothing', 'Small things', 'Furniture', 'Cars and walls'][n]]] },
-  { id: 'momentum', br: 'surv', major: 1, name: 'Momentum', icon: 'momentum', cost: [4], lvl: 16, inv: 8, req: [['ram', 2]], x: 765, y: 585,
+  { id: 'momentum', br: 'surv', major: 1, name: 'Momentum', icon: 'momentum', cost: [4], lvl: 16, inv: 8, req: [['ram', 2]], x: 900, y: 620,
     desc: 'Smashing through things costs only half your speed. Press back to U-turn.', fx: [['Speed kept through a smash', g => g('momentum') ? 50 : 0, n => n ? 'Half the stall' : 'Full stall'], ['U-turn', g => g('momentum'), n => n ? 'Yes' : 'No']] },
   // ---- Fortune (optional): more chips from everything ----
   { id: 'study', br: 'fort', name: 'Quick Study', icon: 'study', cost: [1, 1, 2, 2, 3], req: [], x: 1650, y: 790,
@@ -169,6 +172,11 @@ function treeV5(v) { // v: the save's tree version before this
   if (v >= 1 && Object.keys(t).length) setTimeout(() => notify({ kind: 'info', icon: giSvg('study'), title: 'Skill tree rebalanced', sub: `Every skill now has a set price${back ? `: ${back} token${back === 1 ? '' : 's'} refunded` : ''}. Your skills are kept, and your first full reset is free.`, dur: 7, key: 'treev5' }), 2200);
 }
 if ((PROG.treeV | 0) < 5) treeV5(PROG.treeV | 0);
+if (PROG.treeV < 6) { // tree v6: Whiplash folded into Sidewinder (it only repeated Sidewinder's turning, mid-lunge): its ranks are taken back and their tokens come back with them (spent is worked out from the tree); nothing stood on it
+  const w = Math.min(3, PROG.tree.whip | 0), back = [1, 2, 2].slice(0, w).reduce((a, b) => a + b, 0);
+  delete PROG.tree.whip; delete PROG.treeOff.whip; if (PROG.treeNew) delete PROG.treeNew.whip; PROG.treeV = 6; saveProg();
+  if (back) setTimeout(() => notify({ kind: 'info', icon: giSvg('sidewind'), title: 'Whiplash is now part of Sidewinder', sub: `Sidewinder now sharpens your turns mid-lunge too. Your ${back} token${back === 1 ? '' : 's'} from Whiplash are back.`, dur: 7, key: 'treev6' }), 2600);
+}
 /* LEVEL_V: bump it by one whenever the levelling changes (the XP curve, what pays XP, tokens per level). Every save then starts
    over at level 1 with no XP and an empty skill tree (its tokens came from those levels), so old and new progress never mix.
    Chips, cosmetics, achievements and records are kept. */
@@ -191,7 +199,7 @@ const SKV = {
   lungeK: (g = sk) => g('pounce') ? 2.3 : 1.8 + rk([0, .035, .07, .11], g('stride')), // the extra ground a lunge covers is about speed x (K - 1) x (dur + 0.31 s of bleeding off): at the top of the tree ~1.15 s of normal travel, not ~1.8 (it overshot whole streets)
   lungeDur: (g = sk) => (g('pounce') ? .42 : .6) + rk([0, .05, .1, .16], g('stride')),
   lungeCd: (g = sk) => (g('pounce') ? 5 : 7) * (1 - rk([0, .07, .14, .21, .3], g('spring'))),
-  lungeTurn: (g = sk) => 1 + rk([0, .15, .3, .45], g('whip')),
+  lungeTurn: (g = sk) => Math.min(1 + rk([0, .1, .2, .3], g('sidewind')), 1.8 / SKV.turn(g)), // Sidewinder mid-lunge (Whiplash folded in), all told never past +80% while lunging
   eyeRange: (g = sk) => 1 + rk([0, .2, .4, .65], g('keen')),
   focusDur: (g = sk) => 1.2 + rk([0, .27, .54, .9], g('keen')),
   focusCd: (g = sk) => 16 - 3 * g('gold') - 3 * g('crowd'),
@@ -206,7 +214,7 @@ const SKV = {
   hoovCone: (g = sk) => lvAt([0, .55, 1, 1.5], SKV.hoovLv(g)) * 2 * 180 / Math.PI,
   ramTier: (g = sk) => g('ram'),
   stunCut: (g = sk) => 1 - rk([0, .1, .2, .3, .4], g('skull')), // Battle Hardened: how long every daze and concussion lasts (never how hard it hits, and never immunity: a direct hit still kills)
-  warn: (g = sk) => g('jam') ? .5 : 0, // Early Warning: seconds more warning on every strike aimed at you
+  warn: (g = sk) => rk([0, .75, 1.25], g('jam')), // Early Warning: seconds more warning on every strike aimed at you
   combo: (g = sk) => 1 + rk([0, .1, .2, .3], g('gut')),
   hissR: (g = sk) => 190 + 17 * g('rattle') + 30 * g('shock'),
   hissSlow: (g = sk) => 1.33 * g('rattle'),
@@ -214,6 +222,8 @@ const SKV = {
   hissCd: (g = sk) => 15 - 2 * g('shock'),
   jaws: (g = sk) => 1 + rk([0, .07, .14, .22], g('jaws')), // bite reach (snakeEatRadius)
   lustBack: (g = sk) => g('lust') ? .5 : 0, // Bloodlust: seconds each kill takes off every recharging ability
+  windBack: (g = sk) => rk([0, .1, .2, .3], g('wind')), // Second Wind: seconds each meal takes off every recharging ability
+  heatK: (g = sk) => 1 - rk([0, .15, .25, .35], g('heat')), // Heat Resistant: how often burn ticks come (0.65 = 35% fewer)
   // Fortune: rewards are yours alone, so these always read your own tree (never another player's in co-op)
   studyChips: (g = skMe) => rk([0, 3, 6, 9, 12, 16], g('study')), // Quick Study: chips for each different thing done in a run
   chipK: (g = skMe) => 1 + rk([0, .05, .1, .15, .2, .25], g('pockets')),
@@ -237,13 +247,19 @@ function studyHit(kind) { // Quick Study: the first time in a run you do each di
   const n = SKV.studyChips(); if (!n) return; got[kind] = 1; gainXP(0, n);
   notify({ kind: 'info', icon: giSvg('study'), title: 'Quick Study', sub: STUDY_KINDS[kind], right: `+${n} chips`, dur: 2, key: 'study' });
 }
-function lustRefund() { // Bloodlust: a kill takes a little off every ability that's still recharging (at most half its cooldown between uses)
-  const k = SKV.lustBack(); if (!k) return;
+/* cooldown refunds (Bloodlust, Second Wind): only ever off a cooldown that's running right now, worked out on the cooldown after
+   its modifiers (abilCd), each perk capped per use (Bloodlust half the cooldown, Second Wind a quarter) with anything over thrown away,
+   and all of them together can never bring an ability back sooner than half its cooldown after it was used (abilUsedAt): no stored
+   refunds, no extra charges, no instant loops */
+function cdRefund(per, capK, used) {
+  if (!(per > 0)) return;
   for (const n of ABIL_NODES) { const id = n.id, left = (abilCD[id] || 0) - T; if (left <= 0 || !sk(id)) continue;
-    const room = abilCd(id) * .5 - (lustBack[id] || 0), d = Math.min(k, left, room); if (d <= 0) continue;
-    abilCD[id] -= d; lustBack[id] = (lustBack[id] || 0) + d; }
+    const cd = abilCd(id), floorT = (abilUsedAt[id] ?? -1e9) + cd * .5, d = Math.min(per, cd * capK - (used[id] || 0), abilCD[id] - Math.max(T, floorT)); if (d <= 0) continue;
+    abilCD[id] -= d; used[id] = (used[id] || 0) + d; }
 }
-const lustBack = {}; // per ability: how much Bloodlust has taken off since it was last used
+const lustRefund = () => cdRefund(SKV.lustBack(), .5, lustBack); // Bloodlust: a kill takes 0.5 s off
+const windRefund = () => cdRefund(SKV.windBack(), .25, windBack); // Second Wind: each target you eat takes 0.1-0.3 s off
+const lustBack = {}, windBack = {}, abilUsedAt = {}; // per ability: what each perk has taken off since it was last used, and when that was
 /* ---- Blood Debt (Survival, id 'debt'): after real damage, the next 5/8/12 meals pay their normal eating XP and chips twice.
    No timers or cooldowns anywhere: it's counted in activations and meals, all kept in run.bd for the whole run (multiplayer respawns
    included; only newRun starts it over).
@@ -347,12 +363,12 @@ const abilCd = id => ABIL[id].cd * (MOD.slowRecharge ? 2 : MOD.quickRecharge ? .
 function useAbility(id) {
   if (!sk(id) || state !== 'play' || !snake || !snake.alive || !snake.started) return;
   const a = ABIL[id]; if ((abilCD[id] || 0) > T || (id === 'dash' && (snake.boomT > 0 || snake.ramT > 0 || snake.wallStun > 0))) { /* (no lunging while you're concussed: a blast, a smash, a wall) */ if (Sfx.ok() && Sfx.gate('deny', .6)) Sfx.deny(); abilityHud(); const b = document.querySelector(`#abil [data-a="${id}"]`); if (b) { b.classList.remove('no'); void b.offsetWidth; b.classList.add('no'); } return; }
-  abilCD[id] = T + abilCd(id); lustBack[id] = 0; a.go(snake); run.abil = (run.abil || 0) + 1;
+  abilCD[id] = T + abilCd(id); abilUsedAt[id] = T; lustBack[id] = windBack[id] = 0; a.go(snake); run.abil = (run.abil || 0) + 1;
   NET.emit({ type: 'ability', id, x: snake.x, y: snake.y, a: snake.angle });
   if (NETM.run && NETM.host) netEmit({ t: 'abil', pid: NETM.me, id, x: Math.round(snake.x), y: Math.round(snake.y) }); // the others hear it (and see the hiss)
   abilityHud(true);
 }
-function resetAbilities() { for (const k in abilCD) delete abilCD[k]; for (const k in lustBack) delete lustBack[k]; for (const n of ABIL_NODES) abilCD[n.id] = T + abilCd(n.id); FOCUS.until = 0; if (snake) snake.pingT = 0; abilityHud(true); } // every skill starts the round recharging
+function resetAbilities() { for (const k in abilCD) delete abilCD[k]; for (const k in lustBack) delete lustBack[k]; for (const k in windBack) delete windBack[k]; for (const k in abilUsedAt) delete abilUsedAt[k]; for (const n of ABIL_NODES) abilCD[n.id] = T + abilCd(n.id); FOCUS.until = 0; if (snake) snake.pingT = 0; abilityHud(true); } // every skill starts the round recharging
 const speedMult = () => SKV.speed();
 const comboGutMult = () => SKV.combo();
 const skillTip = n => `${n.name} (${abilKey(n.id)}): ${n.fx.map(([l, f, t]) => `${l} ${t(f(sk))}`).join(', ')}`;

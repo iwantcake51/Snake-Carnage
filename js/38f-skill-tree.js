@@ -83,7 +83,7 @@ const skRad = n => n ? (n.major ? (n.max > 1 ? 50 : 45) : 34) : 9; // how far a 
 function skPath(a, b) { // a gentle S-curve, like a snake's body, bent its own way per pair (a hash of the two names) so the tree grows wild rather than ruled.
   // It leaves the parent and enters the child dead on their centers: a straight stretch from the middle out to the edge, then the
   // curve, which leaves and arrives along those same lines (each a few degrees off the straight line between them, opposite ways).
-  // Any other skill in its way (the shape or the name under it) is curved round: a bend point is added beside it, up to six.
+  // Any other skill in its way (the shape or the name under it) is curved round: a bend point is added beside it, up to ten.
   const key = (a ? a.id : 'hub') + '>' + b.id, hit = skPath.c || (skPath.c = new Map()); if (hit.has(key)) return hit.get(key);
   const x1 = a ? a.x : SK_HUB.x, y1 = a ? a.y : SK_HUB.y, x2 = b.x, y2 = b.y, D = Math.hypot(x2 - x1, y2 - y1) || 1, dx = (x2 - x1) / D, dy = (y2 - y1) / D;
   let h = 0; for (const ch of (a ? a.id : 'hub') + b.id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
@@ -97,7 +97,7 @@ function skPath(a, b) { // a gentle S-curve, like a snake's body, bent its own w
   };
   const at = ([p, c1, c2, q], t) => { const m = 1 - t, A = m * m * m, B = 3 * m * m * t, C = 3 * m * t * t, E = t * t * t; return { x: A * p.x + B * c1.x + C * c2.x + E * q.x, y: A * p.y + B * c1.y + C * c2.y + E * q.y }; };
   const wp = [], done = new Set();
-  for (let pass = 0; pass < 6; pass++) {
+  for (let pass = 0; pass < 10; pass++) {
     let worst = null;
     for (const sg of segs(wp)) for (let k = 1; k < 24; k++) { const p = at(sg, k / 24); for (const o of obst) { if (done.has(o)) continue; for (const q of o.parts) { const gap = Math.hypot(p.x - q.x, p.y - q.y) - q.r; if (gap < 0 && (!worst || gap < worst.gap)) worst = { gap, o }; } } }
     if (!worst) break;

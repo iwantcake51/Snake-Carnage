@@ -69,7 +69,7 @@ function bombletTick(dt) {
 function drawBomblets(x) { // where each one will stop (marked from the moment it splits), and the bomblet itself: bouncing, then lying there blinking faster and faster
   for (const b of bomblets) { const left = b.fuse - b.t, u = clamp(1 - left / b.fuse, 0, 1), on = Math.sin(b.blink + b.t * (8 + 26 * u)) > 0;
     x.save(); x.translate(b.x, b.y);
-    const ma = GAS_SEE; x.globalAlpha = (.18 + .14 * u) * ma; x.fillStyle = '#ff7a1a'; circ(x, 0, 0, b.r); // (in gas you can't make the marks out)
+    const ma = gasMarkA(); x.globalAlpha = (.18 + .14 * u) * ma; x.fillStyle = '#ff7a1a'; circ(x, 0, 0, b.r); // (in gas you can't make the marks out)
     x.globalAlpha = .9 * ma; x.strokeStyle = on ? '#ffd23f' : '#ff5a1f'; x.lineWidth = 1.6; x.setLineDash([4, 3]); x.beginPath(); x.arc(0, 0, b.r, 0, TAU); x.stroke(); x.setLineDash([]);
     x.strokeStyle = '#fff'; x.lineWidth = 2; x.beginPath(); x.arc(0, 0, b.r - 3, -Math.PI / 2, -Math.PI / 2 + TAU * (1 - u)); x.stroke(); // time left
     x.restore();
@@ -123,13 +123,13 @@ function burnTick(dt) { // this screen's own snake
   const s = snake; if (!s) return;
   if (!s.alive || s.netHidden || !(state === 'play' || NETM.run)) { burnClear(s); return; }
   const touch = !(s.graceT > 0) && touchingFire(s), was = s.burnT > 0; s.inFire = touch;
-  if (touch) { if (!was) { s.burnTick = .35; burnIgnite(s); } s.burnT = BURN.hold; } // one fire, one clock: more patches don't burn you faster
+  if (touch) { if (!was) { s.burnTick = .35 / SKV.heatK(); burnIgnite(s); } s.burnT = BURN.hold; } // one fire, one clock: more patches don't burn you faster
   else if (s.burnT > 0) s.burnT = Math.max(0, s.burnT - dt);
   if (s.burnT > 0) { let wet = false; for (let i = 0; i < Math.min(s.segs.length, 12) && !wet; i += 3) wet = nearWater(s.segs[i].x, s.segs[i].y, 4); // water puts it out at once
     if (wet) { burnOut(s); return; } }
   const target = touch ? 1 : s.burnT > 0 ? .45 + .4 * s.burnT / BURN.hold : 0; s.burnK = (s.burnK || 0) + (target - (s.burnK || 0)) * (1 - Math.exp(-dt * (target > (s.burnK || 0) ? 8 : 3)));
   if (s.burnK < .01 && !(s.burnT > 0)) s.burnK = 0;
-  if (s.burnT > 0 && (s.burnTick -= dt) <= 0) { s.burnTick += BURN.tick; burnDamage(s); }
+  if (s.burnT > 0 && (s.burnTick -= dt) <= 0) { s.burnTick += BURN.tick / SKV.heatK(); burnDamage(s); } // Heat Resistant: ticks come less often (lingering burns too), each just as bad
   if (!(s.burnT > 0)) s.burnHit = false; // the fire's out: the next one is a new hit (Blood Debt)
 }
 function burnIgnite(s) {

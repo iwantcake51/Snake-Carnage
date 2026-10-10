@@ -2754,10 +2754,10 @@ i.tok{display:inline-block;width:.86em;height:.96em;vertical-align:-.1em;backgro
 @keyframes skInfoIn{from{opacity:0;transform:translateY(4px)}}
 .skinfo.still>*{animation:none}
 .skinfo{border-left:1px solid var(--hair);padding:16px 18px 14px;overflow:auto;display:flex;flex-direction:column;gap:13px;background:rgba(255,255,255,.012)}
-.sk-h{display:flex;gap:12px;align-items:center}
-.sk-ic{flex:none;width:54px;height:54px;display:grid;place-items:center;border-radius:50%;background:color-mix(in srgb,var(--bc) 17%,transparent);color:var(--bc);box-shadow:inset 0 0 0 2px var(--bc)}
-.sk-ic.maj{border-radius:0;box-shadow:none;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);width:56px;height:62px}
-.sk-ic svg{width:32px;height:32px}
+.sk-h{display:flex;gap:16px;align-items:center}
+.sk-ic{flex:none;width:74px;height:74px;display:grid;place-items:center;border-radius:50%;background:color-mix(in srgb,var(--bc) 17%,transparent);color:var(--bc);box-shadow:inset 0 0 0 2px var(--bc)}
+.sk-ic.maj{border-radius:0;box-shadow:none;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);width:76px;height:86px}
+.sk-ic svg{width:48px;height:48px} /* (big: the skill's picture is the first thing you read in the panel) */
 .sk-h small{display:block;font:600 11.5px var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:var(--bc)}
 #overlay .panel .sk-h h2{margin:3px 0 0;font-family:var(--f-head)!important;font-weight:700!important;font-size:27px!important;line-height:1;text-transform:uppercase;letter-spacing:.02em;color:var(--ink)!important}
 .sk-h kbd{margin-left:auto;align-self:flex-start}
@@ -2829,7 +2829,7 @@ body.phone #overlay #skTok{padding:4px 9px}body.phone #skTok .tkw{display:none}
 body.phone .skctl{top:6px;left:6px;right:6px;gap:5px}body.phone .skctl button{height:38px;min-width:38px;padding:0 9px}
 body.phone .skinfo{padding:10px 11px 0;gap:8px}
 body.phone .sk-h{gap:9px}body.phone .sk-h small{font-size:10.5px;letter-spacing:.08em}
-body.phone #overlay .panel .sk-h h2{font-size:19px!important}body.phone .sk-ic{width:38px;height:38px}body.phone .sk-ic.maj{width:38px;height:44px}body.phone .sk-ic svg{width:25px;height:25px}
+body.phone #overlay .panel .sk-h h2{font-size:19px!important}body.phone .sk-ic{width:52px;height:52px}body.phone .sk-ic.maj{width:52px;height:60px}body.phone .sk-ic svg{width:34px;height:34px}
 body.phone .sk-rank{flex-wrap:wrap;gap:6px 8px}body.phone .sk-bars i{width:14px;height:6px}body.phone .sk-st{font-size:10.5px;padding:2px 6px}
 body.phone .sk-d{font-size:12.5px;line-height:1.4}
 body.phone .sk-fx>div{padding:5px 0}body.phone .sk-fx dt{font-size:12.5px}body.phone .sk-fx dd{font-size:13px}
@@ -3090,3 +3090,15 @@ input,textarea,select,[contenteditable],[contenteditable] *{-webkit-user-select:
 .sktv::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 50%,transparent 58%,rgba(0,0,0,.32));box-shadow:inset 0 0 50px rgba(0,0,0,.35)}
 .sktv .roll{position:absolute;left:0;right:0;top:-25%;height:20%;background:linear-gradient(transparent,color-mix(in srgb,var(--acc-hi) 3%,transparent) 70%,transparent);animation:skRoll 7s linear infinite}
 body.calm .sktv .roll{display:none}
+/* the end screen's level bar pulses: its fill (and the glow running ahead of it) breathes brighter and darker */
+#overlay .sbar .sfill{animation:sxpPulse 1.6s ease-in-out infinite}
+@keyframes sxpPulse{0%,100%{filter:brightness(.72) saturate(.95)}50%{filter:brightness(1.45) saturate(1.15)}}
+body.calm #overlay .sbar .sfill{animation:none}
+@media (prefers-reduced-motion:reduce){#overlay .sbar .sfill{animation:none}}
+/* cinematic danger layers (38h-cinematic): fixed gradients, only their opacity ever changes, so they're composited, never repainted */
+#cinefx{position:absolute;inset:0;z-index:11;pointer-events:none;overflow:hidden}
+#cinefx .cv{position:absolute;inset:0;opacity:0;will-change:opacity}
+#cinefx .dark{background:radial-gradient(ellipse 72% 68% at 50% 50%,transparent 38%,rgba(12,4,6,.55) 70%,rgba(4,0,2,.92) 100%)}
+#cinefx .blast{background:radial-gradient(ellipse 70% 66% at 50% 50%,transparent 30%,rgba(120,10,6,.45) 66%,rgba(40,0,0,.9) 100%);mix-blend-mode:normal}
+#cinefx .gas{background:radial-gradient(ellipse 74% 70% at 50% 50%,transparent 34%,rgba(96,130,20,.35) 68%,rgba(40,60,8,.75) 100%)}
+#cinefx .fire{background:radial-gradient(ellipse 74% 70% at 50% 60%,transparent 40%,rgba(255,110,20,.28) 72%,rgba(140,30,0,.7) 100%)}

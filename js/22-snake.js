@@ -81,7 +81,7 @@ function updateSnake(dt) {
   updateSize(s, dt);
   if (mouseSteerOn()) mouseSteer(); // Mouse steering: head for the cursor
   // ease toward the target heading: quick to start, settles softly, capped so it never snaps
-  const d = angDiff(s.angle, s.dir), mx = Math.min(CONFIG.turnRate * dt * SKV.turn() * ((s.dashV || 1) > 1.2 ? SKV.lungeTurn() : 1), (s.dashV || 1) > 1.2 ? s.speed * s.dashV * dt / (snakeRadius() * 1.7) : 99) /* mid-lunge the turn can't get tighter than the body is wide */ * (s.uturnT > 0 ? s.uturnK || 2.4 : 1) * (MOD.wideTurns ? .5 : MOD.quickTurn ? 1.6 : 1) * turnSizeK(s); // Wide turns / Quick turn modifiers; and the bigger you are, the wider you turn Sidewinder: snappier turns; Whiplash: sharper mid-lunge; Momentum: a fast whip round on a U-turn
+  const d = angDiff(s.angle, s.dir), mx = Math.min(CONFIG.turnRate * dt * SKV.turn() * ((s.dashV || 1) > 1.2 ? SKV.lungeTurn() : 1), (s.dashV || 1) > 1.2 ? s.speed * s.dashV * dt / (snakeRadius() * 1.7) : 99) /* mid-lunge the turn can't get tighter than the body is wide */ * (s.uturnT > 0 ? s.uturnK || 2.4 : 1) * (MOD.wideTurns ? .5 : MOD.quickTurn ? 1.6 : 1) * turnSizeK(s); // Wide turns / Quick turn modifiers; and the bigger you are, the wider you turn Sidewinder: snappier turns, sharper mid-lunge; Momentum: a fast whip round on a U-turn
   const ad = Math.abs(d); s.angle += Math.sign(d) * Math.min(ad, mx, ad * (1 - Math.exp(-dt * CONFIG.turnEase)) + mx * .18); // never past the target: overshooting it made the head flick side to side every frame, worse the lower the frame rate
   if (s.uturnT > 0) { s.uturnT -= dt; if (s.uturnTo !== undefined && Math.abs(angDiff(s.angle, s.dir)) < .5) { s.dir = s.uturnTo; s.uturnTo = undefined; } } // second half of the U-turn
   const stunK = MOD.quickRecovery ? 2 : MOD.heavyImpact ? .5 : 1; // Quick recovery / Heavy impact: dazes wear off twice as fast, or half as fast (Battle Hardened makes them shorter to begin with: smashObstacle, detonate)
@@ -329,7 +329,7 @@ function eatReward(c, amount, ang) {
   const paid = gainXP(kxp, Math.max(1, Math.round(c.def.score * .6 * gold * rewardMult * mb.m * fk * cbK)) * (lucky ? 2 : 1));
   bdMeal(bx, bc, paid); // Blood Debt: after the ordinary pay, never before it (38-upgrades)
   if (lucky) notify({ kind: 'info', icon: '◆', title: 'Lucky bite', right: 'x2 chips', dur: 1.3, key: 'lucky' });
-  lustRefund(); // Bloodlust: every kill takes a little off the abilities still recharging
+  lustRefund(); windRefund(); // Bloodlust, Second Wind: every target you eat takes a little off the abilities still recharging (cdRefund caps them)
   studyHit(c.golden ? 'golden' : c.def.human ? 'person' : 'animal'); if (combo.n >= 10) studyHit('combo'); // Quick Study
   modHud();
   killFx(c.x, c.y, amount);

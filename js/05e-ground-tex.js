@@ -56,16 +56,24 @@ function groundTex(x, set, seed, sc = 1) { // fills the floor with a blend of a 
   const sh = gtexMask(r, .45, .35, 260); x.globalAlpha = .1; x.imageSmoothingQuality = 'high'; x.drawImage(sh, 0, 0, W, H); freeCanvas(sh); // a faint, broad light and shade, like the ground rolling a little
   x.restore(); GTEX.drawn.add(x); queueMicrotask(() => GTEX.drawn.delete(x)); return true; // (marked only while this floor is being built)
 }
-function mapGround(x, set, extra) { // a map's whole floor in a set, across the whole width (a wide map's strips and middle are one ground); false until the textures are in
+function mapGround(x, set, extra, seed) { // a map's whole floor in a set, across the whole width (a wide map's strips and middle are one ground); false until the textures are in
   if (GTEX.drawn.has(x)) return true;
-  if (!groundTex(x, set, 1 + Math.random() * 1e6 | 0)) return false; // blended at random: new ground every run
+  if (!groundTex(x, set, seed ?? (1 + Math.random() * 1e6 | 0))) return false; // blended at random: new ground every run (seed: the same every time, for custom maps and the editor)
   if (extra) extra(x); return true;
 }
-function texShape(x, set, mask) { // a set's ground only inside a shape: mask(ctx) fills the shape in any color; false until the textures are in
-  if (!GTEX.ok) return false;
-  const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
-  if (!groundTex(g, set, 1 + Math.random() * 1e6 | 0)) { freeCanvas(c); return false; }
+GTEX.tmp = new Map();
+function texSet(x, set, seed) { // a set's whole ground for the floor being built right now: made once, shared by every shape on that floor (gone after this moment)
+  let m = GTEX.tmp.get(x); if (!m) { m = new Map(); GTEX.tmp.set(x, m); queueMicrotask(() => { for (const c of m.values()) if (c) freeCanvas(c); GTEX.tmp.delete(x); }); }
+  const k = set + ':' + (seed ?? ''); if (m.has(k)) return m.get(k);
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  if (!groundTex(c.getContext('2d'), set, seed ?? (1 + Math.random() * 1e6 | 0))) { freeCanvas(c); m.set(k, null); return null; }
+  m.set(k, c); return c;
+}
+function texShape(x, set, mask, seed) { // a set's ground only inside a shape: mask(ctx) fills the shape in any color; false until the textures are in
+  if (!GTEX.ok) return false; const src = texSet(x, set, seed); if (!src) return false;
+  const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d'); g.drawImage(src, 0, 0);
   const m = document.createElement('canvas'); m.width = W; m.height = H; const mg = m.getContext('2d'); mg.fillStyle = '#000'; mg.strokeStyle = '#000'; mask(mg); // the whole shape first (every stroke and fill of it), then one cut
   g.globalCompositeOperation = 'destination-in'; g.drawImage(m, 0, 0);
   x.drawImage(c, 0, 0, W, H); freeCanvas(c, m); return true;
 }
+const STYLE_GTEX = { grass: 'lawn', dirt: 'dirt', mud: 'mud', red: 'mars', moon: 'moon' }; // the editor's floor styles that have a real texture

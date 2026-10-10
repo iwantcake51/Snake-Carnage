@@ -27,12 +27,16 @@ function bloodTile(col) {
     const k = (.78 + .44 * t) * (.86 + .28 * mid[i]) * (1 - clot * .6) * (1 + thin * .5) * (.94 + .12 * f); // about 1 on average: still the blood's own color
     d[4 * i] = Math.min(255, r * k + thin * 34); d[4 * i + 1] = Math.min(255, g * k + thin * 6); d[4 * i + 2] = Math.min(255, b * k + thin * 6); d[4 * i + 3] = 255;
   }
-  x.putImageData(im, 0, 0); if (BLOOD_TILE.size > 24) BLOOD_TILE.clear(); BLOOD_TILE.set(col, c); return c;
+  x.putImageData(im, 0, 0); if (BLOOD_TILE.size > 48) BLOOD_TILE.delete(BLOOD_TILE.keys().next().value); BLOOD_TILE.set(col, c); return c;
 }
 setTimeout(() => { // the usual blood colors' tiles are built in quiet moments after loading, not on the first kill or blast
   const todo = [BLOOD, '#a50d16', '#c8161e', '#7c0710', '#b8101a', '#6e0710', ...GOLD_BLOOD, '#3f9a1c', '#4fae24', '#58b82c'], idle = f => window.requestIdleCallback ? requestIdleCallback(f, { timeout: 5000 }) : setTimeout(f, 300);
   const step = () => { const c = todo.shift(); if (!c) return; bloodTile(c); idle(step); }; idle(step);
 }, 3000);
+function bloodWarmSnake() { // a run is starting: your snake bursts in its own two colors (and their shades), so their tiles are built now, in quiet moments, not on the first hit (~11 ms)
+  const cfg = SETTINGS.snake || {}, P = cfg.color || '#4e7cf6', Q = cfg.color2 || shade(P, .3), todo = [P, shade(P, -.2), shade(P, -.4), Q, shade(Q, -.25)].filter(c => !BLOOD_TILE.has(c));
+  const idle = f => window.requestIdleCallback ? requestIdleCallback(f, { timeout: 4000 }) : setTimeout(f, 200), step = () => { const c = todo.shift(); if (!c) return; try { bloodTile(c); } catch (e) {} idle(step); }; idle(step);
+}
 function bloodFill(x, col, px = 0, py = 0, a = 0) { // the textured fill for this blood color on this canvas, lined up with the world under a local translate/rotate
   col = col || BLOOD; if (!col.startsWith('#')) return col;
   let m = BLOOD_PAT.get(x); if (!m) BLOOD_PAT.set(x, m = new Map());
