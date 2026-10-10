@@ -28,7 +28,8 @@ function updateFlash(c, dt) {
   tgt = c.a + clamp(angDiff(c.a, tgt), -lim, lim);
   f.a += angDiff(f.a, tgt) * Math.min(1, dt * rate);
   const running = st === 'panic' || st === 'flee';
-  f.da = f.a + (running ? Math.sin(c.phase * 1.7) * .07 + (Math.random() - .5) * .04 : Math.sin(c.phase * 1.1) * .02);
+  const swing = Math.sin(c.phase) * (c.moveAmt || 0) * AN.arms.amp; // the hand's own swing (armPos): the beam bobs with it, in step
+  f.da = f.a + (running ? swing * .14 + (Math.random() - .5) * .015 : swing * .08);
   const ca = Math.cos(c.a), sa = Math.sin(c.a);
   if (f.helmet) { f.a = c.a + clamp(angDiff(c.a, f.a), -.25, .25); f.da = f.a; f.x = c.x + ca * 7; f.y = c.y + sa * 7; } // helmet lamp: where the head points
   else { const [, , hx, hy] = armPos(c), lx = hx + 1; f.x = c.x + ca * lx - sa * hy; f.y = c.y + sa * lx + ca * hy; } // light sits in the right hand

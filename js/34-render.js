@@ -14,6 +14,8 @@ function render() {
   }
   V.ox = camF.x + camF.k.x; V.oy = camF.y + camF.k.y;
   const uc = !cam && userCam(); if (uc) { V.z = uc.z; V.fx = uc.fx; V.fy = uc.fy; } // the player's zoom/pan (the spawn zoom has priority)
+  else if (render.uc) { look.z = render.uc.z; look.fx = render.uc.fx; look.fy = render.uc.fy; look.still = 0; } // zoomed all the way back out: the cursor drift carries on from that exact view, no jump
+  render.uc = uc ? { z: uc.z, fx: uc.fx, fy: uc.fy } : null;
   lookAround();
   const cw = snake && snake.wallStun > 0 ? Math.pow(snake.wallStun / (snake.wallMax || 3.4), .6) * (snake.stunFx || 1) : 0;
   if (bz > .02 && !SETTINGS.reduceMotion) { V.ox += (Math.sin(T * 1.6) * 4 + Math.sin(T * 3.7) * 1.5) * bz; V.oy += (Math.sin(T * 1.2 + 2) * 3 + Math.sin(T * 3.1) * 1.2) * bz; } // reeling from a blast: the world sways, gentler than after a wall
@@ -329,7 +331,7 @@ function lungeEdges() { // mid-lunge the edges blur in two rings (light, then he
   softEdges(Math.max(lb, fk), 4, W * .78, H * .74, .34, .9, .35 * fk); // one ring, fading in from a third of the way out to the rim (it was two full-screen passes)
 }
 
-/* before the round: the mouse pans the view a little, and resting on a spot for a second eases in toward it */
+/* before the round: the mouse pans the view a little, and resting on a spot for a second eases in toward it (your own zoom takes over from right where it is, ucamTakeLook in 11, and hands back the same way when you zoom all the way out: render) */
 const look = { z: 1, fx: W / 2, fy: H / 2, mx: W / 2, my: H / 2, still: 0, lt: 0, on: false };
 addEventListener('pointermove', e => {
   if (e.pointerType === 'touch') return;

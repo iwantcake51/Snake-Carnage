@@ -7,8 +7,8 @@ function armPos(c) {
   if (c.state === 'panic' && c.flail) { const f = Math.sin(animT('flail') * 25 + c.side) * 2 * AN.flail.amp; return [5.5 + f, -sw + 1.5, 5.5 - f, sw - 1.5]; } // the jumpy ones flap their arms
   if (run) { const p = s * (c.armK || 1) * 5.6; return [1.4 - p, -sw + .8, 1.4 + p, sw - .8]; } // running: elbows in, arms pumping against the legs
   if (c.dance) { const b = Math.sin(animT('dance') * CLUB_BPM / 60 * Math.PI * 2 + (c.seed ?? .5) * 30) * AN.dance.amp; return [3 + b * 2.5, -sw - 1.5, 3 - b * 2.5, sw + 1.5]; } // hands up
-  if (MOD.blind && c.def.human && !c.def.alien && !c.dance) return c.fl && c.fl.on && !c.fl.helmet ? [4.5 + s * 1.2, -sw + 1.2, 6 + s * .8, sw - 2] : [4.5 + s * 1.5, -sw + 1.2, 4.5 - s * 1.5, sw - 1.2]; // blind: hands out in front, feeling the way
-  if (c.fl && c.fl.on && !c.fl.helmet) return [-s * 4, -sw, 6 + s * .8, sw - 2]; // right hand held out in front with the flashlight
+  if (MOD.blind && c.def.human && !c.def.alien && !c.dance) return c.fl && c.fl.on && !c.fl.helmet ? [4.5 + s * 1.2, -sw + 1.2, 5.4 + s * 2, sw - 2 + Math.abs(s) * .4] : [4.5 + s * 1.5, -sw + 1.2, 4.5 - s * 1.5, sw - 1.2]; // blind: hands out in front, feeling the way
+  if (c.fl && c.fl.on && !c.fl.helmet) return [-s * 4, -sw, 5.2 + s * 2.4, sw - 2 + Math.abs(s) * .6]; // right hand held out in front with the flashlight, swinging with the walk (the torch and its beam ride on it: 20-flashlights)
   return [-s * 4, -sw, s * 4, sw];
 }
 function shapePath(x, c) {

@@ -32,6 +32,11 @@ function showResume(what = 'to continue') { // the same prompt starts a run and 
     : `<div class="rp"><span class="keys"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><span class="or">or</span><span class="keys"><kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd></span>${SETTINGS.mouseSteer ? '<span class="or">or click</span>' : ''}<b>${what}</b></div>`;
   el.className = 'show';
 }
+addEventListener('pointermove', e => { // hovering the prompt fades it to half, so you can see what's under it; off it, it fades back (it lets every click through, so this is worked out from where the pointer is)
+  const el = document.getElementById('resume'); if (!el || !el.classList.contains('show') || e.pointerType === 'touch') return;
+  const r = el.firstElementChild && el.firstElementChild.getBoundingClientRect(), over = !!r && e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+  if (over !== el.classList.contains('hov')) el.classList.toggle('hov', over);
+}, { passive: true });
 function hideResume() { const el = document.getElementById('resume'); if (el.classList.contains('show')) { el.className = 'gone'; setTimeout(() => { if (el.className === 'gone') { el.className = ''; el.innerHTML = ''; } }, 320); } }
 function resumeGame() {
   if (state !== 'paused') return;

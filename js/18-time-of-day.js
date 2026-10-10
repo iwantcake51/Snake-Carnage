@@ -17,10 +17,11 @@ let lightFrame = 0; const lightCache = { x: NaN, y: NaN, f: -1, v: 0 };
 
 /* ---- time of day ---- */
 const TIME_SLOTS = { dawn: [5.2, 6.6], morning: [7, 10], midday: [11, 13.5], afternoon: [13.5, 16.5], sunset: [17.2, 18.8], evening: [19, 21.2], night: [21.5, 27.5] };
-function pickStartTime(m) { // maps can lean toward times that suit them (m.times = weights)
-  const w = m.times || {}, keys = Object.keys(TIME_SLOTS), tot = keys.reduce((a, k) => a + (w[k] ?? 1), 0);
+const TIME_DARK_K = { sunset: .6, evening: .5, night: .45 }; // Dynamic runs start in daylight more often: dusk and night come up about half as often as before
+function pickStartTime(m) { // maps can lean toward times that suit them (m.times = weights), on top of TIME_DARK_K
+  const w = m.times || {}, keys = Object.keys(TIME_SLOTS), wt = k => (w[k] ?? 1) * (TIME_DARK_K[k] ?? 1), tot = keys.reduce((a, k) => a + wt(k), 0);
   let r = Math.random() * tot;
-  for (const k of keys) { r -= w[k] ?? 1; if (r <= 0) return rand(...TIME_SLOTS[k]) % 24; }
+  for (const k of keys) { r -= wt(k); if (r <= 0) return rand(...TIME_SLOTS[k]) % 24; }
   return 12;
 }
 const TINT_KEYS = [ // hour, sky-side color, horizon-side color, strength

@@ -694,6 +694,8 @@ body.theme-gold .play,body.theme-toxic .play{color:#1b1406}
 #resume{left:50%;top:50%;bottom:auto;translate:-50% -50%}
 #resume .rp{padding:11px 18px;font-size:14px}
 #resume.gone .rp{animation:resumeOut .3s ease-in forwards}
+#resume{transition:opacity .25s ease}
+#resume.hov{opacity:.5} /* hovered: half see-through (32-ui-customize), back to full off it */
 @keyframes resumeOut{to{opacity:0;scale:.92;filter:blur(2px)}}
 
 /* time of day picker in the menu */
@@ -2698,7 +2700,7 @@ i.tok{display:inline-block;width:.86em;height:.96em;vertical-align:-.1em;backgro
 /* a soft round fade at the edge of every skill icon: game-icons art often runs right to the edge of its square (Vortex is a whole square), so it would end in a hard cut-off */
 .skico svg,.sk-ic svg{-webkit-mask-image:radial-gradient(circle,#000 58%,rgba(0,0,0,.6) 66%,transparent 76%);mask-image:radial-gradient(circle,#000 58%,rgba(0,0,0,.6) 66%,transparent 76%)}
 .skl{display:flex;flex-direction:column;align-items:center;gap:2px;margin-top:1px;line-height:1.1;text-align:center;pointer-events:none}
-.skl{--lk:clamp(1,calc(.8 / var(--z,1)),1.3)} /* zoomed right out, the names stay readable */
+.skl{--lk:clamp(1,calc(.8 / var(--z,1)),1.12)} /* zoomed right out, the names stay readable (only a little bigger, so neighbours never run into each other) */
 .skl b{white-space:nowrap;font:700 calc(15.5px * var(--lk))/1.05 var(--f-head);letter-spacing:.04em;text-transform:uppercase;color:var(--dim);transition:color .3s}
 .skl b,.skl em{background:rgba(11,9,10,.86);padding:0 5px;border-radius:3px} /* a matte plate: links pass behind the names */
 .skworld.far .skl em{display:none}
@@ -3116,3 +3118,6 @@ body.phone .sk-ic svg.gi{width:38px;height:38px}
 .slot .st i{font-style:normal;height:1.15em;line-height:1.15em;text-align:center}
 .slot.win{animation:slotWin .9s ease-out}
 @keyframes slotWin{0%,30%{color:#ffd23f;text-shadow:0 0 8px rgba(255,210,63,.75)}}
+/* the board's path headings and each branch's root knot (38f skHubHtml) */
+.skpath{position:absolute;transform:translate(-50%,-50%);pointer-events:none;white-space:nowrap;--lk:clamp(1,calc(.8 / var(--z,1)),1.3);font:700 calc(13px * var(--lk)) var(--f-head);letter-spacing:.22em;text-transform:uppercase;color:color-mix(in srgb,var(--bc) 70%,transparent);padding-bottom:6px;border-bottom:1px solid color-mix(in srgb,var(--bc) 35%,transparent)}
+.skhub .knot{box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--bc) 70%,#3d3437)!important}

@@ -2,6 +2,12 @@ const openness = (x, y) => navOpen[navCell(x, y)]; // how many of 8 directions a
 const edgeD = (x, y) => Math.min(x - B, W - B - x, y - B, H - B - y);
 const cornerish = (x, y, m = 140) => (x - B < m || W - B - x < m) && (y - B < m || H - B - y < m); // near two edges at once
 const FLEE_C = Array.from({ length: 14 }, () => ({ x: 0, y: 0, sc: 0 })); // reused candidate slots: no garbage per pick
+function turnToward(c, a, maxW, k, dt) { // turn like a body, not a turret: the turn rate follows how far is left to turn (so it eases into the new heading)
+  // and builds up and dies away over a moment (so it never snaps from straight to full turn); maxW: the fastest it turns (rad/s)
+  const w = clamp(angDiff(c.a, a) * k, -maxW, maxW);
+  c.av = (c.av || 0) + (w - (c.av || 0)) * Math.min(1, dt * 9);
+  c.a += c.av * dt;
+}
 function pickFleeGoal(c) { // an open spot away from the threat, away from bodies, ideally in the direction already running
   // static geometry (openness, dead ends) comes from the nav cache; only deaths, the threat and the crowd are scored live,
   // and the line-of-sight test (the expensive part) only runs on the few best candidates
@@ -82,7 +88,7 @@ function updateCreature(c, dt) {
     c.stuck = 0; c.goalP = 0; // being stunned is not a failed navigation attempt
   } else if (c.state === 'idle') {
     if (c.timer <= 0 || c.leave || (c.leashed && c.owner && c.owner.state === 'wander')) { c.state = 'wander'; c.timer = rand(2, 5); c.wa = pickWander(c); }
-    else if (!c.convo && solid(c.x + Math.cos(c.a) * 16, c.y + Math.sin(c.a) * 16)) { const a = openDir(c); c.a += clamp(angDiff(c.a, a), -dt * 3, dt * 3); } // nobody stands with their nose to a wall
+    else if (!c.convo && solid(c.x + Math.cos(c.a) * 16, c.y + Math.sin(c.a) * 16)) turnToward(c, openDir(c), 3, 2.5, dt); // nobody stands with their nose to a wall
   } else if (c.state === 'wander') {
     spd = d.walk * (c.alert > .3 ? 1.7 : 1) * (c.dance ? .22 : 1) * (MOD.blind && d.human ? .72 : 1); // cautious people walk briskly; dancers barely move; the blind feel their way
     if (c.timer <= 0) {
@@ -97,14 +103,14 @@ function updateCreature(c, dt) {
     if (c.detour) { if ((c.detour.t -= dt) <= 0) c.detour = null; else c.wa = c.detour.a; } // walking away from whatever it got stuck on
     want = Math.atan2(Math.sin(c.wa) + c.avy * .8, Math.cos(c.wa) + c.avx * .8);
   } else if (c.listenT > T && c.state === 'uneasy') { // blind and heard something: stand still, head turned toward it, listening
-    const a = Math.atan2(c.fy - c.y, c.fx - c.x); c.a += clamp(angDiff(c.a, a), -dt * 5, dt * 5);
+    turnToward(c, Math.atan2(c.fy - c.y, c.fx - c.x), 5, 5, dt);
   } else {
     spd = c.state === 'uneasy' ? d.walk * (MOD.blind && d.human ? 1.3 : 2.2) : d.run * (c.state === 'panic' ? 1 : .9); // the blind back away from a noise carefully, they don't hurry blind
     const gd = c.goal ? Math.hypot(c.goal.x - c.x, c.goal.y - c.y) : 0;
     if (c.goal) { c.goalP += dt; if (gd < c.goalD - 4) { c.goalD = gd; c.goalP = 0; } } // progress watchdog stops orbiting
     if (c.goal && (c.stuck > .4 || c.goalP > .9)) { // that route failed: remember it, and turn around if this is a dead end
       (c.failed = c.failed || []).push({ x: c.goal.x, y: c.goal.y, t: T }); if (c.failed.length > 4) c.failed.shift();
-      if (openness(c.x, c.y) <= 3) { c.a += Math.PI; c.steerA = undefined; noteSpot(c); }
+      if (openness(c.x, c.y) <= 3) { c.steerA = c.a + Math.PI; c.steerT = .35; noteSpot(c); } // a dead end: turn round (a quick turn, not a flip on the spot)
     }
     if (!c.goal || c.goalT <= 0 || c.stuck > .4 || gd < 30 || c.goalP > .9 || dist2(c.fx, c.fy, c.goal.fx, c.goal.fy) > 4900) pickFleeGoal(c);
     c.goalT -= dt;
@@ -127,8 +133,8 @@ function updateCreature(c, dt) {
     if ((c.steerT = (c.steerT || 0) - dt) <= 0 || c.steerA === undefined) { c.steerA = steerDir(c, c.wantA); c.steerT = .12; } // commit for a moment
     const a = c.steerA;
     if (c.state === 'wander' && Math.abs(angDiff(want, a)) > .01) c.wa = a;
-    const tr = (d.hop ? (c.hopT > 0 ? 0 : 14) : c.state === 'wander' ? 4 : 8) * dt; // frogs aim while sitting, not mid-air
-    c.a += clamp(angDiff(c.a, a), -tr, tr);
+    if (d.hop) { const tr = (c.hopT > 0 ? 0 : 14) * dt; c.a += clamp(angDiff(c.a, a), -tr, tr); } // frogs aim while sitting, not mid-air
+    else if (c.state === 'wander') turnToward(c, a + (!c.path && !c.leave && !c.owner && !c.detour && !c.zone && d.human ? Math.sin(T * .55 + (c.mz ??= Math.random() * 40)) * .14 + Math.sin(T * 1.3 + c.mz * 1.7) * .05 : 0), 4, 3.2, dt); // (an aimless stroll meanders a little: nobody ambles in a dead straight line) else turnToward(c, a, 8, 7, dt); // strolling: lazy curves; running: quick, but still a curve
     const nx = c.x + Math.cos(c.a) * mv * dt, ny = c.y + Math.sin(c.a) * mv * dt;
     if (mv <= 0) { /* sitting between hops */ }
     else if (free(nx, ny, d.r * .8)) { moved = mv * dt; c.x = nx; c.y = ny; }
@@ -140,7 +146,7 @@ function updateCreature(c, dt) {
       c.detour = { a: openDir(c), t: rand(1.2, 2.4) }; c.wa = c.detour.a; c.steerA = undefined; c.stuck = 0; }
   }
   if (!free(c.x, c.y, d.r * .6)) unstick(c, dt); // ended up inside something (shoved, spawned, a door shut): walk out of it
-  else if ((c.stuck || 0) > 1.4) { const a = escapeDir(c); if (a !== null) { c.a = a; c.steerA = a; c.steerT = .5; c.detour = { a, t: .8 }; } c.stuck = .5; } // long stuck: pick the clearest way out and commit
+  else if ((c.stuck || 0) > 1.4) { const a = escapeDir(c); if (a !== null) { c.steerA = a; c.steerT = .5; c.detour = { a, t: .8 }; } c.stuck = .5; } // long stuck: pick the clearest way out and commit (turning to it, not snapping)
   if (c.hv) { // Hoover Mouth's drift: capped, damped, and blocked by walls like any other movement
     const hv = c.hv, sp = Math.hypot(hv.vx, hv.vy), cap = hv.cap || 150; if (sp > cap) { hv.vx *= cap / sp; hv.vy *= cap / sp; }
     const nx = c.x + hv.vx * dt, ny = c.y + hv.vy * dt, rr = d.r * .8;
