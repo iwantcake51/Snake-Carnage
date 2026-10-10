@@ -7,6 +7,7 @@ function newRun() {
     startLevel: PROG.level, startXP: PROG.xp, xpGained: 0, coinsGained: 0, unlocks: [], chList: [], lamps: 0, spits: 0 };
   evt = null; evtT = rand(45, 75); showEvent();
   airReset(); // (38c-airstrikes)
+  if (typeof bdHud === 'function') bdHud(); // a new run owes nothing (Blood Debt starts over with it)
 }
 function updateEvents(dt) { // occasional feeding frenzy: double score for a few seconds (in co-op the host calls it for everyone)
   if (state !== 'play') return;

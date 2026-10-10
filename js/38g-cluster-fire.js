@@ -69,7 +69,7 @@ function bombletTick(dt) {
 function drawBomblets(x) { // where each one will stop (marked from the moment it splits), and the bomblet itself: bouncing, then lying there blinking faster and faster
   for (const b of bomblets) { const left = b.fuse - b.t, u = clamp(1 - left / b.fuse, 0, 1), on = Math.sin(b.blink + b.t * (8 + 26 * u)) > 0;
     x.save(); x.translate(b.x, b.y);
-    const ma = GAS_SEE; x.globalAlpha = (.18 + .14 * u) * ma; x.fillStyle = '#ff7a1a'; circ(x, 0, 0, b.r); // (in gas you can't make the marks out)
+    const ma = gasMarkA(); x.globalAlpha = (.18 + .14 * u) * ma; x.fillStyle = '#ff7a1a'; circ(x, 0, 0, b.r); // (in gas you can't make the marks out)
     x.globalAlpha = .9 * ma; x.strokeStyle = on ? '#ffd23f' : '#ff5a1f'; x.lineWidth = 1.6; x.setLineDash([4, 3]); x.beginPath(); x.arc(0, 0, b.r, 0, TAU); x.stroke(); x.setLineDash([]);
     x.strokeStyle = '#fff'; x.lineWidth = 2; x.beginPath(); x.arc(0, 0, b.r - 3, -Math.PI / 2, -Math.PI / 2 + TAU * (1 - u)); x.stroke(); // time left
     x.restore();
@@ -111,7 +111,7 @@ function drawFireFlames(x) { // (additive) flames standing on each patch
 }
 
 /* ---- the snake on fire ---- */
-function burnClear(s) { if (!s) return; s.burnT = 0; s.burnK = 0; s.burnTick = 0; s.inFire = false; }
+function burnClear(s) { if (!s) return; s.burnT = 0; s.burnK = 0; s.burnTick = 0; s.inFire = false; s.burnHit = false; }
 function touchingFire(s) { // any part of the body inside a burning patch
   if (!firePatches.length || !s.segs) return false; const R = snakeRadius() * .75;
   for (const p of firePatches) { if (p.t < 0 || patchK(p) < .15) continue; const rr = (p.r * .92 + R) ** 2;
@@ -123,13 +123,14 @@ function burnTick(dt) { // this screen's own snake
   const s = snake; if (!s) return;
   if (!s.alive || s.netHidden || !(state === 'play' || NETM.run)) { burnClear(s); return; }
   const touch = !(s.graceT > 0) && touchingFire(s), was = s.burnT > 0; s.inFire = touch;
-  if (touch) { if (!was) { s.burnTick = .35; burnIgnite(s); } s.burnT = BURN.hold; } // one fire, one clock: more patches don't burn you faster
+  if (touch) { if (!was) { s.burnTick = .35 / SKV.heatK(); burnIgnite(s); } s.burnT = BURN.hold; } // one fire, one clock: more patches don't burn you faster
   else if (s.burnT > 0) s.burnT = Math.max(0, s.burnT - dt);
   if (s.burnT > 0) { let wet = false; for (let i = 0; i < Math.min(s.segs.length, 12) && !wet; i += 3) wet = nearWater(s.segs[i].x, s.segs[i].y, 4); // water puts it out at once
     if (wet) { burnOut(s); return; } }
   const target = touch ? 1 : s.burnT > 0 ? .45 + .4 * s.burnT / BURN.hold : 0; s.burnK = (s.burnK || 0) + (target - (s.burnK || 0)) * (1 - Math.exp(-dt * (target > (s.burnK || 0) ? 8 : 3)));
   if (s.burnK < .01 && !(s.burnT > 0)) s.burnK = 0;
-  if (s.burnT > 0 && (s.burnTick -= dt) <= 0) { s.burnTick += BURN.tick; burnDamage(s); }
+  if (s.burnT > 0 && (s.burnTick -= dt) <= 0) { s.burnTick += BURN.tick / SKV.heatK(); burnDamage(s); } // Heat Resistant: ticks come less often (lingering burns too), each just as bad
+  if (!(s.burnT > 0)) s.burnHit = false; // the fire's out: the next one is a new hit (Blood Debt)
 }
 function burnIgnite(s) {
   if (performance.now() - (burnIgnite.at || 0) > 6000) { burnIgnite.at = performance.now(); notify({ kind: 'bad', icon: giSvg('fire'), title: 'ON FIRE', sub: 'Get clear of the flames, or into water.', dur: 2.2, key: 'burn' }); }
@@ -146,6 +147,7 @@ function burnDamage(s) { // a piece of the tail burns off: charred bits and bloo
   burnBits(piece, P, Q);
   if (NETM.run) { const m = { t: 'brn', s: piece.flatMap(g => [Math.round(g.x), Math.round(g.y)]), c: P, c2: Q, by: NETM.me }; if (NETM.host) netEmit(m); else netSend(m); } // everyone sees it burn off
   s.len = keep; s.lenV = Math.min(s.lenV ?? keep, keep); if (s.stains.length > keep) s.stains.length = keep; computeSegs(s);
+  if (!s.burnHit) { s.burnHit = true; bdHurt('fire'); } // one fire, one hit: however many pieces it takes while it burns
   airHurt(.12); shake = Math.max(shake, 3); Sfx.gore(s.x, false); // (a faint red pulse: the orange edge glow is the main signal)
 }
 function burnBits(piece, P, Q) { // every screen: what a piece burning off looks like
@@ -177,12 +179,13 @@ function drawSnakeFlames(x) { // (additive) small flames licking along a burning
    markers, the HUD and every word on screen, so those stay sharp); none with simplified effects, reduced motion or low particles */
 function drawBurnHeat(x, src) {
   const s = snake, k = s && s.alive ? s.burnK || 0 : 0; if (k < .06 || SETTINGS.simpleFx || SETTINGS.reduceMotion || SETTINGS.fxLevel === 'Low' || !s.segs || s.segs.length < 2) return;
-  const m = x.getTransform(), n = s.segs.length, R = 26 * (s.scale || 1);
-  for (const i of [0, Math.floor(n * .45), n - 1]) { const g = s.segs[i];
-    const gr = grabScene(m.transformPoint({ x: g.x - R, y: g.y - R * 1.3 }), m.transformPoint({ x: g.x + R, y: g.y + R * .5 }), src); if (!gr) continue;
-    const strips = 10, sh = gr.sh / strips;
+  const m = x.getTransform(), n = s.segs.length, R = 26 * (s.scale || 1), pts = [0, Math.floor(n * .45), n - 1].map(i => [i, s.segs[i]]);
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; for (const [, g] of pts) { x0 = Math.min(x0, g.x - R); y0 = Math.min(y0, g.y - R * 1.3); x1 = Math.max(x1, g.x + R); y1 = Math.max(y1, g.y + R * .5); }
+  const gr = grabScene(m.transformPoint({ x: x0, y: y0 }), m.transformPoint({ x: x1, y: y1 }), src); if (!gr) return; // one copy of the picture round all three, not one each
+  for (const [i, g] of pts) {
+    const A = m.transformPoint({ x: g.x - R, y: g.y - R * 1.3 }), B = m.transformPoint({ x: g.x + R, y: g.y + R * .5 }), sw = B.x - A.x, strips = 6, sh = (B.y - A.y) / strips, lx = A.x - gr.sx, ly = A.y - gr.sy; if (sw <= 0 || sh <= 0) continue;
     x.save(); x.beginPath(); x.ellipse(g.x, g.y - R * .4, R, R * .9, 0, 0, TAU); x.clip(); x.setTransform(1, 0, 0, 1, 0, 0);
-    for (let q = 0; q < strips; q++) { const o = Math.sin(T * 11 + q * 1.4 + i) * 1.5 * k * DPR; x.drawImage(grabC, 0, q * sh, gr.sw, sh + 1, gr.sx + o, gr.sy + q * sh, gr.sw, sh + 1); }
+    for (let q = 0; q < strips; q++) { const o = Math.sin(T * 11 + q * 2.3 + i) * 1.5 * k * DPR; x.drawImage(grabC, lx, ly + q * sh, sw, sh + 1, A.x + o, A.y + q * sh, sw, sh + 1); }
     x.restore(); }
 }
 function drawBurnEdge(x) { // screen space: a restrained orange glow creeping in from the edges while you burn
@@ -314,7 +317,7 @@ function gasPop(s) { // every screen: the canister blows with a dull bang, a bub
 }
 const gasMove = (p, dt) => { p.x += Math.cos(p.ph + T * .15) * 3 * dt; p.y += Math.sin(p.ph * 1.7 + T * .12) * 3 * dt; }; // it drifts a little (the same way everywhere: it only depends on the clock)
 function inGas(x, y) { let k = 0; for (const p of gasPuffs) { if (p.t < 0) continue; const [px, py, pr] = gasAt(p), d2 = dist2(x, y, px, py), R = pr * .9; if (d2 < R * R) k = Math.max(k, gasK(p) * (1 - Math.sqrt(d2) / R * .4)); } return k; }
-const gasSlow = s => s && s.gasK > 0 ? .45 * s.gasK * SKV.dazeCut() : 0; // Battle Hardened: less slowed, as by everything else
+const gasSlow = s => s && s.gasK > 0 ? .45 * s.gasK : 0;
 let GAS_SEE = 1; // how much of the outlines and the bomb markers you can make out: gone while you're in gas, back slowly once you're clear (the Gas Mask keeps your eyes clear)
 const gasScreen = () => snake && snake.alive && snake.gasK > 0 && !sk('mask') ? snake.gasK : 0; // the Gas Mask: none of it reaches your eyes
 function gasTick(dt) {
@@ -325,7 +328,7 @@ function gasTick(dt) {
   if (!s.alive || s.netHidden || state !== 'play') { if (state !== 'paused') { s.gasK = 0; GAS_SEE = 1; } return; }
   const g = gasPuffs.length ? inGas(s.x, s.y) : 0, was = s.gasK || 0; // what you breathe: where your head is
   GAS_SEE = g > .05 && !sk('mask') ? Math.max(0, GAS_SEE - dt * 3) : Math.min(1, GAS_SEE + dt / 4.5); // in it: the outlines and the markers are gone in a moment; out of it, they take a few seconds to come back
-  s.gasK = g > .05 ? Math.min(1, was + dt * 2 * g) : Math.max(0, was - dt * .35); // it gets into you fast, and wears off slowly
+  s.gasK = g > .05 ? Math.min(1, was + dt * 2 * g) : Math.max(0, was - dt * .35 / SKV.stunCut()); // it gets into you fast, and wears off slowly (Battle Hardened: sooner)
   if (AUTH() && gasPuffs.length && (gasTick.ai = (gasTick.ai || 0) - dt) <= 0) { gasTick.ai = .4; // the crowd: anyone in it just walks slower and coughs (no panic, no stumbling)
     for (const p of gasPuffs) { if (p.t < 0 || gasK(p) < .2) continue; const [px, py, pr] = gasAt(p); for (const c of nearbyCreatures(px, py, pr, [])) { if (!c.alive || c.def.fly || dist2(c.x, c.y, px, py) > pr * pr) continue;
       c.gasT = T + .7; // (26-creature-ai: under half speed while it lasts)

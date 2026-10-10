@@ -43,6 +43,15 @@ function buildSnow() {
       return Promise.all(Array.from({ length: nb }, (_, b) => snowShadeJob(0, b * rows, SNW, Math.min(SNH, (b + 1) * rows))));
     }).catch(e => console.warn('[snow]', e));
 }
+/* the snow's surface: ambientCG's Snow003 (CC0), its color and normal maps baked into one 256 px seamless detail tile
+   (textures/ground/snow_detail.jpg: mid-grey 170 is no change, lighter is a crystal catching the light, darker a dip facing
+   away from it), multiplied into the snow's own shading by every shader. Never on file:// (the procedural snow stays as it is) */
+if (location.protocol !== 'file:') { const im = new Image(); im.onload = () => {
+  const n = im.width, c = document.createElement('canvas'); c.width = c.height = n; const g = c.getContext('2d'); g.drawImage(im, 0, 0);
+  let d; try { d = g.getImageData(0, 0, n, n).data; } catch (e) { return; } const T = new Uint8Array(n * n * 3); for (let k = 0; k < n * n; k++) { T[k * 3] = d[k * 4]; T[k * 3 + 1] = d[k * 4 + 1]; T[k * 3 + 2] = d[k * 4 + 2]; }
+  PX_KERNELS.snowTexSet({ T, n }); PX.all('snowTexSet', { T, n });
+  if (snowOn) for (let j = 0; j < SNH; j += STL) for (let i = 0; i < SNW; i += STL) markSnow(i, j); // snow already down: redraw it with the texture
+}; im.src = 'textures/ground/snow_detail.jpg?v=' + GAME_VERSION; }
 let snowGen = 0, snowJobs = 0;
 function snowShadeJob(x0, y0, x1, y1) { // re-shade a rectangle off the main thread, then put it on the snow layer
   const ox = Math.max(0, x0 - 8), oy = Math.max(0, y0 - 8), ex = Math.min(SNW, x1 + 8), ey = Math.min(SNH, y1 + 8), w = ex - ox, h = ey - oy;
@@ -69,6 +78,9 @@ function shadeSnow(x0, y0, x1, y1) { // light from the upper left, AO in hollows
     const pk = .86 + .14 * sstep(.22, .42, d); // packed snow in a groove is greyer than fresh powder
     let R = (148 + 95 * Math.min(1, L)) * pk, G = (166 + 81 * Math.min(1, L)) * pk, B = (204 + 49 * Math.min(1, L)) * (pk * .5 + .5);
     if (L > 1) { const e = (L - 1) * 40; R += e; G += e; B += e * .5; }
+    const TX = globalThis.__snowTex; if (TX) { const n = globalThis.__snowTexN, q = ((j % n) * n + (i % n)) * 3, q2 = (((i + 97) % n) * n + (n - 1 - (j + 53) % n)) * 3, f = (.35 + .65 * sstep(.05, .4, d)) * 2.5 / 170; // real snow's crystals and relief, anchored to the map, fainter on a thin dusting (the tile is soft: x2.5 makes it just noticeable, about +-5%)
+      const w = .5 + .5 * Math.sin(i * .011 + Math.sin(j * .007) * 2) * Math.sin(j * .013 + 1.3), v = 1 - w; // and the same texture turned a quarter, mixed in by a slow drift across the map: no grid of repeats
+      R *= 1 + (TX[q] * v + TX[q2] * w - 170) * f; G *= 1 + (TX[q + 1] * v + TX[q2 + 1] * w - 170) * f; B *= 1 + (TX[q + 2] * v + TX[q2 + 2] * w - 170) * f; }
     const s = snowS[k];
     if (s > .01) { // blood soaked in: its own color, darker where it's thick, still lit like the snow
       const t = Math.min(.96, s * .85), dk = (1 - .42 * sstep(.9, 3.2, s)) * clamp(L, .7, 1.05);

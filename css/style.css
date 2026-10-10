@@ -749,6 +749,14 @@ body.theme-gold .play,body.theme-toxic .play{color:#1b1406}
 #abil .ab{position:relative;width:40px;height:40px;border-radius:11px;display:grid;place-items:center;color:#ffd9d4;background:rgba(20,14,16,.78);border:1px solid rgba(255,255,255,.1);overflow:hidden}
 #abil .ab .cd,#touch .ab .cd{position:absolute;inset:0;background:conic-gradient(rgba(0,0,0,.62) var(--cd,0deg),transparent 0);pointer-events:none}
 #abil .ab.ready{border-color:color-mix(in srgb,var(--acc-hi) 55%,transparent);box-shadow:0 0 10px color-mix(in srgb,var(--acc-hi) 25%,transparent)}
+/* Blood Debt: a small dark-red pill above the ability bar while meals are owed (38-upgrades bdHud) */
+#bdebt{position:absolute;left:50%;bottom:62px;translate:-50% 0;display:none;align-items:center;gap:7px;padding:4px 11px 4px 8px;border-radius:999px;background:linear-gradient(90deg,rgba(40,8,12,.88),rgba(70,12,18,.88));border:1px solid rgba(214,52,62,.55);color:#ffd6d6;font:600 11.5px var(--f-body);letter-spacing:.08em;pointer-events:auto;box-shadow:0 0 12px rgba(160,20,30,.25)}
+#bdebt.on{display:flex}#bdebt[hidden]{display:none}
+#bdebt .bdi{width:15px;height:15px;color:#e0505a}#bdebt b{font-weight:700;color:#ff8a8f}#bdebt span{font:700 12.5px var(--f-num);letter-spacing:0;color:#fff}
+#bdebt .bdp{display:flex;gap:3px;margin-left:2px}#bdebt .bdp em{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.18)}#bdebt .bdp em.on{background:#e0505a}
+#bdebt.tick span{animation:bdTick .35s var(--spring)}@keyframes bdTick{0%{scale:1.35;color:#ff8a8f}}
+.rw.bd{padding:4px 11px;gap:8px;font-size:12px;background:linear-gradient(90deg,rgba(40,8,12,.86),rgba(76,14,20,.86));border-color:rgba(214,52,62,.5);opacity:.92}.rw.bd .t{font:600 10.5px var(--f-body);letter-spacing:.1em;text-transform:uppercase;color:#ff8a8f}
+body.calm #bdebt.tick span{animation:none}
 #abil .ab kbd{position:absolute;right:2px;bottom:1px;font:800 9px "Segoe UI",system-ui,sans-serif;color:#d8cfc7}
 #abil:empty{display:none}
 #stage.bars #abil{opacity:0}
@@ -2746,10 +2754,10 @@ i.tok{display:inline-block;width:.86em;height:.96em;vertical-align:-.1em;backgro
 @keyframes skInfoIn{from{opacity:0;transform:translateY(4px)}}
 .skinfo.still>*{animation:none}
 .skinfo{border-left:1px solid var(--hair);padding:16px 18px 14px;overflow:auto;display:flex;flex-direction:column;gap:13px;background:rgba(255,255,255,.012)}
-.sk-h{display:flex;gap:12px;align-items:center}
-.sk-ic{flex:none;width:54px;height:54px;display:grid;place-items:center;border-radius:50%;background:color-mix(in srgb,var(--bc) 17%,transparent);color:var(--bc);box-shadow:inset 0 0 0 2px var(--bc)}
-.sk-ic.maj{border-radius:0;box-shadow:none;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);width:56px;height:62px}
-.sk-ic svg{width:32px;height:32px}
+.sk-h{display:flex;gap:16px;align-items:center}
+.sk-ic{flex:none;width:74px;height:74px;display:grid;place-items:center;border-radius:50%;background:color-mix(in srgb,var(--bc) 17%,transparent);color:var(--bc);box-shadow:inset 0 0 0 2px var(--bc)}
+.sk-ic.maj{border-radius:0;box-shadow:none;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);width:76px;height:86px}
+.sk-ic svg{width:48px;height:48px} /* (big: the skill's picture is the first thing you read in the panel) */
 .sk-h small{display:block;font:600 11.5px var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:var(--bc)}
 #overlay .panel .sk-h h2{margin:3px 0 0;font-family:var(--f-head)!important;font-weight:700!important;font-size:27px!important;line-height:1;text-transform:uppercase;letter-spacing:.02em;color:var(--ink)!important}
 .sk-h kbd{margin-left:auto;align-self:flex-start}
@@ -2776,8 +2784,10 @@ i.tok{display:inline-block;width:.86em;height:.96em;vertical-align:-.1em;backgro
 .sk-fx .ar{font-style:normal;color:var(--faint)}
 .sk-fx .nxt.up{color:var(--bc)}
 .sk-fx .cur.chg{animation:skChg .9s ease-out}
-.sk-fx .mst{align-self:center;font:700 11px var(--f-num);color:var(--gold);background:color-mix(in srgb,var(--gold) 13%,transparent);border:1px solid color-mix(in srgb,var(--gold) 38%,transparent);border-radius:3px;padding:1px 5px;line-height:1.35;animation:skMst .5s ease-out both}
-@keyframes skMst{from{opacity:0;transform:translateX(-4px)}}
+.sk-ranks li span{flex:1}
+.sk-ranks li>.tok{flex:none;align-self:center;margin-left:2px}.sk-ranks li em.sk-rc{flex:none;width:12px;color:#cfc2f5;font:700 12.5px var(--f-num);text-align:right}
+.sk-undo{display:flex;flex-direction:column;gap:6px}.sk-undo p{margin:0;font:500 12.5px/1.35 var(--f-body);color:var(--dim)}.sk-undo p b{color:var(--ink);font-weight:600}
+#overlay #skUndo{align-self:flex-start;height:36px;padding:0 14px;display:inline-flex;align-items:center;gap:10px}#overlay #skUndo span{display:inline-flex;align-items:center;gap:5px;color:#cfc2f5;font:700 13px var(--f-num)}
 @keyframes skChg{0%,40%{color:var(--bc)}}
 .sk-sec h4{margin:0 0 7px;font:600 11.5px var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:var(--mute)}
 .sk-req{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
@@ -2819,7 +2829,7 @@ body.phone #overlay #skTok{padding:4px 9px}body.phone #skTok .tkw{display:none}
 body.phone .skctl{top:6px;left:6px;right:6px;gap:5px}body.phone .skctl button{height:38px;min-width:38px;padding:0 9px}
 body.phone .skinfo{padding:10px 11px 0;gap:8px}
 body.phone .sk-h{gap:9px}body.phone .sk-h small{font-size:10.5px;letter-spacing:.08em}
-body.phone #overlay .panel .sk-h h2{font-size:19px!important}body.phone .sk-ic{width:38px;height:38px}body.phone .sk-ic.maj{width:38px;height:44px}body.phone .sk-ic svg{width:25px;height:25px}
+body.phone #overlay .panel .sk-h h2{font-size:19px!important}body.phone .sk-ic{width:52px;height:52px}body.phone .sk-ic.maj{width:52px;height:60px}body.phone .sk-ic svg{width:34px;height:34px}
 body.phone .sk-rank{flex-wrap:wrap;gap:6px 8px}body.phone .sk-bars i{width:14px;height:6px}body.phone .sk-st{font-size:10.5px;padding:2px 6px}
 body.phone .sk-d{font-size:12.5px;line-height:1.4}
 body.phone .sk-fx>div{padding:5px 0}body.phone .sk-fx dt{font-size:12.5px}body.phone .sk-fx dd{font-size:13px}
@@ -3080,3 +3090,29 @@ input,textarea,select,[contenteditable],[contenteditable] *{-webkit-user-select:
 .sktv::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 50%,transparent 58%,rgba(0,0,0,.32));box-shadow:inset 0 0 50px rgba(0,0,0,.35)}
 .sktv .roll{position:absolute;left:0;right:0;top:-25%;height:20%;background:linear-gradient(transparent,color-mix(in srgb,var(--acc-hi) 3%,transparent) 70%,transparent);animation:skRoll 7s linear infinite}
 body.calm .sktv .roll{display:none}
+/* the end screen's level bar pulses: its fill (and the glow running ahead of it) breathes brighter and darker */
+#overlay .sbar .sfill{animation:sxpPulse 1.6s ease-in-out infinite}
+@keyframes sxpPulse{0%,100%{filter:brightness(.72) saturate(.95)}50%{filter:brightness(1.45) saturate(1.15)}}
+body.calm #overlay .sbar .sfill{animation:none}
+@media (prefers-reduced-motion:reduce){#overlay .sbar .sfill{animation:none}}
+/* cinematic danger layers (38h-cinematic): fixed gradients, only their opacity ever changes, so they're composited, never repainted */
+#cinefx{position:absolute;inset:0;z-index:11;pointer-events:none;overflow:hidden}
+#cinefx .cv{position:absolute;inset:0;opacity:0;will-change:opacity}
+#cinefx .dark{background:radial-gradient(ellipse 72% 68% at 50% 50%,transparent 38%,rgba(12,4,6,.55) 70%,rgba(4,0,2,.92) 100%)}
+#cinefx .blast{background:radial-gradient(ellipse 70% 66% at 50% 50%,transparent 30%,rgba(120,10,6,.45) 66%,rgba(40,0,0,.9) 100%);mix-blend-mode:normal}
+#cinefx .gas{background:radial-gradient(ellipse 74% 70% at 50% 50%,transparent 34%,rgba(96,130,20,.35) 68%,rgba(40,60,8,.75) 100%)}
+#cinefx .fire{background:radial-gradient(ellipse 74% 70% at 50% 60%,transparent 40%,rgba(255,110,20,.28) 72%,rgba(140,30,0,.7) 100%)}
+/* skill icons, big: these beat the generic svg.gi{width:1em} (same weight, later in the file), which had been shrinking every skill icon to 16 px */
+.sk-ic svg.gi{width:52px;height:52px}
+.sk-ic.maj svg.gi{width:56px;height:56px}
+.skn.maj .skico svg.gi{width:52px;height:52px}
+.skn.pas .skico svg.gi{width:36px;height:36px}
+#abil .ab svg.gi,#touch .ab svg.gi{width:24px;height:24px}
+body.phone .sk-ic svg.gi{width:38px;height:38px}
+/* multiplayer scores as slot-machine reels (slotSet in 40e-net-ui) */
+.slot{display:inline-flex;height:1.15em;line-height:1.15em;overflow:hidden;vertical-align:bottom;font-variant-numeric:tabular-nums}
+.slot .rl{display:inline-block;height:1.15em;overflow:hidden}
+.slot .st{display:flex;flex-direction:column;will-change:transform}
+.slot .st i{font-style:normal;height:1.15em;line-height:1.15em;text-align:center}
+.slot.win{animation:slotWin .9s ease-out}
+@keyframes slotWin{0%,30%{color:#ffd23f;text-shadow:0 0 8px rgba(255,210,63,.75)}}

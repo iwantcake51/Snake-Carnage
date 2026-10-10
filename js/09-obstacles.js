@@ -81,6 +81,7 @@ function drawObstacleBase(x, o) {
       case 'campfire': { x.save(); x.translate(o.x, o.y); const k = o.r / 14; x.scale(k, k); firePit(x, 0, 0); x.restore(); return; }
       case 'tree': case 'bush': {
         if (x === octx) return drawTrunk(x, o); // in game the leaves are separate swaying sprites (09-seasons)
+        if (typeof treeStill === 'function' && treeStill(x, o)) return; // menu pictures and the editor: the same full trees, standing still
         const r = seeded(Math.round(o.x * 13 + o.y * 7)), lobes = k === 'tree' ? 7 : 5;
         x.fillStyle = shade(c, -.18); circ(x, o.x, o.y, o.r);
         for (let i = 0; i < lobes; i++) { const a = i * TAU / lobes + r(), d = o.r * .45; x.fillStyle = shade(c, -.05 + r() * .1); circ(x, o.x + Math.cos(a) * d, o.y + Math.sin(a) * d, o.r * .6); }

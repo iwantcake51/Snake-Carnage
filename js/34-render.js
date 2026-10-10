@@ -3,7 +3,7 @@ function snakeShadowPath(x, ox, oy) { // round, soft-edged discs per segment, li
   for (let i = 0; i < n; i++) { const g = sg[i], r = segR(i, n) * .95, sx = g.x + ox, sy = g.y + oy; x.moveTo(sx + r, sy); x.arc(sx, sy, r, 0, TAU); }
 }
 function render() {
-  const bz = Math.max(boomDaze(), gasScreen() * .8), pxS = Math.max(1, SETTINGS.pixel | 0), wob = snake && ((snake.wallStun > 0 && !SETTINGS.simpleFx) || (snake.ramT > 0 && !SETTINGS.reduceFlash) || (bz > .03 && !SETTINGS.simpleFx));
+  const bz = Math.max(boomDaze(), gasScreen() * .8), pxS = Math.max(1, SETTINGS.pixel | 0), wob = snake && ((snake.wallStun > 0 && !SETTINGS.simpleFx) || (snake.ramT > 0 && !SETTINGS.reduceFlash)); // (a blast's daze needs no copy of the frame: the camera sways the world itself, below, and its double vision reads the screen)
   render.n = (render.n || 0) + 1; // a frame number, so the edge blur shrinks each frame once
   const eb = (EDGE_K.lb > .03 || EDGE_K.fk > .03) && !SETTINGS.simpleFx, direct = pxS <= 1 && !wob; render.src = direct ? cv : sceneC; // (a lunge's edge blur reads the screen itself: it needs no copy of the frame) // no post effect this frame: draw straight to the screen and skip a full-frame copy
   const x = direct ? ctx : sctx, L = light, sh = shake && SETTINGS.shake && state !== 'paused' ? shake * (SETTINGS.shakeK ?? 1) : 0; // paused: the picture holds still, even mid-blast
@@ -68,17 +68,17 @@ function render() {
     lctx.drawImage(sceneC, 0, 0, lw, lh);
     ctx.imageSmoothingEnabled = false; ctx.drawImage(lowC, 0, 0, cv.width, cv.height); ctx.imageSmoothingEnabled = true;
   } else if (!direct) ctx.drawImage(sceneC, 0, 0);
+  let ca = 0; // the double vision, wanted by a wall, a blast or dying: drawn once with the strongest
   const ws = snake && snake.wallStun > 0 ? Math.min(1.5, Math.pow(snake.wallStun / (snake.wallMax || 3.4), .6) * (snake.stunFx || 1)) : 0;
   if (ws > .02 && px <= 1 && !SETTINGS.simpleFx) { // seeing stars after a wall: the picture wobbles in slow waves, fading with the daze
-    const bh = Math.ceil(cv.height / 48), amp = 7 * ws * DPR;
+    const bh = Math.ceil(cv.height / 28), amp = 7 * ws * DPR; // (fewer, taller bands: each is a draw of the whole width)
     for (let y = 0; y < cv.height; y += bh) { const o = Math.sin(y / cv.height * 9 + T * 3.1) * amp + Math.sin(T * 1.7 + y * .01) * amp * .4; ctx.drawImage(sceneC, 0, y, cv.width, bh, o, y, cv.width, bh); }
-    if (!SETTINGS.reduceFlash && !SETTINGS.simpleFx) chromaSplit(Math.min(1, ws));
-  } else if (bz > .03 && px <= 1 && !SETTINGS.simpleFx) { // close to a blast: the same wobble and double vision as after a wall, softer, and by how close it was
-    const bh = Math.ceil(cv.height / 40), amp = 3.2 * bz * DPR;
-    for (let y = 0; y < cv.height; y += bh) { const o = Math.sin(y / cv.height * 7 + T * 3.6) * amp + Math.sin(T * 2.1 + y * .012) * amp * .4; ctx.drawImage(sceneC, 0, y, cv.width, bh, o, y, cv.width, bh); }
-    if (!SETTINGS.reduceFlash) chromaSplit(.5 * bz);
+    if (!SETTINGS.reduceFlash && !SETTINGS.simpleFx) ca = Math.min(1, ws);
+  } else if (bz > .2 && px <= 1 && !SETTINGS.simpleFx) { // close to a blast: double vision, by how close it was (the world reels through the camera, above: no copy of the frame needed)
+    if (!SETTINGS.reduceFlash) ca = .5 * bz;
   }
-  if (dfxSince && px <= 1 && !SETTINGS.reduceFlash && !SETTINGS.simpleFx) { const u = (performance.now() - dfxSince) / 700; if (u < 1) chromaSplit(.9 * (1 - u) ** 1.5); } // the moment you die: the picture shudders apart
+  if (dfxSince && px <= 1 && !SETTINGS.reduceFlash && !SETTINGS.simpleFx) { const u = (performance.now() - dfxSince) / 700; if (u < 1) ca = Math.max(ca, .9 * (1 - u) ** 1.5); } // the moment you die: the picture shudders apart
+  if (ca > .01) chromaSplit(ca); // once a frame, however many things want it
   if (snake && snake.ramT > 0 && px <= 1 && !SETTINGS.reduceFlash) { const bk = Math.pow(snake.ramT / (snake.ramMax || 1), .6) * (snake.stunFx || 1); concussBloom(bk * (snake.wallStun > 0 ? .26 : .1)); } // any daze blooms; walls much more
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   if (nightVision) { // green phosphor look done in-canvas, so the overlays after it keep their real colors
@@ -87,7 +87,7 @@ function render() {
     ctx.globalCompositeOperation = 'source-over'; ctx.fillStyle = 'rgba(0,12,4,.16)'; ctx.fillRect(0, 0, W, H);
   }
   ctx.save(); applyView(ctx); // crisp overlays above blood and lighting
-  if (px <= 1 && !render.dazed) { drawGoldenFX(ctx); ctx.globalAlpha = render.olk ?? 1; drawTargetOutlines(ctx); ctx.globalAlpha = 1; drawSnakeNightRim(ctx); }
+  if (px <= 1 && !render.dazed) { drawGoldenFX(ctx); if ((render.olk ?? 1) > .02) { ctx.globalAlpha = render.olk ?? 1; drawTargetOutlines(ctx); ctx.globalAlpha = 1; } drawSnakeNightRim(ctx); } // (faded right out, as after a blast: not drawn at all; its last rims are cleared on its next draw)
   if (nightVision) drawNVHighlights(ctx);
   drawWinStars(ctx); drawScent(ctx); drawNearMiss(ctx); drawHissWave(ctx); drawCrashFlash(ctx);
   drawShockwaves(ctx, cv); // last: blasts bend the whole picture behind them, outlines and all
@@ -185,6 +185,7 @@ function bakeBlurBg() { // blur the frozen frame into its own pixels once, so th
 }
 function frame(now) {
   const hbOff = !['play', 'ready', 'intro', 'held'].includes(state); if (bar.hidden !== hbOff) bar.hidden = hbOff; // the in-run stats are for the run itself (they sit above the menus' layer, so they step aside for pause, the summary and every menu)
+  if (bdHud.on && hbOff !== !!bdHud.off) { bdHud.off = hbOff; const be = document.getElementById('bdebt'); if (be) be.hidden = hbOff; } // Blood Debt's pill goes with them
   const cap = +SETTINGS.fpsCap; // VSync -> NaN: draw every refresh
   if (cap && now - last < 1000 / cap - 2) { requestAnimationFrame(frame); return; }
   const raw = now - last; if (raw < 200) frameMs += (raw - frameMs) * .03;
@@ -261,12 +262,12 @@ function drawDrops(x) {
    Built at half size from the finished scene (not read back from the screen), layered together there, then laid over in one pass */
 const caR = document.createElement('canvas'), caG = document.createElement('canvas');
 function chromaSplit(k) {
-  const w = Math.max(1, cv.width >> 1), h = Math.max(1, cv.height >> 1);
+  const w = Math.max(1, cv.width >> 2), h = Math.max(1, cv.height >> 2); // a quarter size: grey ghosts are soft anyway, and it's a sixteenth of the pixels to move
   if (caR.width !== w || caR.height !== h) { caR.width = caG.width = w; caR.height = caG.height = h; }
   const g = caR.getContext('2d'), q = caG.getContext('2d');
   g.globalCompositeOperation = 'copy'; g.drawImage(render.src || cv, 0, 0, w, h);
   g.globalCompositeOperation = 'saturation'; g.fillStyle = '#000'; g.fillRect(0, 0, w, h); g.globalCompositeOperation = 'source-over'; // grey
-  const d = (3 + 9 * k) * DPR * Math.sin(T * 5.5) / 2; // swinging side to side
+  const d = (3 + 9 * k) * DPR * Math.sin(T * 5.5) / 4; // swinging side to side
   q.clearRect(0, 0, w, h);
   for (const [m, al] of [[1, .22], [-1, .22], [2.1, .1]]) { q.globalAlpha = al * k; q.drawImage(caR, d * m, 0); }
   q.globalAlpha = 1;

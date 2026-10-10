@@ -136,7 +136,7 @@ const ACH = [
   ['lastCall', 'Last Call', 'Eat {n} people in one run at the club', () => PROG.clubMax || 0, 25, 'rare', { secret: 1, clue: 'Empty the dance floor.' }],
 ].map(([id, name, what, stat, n, tier, ex = {}]) => { const goal = typeof n === 'function' ? n : () => n; return { id, name, get n() { return goal(); }, get what() { return what.replace('{n}', goal()); }, stat, tier, ...ex }; });
 const ACH_XP = { easy: 300, medium: 700, hard: 1500, rare: 3000 }, ACH_CHIPS = { easy: 150, medium: 350, hard: 800, rare: 1800 }; // every achievement pays XP and chips on the side; the cosmetics are the real prize
-const achXP = a => a.xp || ACH_XP[a.tier] || 0, achChips = a => a.chips || ACH_CHIPS[a.tier] || 0, achXPPaid = a => Math.round(achXP(a) * XP_GAIN * (typeof SKV === 'object' ? SKV.xpK() : 1)); // (Paid: what it really adds, Quick Study and all)
+const achXP = a => a.xp || ACH_XP[a.tier] || 0, achChips = a => a.chips || ACH_CHIPS[a.tier] || 0, achXPPaid = a => Math.round(achXP(a) * XP_GAIN); // (Paid: what it really adds)
 const achRewards = id => [['color', COLOR_ITEMS], ['color2', COLOR_ITEMS], ...Object.entries(SHOP)].flatMap(([cat, l]) => l.filter(i => i[2] === id).map(i => [cat, i[0]]));
 if (PROG.ach && PROG.ach.allHard && !PROG.gluttonPaid) { // earned under the old rule (every harder modifier at the start of a run) when it paid almost nothing: the new reward, once
   PROG.gluttonPaid = 1; PROG.glutton = 1; PROG.coins += 4500; PROG.earned = (PROG.earned || 0) + 4500; PROG.tokBonus = (PROG.tokBonus | 0) + 5;

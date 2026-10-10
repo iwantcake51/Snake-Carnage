@@ -98,6 +98,8 @@ function startGame(opts = {}) {
 function finishStart(opts, sz) {
   const t0 = performance.now();
   newRun();
+  if (!opts.test && Object.keys(PROG.treeNew || {}).length) { PROG.treeNew = {}; saveProg(); }
+  bloodWarmSnake(); // a run has started: skills bought before it are yours for good (until a full reset)
   if (opts.net) { netWithSeed(opts.net.seed, () => loadMap(mapIdx, sz)); netAfterLoad(); } else loadMap(mapIdx, sz); // co-op: the same world on every screen
   run.startPop = creatures.length;
   const animals = [...new Set(creatures.filter(c => !c.def.human).map(c => c.type))];

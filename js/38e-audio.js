@@ -52,8 +52,9 @@ Object.assign(Sfx, {
     src.connect(lp); lp.connect(g); g.connect(o); src.start(t, Math.random() * 1.5); src.stop(t + dur + .05);
   },
   drive(o, k = 3) { // a soft clipper in front of o: grit and loudness without harsh digital clipping
-    const ws = this.ctx.createWaveShaper(), N = 1024, cv = new Float32Array(N); for (let i = 0; i < N; i++) { const x = i / (N - 1) * 2 - 1; cv[i] = Math.tanh(k * x) / Math.tanh(k); }
-    ws.curve = cv; ws.oversample = '2x'; ws.connect(o); return ws;
+    const C = this.driveC || (this.driveC = new Map()); let cv = C.get(k); // (the curve is worked out once per strength)
+    if (!cv) { const N = 1024; cv = new Float32Array(N); for (let i = 0; i < N; i++) { const x = i / (N - 1) * 2 - 1; cv[i] = Math.tanh(k * x) / Math.tanh(k); } C.set(k, cv); }
+    const ws = this.ctx.createWaveShaper(); ws.curve = cv; ws.oversample = '2x'; ws.connect(o); return ws;
   },
 });
 // the big ones, layered: a recording if there is one, extra synthesized body if not
@@ -65,7 +66,7 @@ Sfx.boom = function (x, k = 1) {
   const t = this.ctx.currentTime, o = this.out(x, .9 * k), d = this.drive(o, 4);
   const src = this.ctx.createBufferSource(), lp = this.ctx.createBiquadFilter(), g = this.ctx.createGain(); src.buffer = this.noise; lp.type = 'lowpass'; lp.frequency.setValueAtTime(5000, t); lp.frequency.exponentialRampToValueAtTime(260, t + .45); // the crack: saturated noise snapping down
   g.gain.setValueAtTime(1, t); g.gain.exponentialRampToValueAtTime(.001, t + .5); src.connect(lp); lp.connect(g); g.connect(d); src.start(t, Math.random() * .4); src.stop(t + .55);
-  this.crackleTail(o, t + .25, 2.2 + Math.random(), .35 * k, 1800); // and the wreckage burning
+  this.defer(() => this.crackleTail(o, t + .25, 2.2 + Math.random(), .35 * k, 1800)); // and the wreckage burning (built a frame later: it starts later anyway)
 };
 const _sfxGore = Sfx.gore;
 Sfx.gore = function (x, big) {
@@ -78,3 +79,12 @@ const _sfxCrash = Sfx.crash;
 Sfx.crash = function (x) { if (this.has('crash')) { this.sample('crash', x, 1); return; } _sfxCrash.call(this, x); if (this.ok()) { const t = this.ctx.currentTime, o = this.out(x, .6); this.crackleTail(o, t, .3, .45, 1400); } };
 const _sfxEat = Sfx.eat;
 Sfx.eat = function (x, human, amount, kind) { _sfxEat.call(this, x, human, amount, kind); if (this.has('bite')) this.sample('bite', x, .8 * clamp(amount || 1, .4, 1.3)); };
+// the heavy buffers (the fuse crackle under every gore and blast, the sky's echo) are built in quiet moments as soon as there's sound at all,
+// never the instant the first kill or hit needs them (the first one cost a ~17 ms stall)
+const _sfxInit2 = Sfx.init;
+Sfx.init = function () {
+  const had = !!this.ctx; const r = _sfxInit2.apply(this, arguments);
+  if (!had && this.ctx && !this._warm) { this._warm = 1; const idle = f => window.requestIdleCallback ? requestIdleCallback(f, { timeout: 3000 }) : setTimeout(f, 300);
+    idle(() => { try { this.crackleBuf(); } catch (e) {} idle(() => { try { if (this.airVerb) this.airVerb(); } catch (e) {} }); }); }
+  return r;
+};

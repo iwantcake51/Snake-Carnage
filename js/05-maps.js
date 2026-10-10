@@ -54,11 +54,12 @@ function dirtTrails(x, list) { // worn dirt paths: uneven width and edges, packe
       hx.fillStyle = '#000'; circ(hx, px, py, w / 2 * v + 6 + e); dx.fillStyle = '#b79a68'; circ(dx, px + e * .3, py - e * .3, w / 2 * v + e * .5); }
   }
   dx.save(); dx.globalCompositeOperation = 'source-atop'; // everything below only lands on the dirt
-  for (let k = 0; k < 90; k++) { const r = seeded(500 + k)(), px = (k * 97.3 % W), py = (k * 61.7 % H); dx.fillStyle = r < .5 ? 'rgba(120,92,54,.18)' : 'rgba(214,190,140,.2)'; ell(dx, px, py, 20 + r * 40, 10 + r * 24); } // darker and lighter ground
+  const real = groundTex(dx, 'dirt', 1 + Math.random() * 1e6 | 0); // real dirt, blended at random (the flat tan is the stand-in until it's in)
+  if (!real) for (let k = 0; k < 90; k++) { const r = seeded(500 + k)(), px = (k * 97.3 % W), py = (k * 61.7 % H); dx.fillStyle = r < .5 ? 'rgba(120,92,54,.18)' : 'rgba(214,190,140,.2)'; ell(dx, px, py, 20 + r * 40, 10 + r * 24); } // darker and lighter ground
   for (const { P, w, r } of lines) {
-    dx.strokeStyle = 'rgba(206,186,140,.55)'; dx.lineWidth = w * .35; dx.lineCap = 'round'; dx.beginPath(); P.forEach(([px, py], k) => k ? dx.lineTo(px, py) : dx.moveTo(px, py)); dx.stroke(); // packed, lighter middle
+    dx.strokeStyle = real ? 'rgba(226,206,160,.2)' : 'rgba(206,186,140,.55)'; dx.lineWidth = w * .35; dx.lineCap = 'round'; dx.beginPath(); P.forEach(([px, py], k) => k ? dx.lineTo(px, py) : dx.moveTo(px, py)); dx.stroke(); // packed, lighter middle
     for (let k = 0; k < P.length; k += 2) { const [px, py] = P[k];
-      if (r() < .5) { dx.fillStyle = r() < .5 ? '#9c8156' : '#cdb487'; dx.fillRect(px + (r() - .5) * w, py + (r() - .5) * w, 1.6, 1.4); }
+      if (r() < .5) { dx.fillStyle = r() < .5 ? '#9c8156' : '#cdb487'; if (!real) dx.fillRect(px + (r() - .5) * w, py + (r() - .5) * w, 1.6, 1.4); else r(), r(); } // (grit: the real dirt has its own)
       if (r() < .05) { const sx = px + (r() - .5) * w * .8, sy = py + (r() - .5) * w * .8, sr = .8 + r() * 1.6; dx.fillStyle = '#8e8a82'; circ(dx, sx, sy, sr); dx.fillStyle = 'rgba(255,255,255,.35)'; circ(dx, sx - sr * .3, sy - sr * .3, sr * .45); } // stones
       if (r() < .06) { const side = r() < .5 ? -1 : 1, nx = px + side * w * (.32 + r() * .2), ny = py + (r() - .5) * 4; dx.fillStyle = 'rgba(110,150,60,.75)'; for (let t = 0; t < 4; t++) circ(dx, nx + (r() - .5) * 4, ny + (r() - .5) * 4, .9 + r()); } // grass creeping in
       if (r() < .03) { dx.fillStyle = 'rgba(95,70,40,.3)'; ell(dx, px + (r() - .5) * w * .5, py + (r() - .5) * w * .5, 3 + r() * 5, 2 + r() * 3); } // worn hollows
@@ -80,6 +81,12 @@ function craters(x, n, base, seed) {
   const r = seeded(seed);
   for (let i = 0; i < n; i++) {
     const cx = 30 + r() * (W - 60), cy = 30 + r() * (H - 60), cr = 6 + r() * r() * 34;
+    if (!base) { // on a real ground (base null): see-through, so the ground's own texture shows in the bowl
+      const g = x.createRadialGradient(cx, cy, cr * .9, cx, cy, cr * 1.6); g.addColorStop(0, 'rgba(255,255,255,.07)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; circ(x, cx, cy, cr * 1.6); // the ejecta, paler round the rim
+      x.fillStyle = 'rgba(0,0,0,.2)'; circ(x, cx, cy, cr); x.fillStyle = 'rgba(0,0,0,.08)'; circ(x, cx - cr * .12, cy - cr * .12, cr * .82); // the bowl, its shadow under the lit rim
+      x.strokeStyle = 'rgba(255,255,255,.2)'; x.lineWidth = Math.max(1, cr * .12); x.beginPath(); x.arc(cx, cy, cr, Math.PI * .1, Math.PI * .8); x.stroke(); // the far rim catching the sun
+      x.strokeStyle = 'rgba(0,0,0,.18)'; x.beginPath(); x.arc(cx, cy, cr, Math.PI * 1.1, Math.PI * 1.8); x.stroke(); continue;
+    }
     x.fillStyle = shade(base, -.12); circ(x, cx, cy, cr); x.fillStyle = shade(base, -.05); circ(x, cx + cr * .15, cy + cr * .15, cr * .8);
     x.strokeStyle = shade(base, .12); x.lineWidth = Math.max(1, cr * .12); x.beginPath(); x.arc(cx, cy, cr, Math.PI * .9, Math.PI * 1.8); x.stroke();
   }
@@ -158,7 +165,7 @@ function buildMaze() {
     if ((v[r - 1][c] || v[r][c] || h[r][c - 1] || h[r][c]) && Math.random() < .3 && posts.length < Math.round(cols * .9)) posts.push(LAMP(x0, y0, { lantern: true }));
   }
   obs.push(...posts, Object.assign(C(W / 2, H / 2, 34, '#4aa3df', 'water'), { fountain: true }), LAMP(W / 2 - 70, H / 2 - 60), LAMP(W / 2 + 70, H / 2 - 60), LAMP(W / 2 - 70, H / 2 + 60), LAMP(W / 2 + 70, H / 2 + 60));
-  return { obs, floor(x) { checker(x, ...GRASS, 32); x.fillStyle = '#d6c9a8'; x.beginPath(); x.arc(W / 2, H / 2, 105, 0, TAU); x.fill(); x.strokeStyle = '#bfb08c'; x.lineWidth = 2; for (let k = 1; k < 4; k++) { x.beginPath(); x.arc(W / 2, H / 2, 46 + k * 18, 0, TAU); x.stroke(); } },
+  return { obs, floor(x) { if (!mapGround(x, 'lawn')) checker(x, ...GRASS, 32); if (!texShape(x, 'dirt', g => { g.beginPath(); g.arc(W / 2, H / 2, 105, 0, TAU); g.fill(); })) { x.fillStyle = '#d6c9a8'; x.beginPath(); x.arc(W / 2, H / 2, 105, 0, TAU); x.fill(); } /* the garden's lawn and its gravel plaza */ x.strokeStyle = '#bfb08c'; x.lineWidth = 2; for (let k = 1; k < 4; k++) { x.beginPath(); x.arc(W / 2, H / 2, 46 + k * 18, 0, TAU); x.stroke(); } },
            start: { x: B + cw / 2, y: B + ch / 2, a: v[0][1] ? Math.PI / 2 : 0 } };
 }
 
@@ -173,10 +180,15 @@ function bunkerLights() { // built once per run (loadMap clears the cache), so e
     : P.map(([x, y, r, f]) => ({ x, y, r: r * 1.05, kind: 'fluor', fix: 'cage', flick: !!f })); // normal shift: cold white work lamps, a couple on their way out
   return bunkerCache;
 }
+const fieldGround = x => mapGround(x, 'meadow', x => { // Open Field's real grass, plus what makes it a mown hayfield
+  x.fillStyle = 'rgba(255,255,230,.05)'; for (let j = 120; j < H; j += 40) x.fillRect(16, j, W - 32, 20); // mowing stripes: the mower's passes catch the light one way, then the other
+  x.fillStyle = 'rgba(40,60,10,.05)'; for (let j = 140; j < H; j += 40) x.fillRect(16, j, W - 32, 20);
+  const v = x.createLinearGradient(0, 16, 0, 104); v.addColorStop(0, 'rgba(150,140,40,.22)'); v.addColorStop(.85, 'rgba(150,140,40,.16)'); v.addColorStop(1, 'rgba(150,140,40,0)'); x.fillStyle = v; x.fillRect(16, 16, W - 32, 88); // the uncut verge beyond the fence, gone to seed
+});
 const MAPS = [
   {
     name: 'Open Field', icon: '🟩', border: '#5a8a36', start: { x: 300, y: 330, a: 0 }, times: { sunset: 2, evening: 2, night: 2.5 }, open: true,
-    pop: [['human', 6], ['rabbit', 6], ['deer', 5], ['frog', 3]], fireflies: 22, walkers: 4, grass: 160,
+    pop: [['human', 6], ['rabbit', 6], ['deer', 5], ['frog', 3]], fireflies: 22, walkers: 4, grass: 160, ground: fieldGround,
     build: () => { // a mown hayfield: one farm track crossing it, a fence and gate along the top, a single old oak. Nowhere to hide.
       const track = [[-10, 400], [160, 380], [330, 330], [500, 330], [660, 330], [800, 290], [970, 250]], spur = [[500, 330], [500, 220], [520, 120], [540, 16]];
       return {
@@ -184,9 +196,11 @@ const MAPS = [
               TREE(760, 500, 34, '#3f7a2c'), C(200, 190, 13, '#e3c565', 'hay'), C(226, 206, 12, '#e3c565', 'hay')],
         paths: [track, spur],
         floor(x) {
-          checker(x, ...GRASS, 32);
-          x.fillStyle = 'rgba(70,110,30,.12)'; for (let j = 120; j < H; j += 40) x.fillRect(16, j, W - 32, 18); // mowing stripes
-          x.fillStyle = '#9cc148'; x.fillRect(16, 16, W - 32, 80); // the uncut verge beyond the fence
+          if (fieldGround(x)) {} else {
+            checker(x, ...GRASS, 32);
+            x.fillStyle = 'rgba(70,110,30,.12)'; for (let j = 120; j < H; j += 40) x.fillRect(16, j, W - 32, 18); // mowing stripes
+            x.fillStyle = '#9cc148'; x.fillRect(16, 16, W - 32, 80); // the uncut verge beyond the fence
+          }
           dirtTrails(x, [[track, 20, 4], [spur, 16, 9]]);
           flowers(x, 120, ['#ffffff', '#ffe066', '#c9b6ff'], 21, 6);
           { const g = x.createRadialGradient(760, 500, 20, 760, 500, 64); g.addColorStop(0, 'rgba(40,60,20,.26)'); g.addColorStop(1, 'rgba(40,60,20,0)'); x.fillStyle = g; x.fillRect(690, 430, 140, 140); } // the oak's dry patch, fading into the grass
@@ -196,7 +210,7 @@ const MAPS = [
   },
   {
     name: 'Meadow', icon: '🌾', border: '#4f7f30', start: { x: 200, y: 520, a: 0 }, times: { dawn: 2, morning: 2.5, sunset: 1.5 }, open: true,
-    pop: [['human', 6], ['rabbit', 5], ['deer', 3], ['frog', 5, { x: 560, y: 160, w: 260, h: 200 }]], fireflies: 16, walkers: 4, grass: 260,
+    pop: [['human', 6], ['rabbit', 5], ['deer', 3], ['frog', 5, { x: 560, y: 160, w: 260, h: 200 }]], fireflies: 16, walkers: 4, grass: 260, ground: x => mapGround(x, 'wild'),
     build: () => { // a lake up in the north-east with a campsite on its shore; one trail network linking the lake, the camp and both edges
       const main = [[-10, 470], [150, 470], [300, 430], [430, 370], [520, 330], [575, 292], [606, 276]], south = [[300, 430], [330, 540], [420, 660]], camp = [[430, 370], [470, 300], [500, 255]];
       return {
@@ -210,10 +224,10 @@ const MAPS = [
         paths: [main, south, camp],
 
         floor(x) {
-          checker(x, ...GRASS, 32);
+          if (!mapGround(x, 'wild')) checker(x, ...GRASS, 32);
           { const g = x.createRadialGradient(690, 230, 60, 690, 230, 150); g.addColorStop(0, 'rgba(60,100,35,.2)'); g.addColorStop(.6, 'rgba(60,100,35,.1)'); g.addColorStop(1, 'rgba(60,100,35,0)'); x.fillStyle = g; x.fillRect(530, 70, 320, 320); } // the lake sits in a dip, fading out into the grass
           dirtTrails(x, [[main, 18, 12], [south, 16, 13], [camp, 14, 14]]);
-          x.fillStyle = '#c8b27a'; x.beginPath(); x.ellipse(510, 212, 56, 46, 0, 0, TAU); x.fill(); // trampled campsite ground on the lake shore
+          if (!texShape(x, 'dirt', g => { g.beginPath(); g.ellipse(510, 212, 56, 46, 0, 0, TAU); g.fill(); })) { x.fillStyle = '#c8b27a'; x.beginPath(); x.ellipse(510, 212, 56, 46, 0, 0, TAU); x.fill(); } // trampled campsite ground on the lake shore
           flowers(x, 140, ['#ffffff', '#ffe066', '#ff9ecb', '#c9b6ff'], 5, 9);
           x.fillStyle = '#8b6a44'; x.save(); x.translate(500, 248); x.rotate(.5); x.fillRect(-13, -4, 26, 8); x.restore(); x.save(); x.translate(552, 250); x.rotate(-.4); x.fillRect(-13, -4, 26, 8); x.restore(); // log seats
         },
@@ -305,7 +319,7 @@ const MAPS = [
         floor(x) {
           const paveA = '#b9b3a7', paveB = '#c6c0b3';
           x.fillStyle = paveA; x.fillRect(0, 0, W, H); x.fillStyle = paveB; for (let i = 0; i < W; i += 24) for (let j = 0; j < H; j += 24) if ((i / 24 + j / 24) % 2) x.fillRect(i, j, 24, 24); // sidewalk slabs
-          const grass = (r, seed, edge = true) => { x.fillStyle = '#93bf55'; x.fillRect(...r); const g = seeded(seed); for (let k = 0; k < r[2] * r[3] / 60; k++) { x.fillStyle = g() < .5 ? '#86b24b' : '#a2cb62'; x.fillRect(r[0] + g() * r[2], r[1] + g() * r[3], 2, 2); } if (edge) { x.strokeStyle = 'rgba(70,90,40,.35)'; x.lineWidth = 1.5; x.strokeRect(r[0] + .75, r[1] + .75, r[2] - 1.5, r[3] - 1.5); } };
+          const grass = (r, seed, edge = true) => { if (!texShape(x, 'lawn', q => q.fillRect(...r))) { x.fillStyle = '#93bf55'; x.fillRect(...r); const g = seeded(seed); for (let k = 0; k < r[2] * r[3] / 60; k++) { x.fillStyle = g() < .5 ? '#86b24b' : '#a2cb62'; x.fillRect(r[0] + g() * r[2], r[1] + g() * r[3], 2, 2); } } /* real lawn grass (the flat green and its flecks are the stand-in) */ if (edge) { x.strokeStyle = 'rgba(70,90,40,.35)'; x.lineWidth = 1.5; x.strokeRect(r[0] + .75, r[1] + .75, r[2] - 1.5, r[3] - 1.5); } };
           const asph = (r, c = '#4b4b52') => { x.fillStyle = c; x.fillRect(...r); };
           grass([16, 16, 928, 46], 31, false); grass([904, 16, 40, 608], 32, false); // the verges at the edge of town
           grass(SQ, 33); grass([678, 122, 166, 150], 34); grass([678, 560, 166, 64], 35); // the square, the churchyard, the front lawns
@@ -344,7 +358,7 @@ const MAPS = [
   },
   { name: 'Maze', icon: '🧱', border: '#2f5220', times: { evening: 2, night: 3 }, pop: [['human', 10], ['rat', 3], ['cat', 1]], build: buildMaze },
   {
-    name: 'Farm', icon: '🐄', border: '#7a5a34', start: { x: 420, y: 250, a: 0 }, times: { dawn: 2.5, morning: 2.5, evening: 1.5 },
+    name: 'Farm', icon: '🐄', border: '#7a5a34', start: { x: 420, y: 250, a: 0 }, times: { dawn: 2.5, morning: 2.5, evening: 1.5 }, ground: x => mapGround(x, 'pasture'),
     pop: [['human', 5], ['chicken', 7, { x: 300, y: 90, w: 380, h: 120 }], ['sheep', 6, { x: 580, y: 350, w: 350, h: 260 }],
           ['pig', 4, { x: 60, y: 200, w: 240, h: 80 }], ['dog', 1]], walkers: 2,
     build: () => ({
@@ -364,19 +378,21 @@ const MAPS = [
         LAMP(338, 208), LAMP(712, 150), LAMP(806, 318)
       ],
       floor(x) {
-        checker(x, ...GRASS, 32);
-        x.fillStyle = '#c8a26a'; x.fillRect(300, 226, 476, 28); x.fillRect(726, 136, 50, 200); // dirt yard roads: from the pen gate along to the farmhouse, and down to the paddock gate
-        x.fillRect(96, 140, 52, 14); x.fillRect(96, 150, 234, 22); x.fillRect(306, 150, 24, 80); x.fillRect(446, 72, 24, 156); // the barn's apron and lane to the road, the shed's track
-        speckle(x, 400, ['#b18c58', '#d6b47e'], 3);
-        x.fillStyle = '#8b5e34'; x.fillRect(40, 320, 440, 290); // the crop field
+        const tex = mapGround(x, 'pasture'); if (!tex) checker(x, ...GRASS, 32);
+        dirtTrails(x, [ // worn dirt yard roads, never quite straight, ragged at the edges, the grass worn thin along them
+          [[[300, 240], [420, 244], [560, 236], [680, 242], [751, 239]], 26, 31], // from the pen gate along to the farmhouse
+          [[[750, 136], [755, 190], [747, 252], [753, 300], [749, 336]], 32, 32], // and down to the paddock gate
+          [[[96, 158], [180, 164], [262, 158], [330, 162]], 22, 33], [[[118, 138], [126, 160]], 30, 34], // the barn's apron and its lane to the road
+          [[[318, 152], [322, 192], [316, 238]], 22, 35], [[[458, 72], [454, 122], [461, 172], [456, 236]], 22, 36]]); // the lane down from the barn, the shed's track
+        if (!tex || !texShape(x, 'soil', g => g.fillRect(40, 320, 440, 290))) { x.fillStyle = '#8b5e34'; x.fillRect(40, 320, 440, 290); } // the crop field
         x.fillStyle = '#6f9a35'; for (let y = 332; y < 600; y += 18) { x.fillRect(48, y, 424, 6); for (let i = 52; i < 470; i += 9) circ(x, i, y + 3, 2.6); }
-        x.fillStyle = '#9b7a52'; x.fillRect(22, 186, 272, 98); x.fillStyle = 'rgba(90,60,30,.45)'; for (let k = 0; k < 9; k++) { ell(x, 70 + k * 26, 200 + (k % 3) * 28, 14, 7); } // pig pen mud
+        if (!tex || !texShape(x, 'mud', g => g.fillRect(22, 186, 272, 98))) { x.fillStyle = '#9b7a52'; x.fillRect(22, 186, 272, 98); } x.fillStyle = 'rgba(90,60,30,.45)'; for (let k = 0; k < 9; k++) { ell(x, 70 + k * 26, 200 + (k % 3) * 28, 14, 7); } // pig pen mud
       }
     })
   },
   {
     name: 'Park', icon: '🌳', border: '#4f7a33', start: { x: 120, y: 330, a: 0 }, times: { afternoon: 2, sunset: 2.5, evening: 1.5 }, open: true,
-    pop: [['human', 9], ['dog', 1], ['duck', 4, { x: 500, y: 200, w: 220, h: 200 }], ['rabbit', 3]], walkers: 5, grass: 90,
+    pop: [['human', 9], ['dog', 1], ['duck', 4, { x: 500, y: 200, w: 220, h: 200 }], ['rabbit', 3]], walkers: 5, grass: 90, ground: x => mapGround(x, 'lawn'),
     build: () => { // a city park: a loop path round the duck pond, paths in from three gates, a playground, a bandstand.
       // Lamps stand at the path edges (each gate, the junctions, the playground, the bandstand); benches sit along the paths, the two on the
       // loop turned to face the pond; two small groves give dark cover between the lit paths; picnic tables on the lawn by the playground.
@@ -397,10 +413,11 @@ const MAPS = [
         ],
         paths: [loop, west, south, east, band, play],
         floor(x) {
-          checker(x, ...GRASS, 32);
-          x.lineCap = 'round'; x.lineJoin = 'round'; x.strokeStyle = '#c9ad78'; x.lineWidth = 30;
-          const poly = pts => { x.beginPath(); pts.forEach((p, i) => i ? x.lineTo(...p) : x.moveTo(...p)); x.stroke(); };
-          [loop, west, south, east, band, play].forEach(poly); x.strokeStyle = '#dcc493'; x.lineWidth = 24; [loop, west, south, east, band, play].forEach(poly); // one network: every path joins another or leaves the park
+          const tex = mapGround(x, 'lawn'); if (!tex) checker(x, ...GRASS, 32);
+          const poly = (g, pts) => { g.beginPath(); pts.forEach((p, i) => i ? g.lineTo(...p) : g.moveTo(...p)); g.stroke(); }, all = [loop, west, south, east, band, play]; // one network: every path joins another or leaves the park
+          if (tex && texShape(x, 'dirt', g => { g.lineCap = 'round'; g.lineJoin = 'round'; g.lineWidth = 30; all.forEach(p => poly(g, p)); })) { // packed earth paths, raked lighter down the middle
+            x.lineCap = 'round'; x.lineJoin = 'round'; x.strokeStyle = 'rgba(80,60,30,.22)'; x.lineWidth = 30; all.forEach(p => poly(x, p)); x.strokeStyle = 'rgba(250,236,196,.22)'; x.lineWidth = 22; all.forEach(p => poly(x, p));
+          } else { x.lineCap = 'round'; x.lineJoin = 'round'; x.strokeStyle = '#c9ad78'; x.lineWidth = 30; all.forEach(p => poly(x, p)); x.strokeStyle = '#dcc493'; x.lineWidth = 24; all.forEach(p => poly(x, p)); }
           x.fillStyle = '#e8d49a'; x.beginPath(); x.ellipse(170, 470, 72, 52, 0, 0, TAU); x.fill(); x.strokeStyle = '#c9a85e'; x.lineWidth = 3; x.beginPath(); x.ellipse(170, 470, 72, 52, 0, 0, TAU); x.stroke(); // playground sand
           flowers(x, 70, ['#ff9ecb', '#ffffff', '#ffd23f'], 8, 5);
         },
@@ -409,7 +426,7 @@ const MAPS = [
     }
   },
   {
-    name: 'Pool', icon: '🏊', border: '#5a7f8f', start: { x: 480, y: 100, a: 0 }, times: { midday: 2, afternoon: 2.5, sunset: 2, evening: 2, night: 1.5 },
+    name: 'Pool', icon: '🏊', border: '#5a7f8f', start: { x: 480, y: 100, a: 0 }, ground: x => mapGround(x, 'lawn'), times: { midday: 2, afternoon: 2.5, sunset: 2, evening: 2, night: 1.5 },
     pop: [['human', 16], ['dog', 1], ['duck', 3, { x: 60, y: 380, w: 220, h: 200 }]],
     build: () => ({ // the pool and its deck, a lawn with a fountain, the changing rooms and the snack bar; nothing fences you in.
       // Paved paths: changing rooms -> deck, snack bar -> deck, the walkway north-south through the deck, and a branch to the fountain plaza.
@@ -425,7 +442,7 @@ const MAPS = [
       lights: [{ x: 345, y: 194, r: 56, kind: 'pool', fix: 'pool' }, { x: 480, y: 194, r: 56, kind: 'pool', fix: 'pool' }, { x: 615, y: 194, r: 56, kind: 'pool', fix: 'pool' },
                { x: 345, y: 336, r: 56, kind: 'pool', fix: 'pool' }, { x: 480, y: 336, r: 56, kind: 'pool', fix: 'pool' }, { x: 615, y: 336, r: 56, kind: 'pool', fix: 'pool' }],
       floor(x) {
-        checker(x, ...GRASS, 32);
+        if (!mapGround(x, 'lawn')) checker(x, ...GRASS, 32); // the lawn round the pool
         x.fillStyle = '#e8e2d6'; x.fillRect(250, 140, 460, 250); x.fillRect(16, 126, 240, 40); x.fillRect(450, 16, 60, 130); x.fillRect(450, 390, 60, 234);
         x.fillRect(760, 116, 40, 70); x.fillRect(706, 156, 94, 30); x.fillRect(236, 462, 218, 36); // the snack bar's path to the deck; the branch to the fountain plaza
         x.strokeStyle = 'rgba(150,140,120,.35)'; x.lineWidth = 1; for (const r of [[760, 116, 40, 70], [706, 156, 94, 30], [236, 462, 218, 36]]) x.strokeRect(r[0] + .5, r[1] + .5, r[2] - 1, r[3] - 1);
@@ -489,7 +506,7 @@ const MAPS = [
     })
   },
   {
-    name: 'Moon', icon: '🌕', border: '#3e4148', start: { x: 480, y: 130, a: 0 }, times: { evening: 2, night: 4 }, space: true,
+    name: 'Moon', icon: '🌕', border: '#3e4148', start: { x: 480, y: 130, a: 0 }, times: { evening: 2, night: 4 }, space: true, ground: x => mapGround(x, 'moon'),
     pop: [['astronaut', 14]],
     build: () => ({ // a small lunar base: hub dome and two modules on pressurized tubes, a landing pad, solar arrays and a rover
       obs: [
@@ -503,8 +520,8 @@ const MAPS = [
         MAST(400, 230), MAST(570, 430), MAST(760, 230), MAST(160, 300)
       ],
       floor(x) {
-        x.fillStyle = '#8b8e94'; x.fillRect(0, 0, W, H); speckle(x, 1400, ['#a2a5ab', '#74777d', '#96999f'], 3);
-        craters(x, 24, '#8a8d93', 7);
+        const tex = mapGround(x, 'moon'); if (!tex) { x.fillStyle = '#8b8e94'; x.fillRect(0, 0, W, H); speckle(x, 1400, ['#a2a5ab', '#74777d', '#96999f'], 3); }
+        craters(x, 24, tex ? null : '#8a8d93', 7);
         x.fillStyle = '#9da0a6'; x.beginPath(); x.arc(800, 140, 60, 0, TAU); x.fill(); x.strokeStyle = '#e0c040'; x.lineWidth = 3; x.beginPath(); x.arc(800, 140, 54, 0, TAU); x.stroke(); // landing pad
         x.strokeStyle = 'rgba(70,72,78,.4)'; x.lineWidth = 3; x.setLineDash([3, 4]);
         for (const o of [-6, 6]) { x.beginPath(); x.moveTo(215, 500 + o); x.bezierCurveTo(400, 470 + o, 640, 470 + o, 770, 400 + o); x.bezierCurveTo(860, 350 + o, 860, 230 + o, 810, 175 + o); x.stroke(); } // rover tracks loop round the south of the base to the pad
@@ -526,8 +543,8 @@ const MAPS = [
         MAST(330, 420), MAST(600, 230), MAST(590, 386) // floodlights along the rover route from the garage to the rocket
       ],
       floor(x) {
-        x.fillStyle = '#b0532c'; x.fillRect(0, 0, W, H); speckle(x, 1200, ['#c86a3a', '#8e3a1a', '#a84a24'], 5);
-        craters(x, 10, '#ad4f28', 11);
+        const tex = mapGround(x, 'mars'); if (!tex) { x.fillStyle = '#b0532c'; x.fillRect(0, 0, W, H); speckle(x, 1200, ['#c86a3a', '#8e3a1a', '#a84a24'], 5); }
+        craters(x, 10, tex ? null : '#ad4f28', 11);
         const r = seeded(17); x.globalAlpha = .2; x.fillStyle = '#e9a06a'; for (let i = 0; i < 16; i++) { x.beginPath(); x.ellipse(r() * W, r() * H, 60 + r() * 120, 8 + r() * 14, -.3, 0, TAU); x.fill(); } x.globalAlpha = 1; // dunes
         const ox = (W - 960) / 2; x.strokeStyle = 'rgba(90,30,10,.35)'; x.lineWidth = 3; x.setLineDash([3, 4]); for (const o of [-6, 6]) { x.beginPath(); x.moveTo(ox + 176, 514 + o); x.bezierCurveTo(ox + 300, 560 + o, ox + 520, 470 + o, ox + 820, 160 + o); x.stroke(); } x.setLineDash([]); // rover tracks (ox: drawn across a wider world)
         x.fillStyle = '#9a4524'; x.beginPath(); x.arc(ox + 820, 130, 58, 0, TAU); x.fill(); x.strokeStyle = 'rgba(30,10,5,.4)'; x.lineWidth = 2; x.beginPath(); x.arc(ox + 820, 130, 52, 0, TAU); x.stroke(); // scorched launch pad

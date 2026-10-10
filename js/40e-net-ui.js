@@ -289,12 +289,27 @@ function netHeartsSync(box, cur, max) {
 const netPoolMax = k => Math.max((NS.cfg && NS.cfg.pools && NS.cfg.pools[k]) || 0, NS.pools[k] || 0);
 /* ---- the score panel: the team (co-op), the standings (free for all) or every team (Teams), with lives and the round clock.
    Built once and updated in place (so a heart breaking or a skull shaking in plays once, not on every refresh) ---- */
+/* scores roll like a slot machine: each digit is a reel (0-9 three times over); a digit that changes spins a full turn forward
+   and lands on its new number, the reels stopping left to right with a little overshoot, and the number flashes as it lands.
+   Only transform and opacity animate. Reduced motion: the number just changes */
+function slotSet(el, v) {
+  const s = String(v); if (el.dataset.v === s) return; const prev = el.dataset.v; el.dataset.v = s; el.setAttribute('aria-label', s);
+  if (prev === undefined || SETTINGS.reduceMotion || document.body.classList.contains('calm')) { el.classList.add('slot'); el.innerHTML = [...s].map(d => `<span class="rl"><span class="st" style="transform:translateY(${-(+d || 0) * 1.15}em)">${'0123456789'.repeat(3).split('').map(c => `<i>${c}</i>`).join('')}</span></span>`).join(''); return; }
+  let reels = [...el.children]; while (reels.length < s.length) { const r = document.createElement('span'); r.className = 'rl'; r.innerHTML = `<span class="st">${'0123456789'.repeat(3).split('').map(c => `<i>${c}</i>`).join('')}</span>`; el.insertBefore(r, el.firstChild); reels = [...el.children]; } // a new leading digit: a new reel
+  while (reels.length > s.length) { el.firstChild.remove(); reels = [...el.children]; }
+  const p = (prev || '').padStart(s.length, '0'), n = s.length;
+  reels.forEach((r, i) => { const st = r.firstChild, a = +p[i] || 0, b = +s[i] || 0; if (a === b && p.length === n) return;
+    st.style.transition = 'none'; st.style.transform = `translateY(${-a * 1.15}em)`; void st.offsetWidth; // from where it shows now...
+    const to = a + ((b - a + 10) % 10) + 10; // ...a full turn forward, then on to the new digit
+    st.style.transition = `transform ${.5 + i * .09}s cubic-bezier(.2,1.25,.35,1) ${i * 55}ms`; st.style.transform = `translateY(${-to * 1.15}em)`; });
+  el.classList.remove('win'); void el.offsetWidth; el.classList.add('win');
+}
 function netHudRow(box, r, rank) {
   let el = box.querySelector(`.mpr[data-id="${CSS.escape(r.p.id)}"]`);
-  if (!el) { el = document.createElement('div'); el.dataset.id = r.p.id; el.innerHTML = `<em class="rk"></em><i class="mpdot"></i><span class="nm"></span><i class="sk">${kiSvg('skull')}</i><b></b>`; }
+  if (!el) { el = document.createElement('div'); el.dataset.id = r.p.id; el.innerHTML = `<em class="rk"></em><i class="mpdot"></i><span class="nm"></span><i class="sk">${kiSvg('skull')}</i><b class="slot"></b>`; }
   const cls = `mpr${r.p.id === NETM.me ? ' me' : ''}${r.d ? (r.d.out ? ' out' : ' down') : ''}${r.p.conn === false ? ' away' : ''}`; if (el.className !== cls) el.className = cls;
   const q = el.children; if (rank !== undefined && q[0].textContent !== String(rank)) q[0].textContent = rank; if (rank === undefined && q[0].textContent) q[0].textContent = '';
-  if (q[1].style.background !== r.p.color) q[1].style.background = r.p.color; if (q[2].textContent !== r.p.name) q[2].textContent = r.p.name; const sc = String(r.s); if (q[4].textContent !== sc) q[4].textContent = sc;
+  if (q[1].style.background !== r.p.color) q[1].style.background = r.p.color; if (q[2].textContent !== r.p.name) q[2].textContent = r.p.name; slotSet(q[4], r.s);
   return el;
 }
 function netHudOrder(box, els) { // only touch the order when it changed (moving a node would restart its animations)
@@ -308,7 +323,7 @@ function netHud() {
   const mode = netMode(), left = netTimeLeft(), ck = el.querySelector('.mpclk');
   const rows = NETM.players.map(p => { const st = p.id === NETM.me ? { score } : p.stats || {}, d = NS.down.get(p.id); return { p, s: st.score || 0, d }; }).sort((a, b) => b.s - a.s);
   const lbl = mode === 'ffa' ? 'Free for all' : mode === 'teams' ? 'Teams' : 'Co-op', tot = mode === 'coop' ? String(rows.reduce((a, r) => a + r.s, 0)) : '';
-  if (el.querySelector('.mpl').textContent !== lbl) el.querySelector('.mpl').textContent = lbl; if (el.querySelector('.mptot').textContent !== tot) el.querySelector('.mptot').textContent = tot;
+  if (el.querySelector('.mpl').textContent !== lbl) el.querySelector('.mpl').textContent = lbl; { const t = el.querySelector('.mptot'); if (tot) slotSet(t, tot); else if (t.textContent) { t.textContent = ''; delete t.dataset.v; } }
   const ct = left === null ? '' : fmtClock(left * 1000); if (ck.textContent !== ct) ck.textContent = ct; ck.classList.toggle('low', left !== null && left <= 30);
   const groups = mode === 'teams'
     ? NET_TEAMS.slice(0, NS.cfg.teams).map((t, i) => ({ k: 't' + i, t, mine: i === netTeamOf(NETM.me), m: rows.filter(r => netTeamOf(r.p.id) === i) })).filter(g => g.m.length).map(g => ({ ...g, s: g.m.reduce((a, r) => a + r.s, 0) })).sort((a, b) => b.s - a.s)
@@ -317,7 +332,7 @@ function netHud() {
   for (const g of groups) {
     let ge = gsBox.querySelector(`.mpg[data-k="${g.k}"]`);
     if (!ge) { ge = document.createElement('div'); ge.className = 'mpg'; ge.dataset.k = g.k; ge.innerHTML = `${g.t ? `<div class="mpgh" style="--tc:${g.t.c}"><i class="mpdot" style="background:${g.t.c}"></i><span>${esc(g.t.n)}</span><b></b></div>` : ''}<div class="mplv" title="${mode === 'ffa' ? 'Your lives' : g.t ? esc(g.t.n) + ' lives' : 'Shared lives'}"></div><div class="mprs"></div>`; }
-    if (g.t) { ge.classList.toggle('mine', g.mine); const b = ge.querySelector('.mpgh b'), sv = String(g.s); if (b.textContent !== sv) b.textContent = sv; }
+    if (g.t) { ge.classList.toggle('mine', g.mine); slotSet(ge.querySelector('.mpgh b'), g.s); }
     netHeartsSync(ge.querySelector('.mplv'), NS.pools[g.k] || 0, netPoolMax(g.k));
     const rb = ge.querySelector('.mprs'); netHudOrder(rb, g.m.map((r, i) => netHudRow(rb, r, g.rank ? i + 1 : undefined)));
     gEls.push(ge);

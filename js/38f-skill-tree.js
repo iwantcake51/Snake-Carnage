@@ -13,20 +13,26 @@ const skLv = () => PROG.level;
 function skWhy(n) { // every reason the next rank can't be bought right now (tokens aside), in order; [] when it can
   const r = skOwn(n.id), out = [];
   if (r >= n.max) return [{ k: 'max' }];
-  if (!r) for (const [id, need] of n.req) { const have = skOwn(id); if (have < need) out.push({ k: 'req', id, need, have }); }
+  if (!r && !skReqMet(n)) for (const [id, need] of n.req) { const have = skOwn(id); if (have < need) out.push({ k: 'req', id, need, have, any: !!n.any }); }
+  if (!r && n.inv && skInv(n.br) < n.inv) out.push({ k: 'inv', need: n.inv, have: skInv(n.br), br: n.br }); // tokens already in its branch
   const nl = skNeedLv(n, r); if (nl && skLv() < nl) out.push({ k: 'lvl', need: nl, rank: r + 1 });
   return out;
 }
+function skReqMet(n, t = PROG.tree) { // its prerequisites, on a tree t (all of them, or with any: 1 just one), and the tokens its branch needs
+  const ok = ([id, need]) => Math.min(t[id] | 0, SKN[id].max) >= need;
+  if (n.inv && skInv(n.br, t) - (Math.min(t[n.id] | 0, n.max) ? skInv(n.br, { [n.id]: t[n.id] }) : 0) < n.inv) return false; // (what's in the branch apart from this node itself)
+  return !n.req.length || (n.any ? n.req.some(ok) : n.req.every(ok)); }
 const skState = n => { const r = skOwn(n.id); return r >= n.max ? 'max' : r ? 'own' : skWhy(n).length ? 'locked' : 'avail'; };
 const skCost = n => skRankCost(n, Math.min(skOwn(n.id), n.max - 1)); // in skill tokens (skRankCost in 38-upgrades)
 const skLeft = () => Math.max(0, skTokens());
 const tokN = n => `${n} token${n === 1 ? '' : 's'}`;
-const skReqText = q => { const p = SKN[q.id]; return p.max > 1 ? `${p.name} at rank ${q.need}` : p.name; };
+const skReqText = q => { const p = SKN[q.id]; return p.max > 1 && q.need > 1 ? `${p.name} at rank ${q.need}` : p.name; };
 function skWhyText(n) {
   const w = skWhy(n), q = w[0];
   if (!q) return skLeft() < skCost(n) ? `You need ${tokN(skCost(n) - skLeft())} more. You get one every time you level up.` : '';
   if (q.k === 'max') return '';
-  if (q.k === 'req') return `Locked: needs ${skReqText(q)}${SKN[q.id].max > 1 && q.have ? ` (you have rank ${q.have})` : ''} first.`;
+  if (q.k === 'inv') return `Locked: spend ${tokN(q.need)} in ${SK_BRANCH[q.br].name} first (you've spent ${q.have}).`;
+  if (q.k === 'req') return q.any ? `Locked: needs ${w.filter(x => x.k === 'req').map(skReqText).join(' or ')} first.` : `Locked: needs ${skReqText(q)}${SKN[q.id].max > 1 && q.have ? ` (you have rank ${q.have})` : ''} first.`;
   return `Locked: ${n.max > 1 && q.rank > 1 ? `rank ${q.rank}` : 'it'} opens at level ${q.need} (you're level ${skLv()}).`;
 }
 const skillReady = () => SKILL_TREE.some(n => skOwn(n.id) < n.max && !skWhy(n).length && skLeft() >= skCost(n)); // something you can buy right now (the main menu's note)
@@ -57,20 +63,51 @@ function skNodeSvg(n) {
 }
 function skSub(n) { // the small line under a node's name: its rank, and what the next one costs or waits on
   const st = skState(n), r = skOwn(n.id), off = PROG.treeOff[n.id] && r, why = skWhy(n), lv = why.find(q => q.k === 'lvl');
-  const next = lv && !why.some(q => q.k === 'req') ? `Level ${lv.need}` : why.length ? 'Locked' : `<i class="tok"></i>${skCost(n)}`;
+  const inv = why.find(q => q.k === 'inv'), next = why.some(q => q.k === 'req') ? 'Locked' : inv ? `<i class="tok"></i>${inv.have}/${inv.need} spent` : lv ? `Level ${lv.need}` : why.length ? 'Locked' : `<i class="tok"></i>${skCost(n)}`;
   if (n.max === 1) return off ? 'Off' : st === 'max' ? 'Unlocked' : next;
   return `<span class="skrk">${r}/${n.max}</span>${off ? ' · Off' : st === 'max' ? ' · Max' : r || st === 'avail' || lv ? ' · ' + next : ''}`;
 }
 const skAria = n => `${n.name}, ${SK_BRANCH[n.br].name}, ${n.major ? 'major skill' : 'passive'}, rank ${skOwn(n.id)} of ${n.max}, ${({ max: n.major ? 'unlocked' : 'maxed', own: 'purchased', avail: 'available', locked: 'locked' })[skState(n)]}`;
+function skTip(n) { // the hover tip: what the next rank costs, and every requirement for the first (met or not)
+  const r = skOwn(n.id), lv = skNeedLv(n, r), reqs = n.req.map(([id, need]) => `${skReqText({ id, need })} ${skOwn(id) >= need ? '✓' : `(you have ${skOwn(id)})`}`);
+  const need = r ? [] : [...(reqs.length ? [(n.any ? 'one of ' : '') + reqs.join(n.any ? ' or ' : ' and ')] : [])];
+  if (n.inv && !r) need.push(`${tokN(n.inv)} spent in ${SK_BRANCH[n.br].name} ${skInv(n.br) >= n.inv ? '✓' : `(you've spent ${skInv(n.br)})`}`);
+  if (lv && r < n.max) need.push(`level ${lv} ${skLv() >= lv ? '✓' : `(you're ${skLv()})`}`);
+  return `${n.name}${r >= n.max ? ' · maxed' : ` · rank ${r + 1} costs ${tokN(skRankCost(n, r))}`}${need.length ? `. Needs ${need.join(' and ')}` : ''}`;
+}
 function skNodeHtml(n) {
-  return `<button class="skn ${n.major ? 'maj' : 'pas'} br-${n.br}" data-n="${n.id}" data-sfx="none" style="left:${n.x}px;top:${n.y}px;--sd:${-((n.x * 7 + n.y * 13) % 41) / 10}s" aria-label="${attr(skAria(n))}">${skNodeSvg(n)}<span class="skico">${upIcon(n.icon)}</span><span class="skl"><b>${n.name}</b><em>${skSub(n)}</em></span></button>`;
+  return `<button class="skn ${n.major ? 'maj' : 'pas'} br-${n.br}" data-n="${n.id}" data-tip="${attr(skTip(n))}" data-sfx="none" style="left:${n.x}px;top:${n.y}px;--sd:${-((n.x * 7 + n.y * 13) % 41) / 10}s" aria-label="${attr(skAria(n))}">${skNodeSvg(n)}<span class="skico">${upIcon(n.icon)}</span><span class="skl"><b>${n.name}</b><em>${skSub(n)}</em></span></button>`;
 }
 const skLinks = () => { const L = []; for (const n of SKILL_TREE) { if (!n.req.length) L.push({ a: null, b: n, need: 1 }); for (const [id, need] of n.req) L.push({ a: SKN[id], b: n, need }); } return L; };
-function skPath(a, b) { // an S-curve, like a snake's body: leaves the parent heading up, arrives at the child heading up, each one bent its own way so the tree grows wild rather than ruled
-  const x1 = a ? a.x : SK_HUB.x, y1 = a ? a.y : SK_HUB.y, x2 = b.x, y2 = b.y, dy = y1 - y2;
+const skRad = n => n ? (n.major ? (n.max > 1 ? 50 : 45) : 34) : 9; // how far a node's shape reaches from its center (the hub's knot: 9)
+function skPath(a, b) { // a gentle S-curve, like a snake's body, bent its own way per pair (a hash of the two names) so the tree grows wild rather than ruled.
+  // It leaves the parent and enters the child dead on their centers: a straight stretch from the middle out to the edge, then the
+  // curve, which leaves and arrives along those same lines (each a few degrees off the straight line between them, opposite ways).
+  // Any other skill in its way (the shape or the name under it) is curved round: a bend point is added beside it, up to ten.
+  const key = (a ? a.id : 'hub') + '>' + b.id, hit = skPath.c || (skPath.c = new Map()); if (hit.has(key)) return hit.get(key);
+  const x1 = a ? a.x : SK_HUB.x, y1 = a ? a.y : SK_HUB.y, x2 = b.x, y2 = b.y, D = Math.hypot(x2 - x1, y2 - y1) || 1, dx = (x2 - x1) / D, dy = (y2 - y1) / D;
   let h = 0; for (const ch of (a ? a.id : 'hub') + b.id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  const k = (h % 1000) / 500 - 1, t = .3 + (h >> 10) % 100 / 400; // a sideways lean and how soon it turns, both from the pair's names, so the same every time
-  return `M${x1} ${y1}C${(x1 + k * 38).toFixed(1)} ${(y1 - dy * t).toFixed(1)} ${(x2 - k * 26).toFixed(1)} ${(y2 + dy * (.85 - t)).toFixed(1)} ${x2} ${y2}`;
+  const th = ((h % 1000) / 500 - 1) * .38, c = Math.cos(th), sn = Math.sin(th), pull = .3 + (h >> 10) % 100 / 1000; // the bend, and how far it carries
+  const ux = dx * c - dy * sn, uy = dx * sn + dy * c, vx = -dx * c + dy * sn, vy = -dx * sn - dy * c; // out of the parent, and (pointing back) out of the child
+  const ra = skRad(a), rb = skRad(b), S0 = { x: x1 + ux * ra, y: y1 + uy * ra }, E0 = { x: x2 + vx * rb, y: y2 + vy * rb };
+  const obst = SKILL_TREE.filter(n => n !== a && n !== b).map(n => { const R = skRad(n); return { x: n.x, y: n.y + 16, r: R + 40, parts: [{ x: n.x, y: n.y, r: R + 10 }, { x: n.x, y: n.y + R + 15, r: 50 }] }; }); // each other skill: its shape and the name under it (parts), gone round as one (x, y, r)
+  const segs = wp => { // the curve through the bend points: cubic pieces, smooth at every bend (tangent along the line from the point before to the one after)
+    const P = [S0, ...wp, E0], T = P.map((p, i) => { if (!i) return { x: ux, y: uy }; if (i === P.length - 1) return { x: -vx, y: -vy }; const q = P[i + 1], o = P[i - 1], l = Math.hypot(q.x - o.x, q.y - o.y) || 1; return { x: (q.x - o.x) / l, y: (q.y - o.y) / l }; });
+    return P.slice(1).map((q, i) => { const p = P[i], L = Math.max(10, Math.hypot(q.x - p.x, q.y - p.y) * (P.length > 2 ? .38 : pull)); return [p, { x: p.x + T[i].x * L, y: p.y + T[i].y * L }, { x: q.x - T[i + 1].x * L, y: q.y - T[i + 1].y * L }, q]; });
+  };
+  const at = ([p, c1, c2, q], t) => { const m = 1 - t, A = m * m * m, B = 3 * m * m * t, C = 3 * m * t * t, E = t * t * t; return { x: A * p.x + B * c1.x + C * c2.x + E * q.x, y: A * p.y + B * c1.y + C * c2.y + E * q.y }; };
+  const wp = [], done = new Set();
+  for (let pass = 0; pass < 10; pass++) {
+    let worst = null;
+    for (const sg of segs(wp)) for (let k = 1; k < 24; k++) { const p = at(sg, k / 24); for (const o of obst) { if (done.has(o)) continue; for (const q of o.parts) { const gap = Math.hypot(p.x - q.x, p.y - q.y) - q.r; if (gap < 0 && (!worst || gap < worst.gap)) worst = { gap, o }; } } }
+    if (!worst) break;
+    const o = worst.o, side = Math.sign((o.x - x1) * -dy + (o.y - y1) * dx) || (th < 0 ? 1 : -1); // which side of the straight line it sits: go round the other
+    const w = { x: o.x + dy * side * (o.r + 8), y: o.y - dx * side * (o.r + 8) }; done.add(o);
+    wp.push(w); wp.sort((m, n) => ((m.x - x1) * dx + (m.y - y1) * dy) - ((n.x - x1) * dx + (n.y - y1) * dy)); // in order along the way
+  }
+  const f = v => v.toFixed(1);
+  const d = `M${x1} ${y1}L${f(S0.x)} ${f(S0.y)}` + segs(wp).map(([, c1, c2, q]) => `C${f(c1.x)} ${f(c1.y)} ${f(c2.x)} ${f(c2.y)} ${f(q.x)} ${f(q.y)}`).join('') + `L${x2} ${y2}`;
+  hit.set(key, d); return d;
 }
 function skLinkState(l) { const rb = skOwn(l.b.id), why = skWhy(l.b); return rb ? 'on' : why.some(q => q.k === 'req') ? 'off' : why.length || skLeft() < skCost(l.b) ? 'wait' : 'open'; } // wait: the way is open but it can't be bought yet (its level, or not enough tokens): dotted, in grey
 function skLinksSvg() {
@@ -82,7 +119,7 @@ function skHubHtml() { // where the three branches meet: how much of the tree yo
   const tot = SKILL_TREE.reduce((a, n) => a + n.max, 0), own = SKILL_TREE.reduce((a, n) => a + skOwn(n.id), 0);
   return `<div class="skhub" style="left:${SK_HUB.x}px;top:${SK_HUB.y}px"><i class="knot"></i><b id="skHubN">${own}</b><small>of ${tot} ranks</small></div>`;
 }
-const SK_LABEL = { surv: { x: 440, y: 905 }, pred: { x: 1100, y: 190 }, fort: { x: 1860, y: 870 } };
+const SK_LABEL = { surv: { x: 400, y: 215 }, pred: { x: 1100, y: 190 }, fort: { x: 1830, y: 205 } }; // over the top of each branch (the roots all run down to the hub)
 const skBranchLabel = br => `<div class="skbl br-${br}" style="left:${SK_LABEL[br].x}px;top:${SK_LABEL[br].y}px"><span>${SK_BRANCH[br].name}</span><b data-brn="${br}">${skBranchRanks(br)}</b></div>`;
 
 /* ---- the screen ---- */
@@ -91,7 +128,7 @@ function showSkillTree() {
   if (!SKN[skSel]) skSel = 'speed';
   overlay.innerHTML = `<div class="panel sktree" role="dialog" aria-label="Skill Tree">
     <header class="skh"><button class="mm-back" id="backBtn" data-sfx="close">${ICO.back}<span>Back</span></button><h1>Skill Tree</h1>
-      <span class="sp"></span><button class="mm-q" id="skReset" data-sfx="none" data-tip="Take every skill back and get all your tokens back. Costs ${SK_RESET_COST.toLocaleString()} chips">${SK_RESET_LBL}</button><span class="sklvl">Level <b>${PROG.level}</b></span><span class="coinpill" id="skChips" data-tip="Your chips: spent in the shop, and on resetting the tree"><i class="pc"></i> <b>${(PROG.coins | 0).toLocaleString()}</b></span><span class="coinpill tokpill" id="skTok" data-tip="Skill tokens: you get one every time you level up"><i class="tok"></i> <b>${skLeft()}</b><span class="tkw"> tokens</span></span></header>
+      <span class="sp"></span><button class="mm-q" id="skReset" data-sfx="none" data-tip="${attr(skResetTip())}">${skResetLbl()}</button><span class="sklvl">Level <b>${PROG.level}</b></span><span class="coinpill" id="skChips" data-tip="Your chips: spent in the shop, and on resetting the tree"><i class="pc"></i> <b>${(PROG.coins | 0).toLocaleString()}</b></span><span class="coinpill tokpill" id="skTok" data-tip="Skill tokens: you get one every time you level up"><i class="tok"></i> <b>${skLeft()}</b><span class="tkw"> tokens</span></span></header>
     <div class="skbody">
       <div class="skview" id="skView">
         <div class="skworld" id="skWorld" style="width:${SK_W}px;height:${SK_H}px">
@@ -236,21 +273,49 @@ function skSelect(id, kbd) {
 }
 
 /* ---- the details panel: built when the selection changes; a purchase only updates its numbers ---- */
-function skFxVals(n, g, plain) { skPlain = plain ? n.id : null; try { return n.fx.map(([, f]) => +f(g)); } finally { skPlain = null; } } // (plain: without this node's own mastery bonus)
-function skMst(fmt, a, b) { // a maxed passive's mastery bonus on one stat, a small gold figure beside it: in points on a stat that's already a percentage, else how much it changes it, in percent
-  const d = b - a; if (!isFinite(d) || Math.abs(d) < 1e-6) return '';
-  let v = /%$/.test(String(fmt(1))) ? d : a ? d / Math.abs(a) * 100 : 0; v = Math.abs(v) >= 10 ? Math.round(v) : Math.round(v * 10) / 10; if (!v) return '';
-  return `<span class="mst" data-tip="Mastery bonus: maxing a skill makes it a little stronger">${v > 0 ? '+' : '−'}${Math.abs(v)}%</span>`;
+const skFxVals = (n, g) => n.fx.map(([, f]) => +f(g));
+const skAt = (n, k) => id => id === n.id ? k : skOwn(id); // the tree as it is, with this node at rank k
+function skRankRows(n, r) { // every rank: what it costs and exactly what it gives (its own text, or its numbers at that rank)
+  if (n.max < 2) return '';
+  const vals = Array.from({ length: n.max + 1 }, (_, k) => skFxVals(n, skAt(n, k)));
+  const moved = n.fx.map((_, i) => vals.slice(1).some(v => v[i] !== vals[1][i])), shown = moved.some(Boolean) ? moved : n.fx.map(() => true); // only the stats that change from rank to rank
+  return `<div class="sk-sec"><h4>Ranks</h4><ol class="sk-ranks">${Array.from({ length: n.max }, (_, k) => {
+    const what = n.ranks ? n.ranks[k] : n.fx.map(([label, , fmt], i) => shown[i] ? `${label} ${fmt(vals[k + 1][i])}` : '').filter(Boolean).join(' · ');
+    const lv = skNeedLv(n, k);
+    return `<li class="${k < r ? 'got' : k === r ? 'next' : ''}"><b>${k + 1}</b><span>${what}${lv ? ` <em>Level ${lv}</em>` : ''}${k === n.max - 1 ? ' <em>Last rank</em>' : ''}</span><i class="tok"></i><em class="sk-rc">${skRankCost(n, k)}</em></li>`; }).join('')}</ol></div>`;
+}
+function skUndoPlan(id) { // taking back the last rank of a skill bought since the last run: that rank, plus anything bought since then that stood on it
+  const fresh = PROG.treeNew || {}, t = { ...PROG.tree }; if (!((fresh[id] | 0) > 0) || !((t[id] | 0) > 0)) return null;
+  t[id]--; const lost = { [id]: 1 }, metNow = new Set(SKILL_TREE.filter(n => skOwn(n.id) && skReqMet(n)).map(n => n.id));
+  for (let more = true; more;) { more = false;
+    for (const n of SKILL_TREE) { const k = t[n.id] | 0; if (!k || !metNow.has(n.id) || skReqMet(n, t)) continue; // (a skill whose prerequisites changed under it in an update stays as it is)
+      if ((fresh[n.id] | 0) < k) return null; // (never happens: a rank from before the last run stood on ranks from before it)
+      lost[n.id] = (lost[n.id] | 0) + k; t[n.id] = 0; more = true; } }
+  return { t, lost, tokens: skSpent() - skSpent(t) };
+}
+function skUndoHtml(n) {
+  const p = skUndoPlan(n.id); if (!p) return '';
+  const also = Object.keys(p.lost).filter(id => id !== n.id).map(id => `${SKN[id].name}${p.lost[id] > 1 ? ` (${p.lost[id]} ranks)` : ''}`);
+  return `<div class="sk-undo"><button class="btn alt" id="skUndo" data-sfx="none">Take back ${n.max > 1 ? `rank ${skOwn(n.id)}` : n.name} <span><i class="tok"></i>+${p.tokens}</span></button>
+    <p>Bought since your last run, so it's free to take back until the next one starts.${also.length ? ` <b>Also takes back:</b> ${also.join(', ')}, which need${also.length === 1 && !/ranks\)$/.test(also[0]) ? 's' : ''} it.` : ''}</p></div>`;
+}
+function skUndo(id) {
+  const p = skUndoPlan(id); if (!p) return; const tok0 = skLeft();
+  for (const k of Object.keys(p.lost)) { PROG.treeNew[k] = Math.max(0, (PROG.treeNew[k] | 0) - p.lost[k]); if (!PROG.treeNew[k]) delete PROG.treeNew[k]; }
+  for (const k of Object.keys(p.t)) if (!(p.t[k] > 0)) { delete p.t[k]; delete PROG.treeOff[k]; }
+  PROG.tree = p.t; saveProg(); Sfx.ui('close');
+  skRefresh(); skInfo(false); skTokAnim(tok0, skLeft());
+  if (typeof netLobbySyncProfile === 'function' && NETM.on) netLobbySyncProfile();
 }
 function skInfo(animate, prevVals) {
   const el = skEl('skInfo'); if (!el) return;
   const keep = el.contains(document.activeElement) ? document.activeElement.id || 'skBuy' : null, top = el.scrollTop; // a purchase from the keyboard keeps focus where it was
   const n = SKN[skSel], r = skOwn(n.id), st = skState(n), max = r >= n.max, why = skWhy(n), cost = skCost(n);
-  const gCur = id => skOwn(id), gNext = id => id === n.id ? Math.min(n.max, r + 1) : skOwn(id);
-  const cur = skFxVals(n, gCur, true), nxt = skFxVals(n, gNext, true), none = n.abil && !r; // an ability you don't have yet: nothing to compare against
-  const curM = max ? skFxVals(n, gCur) : cur, nxtM = !max && r + 1 >= n.max ? skFxVals(n, gNext) : nxt; // with the mastery bonus (maxed, or the next rank maxes it)
-  const fxRows = n.fx.map(([label, , fmt], i) => `<div><dt>${label}</dt><dd><span class="cur" data-i="${i}">${none ? '—' : fmt(cur[i])}</span>${max ? skMst(fmt, cur[i], curM[i]) : `<i class="ar">→</i><span class="nxt ${nxt[i] !== cur[i] || none ? 'up' : ''}">${fmt(nxt[i])}</span>${skMst(fmt, nxt[i], nxtM[i])}`}</dd></div>`).join('');
-  const reqRows = [...n.req.map(([id, need]) => { const have = skOwn(id), ok = have >= need || r > 0; return `<li class="${ok ? 'ok' : 'no'}">${ok ? SK_OK : SK_NO}<span>${skReqText({ id, need })}</span>${SKN[id].max > 1 ? `<em>${Math.min(have, SKN[id].max)}/${need}</em>` : ''}</li>`; }),
+  const cur = skFxVals(n, skAt(n, r)), nxt = skFxVals(n, skAt(n, Math.min(n.max, r + 1))), none = n.abil && !r; // an ability you don't have yet: nothing to compare against
+  const fxRows = n.fx.map(([label, , fmt], i) => `<div><dt>${label}</dt><dd><span class="cur" data-i="${i}">${none ? '—' : fmt(cur[i])}</span>${max ? '' : `<i class="ar">→</i><span class="nxt ${nxt[i] !== cur[i] || none ? 'up' : ''}">${fmt(nxt[i])}</span>`}</dd></div>`).join('');
+  const met = r > 0 || skReqMet(n);
+  const reqRows = [...n.req.map(([id, need]) => { const have = skOwn(id), ok = have >= need || r > 0 || (n.any && met); return `<li class="${ok ? 'ok' : 'no'}">${ok ? SK_OK : SK_NO}<span>${skReqText({ id, need })}</span>${SKN[id].max > 1 ? `<em>${Math.min(have, SKN[id].max)}/${need}</em>` : ''}</li>`; }),
+    ...(n.inv ? [(() => { const have = skInv(n.br), ok = have >= n.inv || r > 0; return `<li class="${ok ? 'ok' : 'no'}">${ok ? SK_OK : SK_NO}<span>${tokN(n.inv)} spent in ${SK_BRANCH[n.br].name}</span><em>${have}/${n.inv}</em></li>`; })()] : []),
     ...(skNeedLv(n, r) && !max ? [`<li class="${skLv() >= skNeedLv(n, r) ? 'ok' : 'no'}">${skLv() >= skNeedLv(n, r) ? SK_OK : SK_NO}<span>Level ${skNeedLv(n, r)}${n.max > 1 && r ? ` for rank ${r + 1}` : ''}</span><em>you're ${skLv()}</em></li>`] : [])].join('');
   const stateWord = PROG.treeOff[n.id] && r ? 'Switched off' : ({ max: n.major ? 'Unlocked' : 'Maxed', own: 'Purchased', avail: 'Available', locked: 'Locked' })[st];
   const btnTxt = max ? (n.major ? 'Unlocked' : 'Maxed') : why.length ? (why[0].k === 'lvl' ? `Level ${why[0].need}` : 'Locked') : r ? `Upgrade to ${r + 1}/${n.max}` : n.major ? 'Unlock' : 'Buy rank 1';
@@ -258,14 +323,16 @@ function skInfo(animate, prevVals) {
   el.innerHTML = `<div class="sk-h"><span class="sk-ic ${n.major ? 'maj' : ''}">${upIcon(n.icon)}</span><div><small>${SK_BRANCH[n.br].name} · ${n.major ? (n.abil ? 'Ability' : 'Major skill') : `Passive · ${n.max} ranks`}</small><h2>${n.name}</h2></div>${n.abil ? `<kbd data-tip="Its key (Settings › Controls)">${abilKey(n.id)}</kbd>` : ''}</div>
     <div class="sk-rank"><span class="sk-bars">${Array.from({ length: n.max }, (_, k) => `<i class="${k < r ? 'on' : ''}"></i>`).join('')}</span><b>${r}/${n.max}</b><span class="sk-st">${stateWord}</span></div>
     <p class="sk-d">${n.desc}</p>
-    ${n.ranks ? `<ol class="sk-ranks">${n.ranks.map((t, k) => `<li class="${k < r ? 'got' : k === r ? 'next' : ''}"><b>${k + 1}</b><span>${t}${skNeedLv(n, k) ? ` <em>Level ${skNeedLv(n, k)}</em>` : ''}</span></li>`).join('')}</ol>` : ''}
     <dl class="sk-fx">${fxRows}</dl>
-    ${reqRows ? `<div class="sk-sec"><h4>Requires</h4><ul class="sk-req">${reqRows}</ul></div>` : ''}
-    <div class="sk-buy">${max ? `<span class="sk-done">${SK_OK}${n.major ? 'Unlocked: nothing more to buy here' : n.max > 1 ? 'Mastered: the gold figures are its bonus for maxing it' : 'Maxed: nothing more to buy here'}</span>` : `<div class="sk-cost"><small>Cost</small><b class="${skLeft() < cost ? 'poor' : ''}"><i class="tok"></i> ${tokN(cost)}</b></div>
+    ${skRankRows(n, r)}
+    ${reqRows ? `<div class="sk-sec"><h4>${n.any && n.req.length > 1 ? 'Requires one of' : 'Requires'}</h4><ul class="sk-req">${reqRows}</ul></div>` : ''}
+    <div class="sk-buy">${max ? `<span class="sk-done">${SK_OK}${n.major ? 'Unlocked: nothing more to buy here' : 'Maxed: every rank is yours'}</span>` : `<div class="sk-cost"><small>${n.max > 1 ? `Rank ${r + 1} costs` : 'Cost'}</small><b class="${skLeft() < cost ? 'poor' : ''}"><i class="tok"></i> ${tokN(cost)}</b></div>
       <button class="btn ${why.length || skLeft() < cost ? 'alt' : ''}" id="skBuy" data-sfx="none">${btnTxt}</button>`}
       <p class="sk-why" id="skWhy">${skWhyText(n)}</p></div>
+    ${skUndoHtml(n)}
     ${r ? `<div class="sk-tg"><span>${n.abil ? 'Use this ability in runs' : 'Active in runs'}</span><button class="tgl sm ${PROG.treeOff[n.id] ? '' : 'on'}" id="skTgl" data-sfx="none" role="switch" aria-checked="${!PROG.treeOff[n.id]}" aria-label="${attr(n.name)} active in runs"></button></div>` : ''}`;
   const bb = skEl('skBuy'); if (bb) bb.onclick = () => skBuy(n.id);
+  const ub = skEl('skUndo'); if (ub) ub.onclick = () => skUndo(n.id);
   const tg = skEl('skTgl'); if (tg) tg.onclick = () => { PROG.treeOff[n.id] = !PROG.treeOff[n.id]; if (!PROG.treeOff[n.id]) delete PROG.treeOff[n.id]; saveProg(); Sfx.ui(PROG.treeOff[n.id] ? 'off' : 'on'); skRefresh(); skInfo(false); };
   el.scrollTop = top; if (keep) { const f = skEl(keep) || overlay.querySelector('.skn.sel'); if (f) f.focus({ preventScroll: true }); }
   if (animate && prevVals && !skCalm()) { // the numbers that changed count over from the old value
@@ -287,7 +354,7 @@ function skRefresh() {
     b.classList.toggle('lvlock', st === 'locked' && skWhy(n).some(q => q.k === 'lvl') && !skWhy(n).some(q => q.k === 'req'));
     const em = b.querySelector('.skl em'), sub = skSub(n); if (em.innerHTML !== sub) em.innerHTML = sub;
     b.querySelectorAll('.tk').forEach((t, k) => t.classList.toggle('on', k < r));
-    b.setAttribute('aria-label', skAria(n)); });
+    b.setAttribute('aria-label', skAria(n)); b.dataset.tip = skTip(n); });
   overlay.querySelectorAll('.skln, .skgl').forEach(p => { if (p.dataset.hold) return; const st = skLinkState({ b: SKN[p.dataset.b] }); p.classList.remove('on', 'open', 'off', 'wait'); p.classList.add(st); }); // (a link that's turning solid finishes its own way)
   overlay.querySelectorAll('[data-brn]').forEach(b => { b.textContent = skBranchRanks(b.dataset.brn); });
   const hn = skEl('skHubN'); if (hn) hn.textContent = SKILL_TREE.reduce((a, n) => a + skOwn(n.id), 0);
@@ -297,15 +364,17 @@ function skTokAnim(from, to) { const b = overlay.querySelector('#skTok b'); if (
   pill.classList.remove('spent'); void pill.offsetWidth; pill.classList.add('spent');
   skTween(380, k => { b.textContent = Math.round(from + (to - from) * k); }, () => { b.textContent = to; }); }
 let skResetArm = 0;
-const SK_RESET_COST = 5000, SK_RESET_LBL = `Reset tree <i class="pc"></i>5k`; // resetting the tree costs chips: a respec is a choice, not a free undo
+const skResetCost = () => PROG.respecs ? Math.min(500, 250 + 125 * (PROG.respecs - 1)) : 0; // the first full reset is free; after that 250, 375, then 500 chips
+const skResetLbl = () => { const c = skResetCost(); return c ? `Reset tree <i class="pc"></i>${c}` : 'Reset tree · free'; };
+const skResetTip = () => { const c = skResetCost(); return `Take every skill back and get all your tokens back. ${c ? `Costs ${c} chips` : 'Your first reset is free (later ones cost 250 to 500 chips)'}. Skills bought since your last run can be taken back free one at a time instead`; };
 function skReset() { // two presses: the first asks (and names the price), the second pays and hands every token back
-  const b = skEl('skReset'); if (!b) return; const back = () => { if (b.isConnected) { b.innerHTML = SK_RESET_LBL; b.classList.remove('arm'); } };
+  const b = skEl('skReset'); if (!b) return; const cost = skResetCost(), back = () => { if (b.isConnected) { b.innerHTML = skResetLbl(); b.dataset.tip = skResetTip(); b.classList.remove('arm'); } };
   if (!skSpent()) { Sfx.deny(); b.textContent = 'Nothing to reset'; setTimeout(back, 1400); return; }
-  if ((PROG.coins | 0) < SK_RESET_COST) { Sfx.deny(); b.innerHTML = `Need ${(SK_RESET_COST - (PROG.coins | 0)).toLocaleString()} more <i class="pc"></i>`; setTimeout(back, 1800); return; }
-  if (performance.now() > skResetArm) { skResetArm = performance.now() + 3000; b.innerHTML = `Reset for 5,000 <i class="pc"></i>? Click again`; b.classList.add('arm'); Sfx.ui('select');
+  if ((PROG.coins | 0) < cost) { Sfx.deny(); b.innerHTML = `Need ${(cost - (PROG.coins | 0)).toLocaleString()} more <i class="pc"></i>`; setTimeout(back, 1800); return; }
+  if (performance.now() > skResetArm) { skResetArm = performance.now() + 3000; b.innerHTML = cost ? `Reset for ${cost} <i class="pc"></i>? Click again` : 'Reset free? Click again'; b.classList.add('arm'); Sfx.ui('select');
     setTimeout(() => { if (performance.now() > skResetArm) back(); }, 3100); return; }
   skResetArm = 0; const t0 = skLeft();
-  PROG.coins -= SK_RESET_COST; PROG.tree = {}; PROG.treeOff = {}; saveProg(); Sfx.ui('close'); if (typeof updateHud === 'function') updateHud();
+  PROG.coins -= cost; PROG.respecs = (PROG.respecs | 0) + 1; PROG.tree = {}; PROG.treeOff = {}; PROG.treeNew = {}; saveProg(); Sfx.ui('close'); if (typeof updateHud === 'function') updateHud();
   back();
   skRefresh(); skInfo(false); skTokAnim(t0, skLeft());
   if (typeof netLobbySyncProfile === 'function' && NETM.on) netLobbySyncProfile();
@@ -395,8 +464,8 @@ function skBuy(id) {
   }
   skBusyUntil = now + 380;
   const was = {}; for (const q of SKILL_TREE) was[q.id] = skState(q);
-  const prevVals = skFxVals(n, id2 => skOwn(id2), true), tok0 = skLeft();
-  PROG.tree[id] = r + 1; delete PROG.treeOff[id]; saveProg(); // (the token count is worked out from the tree: nothing else to spend)
+  const prevVals = skFxVals(n, id2 => skOwn(id2)), tok0 = skLeft();
+  PROG.tree[id] = r + 1; delete PROG.treeOff[id]; PROG.treeNew[id] = (PROG.treeNew[id] | 0) + 1; saveProg(); // (free to take back until the next run: skUndo) // (the token count is worked out from the tree: nothing else to spend)
   const major = n.major; Sfx.skill(major && !r);
   const lk = !r && !skCalm() ? [...overlay.querySelectorAll(`.skln[data-b="${id}"], .skgl[data-b="${id}"]`)] : []; lk.forEach(p => { p.dataset.hold = 1; });
   skRefresh(); skSmooth(lk); skInfo(true, prevVals); skTokAnim(tok0, skLeft());
