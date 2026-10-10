@@ -207,10 +207,9 @@ function airSalvo(s, g, a) { // a salvo of bombs walked along this snake's path 
     let w = warn / Math.sqrt(fs) + j * (lock ? rand(.22, .32) : raid ? rand(.14, .34) : rand(.55, .9)) + rand(.02, .08); // a fast one gives less warning; one after another (in an air raid nearly together), never two at once
     for (let q = 0; q < 6; q++) { const o = strikes.find(o => Math.abs(o.t - w) < .11); if (!o) break; w = o.t + .11 + rand(0, .05); }
     w = +w.toFixed(2);
-    // a guess at which way you'll go: each bomb picks a heading somewhere in a cone ahead (wider the further out it lands), leaning the way you're already turning, and they spread across it so one may be dead ahead and another off to a side (Locked on: no guessing)
-    const lead = lock ? w * rand(.92, 1.02) : w * rand(.45, 1.05), turn = clamp(angDiff(s.angle, s.dir ?? s.angle), -.7, .7) * .8, cone = .5 + .35 * Math.min(1, lead / 2.5);
-    const pick = (j + .5) / n * 2 - 1 + rand(-.45, .45), guess = lock ? 0 : turn + Math.sign(pick) * Math.pow(Math.min(1, Math.abs(pick)), .85) * cone * (Math.random() < .12 ? 1.5 : 1), ga = s.angle + guess;
-    const side = gauss() * (lock ? 14 : 40), dist = sp * lead * (lock ? 1 : Math.cos(guess * .5)); // (a sharp turn covers less ground ahead)
+    // anywhere in the half circle in front of you (90 degrees either side of where you're heading): the salvo's bombs are spread across it, each at a random spot in its own slice and a random way out, so no line is safe (Locked on: straight down your path)
+    const lead = lock ? w * rand(.92, 1.02) : w * rand(.4, 1.05), guess = lock ? 0 : ((j + Math.random()) / n * 2 - 1) * Math.PI / 2, ga = s.angle + guess;
+    const side = gauss() * (lock ? 14 : 22), dist = sp * lead * (lock ? 1 : rand(.55, 1)); // (out to about as far as you'd get by the time it lands)
     const [x, y] = airInside(s.x + Math.cos(ga) * dist - Math.sin(ga) * side, s.y + Math.sin(ga) * dist + Math.cos(ga) * side, s.x, s.y);
     const ja = j === 0 ? +jetA.toFixed(3) : undefined, f = +((lock ? .3 : .65) / fs).toFixed(2); // they take longer to fall: you see them coming
     const kd = bombKd(tt), sd = kd ? randi(1, 2 ** 30) : undefined, rr = kd === 'i' ? Math.round(r * .8) : r; // what this one is (BOMB_KINDS); an incendiary's own blast is smaller: its fire does the rest
