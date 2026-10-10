@@ -3193,14 +3193,14 @@ body.phone .mm-logo .l2 b{font-size:64px!important}
 .rs-sec h4 span,.mlob-sec h4 span{font:400 13px var(--f-num)!important;letter-spacing:0!important}
 #overlay .panel .lead,#overlay .panel p.lead{font:400 14.5px/1.5 var(--f-body)!important}
 
-/* ---- picking things: a marker swipe for the side tabs, a squiggle under the picked choice ---- */
+/* ---- picking things: a marker swipe for the side tabs, a plain line under the picked choice ---- */
 #overlay .tab{font:600 15px/1.2 var(--f-body)!important;position:relative;isolation:isolate}
 #overlay .tab.on{box-shadow:none!important;background:none!important;color:var(--ink)!important}
 #overlay .tab.on::after{content:'';position:absolute;inset:5px 6px 4px 2px;z-index:-1;background:color-mix(in srgb,var(--acc) 42%,transparent);-webkit-mask:var(--hm-swipe) 0 0/100% 100% no-repeat;mask:var(--hm-swipe) 0 0/100% 100% no-repeat}
 #overlay .tab:not(.on):hover{background:none!important;color:var(--ink)!important}
-.rs-seg .sthumb,#overlay .sseg .sthumb{height:7px!important;bottom:-4px!important;background:var(--acc)!important;-webkit-mask:var(--hm-squig) 0 0/100% 100% no-repeat;mask:var(--hm-squig) 0 0/100% 100% no-repeat;border-radius:0!important}
+.rs-seg .sthumb,#overlay .sseg .sthumb{height:3px!important;bottom:-2px!important;background:var(--acc)!important;border-radius:0!important}
 #overlay .ctabs button.on{box-shadow:none!important;position:relative}
-#overlay .ctabs button.on::after{content:'';position:absolute;left:6px;right:6px;bottom:-4px;height:7px;background:var(--acc);-webkit-mask:var(--hm-squig) 0 0/100% 100% no-repeat;mask:var(--hm-squig) 0 0/100% 100% no-repeat}
+#overlay .ctabs button.on::after{content:'';position:absolute;left:6px;right:6px;bottom:-2px;height:3px;background:var(--acc)}
 .rs-seg button,#overlay .sseg button,#overlay .ctabs button{font-family:var(--f-body)!important}
 .rs-seg,#overlay .sseg,#overlay .ctabs{border-bottom:1px dashed var(--hair2)!important}
 
@@ -3248,7 +3248,7 @@ body.phone .mm-logo .l2 b{font-size:64px!important}
 #overlay .play,#overlay .btn:not(.alt),#overlay #againBtn,#overlay #resBtn{overflow:visible!important}
 /* the pause screen's tabs: typed, a squiggle under the open one */
 .panel.pause .ptabs button{font:700 13px var(--f-num)!important;letter-spacing:.04em!important;border-bottom-color:transparent!important;position:relative}
-.panel.pause .ptabs button.on::after{content:'';position:absolute;left:6px;right:6px;bottom:-5px;height:7px;background:var(--acc);-webkit-mask:var(--hm-squig) 0 0/100% 100% no-repeat;mask:var(--hm-squig) 0 0/100% 100% no-repeat}
+.panel.pause .ptabs button.on::after{content:'';position:absolute;left:6px;right:6px;bottom:-2px;height:3px;background:var(--acc)}
 /* the map browser: a sheet of photos, each pinned a little crooked, the picked one circled in marker */
 .mbr-in{border:2px solid var(--hair2)!important;border-radius:var(--hm-box2)!important;box-shadow:10px 10px 0 rgba(4,2,3,.72)!important;position:relative}
 .mbr-in::before{content:'';position:absolute;left:72px;top:-13px;width:116px;height:26px;rotate:-3deg;background:var(--hm-tape);clip-path:polygon(2% 4%,98% 0,96% 26%,100% 50%,97% 76%,99% 100%,1% 96%,4% 72%,0 47%,3% 22%);pointer-events:none;z-index:3}
@@ -3263,35 +3263,36 @@ body.phone .mm-logo .l2 b{font-size:64px!important}
 /* (older layers grow .btn::before past the button for a glow: the cut-out backing sits exactly on the button) */
 .mm-cta::before,.rs-start::before,#overlay .btn:not(.alt):not(#backBtn):not(#pMenuBtn)::before,#overlay .play::before,#overlay #againBtn::before,#overlay #resBtn::before,
 .mm-cta::after,.rs-start::after,#overlay .btn:not(.alt):not(#backBtn):not(#pMenuBtn)::after,#overlay .play::after,#overlay #againBtn::after,#overlay #resBtn::after{inset:0!important;width:auto!important;height:auto!important;margin:0!important;transform:none!important;filter:none!important;border-radius:0!important}
-/* ---- the Skill Tree is a computer: an old beige terminal, the board and the details panel on its curved glass screen,
-   a model badge, vents and a power light along the base. (No tape on this one: it's a machine, not a sheet.) ---- */
-#overlay.menuMode .panel.sktree{--case:#cdc3ab;--case2:#b3a88e;--case-ink:#2e2820;padding:12px 24px 44px!important;border:0!important;border-radius:22px 22px 16px 16px!important;
-  background:var(--grain),linear-gradient(180deg,#d9d0b9 0,var(--case) 38%,var(--case2) 100%)!important;
-  box-shadow:inset 0 2px 0 rgba(255,255,255,.55),inset 0 -4px 0 rgba(0,0,0,.18),inset 3px 0 0 rgba(255,255,255,.2),inset -3px 0 0 rgba(0,0,0,.12),12px 12px 0 rgba(4,2,3,.75)!important;color:var(--case-ink)}
-#overlay .panel.sktree::before{content:''!important;display:block!important;position:absolute!important;left:auto!important;right:30px!important;top:auto!important;bottom:17px!important;width:9px!important;height:9px!important;rotate:0deg!important;clip-path:none!important;border-radius:50%!important;
-  background:radial-gradient(circle at 35% 35%,#d8ffb8,#59e01e 45%,#2b7a0c)!important;box-shadow:0 0 6px 1px rgba(110,240,60,.7),0 0 0 3px rgba(0,0,0,.18)!important;z-index:2!important;animation:skLed 4s ease-in-out infinite}
-@keyframes skLed{0%,100%{opacity:1}50%{opacity:.82}}
-#overlay .panel.sktree::after{content:'SNAKE·CARNAGE   MODEL 84';position:absolute;left:28px;right:54px;bottom:13px;height:18px;pointer-events:none;white-space:pre;
-  font:800 13px/18px var(--f-head);letter-spacing:.2em;color:rgba(46,40,32,.78);text-shadow:0 1px 0 rgba(255,255,255,.45);
-  background:repeating-linear-gradient(90deg,rgba(40,34,26,.45) 0 3px,transparent 3px 9px) right 0 top 3px/200px 12px no-repeat}
-/* the header: a strip on the casing, the title embossed in the plastic, the numbers on little LCD readouts */
-#overlay .panel.sktree .skh{border:0!important;background:none!important;padding:2px 2px 10px!important}
-#overlay:not(#_) .panel.sktree .skh h1{color:#3a3228!important;text-shadow:0 1px 0 rgba(255,255,255,.55),0 -1px 0 rgba(0,0,0,.25)!important;font-size:36px!important}
-#overlay .panel.sktree .skh .mm-back{color:var(--case-ink)!important;border-color:rgba(46,40,32,.55)!important;box-shadow:2px 2px 0 rgba(46,40,32,.35)!important;background:rgba(255,255,255,.18)!important}
-#overlay .panel.sktree .skh .mm-q{color:#3d352b!important;text-decoration-color:rgba(46,40,32,.45)!important}
-#overlay .panel.sktree .skh .sklvl{color:#3d352b!important}
-#overlay .panel.sktree .skh .sklvl b{color:#1e1914!important}
-#overlay .panel.sktree .skh .coinpill,#overlay .panel.sktree .skh .sktok{background:#14120f!important;border:2px solid #6f6553!important;border-radius:4px!important;box-shadow:inset 0 2px 4px rgba(0,0,0,.7),0 1px 0 rgba(255,255,255,.45)!important}
-/* the screen: recessed glass in a black bezel, rounded like a tube, a faint glare across the top */
-#overlay .panel.sktree .skbody{position:relative;border-radius:26px/22px;overflow:hidden;border:10px solid #121110;
-  box-shadow:0 0 0 2px rgba(0,0,0,.35),0 2px 0 3px rgba(255,255,255,.35),inset 0 0 40px rgba(0,0,0,.85),inset 0 0 0 2px #050404;background:#0b090a}
+/* ---- the Skill Tree is a computer: a black monitor, a slim bezel round a slightly curved screen, the board and details panel
+   on the glass, the maker's name and a small power light on the chin. (No tape on this one: it's a machine, not a sheet.) ---- */
+#overlay.menuMode .panel.sktree{padding:10px 16px 30px!important;border:0!important;border-radius:14px!important;
+  background:linear-gradient(180deg,#26272a 0,#1a1b1d 55%,#141516 100%)!important;color:#d9d6d0;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.12),inset 0 -2px 0 rgba(0,0,0,.6),inset 1px 0 0 rgba(255,255,255,.05),inset -1px 0 0 rgba(255,255,255,.05),12px 12px 0 rgba(4,2,3,.75)!important}
+#overlay .panel.sktree::before{content:''!important;display:block!important;position:absolute!important;left:auto!important;right:22px!important;top:auto!important;bottom:12px!important;width:6px!important;height:6px!important;rotate:0deg!important;clip-path:none!important;border-radius:50%!important;
+  background:#3fd2ff!important;box-shadow:0 0 6px 1px rgba(63,210,255,.65)!important;z-index:2!important;animation:skLed 4s ease-in-out infinite}
+@keyframes skLed{0%,100%{opacity:1}50%{opacity:.7}}
+#overlay .panel.sktree::after{content:'CARNAGE';position:absolute;left:50%;bottom:8px;translate:-50% 0;pointer-events:none;
+  font:700 10px/14px "Archivo",var(--f-body);font-stretch:125%;font-variation-settings:"wdth" 125;letter-spacing:.42em;color:rgba(255,255,255,.34)}
+/* the header sits on the top of the frame */
+#overlay .panel.sktree .skh{border:0!important;background:none!important;padding:2px 4px 10px!important}
+#overlay:not(#_) .panel.sktree .skh h1{color:#ece8e1!important;text-shadow:none!important;font-size:34px!important}
+#overlay .panel.sktree .skh .coinpill,#overlay .panel.sktree .skh .sktok{background:#0c0c0d!important;border:1px solid #3a3b3f!important;border-radius:6px!important;box-shadow:inset 0 1px 3px rgba(0,0,0,.8)!important}
+/* the screen: a thin black bezel, gently rounded, a faint sheen on the glass */
+#overlay .panel.sktree .skbody{position:relative;border-radius:12px;overflow:hidden;border:3px solid #050506;
+  box-shadow:0 0 0 1px rgba(255,255,255,.07),inset 0 0 28px rgba(0,0,0,.7);background:#0b090a}
 #overlay .panel.sktree .skbody::after{content:'';position:absolute;inset:0;pointer-events:none;z-index:40;border-radius:inherit;
-  background:radial-gradient(ellipse 60% 40% at 22% 6%,rgba(255,255,255,.07),transparent 70%),radial-gradient(ellipse 120% 110% at 50% 50%,transparent 62%,rgba(0,0,0,.45) 100%)}
+  background:linear-gradient(155deg,rgba(255,255,255,.045) 0,transparent 32%),radial-gradient(ellipse 130% 120% at 50% 50%,transparent 70%,rgba(0,0,0,.35) 100%)}
 #overlay .panel.sktree .skinfo{border-left:1px solid rgba(255,255,255,.06)!important}
-body.phone #overlay.menuMode .panel.sktree{padding:6px 10px 26px!important;border-radius:12px!important}
-body.phone #overlay .panel.sktree::after{bottom:6px;font-size:10px;line-height:14px;height:14px;left:14px;right:36px;background-size:120px 8px}
-body.phone #overlay .panel.sktree::before{bottom:9px!important;right:16px!important;width:7px!important;height:7px!important}
-body.phone #overlay .panel.sktree .skbody{border-width:5px;border-radius:14px}
-#overlay:not(#_) .panel.sktree .skh .mm-back,#overlay:not(#_) .panel.sktree .skh .mm-back *{color:#2e2820!important}
-#overlay:not(#_) .panel.sktree .skh .mm-back{border:2px solid rgba(46,40,32,.6)!important;box-shadow:2px 2px 0 rgba(46,40,32,.4)!important;background:rgba(255,255,255,.22)!important}
-#overlay:not(#_) .panel.sktree .skh .mm-back:hover{background:rgba(255,255,255,.4)!important}
+body.phone #overlay.menuMode .panel.sktree{padding:5px 8px 18px!important;border-radius:10px!important}
+body.phone #overlay .panel.sktree::after{bottom:3px;font-size:8px}
+body.phone #overlay .panel.sktree::before{bottom:7px!important;right:12px!important;width:5px!important;height:5px!important}
+body.phone #overlay .panel.sktree .skbody{border-width:2px;border-radius:8px}
+
+/* the main menu's own type: a wide, heavy cut of Archivo (its width axis) for the list, the main button and the corner labels; the logo keeps its poster face */
+.mm-it,.mm-cta,.rs-start,.mm-mapcap b,.pf-lv b{font-family:"Archivo",var(--f-body)!important;font-stretch:118%;font-variation-settings:"wdth" 118}
+.mm-it{font-weight:800!important;font-size:19px!important;letter-spacing:.01em!important;min-height:46px}
+.mm-cta,.rs-start{font-weight:900!important;font-size:22px!important;letter-spacing:.01em!important}
+.mm-mapcap b{font-weight:800!important;font-size:24px!important;letter-spacing:0!important}
+.pf-lv b{font-weight:900!important;font-size:24px!important}
+body.phone .mm-it{font-size:17px!important}
+body.phone .mm-cta{font-size:19px!important}
