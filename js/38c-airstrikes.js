@@ -695,7 +695,7 @@ function snakeBurst(s, skin, cfg, from, part) { // from: the piece it was hit on
     n, o, steps, k: 0, t: 0, dur: clamp(.2 + steps * .005, .28, 1) * (part ? .8 : 1), P, Q, cols: [P, P, shade(P, -.2), shade(P, -.4), Q, Q, shade(Q, -.25), '#a50d16', '#c8161e', '#7c0710', '#b8101a'], end: 0 }; // its own two colors, and real red blood
   corpses.push(c);
   if (!part && cfg.hat && cfg.hat !== 'None') dropHat(segs[0].x, segs[0].y, s.angle ?? segs[0].a, s.scale || 1, cfg.hat);
-  popSeg(c, o); c.k = 1; deathRing(segs[o].x, segs[o].y, CONFIG.snakeR * (s.scale || 1), c.cols.slice(-4), !part); // a ring of mist where it starts
+  popSeg(c, o); c.k = 1; deathRing(segs[o].x, segs[o].y, CONFIG.snakeR * (s.scale || 1), CONFIG.bloodColors, !part); // a ring of blood mist where it starts
   addBloodAmount((part ? .8 : 1.4) * ({ Minimal: .3, Reduced: .6 }[SETTINGS.bloodAmt] || 1)); bleedIntoWater(segs[o].x, segs[o].y, part ? .6 : 1, P);
   if (!part) Sfx.crash(segs[o].x); Sfx.gore(segs[o].x, true);
 }
