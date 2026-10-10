@@ -1009,16 +1009,17 @@ function drawFallingBomb(x, s, u) {
   const bx = -ca * back, by = -sa * back * .55 - h, vx = ca * .42, vy = sa * .42 * .55 + 1; // where it is, and which way it's moving on screen
   const k = .85 + .6 * u, nose = Math.atan2(vy, vx) - Math.PI / 2, wob = Math.sin(T * 34 + s.rot * 9) * .07 * (1 - u * .5);
   const sh = .18 + .45 * u, sr = 2.5 + 8 * u; x.fillStyle = `rgba(0,0,0,${sh.toFixed(3)})`; ell(x, -ca * back * .15, -sa * back * .1, sr, sr * .62); // the shadow
-  const body = s.kd === 'c' ? ['#4f4620', '#7a6c2c', '#d9b23a'] : s.kd === 'i' ? ['#5a2216', '#8a3a24', '#ff7a2a'] : s.kd === 'g' ? ['#34421c', '#5c7330', '#b8e04c'] : ['#2f3527', '#4b5540', '#c9a227'];
+  const body = s.kd === 'c' ? ['#4f4620', '#7a6c2c', '#d9b23a'] : s.kd === 'i' ? ['#5a2216', '#8a3a24', '#ff7a2a'] : s.kd === 'g' ? ['#34421c', '#5c7330', '#b8e04c'] : ['#2f3527', '#4b5540', '#e0352b']; // the band in each kind's own colour, the same as its marker: red a plain bomb, green gas, orange fire, yellow cluster
   const blur = SETTINGS.reduceMotion ? 0 : 4; // the motion blur: fading copies trailing back up its path, and a soft streak
   x.save(); x.translate(bx, by); x.rotate(nose + wob); x.scale(k, k);
   if (blur) { const L = 26 + 40 * u, g = x.createLinearGradient(0, 0, 0, -L); g.addColorStop(0, 'rgba(255,255,255,.28)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.beginPath(); x.moveTo(-3.6, -2); x.lineTo(3.6, -2); x.lineTo(1.2, -L); x.lineTo(-1.2, -L); x.closePath(); x.fill(); // the air it tears through
     for (let q = blur; q >= 1; q--) { x.globalAlpha = .16 * (1 - q / (blur + 1)); x.fillStyle = body[0]; ell(x, 0, -q * (3.5 + 5 * u), 4.3, 9.2); } x.globalAlpha = 1; }
   x.fillStyle = body[0]; x.beginPath(); x.moveTo(-5.6, -13); x.lineTo(5.6, -13); x.lineTo(2.4, -6.5); x.lineTo(-2.4, -6.5); x.closePath(); x.fill(); // tail fins
   x.fillStyle = '#1b1f16'; x.fillRect(-.6, -13.5, 1.2, 6);
+  x.fillStyle = body[2]; x.fillRect(-5.6, -13, 11.2, 1.3); // the fin tips painted the same colour, so the kind still reads small and falling fast
   const gb = x.createLinearGradient(-4.4, 0, 4.4, 0); gb.addColorStop(0, body[0]); gb.addColorStop(.38, body[1]); gb.addColorStop(1, shade(body[0], -.35)); // a rounded casing: lit down one side
   x.fillStyle = gb; x.beginPath(); x.ellipse(0, 0, 4.4, 9.4, 0, 0, TAU); x.fill();
-  x.fillStyle = body[2]; x.fillRect(-4.1, -4.2, 8.2, 1.6); // its band (the kind's colour)
+  x.fillStyle = body[2]; x.fillRect(-4.3, -4.6, 8.6, 2.2); // its band (the kind's colour)
   x.fillStyle = 'rgba(255,255,255,.35)'; x.beginPath(); x.ellipse(-1.6, 1.5, .9, 4.6, 0, 0, TAU); x.fill(); // a glint along it
   x.fillStyle = shade(body[0], -.45); x.beginPath(); x.ellipse(0, 7.6, 2.4, 1.8, 0, 0, TAU); x.fill(); // the nose
   x.restore();
