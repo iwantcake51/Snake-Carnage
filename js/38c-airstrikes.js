@@ -117,7 +117,7 @@ function airSchedule(dt) {
   if (!targets.length) { AIR.nextT = 2; return; }
   const heatOf = s => Math.min(1.3, airKills(s) / 30), heat = targets.reduce((a, s) => a + heatOf(s), 0) / targets.length; // the more you (and your team) have killed, the harder they come for you
   const ramp = Math.min(1, (t - t0) / 300 + heat * .1), g = raid ? ramp : Math.max(gt, heat), k = Math.min(1, g); // Air raid: one slow climb over five minutes (kills only nudge it), then it holds
-  AIR.nextT = raid ? (8 - 5 * Math.pow(ramp, .6)) * rand(.8, 1.2) // Air raid: every 8 s or so at first, every 5 s two minutes in (1-3 bombs at a time), every 3 s by five minutes in, and no quicker
+  AIR.nextT = raid ? (7 - 4.5 * Math.pow(ramp, .6)) * rand(.8, 1.15) // Air raid: every 7 s or so at first, every 4-5 s two minutes in (1-3 bombs at a time), every 2.5 s by five minutes in, and no quicker
     : 34 / (1 + .3 * Math.min(1, gt)) * rand(.8, 1.35) * (Math.random() < .25 ? 1.5 : 1); // a normal game: about every 36 s if nobody kills anything (still 28 s or so late on), never on a beat, now and then a longer lull; every kill brings the next one closer (airKillTick), never to under 10 s
   if (t - t0 > 100 && t - (AIR.barT ?? -1e9) > 240 && !strikes.length && !AIR.queue.length && Math.random() < (raid ? .05 : .07)) { // rarely, a barrage instead: never twice close together, never on top of another strike
     AIR.barT = t; AIR.nextT = BARRAGE.dur + BARRAGE.lead + Math.min(AIR.nextT, 8) * .5; // the usual strikes wait out the storm, then carry on, no long quiet

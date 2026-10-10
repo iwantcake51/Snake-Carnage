@@ -27,7 +27,7 @@ const SKILL_TREE = [
   { id: 'speed', br: 'pred', name: 'Speed Demon', icon: 'speed', cost: [1, 1, 1, 1, 1], lvl: 2, req: [], x: 1080, y: 800,
     desc: '5% faster per rank. Opens the Predator branch.', fx: [['Speed', g => SKV.speed(g) * 100 - 100, pct]] },
   { id: 'sidewind', br: 'pred', name: 'Sidewinder', icon: 'sidewind', cost: [1, 1, 1], req: [['speed', 1]], x: 1010, y: 655,
-    desc: 'Turn 16% quicker per rank.', fx: [['Turn rate', g => SKV.turn(g) * 100 - 100, pct]] },
+    desc: 'Turn 40% quicker per rank: tighter arcs, quicker dodges.', fx: [['Turn rate', g => SKV.turn(g) * 100 - 100, pct]] },
   { id: 'momentum', br: 'pred', major: 1, name: 'Momentum', icon: 'momentum', cost: [2], lvl: 20, req: [['sidewind', 2]], x: 1030, y: 478,
     desc: 'Smashing through things only costs half your speed. Press the opposite way to U-turn.', fx: [['Speed kept through a smash', g => g('momentum') ? 50 : 0, n => n ? 'Half the stall' : 'Full stall'], ['U-turn', g => g('momentum'), n => n ? 'Yes' : 'No']] },
   { id: 'dash', br: 'pred', major: 1, abil: 1, name: 'Lunge', icon: 'dash', cost: [1], lvl: 3, req: [['speed', 1]], x: 905, y: 690,
@@ -162,7 +162,7 @@ const sk = id => { const n = SKN[id]; if (!n || MOD.noUpgrades || (MOD.noAbiliti
 /* Every number the tree changes. g(id) is a rank: sk in play, a "what if" rank in the details panel. Capped and modest. */
 const SKV = {
   speed: (g = sk) => 1 + .05 * g('speed'), // up to +25%
-  turn: (g = sk) => 1 + .16 * g('sidewind'),
+  turn: (g = sk) => 1 + .4 * g('sidewind'),
   lungeK: (g = sk) => g('pounce') ? 2.3 : 1.8 + .035 * g('stride'), // the extra ground a lunge covers is about speed x (K - 1) x (dur + 0.31 s of bleeding off): at the top of the tree ~1.15 s of normal travel, not ~1.8 (it overshot whole streets)
   lungeDur: (g = sk) => (g('pounce') ? .42 : .6) + .05 * g('stride'),
   lungeCd: (g = sk) => (g('pounce') ? 5 : 7) * (1 - .07 * g('spring')),

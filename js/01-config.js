@@ -11,7 +11,7 @@ const H = 640, B = 16, TAU = Math.PI * 2;
 let W = (() => { try { const f = +sessionStorage.getItem('snakeCarnageW'); if (f >= 960 && f <= 1472 && f % 128 === 64) return f; } catch (e) {} try { const sw = Math.max(screen.width, screen.height), sh = Math.min(screen.width, screen.height), phone = sh < 600 && matchMedia('(pointer: coarse)').matches; if (phone) return 960 + 128 * Math.max(0, Math.min(4, Math.floor((640 * sw / Math.max(1, sh - 28) - 960) / 128))); /* a phone: never wider than the screen minus the thin top bar, so the board always runs top to bottom (any spare room goes to the sides) */ return 960 + 128 * Math.max(0, Math.min(4, Math.round((640 * sw / Math.max(1, sh - 60) - 960) / 128))); } catch (e) { return 960; } })();
 const CONFIG = {
   snakeSpeeds: { Slow: 110, Normal: 140, Fast: 185 },
-  turnRate: 4.6,         // rad/s, how fast the head swings round toward where you're steering: slow and steady, like slither.io, so a turn is a smooth arc (bigger snakes a little slower still: turnSizeK)
+  turnRate: 6.4,         // rad/s, how fast the head swings round toward where you're steering: slow and steady, like slither.io, so a turn is a smooth arc (bigger snakes a little slower still: turnSizeK)
   turnEase: 9,           // how softly a turn settles onto the new heading (higher = snappier)
   segSpacing: 9,
   snakeR: 10,
