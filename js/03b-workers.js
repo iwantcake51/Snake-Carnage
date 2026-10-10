@@ -29,6 +29,8 @@ const PX_KERNELS = {
     }
     return { D, AO, j0, j1 };
   },
+  // the snow's surface detail (textures/ground/snow_detail.jpg, from ambientCG's Snow003): kept in each worker (and on the page) for snowShade
+  snowTexSet(a) { globalThis.__snowTex = a.T; globalThis.__snowTexN = a.n; return {}; },
   // snow colors for a rectangle. The inputs are a window of the snow grid (w x h, starting at ox, oy) with at least
   // 8 cells of margin where the map has them; the output is RGBA for [x0, x1) x [y0, y1) in map cells.
   snowShade(a) {
@@ -47,6 +49,9 @@ const PX_KERNELS = {
       const pk = .86 + .14 * sstep(.22, .42, d);
       let R = (148 + 95 * Math.min(1, L)) * pk, G = (166 + 81 * Math.min(1, L)) * pk, B = (204 + 49 * Math.min(1, L)) * (pk * .5 + .5);
       if (L > 1) { const e = (L - 1) * 40; R += e; G += e; B += e * .5; }
+      const TX = globalThis.__snowTex; if (TX) { const n = globalThis.__snowTexN, q = ((j % n) * n + (i % n)) * 3, q2 = (((i + 97) % n) * n + (n - 1 - (j + 53) % n)) * 3, f = (.35 + .65 * sstep(.05, .4, d)) / 170; // real snow's crystals and relief, anchored to the map, fainter on a thin dusting
+        const w = .5 + .5 * Math.sin(i * .011 + Math.sin(j * .007) * 2) * Math.sin(j * .013 + 1.3), v = 1 - w; // and the same texture turned a quarter, mixed in by a slow drift across the map: no grid of repeats
+        R *= 1 + (TX[q] * v + TX[q2] * w - 170) * f; G *= 1 + (TX[q + 1] * v + TX[q2 + 1] * w - 170) * f; B *= 1 + (TX[q + 2] * v + TX[q2 + 2] * w - 170) * f; }
       const s = S ? S[k] : 0;
       if (s > .01) { const t = Math.min(.96, s * .85), dk = (1 - .42 * sstep(.9, 3.2, s)) * clamp(L, .7, 1.05); R += (C3[k * 3] * dk - R) * t; G += (C3[k * 3 + 1] * dk - G) * t; B += (C3[k * 3 + 2] * dk - B) * t; }
       P[o] = R; P[o + 1] = G; P[o + 2] = B; P[o + 3] = 255 * sstep(.025, .26, d) * .97;
@@ -67,6 +72,9 @@ const PX = (() => { // the pool
   }
   return {
     get size() { return ok ? pool.length : 0; },
+    all(k, a) { // the same call on every worker (state they keep, like the snow's texture); nothing comes back
+      if (!ok) return; for (const w of pool) { const id = ++seq; w.busy++; waiting.set(id, { res() {}, rej() {} }); try { w.postMessage({ id, k, a }); } catch (e) { waiting.delete(id); w.busy--; } }
+    },
     run(k, a, transfer) { // a promise of the kernel's result; runs here if there are no workers
       if (!ok || !pool.length) return new Promise((res, rej) => { try { res(PX_KERNELS[k](a)); } catch (e) { rej(e); } });
       const w = pool.reduce((b, x) => x.busy < b.busy ? x : b, pool[rr++ % pool.length]), id = ++seq; w.busy++;

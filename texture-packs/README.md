@@ -11,6 +11,7 @@ In use now (copied to `textures/ground/`, the dirt and the Moon's and Mars's gra
 - **SBS - Tiny Texture Pack - 128x128**: `Grass_05`, `06`, `08`, `09`, `10`, `16`, `17` and `21`, the grass on Open Field, Meadow, Park and Farm.
 - **SBS - Tiny Texture Pack 2**: `Dirt_17`, `Dirt_11` and `Dirt_01` (trails, paths and yard roads), `Dirt_09` (the Farm's soil), `Dirt_03` (its pig pen), `Dirt_05` (the Moon's regolith, made grey) and `Stone_17` (Mars's stony ground).
 - **SBS - Tiny Texture Pack 3**: `Terrain_05` and `Terrain_06` (Mars's rust-red rock and dust), `Stone_05` and `Stone_09` (the Moon's paler dust and darker rubble, made grey).
+- **Snow003_1K-JPG.zip** ([ambientCG](https://ambientcg.com), CC0): its color and normal maps, baked into `textures/ground/snow_detail.jpg`, the surface of all snow (`js/10-snow.js`).
 
 ## Adding packs on GitHub
 
