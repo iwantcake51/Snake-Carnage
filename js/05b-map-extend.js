@@ -32,7 +32,7 @@ function clipStrip(x, st, fn) { x.save(); x.beginPath(); x.rect(st.s < 0 ? 0 : s
 const lampAt = (k, u, y) => LAMP(k.X(u), y);
 const MAP_EXT = {
   'Open Field': (st, k, e) => { // keep it open: the field's identity is that there's nowhere to hide
-    e.floor.push(x => clipStrip(x, st, () => { checker(x, ...GRASS, 32); x.fillStyle = 'rgba(70,110,30,.12)'; for (let j = 120; j < H; j += 40) x.fillRect(0, j, W, 18); x.fillStyle = '#9cc148'; x.fillRect(0, 16, W, 80); flowers(x, 60, ['#ffffff', '#ffe066', '#c9b6ff'], 40 + st.s, 4); }));
+    e.floor.push(x => { const real = fieldGround(x); clipStrip(x, st, () => { if (!real) { checker(x, ...GRASS, 32); x.fillStyle = 'rgba(70,110,30,.12)'; for (let j = 120; j < H; j += 40) x.fillRect(0, j, W, 18); x.fillStyle = '#9cc148'; x.fillRect(0, 16, W, 80); } flowers(x, 60, ['#ffffff', '#ffe066', '#c9b6ff'], 40 + st.s, 4); }); });
     if (st.w < 112) return;
     if (st.s < 0) e.obs.push(k.C(st.w * .42, 168, 13, '#e3c565', 'hay'), k.C(st.w * .42 + 22, 182, 12, '#e3c565', 'hay')); // bales stacked by the fence, waiting to be collected
     else e.obs.push(k.T(26, 596, 34, '#3f7a2c'), k.T(82, 606, 22)); // a small copse in the far corner

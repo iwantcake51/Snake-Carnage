@@ -6,7 +6,10 @@ Like `kenney/`, this folder is a source library, not part of the game. Netlify d
 
 Reading a `.rar` needs no extra program: it's opened with `node-unrar-js` from npm.
 
-In use now: nothing yet.
+In use now:
+
+- **SBS - Tiny Texture Pack - 128x128** (Screaming Brain Studios, CC0): `Grass_16`, `Grass_17`, `Grass_09` and `Grass_08`, as `textures/ground/grass_16.jpg` and so on. They're Open Field's ground, blended at random by `groundTex` in `js/05e-ground-tex.js`.
+- **SBS - Tiny Texture Pack 2** and **3**: nothing yet.
 
 ## Adding packs on GitHub
 

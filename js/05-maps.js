@@ -173,10 +173,18 @@ function bunkerLights() { // built once per run (loadMap clears the cache), so e
     : P.map(([x, y, r, f]) => ({ x, y, r: r * 1.05, kind: 'fluor', fix: 'cage', flick: !!f })); // normal shift: cold white work lamps, a couple on their way out
   return bunkerCache;
 }
+function fieldGround(x) { // Open Field's real grass across the whole width (a wide map's first strip lays it, and the middle keeps it); false until the textures are in
+  if (GTEX.drawn.has(x)) return true;
+  if (!groundTex(x, 'meadow', 1 + Math.random() * 1e6 | 0)) return false; // blended at random: a new field every run
+  x.fillStyle = 'rgba(255,255,230,.05)'; for (let j = 120; j < H; j += 40) x.fillRect(16, j, W - 32, 20); // mowing stripes: the mower's passes catch the light one way, then the other
+  x.fillStyle = 'rgba(40,60,10,.05)'; for (let j = 140; j < H; j += 40) x.fillRect(16, j, W - 32, 20);
+  const v = x.createLinearGradient(0, 16, 0, 104); v.addColorStop(0, 'rgba(150,140,40,.22)'); v.addColorStop(.85, 'rgba(150,140,40,.16)'); v.addColorStop(1, 'rgba(150,140,40,0)'); x.fillStyle = v; x.fillRect(16, 16, W - 32, 88); // the uncut verge beyond the fence, gone to seed
+  return true;
+}
 const MAPS = [
   {
     name: 'Open Field', icon: '🟩', border: '#5a8a36', start: { x: 300, y: 330, a: 0 }, times: { sunset: 2, evening: 2, night: 2.5 }, open: true,
-    pop: [['human', 6], ['rabbit', 6], ['deer', 5], ['frog', 3]], fireflies: 22, walkers: 4, grass: 160,
+    pop: [['human', 6], ['rabbit', 6], ['deer', 5], ['frog', 3]], fireflies: 22, walkers: 4, grass: 160, groundTex: 'meadow',
     build: () => { // a mown hayfield: one farm track crossing it, a fence and gate along the top, a single old oak. Nowhere to hide.
       const track = [[-10, 400], [160, 380], [330, 330], [500, 330], [660, 330], [800, 290], [970, 250]], spur = [[500, 330], [500, 220], [520, 120], [540, 16]];
       return {
@@ -184,9 +192,11 @@ const MAPS = [
               TREE(760, 500, 34, '#3f7a2c'), C(200, 190, 13, '#e3c565', 'hay'), C(226, 206, 12, '#e3c565', 'hay')],
         paths: [track, spur],
         floor(x) {
-          checker(x, ...GRASS, 32);
-          x.fillStyle = 'rgba(70,110,30,.12)'; for (let j = 120; j < H; j += 40) x.fillRect(16, j, W - 32, 18); // mowing stripes
-          x.fillStyle = '#9cc148'; x.fillRect(16, 16, W - 32, 80); // the uncut verge beyond the fence
+          if (fieldGround(x)) {} else {
+            checker(x, ...GRASS, 32);
+            x.fillStyle = 'rgba(70,110,30,.12)'; for (let j = 120; j < H; j += 40) x.fillRect(16, j, W - 32, 18); // mowing stripes
+            x.fillStyle = '#9cc148'; x.fillRect(16, 16, W - 32, 80); // the uncut verge beyond the fence
+          }
           dirtTrails(x, [[track, 20, 4], [spur, 16, 9]]);
           flowers(x, 120, ['#ffffff', '#ffe066', '#c9b6ff'], 21, 6);
           { const g = x.createRadialGradient(760, 500, 20, 760, 500, 64); g.addColorStop(0, 'rgba(40,60,20,.26)'); g.addColorStop(1, 'rgba(40,60,20,0)'); x.fillStyle = g; x.fillRect(690, 430, 140, 140); } // the oak's dry patch, fading into the grass
