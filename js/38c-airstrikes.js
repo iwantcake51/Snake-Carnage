@@ -225,15 +225,20 @@ function bombKd(tt, sp = 1) { // the deciding browser: one bomb's kind (nothing 
 /* ---- artillery: later in a run, now and then a battery of cannons miles off the map lobs a few shells at you instead of a jet coming over.
    Each lands with a far bigger blast than a bomb, but you get a long time to get clear: the cannon's report, the marker, then the shell
    whistling all the way down, slowly ---- */
-const ARTY = { after: 210, raid: 120, gap: 70, p: .12, r: 1.75, fall: 3.6, warn: [6.2, 7.4] };
-function artySalvo(s, k) { // the deciding browser: a salvo of shells on this snake's way (k: how far into the raid)
-  const sp = (s.speed || CONFIG.snakeSpeeds.Normal) * (s.dashV || 1), n = 1 + (Math.random() < .35 + .4 * k ? 1 : 0) + (k > .6 && Math.random() < .35 ? 1 : 0), ca = +rand(0, TAU).toFixed(3); // (ca: the way the shells come in, from the battery off the map)
+const ARTY = { after: 210, raid: 120, gap: 70, p: .12, r: 1.25, fall: 3.6, warn: [6.2, 7.4] };
+function artyTailSpot(s, D) { // a point D up the body from the end of this snake's tail (past the head on its heading if the body is shorter than that)
+  const g = s.segs; let left = D;
+  for (let i = g.length - 1; i > 0; i--) { const a = g[i], b = g[i - 1], L = Math.hypot(b.x - a.x, b.y - a.y); if (L >= left) { const u = left / (L || 1); return [a.x + (b.x - a.x) * u, a.y + (b.y - a.y) * u, Math.atan2(b.y - a.y, b.x - a.x)]; } left -= L; }
+  return [s.x + Math.cos(s.angle) * left, s.y + Math.sin(s.angle) * left, s.angle];
+}
+function artySalvo(s, k) { // the deciding browser: a salvo of shells on the end of this snake's tail as it is when they're fired (k: how far into the raid). Unlike the bombs, which lead your head, the guns are laid on your tail: keep moving and they shell the ground you've just crossed (no doubling back), stall or coil up and they take the end of you
+  const n = 1 + (Math.random() < .35 + .4 * k ? 1 : 0) + (k > .6 && Math.random() < .35 ? 1 : 0), ca = +rand(0, TAU).toFixed(3); // (ca: the way the shells come in, from the battery off the map)
   for (let j = 0; j < n; j++) {
     let w = rand(...ARTY.warn) + j * rand(.9, 1.5) + airEW(s);
     for (let q = 0; q < 6; q++) { const o = strikes.find(o => Math.abs(o.t - w) < .11); if (!o) break; w = o.t + .11 + rand(0, .05); }
     w = +w.toFixed(2);
-    const ga = s.angle + rand(-.9, .9), dist = sp * w * rand(.3, .7), side = gauss() * 50; // somewhere on the way you're going: you have the time to get round it
-    const [x, y] = airInside(s.x + Math.cos(ga) * dist - Math.sin(ga) * side, s.y + Math.sin(ga) * dist + Math.cos(ga) * side, s.x, s.y);
+    const body = s.segs.reduce((d, g, i) => i ? d + Math.hypot(g.x - s.segs[i - 1].x, g.y - s.segs[i - 1].y) : 0, 0), [tx, ty, ta] = artyTailSpot(s, body * rand(0, .12) + j * AIR_R * rand(2.1, 2.4)), side = gauss() * 14; // right on the end of the tail, each shell after the first walked further up it (a blast's width apart, so they don't stack)
+    const [x, y] = airInside(tx - Math.sin(ta) * side, ty + Math.cos(ta) * side, s.x, s.y);
     const rx = Math.round(x), ry = Math.round(y), r = Math.round(AIR_R * ARTY.r * rand(.92, 1.08)), f = +(ARTY.fall * rand(.92, 1.1)).toFixed(2), ew = airEW(s) || undefined, ep = ew ? airPid(s) : undefined;
     airStrike(rx, ry, w, r, ca, f, undefined, 'a', undefined, ew, ep); netEmit({ t: 'air', x: rx, y: ry, w, r, j: ca, f, kd: 'a', ew, ep, h: Math.round(netNow()) });
   }
