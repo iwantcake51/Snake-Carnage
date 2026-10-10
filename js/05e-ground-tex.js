@@ -8,8 +8,15 @@
    the map paints its own procedural ground instead.
    ========================================================= */
 const GTEX = { img: {}, ok: false, drawn: new WeakSet(), sets: { // drawn: the floor being built right now already has it (so a wide map's strips and middle lay it once)
-  meadow: ['grass_16', 'grass_17', 'grass_09', 'grass_08'], // fresh green, a second fresh green, a drier yellow-green, a deep lush green
-} };
+  meadow: ['grass_16', 'grass_17', 'grass_09', 'grass_08'], // Open Field: fresh green, a second fresh green, a drier yellow-green, a deep lush green
+  wild: ['grass_09', 'grass_16', 'grass_21', 'grass_10'], // Meadow: long, drier grass, fresh green in the hollows, olive tussocks
+  lawn: ['grass_17', 'grass_16', 'grass_06'], // Park: a kept lawn, darker where the mower missed
+  pasture: ['grass_09', 'grass_05', 'grass_16'], // Farm: grazed pasture, olive where the cows have been
+  dirt: ['dirt_trail', 'dirt_sand', 'dirt_dark'], // trails and yard roads: packed tan, sandier and darker patches
+  soil: ['soil', 'dirt_dark'], mud: ['mud', 'soil'], // ploughed earth; the pig pen
+  mars: ['mars_rock', 'mars_dust', 'mars_stone'], // rust-red rock and dust, darker stony ground
+  moon: ['moon_regolith', 'moon_dust', 'moon_rock'], // grey regolith, paler dust, darker rubble
+}, cover: { meadow: [.42, .36, .15], wild: [.42, .25, .3], lawn: [.4, .14], pasture: [.22, .3], dirt: [.34, .22], soil: [.3], mud: [.35], mars: [.42, .3], moon: [.4, .28] } }; // how much of the floor each further texture covers
 if (location.protocol !== 'file:') {
   const names = [...new Set(Object.values(GTEX.sets).flat())]; let left = names.length;
   for (const n of names) { const im = new Image(); im.onload = () => { GTEX.img[n] = im; if (--left === 0) groundTexReady(); }; im.onerror = () => --left; im.src = `textures/ground/${n}.jpg?v=` + GAME_VERSION; }
@@ -17,9 +24,9 @@ if (location.protocol !== 'file:') {
 function groundTexReady() { // every image is in: menu pictures already drawn with the stand-in ground are drawn again
   GTEX.ok = true;
   if (typeof thumbCache === 'undefined') return;
-  for (const m of MAPS) if (m.groundTex) { thumbCache.delete(thumbKey(m)); artCache.delete(thumbKey(m)); }
+  for (const m of MAPS) { thumbCache.delete(thumbKey(m)); artCache.delete(thumbKey(m)); } // (trails and yards are on most outdoor maps)
   thumbs = null;
-  if (state === 'menu' && MAPS[mapIdx] && MAPS[mapIdx].groundTex) menuBackdrop(mapIdx);
+  if (state === 'menu' && MAPS[mapIdx]) menuBackdrop(mapIdx);
 }
 function gtexPat(x, name, r, sc) { // a pattern of one texture at a random angle and offset (and size sc)
   const p = x.createPattern(GTEX.img[name], 'repeat'), a = r() * Math.PI * 2, c = Math.cos(a) * sc, s = Math.sin(a) * sc;
@@ -37,10 +44,23 @@ function groundTex(x, set, seed, sc = 1) { // fills the floor with a blend of a 
   x.save(); x.fillStyle = gtexPat(x, names[0], r, sc); x.fillRect(0, 0, W, H);
   names.slice(1).forEach((n, k) => { // each other texture in its own patches: drawn whole, then cut to the mask
     lx.globalCompositeOperation = 'source-over'; lx.clearRect(0, 0, W, H); lx.fillStyle = gtexPat(lx, n, r, sc); lx.fillRect(0, 0, W, H);
-    const m = gtexMask(r, [.42, .36, .15][k] ?? .25, .12, 150 + 90 * r()); lx.globalCompositeOperation = 'destination-in'; lx.imageSmoothingQuality = 'high'; lx.drawImage(m, 0, 0, W, H); freeCanvas(m);
+    const m = gtexMask(r, (GTEX.cover[set] || [])[k] ?? .25, .12, 150 + 90 * r()); lx.globalCompositeOperation = 'destination-in'; lx.imageSmoothingQuality = 'high'; lx.drawImage(m, 0, 0, W, H); freeCanvas(m);
     x.drawImage(L, 0, 0);
   });
   freeCanvas(L);
   const sh = gtexMask(r, .45, .35, 260); x.globalAlpha = .1; x.imageSmoothingQuality = 'high'; x.drawImage(sh, 0, 0, W, H); freeCanvas(sh); // a faint, broad light and shade, like the ground rolling a little
   x.restore(); GTEX.drawn.add(x); queueMicrotask(() => GTEX.drawn.delete(x)); return true; // (marked only while this floor is being built)
+}
+function mapGround(x, set, extra) { // a map's whole floor in a set, across the whole width (a wide map's strips and middle are one ground); false until the textures are in
+  if (GTEX.drawn.has(x)) return true;
+  if (!groundTex(x, set, 1 + Math.random() * 1e6 | 0)) return false; // blended at random: new ground every run
+  if (extra) extra(x); return true;
+}
+function texShape(x, set, mask) { // a set's ground only inside a shape: mask(ctx) fills the shape in any color; false until the textures are in
+  if (!GTEX.ok) return false;
+  const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
+  if (!groundTex(g, set, 1 + Math.random() * 1e6 | 0)) { freeCanvas(c); return false; }
+  const m = document.createElement('canvas'); m.width = W; m.height = H; const mg = m.getContext('2d'); mg.fillStyle = '#000'; mg.strokeStyle = '#000'; mask(mg); // the whole shape first (every stroke and fill of it), then one cut
+  g.globalCompositeOperation = 'destination-in'; g.drawImage(m, 0, 0);
+  x.drawImage(c, 0, 0, W, H); freeCanvas(c, m); return true;
 }

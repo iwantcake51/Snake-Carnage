@@ -6,10 +6,11 @@ Like `kenney/`, this folder is a source library, not part of the game. Netlify d
 
 Reading a `.rar` needs no extra program: it's opened with `node-unrar-js` from npm.
 
-In use now:
+In use now (copied to `textures/ground/`, the dirt and the Moon's and Mars's graded to the maps' own colors; blended at random by `js/05e-ground-tex.js`):
 
-- **SBS - Tiny Texture Pack - 128x128** (Screaming Brain Studios, CC0): `Grass_16`, `Grass_17`, `Grass_09` and `Grass_08`, as `textures/ground/grass_16.jpg` and so on. They're Open Field's ground, blended at random by `groundTex` in `js/05e-ground-tex.js`.
-- **SBS - Tiny Texture Pack 2** and **3**: nothing yet.
+- **SBS - Tiny Texture Pack - 128x128**: `Grass_05`, `06`, `08`, `09`, `10`, `16`, `17` and `21`, the grass on Open Field, Meadow, Park and Farm.
+- **SBS - Tiny Texture Pack 2**: `Dirt_17`, `Dirt_11` and `Dirt_01` (trails, paths and yard roads), `Dirt_09` (the Farm's soil), `Dirt_03` (its pig pen), `Dirt_05` (the Moon's regolith, made grey) and `Stone_17` (Mars's stony ground).
+- **SBS - Tiny Texture Pack 3**: `Terrain_05` and `Terrain_06` (Mars's rust-red rock and dust), `Stone_05` and `Stone_09` (the Moon's paler dust and darker rubble, made grey).
 
 ## Adding packs on GitHub
 

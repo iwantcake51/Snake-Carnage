@@ -32,13 +32,13 @@ function clipStrip(x, st, fn) { x.save(); x.beginPath(); x.rect(st.s < 0 ? 0 : s
 const lampAt = (k, u, y) => LAMP(k.X(u), y);
 const MAP_EXT = {
   'Open Field': (st, k, e) => { // keep it open: the field's identity is that there's nowhere to hide
-    e.floor.push(x => { const real = fieldGround(x); clipStrip(x, st, () => { if (!real) { checker(x, ...GRASS, 32); x.fillStyle = 'rgba(70,110,30,.12)'; for (let j = 120; j < H; j += 40) x.fillRect(0, j, W, 18); x.fillStyle = '#9cc148'; x.fillRect(0, 16, W, 80); } flowers(x, 60, ['#ffffff', '#ffe066', '#c9b6ff'], 40 + st.s, 4); }); });
+    e.floor.push(x => { clipStrip(x, st, () => { if (!GTEX.drawn.has(x)) { checker(x, ...GRASS, 32); x.fillStyle = 'rgba(70,110,30,.12)'; for (let j = 120; j < H; j += 40) x.fillRect(0, j, W, 18); x.fillStyle = '#9cc148'; x.fillRect(0, 16, W, 80); } flowers(x, 60, ['#ffffff', '#ffe066', '#c9b6ff'], 40 + st.s, 4); }); });
     if (st.w < 112) return;
     if (st.s < 0) e.obs.push(k.C(st.w * .42, 168, 13, '#e3c565', 'hay'), k.C(st.w * .42 + 22, 182, 12, '#e3c565', 'hay')); // bales stacked by the fence, waiting to be collected
     else e.obs.push(k.T(26, 596, 34, '#3f7a2c'), k.T(82, 606, 22)); // a small copse in the far corner
   },
   Meadow: (st, k, e) => {
-    e.floor.push(x => clipStrip(x, st, () => { checker(x, ...GRASS, 32); flowers(x, 120, ['#ffffff', '#ffe066', '#ff9ecb', '#c9b6ff'], 50 + st.s, 6); }));
+    e.floor.push(x => clipStrip(x, st, () => { if (!GTEX.drawn.has(x)) checker(x, ...GRASS, 32); flowers(x, 120, ['#ffffff', '#ffe066', '#ff9ecb', '#c9b6ff'], 50 + st.s, 6); }));
     if (st.w < 112) return;
     if (st.s < 0) { // the wood along the north edge carries on: crowns overlap, trunks against the edge, no gaps to get caught in
       for (let u = 18, i = 0; u < st.w - 40; u += 48, i++) e.obs.push(k.T(u, i % 2 ? 46 : 36, i % 2 ? 26 : 32));
@@ -93,7 +93,7 @@ const MAP_EXT = {
   },
   Farm: (st, k, e) => {
     const w = st.w;
-    e.floor.push(x => clipStrip(x, st, () => { checker(x, ...GRASS, 32); speckle(x, 120, ['#b18c58', '#d6b47e'], 60 + st.s); }));
+    e.floor.push(x => clipStrip(x, st, () => { if (!GTEX.drawn.has(x)) checker(x, ...GRASS, 32); speckle(x, 120, ['#b18c58', '#d6b47e'], 60 + st.s); }));
     if (w < 112) return;
     if (st.s < 0) { // a wheat field beside the crop field, a lean-to on the barn, bales by the pen
       e.floor.push(x => { const r = k.rect(20, 320, w - 44, 290); paintRect(x, r, '#9a7a40'); x.fillStyle = '#d6b45a'; for (let y = 330; y < 604; y += 14) x.fillRect(r[0] + 6, y, r[2] - 12, 6); });
@@ -106,7 +106,7 @@ const MAP_EXT = {
   },
   Park: (st, k, e) => {
     const w = st.w;
-    e.floor.push(x => clipStrip(x, st, () => { checker(x, ...GRASS, 32); flowers(x, 50, ['#ff9ecb', '#ffffff', '#ffd23f'], 70 + st.s, 3); }));
+    e.floor.push(x => clipStrip(x, st, () => { if (!GTEX.drawn.has(x)) checker(x, ...GRASS, 32); flowers(x, 50, ['#ff9ecb', '#ffffff', '#ffd23f'], 70 + st.s, 3); }));
     e.trailStyle = 'park';
     if (w < 112) return;
     // tree beds along the outer edge, north and south; the path stays clear
@@ -195,7 +195,7 @@ const MAP_EXT = {
     }
   },
   Moon: (st, k, e) => {
-    e.floor.push(x => clipStrip(x, st, () => { x.fillStyle = '#8b8e94'; x.fillRect(0, 0, W, H); speckle(x, 2400, ['#a2a5ab', '#74777d', '#96999f'], 80 + st.s); craters(x, 30, '#8a8d93', 81 + st.s); }));
+    e.floor.push(x => clipStrip(x, st, () => { const tex = GTEX.drawn.has(x); if (!tex) { x.fillStyle = '#8b8e94'; x.fillRect(0, 0, W, H); speckle(x, 2400, ['#a2a5ab', '#74777d', '#96999f'], 80 + st.s); } craters(x, 30, tex ? null : '#8a8d93', 81 + st.s); })); // (on the real regolith, laid across the whole width)
     if (st.w < 112) return;
     if (st.s < 0) e.obs.push(k.C(st.w * .5, 200, 9, '#9aa1aa', 'rock', { antenna: true }), k.R(0, 470, Math.min(140, st.w - 40), 34, '#2c3e66', 'solar')); // a relay antenna and a solar array on the outskirts
     else e.obs.push(ROCK(k.X(st.w * .4), 420, 24), ROCK(k.X(st.w * .4) + 30, 446, 14), MAST(k.X(st.w * .55), 210)); // a boulder pair and a floodlight mast
@@ -291,9 +291,11 @@ function extendBuild(m, idx) {
     start: b.start && { ...b.start, x: b.start.x + XO },
     floor(x) {
       if (m.tileFloor) { floor0.call(b, x); for (const { e } of strips) e.cover.forEach(f => f(x)); } // a ground drawn for any width (it reads W)
-      else { for (const { e } of strips) e.floor.forEach(f => f(x)); local(x, () => floor0.call(b, x)); for (const { e } of strips) e.cover.forEach(f => f(x)); }
+      else { if (m.ground) m.ground(x); for (const { e } of strips) e.floor.forEach(f => f(x)); local(x, () => floor0.call(b, x)); for (const { e } of strips) e.cover.forEach(f => f(x)); } // (m.ground: the map's real ground first, across the whole width)
       for (const { st, e } of strips) if (trails.length) clipStrip(x, st, () => { // the carried-on trails, in the map's own trail style
-        if (e.trailStyle === 'park') { x.lineCap = 'round'; x.lineJoin = 'round'; for (const [c, lw] of [['#c9ad78', 30], ['#dcc493', 24]]) { x.strokeStyle = c; x.lineWidth = lw; for (const p of trails) { x.beginPath(); p.forEach(([a, bb], i) => i ? x.lineTo(a, bb) : x.moveTo(a, bb)); x.stroke(); } } }
+        if (e.trailStyle === 'park') { const ln = (g, w) => { g.lineCap = 'round'; g.lineJoin = 'round'; g.lineWidth = w; for (const p of trails) { g.beginPath(); p.forEach(([a, bb], i) => i ? g.lineTo(a, bb) : g.moveTo(a, bb)); g.stroke(); } };
+          if (GTEX.drawn.has(x) && texShape(x, 'dirt', g => ln(g, 30))) { x.strokeStyle = 'rgba(80,60,30,.22)'; ln(x, 30); x.strokeStyle = 'rgba(250,236,196,.22)'; ln(x, 22); } // the same packed earth as the park's own paths
+          else for (const [c, lw] of [['#c9ad78', 30], ['#dcc493', 24]]) { x.strokeStyle = c; ln(x, lw); } }
         else { trailExt = true; try { dirtTrails(x, trails.map((p, i) => [p, 18, 90 + i])); } finally { trailExt = false; } }
       });
     },

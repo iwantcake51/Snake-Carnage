@@ -119,7 +119,7 @@ function airSchedule(dt) {
   const ramp = Math.min(1, (t - t0) / 300 + heat * .1), g = raid ? ramp : Math.max(gt, heat), k = Math.min(1, g); // Air raid: one slow climb over five minutes (kills only nudge it), then it holds
   AIR.nextT = raid ? (7 - 4.5 * Math.pow(ramp, .6)) * rand(.8, 1.15) // Air raid: every 7 s or so at first, every 4-5 s two minutes in (1-3 bombs at a time), every 2.5 s by five minutes in, and no quicker
     : 34 / (1 + .3 * Math.min(1, gt)) * rand(.8, 1.35) * (Math.random() < .25 ? 1.5 : 1); // a normal game: about every 36 s if nobody kills anything (still 28 s or so late on), never on a beat, now and then a longer lull; every kill brings the next one closer (airKillTick), never to under 10 s
-  if (t - t0 > 100 && t - (AIR.barT ?? -1e9) > 240 && !strikes.length && !AIR.queue.length && Math.random() < (raid ? .05 : .07)) { // rarely, a barrage instead: never twice close together, never on top of another strike
+  if (t - t0 > 150 && t - (AIR.barT ?? -1e9) > 240 && !strikes.length && !AIR.queue.length && Math.random() < (raid ? .05 : .07)) { // rarely, a barrage instead: never twice close together, never on top of another strike
     AIR.barT = t; AIR.nextT = BARRAGE.dur + BARRAGE.lead + Math.min(AIR.nextT, 8) * .5; // the usual strikes wait out the storm, then carry on, no long quiet
     for (const s of targets) { if (skOf(s, 'jam') && Math.random() < .5) { airCalledOff(s); continue; } barrage(s, raid ? ramp : Math.min(1, Math.max(gt, heatOf(s)))); }
     return;
@@ -140,17 +140,18 @@ function airSchedule(dt) {
 const BARRAGE = { lead: 2.8, dur: 16 };
 function barrage(s, k) { // the deciding browser: the storm starts
   if (s === snake) barrageWarn(); else if (NETM.run) netEmit({ t: 'airb', pid: s.pid });
-  (AIR.storms = AIR.storms || []).push({ s, k: Math.min(1, k), t: 0, next: BARRAGE.lead - 1.6, es: Math.random() < .5 ? 1 : -1, n: 0 });
+  k = Math.min(1, k); (AIR.storms = AIR.storms || []).push({ s, k, t: 0, dur: BARRAGE.dur * (.62 + .38 * k), next: BARRAGE.lead - 1.6, es: Math.random() < .5 ? 1 : -1, n: 0 }); // an early storm is short and light; only a late, hot one runs the full length
 }
 function stormTick(dt) { // the deciding browser: every storm drops its next bombs
   const L = AIR.storms; if (!L || !L.length) return;
   for (let i = L.length - 1; i >= 0; i--) {
     const st = L[i], s = st.s; st.t += dt;
-    if (st.t > BARRAGE.lead + BARRAGE.dur || !s.alive || s.netHidden || s.hidden || state !== 'play') { L.splice(i, 1); continue; }
+    if (st.t > BARRAGE.lead + st.dur || !s.alive || s.netHidden || s.hidden || state !== 'play') { L.splice(i, 1); continue; }
     if ((st.next -= dt) > 0) continue;
-    const u = clamp((st.t - BARRAGE.lead + 1.6) / BARRAGE.dur, 0, 1), heavy = Math.sin(Math.PI * Math.min(1, u * 1.15)) ** .7; // it builds, rages, and dies away
-    st.next = rand(.75, 1.15) / (.7 + 1.9 * heavy * (.75 + .25 * st.k)); // about one a second at the edges of it, two or three a second at its height
-    const n = Math.random() < .25 * heavy ? 2 : 1;
+    const u = clamp((st.t - BARRAGE.lead + 1.6) / st.dur, 0, 1), heavy = Math.sin(Math.PI * Math.min(1, u * 1.15)) ** .7; // it builds, rages, and dies away
+    if (strikes.length >= 3 + Math.round(st.k)) { st.next = .3; continue; } // never more than a handful marked at once (each blast is heavy to draw)
+    st.next = rand(.8, 1.2) / (.3 + (.32 + .5 * st.k) * heavy); // one every three seconds or so at its edges; at its height one every 1.6 s early in a run, one a second or so late on
+    const n = st.k > .7 && Math.random() < .08 * heavy ? 2 : 1; // (two at once only now and then, late on)
     for (let q = 0; q < n; q++) stormBomb(st, s, q);
   }
 }
@@ -166,8 +167,8 @@ function stormBomb(st, s, q) {
     if (strikes.every(o => o.t < .3 || dist2(o.x, o.y, x, y) > (r + o.r) ** 2 * .55)) best = [x, y]; // not piled on one still to land
   }
   if (!best) return;
-  const tt = (run.time || 0) - (MOD.airRaid ? AIR_RAID_START : AIR_START), kd = bombKd(tt, .5), sd = kd ? randi(1, 2 ** 30) : undefined, rr = kd === 'i' ? Math.round(r * .8) : r; // (half as many special ones in a storm: a sky full of gas would hide every marker)
-  const rx = Math.round(best[0]), ry = Math.round(best[1]), ja = st.n++ % 4 === 0 ? +(s.angle + st.es * rand(1.2, 1.9)).toFixed(3) : undefined, f = +((lock ? .3 : .45) / rand(.9, 1.2)).toFixed(2); // (a jet for every few: the sky's full of them)
+  const tt = (run.time || 0) - (MOD.airRaid ? AIR_RAID_START : AIR_START), kd0 = bombKd(tt, .5), kd = kd0 === 'c' ? undefined : kd0, sd = kd ? randi(1, 2 ** 30) : undefined, rr = kd === 'i' ? Math.round(r * .8) : r; // (half as many special ones in a storm, and no cluster bombs: a sky full of gas would hide every marker, and bomblets on top of a storm are too much)
+  const rx = Math.round(best[0]), ry = Math.round(best[1]), ja = st.n++ % 6 === 0 ? +(s.angle + st.es * rand(1.2, 1.9)).toFixed(3) : undefined, f = +((lock ? .3 : .45) / rand(.9, 1.2)).toFixed(2); // (a jet for every sixth: enough to fill the sky without a voice for every bomb)
   airStrike(rx, ry, w, rr, ja, f, undefined, kd, sd); netEmit({ t: 'air', x: rx, y: ry, w, r: rr, j: ja, f, kd, sd, h: Math.round(netNow()) });
 }
 function barrageWarn() { Sfx.barrage(); } // no notice on screen: the sound and the markers are the warning
