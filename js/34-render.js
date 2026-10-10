@@ -329,7 +329,7 @@ function lungeEdges() { // mid-lunge the edges blur in two rings (light, then he
   softEdges(Math.max(lb, fk), 4, W * .78, H * .74, .34, .9, .35 * fk); // one ring, fading in from a third of the way out to the rim (it was two full-screen passes)
 }
 
-/* before the round: the mouse pans the view a little, and resting on a spot for a second eases in toward it */
+/* before the round: the mouse pans the view a little, and resting on a spot for a second eases in toward it (until you zoom or drag yourself: ucamTakeLook in 11 hands the camera over from right here) */
 const look = { z: 1, fx: W / 2, fy: H / 2, mx: W / 2, my: H / 2, still: 0, lt: 0, on: false };
 addEventListener('pointermove', e => {
   if (e.pointerType === 'touch') return;
@@ -339,7 +339,7 @@ addEventListener('pointermove', e => {
   look.mx = clamp(x, 0, W); look.my = clamp(y, 0, H);
 });
 function lookAround() {
-  const pre = state === 'ready' && !cam && snake && !snake.started, dt = Math.min(.05, Math.max(0, UT - look.lt)); look.lt = UT;
+  const pre = state === 'ready' && !cam && snake && !snake.started && look.off !== snake, dt = Math.min(.05, Math.max(0, UT - look.lt)); look.lt = UT;
   look.still += dt;
   const tz = pre ? (look.still > 1 ? 1.16 : 1.04) : 1; // resting the cursor zooms in a touch
   const k = 1 - Math.exp(-dt * (pre ? 3 : 5));
