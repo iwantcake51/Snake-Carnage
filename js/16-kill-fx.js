@@ -138,8 +138,9 @@ function wallSmoke(cx, cy, ang, w, h) {
   }
 }
 function updateSmoke(dt) {
+  const over = smoke.length > 120 ? 1 + (smoke.length - 120) / 30 : 1; // too much smoke at once: it all clears faster instead of piling up (no puff just vanishes)
   for (let i = smoke.length - 1; i >= 0; i--) {
-    const p = smoke[i]; p.t += dt; if (p.t > p.life) { smoke[i] = smoke[smoke.length - 1]; smoke.pop(); continue; }
+    const p = smoke[i]; p.t += dt * over; if (p.t > p.life) { smoke[i] = smoke[smoke.length - 1]; smoke.pop(); continue; }
     if (p.t < 0) continue;
     const f = Math.exp(-dt * 1.6), curl = perlin(p.x * .02, p.y * .02 + animT('smoke') * .3) * 22 * AN.smoke.amp; // drag, plus a slow curl so it drifts and folds
     p.vx = p.vx * f + curl * dt * 3; p.vy = p.vy * f - curl * dt * 2; p.x += p.vx * dt; p.y += p.vy * dt; p.r += p.g * dt * (1 - p.t / p.life * .6); p.rot += p.vr * dt;
@@ -149,7 +150,8 @@ function drawSmoke(x) {
   for (const p of smoke) {
     if (p.t < 0) continue;
     const k = p.t / p.life, al = p.a * Math.min(1, p.t * 6) * (1 - k) * (1 - k * .4); // thick at once, then clears
-    x.globalAlpha = al; x.save(); x.translate(p.x, p.y); x.rotate(p.rot); x.drawImage(smokeSprite(p.v, p.rgb), -p.r * 1.3, -p.r * 1.3, p.r * 2.6, p.r * 2.6); x.restore();
+    if (al < .01) continue;
+    x.globalAlpha = al; x.translate(p.x, p.y); x.rotate(p.rot); x.drawImage(smokeSprite(p.v, p.rgb), -p.r * 1.3, -p.r * 1.3, p.r * 2.6, p.r * 2.6); x.rotate(-p.rot); x.translate(-p.x, -p.y); // (undone by hand: a save and restore per puff cost more than the puff)
   }
   x.globalAlpha = 1;
 }

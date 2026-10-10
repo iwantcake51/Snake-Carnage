@@ -177,12 +177,13 @@ function drawSnakeFlames(x) { // (additive) small flames licking along a burning
    markers, the HUD and every word on screen, so those stay sharp); none with simplified effects, reduced motion or low particles */
 function drawBurnHeat(x, src) {
   const s = snake, k = s && s.alive ? s.burnK || 0 : 0; if (k < .06 || SETTINGS.simpleFx || SETTINGS.reduceMotion || SETTINGS.fxLevel === 'Low' || !s.segs || s.segs.length < 2) return;
-  const m = x.getTransform(), n = s.segs.length, R = 26 * (s.scale || 1);
-  for (const i of [0, Math.floor(n * .45), n - 1]) { const g = s.segs[i];
-    const gr = grabScene(m.transformPoint({ x: g.x - R, y: g.y - R * 1.3 }), m.transformPoint({ x: g.x + R, y: g.y + R * .5 }), src); if (!gr) continue;
-    const strips = 10, sh = gr.sh / strips;
+  const m = x.getTransform(), n = s.segs.length, R = 26 * (s.scale || 1), pts = [0, Math.floor(n * .45), n - 1].map(i => [i, s.segs[i]]);
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; for (const [, g] of pts) { x0 = Math.min(x0, g.x - R); y0 = Math.min(y0, g.y - R * 1.3); x1 = Math.max(x1, g.x + R); y1 = Math.max(y1, g.y + R * .5); }
+  const gr = grabScene(m.transformPoint({ x: x0, y: y0 }), m.transformPoint({ x: x1, y: y1 }), src); if (!gr) return; // one copy of the picture round all three, not one each
+  for (const [i, g] of pts) {
+    const A = m.transformPoint({ x: g.x - R, y: g.y - R * 1.3 }), B = m.transformPoint({ x: g.x + R, y: g.y + R * .5 }), sw = B.x - A.x, strips = 6, sh = (B.y - A.y) / strips, lx = A.x - gr.sx, ly = A.y - gr.sy; if (sw <= 0 || sh <= 0) continue;
     x.save(); x.beginPath(); x.ellipse(g.x, g.y - R * .4, R, R * .9, 0, 0, TAU); x.clip(); x.setTransform(1, 0, 0, 1, 0, 0);
-    for (let q = 0; q < strips; q++) { const o = Math.sin(T * 11 + q * 1.4 + i) * 1.5 * k * DPR; x.drawImage(grabC, 0, q * sh, gr.sw, sh + 1, gr.sx + o, gr.sy + q * sh, gr.sw, sh + 1); }
+    for (let q = 0; q < strips; q++) { const o = Math.sin(T * 11 + q * 2.3 + i) * 1.5 * k * DPR; x.drawImage(grabC, lx, ly + q * sh, sw, sh + 1, A.x + o, A.y + q * sh, sw, sh + 1); }
     x.restore(); }
 }
 function drawBurnEdge(x) { // screen space: a restrained orange glow creeping in from the edges while you burn

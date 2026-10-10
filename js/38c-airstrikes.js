@@ -272,6 +272,7 @@ function airStrafe(x, y, a, w) { // every screen: mark the lane through (x, y) a
 }
 /* ---- every frame ---- */
 function airTick(dt) {
+  if (!AIR.warm && Sfx.ctx) { AIR.warm = 1; const idle = f => window.requestIdleCallback ? requestIdleCallback(f, { timeout: 4000 }) : setTimeout(f, 200); idle(() => { try { Sfx.airVerb(); } catch (e) {} idle(() => { try { if (Sfx.crackleBuf) Sfx.crackleBuf(); } catch (e) {} }); }); } // the sky's echo and the fuse crackle are built in quiet moments, never the instant the first bomb lands
   if (AUTH()) { airSchedule(dt); stormTick(dt); for (let i = AIR.queue.length - 1; i >= 0; i--) if ((AIR.queue[i].t -= dt) <= 0) { const q = AIR.queue[i]; AIR.queue.splice(i, 1); q.f(); } } // jets already on their way in
   for (let i = strikes.length - 1; i >= 0; i--) {
     const s = strikes[i]; s.t -= dt; s.ph += dt * (3 + 11 * (1 - s.t / s.dur) ** 2) * TAU; // flashes faster as it comes down
@@ -298,6 +299,7 @@ function airTick(dt) {
   for (let i = shocks.length - 1; i >= 0; i--) { const w = shocks[i]; w.t += dt; if (w.t > w.dur) shocks.splice(i, 1); }
   for (let i = fires.length - 1; i >= 0; i--) { const f = fires[i]; f.t += dt; if (f.t > f.life) { fires.splice(i, 1); continue; }
     if (Math.random() < dt * 14) boomBits.push({ ember: true, x: f.x + rand(-f.r, f.r), y: f.y + rand(-f.r, f.r) * .6, z: rand(2, 8), vx: rand(-15, 15), vy: rand(-30, -8), vz: rand(30, 70), t: 0, life: rand(.5, 1.1), g: .15 }); } // sparks lifting off the flames
+  if (boomBits.length > 300) boomBits.splice(0, boomBits.length - 300); // a ceiling: the oldest bits go first (most are nearly done by then)
   for (let i = boomBits.length - 1; i >= 0; i--) {
     const p = boomBits[i]; p.t += dt; if (p.t > p.life) { boomBits[i] = boomBits[boomBits.length - 1]; boomBits.pop(); continue; }
     p.vz -= 520 * (p.g ?? 1) * dt; p.z += p.vz * dt; const f = Math.exp(-dt * (p.spark ? 2.5 : p.ember ? .9 : 1.2)); p.vx *= f; p.vy *= f;
@@ -320,30 +322,31 @@ function detonate(s) {
   if (s.kd === 'c') clusterSplit(s); // a cluster bomb goes off like a bomb and throws out bomblets that go off at random afterwards (38g-cluster-fire)
   if (s.kd === 'g') return gasPop(s); // a gas bomb doesn't blow up: it lets out a cloud (38g)
   const mini = !!s.mini, cm = mini ? .3 : 1; // a bomblet: the same blast, much smaller, felt much less far off
-  const { x, y, r } = s, near = (snake ? Math.hypot(snake.x - x, snake.y - y) : 999) * (mini ? 2.4 : 1), fx = FX_K() * cm;
+  AIR.recent = (AIR.recent || []).filter(t => T - t < 1.5); AIR.recent.push(T); const bm = 1 / AIR.recent.length; // several blasts at once: each throws a share (six together throw about what two and a half do, not six: the same patch of screen can't show more, and drawing it all was what dropped the frame rate)
+  const { x, y, r } = s, near = (snake ? Math.hypot(snake.x - x, snake.y - y) : 999) * (mini ? 2.4 : 1), fx = FX_K() * cm * bm, n = v => Math.max(1, Math.round(v * bm));
   booms.push({ x, y, r, t: 0, dur: mini ? .7 : 1.1 }); // the flash and the core fireball
-  for (let k = 0; k < (mini ? 3 : 7); k++) { const a = rand(0, TAU), d = rand(.15, .75) * r; booms.push({ puff: true, x: x + Math.cos(a) * d, y: y + Math.sin(a) * d, r: r * rand(.45, .85), t: -rand(0, .22), dur: rand(.7, 1.15) }); } // fire rolling out of it
+  for (let k = 0; k < n(mini ? 3 : 7); k++) { const a = rand(0, TAU), d = rand(.15, .75) * r; booms.push({ puff: true, x: x + Math.cos(a) * d, y: y + Math.sin(a) * d, r: r * rand(.45, .85), t: -rand(0, .22), dur: rand(.7, 1.15) }); } // fire rolling out of it
   shocks.push({ x, y, R: r * 5.2, t: 0, dur: .62 });
   const snowy = typeof snowAt === 'function' && snowAt(x, y) > .15;
-  throwClods(x, y, r, cm); // (cut from the ground before the crater is burnt into it)
+  throwClods(x, y, r, cm, bm); // (cut from the ground before the crater is burnt into it)
   if (typeof blastSnow === 'function' && blastSnow(x, y, r * 1.15) > 0 && snowy) for (let k = 0; k < Math.round(60 * fx); k++) { const a = rand(0, TAU), sp = rand(60, 360); boomBits.push({ x: x + rand(-r * .4, r * .4), y: y + rand(-r * .4, r * .4), z: rand(2, 10), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(140, 420), t: 0, life: rand(1.2, 2.4), s: rand(1.4, 3.4), tr: false, c: pick(['#eef3f8', '#dfe8f2', '#f7fbff', '#c9d6e4']) }); } // the snow there is blown off: a white burst, bare ground underneath
   scorch(x, y, r);
   blastBreak(x, y, r * 1.15, !mini && (!s.kd || s.kd === 'c') && !s.safe); // what's near it breaks: fences, benches, crates and the like in any blast; trees, boulders and cars only to a proper bomb
   for (let k = 0; k < Math.round(12 * fx); k++) { const a = rand(0, TAU), sp = rand(20, 90); soots.push({ x: x + rand(-r * .3, r * .3), y: y + rand(-r * .3, r * .3), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: r * rand(.35, .6), g: rand(18, 34), rot: rand(0, TAU), vr: rand(-.5, .5), t: -rand(.08, .35), life: rand(2.6, 4.2), a: rand(.55, .8) }); } // black, oily smoke boiling up through the fire, lit orange from inside at first
   hazes.push({ x, y, r: r * 1.3, t: 0, life: 4.5 }); // heat shimmer over the crater
-  const sec = mini ? 0 : randi(3, 5);
+  const sec = mini ? 0 : n(randi(3, 5));
   for (let k = 0; k < sec; k++) { const a = rand(0, TAU), d = r * rand(.5, 1.1), dl = rand(.2, .7), sx = x + Math.cos(a) * d, sy = y + Math.sin(a) * d; // things in the crater cooking off
     booms.push({ puff: true, sec: true, x: sx, y: sy, r: r * rand(.35, .55), t: -dl, dur: .55 });
     later.push({ t: dl, f: () => { Sfx.cookOff(sx); for (let q = 0; q < 10; q++) { const b = rand(0, TAU), v = rand(120, 380); boomBits.push({ spark: true, x: sx, y: sy, z: rand(4, 12), vx: Math.cos(b) * v, vy: Math.sin(b) * v, vz: rand(40, 200), t: 0, life: rand(.2, .5) }); } } }); }
   if (s.kd === 'i') fireSpread(s); // an incendiary: small patches of burning ground (38g-cluster-fire)
-  for (let k = 0; k < (mini ? 1 : s.kd === 'i' ? 2 : 4); k++) { const a = rand(0, TAU), d = rand(0, .55) * r; fires.push({ x: x + Math.cos(a) * d, y: y + Math.sin(a) * d, r: rand(5, 10), t: 0, life: rand(2.5, 5), ph: rand(0, 99) }); } // the crater keeps burning
+  for (let k = 0; k < n(mini ? 1 : s.kd === 'i' ? 2 : 4); k++) { const a = rand(0, TAU), d = rand(0, .55) * r; fires.push({ x: x + Math.cos(a) * d, y: y + Math.sin(a) * d, r: rand(5, 10), t: 0, life: rand(2.5, 5), ph: rand(0, 99) }); } // the crater keeps burning
   const gpal = groundPalette(x, y, r);
-  for (let k = 0; k < Math.round(56 * cm); k++) { const a = rand(0, TAU), sp = rand(90, 420); boomBits.push({ x: x + rand(-6, 6), y: y + rand(-6, 6), z: rand(2, 10), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(120, 380), t: 0, life: rand(1.6, 3.2), s: rand(1.5, 4.2), tr: Math.random() < .35, c: pick(gpal) }); } // crumbs of whatever the ground was, thrown high
-  for (let k = 0; k < Math.round(48 * cm); k++) { const a = rand(0, TAU), sp = rand(180, 620); boomBits.push({ spark: true, x, y, z: rand(4, 16), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(40, 260), t: 0, life: rand(.25, .75) }); }
+  for (let k = 0; k < Math.round(56 * cm * bm); k++) { const a = rand(0, TAU), sp = rand(90, 420); boomBits.push({ x: x + rand(-6, 6), y: y + rand(-6, 6), z: rand(2, 10), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(120, 380), t: 0, life: rand(1.6, 3.2), s: rand(1.5, 4.2), tr: Math.random() < .35, c: pick(gpal) }); } // crumbs of whatever the ground was, thrown high
+  for (let k = 0; k < Math.round(48 * cm * bm); k++) { const a = rand(0, TAU), sp = rand(180, 620); boomBits.push({ spark: true, x, y, z: rand(4, 16), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(40, 260), t: 0, life: rand(.25, .75) }); }
   for (let k = 0; k < Math.round(40 * fx); k++) { const a = rand(0, TAU), sp = rand(40, 260); boomBits.push({ ember: true, x: x + rand(-8, 8), y: y + rand(-8, 8), z: rand(6, 20), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(60, 240), t: 0, life: rand(1.2, 2.8), g: .35 }); } // glowing embers that drift down
   for (let k = 0; k < Math.round(18 * fx); k++) { const a = rand(0, TAU), sp = rand(30, 140); smoke.push({ x: x + rand(-r * .4, r * .4), y: y + rand(-r * .4, r * .4), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: rand(16, 30), g: rand(20, 40), rot: rand(0, TAU), vr: rand(-.6, .6), t: -rand(.05, .5), life: rand(2.8, 4.5), v: k % 4, a: rand(.85, 1) }); } // the cloud, rising behind the fire
   for (let k = 0; k < Math.round(16 * fx); k++) { const a = k / 16 * TAU + rand(-.2, .2), sp = rand(220, 330); smoke.push({ x: x + Math.cos(a) * r * .7, y: y + Math.sin(a) * r * .7, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: rand(10, 16), g: rand(14, 26), rot: rand(0, TAU), vr: rand(-.6, .6), t: 0, life: rand(1.2, 2), v: k % 4, a: rand(.5, .75) }); } // a skirt of dust racing out along the ground
-  for (let k = 0; k < (mini ? randi(0, 1) : randi(4, 6)); k++) { const a = rand(0, TAU), sp = rand(200, 420), sz = rand(7, 11); if (clods.length > 70) clods.shift(); // burning wreckage arcing out, trailing smoke, still alight where it lands
+  for (let k = 0; k < (mini ? randi(0, 1) : n(randi(4, 6))); k++) { const a = rand(0, TAU), sp = rand(200, 420), sz = rand(7, 11); if (clods.length > 50) clods.shift(); // burning wreckage arcing out, trailing smoke, still alight where it lands
     clods.push({ x: x + rand(-6, 6), y: y + rand(-6, 6), z: 4, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(380, 600), rot: rand(0, TAU), vr: rand(-12, 12), sz, spr: clodSprite(x, y, sz, '#2a1d14'), t: 0, life: rand(6, 9), rest: false, soil: '#2a1d14', burn: true, ph: rand(0, 99) }); }
   const mf = Math.pow(clamp(1 - near / 600, 0, 1), 1.4) * SKV.dazeCut(); if (mf > AIR.muf) { AIR.muf = mf; AIR.mufH = .5 + 1.6 * mf; } // the further off, the less it deafens you
   const kk = clamp(1 - near / 380, .2, 1);
@@ -759,12 +762,12 @@ function clodSprite(gx, gy, sz, soil) { // a ragged piece of the floor at (gx, g
   if (grassAt(gx, gy) && !(snowAt(gx, gy) > .3)) { const gc = grassColAt(gx, gy); x.lineCap = 'round'; for (let k = 0; k < randi(4, 8); k++) { const [px, py] = pts[randi(0, n - 1)], mx = S / 2 + (px - S / 2) * rand(.2, .8), my = S / 2 + (py - S / 2) * rand(.2, .8), a = rand(0, TAU), l = rand(1.5, 3.5); x.strokeStyle = `rgb(${gc[0] * rand(.8, 1.15) | 0},${gc[1] * rand(.85, 1.15) | 0},${gc[2] * .8 | 0})`; x.lineWidth = rand(.6, 1); x.beginPath(); x.moveTo(mx, my); x.lineTo(mx + Math.cos(a) * l, my + Math.sin(a) * l); x.stroke(); } } // tufts of grass still on it
   return c;
 }
-function throwClods(x, y, r, q = 1) { // q: fewer, smaller ones (a bomblet)
-  const n = Math.round(clamp(22 * FX_K(), 8, 30) * q), soil = soilCol(x, y);
+function throwClods(x, y, r, q = 1, nk = 1) { // q: fewer, smaller ones (a bomblet); nk: just fewer (several blasts at once)
+  const n = Math.round(clamp(22 * FX_K(), 8, 30) * q * nk), soil = soilCol(x, y);
   for (let k = 0; k < n; k++) {
     const a = rand(0, TAU), d = rand(0, r * .7), gx = clamp(x + Math.cos(a) * d, 4, W - 4), gy = clamp(y + Math.sin(a) * d, 4, H - 4), sz = rand(6, 13) * (Math.random() < .25 ? 1.6 : 1) * (q < 1 ? .55 : 1);
     const out = rand(.4, 1), sp = rand(90, 340) * out, up = rand(240, 520) * (1.25 - out * .45); // the middle goes up, the edges go out
-    if (clods.length > 70) clods.shift();
+    if (clods.length > 50) clods.shift();
     clods.push({ x: gx, y: gy, z: 2, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: up, rot: rand(0, TAU), vr: rand(-14, 14), sz, spr: clodSprite(gx, gy, sz, soil), t: 0, life: rand(7, 12), rest: false, soil });
   }
 }
@@ -772,7 +775,7 @@ function updateClods(dt) {
   for (let i = clods.length - 1; i >= 0; i--) {
     const c = clods[i]; c.t += dt; if (c.t > c.life) { clods.splice(i, 1); continue; }
     if (c.rest) continue;
-    if (c.burn && Math.random() < dt * 22) smoke.push({ x: c.x, y: c.y - c.z * .3, vx: rand(-10, 10), vy: rand(-10, 10), r: rand(4, 7), g: rand(10, 18), rot: rand(0, TAU), vr: rand(-.6, .6), t: 0, life: rand(.7, 1.3), v: randi(0, 3), a: rand(.4, .6) }); // a trail of smoke behind it
+    if (c.burn && smoke.length < 110 && Math.random() < dt * (smoke.length > 60 ? 7 : 20)) smoke.push({ x: c.x, y: c.y - c.z * .3, vx: rand(-10, 10), vy: rand(-10, 10), r: rand(4, 7), g: rand(10, 18), rot: rand(0, TAU), vr: rand(-.6, .6), t: 0, life: rand(.7, 1.3), v: randi(0, 3), a: rand(.4, .6) }); // a trail of smoke behind it
     c.vz -= 560 * dt; c.z += c.vz * dt; c.rot += c.vr * dt;
     const nx = c.x + c.vx * dt, ny = c.y + c.vy * dt; if (c.z < 20 && solid(nx, ny)) { c.vx *= -.35; c.vy *= -.35; } else { c.x = nx; c.y = ny; }
     if (c.z <= 0) { // lands: a thud of dirt, a bounce or two, then it stays
@@ -821,9 +824,9 @@ function drawAirstrikes(x) { // drawn under the fog (so markers in it stay hidde
   if (firePatches.length || netSnakes().some(s => (s.burnK || 0) > .02)) { x.save(); x.globalCompositeOperation = 'lighter'; drawFireFlames(x); drawSnakeFlames(x); x.restore(); } // flames on the ground and on anyone burning
   if (booms.length || boomBits.length || fires.length || soots.length || tracers.length || clods.length) {
     x.save(); x.globalCompositeOperation = 'lighter';
-    for (const p of soots) if (p.t >= 0 && p.t < .9) { const k = (1 - p.t / .9) ** 2 * p.a, g = x.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * .9); g.addColorStop(0, `rgba(255,140,40,${(k * .55).toFixed(3)})`); g.addColorStop(1, 'rgba(255,90,20,0)'); x.fillStyle = g; circ(x, p.x, p.y, p.r * .9); } // the fire inside the smoke
+    for (const p of soots) if (p.t >= 0 && p.t < .9) { const k = (1 - p.t / .9) ** 2 * p.a; x.globalAlpha = k * .55; x.drawImage(GLOW.soot(), p.x - p.r * .9, p.y - p.r * .9, p.r * 1.8, p.r * 1.8); } x.globalAlpha = 1; // the fire inside the smoke
     for (const f of fires) drawFire(x, f);
-    for (const c of clods) if (c.burn) { const fl = .7 + .3 * Math.sin(T * 31 + c.ph), py = c.y - c.z * .3, rr = (c.sz * .9 + 4) * (1 + c.z * .006), g = x.createRadialGradient(c.x, py, 0, c.x, py, rr); g.addColorStop(0, `rgba(255,230,140,${.9 * fl})`); g.addColorStop(.45, `rgba(255,120,30,${.6 * fl})`); g.addColorStop(1, 'rgba(200,40,0,0)'); x.fillStyle = g; circ(x, c.x, py, rr); } // wreckage still on fire
+    for (const c of clods) if (c.burn) { const fl = .7 + .3 * Math.sin(T * 31 + c.ph), py = c.y - c.z * .3, rr = (c.sz * .9 + 4) * (1 + c.z * .006); x.globalAlpha = fl; x.drawImage(GLOW.wreck(), c.x - rr, py - rr, rr * 2, rr * 2); } x.globalAlpha = 1; // wreckage still on fire
     for (const r of tracers) { const k = 1 - r.t / r.life;
       if (r.f && r.a !== undefined && KSPR.ok) { x.globalAlpha = k; kDraw(x, 'muzzle_0' + r.m, [255, 222, 150], r.x + Math.cos(r.a) * 9, r.y + Math.sin(r.a) * 9, 14, 24, r.a + Math.PI / 2, 64); kDraw(x, 'flare_01', '#fff3d0', r.x, r.y, 30, 30, 0, 64); x.globalAlpha = 1; continue; } // the round going off: a spray of flame the way it was going
       if (r.f) { const g = x.createRadialGradient(r.x, r.y, 0, r.x, r.y, 8); g.addColorStop(0, `rgba(255,245,200,${k})`); g.addColorStop(1, 'rgba(255,160,60,0)'); x.fillStyle = g; circ(x, r.x, r.y, 8); continue; }
@@ -866,6 +869,10 @@ function drawAirFog(x) {
   for (const r of tracers) if (r.f) { const hid = 1 - playerSees(r.x, r.y); if (hid < .05) continue; const k = (1 - r.t / r.life) * hid, g = x.createRadialGradient(r.x, r.y, 0, r.x, r.y, 22); g.addColorStop(0, `rgba(255,220,150,${(.4 * k).toFixed(3)})`); g.addColorStop(1, 'rgba(255,140,50,0)'); x.fillStyle = g; circ(x, r.x, r.y, 22); } // muzzle-bright rounds landing, as flickers in the murk
   x.restore();
 }
+const GLOW = (() => { // soft round glows, each drawn once and stamped: a new gradient for every glowing thing every frame added up to hundreds a frame after a few blasts
+  const mk = stops => { let c = null; return () => { if (c) return c; c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); for (const [o, col] of stops) gr.addColorStop(o, col); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return c; }; };
+  return { soot: mk([[0, 'rgba(255,140,40,1)'], [1, 'rgba(255,90,20,0)']]), wreck: mk([[0, 'rgba(255,230,140,.9)'], [.45, 'rgba(255,120,30,.6)'], [1, 'rgba(200,40,0,0)']]), fire: mk([[0, 'rgba(255,150,50,1)'], [1, 'rgba(160,30,0,0)']]) };
+})();
 function drawSoot(x, p) {
   if (p.t < 0) return;
   const k = p.t / p.life, al = p.a * Math.min(1, p.t * 5) * (1 - k) ** 1.2;
@@ -877,7 +884,7 @@ function drawFire(x, f) { // a patch of ground still burning in the crater: flic
   const T = animT('fire'); // (this animation's own clock: Animation editor)
   const a = clamp(Math.min(f.t * 4, (f.life - f.t) / 1.2), 0, 1) * (.75 + .25 * Math.sin(T * 23 + f.ph));
   if (KSPR.ok) {
-    const g = x.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.r * 1.3); g.addColorStop(0, `rgba(255,150,50,${(a * .55).toFixed(3)})`); g.addColorStop(1, 'rgba(160,30,0,0)'); x.fillStyle = g; circ(x, f.x, f.y, f.r * 1.3);
+    x.globalAlpha = a * .55; x.drawImage(GLOW.fire(), f.x - f.r * 1.3, f.y - f.r * 1.3, f.r * 2.6, f.r * 2.6); x.globalAlpha = 1;
     for (let k = 0; k < 3; k++) { const fl = Math.sin(T * (13 + k * 5) + f.ph + k * 2), rr = f.r * [3.6, 2.6, 1.7][k] * (.88 + .12 * fl); x.globalAlpha = a * [.9, .8, 1][k]; // wisps of flame, the fire in them, a hot heart
       kDraw(x, k ? (k > 1 ? 'fire_02' : 'fire_01') : 'flame_0' + (1 + (f.ph * 7 | 0) % 4), [[255, 110, 30], [255, 160, 60], [255, 232, 150]][k], f.x + Math.sin(T * 7 + f.ph + k) * 1.5, f.y - k * f.r * .25, rr, rr, (k & 1 ? -1 : 1) * T * (1.2 + k * .5) + f.ph, 64, k ? 1 : 3); }
     x.globalAlpha = 1; return;
@@ -986,29 +993,35 @@ function drawBoom(x, b) {
    pushed outward, just inside it is pulled in), with a faint bright edge. Simplified effects turns the warp off. ---- */
 function drawShockwaves(x, src) { // src: the canvas being drawn (it already holds everything under the ring)
   if ((!shocks.length && !hazes.length) || SETTINGS.simpleFx) return;
-  const m = x.getTransform();
-  for (const h of hazes) { // heat over the crater: the picture wobbles in thin strips while it burns
-    const a = clamp(Math.min(h.t * 3, (h.life - h.t) / 1.5), 0, 1); if (a < .05) continue;
-    const gr = grabScene(m.transformPoint({ x: h.x - h.r, y: h.y - h.r * 1.4 }), m.transformPoint({ x: h.x + h.r, y: h.y + h.r * .6 }), src); if (!gr) continue;
-    const n = 12, sh = gr.sh / n;
-    x.save(); x.beginPath(); x.ellipse(h.x, h.y - h.r * .4, h.r, h.r, 0, 0, TAU); x.clip(); x.setTransform(1, 0, 0, 1, 0, 0);
-    for (let i = 0; i < n; i++) { const o = Math.sin(T * 9 + i * 1.3 + h.x) * 1.6 * a * DPR; x.drawImage(grabC, 0, i * sh, gr.sw, sh + 1, gr.sx + o, gr.sy + i * sh, gr.sw, sh + 1); }
-    x.restore();
-  }
-  for (const w of shocks) {
-    const u = w.t / w.dur, e = 1 - (1 - u) ** 2.2, rr = w.R * (.08 + .92 * e), band = 10 + 22 * (1 - u), amp = .11 * (1 - u) ** 1.4;
-    if (amp < .004) continue;
-    const out = rr + band, inn = Math.max(0, rr - band);
-    const gr = grabScene(m.transformPoint({ x: w.x - out - 4, y: w.y - out - 4 }), m.transformPoint({ x: w.x + out + 4, y: w.y + out + 4 }), src); if (!gr) continue;
-    const C = m.transformPoint({ x: w.x, y: w.y });
-    const mo = rr + band * .5, mi = Math.max(0, rr - band * .5);
-    for (const [r0, r1, k] of [[mo, out, 1 + amp * .45], [rr, mo, 1 + amp], [mi, rr, 1 - amp * .7], [inn, mi, 1 - amp * .3]]) { // graded, so the lens has soft edges
-      x.save(); x.beginPath(); x.arc(w.x, w.y, r1, 0, TAU); if (r0 > 0) x.arc(w.x, w.y, r0, 0, TAU, true); x.clip();
-      x.setTransform(1, 0, 0, 1, 0, 0);
-      x.drawImage(grabC, 0, 0, gr.sw, gr.sh, C.x + (gr.sx - C.x) * k, C.y + (gr.sy - C.y) * k, gr.sw * k, gr.sh * k);
+  const m = x.getTransform(), hA = h => clamp(Math.min(h.t * 3, (h.life - h.t) / 1.5), 0, 1), amp = w => .11 * (1 - w.t / w.dur) ** 1.4;
+  // only a few bend the picture at once (heat over the three newest craters, the three freshest blast fronts; the rest just show their ring),
+  // and all of them read one copy of the picture, taken once a frame round them all: copying the screen is the expensive part, not the bending
+  const hz = hazes.filter(h => hA(h) >= .05).slice(-3), sk = shocks.filter(w => amp(w) >= .004).sort((a, b) => a.t / a.dur - b.t / b.dur).slice(0, 3);
+  const geo = sk.map(w => { const u = w.t / w.dur, e = 1 - (1 - u) ** 2.2, rr = w.R * (.08 + .92 * e), band = 10 + 22 * (1 - u); return { w, rr, out: rr + band, inn: Math.max(0, rr - band), k: amp(w) }; });
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; const add = (ax, ay, bx, by) => { x0 = Math.min(x0, ax); y0 = Math.min(y0, ay); x1 = Math.max(x1, bx); y1 = Math.max(y1, by); };
+  for (const h of hz) add(h.x - h.r, h.y - h.r * 1.4, h.x + h.r, h.y + h.r * .6);
+  for (const g of geo) add(g.w.x - g.out - 4, g.w.y - g.out - 4, g.w.x + g.out + 4, g.w.y + g.out + 4);
+  const gr = x1 > x0 ? grabScene(m.transformPoint({ x: x0, y: y0 }), m.transformPoint({ x: x1, y: y1 }), src) : null;
+  if (gr) {
+    for (const h of hz) { // heat over the crater: the picture wobbles in thin strips while it burns
+      const a = hA(h), A = m.transformPoint({ x: h.x - h.r, y: h.y - h.r * 1.4 }), B = m.transformPoint({ x: h.x + h.r, y: h.y + h.r * .6 }), sw = B.x - A.x, n = 6, sh = (B.y - A.y) / n, lx = A.x - gr.sx, ly = A.y - gr.sy;
+      if (sw <= 0 || sh <= 0) continue;
+      x.save(); x.beginPath(); x.ellipse(h.x, h.y - h.r * .4, h.r, h.r, 0, 0, TAU); x.clip(); x.setTransform(1, 0, 0, 1, 0, 0);
+      for (let i = 0; i < n; i++) { const o = Math.sin(T * 9 + i * 2.1 + h.x) * 1.6 * a * DPR; x.drawImage(grabC, lx, ly + i * sh, sw, sh + 1, A.x + o, A.y + i * sh, sw, sh + 1); }
       x.restore();
     }
-    const ring = rr + band * .3; x.save(); x.globalCompositeOperation = 'lighter'; x.globalAlpha = .32 * (1 - u); // the ring itself: Kenney's ring sprite, warm white, or a thin stroke before the atlas loads
+    for (const { w, rr, out, inn, k } of geo) { // the blast front: pushed out just outside the ring, pulled in just inside it
+      const C = m.transformPoint({ x: w.x, y: w.y });
+      for (const [r0, r1, s] of [[rr, out, 1 + k * .7], [inn, rr, 1 - k * .5]]) {
+        x.save(); x.beginPath(); x.arc(w.x, w.y, r1, 0, TAU); if (r0 > 0) x.arc(w.x, w.y, r0, 0, TAU, true); x.clip();
+        x.setTransform(1, 0, 0, 1, 0, 0); x.drawImage(grabC, 0, 0, gr.sw, gr.sh, C.x + (gr.sx - C.x) * s, C.y + (gr.sy - C.y) * s, gr.sw * s, gr.sh * s);
+        x.restore();
+      }
+    }
+  }
+  for (const { w } of geo) { // the rings of the same few: Kenney's ring sprite, warm white, or a thin stroke before the atlas loads (each is a big additive quad: six at once was most of a frame)
+    const u = w.t / w.dur;
+    const ring = w.R * (.08 + .92 * (1 - (1 - u) ** 2.2)) + (10 + 22 * (1 - u)) * .3; x.save(); x.globalCompositeOperation = 'lighter'; x.globalAlpha = .32 * (1 - u);
     if (!kDraw(x, 'circle_02', '#fff2dc', w.x, w.y, ring * 2.3, ring * 2.3, 0)) { x.globalAlpha = 1; x.strokeStyle = `rgba(255,250,235,${(.35 * (1 - u)).toFixed(3)})`; x.lineWidth = 1.5; x.beginPath(); x.arc(w.x, w.y, ring, 0, TAU); x.stroke(); }
     x.restore();
   }
