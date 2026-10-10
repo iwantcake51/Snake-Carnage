@@ -25,8 +25,13 @@ function groundTexReady() { // every image is in: menu pictures already drawn wi
   GTEX.ok = true;
   if (typeof thumbCache === 'undefined') return;
   for (const m of MAPS) { thumbCache.delete(thumbKey(m)); artCache.delete(thumbKey(m)); } // (trails and yards are on most outdoor maps)
-  thumbs = null;
   if (state === 'menu' && MAPS[mapIdx]) menuBackdrop(mapIdx);
+  if (!thumbs) return; let i = 0; // the map browser's pictures, redrawn one at a time in the background (never emptied: the browser reads them at any moment)
+  const step = () => { if (!thumbs || i >= Math.min(MAPS.length, thumbs.length)) return; const m = MAPS[i], key = thumbKey(m);
+    if (!thumbCache.has(key)) thumbCache.set(key, mapThumb(m)); thumbs[i] = thumbCache.get(key);
+    const img = document.querySelector(`.mbr-t[data-map="${i}"] img`); if (img) img.src = thumbs[i];
+    i++; setTimeout(step, 40); };
+  setTimeout(step, 40);
 }
 function gtexPat(x, name, r, sc) { // a pattern of one texture at a random angle and offset (and size sc)
   const p = x.createPattern(GTEX.img[name], 'repeat'), a = r() * Math.PI * 2, c = Math.cos(a) * sc, s = Math.sin(a) * sc;
