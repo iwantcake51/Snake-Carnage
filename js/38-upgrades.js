@@ -64,7 +64,7 @@ const SKILL_TREE = [
     desc: 'The 3rd Eye sees further and Focus lasts longer.', fx: [['Sense range', g => SKV.eyeRange(g) * 100 - 100, pct], ['Focus', g => SKV.focusDur(g), secs]] },
   { id: 'gold', br: 'surv', major: 1, name: 'Gold Sense', icon: 'gold', cost: [2], req: [['keen', 1]], x: 110, y: 420,
     desc: 'The 3rd Eye also finds golden targets and who can see you.', fx: [['Focus cooldown', g => SKV.focusCd(g), secs]] },
-  { id: 'crowd', br: 'surv', major: 1, name: 'Crowd Sense', icon: 'crowd', cost: [2], req: [['keen', 1]], x: 270, y: 400,
+  { id: 'crowd', br: 'surv', major: 1, name: 'Crowd Control', icon: 'crowd', cost: [2], req: [['keen', 1]], x: 270, y: 400,
     desc: 'The 3rd Eye also leads you to big crowds.', fx: [['Focus cooldown', g => SKV.focusCd(g), secs]] },
   // ---- Survival, stealth: Camouflage ----
   { id: 'camo', br: 'surv', major: 1, abil: 1, name: 'Camouflage', icon: 'camo', cost: [2], req: [], x: 400, y: 780,
