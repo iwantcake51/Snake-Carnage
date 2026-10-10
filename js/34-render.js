@@ -185,6 +185,7 @@ function bakeBlurBg() { // blur the frozen frame into its own pixels once, so th
 }
 function frame(now) {
   const hbOff = !['play', 'ready', 'intro', 'held'].includes(state); if (bar.hidden !== hbOff) bar.hidden = hbOff; // the in-run stats are for the run itself (they sit above the menus' layer, so they step aside for pause, the summary and every menu)
+  if (bdHud.on && hbOff !== !!bdHud.off) { bdHud.off = hbOff; const be = document.getElementById('bdebt'); if (be) be.hidden = hbOff; } // Blood Debt's pill goes with them
   const cap = +SETTINGS.fpsCap; // VSync -> NaN: draw every refresh
   if (cap && now - last < 1000 / cap - 2) { requestAnimationFrame(frame); return; }
   const raw = now - last; if (raw < 200) frameMs += (raw - frameMs) * .03;

@@ -325,7 +325,9 @@ function eatReward(c, amount, ang) {
   const lifeK = 1 + .6 * Math.min(1, (s.lifeT || 0) / 600), cbK = 1 + Math.min(.3, Math.max(0, combo.n - 1) * .02); // the longer you've lived, the more each kill teaches you (up to +60% at ten minutes); a big combo pays a little more XP and chips (+2% a step, up to +30%)
   const kxp = Math.round((c.def.human ? 12 : c.def.score * 4) * gold * rewardMult * mb.m * ph * fk * lifeK * cbK);
   crEat(c, pts, kxp); statEat(c); progressEat(c);
-  gainXP(kxp, Math.max(1, Math.round(c.def.score * .6 * gold * rewardMult * mb.m * fk * cbK)) * (lucky ? 2 : 1));
+  const bx = Math.round((c.def.human ? 12 : c.def.score * 4) * gold * rewardMult * mb.m * lifeK * cbK), bc = Math.max(1, Math.round(c.def.score * .6 * gold * rewardMult * mb.m * cbK)); // the meal's own reward, before any perk (Blood Debt doubles only this)
+  const paid = gainXP(kxp, Math.max(1, Math.round(c.def.score * .6 * gold * rewardMult * mb.m * fk * cbK)) * (lucky ? 2 : 1));
+  bdMeal(bx, bc, paid); // Blood Debt: after the ordinary pay, never before it (38-upgrades)
   if (lucky) notify({ kind: 'info', icon: '◆', title: 'Lucky bite', right: 'x2 chips', dur: 1.3, key: 'lucky' });
   lustRefund(); // Bloodlust: every kill takes a little off the abilities still recharging
   studyHit(c.golden ? 'golden' : c.def.human ? 'person' : 'animal'); if (combo.n >= 10) studyHit('combo'); // Quick Study

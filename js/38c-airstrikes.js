@@ -304,7 +304,7 @@ function airTick(dt) {
   }
   AIR.flash *= Math.exp(-dt * 9); AIR.sky *= Math.exp(-dt * 2.1);
   if (AIR.rumble > .02) { shake = Math.max(shake, 9 * AIR.rumble); AIR.rumble *= Math.exp(-dt * 2); } else AIR.rumble = 0; // the ground keeps trembling a moment after a close one
-  updateCorpses(dt); updateHats(dt); updateTailBits(dt); stumpTick(dt); fireTick(dt);
+  updateCorpses(dt); updateHats(dt); updateTailBits(dt); stumpTick(dt); fireTick(dt); bdTick();
 }
 const BLAST_FRAGILE = new Set([...RAM_SMALL, ...RAM_LARGE.filter(k => k !== 'tree'), 'detail']), BLAST_HEAVY = new Set(['tree', 'rock', 'car', 'bwall']);
 function blastBreak(x, y, R, heavy) { // every screen runs the same blast, so every screen breaks the same things
@@ -431,6 +431,7 @@ function tailCut(s, i, gone) { // everything from piece i back is blown off and 
   if (NETM.run) { const m = { t: 'tcut', id, b: bits, s: piece.flatMap(g => [Math.round(g.x), Math.round(g.y)]), c: P, c2: Q, sc: +(s.scale || 1).toFixed(2), by: NETM.me }; if (NETM.host) netEmit(m); else netSend(m); } // everyone sees it burst, and anyone can eat the pieces
   s.len = i; s.lenV = Math.min(s.lenV ?? i, i); if (s.stains.length > i) s.stains.length = i; computeSegs(s);
   s.cutT = .4; s.stump = { t: 0, next: 0, seed: rand(1, 99), len0: s.len };
+  if (s === snake && lost > 0) bdHurt('hit'); // Blood Debt: a real piece of you gone
   const n = s.segs.length, gore = ['#a50d16', '#7c0710', '#c8161e', '#5e050b'], k0 = s.scale || 1;
   for (let k = Math.max(0, n - 5); k < n; k++) { const g = s.segs[k], rr = segR(k, n), m = k === n - 1 ? 6 : k === n - 2 ? 3 : 1; // soaked toward the wound (marked, so they wash off when it grows back)
     for (let q = 0; q < m; q++) { const px = g.x + rand(-7, 7), py = g.y + rand(-7, 7); addStain(s.stains[k], { a: Math.atan2(py - g.y, px - g.x) - g.a, d: Math.min(Math.hypot(px - g.x, py - g.y), rr - 1) / k0, r: rand(1, 2.2) / k0, c: pick(gore), e: rand(1, 1.8), gore: 1 }, 30); } }
@@ -480,7 +481,7 @@ function updateTailBits(dt) {
     b.rot += b.vr * dt;
   }
 }
-function eatTailBits(s) { // run over them to swallow them back (yours or anyone's)
+function eatTailBits(s) { // run over them to swallow them back (yours or anyone's): length only, never a meal (no XP or chips, and Blood Debt never counts them: not spent, not paid, not eating earnings)
   if (!tailBits.length) return; let ate = 0, ex = 0, ey = 0, own = 0, P = null; const R = snakeRadius() * 1.6, me = (NETM.run ? NETM.me : 'me') + ':';
   for (let i = tailBits.length - 1; i >= 0; i--) { const b = tailBits[i]; if (b.z > 14) continue;
     if (dist2(b.x, b.y, s.x, s.y) < (R + b.s) ** 2) { s.gibFood = (s.gibFood || 0) + b.food; ex = b.x; ey = b.y; P = b.P; if (String(b.id).startsWith(me)) own++; tailBits.splice(i, 1); ate++;

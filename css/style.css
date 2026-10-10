@@ -749,6 +749,14 @@ body.theme-gold .play,body.theme-toxic .play{color:#1b1406}
 #abil .ab{position:relative;width:40px;height:40px;border-radius:11px;display:grid;place-items:center;color:#ffd9d4;background:rgba(20,14,16,.78);border:1px solid rgba(255,255,255,.1);overflow:hidden}
 #abil .ab .cd,#touch .ab .cd{position:absolute;inset:0;background:conic-gradient(rgba(0,0,0,.62) var(--cd,0deg),transparent 0);pointer-events:none}
 #abil .ab.ready{border-color:color-mix(in srgb,var(--acc-hi) 55%,transparent);box-shadow:0 0 10px color-mix(in srgb,var(--acc-hi) 25%,transparent)}
+/* Blood Debt: a small dark-red pill above the ability bar while meals are owed (38-upgrades bdHud) */
+#bdebt{position:absolute;left:50%;bottom:62px;translate:-50% 0;display:none;align-items:center;gap:7px;padding:4px 11px 4px 8px;border-radius:999px;background:linear-gradient(90deg,rgba(40,8,12,.88),rgba(70,12,18,.88));border:1px solid rgba(214,52,62,.55);color:#ffd6d6;font:600 11.5px var(--f-body);letter-spacing:.08em;pointer-events:auto;box-shadow:0 0 12px rgba(160,20,30,.25)}
+#bdebt.on{display:flex}#bdebt[hidden]{display:none}
+#bdebt .bdi{width:15px;height:15px;color:#e0505a}#bdebt b{font-weight:700;color:#ff8a8f}#bdebt span{font:700 12.5px var(--f-num);letter-spacing:0;color:#fff}
+#bdebt .bdp{display:flex;gap:3px;margin-left:2px}#bdebt .bdp em{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.18)}#bdebt .bdp em.on{background:#e0505a}
+#bdebt.tick span{animation:bdTick .35s var(--spring)}@keyframes bdTick{0%{scale:1.35;color:#ff8a8f}}
+.rw.bd{padding:4px 11px;gap:8px;font-size:12px;background:linear-gradient(90deg,rgba(40,8,12,.86),rgba(76,14,20,.86));border-color:rgba(214,52,62,.5);opacity:.92}.rw.bd .t{font:600 10.5px var(--f-body);letter-spacing:.1em;text-transform:uppercase;color:#ff8a8f}
+body.calm #bdebt.tick span{animation:none}
 #abil .ab kbd{position:absolute;right:2px;bottom:1px;font:800 9px "Segoe UI",system-ui,sans-serif;color:#d8cfc7}
 #abil:empty{display:none}
 #stage.bars #abil{opacity:0}

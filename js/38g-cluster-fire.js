@@ -111,7 +111,7 @@ function drawFireFlames(x) { // (additive) flames standing on each patch
 }
 
 /* ---- the snake on fire ---- */
-function burnClear(s) { if (!s) return; s.burnT = 0; s.burnK = 0; s.burnTick = 0; s.inFire = false; }
+function burnClear(s) { if (!s) return; s.burnT = 0; s.burnK = 0; s.burnTick = 0; s.inFire = false; s.burnHit = false; }
 function touchingFire(s) { // any part of the body inside a burning patch
   if (!firePatches.length || !s.segs) return false; const R = snakeRadius() * .75;
   for (const p of firePatches) { if (p.t < 0 || patchK(p) < .15) continue; const rr = (p.r * .92 + R) ** 2;
@@ -130,6 +130,7 @@ function burnTick(dt) { // this screen's own snake
   const target = touch ? 1 : s.burnT > 0 ? .45 + .4 * s.burnT / BURN.hold : 0; s.burnK = (s.burnK || 0) + (target - (s.burnK || 0)) * (1 - Math.exp(-dt * (target > (s.burnK || 0) ? 8 : 3)));
   if (s.burnK < .01 && !(s.burnT > 0)) s.burnK = 0;
   if (s.burnT > 0 && (s.burnTick -= dt) <= 0) { s.burnTick += BURN.tick; burnDamage(s); }
+  if (!(s.burnT > 0)) s.burnHit = false; // the fire's out: the next one is a new hit (Blood Debt)
 }
 function burnIgnite(s) {
   if (performance.now() - (burnIgnite.at || 0) > 6000) { burnIgnite.at = performance.now(); notify({ kind: 'bad', icon: giSvg('fire'), title: 'ON FIRE', sub: 'Get clear of the flames, or into water.', dur: 2.2, key: 'burn' }); }
@@ -146,6 +147,7 @@ function burnDamage(s) { // a piece of the tail burns off: charred bits and bloo
   burnBits(piece, P, Q);
   if (NETM.run) { const m = { t: 'brn', s: piece.flatMap(g => [Math.round(g.x), Math.round(g.y)]), c: P, c2: Q, by: NETM.me }; if (NETM.host) netEmit(m); else netSend(m); } // everyone sees it burn off
   s.len = keep; s.lenV = Math.min(s.lenV ?? keep, keep); if (s.stains.length > keep) s.stains.length = keep; computeSegs(s);
+  if (!s.burnHit) { s.burnHit = true; bdHurt('fire'); } // one fire, one hit: however many pieces it takes while it burns
   airHurt(.12); shake = Math.max(shake, 3); Sfx.gore(s.x, false); // (a faint red pulse: the orange edge glow is the main signal)
 }
 function burnBits(piece, P, Q) { // every screen: what a piece burning off looks like
