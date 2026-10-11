@@ -45,7 +45,7 @@
 (() => {
   try {
     const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'), img = x.createImageData(128, 128);
-    for (let i = 0; i < img.data.length; i += 4) { const v = Math.random() * 255 | 0; img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = 16; }
+    for (let i = 0; i < img.data.length; i += 4) { const v = 70 + Math.random() * 120 | 0; img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = 9; } // (faint: a paper tooth, never a speckle you notice)
     x.putImageData(img, 0, 0); document.documentElement.style.setProperty('--grain', `url(${c.toDataURL()})`);
   } catch (e) {}
 })();

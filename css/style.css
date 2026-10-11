@@ -3409,3 +3409,14 @@ body.compact .mm .rs-title h3{font-size:28px!important}
 .mm-foot .mm-ver:not(#_){display:inline-flex;align-items:center;gap:7px;min-height:36px;padding-bottom:0}
 .mm-ver i{font-style:normal;opacity:.6}
 .mm-ver em{font-style:normal;text-transform:none;letter-spacing:.02em}
+/* the main menu's buttons (Start game, Start run, Host a lobby...) are clean rectangles wherever they appear, multiplayer screens included */
+.mm-cta:not(#_),.rs-start:not(#_){rotate:0deg!important}
+:is(.mm-cta,.rs-start):not(#_)::before,:is(.mm-cta,.rs-start):not(#_)::after{clip-path:none!important;border-radius:3px!important}
+:is(.mm-cta,.rs-start):not(#_)::after{translate:4px 4px}
+:is(.mm-cta,.rs-start).prs:not(#_):not(#__){translate:3px 3px!important}
+#overlay :is(.mm-cta,.rs-start) .rip.slab:not(#_):not(#__){clip-path:none;border-radius:3px}
+/* keyboard focus on a slab: its face lights up (as on hover) and the printed shadow stays dark, never a white outline */
+:is(.mm-cta,.rs-start,#overlay .btn:not(.alt):not(#backBtn):not(#pMenuBtn),#overlay .play,#overlay #againBtn,#overlay #resBtn):focus-visible:not(#_):not(#__)::after{background:var(--hm-shadow)!important}
+:is(.mm-cta,.rs-start,#overlay .btn:not(.alt):not(#backBtn):not(#pMenuBtn),#overlay .play,#overlay #againBtn,#overlay #resBtn):focus-visible:not(#_):not(#__)::before{background:color-mix(in srgb,var(--acc) 84%,#fff)!important}
+/* the death screen's crawling grain: a faint film texture, not a static storm over the summary */
+#dFx .dGrain:not(#_){opacity:.16}
