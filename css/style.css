@@ -3420,3 +3420,19 @@ body.compact .mm .rs-title h3{font-size:28px!important}
 :is(.mm-cta,.rs-start,#overlay .btn:not(.alt):not(#backBtn):not(#pMenuBtn),#overlay .play,#overlay #againBtn,#overlay #resBtn):focus-visible:not(#_):not(#__)::before{background:color-mix(in srgb,var(--acc) 84%,#fff)!important}
 /* the death screen's crawling grain: a faint film texture, not a static storm over the summary */
 #dFx .dGrain:not(#_){opacity:.16}
+/* menu effects, soft: snow and embers are blurred discs (a radial falloff, no per-frame filter), and embers fade in, drift up and
+   fade out on the way instead of vanishing at the end of their loop */
+.mfx.snow i:not(#_){width:calc(11px * var(--z));height:calc(11px * var(--z));background:radial-gradient(circle,rgba(244,248,255,.85) 0,rgba(244,248,255,.55) 22%,rgba(244,248,255,.2) 46%,rgba(244,248,255,0) 70%)}
+.mfx.blizzard i.l0:not(#_){background:radial-gradient(circle,rgba(238,244,255,.85) 0,rgba(238,244,255,.5) 24%,rgba(238,244,255,.15) 48%,rgba(238,244,255,0) 70%)}
+.mfx.blizzard i.l1:not(#_){background:radial-gradient(circle,rgba(244,248,255,.9) 0,rgba(244,248,255,.6) 26%,rgba(244,248,255,.2) 50%,rgba(244,248,255,0) 70%)}
+.mfx.embers i:not(#_){width:calc(10px * var(--z));height:calc(10px * var(--z));box-shadow:none;opacity:0;
+  background:radial-gradient(circle,#ffd2a0 0 10%,rgba(255,138,61,.85) 26%,rgba(255,90,31,.3) 48%,rgba(255,90,31,0) 72%);animation:ember var(--s) ease-out infinite;animation-delay:var(--d)}
+@keyframes ember{0%{transform:translate(0,2vh) scale(1);opacity:0}10%{opacity:.85}35%{transform:translate(-14px,-24vh) scale(.92)}55%{opacity:.6}
+  70%{transform:translate(10px,-50vh) scale(.75)}100%{transform:translate(-22px,-72vh) scale(.5);opacity:0}}
+/* Blizzard's gusts of whiteout: one screen-wide tile repeated three times across a layer three screens wide, slid exactly one tile a loop,
+   so the end of a loop is the same picture as its start (no snap back); the slant is a fixed skew, the slide a compositor translate,
+   and it takes the menu's elapsed time (the container's animation-delay, menuFx) so a rebuilt menu carries on mid-gust */
+.mfx.blizzard:not(#_)::before{inset:-20% auto -20% -50%;width:300%;transform:skewX(-10deg);
+  background:linear-gradient(90deg,transparent 0 30%,rgba(230,238,255,.07) 42%,transparent 54%,transparent 64%,rgba(230,238,255,.05) 74%,transparent 86%) 0 0/33.3333% 100% repeat-x;
+  animation:blizGust2 9s linear infinite!important;animation-delay:inherit!important}
+@keyframes blizGust2{from{translate:0 0}to{translate:-33.3333% 0}}
