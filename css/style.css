@@ -2709,7 +2709,7 @@ i.tok{display:inline-block;width:.86em;height:.96em;vertical-align:-.1em;backgro
 .skn.maj .skico{top:48px}.skn.maj .skico svg{width:38px;height:38px}
 .skn.pas .skico{top:36px}.skn.pas .skico svg{width:28px;height:28px}
 /* a soft round fade at the edge of every skill icon: game-icons art often runs right to the edge of its square (Vortex is a whole square), so it would end in a hard cut-off */
-.skico svg,.sk-ic svg{-webkit-mask-image:radial-gradient(circle,#000 58%,rgba(0,0,0,.6) 66%,transparent 76%);mask-image:radial-gradient(circle,#000 58%,rgba(0,0,0,.6) 66%,transparent 76%)}
+.skico svg,.sk-ic svg,#abil .ab svg,#touch .ab svg{-webkit-mask-image:radial-gradient(circle,#000 58%,rgba(0,0,0,.6) 66%,transparent 76%);mask-image:radial-gradient(circle,#000 58%,rgba(0,0,0,.6) 66%,transparent 76%)} /* the icon fades out in a circle toward its edges: the skill tree's nodes, the ability bar and the touch buttons alike */
 .skl{display:flex;flex-direction:column;align-items:center;gap:2px;margin-top:1px;line-height:1.1;text-align:center;pointer-events:none}
 .skl{--lk:clamp(1,calc(.8 / var(--z,1)),1.12)} /* zoomed right out, the names stay readable (only a little bigger, so neighbours never run into each other) */
 .skl b{white-space:nowrap;font:700 calc(15.5px * var(--lk))/1.05 var(--f-head);letter-spacing:.04em;text-transform:uppercase;color:var(--dim);transition:color .3s}
