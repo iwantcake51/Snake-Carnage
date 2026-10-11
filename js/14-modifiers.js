@@ -3,7 +3,7 @@ const MODS = [ // g = group shown in the panel; not = can't be combined with
   { g: 'Conditions', id: 'noNVG', name: 'No night vision', desc: 'Night vision is unavailable, but kills in the dark pay 25% more.', mult: .15 },
   { g: 'Conditions', id: 'fog', name: 'Heavy fog', desc: 'You only see a small patch around you, and people can barely see you either.', mult: .25, not: ['fow'] },
   { g: 'Conditions', id: 'fow', name: 'Tunnel vision', desc: 'You only see a cone in front of you and a little around your head.', mult: .3, not: ['fog'] },
-  { g: 'Conditions', id: 'airRaid', name: 'Air raid', desc: 'Bombs and strafing runs from the first seconds of the run, not after a minute. Outdoor maps only.', mult: .3 },
+  { g: 'Conditions', id: 'airRaid', name: 'Shell Shock', desc: 'Bombs from 6 seconds in, not after a minute, and artillery from 15 seconds in. Outdoor maps only.', mult: .3 },
   { g: 'Conditions', id: 'lockOn', name: 'Locked on', desc: 'Air strikes stop guessing: every bomb is aimed right where you are heading and slides after you for a split second. Jets come over twice as fast and bombs fall far quicker. Outdoor maps only.', mult: .35, not: ['noAir'] },
   { g: 'Conditions', id: 'noAir', name: 'Clear skies', desc: 'No air strikes at all this run: no bombs, no strafing runs, no jets. Pays a little less.', mult: -.1, not: ['airRaid', 'lockOn'] },
   { g: 'Conditions', id: 'lightsOut', name: 'Lights out', desc: 'Every fixed light is off: streetlights, lamps, windows, ceiling lights. Flashlights still work.', mult: .1 },

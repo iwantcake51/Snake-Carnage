@@ -133,9 +133,14 @@ function homeHtml() {
       </nav>
     </div>
     ${profileHtml()}
-    <footer class="mm-foot"><span class="mm-ver">v${GAME_VERSION}</span>${ed ? `<button class="mm-q" id="edBtn" data-sfx="open">${kiSvg('wrench', 'mm-qi')}Map editor</button>` : ''}<span class="sp"></span>
+    <footer class="mm-foot"><span class="mm-ver"${buildDate() ? ` title="Built ${buildDate(true)}"` : ''}>v${GAME_VERSION}${buildDate() ? `<i>·</i><em>${buildDate()}</em>` : ''}</span>${ed ? `<button class="mm-q" id="edBtn" data-sfx="open">${kiSvg('wrench', 'mm-qi')}Map editor</button>` : ''}<span class="sp"></span>
       <button class="mm-mapcap" id="mapCap" data-sfx="open" aria-label="Selected map: ${attr(MAPS[mapIdx].name)}. Open the run setup"><small>Map</small><b data-mapname>${attr(MAPS[mapIdx].name)}</b></button></footer>
   </section>`;
+}
+function buildDate(full) { // when the live build was made ("Oct 11th"; full: with the year and time), from BUILD_TIME, which tools/bundle.mjs writes in; '' when unbundled
+  if (typeof BUILD_TIME !== 'number') return ''; const d = new Date(BUILD_TIME), n = d.getDate(), th = n % 100 > 10 && n % 100 < 14 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th';
+  const day = d.toLocaleDateString('en-US', { month: 'short' }) + ' ' + n + th;
+  return full ? `${day} ${d.getFullYear()}, ${d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : day;
 }
 const segHtml = (id, label, keys, cur, names, key) => `<div class="rs-seg" id="${id}" role="radiogroup" aria-label="${label}"><i class="sthumb"></i>${keys.map(k => `<button role="radio" aria-checked="${k === cur}" class="${k === cur ? 'on' : ''}" data-${key}="${k}" data-sfx="tab">${names ? names[k] : k}</button>`).join('')}</div>`;
 function setupHtml() {
@@ -271,8 +276,9 @@ function wireModLine(root) { // the run setup's chips: click one to take that mo
 function modLine(list, readOnly) { // active modifiers, visible before the run starts
   const ids = list || SETTINGS.mods || [];
   if (!ids.length) return '<span class="mchip dim">No modifiers</span>';
-  const mm = modMult(ids);
-  return ids.map(id => { const m = MODS.find(q => q.id === id) || {}; return `<span class="mchip" data-mod="${id}" data-tip="${attr(m.desc)}${readOnly || list ? '' : ' (click to remove)'}">${m.name}</span>`; }).join('') +
+  const set = new Set(ids), off = id => modBlockReason(id, set), mm = modMult(ids.filter(id => !off(id))); // one this map (or setup) can't use, e.g. Shell Shock indoors, stays picked for next time but is off here: crossed out, and it doesn't count toward the rewards
+  return ids.map(id => { const m = MODS.find(q => q.id === id) || {}, why = off(id); return why ? `<span class="mchip off" data-mod="${id}" data-tip="${attr(why)}${readOnly || list ? '' : ' (click to remove)'}"><s>${m.name}</s><em>off here</em></span>`
+    : `<span class="mchip" data-mod="${id}" data-tip="${attr(m.desc)}${readOnly || list ? '' : ' (click to remove)'}">${m.name}</span>`; }).join('') +
     (Math.abs(mm - 1) > .005 ? `<span class="mchip mult ${mm < 1 ? 'down' : ''}">Rewards x${mm.toFixed(2)}</span>` : ''); // no meaningless x1.00 chip
 }
 const SEASON_PICK = ['Random', 'Spring', 'Summer', 'Autumn', 'Winter'];
@@ -397,7 +403,7 @@ function mapPermChallenges() {
   return `<div class="pmwrap"><div class="pmmaps">${MAPS.map(m => `<button class="${m.name === chMap ? 'on' : ''}" data-cm="${attr(m.name)}" data-sfx="tab"><span>${m.name}</span><em>${pmDoneCount(m.name)}/${permChallenges(m.name).length}</em></button>`).join('')}</div>
     <div class="pmlist">${list.map((c, i) => { const when = (PROG.pmc[chMap] || {})[c.id], v = when ? c.n : Math.min(best[c.id] || 0, c.n), rw = TIERS[c.tier];
       return `<div class="pmc ${when ? 'done' : ''}" style="--i:${i}" ${when ? `data-tip="Completed ${fmtDate(when)}"` : ''}><em class="tier ${c.tier}">${rw.label}</em><b>${when ? `<i class="ck">${kiSvg('checkmark')}</i>` : ''}${c.name}</b><small>${c.t}</small>
-        <span class="axp">+${Math.round(rw.xp * 1.5)} XP · +${Math.round(rw.chips * 1.5)} chips</span><span class="pbar"><span style="width:${(v / c.n * 100).toFixed(0)}%"></span><i>${v}${c.unit || ''} / ${c.n}${c.unit || ''}${when ? '' : ' best'}</i></span></div>`; }).join('')}</div></div>`;
+        <span class="axp">+${Math.round(rw.xp * 1.5)} XP · +${chipShow(rw.chips * 1.5)} chips</span><span class="pbar"><span style="width:${(v / c.n * 100).toFixed(0)}%"></span><i>${v}${c.unit || ''} / ${c.n}${c.unit || ''}${when ? '' : ' best'}</i></span></div>`; }).join('')}</div></div>`;
 }
 function achPreview(cat, v, clear) { // rewards show as a real preview; early on (and rare ones) stay silhouetted
   return `<div class="prv ${clear ? '' : 'sil'}">${itemPreview(cat, v)}</div>`;
@@ -433,6 +439,7 @@ function selectMap(i) { // in place: the browser's frame, the name, the line abo
   const p = document.getElementById('rsArt'); if (p) p.src = artCache.get(thumbKey(m)) || thumbs[i];
   const info = overlay.querySelector('.rs-info'); if (info && !SETTINGS.reduceMotion) { info.classList.remove('swap'); void info.offsetWidth; info.classList.add('swap'); }
   seasonState();
+  const ml = document.getElementById('modline'); if (ml) { ml.innerHTML = modLine(); wireModLine(overlay); } // a modifier this map can't use (Shell Shock indoors) shows as off here
   const mc = document.getElementById('mapch'); if (mc) { mc.innerHTML = mapChallengesHtml(); mc.classList.remove('swap'); void mc.offsetWidth; mc.classList.add('swap'); }
   menuBackdrop(i);
 }
@@ -501,9 +508,7 @@ const SETTING_TABS = {
   Gameplay: { icon: 'gameplay', lead: 'How the world plays.', rows: [
     ['head', 'World'],
     ['slider', 'creatureSpeed', 'Creature speed', 'How fast people and animals move.', .3, 1.2, .05],
-    ['toggle', 'mouseSteer', 'Mouse steering', 'The snake heads for your cursor, at any angle. Left click lunges; drag with the right or middle button to look around. Holding a movement key takes over until you move the mouse again.'],
-    ['head', 'Time'],
-    ['seg', 'timeMode', 'Time of day', 'Dynamic starts at a random hour and the day moves on. The rest stay fixed.', ['Cycle', 'Day', 'Dawn', 'Dusk', 'Night'], null, null, null, TIME_MODES]] },
+    ['toggle', 'mouseSteer', 'Mouse steering', 'The snake heads for your cursor, at any angle. Left click lunges; drag with the right or middle button to look around. Holding a movement key takes over until you move the mouse again.']] }, // (time of day is picked in the run setup, not here)
   Display: { icon: 'display', lead: 'Screen size, interface and stats.', rows: [
     ['head', 'Screen'],
     ['toggle', 'fullscreen', 'Fullscreen', 'Use the whole screen.'],

@@ -25,94 +25,96 @@ const SK_BRANCH = { // (left to right on the screen)
 const pct = n => (n > 0 ? '+' : '') + Math.round(n) + '%', secs = n => (+n.toFixed(2)) + ' s', xk = n => (+n.toFixed(2)) + 'x', px = n => Math.round(n) + ' px';
 const SKILL_TREE = [
   // ---- Predator, movement: speed and the Lunge ----
-  { id: 'speed', br: 'pred', name: 'Speed Demon', icon: 'speed', cost: [1, 1, 2, 2, 3], req: [], x: 1085, y: 790,
+  { id: 'speed', br: 'pred', name: 'Speed Demon', icon: 'speed', cost: [1, 1, 2, 2, 3], req: [], x: 1490, y: 880,
     desc: '5% faster per rank.', fx: [['Speed', g => SKV.speed(g) * 100 - 100, pct]] },
-  { id: 'sidewind', br: 'pred', name: 'Sidewinder', icon: 'sidewind', cost: [1, 2, 3], req: [], x: 950, y: 770,
+  { id: 'sidewind', br: 'pred', name: 'Sidewinder', icon: 'sidewind', cost: [1, 2, 3], req: [], x: 1330, y: 880,
     desc: 'Turn quicker: tighter arcs, faster dodges, and sharper turns mid-lunge.', fx: [['Turn rate', g => SKV.turn(g) * 100 - 100, pct], ['Turning while lunging', g => SKV.turn(g) * SKV.lungeTurn(g) * 100 - 100, pct]] },
-  { id: 'dash', br: 'pred', major: 1, abil: 1, name: 'Lunge', icon: 'dash', cost: [2], req: [['speed', 1], ['sidewind', 1]], any: 1, x: 1015, y: 640,
+  { id: 'dash', br: 'pred', major: 1, abil: 1, name: 'Lunge', icon: 'dash', cost: [2], req: [['speed', 1], ['sidewind', 1]], any: 1, x: 1410, y: 720,
     desc: 'A quick burst of speed. Not while dazed.', fx: [['Burst', g => SKV.lungeK(g), xk], ['Lasts', g => SKV.lungeDur(g), secs], ['Cooldown', g => SKV.lungeCd(g), secs]] },
-  { id: 'stride', br: 'pred', name: 'Long Stride', icon: 'stride', cost: [1, 2, 3], req: [['dash', 1]], x: 1085, y: 490,
+  { id: 'stride', br: 'pred', name: 'Long Stride', icon: 'stride', cost: [1, 2, 3], req: [['dash', 1]], x: 1490, y: 560,
     desc: 'Longer, stronger lunges.', fx: [['Lasts', g => SKV.lungeDur(g), secs], ['Burst', g => SKV.lungeK(g), xk]] },
-  { id: 'pounce', br: 'pred', major: 1, name: 'Pounce', icon: 'pounce', cost: [4], lvl: 16, inv: 10, req: [['stride', 2]], x: 1070, y: 320,
+  { id: 'pounce', br: 'pred', major: 1, name: 'Pounce', icon: 'pounce', cost: [4], lvl: 16, inv: 10, req: [['stride', 2]], x: 1490, y: 400,
     desc: 'A harder, shorter lunge that recharges faster. Eating mid-lunge keeps it going.', fx: [['Burst', g => SKV.lungeK(g), xk], ['Cooldown', g => SKV.lungeCd(g), secs]] },
-  { id: 'spring', br: 'pred', name: 'Coiled Spring', icon: 'spring', cost: [1, 1, 2, 3], req: [['dash', 1]], x: 935, y: 505,
+  { id: 'spring', br: 'pred', name: 'Coiled Spring', icon: 'spring', cost: [1, 1, 2, 3], req: [['dash', 1]], x: 1330, y: 560,
     desc: 'Lunge recharges faster.', fx: [['Lunge cooldown', g => SKV.lungeCd(g), secs]] },
   // ---- Predator, hunting: the bite, Hoover Mouth and Hiss ----
-  { id: 'jaws', br: 'pred', name: 'Wide Jaws', icon: 'jaws', cost: [1, 2, 3], req: [], x: 1215, y: 780,
+  { id: 'jaws', br: 'pred', name: 'Wide Jaws', icon: 'jaws', cost: [1, 2, 3], req: [], x: 1760, y: 880,
     desc: 'Your bite reaches further.', fx: [['Bite reach', g => SKV.jaws(g) * 100 - 100, pct]] },
-  { id: 'lust', br: 'pred', major: 1, name: 'Bloodlust', icon: 'lust', cost: [3], req: [['jaws', 2]], x: 1180, y: 300,
+  { id: 'lust', br: 'pred', major: 1, name: 'Bloodlust', icon: 'lust', cost: [3], req: [['jaws', 2]], x: 1760, y: 720,
     desc: 'Every kill shaves a little time off your recharging abilities.', fx: [['Each kill takes off', g => SKV.lustBack(g), secs], ['At most, per use', g => g('lust') ? 50 : 0, n => n + '% of the cooldown']] },
-  { id: 'wind', br: 'pred', name: 'Second Wind', icon: 'wind', cost: [2, 3, 4], req: [['jaws', 1]], x: 1140, y: 690,
+  { id: 'wind', br: 'pred', name: 'Second Wind', icon: 'wind', cost: [2, 3, 4], req: [['jaws', 1]], x: 1610, y: 720,
     desc: 'Every target you eat takes a little time off abilities that are recharging.', fx: [['Each meal takes off', g => SKV.windBack(g), secs], ['At most, per use', g => g('wind') ? 25 : 0, n => n ? n + '% of the cooldown' : '—']] },
-  { id: 'hoover', br: 'pred', major: 1, abil: 1, name: 'Hoover Mouth', icon: 'hoover', cost: [2], req: [['jaws', 1]], x: 1255, y: 625,
+  { id: 'hoover', br: 'pred', major: 1, abil: 1, name: 'Hoover Mouth', icon: 'hoover', cost: [2], req: [['jaws', 1]], x: 1910, y: 720,
     desc: 'Suck in everything in front of you. Not through walls.', fx: [['Pull', g => SKV.hoovDur(g), secs], ['Strength', g => SKV.hoovPull(g), xk], ['Cone', g => SKV.hoovCone(g), n => Math.round(n) + '°'], ['Cooldown', g => SKV.hoovCd(g), secs]] },
-  { id: 'breath', br: 'pred', name: 'Deep Breath', icon: 'breath', cost: [1, 2, 3], req: [['hoover', 1]], x: 1275, y: 455,
+  { id: 'breath', br: 'pred', name: 'Deep Breath', icon: 'breath', cost: [1, 2, 3], req: [['hoover', 1]], x: 1910, y: 560,
     ranks: ['A longer pull: 1.8 s → 2.6 s', 'A stronger, wider pull', 'Recharges faster: 16 s → 12 s'],
     desc: 'A better Hoover Mouth: longer, then stronger, then quicker to recharge.', fx: [['Pull', g => SKV.hoovDur(g), secs], ['Strength', g => SKV.hoovPull(g), xk], ['Cone', g => SKV.hoovCone(g), n => Math.round(n) + '°'], ['Cooldown', g => SKV.hoovCd(g), secs]] },
-  { id: 'vortex', br: 'pred', major: 1, name: 'Vortex', icon: 'vortex', cost: [4], lvl: 18, inv: 10, req: [['breath', 2]], x: 1290, y: 285,
+  { id: 'vortex', br: 'pred', major: 1, name: 'Vortex', icon: 'vortex', cost: [4], lvl: 18, inv: 10, req: [['breath', 2]], x: 1910, y: 400,
     desc: 'A huge pull that drags in even people running away.', fx: [['Pull', g => SKV.hoovDur(g), secs], ['Strength', g => SKV.hoovPull(g), xk], ['Cone', g => SKV.hoovCone(g), n => Math.round(n) + '°'], ['Cooldown', g => SKV.hoovCd(g), secs]] },
-  { id: 'hiss', br: 'pred', major: 1, abil: 1, name: 'Hiss', icon: 'hiss', cost: [2], req: [], x: 1385, y: 745,
+  { id: 'hiss', br: 'pred', major: 1, abil: 1, name: 'Hiss', icon: 'hiss', cost: [2], req: [], x: 2060, y: 880,
     desc: 'Make everyone nearby panic and scatter.', fx: [['Radius', g => SKV.hissR(g), px], ['Cooldown', g => SKV.hissCd(g), secs]] },
-  { id: 'rattle', br: 'pred', name: 'Rattle', icon: 'rattle', cost: [1, 2, 3], req: [['hiss', 1]], x: 1420, y: 575,
+  { id: 'rattle', br: 'pred', name: 'Rattle', icon: 'rattle', cost: [1, 2, 3], req: [['hiss', 1]], x: 2060, y: 720,
     desc: 'A bigger hiss that slows and deafens people.', fx: [['Radius', g => SKV.hissR(g), px], ['Slowed for', g => SKV.hissSlow(g), secs], ['Half-deaf for', g => SKV.hissDeaf(g), secs]] },
-  { id: 'shock', br: 'pred', major: 1, name: 'Shockwave', icon: 'shock', cost: [4], lvl: 18, inv: 10, req: [['rattle', 2]], x: 1425, y: 395,
-    desc: 'Your hiss knocks people down and blows groups apart.', fx: [['Radius', g => SKV.hissR(g), px], ['Cooldown', g => SKV.hissCd(g), secs]] },
+  { id: 'shock', br: 'pred', major: 1, name: 'Shockwave', icon: 'shock', cost: [4], lvl: 18, inv: 10, req: [['rattle', 2]], x: 2060, y: 560,
+    desc: 'Your hiss stuns everyone it reaches: they freeze where they stand, then run. Longest up close.', fx: [['Radius', g => SKV.hissR(g), px], ['Stunned for', g => SKV.stunDur(g), n => n ? `${n} s close up, ${+(n / 2).toFixed(2)} s at the edge` : 'None'], ['Cooldown', g => SKV.hissCd(g), secs]] },
   // ---- Survival, awareness: the 3rd Eye ----
-  { id: 'scent', br: 'surv', major: 1, abil: 1, name: '3rd Eye', icon: 'scent', cost: [2], req: [], x: 215, y: 760,
+  { id: 'scent', br: 'surv', major: 1, abil: 1, name: '3rd Eye', icon: 'scent', cost: [2], req: [], x: 130, y: 880,
     desc: 'Shows paths to safety and food. Focus slows time for a moment (in multiplayer, it reveals people).', fx: [['Focus', g => SKV.focusDur(g), secs], ['Focus cooldown', g => SKV.focusCd(g), secs]] },
-  { id: 'keen', br: 'surv', name: 'Keen Eye', icon: 'keen', cost: [1, 2, 3], req: [['scent', 1]], x: 200, y: 590,
+  { id: 'keen', br: 'surv', name: 'Keen Eye', icon: 'keen', cost: [1, 2, 3], req: [['scent', 1]], x: 130, y: 720,
     desc: 'The 3rd Eye sees further and Focus lasts longer.', fx: [['Sense range', g => SKV.eyeRange(g) * 100 - 100, pct], ['Focus', g => SKV.focusDur(g), secs]] },
-  { id: 'gold', br: 'surv', major: 1, name: 'Gold Sense', icon: 'gold', cost: [2], req: [['keen', 1]], x: 110, y: 420,
+  { id: 'gold', br: 'surv', major: 1, name: 'Gold Sense', icon: 'gold', cost: [2], req: [['keen', 1]], x: 55, y: 560,
     desc: 'The 3rd Eye also finds golden targets and who can see you.', fx: [['Focus cooldown', g => SKV.focusCd(g), secs]] },
-  { id: 'crowd', br: 'surv', major: 1, name: 'Crowd Control', icon: 'crowd', cost: [2], req: [['keen', 1]], x: 270, y: 400,
+  { id: 'crowd', br: 'surv', major: 1, name: 'Crowd Control', icon: 'crowd', cost: [2], req: [['keen', 1]], x: 215, y: 560,
     desc: 'The 3rd Eye also leads you to big crowds.', fx: [['Focus cooldown', g => SKV.focusCd(g), secs]] },
   // ---- Survival, stealth: Camouflage ----
-  { id: 'camo', br: 'surv', major: 1, abil: 1, name: 'Camouflage', icon: 'camo', cost: [2], req: [], x: 400, y: 780,
+  { id: 'camo', br: 'surv', major: 1, abil: 1, name: 'Camouflage', icon: 'camo', cost: [2], req: [], x: 390, y: 880,
     desc: 'Turn nearly invisible. Hidden kills are silent and keep you hidden longer.', fx: [['Hidden for', g => SKV.camoDur(g), secs], ['Cooldown', g => SKV.camoCd(g), secs]] },
-  { id: 'cover', br: 'surv', name: 'Deep Cover', icon: 'cover', cost: [1, 2, 3], req: [['camo', 1]], x: 420, y: 600,
+  { id: 'cover', br: 'surv', name: 'Deep Cover', icon: 'cover', cost: [1, 2, 3], req: [['camo', 1]], x: 390, y: 720,
     ranks: ['Hidden 1.5 s longer', 'Recharges 3 s faster', '12% faster while hidden'],
     desc: 'A better Camouflage: longer, then quicker to recharge, then faster while hidden.', fx: [['Hidden for', g => SKV.camoDur(g), secs], ['Cooldown', g => SKV.camoCd(g), secs], ['Speed while hidden', g => SKV.camoSpeed(g) * 100 - 100, pct]] },
-  { id: 'phantom', br: 'surv', major: 1, name: 'Phantom', icon: 'phantom', cost: [4], lvl: 20, inv: 10, req: [['cover', 2]], x: 430, y: 400,
+  { id: 'phantom', br: 'surv', major: 1, name: 'Phantom', icon: 'phantom', cost: [4], lvl: 20, inv: 10, req: [['cover', 2]], x: 390, y: 560,
     desc: 'While hidden, your combo drains slower and kills pay 25% more.', fx: [['Combo drain while hidden', g => (SKV.phantomDrain(g) - 1) * 100, pct], ['Hidden kills pay', g => g('phantom') ? 25 : 0, pct], ['Cooldown', g => SKV.camoCd(g), secs]] },
   // ---- Survival, toughness: dazes, smashing through things, gas, bombs ----
-  { id: 'skull', br: 'surv', name: 'Battle Hardened', icon: 'skull', cost: [1, 1, 2, 3], req: [], x: 600, y: 800,
+  { id: 'skull', br: 'surv', name: 'Battle Hardened', icon: 'skull', cost: [1, 1, 2, 3], req: [], x: 720, y: 880,
     desc: 'Shake off dazes faster. A direct hit still kills.', fx: [['Stun recovery', g => (SKV.stunCut(g) - 1) * 100, pct]] },
-  { id: 'heat', br: 'surv', name: 'Heat Resistant', icon: 'heat', cost: [1, 2, 3], req: [['skull', 1]], x: 700, y: 560,
+  { id: 'heat', br: 'surv', name: 'Heat Resistant', icon: 'heat', cost: [1, 2, 3], req: [['skull', 1]], x: 700, y: 720,
     desc: 'While you burn, pieces burn off less often. It never stops the blast itself or the fire catching.', fx: [['Time between burns', g => BURN.tick / SKV.heatK(g), secs], ['Fewer burn ticks', g => (1 - SKV.heatK(g)) * 100, n => n ? '-' + Math.round(n) + '%' : '0%']] },
-  { id: 'gut', br: 'surv', name: 'Iron Stomach', icon: 'gut', cost: [1, 2, 3], req: [['skull', 1]], x: 510, y: 640,
+  { id: 'firewalk', br: 'surv', major: 1, name: 'Firewalker', icon: 'firewalk', cost: [2], req: [['heat', 1]], x: 700, y: 560,
+    desc: 'You move 50% faster while you burn, so you get out of the fire sooner. It never stops you catching fire or burning.', fx: [['Speed while burning', g => SKV.fireSpeed(g) * 100 - 100, pct]] },
+  { id: 'gut', br: 'surv', name: 'Iron Stomach', icon: 'gut', cost: [1, 2, 3], req: [['skull', 1]], x: 545, y: 720,
     desc: 'Your combo lasts longer.', fx: [['Combo time', g => SKV.combo(g) * 100 - 100, pct]] },
-  { id: 'mask', br: 'surv', major: 1, name: 'Gas Mask', icon: 'mask', cost: [2], req: [['skull', 1]], x: 765, y: 665,
-    desc: 'Gas stops messing with your screen, and bomb markers stay half visible in it. It still slows you.', fx: [['Gas on your screen', g => g('mask') ? 0 : 100, n => n ? 'Full' : 'None']] },
-  { id: 'jam', br: 'surv', major: 1, name: 'Early Warning', icon: 'jam', cost: [3, 4], req: [['mask', 1]], x: 765, y: 435,
+  { id: 'mask', br: 'surv', major: 1, name: 'Gas Mask', icon: 'mask', cost: [2], req: [['skull', 1]], x: 855, y: 720,
+    desc: 'Gas stops messing with your screen, slows you half as much, and bomb markers stay half visible in it.', fx: [['Gas on your screen', g => g('mask') ? 0 : 100, n => n ? 'Full' : 'None'], ['Slowed in gas', g => g('mask') ? 22 : 45, n => n + '%']] },
+  { id: 'jam', br: 'surv', major: 1, name: 'Early Warning', icon: 'jam', cost: [3, 4], req: [['mask', 1]], x: 855, y: 560,
     ranks: ['Strikes aimed at you show up 0.75 s sooner', '1.25 s sooner'],
     desc: 'Air strikes aimed at you show up early, as a teal radar marker that turns into the real one.', fx: [['Extra warning', g => SKV.warn(g), secs]] },
-  { id: 'debt', br: 'surv', name: 'Blood Debt', icon: 'debt', cost: [2, 3, 4], lvl: 15, req: [['skull', 2]], x: 600, y: 430,
+  { id: 'debt', br: 'surv', name: 'Blood Debt', icon: 'debt', cost: [2, 3, 4], lvl: 15, req: [['skull', 2]], x: 1010, y: 720,
     desc: 'Lose a piece of yourself, and your next few meals pay double XP and chips. Twice a run; the extra is capped at 20% of what eating has paid you this run.', fx: [['Meals paid twice after a hit', g => BD.meals[g('debt')], n => n ? n + ' meals' : 'None'], ['Times a run', g => g('debt') ? BD.acts : 0, n => n ? String(n) : '—'], ['Capped at', g => g('debt') ? BD.cap * 100 : 0, n => n ? n + '% of eating pay' : '—']] },
-  { id: 'ram', br: 'surv', major: 1, name: 'Battering Ram', icon: 'ram', cost: [2, 3, 4], req: [], x: 840, y: 800,
+  { id: 'ram', br: 'surv', major: 1, name: 'Battering Ram', icon: 'ram', cost: [2, 3, 4], req: [], x: 1080, y: 880,
     ranks: ['Small things: chairs, crates, fences, glass', 'Furniture, bushes and small trees', 'Cars, rocks and cracked walls (leaves you dazed)'],
     desc: 'Smash through things instead of crashing. Higher ranks break heavier things.', fx: [['Smashes', g => SKV.ramTier(g), n => ['Nothing', 'Small things', 'Furniture', 'Cars and walls'][n]]] },
-  { id: 'momentum', br: 'surv', major: 1, name: 'Momentum', icon: 'momentum', cost: [4], lvl: 16, inv: 8, req: [['ram', 2]], x: 900, y: 620,
+  { id: 'momentum', br: 'surv', major: 1, name: 'Momentum', icon: 'momentum', cost: [4], lvl: 16, inv: 8, req: [['ram', 2]], x: 1165, y: 720,
     desc: 'Smashing through things costs only half your speed. Press back to U-turn.', fx: [['Speed kept through a smash', g => g('momentum') ? 50 : 0, n => n ? 'Half the stall' : 'Full stall'], ['U-turn', g => g('momentum'), n => n ? 'Yes' : 'No']] },
   // ---- Fortune (optional): more chips from everything ----
-  { id: 'study', br: 'fort', name: 'Quick Study', icon: 'study', cost: [1, 1, 2, 2, 3], req: [], x: 1650, y: 790,
+  { id: 'study', br: 'fort', name: 'Quick Study', icon: 'study', cost: [1, 1, 2, 2, 3], req: [], x: 2290, y: 880,
     desc: 'Bonus chips the first time each run you do something new, like eating a golden target or surviving a near miss.', fx: [['Each new one pays', g => SKV.studyChips(g), n => Math.round(n) + ' chips']] },
-  { id: 'streak', br: 'fort', name: 'Hot Streak', icon: 'streak', cost: [1, 2, 3], req: [['study', 1]], x: 1590, y: 625,
+  { id: 'streak', br: 'fort', name: 'Hot Streak', icon: 'streak', cost: [1, 2, 3], req: [['study', 1]], x: 2230, y: 720,
     desc: 'Quick chains of kills pay more XP and chips.', fx: [['A 2-kill chain pays', g => (SKV.streakK(g, 1) - 1) * 100, pct], ['5 kills and up pay', g => (SKV.streakK(g, 5) - 1) * 100, pct]] },
-  { id: 'windfall', br: 'fort', major: 1, name: 'Windfall', icon: 'windfall', cost: [3], lvl: 14, inv: 6, req: [['streak', 2]], x: 1570, y: 455,
+  { id: 'windfall', br: 'fort', major: 1, name: 'Windfall', icon: 'windfall', cost: [3], lvl: 14, inv: 6, req: [['streak', 2]], x: 2230, y: 560,
     desc: 'Double chips from leveling up.', fx: [['Next level-up bonus', g => (15 + (PROG.level + 1) * 3) * SKV.windK(g), n => Math.round(n) + ' chips']] },
-  { id: 'interest', br: 'fort', major: 1, name: 'Compound Interest', icon: 'interest', cost: [4], lvl: 22, inv: 12, req: [['windfall', 1]], x: 1620, y: 290,
+  { id: 'interest', br: 'fort', major: 1, name: 'Compound Interest', icon: 'interest', cost: [4], lvl: 22, inv: 12, req: [['windfall', 1]], x: 2230, y: 400,
     desc: 'After a run of 3+ minutes, get 10% of the chips it earned again (max 150).', fx: [['Paid after a run', g => g('interest') ? 10 : 0, n => n ? n + '% of its chips' : 'Nothing']] },
-  { id: 'pockets', br: 'fort', name: 'Deep Pockets', icon: 'pockets', cost: [1, 1, 2, 2, 3], req: [], x: 1800, y: 760,
+  { id: 'pockets', br: 'fort', name: 'Deep Pockets', icon: 'pockets', cost: [1, 1, 2, 2, 3], req: [], x: 2560, y: 880,
     desc: 'More chips from everything.', fx: [['Chips from everything', g => (SKV.chipK(g) - 1) * 100, pct]] },
-  { id: 'lucky', br: 'fort', name: 'Lucky Bite', icon: 'lucky', cost: [1, 2, 3], req: [['pockets', 1]], x: 1930, y: 625,
+  { id: 'lucky', br: 'fort', name: 'Lucky Bite', icon: 'lucky', cost: [1, 2, 3], req: [['pockets', 1]], x: 2560, y: 720,
     desc: 'Kills can pay double chips.', fx: [['Chance of double chips', g => SKV.luckyP(g) * 100, n => Math.round(n) + '%']] },
-  { id: 'midas', br: 'fort', major: 1, name: 'Golden Touch', icon: 'midas', cost: [3], lvl: 12, inv: 5, req: [['lucky', 1]], x: 1975, y: 450,
+  { id: 'midas', br: 'fort', major: 1, name: 'Golden Touch', icon: 'midas', cost: [3], lvl: 12, inv: 5, req: [['lucky', 1]], x: 2560, y: 560,
     desc: 'Golden targets pay 50% more.', fx: [['Golden targets pay', g => (SKV.goldK(g) - 1) * 100, pct]] },
-  { id: 'haggler', br: 'fort', name: 'Haggler', icon: 'haggler', cost: [1, 2, 3], req: [['pockets', 2]], x: 2070, y: 770,
+  { id: 'haggler', br: 'fort', name: 'Haggler', icon: 'haggler', cost: [1, 2, 3], req: [['pockets', 2]], x: 2720, y: 720,
     desc: 'Lower shop prices.', fx: [['Shop prices', g => (SKV.shopK(g) - 1) * 100, pct]] },
-  { id: 'taskmaster', br: 'fort', name: 'Taskmaster', icon: 'taskmaster', cost: [1, 2, 3], req: [['study', 1]], x: 1760, y: 560,
+  { id: 'taskmaster', br: 'fort', name: 'Taskmaster', icon: 'taskmaster', cost: [1, 2, 3], req: [['study', 1]], x: 2390, y: 720,
     desc: 'Challenges pay more.', fx: [['Challenge rewards', g => (SKV.taskK(g) - 1) * 100, pct]] },
-  { id: 'daredevil', br: 'fort', name: 'Daredevil', icon: 'daredevil', cost: [1, 2, 3], req: [['taskmaster', 1]], x: 1800, y: 380,
+  { id: 'daredevil', br: 'fort', name: 'Daredevil', icon: 'daredevil', cost: [1, 2, 3], req: [['taskmaster', 1]], x: 2390, y: 560,
     desc: 'Near misses pay more.', fx: [['Near-miss rewards', g => (SKV.nearK(g) - 1) * 100, pct]] },
 ];
 for (const n of SKILL_TREE) n.max = n.cost.length;
@@ -172,6 +174,7 @@ function treeV5(v) { // v: the save's tree version before this
   if (v >= 1 && Object.keys(t).length) setTimeout(() => notify({ kind: 'info', icon: giSvg('study'), title: 'Skill tree rebalanced', sub: `Every skill now has a set price${back ? `: ${back} token${back === 1 ? '' : 's'} refunded` : ''}. Your skills are kept, and your first full reset is free.`, dur: 7, key: 'treev5' }), 2200);
 }
 if ((PROG.treeV | 0) < 5) treeV5(PROG.treeV | 0);
+if ((PROG.tree.firewalk | 0) > 1) { PROG.tree.firewalk = 1; saveProg(); } // Firewalker became one rank (2 tokens, the full 50%): a second rank bought before is handed back (spent is worked out from the tree)
 if (PROG.treeV < 6) { // tree v6: Whiplash folded into Sidewinder (it only repeated Sidewinder's turning, mid-lunge): its ranks are taken back and their tokens come back with them (spent is worked out from the tree); nothing stood on it
   const w = Math.min(3, PROG.tree.whip | 0), back = [1, 2, 2].slice(0, w).reduce((a, b) => a + b, 0);
   delete PROG.tree.whip; delete PROG.treeOff.whip; if (PROG.treeNew) delete PROG.treeNew.whip; PROG.treeV = 6; saveProg();
@@ -217,12 +220,14 @@ const SKV = {
   warn: (g = sk) => rk([0, .75, 1.25], g('jam')), // Early Warning: seconds more warning on every strike aimed at you
   combo: (g = sk) => 1 + rk([0, .1, .2, .3], g('gut')),
   hissR: (g = sk) => 190 + 17 * g('rattle') + 30 * g('shock'),
+  stunDur: (g = sk) => g('shock') ? 2.5 : 0, // Shockwave: how long the hiss freezes people (at the middle; half that at the edge)
   hissSlow: (g = sk) => 1.33 * g('rattle'),
   hissDeaf: (g = sk) => 3.33 * g('rattle'),
   hissCd: (g = sk) => 15 - 2 * g('shock'),
   jaws: (g = sk) => 1 + rk([0, .07, .14, .22], g('jaws')), // bite reach (snakeEatRadius)
   lustBack: (g = sk) => g('lust') ? .5 : 0, // Bloodlust: seconds each kill takes off every recharging ability
   windBack: (g = sk) => rk([0, .1, .2, .3], g('wind')), // Second Wind: seconds each meal takes off every recharging ability
+  fireSpeed: (g = sk) => 1 + rk([0, .5], g('firewalk')), // Firewalker: faster while burning (in the fire, or still alight after)
   heatK: (g = sk) => 1 - rk([0, .15, .25, .35], g('heat')), // Heat Resistant: how often burn ticks come (0.65 = 35% fewer)
   // Fortune: rewards are yours alone, so these always read your own tree (never another player's in co-op)
   studyChips: (g = skMe) => rk([0, 3, 6, 9, 12, 16], g('study')), // Quick Study: chips for each different thing done in a run
@@ -236,15 +241,16 @@ const SKV = {
   windK: (g = skMe) => g('windfall') ? 2 : 1,
   interest: (g = skMe) => g('interest') && typeof run === 'object' && (run.aliveT || 0) >= 180 ? Math.min(150, Math.round(((run.coinsGained || 0) - (run.bd ? run.bd.uc : 0)) * .1)) : 0, // only from what this run earned, and only a run you lived 3 minutes in (no farming quick restarts)
 };
-const shopPrice = p => p > 0 ? Math.max(1, Math.round(p * SKV.shopK())) : 0; // Haggler (free things stay free)
+const PRICE_K = 2.5; // the shop's prices: every listed price (catalog and custom colors) times this, to the nearest 5 (v1.84: everything was too cheap)
+const shopPrice = p => p > 0 ? Math.max(5, Math.round(p * PRICE_K * SKV.shopK() / 5) * 5) : 0; // Haggler (free things stay free)
 function payInterest() { // Compound Interest: once per run, on the run summary
   if (run.interestPaid) return; run.interestPaid = true; const n = SKV.interest(); if (!n) return;
-  gainXP(0, n); notify({ kind: 'info', icon: '◆', title: 'Compound Interest', right: `+${n} chips`, sub: '10% of what this run earned', dur: 2.4, key: 'interest' });
+  gainXP(0, n, { net: true }); notify({ kind: 'info', icon: '◆', title: 'Compound Interest', right: `+${n} chips`, sub: '10% of what this run earned', dur: 2.4, key: 'interest' });
 }
 const STUDY_KINDS = { person: 'Ate a person', animal: 'Ate an animal', golden: 'Ate a golden target', near: 'Survived a near miss', smash: 'Smashed something', challenge: 'Finished a challenge', combo: 'Reached a 10 combo', alive: 'Lived 5 minutes' };
 function studyHit(kind) { // Quick Study: the first time in a run you do each different thing, a few chips (yours only)
   if (typeof run !== 'object' || !STUDY_KINDS[kind] || state === 'menu') return; const got = run.study || (run.study = {}); if (got[kind]) return;
-  const n = SKV.studyChips(); if (!n) return; got[kind] = 1; gainXP(0, n);
+  const n = SKV.studyChips(); if (!n) return; got[kind] = 1; gainXP(0, n, { net: true });
   notify({ kind: 'info', icon: giSvg('study'), title: 'Quick Study', sub: STUDY_KINDS[kind], right: `+${n} chips`, dur: 2, key: 'study' });
 }
 /* cooldown refunds (Bloodlust, Second Wind): only ever off a cooldown that's running right now, worked out on the cooldown after
@@ -291,9 +297,9 @@ function bdMeal(bx, bc, paid) {
   if (typeof run !== 'object') return; const b = bdRun(); b.ex += paid.xp; b.ec += paid.coins;
   if (!(b.left > 0)) return;
   b.left--;
-  const wx = Math.round(bx * XP_GAIN), wc = bc, gx = Math.min(wx, Math.max(0, Math.floor(b.ex * BD.cap - b.ux))), gc = Math.min(wc, Math.max(0, Math.floor(b.ec * BD.cap - b.uc)));
+  const wx = Math.round(bx * XP_GAIN), wc = chipShow(bc), gx = Math.min(wx, Math.max(0, Math.floor(b.ex * BD.cap - b.ux))), gc = Math.min(wc, Math.max(0, Math.floor(b.ec * BD.cap - b.uc)));
   b.ux += gx; b.uc += gc;
-  if (gx || gc) gainXP(gx, gc, { raw: true, quiet: true });
+  if (gx || gc) gainXP(gx, gc, { raw: true, net: true, quiet: true });
   bdPopup(gx, gc, gx < wx || gc < wc); bdHud();
 }
 function bdTick() { // dying wipes whatever is still owed (never the activations used)
@@ -354,9 +360,16 @@ function hissNpc(s, lv) { // what a hiss does to the crowd (the deciding browser
       const at = MOD.blind && c.def.human ? guessAt(c, s.x, s.y, R * 1.4) : s; // the blind only know it came from over there, somewhere
       panic(c, at.x, at.y, rand(3, 5) * (slow ? 1 + slow / 8 : 1), 'hissed'); c.alert = 1;
       if (slow) { c.slowT = T + slow; c.deafT = T + deaf; c.adren = 0; if (c.def.human && !c.def.alien) c.reply = { t: rand(.8, 1.6), ctx: 'deaf' }; } // Rattle: slowed, half-deaf and slurring
-      if (shock) { const d = Math.hypot(c.x - s.x, c.y - s.y) || 1, f = (1 - d / R) * 260 + 60; c.kb = { vx: (c.x - s.x) / d * f, vy: (c.y - s.y) / d * f, t: .35 }; c.slowT = Math.max(c.slowT || 0, T + 5); if (typeof leaveGroup === 'function') leaveGroup(c); } // knocked flat, the group blown apart
+      if (shock) { const d = Math.hypot(c.x - s.x, c.y - s.y); c.stunT = T + SKV.stunDur() * (1 - .5 * Math.min(1, d / R)); c.adren = 0; c.kb = null; } // Shockwave: stunned stiff where they stand (longest up close), then they run: a group held together for you to eat, not blown out of reach
     }
     return hn;
+}
+function drawStunStars(x) { // anyone a Shockwave has stunned: a faint orbit and three little stars circling their head (guests see it too: cFlags)
+  for (const c of creatures) { if (!c.alive || !(c.stunT > T)) continue; const r = Math.max(7, c.def.r || 7), k = Math.min(1, (c.stunT - T) * 3), cy = c.y - r * .55, rx = r * 1.15, ry = r * .45;
+    x.globalAlpha = k * .35; x.strokeStyle = '#ffe27a'; x.lineWidth = 1; x.beginPath(); x.ellipse(c.x, cy, rx, ry, 0, 0, TAU); x.stroke();
+    for (let q = 0; q < 3; q++) { const a = T * 5 + q * TAU / 3, sx = c.x + Math.cos(a) * rx, sy = cy + Math.sin(a) * ry, sz = 11 + 3 * Math.sin(a); x.globalAlpha = k * (.7 + .3 * (Math.sin(a) * .5 + .5)); // (the near side of the orbit bigger and brighter)
+      if (!kDraw(x, 'star_06', '#ffe27a', sx, sy, sz, sz, a, 24)) { x.fillStyle = '#ffe27a'; circ(x, sx, sy, sz * .18); } } }
+  x.globalAlpha = 1;
 }
 const abilCD = {};
 const abilCd = id => ABIL[id].cd * (MOD.slowRecharge ? 2 : MOD.quickRecharge ? .5 : 1); // Slow recharge / Quick recharge

@@ -59,6 +59,7 @@ function drawSnakeBody(x, s, cfg) {
   dashGhosts(x, s, pts, n, cfg); // after-images left behind a lunge: any snake, yours or another player's
   if (cam && !SETTINGS.simpleFx) refractBody(x, s, pts, n, cam);
   const camAvg = cam ? cam.avg : 0, TB = tubeBase(pts, n, s.cut), E0 = tubeEdges(TB, 0), pieces = [];
+  if (me) s._tb = TB; // the night rim traces this same tube
   for (let a = 0; a < n; a += TUBE_PIECE) pieces.push([a, Math.min(n, a + TUBE_PIECE)]);
   const inPieces = (margin, fn, clipIf) => { // fn(a, b) once per piece, tail first, clipped to that piece of the body (unless clipIf(a, b) says it needn't be). margin > 0 lets each piece's clip overlap its neighbours (for opaque marks that may cross a cut); 0 = the exact piece (for see-through ones, so nothing is painted twice)
     for (let p = pieces.length - 1; p >= 0; p--) { const [a, b] = pieces[p]; if (clipIf && !clipIf(a, b)) { fn(a, b); continue; } x.save(); x.beginPath(); tubeRun(x, E0, Math.max(0, a - margin), Math.min(n, b + margin)); x.clip(); fn(a, b); x.restore(); }

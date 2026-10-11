@@ -157,6 +157,7 @@ function netLobbyRender() {
   const dis = host ? '' : 'disabled', seg = (id, opts, cur) => `<div class="rs-seg" id="${id}" role="radiogroup"><i class="sthumb"></i>${Object.keys(opts).map(k => `<button role="radio" aria-checked="${String(k) === String(cur)}" class="${String(k) === String(cur) ? 'on' : ''}" data-v="${k}" data-sfx="tab" ${dis}>${opts[k]}</button>`).join('')}</div>`;
   const sel = (id, label, list, cur, fmt, tip) => `<label class="rs-pick"><span>${label}</span><select id="${id}" ${dis} ${tip ? `title="${tip}"` : ''}>${list.map(n => `<option value="${n}" ${n === cur ? 'selected' : ''}>${fmt(n)}</option>`).join('')}</select></label>`;
   const keep = { side: (box.querySelector('.rs-scroll') || {}).scrollTop || 0, list: (box.querySelector('.mlob-pl') || {}).scrollTop || 0, grid: (box.querySelector('.mbr-grid') || {}).scrollTop || 0, focus: document.activeElement && box.contains(document.activeElement) ? document.activeElement.id || (document.activeElement.dataset.v && document.activeElement.parentElement.id + ':' + document.activeElement.dataset.v) : null };
+  if (mapIdx !== cfg.map && MAPS[cfg.map]) mapIdx = cfg.map; // (first: the modifier chips check what this map allows)
   box.innerHTML = `<header class="rs-head"><button class="mm-back" id="mpBack" data-sfx="close">${ICO.back}<span>Back</span></button><h2>${esc(NET_MODES[mode])} lobby</h2>
       <span class="pp-code big" title="Lobby code">${esc(NETM.code)}</span><button class="mm-q" id="mpCopy">Copy invite link</button>${navigator.share ? '<button class="mm-q" id="mpShare">Share…</button>' : ''}
       <span class="sp"></span><button class="mm-q" id="mpLeave">${host ? 'Close lobby' : 'Leave lobby'}</button></header>
@@ -347,8 +348,9 @@ function netDownBanner(out) {
   if (out === null || out === undefined) { if (el) el.remove(); return; }
   if (!el) { el = document.createElement('div'); el.id = 'mpDown'; (document.getElementById('stage') || document.body).appendChild(el); el._t0 = performance.now(); }
   const mode = netMode(), timed = NS.cfg && NS.cfg.len > 0, k = netPool(NETM.me), n = NS.pools[k] || 0;
-  el.className = out ? 'out' : ''; clearTimeout(el._ft); el._ft = setTimeout(() => el.classList.add('fade'), Math.max(0, 10000 - (performance.now() - el._t0))); // "You died" fades away after ten seconds
-  el.innerHTML = (out ? `<b>You died</b><span>Out of lives. ${mode === 'ffa' ? 'Watching the others.' : 'Watching your team.'} The run ends ${timed ? "when time's up or " : 'when '}everyone is down.</span>` : '<b>You died</b><span class="cd">Back in <i></i></span>') + '<div class="mplv"></div><small class="mplvn"></small>';
+  el.className = out ? 'out' : ''; clearTimeout(el._ft); el._ft = setTimeout(() => el.classList.add('fade'), Math.max(0, (out ? 5000 : 10000) - (performance.now() - el._t0))); // "You died" fades away: out of lives, after five seconds (you're only watching from then on)
+  const why = NS.myCause ? `<em class="mpwhy">${esc(deathText(NS.myCause))}</em>` : ''; // exactly what got you
+  el.innerHTML = (out ? `<b>You died</b>${why}<span>Out of lives. ${mode === 'ffa' ? 'Watching the others.' : 'Watching your team.'} The run ends ${timed ? "when time's up or " : 'when '}everyone is down.</span>` : `<b>You died</b>${why}<span class="cd">Back in <i></i></span>`) + '<div class="mplv"></div><small class="mplvn"></small>';
   const after = n >= 999 ? 999 : NETM.host || out ? n : Math.max(0, n - 1); // (a guest hears about the life it cost a moment after it hears it went down)
   netHeartsSync(el.querySelector('.mplv'), after + (out || after >= 999 ? 0 : 1), netPoolMax(k)); netHeartsSync(el.querySelector('.mplv'), after, netPoolMax(k)); // the one you just lost breaks
   netLivesLeft(el.querySelector('.mplvn'), after);
@@ -473,7 +475,7 @@ function netResultsRefresh(aborted) {
     ${aborted ? '' : `<div class="mpsum">${mvpHtml}${sum}</div>`}
     <div class="mptable"><table><thead><tr><th>Player</th><th>Score</th><th>Eaten</th><th>People</th><th>Animals</th><th title="Best combo">Combo</th><th>Golden</th><th>Deaths</th><th>XP</th><th>Chips</th>${host ? '<th></th>' : ''}</tr></thead><tbody>
       ${body}</tbody></table></div>
-    <div class="mpmine"><span>You</span>${place ? `<span>${place}</span>` : ''}<span>+${run.xpGained || 0} XP</span><span>+${run.coinsGained || 0} chips</span>${run.chList && run.chList.length ? `<span>${run.chList.length} challenge${run.chList.length > 1 ? 's' : ''}</span>` : ''}</div>
+    <div class="mpmine"><span>You</span>${place ? `<span>${place}</span>` : ''}${NS.myCause && NS.myDeaths ? `<span class="mpwhy">${esc(deathText(NS.myCause))}</span>` : ''}<span>+${run.xpGained || 0} XP</span><span>+${run.coinsGained || 0} chips</span>${run.chList && run.chList.length ? `<span>${run.chList.length} challenge${run.chList.length > 1 ? 's' : ''}</span>` : ''}</div>
     <div class="mpfoot">${aborted ? '<button class="play" id="mpLobby"><span>To the lobby</span></button>' : host
       ? `<button class="ghost" id="mpLobby">Return to lobby</button><button class="ghost" id="mpMap2">Change map</button><button class="ghost" id="mpMods2">Change modifiers</button><button class="ghost mprdy ${me.ready ? 'on' : ''}" id="mpReady2"><span>${me.ready ? `Ready ${kiSvg('checkmark', 'rdy')}` : 'Ready'}</span></button><button class="play" id="mpAgain" ${allReady ? '' : 'disabled'}><span>${allReady ? 'Play again' : `${notReady} not ready`}</span></button>`
       : `<button class="ghost" id="mpLeave2">Leave lobby</button><button class="play ${me.ready ? 'on' : ''}" id="mpReady2"><span>${me.ready ? `Ready ${kiSvg('checkmark', 'rdy')}` : 'Ready'}</span></button>`}</div>`;

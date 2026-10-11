@@ -55,10 +55,13 @@ function openEditor(idx = mapIdx) {
   edBuildUI(); edFit(); edLoop();
   clearInterval(ED.autoT); ED.autoT = setInterval(() => { if (ED.open && ED.dirtySave) edSave(); }, 300000); // autosave every 5 minutes
 }
-function closeEditor(play) {
-  ED.open = false; cancelAnimationFrame(ED.raf); ED.root.remove(); document.querySelectorAll('.edpop,#propEd').forEach(p => p.remove()); removeEventListener('keydown', edKey, true);
-  overlay.style.display = '';
-  if (play) { mapIdx = ED.map; edTesting = ED.map; showMenu(); startGame({ test: true }); } else { mapIdx = ED.map; loadMap(ED.map); showMenu(); }
+function closeEditor(play) { // never gets stuck: the editor goes first, and if the map can't be loaded the menu still comes back (on the first map)
+  ED.open = false; cancelAnimationFrame(ED.raf); clearInterval(ED.autoT);
+  try { if (ED.root) ED.root.remove(); document.querySelectorAll('.edpop,#propEd,.edmodal').forEach(p => p.remove()); } catch (e) { console.error(e); }
+  removeEventListener('keydown', edKey, true); removeEventListener('keyup', edKey, true);
+  overlay.style.display = ''; mapIdx = ED.map;
+  try { if (play) { edTesting = ED.map; showMenu(); startGame({ test: true }); } else { loadMap(ED.map); showMenu(); } }
+  catch (e) { console.error('Leaving the map editor:', e); edTesting = null; state = 'menu'; try { mapIdx = 0; loadMap(0); } catch (e2) { console.error(e2); } showMenu(); }
 }
 /* ---- edits: undo history, saving ---- */
 const edSnapState = () => edClone({ o: ED.obs, l: ED.lights, t: ED.trails, a: ED.areas, b: ED.base, s: ED.shapes, m: ED.materials, c: ED.custom && { ...ED.custom, objects: undefined, lights: undefined, paths: undefined, areas: undefined, shapes: undefined } });
@@ -414,6 +417,12 @@ function edBuildUI() {
     <footer class="edstatus"><span class="edst-tool"></span><span class="edst-sel"></span><span class="edcoords"></span><span class="edsp"></span><span class="edstat">Saves by itself as you work · Ctrl+S saves now</span>
       <span class="edzoom"><button data-cmd="zout">−</button><span class="edzv">100%</span><button data-cmd="zin">+</button><button data-cmd="fit" title="Fit (0)">Fit</button></span></footer>`;
   document.body.appendChild(root);
+  // the ways out come first: if anything further down fails (a map's data, a material, a thumbnail), Exit, Play test, the menus and Esc still work
+  root.querySelectorAll('[data-cmd]').forEach(b => b.onclick = () => { root.querySelectorAll('.edmenu.open').forEach(m => m.classList.remove('open')); edCmd(b.dataset.cmd); });
+  root.querySelectorAll('.edmb').forEach(b => { b.onclick = () => { const m = b.parentElement, was = m.classList.contains('open'); root.querySelectorAll('.edmenu.open').forEach(x => x.classList.remove('open')); if (!was) m.classList.add('open'); }; b.onpointerenter = () => { if (root.querySelector('.edmenu.open') && !b.parentElement.classList.contains('open')) { root.querySelectorAll('.edmenu.open').forEach(x => x.classList.remove('open')); b.parentElement.classList.add('open'); } }; });
+  root.addEventListener('pointerdown', e => { if (!e.target.closest('.edmenu')) root.querySelectorAll('.edmenu.open').forEach(m => m.classList.remove('open')); }, true);
+  root.querySelector('.edplay').onclick = () => closeEditor(true); root.querySelector('.edskills').onclick = edSkillsDlg; root.querySelector('.edclose').onclick = () => closeEditor();
+  addEventListener('keydown', edKey, true); addEventListener('keyup', edKey, true);
   ED.cv = root.querySelector('.edmain'); ED.x = ED.cv.getContext('2d'); ED.coords = root.querySelector('.edcoords'); ED.stat = root.querySelector('.edstat'); ED.mm = root.querySelector('.edminimap'); ED.mm.getContext('2d', { willReadFrequently: true });
   ED.cv.addEventListener('pointerdown', edDown); ED.cv.addEventListener('pointermove', edMove); ED.cv.addEventListener('pointerup', edUp); ED.cv.addEventListener('pointercancel', edUp);
   ED.cv.addEventListener('pointerleave', () => { ED.mouse = null; }); ED.cv.addEventListener('contextmenu', e => e.preventDefault());
@@ -422,9 +431,6 @@ function edBuildUI() {
   ED.mm.onpointerdown = e => { ED.mm.setPointerCapture(e.pointerId); mmGo(e); ED.mm.onpointermove = mmGo; }; ED.mm.onpointerup = () => { ED.mm.onpointermove = null; };
   root.querySelectorAll('[data-tool]').forEach(b => b.onclick = () => edTool(b.dataset.tool));
   root.querySelectorAll('[data-tg]').forEach(b => b.onclick = () => edToggle(b.dataset.tg));
-  root.querySelectorAll('[data-cmd]').forEach(b => b.onclick = () => { root.querySelectorAll('.edmenu.open').forEach(m => m.classList.remove('open')); edCmd(b.dataset.cmd); });
-  root.querySelectorAll('.edmb').forEach(b => { b.onclick = () => { const m = b.parentElement, was = m.classList.contains('open'); root.querySelectorAll('.edmenu.open').forEach(x => x.classList.remove('open')); if (!was) m.classList.add('open'); }; b.onpointerenter = () => { if (root.querySelector('.edmenu.open') && !b.parentElement.classList.contains('open')) { root.querySelectorAll('.edmenu.open').forEach(x => x.classList.remove('open')); b.parentElement.classList.add('open'); } }; });
-  root.addEventListener('pointerdown', e => { if (!e.target.closest('.edmenu')) root.querySelectorAll('.edmenu.open').forEach(m => m.classList.remove('open')); }, true);
   const setL = k => { ED.ltab = k; root.querySelectorAll('[data-lt]').forEach(b => b.classList.toggle('on', b.dataset.lt === k)); root.querySelectorAll('.edlt').forEach(d => d.style.display = d.dataset.lt === k ? '' : 'none'); };
   root.querySelectorAll('.edtabs [data-lt]').forEach(b => b.onclick = () => setL(b.dataset.lt)); setL(ED.ltab);
   const setR = k => { ED.rtab = k; root.querySelectorAll('[data-rt]').forEach(b => b.classList.toggle('on', b.dataset.rt === k)); root.querySelector('.edpanel').style.display = k === 'props' ? '' : 'none'; root.querySelector('.edlayers').style.display = k === 'layers' ? '' : 'none'; if (k === 'layers') edLayers(); };
@@ -442,9 +448,7 @@ function edBuildUI() {
   root.querySelector('.edundo').onclick = () => edUndo(-1); root.querySelector('.edredo').onclick = () => edUndo(1);
   root.querySelector('.edsave').onclick = edSave; root.querySelector('.edshare').onclick = () => edShare();
   root.querySelector('.edimp input').onchange = e => e.target.files[0] && edImport(e.target.files[0]);
-  root.querySelector('.edplay').onclick = () => closeEditor(true); root.querySelector('.edskills').onclick = edSkillsDlg; root.querySelector('.edclose').onclick = () => closeEditor();
   root.querySelector('.edmap').onchange = e => { if (ED.dirtySave) edSave(); const i = +e.target.value; cancelAnimationFrame(ED.raf); root.remove(); removeEventListener('keydown', edKey, true); removeEventListener('keyup', edKey, true); openEditor(i); };
-  addEventListener('keydown', edKey, true); addEventListener('keyup', edKey, true);
   root.querySelector('.edpe').onclick = () => edCmd('propEd');
   PE.rootL = 0; if (PE.box && PE.box.isConnected) { peLayout(); peHistUI(); } // a prop editor left open while switching maps keeps its dock
   { // the controls panel: drag it by its title, resize it from the corner; both remembered
@@ -1012,14 +1016,15 @@ function edModal(title, body, buttons) { // a small dialog; buttons: [label, fn,
   return m;
 }
 const _edClose = closeEditor;
-closeEditor = function (play) {
+closeEditor = function (play) { try { return edCloseAsk(play); } catch (e) { console.error('Leaving the map editor:', e); return _edClose(play); } }; // whatever goes wrong deciding what to ask, Exit still leaves
+function edCloseAsk(play) {
   if (play && ED.custom) { edTestSkills = edSkillsGet(); MAPS[ED.map] = compileCustomMap(edCustomDoc()); edTestData = null; return _edClose(true); } // a custom map: play exactly what's in the editor (saved or not)
   if (play) { edTestSkills = edSkillsGet();
     const k = mapEditKey(MAPS[ED.map].name), all = {}; const keep = edDrafts; // build the test copy from the editor as it is now
     const clean = list => list.map(o => { const c = {}; for (const q in o) if (!ED_RUNTIME.has(q)) c[q] = o[q]; return c; });
     edTestData = { k, d: edClone({ obs: clean(ED.obs), lights: clean(ED.lights), trails: ED.trails, areas: ED.areas.map(a => ({ poly: a.poly, tex: a.tex, sharp: a.sharp, edge: a.edge })), base: ED.base || undefined, shapes: ED.shapes, shapesV: 1, materials: edUsedMaterials() }) };
     return _edClose(true); }
-  if (ED.dirtySave) return edModal('Save your changes?', `<p>You have unsaved changes to ${MAPS[ED.map].name}.</p>`, [['Cancel', null, ''], ["Don't save", () => { ED.dirtySave = false; closeEditor(); }, 'warn'], ['Save', () => { edSave(); closeEditor(); }, 'edprimary']]);
+  if (ED.dirtySave) return edModal('Save your changes?', `<p>You have unsaved changes to ${MAPS[ED.map].name}.</p>`, [['Cancel', null, ''], ["Don't save", () => { ED.dirtySave = ED.unshared = false; closeEditor(); }, 'warn'], ['Save', () => { try { edSave(); } catch (e) { console.error(e); } if (ED.dirtySave) return edModal("Couldn't save", '<p>Your changes could not be saved (the browser\'s storage may be full). You can stay and download the map from the File menu, or leave without saving.</p>', [['Stay', null, ''], ['Leave without saving', () => { ED.dirtySave = ED.unshared = false; closeEditor(); }, 'warn']]); closeEditor(); }, 'edprimary']]);
   clearInterval(ED.autoT);
   if (!ED.unshared) return _edClose(play);
   edModal('Leave the map editor?', `<p>Your changes are saved in this browser, but you haven't shared them yet. Share them so they can be added to the game for everyone.</p>`,

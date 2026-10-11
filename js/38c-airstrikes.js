@@ -25,7 +25,7 @@
    Bombs vary: some are bigger or smaller, some fall faster (less warning) or slower, and they scatter around your
    path rather than all landing on it. Later in a run they come much faster.
    Bombs in a salvo never land together: each one comes down a moment after the last.
-   The Air raid modifier starts all of this from the first seconds of the run.
+   The Shell Shock modifier (MOD.airRaid) starts all of this from the first seconds of the run, the guns from 15 s in.
    Heavy fog and tunnel vision hide the markers like anything else, but a blast lights the fog up from inside.
    How hard a blast hits you depends on how close it was: the slowdown, the colour draining out of the picture, the
    muffled hearing and the disorientation (the picture swaying and wobbling like after a wall, but less) all scale with it.
@@ -33,7 +33,7 @@
    itself and checks only its own snake. Only the host kills the crowd.
    ========================================================= */
 const AIR = { queue: [], warned: false, nextT: 0, flash: 0, sky: 0, rumble: 0, d0: 0, muf: 0, mufH: 0 }; // flash: the white-out on screen; sky: how much a blast is lighting up the night
-const AIR_START = 60, AIR_R = 44, AIR_RAID_START = 6; // seconds into the run before the first strike (Air raid: almost straight away); blast radius
+const AIR_START = 60, AIR_R = 44, AIR_RAID_START = 2; // seconds into the run before the siren (Shell Shock: almost straight away, the first bomb marked about 6 s in); blast radius
 const STRAFE_V = 560, STRAFE_HW = 13, STRAFE_LEN = 820; // how fast the rounds walk down the lane, its half width and length
 let scorched = []; // craters burnt into the ground this run: [x, y, r]. Nothing grows or settles in them again
 let strikes = [], booms = [], boomBits = [], corpses = [], fallenHats = [], jets = [], shocks = [], fires = [], soots = [], hazes = [], later = [], clods = [], strafes = [], tracers = [];
@@ -45,7 +45,7 @@ const LOCK = () => !!MOD.lockOn, jetV = () => LOCK() ? 2200 : 1150, strafeV = ()
 const snakeOfPid = id => !NETM.run || !id || id === NETM.me ? snake : (NS.rs && NS.rs.get(id)) || null; // the snake a tracking marker follows, on any screen
 const airEW = s => s ? SKV.warn(id => skOf(s, id)) : 0; // Early Warning: seconds more warning on every strike aimed at this snake
 function skOf(s, id) { if (s === snake) return sk(id); const o = UPG_OVR; UPG_OVR = s.upgLv || {}; try { return sk(id); } finally { UPG_OVR = o; } } // another player's rank (the host deciding for them) // outdoors on Earth, always (the Clear skies modifier is the way to switch them off)
-function airReset() { fireReset(); AIR.barT = undefined; scorched = []; tailBits = []; strikes = []; booms = []; boomBits = []; corpses = []; fallenHats = []; jets = []; shocks = []; fires = []; soots = []; hazes = []; later = []; clods = []; strafes = []; tracers = []; AIR.crowdTalk = null; AIR.queue = []; AIR.storms = []; NM.list = []; NM.n = 0; AIR.warned = false; AIR.nextT = 0; AIR.flash = 0; AIR.sky = 0; AIR.rumble = 0; AIR.d0 = 0; AIR.muf = 0; AIR.mufH = 0; if (Sfx.lp) Sfx.daze(0); }
+function airReset() { fireReset(); AIR.barT = AIR.artyT = AIR.artyT0 = AIR.artyBarT = AIR.artyNext = AIR.lastPid = undefined; scorched = []; tailBits = []; strikes = []; booms = []; boomBits = []; corpses = []; fallenHats = []; jets = []; shocks = []; fires = []; soots = []; hazes = []; later = []; clods = []; strafes = []; tracers = []; AIR.crowdTalk = null; AIR.queue = []; AIR.storms = []; NM.list = []; NM.n = 0; AIR.warned = false; AIR.nextT = 0; AIR.flash = 0; AIR.sky = 0; AIR.rumble = 0; AIR.d0 = 0; AIR.muf = 0; AIR.mufH = 0; if (Sfx.lp) Sfx.daze(0); }
 /* reeling from a blast: full strength for the first second, then it fades over the next 1.2 */
 const boomSlow = s => s && s.boomT > 0 ? (s.boomK || 0) * clamp(s.boomT / 1.2, 0, 1) : 0;
 const boomDaze = () => snake && snake.alive ? boomSlow(snake) : 0;
@@ -111,7 +111,16 @@ function airJetReact(j, dt) {
 function airSchedule(dt) {
   if (!airOn() || state !== 'play') return;
   const t0 = MOD.airRaid ? AIR_RAID_START : AIR_START, t = run.time || 0; if (t < t0) return;
-  if (!AIR.warned) { AIR.warned = true; AIR.d0 = cr.dist; airWarn(); netEmit({ t: 'airw' }); AIR.nextT = 3.5; return; }
+  if (!AIR.warned) { AIR.warned = true; AIR.d0 = cr.dist; airWarn(); netEmit({ t: 'airw' }); AIR.nextT = MOD.airRaid ? .6 : 3.5; return; }
+  if (AIR.artyT === undefined && (MOD.airRaid ? t >= ARTY.raid : t - t0 >= ARTY.after) && !(AIR.storms && AIR.storms.length)) { // the guns open up: the first salvo comes right on time (2.5 minutes into the bombing; Shell Shock: 15 s into the run)
+    const ts = netSnakes().filter(s => s.alive && s.started && !s.hidden && !s.netHidden && !(s.graceT > 0) && s.segs && s.segs.length); if (ts.length) { AIR.artyT = AIR.artyT0 = t; AIR.artyNext = t + rand(...(MOD.airRaid ? ARTY.everyRaid : ARTY.every)); artySalvo(airPick(ts), .3); }
+  } else if (AIR.artyNext !== undefined && t >= AIR.artyNext && !(AIR.storms && AIR.storms.length)) { // after the first, the guns keep on their own clock, apart from the jets (Shell Shock: every 9-14 s)
+    const raid = !!MOD.airRaid, ts = netSnakes().filter(s => s.alive && s.started && !s.hidden && !s.netHidden && !(s.graceT > 0) && s.segs && s.segs.length);
+    AIR.artyNext = t + rand(...(raid ? ARTY.everyRaid : ARTY.every));
+    if (ts.length) { const bar = t - AIR.artyT0 > (raid ? ARTY.barAfterRaid : ARTY.barAfter) && t - (AIR.artyBarT ?? -1e9) > (raid ? ARTY.barGapRaid : ARTY.barGap) && Math.random() < ARTY.bar; // now and then, the whole battery at once
+      AIR.artyT = t; if (bar) AIR.artyBarT = t; const k = Math.min(1, raid ? (t - t0) / 300 : (t - t0) / 180);
+      (bar ? artyBarrage : artySalvo)(airPick(ts), k); }
+  }
   if ((AIR.nextT -= dt) > 0) return;
   const raid = !!MOD.airRaid, gt = Math.max((t - t0) / 180, (cr.dist - AIR.d0) / 2500); // how far you've come since they started: it never stops climbing
   const targets = netSnakes().filter(s => s.alive && s.started && !s.hidden && !s.netHidden && !(s.graceT > 0) && s.segs && s.segs.length);
@@ -122,11 +131,11 @@ function airSchedule(dt) {
     : 34 / (1 + .3 * Math.min(1, gt)) * rand(.8, 1.35) * (Math.random() < .25 ? 1.5 : 1); // a normal game: about every 36 s if nobody kills anything (still 28 s or so late on), never on a beat, now and then a longer lull; every kill brings the next one closer (airKillTick), never to under 10 s
   if (t - t0 > 150 && t - (AIR.barT ?? -1e9) > 240 && !strikes.length && !AIR.queue.length && Math.random() < (raid ? .05 : .07)) { // rarely, a barrage instead: never twice close together, never on top of another strike
     AIR.barT = t; AIR.nextT = BARRAGE.dur + BARRAGE.lead + Math.min(AIR.nextT, 8) * .5; // the usual strikes wait out the storm, then carry on, no long quiet
-    for (const s of targets) { barrage(s, raid ? ramp : Math.min(1, Math.max(gt, heatOf(s)))); }
+    { const s = airPick(targets); barrage(s, raid ? ramp : Math.min(1, Math.max(gt, heatOf(s)))); }
     return;
   }
   const kind = t - t0 > (raid ? 30 : 20) && Math.random() < .13 + .07 * k ? (Math.random() < .14 ? 'bombs' : 'guns') : 'salvo'; // strafing runs (and bombing runs) stay the rare ones
-  for (const s of targets) { // multiplayer: every player gets their own run at the same moment, and every screen sees all of them (the host sends each one out)
+  for (const s of [airPick(targets)]) { // multiplayer: one run at a time, at one player (never the same one twice running), so more players never means more bombs; every screen sees it (the host sends it out)
     const a = kind === 'guns' ? rand(0, TAU) : s.angle + (Math.random() < .5 ? 1 : -1) * (kind === 'bombs' ? rand(.35, 1.15) : rand(.9, 2.2)); // gun runs come in from anywhere; bombers cross your path
     const pre = LOCK() ? rand(1.3, 1.8) : rand(2.4, 3.6), sp = (s.speed || CONFIG.snakeSpeeds.Normal) * (s.dashV || 1), px = Math.round(s.x + Math.cos(s.angle) * sp * pre), py = Math.round(s.y + Math.sin(s.angle) * sp * pre);
     const ov = +airOver(kind, raid ? ramp : Math.min(1, Math.max(gt, heatOf(s)))).toFixed(2); // when it'll be overhead, so the approach is the same jet the fly-by takes over
@@ -172,11 +181,15 @@ function stormBomb(st, s, q) {
   const ew = airEW(s) || undefined, ep = ew ? airPid(s) : undefined; airStrike(rx, ry, w, rr, ja, f, undefined, kd, sd, ew, ep); netEmit({ t: 'air', x: rx, y: ry, w, r: rr, j: ja, f, kd, sd, ew, ep, h: Math.round(netNow()) });
 }
 function barrageWarn() { Sfx.barrage(); } // no notice on screen: the sound and the markers are the warning
+function airPick(ts) { // the deciding browser: who this strike is for: one player, never the same one twice running while there's anyone else
+  const c = ts.length > 1 ? ts.filter(s => airPid(s) !== AIR.lastPid) : ts, s = pick(c.length ? c : ts); AIR.lastPid = airPid(s); return s;
+}
 function airKillTick(s, c) { // the deciding browser: someone (any player) just ate somebody: the jets come sooner (a person a fair bit, an animal far less, a small one less still)
   if (!s || !airOn() || !AIR.warned || state !== 'play' || (AIR.storms && AIR.storms.length)) return; // (a storm is its own pace)
   const floor = MOD.airRaid ? 2.5 : 10; // never right on top of the last one (a normal game keeps its quiet spells)
   const per = MOD.airRaid ? .25 : .6, k = !c || c.def.human ? 1 : .4 * clamp((c.def.r || 8) / 14, .2, 1); // animals: under half a person's, scaled by size
-  if (AIR.nextT > floor) AIR.nextT = Math.max(floor, AIR.nextT - per * k);
+  const np = Math.max(1, netSnakes().filter(q => q && q.alive && !q.netHidden).length); // (multiplayer: shared out, so a crowd of players killing doesn't call in more bombs than one would)
+  if (AIR.nextT > floor) AIR.nextT = Math.max(floor, AIR.nextT - per * k / np);
 }
 function airKills(s) { // kills that count against this snake: in co-op everyone's, in Teams your team's, in free for all your own
   if (!NETM.run) return run.killed || 0;
@@ -213,11 +226,67 @@ function airSalvo(s, g, a) { // a salvo of bombs walked along this snake's path 
     netEmit({ t: 'air', x: rx, y: ry, w, r: rr, j: ja, f, tk, kd, sd, ew, ep, h: Math.round(netNow()) }); // (h: the host's clock, so guests can take off the time it spent in transit)
   }
 }
-const BOMB_KINDS = [[undefined, 45], ['g', 30], ['i', 17], ['c', 8]]; // what a bomb is: plain bombs most of all, gas a little less often, incendiaries less again, cluster bombs the rarest
-function bombKd(tt, sp = 1) { // the deciding browser: one bomb's kind (nothing special in the first half minute of a raid; sp scales the special ones down)
+const BOMB_KINDS = [[undefined, 75], ['i', 17], ['c', 8]]; // what a jet's bomb is: plain bombs three times in four (the main way you die), incendiaries (napalm ahead of you, to steer round), cluster bombs the rarest. No gas from the jets: gas comes only in artillery shells, behind you
+function bombKd(tt, sp = 1) { // the deciding browser: one bomb's kind (nothing special in the first half minute of a raid, no cluster bombs before a minute and a half; sp scales the special ones down)
   if (tt < 30) return undefined; let r = Math.random() * 100;
-  for (const [k, w] of BOMB_KINDS) if ((r -= k ? w * sp : w) < 0) return k;
+  for (const [k, w] of BOMB_KINDS) if ((r -= k ? w * sp : w) < 0) return k === 'c' && tt < 90 ? undefined : k;
   return undefined;
+}
+/* ---- artillery: later in a run, now and then a battery of cannons miles off the map lobs a few shells at you instead of a jet coming over.
+   Each lands with a far bigger blast than a bomb, but you get a long time to get clear: the cannon's report, the marker, then the shell
+   whistling all the way down, slowly ---- */
+const ARTY = { after: 150, raid: 15, every: [70, 110], everyRaid: [9, 14], r: [1.3, 1.65], lead: .6, warn: [2.9, 3.5], bar: .22, barGap: 150, barGapRaid: 75, barAfter: 60, barAfterRaid: 30 }; // every: seconds between salvos once the guns have opened (Shell Shock: everyRaid); lead: the cannon's report comes this long before the marker, which then has warn seconds to the ground (about 3.5-4 s from the gun); bar: how often a salvo is a barrage instead (never the first, never within barGap of the last one, nor sooner than barAfter after the guns open) // the first salvo comes 2.5 minutes into the bombing (Shell Shock: 15 s into the run), then now and then, never within 70 s of the last; each shell 3-4 s from the gun to the ground
+const ARTY_KINDS = [[undefined, 40], ['g', 30], ['i', 15], ['c', 15]]; // what a shell carries: high explosive mostly, gas shells (the only gas there is: it lands on ground you've just left, so it's a trap you can see, never a blindfold on your way in), cluster shells that chew up a coiled tail
+const ARTY_PAL = { // each payload's colours on the artillery marker (z: the glow under it; on/off: the flashing ring; soft: the ticks, inner rings and fills)
+  he: { z: [170, 125, 255], on: '#e6d9ff', off: '#b99cff', soft: '214,194,255', lab: '#d4c2ff' }, g: { z: [150, 200, 40], on: '#e4ff8a', off: '#9cc83a', soft: '205,240,120', lab: '#b8e04c' },
+  i: { z: [255, 110, 20], on: '#ffc06a', off: '#ff6a1a', soft: '255,175,95', lab: '#ff9a3c' }, c: { z: [255, 190, 40], on: '#ffe27a', off: '#e0a91f', soft: '255,218,115', lab: '#ffd23f' } };
+function artyKd() { let r = Math.random() * 100; for (const [k, w] of ARTY_KINDS) if ((r -= w) < 0) return k; }
+function artyTailSpot(s, D) { // a point D up the body from the end of this snake's tail (past the head on its heading if the body is shorter than that)
+  const g = s.segs; let left = D;
+  for (let i = g.length - 1; i > 0; i--) { const a = g[i], b = g[i - 1], L = Math.hypot(b.x - a.x, b.y - a.y); if (L >= left) { const u = left / (L || 1); return [a.x + (b.x - a.x) * u, a.y + (b.y - a.y) * u, Math.atan2(b.y - a.y, b.x - a.x)]; } left -= L; }
+  return [s.x + Math.cos(s.angle) * left, s.y + Math.sin(s.angle) * left, s.angle];
+}
+function artySalvo(s, k) { // the deciding browser: a creeping barrage on the end of this snake's tail (k: how far into the raid). Unlike the bombs, which lead your head, the guns are laid on your tail, one shell after another a second or so apart, each on the tail as it is when it's fired: keep moving and they walk along the ground you've just crossed (no doubling back), stall or coil up and they take the end of you
+  const n = 1 + (Math.random() < .15 + .2 * k ? 1 : 0), ca = +rand(0, TAU).toFixed(3); // one shell mostly, now and then a second a beat later (the big volleys are the barrage's); ca: the way the shells come in, from the battery off the map
+  for (let j = 0, at = 0; j < n; j++) {
+    const fire = () => { if (!s.alive || s.netHidden || s.hidden || state !== 'play' || !s.segs || !s.segs.length) return; artyShell(s, ca); };
+    if (j) AIR.queue.push({ t: at += rand(.9, 1.3), f: fire }); else fire();
+  }
+}
+/* ---- an artillery barrage: rarely, the whole battery fires for effect. A ripple of cannon reports, then 4-7 high-explosive shells
+   that all come down within a second and a half of each other, blanketing the ground round the end of your tail and behind it.
+   Fair: every shell is marked for its whole 3-4 s flight, none lands near your head or on the way ahead of it, so the way out is
+   always forward. Intense: stall, coil or turn back into it and there's nowhere to stand ---- */
+function artyBarrage(s, k) { // the deciding browser
+  const n = 4 + Math.round(k * 2 + Math.random()), ca = +rand(0, TAU).toFixed(3), body = snakeLen(s), ha = s.angle, spots = [];
+  for (let q = 0; q < n; q++) for (let p = 0; p < 40; p++) {
+    const r = Math.round(AIR_R * rand(1.25, 1.55)), D = rand(-360, body * .55), [tx, ty, ta] = D < 0 ? (() => { const [x0, y0, a0] = artyTailSpot(s, 0); return [x0 + Math.cos(a0) * D, y0 + Math.sin(a0) * D, a0]; })() : artyTailSpot(s, D), side = gauss() * 80; // round the end of the tail: up the back half of the body, and along the trail behind it
+    const [x, y] = airInside(tx - Math.sin(ta) * side, ty + Math.cos(ta) * side, s.x, s.y), hx = x - s.x, hy = y - s.y, hd = Math.hypot(hx, hy);
+    if (hd < r + 95) continue; // never near your head
+    if ((hx * Math.cos(ha) + hy * Math.sin(ha)) / (hd || 1) > .5 && hd < 520) continue; // nor on the way ahead of it: forward is always the way out
+    if (spots.some(o => Math.hypot(o.x - x, o.y - y) < (o.r + r) * .42)) continue; // overlapping, not stacked
+    spots.push({ x, y, r }); break;
+  }
+  const land = rand(3.2, 3.7); // when the first one lands
+  spots.forEach((o, q) => { const d = q ? rand(.05, .2) * q : 0, w = land + q * rand(.15, .28) - d; // fired in a ripple, a fraction of a second apart; all down within about a second and a half
+    const fire = () => { if (!s.alive || s.netHidden || s.hidden || state !== 'play' || !s.segs || !s.segs.length) return; artyShell(s, ca, [o.x, o.y], w, 0, o.r); };
+    if (d) AIR.queue.push({ t: d, f: fire }); else fire(); });
+}
+const snakeLen = s => s.segs.reduce((d, g, i) => i ? d + Math.hypot(g.x - s.segs[i - 1].x, g.y - s.segs[i - 1].y) : 0, 0);
+function artyShell(s, ca, aim, w0, pk0, r0) { // the deciding browser: the gun goes off far away (every screen hears it), and a moment later the shell is marked on the end of the tail
+  const gx = Math.round(s.x); artyReport(gx, ca); netEmit({ t: 'artf', x: gx, a: ca });
+  AIR.queue.push({ t: ARTY.lead, f: () => { if (!s.alive || s.netHidden || s.hidden || state !== 'play' || !s.segs || !s.segs.length) return; artyMark(s, ca, aim, w0 && Math.max(1.8, w0 - ARTY.lead), pk0, r0); } });
+}
+function artyReport(x, a) { Sfx.cannon && Sfx.cannon(x, a); } // every screen: the battery firing, miles off on the side the shells come from
+function artyMark(s, ca, aim, w0, pk0, r0) { // the deciding browser: one shell marked on the end of this snake's tail (aim, w0, pk0, r0: a barrage's own spot, flight time, payload and size)
+  const body = snakeLen(s); let r = r0 || Math.round(AIR_R * rand(...ARTY.r)), ew = airEW(s) || undefined, ep = ew ? airPid(s) : undefined; // each shell its own size: always bigger than a bomb, never huge
+  let w = (w0 || rand(...ARTY.warn)) + (ew || 0);
+  for (let q = 0; q < 6; q++) { const o = strikes.find(o => Math.abs(o.t - w) < .11); if (!o) break; w = o.t + .11 + rand(0, .05); } // never two at once
+  w = +w.toFixed(2);
+  const [tx, ty, ta] = artyTailSpot(s, body * rand(0, .12)), side = gauss() * 14, [x, y] = aim || airInside(tx - Math.sin(ta) * side, ty + Math.cos(ta) * side, s.x, s.y); // right on the end of the tail
+  const rx = Math.round(x), ry = Math.round(y), f = +((w - (ew || 0)) * rand(.75, .85)).toFixed(2), pk = pk0 === undefined ? artyKd() : pk0 || undefined, sd = pk ? randi(1, 2 ** 30) : undefined; // most of its flight you can watch it come down
+  if (pk === 'i') r = Math.round(r * .85); // a fire shell's own blast is smaller: its fire does the rest
+  airStrike(rx, ry, w, r, ca, f, undefined, 'a', sd, ew, ep, pk); netEmit({ t: 'air', x: rx, y: ry, w, r, j: ca, f, kd: 'a', sd, ew, ep, pk, h: Math.round(netNow()) });
 }
 function bombKind() { // a size and a falling speed: mostly ordinary, some big ones, some small, some that come down fast or slow
   const q = Math.random(), r = q < .2 ? rand(1.15, 1.35) : q < .42 ? rand(.72, .88) : rand(.92, 1.08), v = Math.random();
@@ -252,12 +321,13 @@ function bombRun(s, k, a0) { // a jet flying a line across your path, letting a 
   }
 }
 function airWarn() {
-  notify({ kind: 'bad', icon: giSvg('jet'), title: MOD.airRaid ? 'AIR RAID' : 'AIR STRIKE INBOUND', sub: 'The military is bombing and strafing your path. Stay out of the red rings and lanes.', dur: 4.2, key: 'air' });
+  notify({ kind: 'bad', icon: giSvg('jet'), title: MOD.airRaid ? 'SHELL SHOCK' : 'AIR STRIKE INBOUND', sub: 'The military is bombing and strafing your path. Stay out of the red rings and lanes.', dur: 4.2, key: 'air' });
   Sfx.siren();
 }
-function airStrike(x, y, w, r = AIR_R, jetA, f = .5, tk, kd, sd, ew, ep) { // (ew, ep: Early Warning's extra seconds at the start of w, and whose perk it is: only they see it that early, as the teal radar marker) // (kd: 'c' a cluster bomb, 'i' an incendiary; sd: the seed every screen builds its bomblets or fire patches from) // every screen: mark the spot and start its clock (f: how long the bomb takes to fall into view and land; shorter is faster; tk: Locked on, the player it slides after)
-  strikes.push({ x, y, t: w, dur: w, r, f: clamp(f || .5, .12, 1.2), tk, kd, sd, ew: ew > 0 ? Math.min(ew, w - .2) : 0, ep, ja: jetA ?? (strikes.length ? strikes[strikes.length - 1].ja : undefined), rot: ((x * 131 + y * 71) % 628) / 100, ph: 0, whistled: false }); // (the marker's turn comes from where it is, so it looks the same on every screen)
-  if (jetA !== undefined) { const j = { x, y, a: jetA, u: 0, over: Math.max(.2, w - (LOCK() ? .35 : .65)), dropped: false, v: jetV() }; jets.push(j); Sfx.flyby(j); }
+function airStrike(x, y, w, r = AIR_R, jetA, f = .5, tk, kd, sd, ew, ep, pk) { // (artillery: no jet here; its cannon was heard a moment before, artyReport) // (pk: what an artillery shell carries: 'g' gas, 'c' cluster, none high explosive) // (ew, ep: Early Warning's extra seconds at the start of w, and whose perk it is: only they see it that early, as the teal radar marker) // (kd: 'c' a cluster bomb, 'i' an incendiary; sd: the seed every screen builds its bomblets or fire patches from) // every screen: mark the spot and start its clock (f: how long the bomb takes to fall into view and land; shorter is faster; tk: Locked on, the player it slides after)
+  const arty = kd === 'a'; // artillery: no jet; the shell's long fall, and the cannon heard firing it
+  strikes.push({ x, y, t: w, dur: w, r, f: clamp(f || .5, .12, arty ? 5 : 1.2), tk, kd, sd, pk, ew: ew > 0 ? Math.min(ew, w - .2) : 0, ep, ja: jetA ?? (strikes.length ? strikes[strikes.length - 1].ja : undefined), rot: ((x * 131 + y * 71) % 628) / 100, ph: 0, whistled: false }); // (the marker's turn comes from where it is, so it looks the same on every screen)
+  if (!arty && jetA !== undefined) { const j = { x, y, a: jetA, u: 0, over: Math.max(.2, w - (LOCK() ? .35 : .65)), dropped: false, v: jetV() }; jets.push(j); Sfx.flyby(j); }
   Sfx.lockOn(x);
 }
 function airStrafe(x, y, a, w) { // every screen: mark the lane through (x, y) and start the clock
@@ -273,7 +343,7 @@ function airTick(dt) {
   for (let i = strikes.length - 1; i >= 0; i--) {
     const s = strikes[i]; s.t -= dt; s.ph += dt * (3 + 11 * (1 - s.t / s.dur) ** 2) * TAU; // flashes faster as it comes down
     if (s.tk !== undefined && s.dur - s.t < .4) { const q = snakeOfPid(s.tk); if (q && q.alive) { const sp = (q.speed || CONFIG.snakeSpeeds.Normal) * (q.dashV || 1), tx = q.x + Math.cos(q.angle) * sp * Math.max(0, s.t), ty = q.y + Math.sin(q.angle) * sp * Math.max(0, s.t), dx = tx - s.x, dy = ty - s.y, d = Math.hypot(dx, dy), m = Math.min(d, 260 * dt); if (d > 1) { s.x = clamp(s.x + dx / d * m, 24, W - 24); s.y = clamp(s.y + dy / d * m, 24, H - 24); } } } // Locked on: for a split second it slides after you
-    if (!s.whistled && s.t < s.f * 1.8) { s.whistled = true; Sfx.whistle(s.x, Math.max(.2, s.t)); }
+    if (!s.whistled && s.t < (s.kd === 'a' ? s.f + .25 : s.f * 1.8)) { s.whistled = true; (s.kd === 'a' ? Sfx.shellWhistle : Sfx.whistle).call(Sfx, s.x, Math.max(.2, s.t)); } // (a shell whistles the whole long way down)
     if (s.t <= 0) { strikes.splice(i, 1); detonate(s); }
   }
   for (let i = strafes.length - 1; i >= 0; i--) {
@@ -315,7 +385,8 @@ function blastBreak(x, y, R, heavy) { // every screen runs the same blast, so ev
   }
 }
 function detonate(s) {
-  if (s.kd === 'c') clusterSplit(s); // a cluster bomb goes off like a bomb and throws out bomblets that go off at random afterwards (38g-cluster-fire)
+  if (s.kd === 'a' && s.pk === 'g') return gasPop({ x: s.x, y: s.y, r: Math.round(s.r * .75), sd: s.sd }); // a gas shell: no blast, the cloud (a little tighter than the shell's ring: it lands on your trail, not on top of you)
+  if (s.kd === 'c' || s.pk === 'c') clusterSplit(s); // a cluster bomb goes off like a bomb and throws out bomblets that go off at random afterwards (38g-cluster-fire)
   if (s.kd === 'g') return gasPop(s); // a gas bomb doesn't blow up: it lets out a cloud (38g)
   const mini = !!s.mini, cm = mini ? .3 : 1; // a bomblet: the same blast, much smaller, felt much less far off
   AIR.recent = (AIR.recent || []).filter(t => T - t < 1.5); AIR.recent.push(T); const bm = 1 / AIR.recent.length; // several blasts at once: each throws a share (six together throw about what two and a half do, not six: the same patch of screen can't show more, and drawing it all was what dropped the frame rate)
@@ -327,14 +398,14 @@ function detonate(s) {
   throwClods(x, y, r, cm, bm); // (cut from the ground before the crater is burnt into it)
   if (typeof blastSnow === 'function' && blastSnow(x, y, r * 1.15) > 0 && snowy) for (let k = 0; k < Math.round(60 * fx); k++) { const a = rand(0, TAU), sp = rand(60, 360); boomBits.push({ x: x + rand(-r * .4, r * .4), y: y + rand(-r * .4, r * .4), z: rand(2, 10), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(140, 420), t: 0, life: rand(1.2, 2.4), s: rand(1.4, 3.4), tr: false, c: pick(['#eef3f8', '#dfe8f2', '#f7fbff', '#c9d6e4']) }); } // the snow there is blown off: a white burst, bare ground underneath
   scorch(x, y, r);
-  blastBreak(x, y, r * 1.15, !mini && (!s.kd || s.kd === 'c') && !s.safe); // what's near it breaks: fences, benches, crates and the like in any blast; trees, boulders and cars only to a proper bomb
+  blastBreak(x, y, r * 1.15, !mini && (!s.kd || s.kd === 'c' || s.kd === 'a') && !s.safe); // what's near it breaks: fences, benches, crates and the like in any blast; trees, boulders and cars only to a proper bomb
   for (let k = 0; k < Math.round(12 * fx); k++) { const a = rand(0, TAU), sp = rand(20, 90); soots.push({ x: x + rand(-r * .3, r * .3), y: y + rand(-r * .3, r * .3), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: r * rand(.35, .6), g: rand(18, 34), rot: rand(0, TAU), vr: rand(-.5, .5), t: -rand(.08, .35), life: rand(2.6, 4.2), a: rand(.55, .8) }); } // black, oily smoke boiling up through the fire, lit orange from inside at first
   hazes.push({ x, y, r: r * 1.3, t: 0, life: 4.5 }); // heat shimmer over the crater
   const sec = mini ? 0 : n(randi(3, 5));
   for (let k = 0; k < sec; k++) { const a = rand(0, TAU), d = r * rand(.5, 1.1), dl = rand(.2, .7), sx = x + Math.cos(a) * d, sy = y + Math.sin(a) * d; // things in the crater cooking off
     booms.push({ puff: true, sec: true, x: sx, y: sy, r: r * rand(.35, .55), t: -dl, dur: .55 });
     later.push({ t: dl, f: () => { Sfx.cookOff(sx); for (let q = 0; q < 10; q++) { const b = rand(0, TAU), v = rand(120, 380); boomBits.push({ spark: true, x: sx, y: sy, z: rand(4, 12), vx: Math.cos(b) * v, vy: Math.sin(b) * v, vz: rand(40, 200), t: 0, life: rand(.2, .5) }); } } }); }
-  if (s.kd === 'i') fireSpread(s); // an incendiary: small patches of burning ground (38g-cluster-fire)
+  if (s.kd === 'i' || s.pk === 'i') fireSpread(s); // an incendiary: small patches of burning ground (38g-cluster-fire)
   for (let k = 0; k < n(mini ? 1 : s.kd === 'i' ? 2 : 4); k++) { const a = rand(0, TAU), d = rand(0, .55) * r; fires.push({ x: x + Math.cos(a) * d, y: y + Math.sin(a) * d, r: rand(5, 10), t: 0, life: rand(2.5, 5), ph: rand(0, 99) }); } // the crater keeps burning
   const gpal = groundPalette(x, y, r); { const main = booms.find(q => !q.puff && q.x === x && q.y === y && q.t === 0); if (main) main.dust = shade(gpal[gpal.length - 1] || '#b49a78', .25); } // the dust ring is the ground's own color
   for (let k = 0; k < Math.round(56 * cm * bm); k++) { const a = rand(0, TAU), sp = rand(90, 420); boomBits.push({ x: x + rand(-6, 6), y: y + rand(-6, 6), z: rand(2, 10), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(120, 380), t: 0, life: rand(1.6, 3.2), s: rand(1.5, 4.2), tr: Math.random() < .35, c: pick(gpal) }); } // crumbs of whatever the ground was, thrown high
@@ -349,7 +420,7 @@ function detonate(s) {
   shake = Math.max(shake, 24 * kk * (mini ? .45 : 1)); AIR.flash = Math.max(AIR.flash, clamp(1 - near / 480, .15, 1) * (SETTINGS.reduceFlash ? .25 : .8) * (mini ? .35 : 1)); AIR.sky = Math.max(AIR.sky, mini ? .3 : 1);
   if (near < 180) hitStop = Math.max(hitStop, .06); // the world catches its breath
   if (snake && near > 1) { const k = 260 * kk; camF.kv.x += (snake.x - x) / near * k; camF.kv.y += (snake.y - y) / near * k; } // the camera gets shoved away from it
-  Sfx.boom(x, clamp(1.2 - near / 900, .5, 1.2) * (mini ? .55 : 1));
+  Sfx.boom(x, clamp(1.2 - near / 900, .5, 1.2) * (mini ? .55 : s.kd === 'a' ? 1.25 : 1));
   if (near < 150 && (state === 'play' || state === 'dead' || NETM.run)) Sfx.tinnitus(clamp(1.15 - near / 150, .25, 1)); // too close: your ears ring
   if (snake && snake.alive && near < 220) { // close enough to knock you about: slowed, drained of colour, dimmed, reeling, everything else's outlines gone; all of it by how close it was
     const dz = Math.pow(1 - near / 220, 1.1); AIR.rumble = Math.max(AIR.rumble, dz);
@@ -361,7 +432,7 @@ function detonate(s) {
   const me = snake;
   if (!s.safe && me && me.alive && !me.netHidden && !(me.graceT > 0) && (state === 'play' || NETM.run) && me.segs) {
     const R = r + snakeRadius() * .6, i = me.segs.findIndex(g => dist2(g.x, g.y, x, y) < R * R);
-    if (i >= 0) airHitSnake(i, s.by || 'bomb');
+    if (i >= 0) airHitSnake(i, s.by || (s.kd === 'a' ? 'artillery' : 'bomb'), s.kd, s.sid);
     else if (s.by !== 'fuse') { let dm = Infinity; let ng = null; for (const g of me.segs) { const d = dist2(g.x, g.y, x, y); if (d < dm) { dm = d; ng = g; } } if (ng && Math.sqrt(dm) < R + (mini ? 24 : 46)) nearMiss('bomb', ng.x + (x - ng.x) * .3, ng.y + (y - ng.y) * .3); } // it landed right next to you
   }
   if (!AUTH()) return;
@@ -412,14 +483,15 @@ function pumpBlast(x, y) { // a gas pump goes up: a full blast, with the ringing
 }
 /* ---- getting hit: the head and neck (the front 30% of the body) and you're dead; further back, the tail is shot off ---- */
 const AIR_FRONT = .3;
-function airHitSnake(i, by) {
+function airHitSnake(i, by, kd, sid) { // (sid: the cluster bomb a bomblet came from: one cluster bomb takes one piece of you, however many of its bomblets catch you)
   const me = snake, n = me.segs.length, front = Math.max(3, Math.ceil(n * AIR_FRONT));
   if (by === 'cluster') { // a bomblet never kills: on the head end it takes half of you and leaves nothing to eat back; anywhere else the last quarter of you comes off and drops where you can eat it back
     if (me.cutT > 0) return; const head = i < front, keep = Math.max(BURN.min, Math.round(n * (head ? .5 : .75)));
     if (keep >= n) { airHurt(.6); return; } // already as short as it gets: a jolt, nothing more
+    if (sid !== undefined) { const got = me.clusterCut || (me.clusterCut = new Set()); if (got.has(sid)) { airHurt(.5); return; } got.add(sid); } // this bomb has had its piece of you already: a jolt
     airHurt(head ? 1 : .8); return tailCut(me, keep, head);
   }
-  if (i < front) { airHurt(1); me.burstAt = i; return bombDeath(by); } // it goes up from where it was hit
+  if (i < front) { airHurt(1); me.burstAt = i; return bombDeath(by, kd); } // it goes up from where it was hit
   if (me.cutT > 0) return; // the same rounds walking on over the stump don't take another piece a frame later
   airHurt(.8); tailCut(me, i);
 }
@@ -570,9 +642,9 @@ const NM = { at: -9, n: 0, list: [] };
 function nearMiss(kind, x, y) { // (x, y): where it happened, right by your body
   if (!snake || !snake.alive || state !== 'play') return;
   const now = performance.now(), chain = now - NM.at < 4000 ? NM.n + 1 : 1; NM.at = now; NM.n = chain;
-  const ck = (1 + .25 * Math.min(4, chain - 1)) * rewardMult, xp = Math.round((kind === 'strafe' ? 14 : 18) * ck), chips = Math.max(1, Math.round((kind === 'strafe' ? 5 : 6) * ck * SKV.nearK())); run.nearMiss = (run.nearMiss || 0) + 1; PROG.nearT = (PROG.nearT || 0) + 1; checkAch(); // chips too, climbing with the chain like the XP
+  const ck = (1 + .25 * Math.min(4, chain - 1)) * rewardMult, xp = Math.round((kind === 'strafe' ? 14 : 18) * ck), chips = Math.max(1, Math.round((kind === 'strafe' ? 5 : 6) * ck * SKV.nearK() * CHIP_GAIN)); run.nearMiss = (run.nearMiss || 0) + 1; PROG.nearT = (PROG.nearT || 0) + 1; checkAch(); // chips too, climbing with the chain like the XP
   NM.list.push({ x: x ?? snake.x, y: y ?? snake.y, t0: now, txt: chain > 1 ? `NEAR MISS x${chain}` : 'NEAR MISS', xp, chips }); if (NM.list.length > 4) NM.list.shift();
-  gainXP(Math.round(xp * SKV.nearK()), chips); studyHit('near'); // Daredevil, Quick Study
+  gainXP(Math.round(xp * SKV.nearK()), chips, { net: true }); studyHit('near'); // Daredevil, Quick Study
   if (Sfx.ok() && Sfx.gate('nm', .3)) Sfx.tone(Sfx.out(x, .5), Sfx.ctx.currentTime, 660, 1320, .16, 'triangle', .07);
 }
 function drawNearMiss(x) { // in the world, small, right where it happened: a quick pop, a little drift up, gone in a second
@@ -584,8 +656,8 @@ function drawNearMiss(x) { // in the world, small, right where it happened: a qu
     const sub = m.xp != null ? `+${m.xp} XP${m.chips ? `  +${m.chips} chips` : ''}` : m.sub; if (sub) { x.font = `700 ${(7.5 * pop).toFixed(1)}px system-ui, sans-serif`; x.strokeText(sub, m.x, y + 9); x.fillStyle = '#fff3cf'; x.fillText(sub, m.x, y + 9); } } // (eaten flesh chunks use these too: their own color, no XP line)
   x.restore();
 }
-function bombDeath(by = 'bomb') {
-  crashHit = null; run.deathBy = by;
+function bombDeath(by = 'bomb', kd) {
+  crashHit = null; run.deathBy = by; run.deathKd = kd; // (kd: what kind of bomb it was, for the death text)
   if (NETM.run) return netLocalDown();
   snake.netHidden = true; snakeBurst(snake, SETTINGS.snake.color, SETTINGS.snake);
   die();
@@ -842,7 +914,7 @@ function drawAirstrikes(x) { // drawn under the fog (so markers in it stay hidde
   drawClods(x, true); // chunks of ground flying up through it all
 }
 function drawStrafe(x, s) { // the lane: a red strip with chevrons flowing the way the jet is coming, flashing faster as it gets close; the rounds eat it up as they land
-  const pre = s.t < 0, p = pre ? clamp(1 + s.t / s.warn, 0, 1) : 1, w = .5 + .5 * Math.sin(s.ph), fade = (pre ? clamp((s.warn + s.t) * 4, 0, 1) : clamp(1 - s.done / .8, 0, 1)) * GAS_SEE, hw = s.hw, L = s.len, from = pre ? 0 : s.front; // (in gas you can't see the lane: GAS_SEE)
+  const pre = s.t < 0, p = pre ? clamp(1 + s.t / s.warn, 0, 1) : 1, w = .5 + .5 * Math.sin(s.ph), fade = (pre ? clamp((s.warn + s.t) * 4, 0, 1) : clamp(1 - s.done / .8, 0, 1)) * gasMarkA(), hw = s.hw, L = s.len, from = pre ? 0 : s.front; // (in gas you can't see the lane: GAS_SEE)
   x.save(); x.translate(s.x0, s.y0); x.rotate(s.a);
   if (from < L) {
     x.globalAlpha = fade * (.16 + .12 * w + .1 * p); x.fillStyle = '#ff2a20'; x.fillRect(from, -hw, L - from, hw * 2);
@@ -902,15 +974,52 @@ function drawEarlyMark(x, s, a) { // Early Warning: a teal radar contact where a
   x.globalAlpha = a; x.fillStyle = 'rgba(170,255,248,.95)'; x.font = '700 9px system-ui, sans-serif'; x.textAlign = 'center'; x.fillText('EARLY WARNING', 0, -R - 7);
   x.restore();
 }
-const gasMarkA = () => typeof sk === 'function' && sk('mask') ? 1 - .5 * clamp(((snake && snake.gasK) || 0) * 4, 0, 1) : GAS_SEE; // how much of the markers you can make out: gone in gas, half with the Gas Mask
+const gasMarkA = () => typeof sk === 'function' && sk('mask') ? 1 - .5 * clamp(((snake && snake.gasK) || 0) * 4, 0, 1) : .25 + .75 * GAS_SEE; // how much of the markers you can make out: a quarter in gas (never nothing: whatever kills you, you could have seen), half with the Gas Mask
 function drawStrikeMark(x, s) { // a bomb, an incendiary and a cluster bomb each have their own marker, different enough to tell apart at a glance
   const el = s.dur - s.t, ew = s.ew || 0, mine = !NETM.run || s.ep === NETM.me; let fa = 1; // Early Warning: the early stretch is the teal radar marker (yours only), crossfading into this one
   if (ew) { if (!mine && el < ew) return; if (mine && el < ew + .3) { drawEarlyMark(x, s, clamp((ew + .3 - el) / .6, 0, 1) * gasMarkA()); if (el < ew - .3) return; } fa = clamp((el - (mine ? ew - .3 : ew)) / (mine ? .6 : .15), 0, 1); }
   const p = clamp((el - ew) / Math.max(.05, s.dur - ew), 0, 1), on = Math.sin(s.ph) > 0, R = s.r, rot = s.rot + T * .7, ma = gasMarkA() * fa; // ma: in gas the marker can't be made out (the bomb itself still can)
-  x.save(); x.translate(s.x, s.y); x.globalAlpha = ma;
+  x.save(); x.translate(s.x, s.y);
+  if (s.t < s.f) drawBombShadow(x, s, 1 - s.t / s.f); // the shadow of what's falling, on the ground under the marker
+  x.globalAlpha = ma;
   const zone = (r, g, b) => { const glow = x.createRadialGradient(0, 0, R * .2, 0, 0, R * 1.5); glow.addColorStop(0, `rgba(${r},${g},${b},${(on ? .26 : .12) + .14 * p})`); glow.addColorStop(.7, `rgba(${r},${g},${b},${(on ? .16 : .07) + .08 * p})`); glow.addColorStop(1, `rgba(${r},${g},${b},0)`); x.fillStyle = glow; circ(x, 0, 0, R * 1.5); };
   const sweep = () => { x.strokeStyle = 'rgba(255,255,255,.9)'; x.lineWidth = 3; x.beginPath(); x.arc(0, 0, R - 6, -Math.PI / 2, -Math.PI / 2 + TAU * (1 - p)); x.stroke(); }; // time left
-  if (s.kd === 'i') { // INCENDIARY: orange, a ring of flickering flame, a flame in the middle, and flame ticks round where the fire can spread
+  if (s.kd === 'a') { // ARTILLERY: nothing like a bomb's red crosshair: a range ring with a mil scale round it, a ring closing in on it as the shell comes down, a map grid square at its heart with what the shell carries drawn in it, and chevrons on the side the shells come in from. The whole of it in the payload's colour (violet high explosive, green gas, orange fire, yellow cluster), and the ring itself takes the payload's look: bubbles drifting round it, a flickering edge of flame, hazard stripes. Every line has a dark edge under it, so it reads on any ground, day or night
+    const P = ARTY_PAL[s.pk] || ARTY_PAL.he, C = on ? P.on : P.off, soft = a => `rgba(${P.soft},${a})`, DK = 'rgba(8,6,12,.62)';
+    const ink = (path, col, w, dash) => { x.lineWidth = w + 2.6; x.strokeStyle = DK; if (dash) x.setLineDash(dash); path(); x.stroke(); x.lineWidth = w; x.strokeStyle = col; path(); x.stroke(); if (dash) x.setLineDash([]); }; // a stroke on its own dark edge
+    zone(...P.z);
+    x.save(); x.globalAlpha = ma * (.45 + .5 * p); x.lineDashOffset = -T * 24; ink(() => { x.beginPath(); x.arc(0, 0, R * (1 + 1.3 * (1 - p) ** 1.5), 0, TAU); }, soft(1), 2.2, [12, 9]); x.restore(); // closing in as it comes down
+    if (s.pk === 'i') ink(() => { x.beginPath(); for (let k = 0; k <= 96; k++) { const a = k / 96 * TAU, r = R + 2.6 * Math.sin(a * 11 + T * 8) + 1.4 * Math.sin(a * 17 - T * 12); k ? x.lineTo(Math.cos(a) * r, Math.sin(a) * r) : x.moveTo(Math.cos(a) * r, Math.sin(a) * r); } x.closePath(); }, C, 3.2); // a flickering edge of flame
+    else if (s.pk === 'c') { x.lineWidth = 8; x.strokeStyle = DK; x.beginPath(); x.arc(0, 0, R, 0, TAU); x.stroke(); x.save(); x.rotate(rot * .3); x.lineWidth = 5; const N = 24; for (let q = 0; q < N; q++) { x.strokeStyle = q & 1 ? '#151208' : C; x.beginPath(); x.arc(0, 0, R, q / N * TAU, (q + 1) / N * TAU); x.stroke(); } x.restore(); } // hazard stripes
+    else ink(() => { x.beginPath(); x.arc(0, 0, R, 0, TAU); }, C, 3.2); // the edge of the blast
+    if (s.pk === 'g') { x.lineWidth = 1.6; for (let q = 0; q < 10; q++) { const a = q / 10 * TAU + T * .35 + Math.sin(T * 1.3 + q) * .08, d = R - 9 + Math.sin(T * 2.2 + q * 1.7) * 2.5, rr = 3.4 + (q % 3) * 1.4 + Math.sin(T * 3 + q) * .6; x.beginPath(); x.arc(Math.cos(a) * d, Math.sin(a) * d, rr, 0, TAU); x.fillStyle = soft(.5); x.fill(); x.strokeStyle = DK; x.lineWidth = 3.4; x.stroke(); x.strokeStyle = C; x.lineWidth = 1.6; x.stroke(); } } // bubbles of it drifting round inside the ring
+    x.save(); x.rotate(rot * .25); const r0 = R + (s.pk === 'c' ? 5 : 3); // the mil scale: a tick every 15 degrees, a long one every 45
+    ink(() => { x.beginPath(); for (let q = 0; q < 24; q++) if (q % 3) { const a = q / 24 * TAU; x.moveTo(Math.cos(a) * r0, Math.sin(a) * r0); x.lineTo(Math.cos(a) * (r0 + 6), Math.sin(a) * (r0 + 6)); } }, soft(.95), 1.8);
+    ink(() => { x.beginPath(); for (let q = 0; q < 8; q++) { const a = q / 8 * TAU; x.moveTo(Math.cos(a) * r0, Math.sin(a) * r0); x.lineTo(Math.cos(a) * (r0 + 13), Math.sin(a) * (r0 + 13)); } }, C, 2.6);
+    if (s.pk === 'i') for (let q = 0; q < 8; q++) { const a = (q + .5) / 8 * TAU, fl = 1 + .25 * Math.sin(T * 9 + q * 2); x.save(); x.translate(Math.cos(a) * (R + 14), Math.sin(a) * (R + 14)); x.rotate(a + Math.PI / 2); x.scale(fl * .85, fl * .85); x.beginPath(); x.moveTo(0, -6); x.quadraticCurveTo(3.6, -1, 0, 3.5); x.quadraticCurveTo(-3.6, -1, 0, -6); x.lineWidth = 2.4; x.strokeStyle = DK; x.stroke(); x.fillStyle = C; x.fill(); x.restore(); } // a tongue of flame between the long ticks: the fire spreads out there
+    x.restore();
+    if (s.pk === 'c') { x.save(); x.globalAlpha = ma * (.6 + .3 * p); ink(() => { x.beginPath(); x.arc(0, 0, R * 2.5, 0, TAU); }, C, 1.8, [4, 7]); x.restore(); x.globalAlpha = ma; } // a cluster shell: as far as its bomblets scatter
+    const g = R * (s.pk ? .36 : .3); x.fillStyle = soft(.18); x.fillRect(-g, -g, g * 2, g * 2); ink(() => { x.beginPath(); x.rect(-g, -g, g * 2, g * 2); }, C, 2.2); // the grid square it's laid on
+    ink(() => { x.beginPath(); for (const [ax, ay] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) { x.moveTo(ax * g, ay * g); x.lineTo(ax * g * 1.3, ay * g * 1.3); } }, C, 2); // its grid lines running on out of it
+    if (s.pk === 'g') { // gas: three bubbles rising
+      for (const [bx, by, br, ph] of [[-.38, .3, .3, 0], [.32, .14, .24, 1.7], [-.02, -.36, .19, 3.1]]) { const yy = (by - .06 * Math.sin(T * 2.4 + ph)) * g; x.beginPath(); x.arc(bx * g, yy, br * g, 0, TAU); x.fillStyle = soft(.5); x.fill(); x.lineWidth = 3.8; x.strokeStyle = DK; x.stroke(); x.lineWidth = 1.8; x.strokeStyle = C; x.stroke(); x.fillStyle = 'rgba(255,255,255,.8)'; x.beginPath(); x.arc((bx - br * .35) * g, yy - br * .35 * g, br * .22 * g, 0, TAU); x.fill(); }
+    } else if (s.pk === 'i') { // fire: a flame
+      const fh = g * .82 * (1 + .06 * Math.sin(T * 13)), gr = x.createLinearGradient(0, fh * .55, 0, -fh); gr.addColorStop(0, '#ff4a12'); gr.addColorStop(.6, '#ffa030'); gr.addColorStop(1, '#ffe08a');
+      x.beginPath(); x.moveTo(0, -fh); x.bezierCurveTo(fh * .55, -fh * .35, fh * .5, fh * .4, 0, fh * .55); x.bezierCurveTo(-fh * .5, fh * .4, -fh * .55, -fh * .35, 0, -fh); x.lineWidth = 2.6; x.strokeStyle = DK; x.stroke(); x.fillStyle = gr; x.fill();
+      x.fillStyle = 'rgba(255,240,200,.9)'; x.beginPath(); x.ellipse(0, fh * .16, fh * .15, fh * .26, 0, 0, TAU); x.fill();
+    } else if (s.pk === 'c') { // cluster: its bomblets, laid out round the point of aim
+      x.save(); x.rotate(-rot * .6);
+      for (let q = 0; q < 5; q++) { const a = q / 5 * TAU, px = Math.cos(a) * g * .58, py = Math.sin(a) * g * .58; x.beginPath(); x.arc(px, py, g * .17, 0, TAU); x.fillStyle = soft(.45); x.fill(); ink(() => { x.beginPath(); x.arc(px, py, g * .17, 0, TAU); x.moveTo(px - g * .27, py); x.lineTo(px + g * .27, py); x.moveTo(px, py - g * .27); x.lineTo(px, py + g * .27); }, C, 1.5); }
+      x.restore(); x.fillStyle = DK; circ(x, 0, 0, 4); x.fillStyle = on ? '#fff' : C; circ(x, 0, 0, 2.8);
+    } else { // high explosive: a cross and a diamond at the point of aim
+      ink(() => { x.beginPath(); x.moveTo(-g, 0); x.lineTo(-g * .35, 0); x.moveTo(g * .35, 0); x.lineTo(g, 0); x.moveTo(0, -g); x.lineTo(0, -g * .35); x.moveTo(0, g * .35); x.lineTo(0, g); }, C, 2.2);
+      x.beginPath(); x.moveTo(0, -5.5); x.lineTo(5.5, 0); x.lineTo(0, 5.5); x.lineTo(-5.5, 0); x.closePath(); x.lineWidth = 2.4; x.strokeStyle = DK; x.stroke(); x.fillStyle = on ? '#fff' : C; x.fill();
+    }
+    if (s.ja !== undefined) { x.save(); x.rotate(s.ja); x.lineCap = 'round'; x.lineJoin = 'round'; // >>> from the side the shells come in from
+      const o = s.pk === 'i' ? 10 : 0; for (let q = 0; q < 3; q++) { const d = R + 48 + o - ((T * 22 + q * 13) % 39); x.globalAlpha = ma * clamp((R + 48 + o - d) / 14, 0, 1) * clamp((d - R - 14 - o) / 10, 0, 1); ink(() => { x.beginPath(); x.moveTo(-d - 7, -9); x.lineTo(-d + 2, 0); x.lineTo(-d - 7, 9); }, C, 2.8); }
+      x.restore(); x.globalAlpha = ma; }
+    x.lineWidth = 5.6; x.strokeStyle = DK; x.beginPath(); x.arc(0, 0, R - 7, -Math.PI / 2, -Math.PI / 2 + TAU * (1 - p)); x.stroke(); x.lineWidth = 3; x.strokeStyle = 'rgba(255,255,255,.95)'; x.stroke(); // time left, on its own dark edge
+  } else if (s.kd === 'i') { // INCENDIARY: orange, a ring of flickering flame, a flame in the middle, and flame ticks round where the fire can spread
     zone(255, 110, 20);
     x.beginPath(); for (let k = 0; k <= 72; k++) { const a = k / 72 * TAU, r = R + 3.2 * Math.sin(a * 9 + T * 7) + 1.8 * Math.sin(a * 14 - T * 11); k ? x.lineTo(Math.cos(a) * r, Math.sin(a) * r) : x.moveTo(Math.cos(a) * r, Math.sin(a) * r); } x.closePath();
     x.fillStyle = `rgba(255,120,30,${(.1 + .08 * p).toFixed(3)})`; x.fill(); x.lineWidth = 2.8; x.strokeStyle = on ? '#ffb347' : '#ff6a1a'; x.stroke();
@@ -949,26 +1058,45 @@ function drawStrikeMark(x, s) { // a bomb, an incendiary and a cluster bomb each
     x.fillStyle = on ? '#fff' : '#ff4a3a'; circ(x, 0, 0, 2.6); x.strokeStyle = '#ff3b30'; x.lineWidth = 1.5; x.beginPath(); x.arc(0, 0, 6, 0, TAU); x.stroke();
   }
   if (s.t < s.f) { x.globalAlpha = 1; drawFallingBomb(x, s, 1 - s.t / s.f); x.globalAlpha = ma; } // the bomb coming down
-  if (s.kd) { const c = s.kd === 'c' ? '#ffd23f' : s.kd === 'g' ? '#b8e04c' : '#ff7a1a', L = s.kd === 'c' ? 'CLUSTER' : s.kd === 'g' ? 'GAS' : 'FIRE', ly = s.kd === 'c' ? R * 2.5 + 11 : R + 28; // what it is, underneath
-    x.font = '900 10px system-ui, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.lineWidth = 3.5; x.strokeStyle = 'rgba(0,0,0,.8)'; x.strokeText(L, 0, ly); x.fillStyle = c; x.fillText(L, 0, ly); }
+  if (s.kd) { const c = s.kd === 'c' ? '#ffd23f' : s.kd === 'g' ? '#b8e04c' : s.kd === 'a' ? (ARTY_PAL[s.pk] || ARTY_PAL.he).lab : '#ff7a1a', L = s.kd === 'c' ? 'CLUSTER' : s.kd === 'g' ? 'GAS' : s.kd === 'a' ? (s.pk === 'g' ? 'GAS SHELL' : s.pk === 'c' ? 'CLUSTER SHELL' : s.pk === 'i' ? 'FIRE SHELL' : 'ARTILLERY') : 'FIRE', ly = s.kd === 'c' || s.pk === 'c' ? R * 2.5 + 11 : R + (s.pk === 'i' ? 34 : 28); // what it is, underneath
+    x.font = `900 ${s.kd === 'a' ? 12 : 10}px system-ui, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.lineWidth = s.kd === 'a' ? 4.5 : 3.5; x.strokeStyle = 'rgba(0,0,0,.8)'; x.strokeText(L, 0, ly); x.fillStyle = c; x.fillText(L, 0, ly); }
   x.restore();
 }
 const K_HEAT = [[255, 244, 200], [255, 214, 120], [255, 170, 75], [245, 128, 45], [205, 86, 28], [150, 54, 18]]; // a fireball cooling, white-yellow to deep red
-function drawFallingBomb(x, s, u) { // (in the marker's frame) it comes down at a slant along the jet's line, nose first, fins buzzing, smeared by its own speed; its shadow sharpens under it. It falls faster all the way down (it's dropping, never braking)
+const SHADOW_SPR = (() => { let c = null; return () => { if (c) return c; c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(.35, 'rgba(0,0,0,.8)'); gr.addColorStop(.7, 'rgba(0,0,0,.28)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return c; }; })(); // one soft round shadow, drawn once and stamped (never a blur filter per frame)
+function drawBombShadow(x, s, u) { // (in the marker's frame, under the marker) a falling bomb's or shell's shadow: wide and faint while it's high, gathering in and darkening as it comes down; soft-edged all the way
+  const shell = s.kd === 'a', a = s.ja ?? s.rot, H = shell ? 560 : 340, h = H * (1 - (shell ? .35 * u + .65 * u * u : .45 * u + .55 * u * u)), back = h * (shell ? .3 : .42), k = shell ? .1 : .15;
+  const cx = -Math.cos(a) * back * k, cy = -Math.sin(a) * back * k * .66, core = shell ? 5 + 12 * u : 3.5 + 8.5 * u, blur = 1 + 2.4 * (1 - u); // the higher it is, the softer and wider the shadow
+  const w = core * 2 * blur * 1.25, hh = w * .62; x.globalAlpha = Math.min(1, (shell ? .24 + .66 * u : .3 + .62 * u) * Math.min(1, 1.6 / blur)); // (dark enough to read through the marker's glow on top of it) x.drawImage(SHADOW_SPR(), cx - w / 2, cy - hh / 2, w, hh); x.globalAlpha = 1;
+}
+function drawFallingShell(x, s, u) { // (in the marker's frame) an artillery shell dropping in steeply from the side the battery is on, spinning, no fins, slow enough to watch the whole way down
+  const a = s.ja ?? s.rot, h = 560 * (1 - (.35 * u + .65 * u * u)), back = h * .3, ca = Math.cos(a), sa = Math.sin(a), bx = -ca * back, by = -sa * back * .55 - h;
+  const nose = Math.atan2(sa * .3 * .55 + 1, ca * .3) - Math.PI / 2, k = .9 + .7 * u, spin = T * 9 + s.rot;
+  x.save(); x.translate(bx, by); x.rotate(nose); x.scale(k, k);
+  if (!SETTINGS.reduceMotion) { const L = 30 + 30 * u, g = x.createLinearGradient(0, 0, 0, -L); g.addColorStop(0, 'rgba(255,255,255,.22)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.beginPath(); x.moveTo(-4, -4); x.lineTo(4, -4); x.lineTo(1, -L); x.lineTo(-1, -L); x.closePath(); x.fill(); } // the air it tears through
+  const gb = x.createLinearGradient(-4.6, 0, 4.6, 0), lit = .5 + .5 * Math.sin(spin); gb.addColorStop(0, '#3c4046'); gb.addColorStop(.25 + .5 * lit, '#8d939b'); gb.addColorStop(1, '#2a2d32'); // a steel casing, the light rolling round it as it spins
+  x.fillStyle = gb; x.beginPath(); x.moveTo(-4.6, -10); x.lineTo(4.6, -10); x.lineTo(4.6, 3); x.quadraticCurveTo(4.4, 9, 0, 14); x.quadraticCurveTo(-4.4, 9, -4.6, 3); x.closePath(); x.fill(); // flat base, pointed nose
+  x.fillStyle = '#b8743a'; x.fillRect(-4.8, -8.5, 9.6, 2.2); // the copper driving band
+  x.fillStyle = '#c9a227'; x.beginPath(); x.moveTo(-2.6, 10); x.quadraticCurveTo(0, 15.5, 2.6, 10); x.closePath(); x.fill(); // the fuse
+  x.fillStyle = (ARTY_PAL[s.pk] || ARTY_PAL.he).lab; x.fillRect(-4.6, 1, 9.2, 1.6); // a stripe in what it carries: violet high explosive, green gas, orange fire, yellow cluster
+  x.restore();
+}
+function drawFallingBomb(x, s, u) {
+  if (s.kd === 'a') return drawFallingShell(x, s, u); // (in the marker's frame) it comes down at a slant along the jet's line, nose first, fins buzzing, smeared by its own speed; its shadow sharpens under it. It falls faster all the way down (it's dropping, never braking)
   const a = s.ja ?? s.rot, h = 340 * (1 - (.45 * u + .55 * u * u)), back = h * .42, ca = Math.cos(a), sa = Math.sin(a); // up in the air it's still behind the target, back the way the jet came
   const bx = -ca * back, by = -sa * back * .55 - h, vx = ca * .42, vy = sa * .42 * .55 + 1; // where it is, and which way it's moving on screen
   const k = .85 + .6 * u, nose = Math.atan2(vy, vx) - Math.PI / 2, wob = Math.sin(T * 34 + s.rot * 9) * .07 * (1 - u * .5);
-  const sh = .18 + .45 * u, sr = 2.5 + 8 * u; x.fillStyle = `rgba(0,0,0,${sh.toFixed(3)})`; ell(x, -ca * back * .15, -sa * back * .1, sr, sr * .62); // the shadow
-  const body = s.kd === 'c' ? ['#4f4620', '#7a6c2c', '#d9b23a'] : s.kd === 'i' ? ['#5a2216', '#8a3a24', '#ff7a2a'] : s.kd === 'g' ? ['#34421c', '#5c7330', '#b8e04c'] : ['#2f3527', '#4b5540', '#c9a227'];
+  const body = s.kd === 'c' ? ['#4f4620', '#7a6c2c', '#d9b23a'] : s.kd === 'i' ? ['#5a2216', '#8a3a24', '#ff7a2a'] : s.kd === 'g' ? ['#34421c', '#5c7330', '#b8e04c'] : ['#2f3527', '#4b5540', '#e0352b']; // the band in each kind's own colour, the same as its marker: red a plain bomb, green gas, orange fire, yellow cluster
   const blur = SETTINGS.reduceMotion ? 0 : 4; // the motion blur: fading copies trailing back up its path, and a soft streak
   x.save(); x.translate(bx, by); x.rotate(nose + wob); x.scale(k, k);
   if (blur) { const L = 26 + 40 * u, g = x.createLinearGradient(0, 0, 0, -L); g.addColorStop(0, 'rgba(255,255,255,.28)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.beginPath(); x.moveTo(-3.6, -2); x.lineTo(3.6, -2); x.lineTo(1.2, -L); x.lineTo(-1.2, -L); x.closePath(); x.fill(); // the air it tears through
     for (let q = blur; q >= 1; q--) { x.globalAlpha = .16 * (1 - q / (blur + 1)); x.fillStyle = body[0]; ell(x, 0, -q * (3.5 + 5 * u), 4.3, 9.2); } x.globalAlpha = 1; }
   x.fillStyle = body[0]; x.beginPath(); x.moveTo(-5.6, -13); x.lineTo(5.6, -13); x.lineTo(2.4, -6.5); x.lineTo(-2.4, -6.5); x.closePath(); x.fill(); // tail fins
   x.fillStyle = '#1b1f16'; x.fillRect(-.6, -13.5, 1.2, 6);
+  x.fillStyle = body[2]; x.fillRect(-5.6, -13, 11.2, 1.3); // the fin tips painted the same colour, so the kind still reads small and falling fast
   const gb = x.createLinearGradient(-4.4, 0, 4.4, 0); gb.addColorStop(0, body[0]); gb.addColorStop(.38, body[1]); gb.addColorStop(1, shade(body[0], -.35)); // a rounded casing: lit down one side
   x.fillStyle = gb; x.beginPath(); x.ellipse(0, 0, 4.4, 9.4, 0, 0, TAU); x.fill();
-  x.fillStyle = body[2]; x.fillRect(-4.1, -4.2, 8.2, 1.6); // its band (the kind's colour)
+  x.fillStyle = body[2]; x.fillRect(-4.3, -4.6, 8.6, 2.2); // its band (the kind's colour)
   x.fillStyle = 'rgba(255,255,255,.35)'; x.beginPath(); x.ellipse(-1.6, 1.5, .9, 4.6, 0, 0, TAU); x.fill(); // a glint along it
   x.fillStyle = shade(body[0], -.45); x.beginPath(); x.ellipse(0, 7.6, 2.4, 1.8, 0, 0, TAU); x.fill(); // the nose
   x.restore();
@@ -1153,6 +1281,26 @@ Object.assign(Sfx, {
     const src = c.createBufferSource(), bp = c.createBiquadFilter(), rg = c.createGain(); src.buffer = this.noise; bp.type = 'bandpass'; bp.Q.value = 1.6; // the air rushing past
     bp.frequency.setValueAtTime(3200, t); bp.frequency.exponentialRampToValueAtTime(900, t + dur); rg.gain.setValueAtTime(.0001, t); rg.gain.exponentialRampToValueAtTime(.22 * this.soft(.45), t + dur); rg.gain.exponentialRampToValueAtTime(.001, t + dur + .03);
     src.connect(bp); bp.connect(rg); rg.connect(o); src.start(t, Math.random() * .4); src.stop(t + dur + .05);
+  },
+  shellWhistle(x, dur) { // an artillery shell coming down: the long, falling whistle (high and thin far up, dropping and swelling as it nears), a waver as it spins, the air rushing round it at the end
+    if (!this.ok()) return; const c = this.ctx, t = c.currentTime, o = this.out(x, .55), e = t + dur;
+    for (const [f0, f1, a0, ty] of [[1500, 330, .085, 'sine'], [3000, 660, .018, 'sine'], [750, 165, .03, 'triangle']]) { const a = a0 * this.soft(.25);
+      const os = c.createOscillator(), g = c.createGain(), lfo = c.createOscillator(), lg = c.createGain(); os.type = ty;
+      os.frequency.setValueAtTime(f0, t); os.frequency.exponentialRampToValueAtTime(f0 * .8, t + dur * .45); os.frequency.exponentialRampToValueAtTime(f1, e); // slow at first, then dropping fast
+      lfo.frequency.setValueAtTime(5.5, t); lfo.frequency.linearRampToValueAtTime(9, e); lg.gain.value = f0 * .006; lfo.connect(lg); lg.connect(os.frequency); // the spin
+      g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(a * .25, t + dur * .4); g.gain.exponentialRampToValueAtTime(a, e - .08); g.gain.exponentialRampToValueAtTime(.001, e + .03);
+      os.connect(g); g.connect(o); os.start(t); lfo.start(t); os.stop(e + .05); lfo.stop(e + .05);
+    }
+    const src = c.createBufferSource(), bp = c.createBiquadFilter(), rg = c.createGain(); src.buffer = this.noise; src.loop = true; bp.type = 'bandpass'; bp.Q.value = 1.2;
+    bp.frequency.setValueAtTime(2400, t); bp.frequency.exponentialRampToValueAtTime(600, e); rg.gain.setValueAtTime(.0001, t); rg.gain.exponentialRampToValueAtTime(.05, t + dur * .6); rg.gain.exponentialRampToValueAtTime(.2 * this.soft(.45), e); rg.gain.exponentialRampToValueAtTime(.001, e + .03);
+    src.connect(bp); bp.connect(rg); rg.connect(o); src.start(t, Math.random() * .4); src.stop(e + .05);
+  },
+  cannon(x, a) { // the battery firing, miles off the map on the side the shells come from: a deep, muffled boom (the distance has eaten its crack), then its echo rolling back off the hills and the whole sky carrying it
+    if (!this.ok() || !this.gate('cannon', .1)) return; const c = this.ctx, t = c.currentTime + rand(0, .05), cx = (x ?? W / 2) - Math.cos(a || 0) * W, o = this.out(cx, .9);
+    this.tone(o, t, 62, 28, 1.4, 'sine', .7); this.tone(o, t, 110, 42, .5, 'triangle', .2); // the boom
+    this.burst(o, t, 1.3, 170, .5, .6, 'lowpass'); this.burst(o, t, .12, 520, .8, .18, 'lowpass'); // its body, and all that's left of the crack
+    this.defer(() => { for (const [d, k] of [[.45, .38], [1, .24], [1.7, .14]]) { this.burst(o, t + d, 1.1, 140, .5, .5 * k, 'lowpass'); this.tone(o, t + d, 50, 30, .9, 'sine', .4 * k); } }); // the echo, rolling back, quieter and duller each time
+    this.defer(() => { const vg = c.createGain(); vg.gain.value = SETTINGS.volume * .6; vg.connect(this.airVerb()); this.burst(vg, t + .05, 1.4, 200, .5, .7, 'lowpass'); this.tone(vg, t, 55, 28, 1.1, 'sine', .45); }); // and the sky answering
   },
   cookOff(x) { if (!this.ok() || !this.gate('cook', .07)) return; const t = this.ctx.currentTime, o = this.out(x, .6); this.tone(o, t, 140, 45, .25, 'sine', .45); this.burst(o, t, .18, 1100, .7, .45, 'lowpass'); this.burst(o, t, .04, 3800, 1.2, .25); },
   boom(x, k = 1) { // the crack, a chest-thumping low end, a long rumble, debris coming down, and the blast echoing back

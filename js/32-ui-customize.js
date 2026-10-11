@@ -32,7 +32,12 @@ function showResume(what = 'to continue') { // the same prompt starts a run and 
     : `<div class="rp"><span class="keys"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><span class="or">or</span><span class="keys"><kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd></span>${SETTINGS.mouseSteer ? '<span class="or">or click</span>' : ''}<b>${what}</b></div>`;
   el.className = 'show';
 }
-function hideResume() { const el = document.getElementById('resume'); if (el.classList.contains('show')) { el.className = 'gone'; setTimeout(() => { if (el.className === 'gone') { el.className = ''; el.innerHTML = ''; } }, 320); } }
+addEventListener('pointermove', e => { // hovering the prompt fades it to half, so you can see what's under it; off it, it fades back (it lets every click through, so this is worked out from where the pointer is)
+  const el = document.getElementById('resume'); if (!el || !el.classList.contains('show') || e.pointerType === 'touch') return;
+  const r = el.firstElementChild && el.firstElementChild.getBoundingClientRect(), over = !!r && e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+  if (over !== el.classList.contains('hov')) el.classList.toggle('hov', over);
+}, { passive: true });
+function hideResume() { const el = document.getElementById('resume'); if (el.classList.contains('show')) { el.className = 'gone'; setTimeout(() => { if (el.className === 'gone') { el.className = ''; el.innerHTML = ''; } }, 400); } }
 function resumeGame() {
   if (state !== 'paused') return;
   state = pausedFrom === 'play' || pausedFrom === 'held' ? 'held' : pausedFrom || 'play'; // the menu closes, but nothing moves until you steer
@@ -158,6 +163,7 @@ document.getElementById('menuBtn').onclick = () => { if (['play', 'ready', 'intr
 let boardScale = 1;
 function fit() {
   const small = innerHeight < 560 || innerWidth < 760; document.body.classList.toggle('phone', small); // phones: thin bar, no margins
+  document.body.classList.toggle('short', small && innerHeight < 500 && innerWidth > innerHeight); // a phone on its side: the menus lay out in two columns, compact (style.css, LANDSCAPE PHONES)
   const barH = small ? 0 : 24, pad = small ? 4 : 24; // no bar above the board any more (the stats sit on it), just a margin
   const vh = (window.visualViewport && visualViewport.height) || innerHeight, top = small ? Math.max(0, cv.getBoundingClientRect().top) : 0; // a phone: measure where the board really starts (the bar is scaled), so it runs exactly to the bottom
   const s = boardScale = Math.min((innerWidth - pad) / W, small ? (vh - top) / H : (innerHeight - barH) / H, 2.2); // render the game larger when there's room

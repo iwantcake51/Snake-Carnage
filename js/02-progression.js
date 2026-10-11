@@ -23,6 +23,8 @@ let MOD = {}, rewardMult = 1;
 let floaters = [];
 let lvlAnim = false, lastLevelBonus = 0;
 const XP_GAIN = 1.65; // every source of XP pays this much more (v1.56: half as much again; v1.81: a little more on top)
+const CHIP_GAIN = .6; // every chip earned pays this much: kills, challenges, near misses, survival, level-ups, achievements (v1.84: chips came too easily). A fraction of a chip carries over to the next reward (PROG.cf), so small rewards really pay 60% on average
+const chipShow = n => Math.round(n * CHIP_GAIN); // a listed chip reward as it really pays (before Deep Pockets)
 const SURV_BONUS = { xp: m => Math.min(200, 50 + 15 * (m - 1)), chips: m => Math.min(10, 2 + m) }; // what the m-th full minute alive adds to the end-of-run rewards: later minutes are worth more
 function paySurvival() { // once, as the run ends: a bonus for every full minute you stayed alive (on top of the survival challenges)
   if (typeof run !== 'object' || run.survPaid) return run && run.surv; run.survPaid = true;
@@ -31,14 +33,14 @@ function paySurvival() { // once, as the run ends: a bonus for every full minute
   const x0 = run.xpGained || 0, c0 = run.coinsGained || 0; gainXP(Math.round(xp * rewardMult), Math.round(ch * rewardMult)); // (gainXP adds Deep Pockets and the rest)
   return run.surv = { m, xp: (run.xpGained || 0) - x0, chips: (run.coinsGained || 0) - c0 };
 }
-function gainXP(xp, coins, o) { // o.raw: paid exactly as given (no XP_GAIN, no Deep Pockets: Blood Debt's extra); o.quiet: no reward chip. Returns what was really paid
+function gainXP(xp, coins, o) { // o.raw: no XP_GAIN, no Deep Pockets (Blood Debt's extra); o.net: chips already in final units, no CHIP_GAIN (perks that list exact chips); o.quiet: no reward chip. Returns what was really paid
   const sv = typeof SKV === 'object', raw = o && o.raw; // (the skill tree loads later; rewards only start once everything has)
-  xp = Math.round(xp * (raw ? 1 : XP_GAIN)); coins = Math.round(coins * (sv && !raw ? SKV.chipK() : 1)); // Deep Pockets
+  xp = Math.round(xp * (raw ? 1 : XP_GAIN)); { const c = coins * (sv && !raw ? SKV.chipK() : 1) * (o && o.net ? 1 : CHIP_GAIN) + (+PROG.cf || 0); coins = Math.max(0, Math.floor(c)); PROG.cf = Math.max(0, c - coins); } // Deep Pockets, then the economy's cut
   PROG.xp += xp; PROG.coins += coins; PROG.earned = (PROG.earned || 0) + coins; if (!(o && o.quiet)) rewardPopup(xp, coins);
   if (typeof run === 'object' && (state === 'play' || state === 'dead' || state === 'held')) { run.xpGained = (run.xpGained || 0) + xp; run.coinsGained = (run.coinsGained || 0) + coins; }
   const from = PROG.level;
   let bonus = 0;
-  while (PROG.xp >= xpNeed(PROG.level)) { PROG.xp -= xpNeed(PROG.level); PROG.level++; const b = (15 + PROG.level * 3) * (sv ? SKV.windK() : 1); /* Windfall doubles it */ PROG.coins += b; bonus += b; }
+  while (PROG.xp >= xpNeed(PROG.level)) { PROG.xp -= xpNeed(PROG.level); PROG.level++; const b = Math.round((15 + PROG.level * 3) * CHIP_GAIN * (sv ? SKV.windK() : 1)); /* Windfall doubles it */ PROG.coins += b; bonus += b; }
   if (bonus) lastLevelBonus = bonus; // a later reward in the same moment must not wipe the banner's number
   saveProg();
   if (PROG.level > from) celebrateLevel(from, PROG.level); else updateHud();

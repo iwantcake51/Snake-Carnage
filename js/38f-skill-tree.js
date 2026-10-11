@@ -6,7 +6,11 @@
    Drag or pinch to pan, wheel or pinch to zoom, arrows to walk the nodes, Enter to buy. Selecting a node fills the
    details panel (always there, never moves). Buying updates everything in place: no rebuild, the camera stays put.
    ========================================================= */
-const SK_W = 2200, SK_H = 960, SK_HUB = { x: 1100, y: 905 };
+const SK_W = 2800, SK_H = 1040, SK_HUB = { x: 1400, y: 1010 }; // (SK_HUB: only the board's middle now; each branch grows from its own root, SK_ROOT)
+/* the board reads in rows and columns: every branch grows up from its own root knot (SK_ROOT) in tiers (y 880, 720, 560, 400),
+   each path in its own column under a small heading (SK_PATHS), the branch names over the top */
+const SK_ROOT = { surv: { x: 600, y: 990 }, pred: { x: 1700, y: 990 }, fort: { x: 2440, y: 990 } };
+const SK_PATHS = [['surv', 'Awareness', 130, 450], ['surv', 'Stealth', 390, 450], ['surv', 'Toughness', 800, 450], ['pred', 'Movement', 1410, 290], ['pred', 'Hunting', 1860, 290], ['fort', 'Chips', 2475, 290]]; // [branch, heading, x, y: just over the column's top skill]
 let skCam = null, skSel = 'speed'; // the camera and the selected node survive leaving and coming back (this session)
 const skCalm = () => SETTINGS.reduceMotion || document.body.classList.contains('calm') || (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);
 const skLv = () => PROG.level;
@@ -85,7 +89,7 @@ function skPath(a, b) { // a gentle S-curve, like a snake's body, bent its own w
   // curve, which leaves and arrives along those same lines (each a few degrees off the straight line between them, opposite ways).
   // Any other skill in its way (the shape or the name under it) is curved round: a bend point is added beside it, up to ten.
   const key = (a ? a.id : 'hub') + '>' + b.id, hit = skPath.c || (skPath.c = new Map()); if (hit.has(key)) return hit.get(key);
-  const x1 = a ? a.x : SK_HUB.x, y1 = a ? a.y : SK_HUB.y, x2 = b.x, y2 = b.y, D = Math.hypot(x2 - x1, y2 - y1) || 1, dx = (x2 - x1) / D, dy = (y2 - y1) / D;
+  const x1 = a ? a.x : SK_ROOT[b.br].x, y1 = a ? a.y : SK_ROOT[b.br].y, x2 = b.x, y2 = b.y, D = Math.hypot(x2 - x1, y2 - y1) || 1, dx = (x2 - x1) / D, dy = (y2 - y1) / D;
   let h = 0; for (const ch of (a ? a.id : 'hub') + b.id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
   const th = ((h % 1000) / 500 - 1) * .38, c = Math.cos(th), sn = Math.sin(th), pull = .3 + (h >> 10) % 100 / 1000; // the bend, and how far it carries
   const ux = dx * c - dy * sn, uy = dx * sn + dy * c, vx = -dx * c + dy * sn, vy = -dx * sn - dy * c; // out of the parent, and (pointing back) out of the child
@@ -115,11 +119,11 @@ function skLinksSvg() {
   return `<defs><linearGradient id="skShineG" x1="0" x2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".6"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>`
     + L.map(l => at(l, 'skgl g1') + at(l, 'skgl g2')).join('') + L.map(l => at(l, 'skln')).join(''); // the soft edges first, under every line
 }
-function skHubHtml() { // where the three branches meet: how much of the tree you own
-  const tot = SKILL_TREE.reduce((a, n) => a + n.max, 0), own = SKILL_TREE.reduce((a, n) => a + skOwn(n.id), 0);
-  return `<div class="skhub" style="left:${SK_HUB.x}px;top:${SK_HUB.y}px"><i class="knot"></i><b id="skHubN">${own}</b><small>of ${tot} ranks</small></div>`;
+function skHubHtml() { // each branch's root knot, and a heading over each path's column
+  return Object.entries(SK_ROOT).map(([br, p]) => `<div class="skhub br-${br}" style="left:${p.x}px;top:${p.y}px"><i class="knot"></i></div>`).join('')
+    + SK_PATHS.map(([br, t, x, y]) => `<div class="skpath br-${br}" style="left:${x}px;top:${y}px">${t}</div>`).join('');
 }
-const SK_LABEL = { surv: { x: 400, y: 215 }, pred: { x: 1100, y: 190 }, fort: { x: 1830, y: 205 } }; // over the top of each branch (the roots all run down to the hub)
+const SK_LABEL = { surv: { x: 610, y: 175 }, pred: { x: 1700, y: 175 }, fort: { x: 2475, y: 175 } }; // over the top of each branch
 const skBranchLabel = br => `<div class="skbl br-${br}" style="left:${SK_LABEL[br].x}px;top:${SK_LABEL[br].y}px"><span>${SK_BRANCH[br].name}</span><b data-brn="${br}">${skBranchRanks(br)}</b></div>`;
 
 /* ---- the screen ---- */
@@ -151,7 +155,7 @@ function showSkillTree() {
   document.getElementById('skReset').onclick = skReset;
   skWire(); skRefresh(); skMarkSel(); skInfo(false); skBoot();
   requestAnimationFrame(() => { // on a touch screen, start where the names are big enough to read and tap (Fit tree still shows it all)
-    if (!skCam) { skFit(false); if ((skPhone() || IS_TOUCH) && skCam.z < .62) skCenterOn({ x: SKN[skSel].x, y: SKN[skSel].y - 130 }, false); }
+    if (!skCam) { const br = SKN[skSel].br; skFrame(skBounds([...SKILL_TREE.filter(n => n.br === br), SK_LABEL[br], SK_ROOT[br]]), false, 1.15); /* open on the selected skill's branch, big enough to read (Fit tree shows the lot) */ if ((skPhone() || IS_TOUCH) && skCam.z < .62) skCenterOn({ x: SKN[skSel].x, y: SKN[skSel].y - 130 }, false); }
     else { skClamp(); skApply(); }
     skMarkSel(); });
 }
@@ -172,7 +176,7 @@ function skBounds(nodes) {
   for (const n of nodes) { x0 = Math.min(x0, n.x - 80); x1 = Math.max(x1, n.x + 80); y0 = Math.min(y0, n.y - 56); y1 = Math.max(y1, n.y + 80); }
   return { x0, y0, x1, y1 };
 }
-const SK_ALL = () => [...SKILL_TREE, { x: SK_HUB.x, y: SK_HUB.y + 10 }, ...Object.values(SK_LABEL).map(p => ({ x: p.x, y: p.y }))];
+const SK_ALL = () => [...SKILL_TREE, ...Object.values(SK_ROOT).map(p => ({ x: p.x, y: p.y + 10 })), ...Object.values(SK_LABEL).map(p => ({ x: p.x, y: p.y }))];
 function skFrame(b, glide, zmax = 1.15) {
   const { w, h } = skViewSize(), pad = 16, top = 54, bot = 26, z = clamp(Math.min((w - pad * 2) / (b.x1 - b.x0), (h - top - bot) / (b.y1 - b.y0), zmax), .32, 1.9); // room for the controls on top and the hint below
   skCam = { z, x: w / 2 - (b.x0 + b.x1) / 2 * z, y: top + (h - top - bot) / 2 - (b.y0 + b.y1) / 2 * z }; skClamp(); skApply(glide);

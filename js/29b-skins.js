@@ -250,23 +250,23 @@ const SNAKE_SKINS = {
   Garter: { scales: 1, // a stripe of your second color down the spine and one down each side, rows of dark checks between them
     base: (u, c) => c.color,
     paint(x, F, A, B, c) {
-      const p = skinPal(c, 'ga2', (P, S) => { const b = keepSeen(S, P); return { s: b, lat: mixColor(b, P, .35), sp: shade(mixColor(P, S, .25), -.5) }; }), u0 = Math.max(A, 1), u1 = Math.min(B + .05, F.uEnd), first = A <= 1;
+      const p = skinPal(c, 'ga3', (P, S) => { const b = keepSeen(S, P); return { s: b, lat: mixColor(b, P, .15), sp: shade(mixColor(P, S, .15), -.72) }; }), u0 = Math.max(A, 1), u1 = Math.min(B + .05, F.uEnd), first = A <= 1;
       fillP(x, p.sp, () => F.each(A, B, 1.5, .8, (u, k) => { const sd = k % 2 ? 1 : -1; F.poly(x, [[u - .2, sd * .3], [u + .2, sd * .3], [u + .2, sd * .53], [u - .2, sd * .53]], 2); F.poly(x, [[u + .2, -sd * .92], [u + .55, -sd * .92], [u + .55, -sd * 1.3], [u + .2, -sd * 1.3]], 2); }));
       fillP(x, p.lat, () => { F.strip(x, u0, u1, .64, .84, .45, first ? .8 : 0); F.strip(x, u0, u1, -.84, -.64, .45, first ? .8 : 0); });
       fillP(x, p.s, () => F.strip(x, u0, u1, -.19, .19, .45, first ? .7 : 0));
     } },
-  Kingsnake: { scales: 1, // bands of your second color round your first, narrow on the back and widening down the flanks, with darker edges
+  Kingsnake: { scales: 1, // bands of your second color round your first, narrow on the back and widening down the flanks, each edged in near-black (black and white: a California kingsnake; red and yellow: a milk snake)
     base: (u, c) => c.color,
     paint(x, F, A, B, c) {
-      const p = skinPal(c, 'ki2', (P, S) => { const b = keepSeen(S, P); return { s: b, e: shade(mixColor(P, b, .5), -.4) }; });
+      const p = skinPal(c, 'ki3', (P, S) => { const b = keepSeen(S, P); return { s: b, e: shade(mixColor(P, b, .35), -.86) }; });
       const bands = g => F.each(A, B, 2.3, 2.5, (u, k) => { const h = SKIN_H(k, 50), w = v => (.36 + .34 * v * v) / 2 + g, wb = v => .04 * Math.sin(v * 4 + h * 8);
         F.band(x, v => u - w(v) + wb(v), v => u + w(v) + wb(v), -1.3, 1.3, 10); });
-      fillP(x, p.e, () => bands(.07)); fillP(x, p.s, () => bands(0));
+      fillP(x, p.e, () => bands(.2)); fillP(x, p.s, () => bands(0));
     } },
-  Coral: { scales: 1, // rings: wide primary, a thin secondary, a broad dark one (both colors, darkened), a thin secondary; a dark snout; dark flecks on the primary
+  Coral: { scales: 1, // rings: wide primary, a thin secondary, a broad near-black one (both colors, nearly black), a thin secondary; a dark snout; dark flecks on the primary (red and yellow: a coral snake)
     base: (u, c) => c.color,
     paint(x, F, A, B, c) {
-      const p = skinPal(c, 'co', (P, S) => ({ k: shade(mixColor(P, S, .5), -.78), s: S, f: shade(P, -.45) })), per = 3.6;
+      const p = skinPal(c, 'co2', (P, S) => ({ k: shade(mixColor(P, S, .5), -.88), s: S, f: shade(P, -.6) })), per = 3.6;
       if (A <= .5) { fillP(x, p.k, () => F.band(x, () => -2, v => .8 + .12 * v * v)); fillP(x, p.s, () => F.band(x, v => .8 + .12 * v * v, v => 1.3 + .12 * v * v)); }
       fillP(x, p.s, () => F.each(A, B, 3.3, per, u => ring(F, x, u, 1.85, .12)));
       fillP(x, p.k, () => F.each(A, B, 3.3, per, u => ring(F, x, u, 1.15, .12)));
@@ -281,10 +281,10 @@ const SNAKE_SKINS = {
         F.each(A, B, 2.4, 1.3, (u, k) => { const h = SKIN_H(k, 72); F.dot(x, u + h * .5, (k % 2 ? 1 : -1) * (.72 + .16 * h), .07 + .04 * SKIN_H(k, 73)); });
       });
     } },
-  Python: { scales: 1, gloss: .9, // saddles of your second color with rims between the two on your first, smaller blotches with dark hearts down each side
+  Python: { scales: 1, gloss: .9, // saddles of your second color outlined in near-black on your first, smaller blotches with dark hearts down each side (tan and brown: a Burmese python; brown and tan: a ball python)
     base: (u, c) => c.color,
     paint(x, F, A, B, c) {
-      const p = skinPal(c, 'py2', (P, S) => { const s = keepSeen(S, P); return { s, rim: mixColor(P, s, .5), eye: shade(mixColor(P, s, .5), -.6) }; }), per = 2.3;
+      const p = skinPal(c, 'py3', (P, S) => { const s = keepSeen(S, P); return { s, rim: shade(mixColor(P, s, .5), -.66), eye: shade(mixColor(P, s, .5), -.78) }; }), per = 2.3;
       const saddles = sc => F.each(A, B, 1.7, per, (u, k) => { const h = SKIN_H(k, 80), h2 = SKIN_H(k, 81); F.blob(x, u, (h - .5) * .25, .82 * sc, .64 * sc, h2 * 9, .3); });
       const sides = sc => F.each(A, B, 1.7 + per / 2, per, (u, k) => { const h = SKIN_H(k, 82); F.blob(x, u, -1, .5 * sc, .44 * sc, h * 5, .25); F.blob(x, u + .2, 1, .5 * sc, .44 * sc, h * 7, .25); });
       fillP(x, p.rim, () => { saddles(1.12); sides(1.14); }); fillP(x, p.s, () => { saddles(1); sides(1); });

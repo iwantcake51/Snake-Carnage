@@ -73,7 +73,7 @@ function applyDir() {
   setHeading(a);
 }
 const mouseSteerOn = () => !!SETTINGS.mouseSteer && !IS_TOUCH;
-if (!SETTINGS.steerV) { SETTINGS.steerV = 1; SETTINGS.mouseSteer = true; saveSettings(); } // movement went slither.io-style: the cursor steers by default (it can still be switched off)
+// (Mouse steering is off by default: SETTINGS_MIGRATE in 01-config switched older saves back to that once)
 function mouseAim() { // the heading from the head to the cursor, worked out fresh each frame (the snake moves under a still cursor); null with the cursor off the game or on the head
   if (!steer.over || !snake) return null;
   const p = boardPoint(steer.cx, steer.cy), r = 22 * (snake.scale || 1);

@@ -14,6 +14,8 @@ function render() {
   }
   V.ox = camF.x + camF.k.x; V.oy = camF.y + camF.k.y;
   const uc = !cam && userCam(); if (uc) { V.z = uc.z; V.fx = uc.fx; V.fy = uc.fy; } // the player's zoom/pan (the spawn zoom has priority)
+  else if (render.uc) { look.z = render.uc.z; look.fx = render.uc.fx; look.fy = render.uc.fy; look.still = 0; } // zoomed all the way back out: the cursor drift carries on from that exact view, no jump
+  render.uc = uc ? { z: uc.z, fx: uc.fx, fy: uc.fy } : null;
   lookAround();
   const cw = snake && snake.wallStun > 0 ? Math.pow(snake.wallStun / (snake.wallMax || 3.4), .6) * (snake.stunFx || 1) : 0;
   if (bz > .02 && !SETTINGS.reduceMotion) { V.ox += (Math.sin(T * 1.6) * 4 + Math.sin(T * 3.7) * 1.5) * bz; V.oy += (Math.sin(T * 1.2 + 2) * 3 + Math.sin(T * 3.1) * 1.2) * bz; } // reeling from a blast: the world sways, gentler than after a wall
@@ -40,6 +42,7 @@ function render() {
     x.fill(); }
   drawAO(x); drawLeashes(x);
   for (const c of creatures) if (c.alive) drawCreature(x, c);
+  drawStunStars(x);
   drawFlashBodies(x); drawHitGhosts(x);
   drawGiblets(x); // chunks on the ground sit under the snake
   drawTrail(x); drawGround(x); drawHoovFx(x); if (NETM.run) netDrawSnakes(x); if (!(snake && snake.netHidden)) drawSnake(x); drawCorpses(x); drawHats(x); drawClods(x, false); drawRamCharge(x); drawStreaks(x); drawSnowFx(x);
@@ -184,7 +187,8 @@ function bakeBlurBg() { // blur the frozen frame into its own pixels once, so th
     ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.filter = `blur(${Math.round(6 * DPR)}px) saturate(.35) brightness(.8)`; ctx.drawImage(blurTmp, 0, 0); ctx.restore(); ctx.filter = 'none'; } catch (e) {}
 }
 function frame(now) {
-  const hbOff = !['play', 'ready', 'intro', 'held'].includes(state); if (bar.hidden !== hbOff) bar.hidden = hbOff; // the in-run stats are for the run itself (they sit above the menus' layer, so they step aside for pause, the summary and every menu)
+  const hbOff = !['play', 'ready', 'intro', 'held'].includes(state); if (bar.hidden !== hbOff) bar.hidden = hbOff;
+  { const gf = document.getElementById('goFade'), ld = (intro.classList.contains('run') && !intro.classList.contains('out')) || (!!gf && !gf.classList.contains('out')); if (bar.classList.contains('ld') !== ld) bar.classList.toggle('ld', ld); } // the loading card (and multiplayer's shutters) have the screen to themselves: the stats fade in as they lift // the in-run stats are for the run itself (they sit above the menus' layer, so they step aside for pause, the summary and every menu)
   if (bdHud.on && hbOff !== !!bdHud.off) { bdHud.off = hbOff; const be = document.getElementById('bdebt'); if (be) be.hidden = hbOff; } // Blood Debt's pill goes with them
   const cap = +SETTINGS.fpsCap; // VSync -> NaN: draw every refresh
   if (cap && now - last < 1000 / cap - 2) { requestAnimationFrame(frame); return; }
@@ -329,7 +333,7 @@ function lungeEdges() { // mid-lunge the edges blur in two rings (light, then he
   softEdges(Math.max(lb, fk), 4, W * .78, H * .74, .34, .9, .35 * fk); // one ring, fading in from a third of the way out to the rim (it was two full-screen passes)
 }
 
-/* before the round: the mouse pans the view a little, and resting on a spot for a second eases in toward it */
+/* before the round: the mouse pans the view a little, and resting on a spot for a second eases in toward it (your own zoom takes over from right where it is, ucamTakeLook in 11, and hands back the same way when you zoom all the way out: render) */
 const look = { z: 1, fx: W / 2, fy: H / 2, mx: W / 2, my: H / 2, still: 0, lt: 0, on: false };
 addEventListener('pointermove', e => {
   if (e.pointerType === 'touch') return;

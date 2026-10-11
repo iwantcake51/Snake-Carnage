@@ -2,7 +2,7 @@
 // on its own, as always. For the live site this joins those scripts, in the same order, into one file named by its
 // content (js/app.<hash>.js), names the stylesheet the same way, and rewrites index.html to use them, so a visit is two
 // requests instead of seventy-odd, and a returning visitor's browser keeps both until the next change (see _headers).
-// The sound manifest goes inside the bundle too, so the game doesn't fetch it.
+// The sound manifest goes inside the bundle too, so the game doesn't fetch it, and so does the build's time (BUILD_TIME).
 import { readFileSync, writeFileSync, existsSync, rmSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 
@@ -16,6 +16,8 @@ const hash = s => createHash('sha256').update(s).digest('hex').slice(0, 12);
 let js = tags.map(([, src]) => `/* ---- ${src} ---- */\n` + readFileSync(src, 'utf8').replace(/^\s*(['"])use strict\1;?/, '')).join('\n;\n');
 const man = existsSync('sounds/manifest.json') ? readFileSync('sounds/manifest.json', 'utf8').trim() || '{}' : '{}';
 js = `const SOUND_MANIFEST = ${JSON.stringify(JSON.parse(man))};\n` + js;
+// when this build was made, for the main menu's "v1.84 · Oct 11th" (buildDate in 31-ui-menus; a local, unbundled copy has none)
+js = `const BUILD_TIME = ${Date.now()};\n` + js;
 const jsName = `js/app.${hash(js)}.js`; writeFileSync(jsName, js);
 
 const css = readFileSync('css/style.css', 'utf8'), cssName = `css/style.${hash(css)}.css`; writeFileSync(cssName, css);

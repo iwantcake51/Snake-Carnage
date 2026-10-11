@@ -85,6 +85,7 @@ function gradeGround() { // recolors the baked floor once per load: masks built 
   for (let k = 0; k < grassCol.length; k++) if (grassCol[k]) { const c = grassCol[k], o = gradePx(c[0], c[1], c[2], id, 0); grassCol[k] = o.map(v => v | 0); } // kicked-up grass matches
 }
 function seasonDetails(x) { // flowers, leaf litter, dead tufts: only on grass, never on paths
+  plants = []; // (first: a map with no seasons, like the Club or the Checkerboard, must not keep the last map's clover and ferns)
   if (!season) return;
   const r = seeded(Math.round(season.seed * 97) + mapIdx * 13), id = season.id, onGrass = (px, py) => grassAt(px, py) && !solid(px, py);
   const trees = (obstacles || []).filter(o => o.kind === 'tree');

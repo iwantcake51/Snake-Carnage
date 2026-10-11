@@ -48,29 +48,31 @@ const MAP_EXT = {
     }
   },
   Town: (st, k, e) => {
-    const w = st.w, L = st.s < 0, slabs = (x, r) => { x.save(); x.beginPath(); x.rect(...r); x.clip(); x.fillStyle = '#b9b3a7'; x.fillRect(...r); x.fillStyle = '#c6c0b3'; for (let i = 0; i < W; i += 24) for (let j = 0; j < H; j += 24) if ((i / 24 + j / 24) % 2) x.fillRect(i, j, 24, 24); x.restore(); };
-    const asph = (x, r, c = '#45454c') => paintRect(x, r, c), grass = (x, r) => { if (texShape(x, 'lawn', q => q.fillRect(...r))) return; paintRect(x, r, '#93bf55'); const g = seeded(r[0] + r[1]); for (let n = 0; n < r[2] * r[3] / 60; n++) { x.fillStyle = g() < .5 ? '#86b24b' : '#a2cb62'; x.fillRect(r[0] + g() * r[2], r[1] + g() * r[3], 2, 2); } };
+    const w = st.w, L = st.s < 0, slabs = (x, r) => { if (GTEX.drawn.has(x)) return; /* the real concrete is already down, across the whole width */ x.save(); x.beginPath(); x.rect(...r); x.clip(); x.fillStyle = '#b9b3a7'; x.fillRect(...r); x.fillStyle = '#c6c0b3'; for (let i = 0; i < W; i += 24) for (let j = 0; j < H; j += 24) if ((i / 24 + j / 24) % 2) x.fillRect(i, j, 24, 24); x.restore(); };
+    const asph = (x, r, c = '#45454c') => paintRect(x, r, c), lot = (x, r, c) => { if (!texShape(x, 'lot', q => q.fillRect(...r))) asph(x, r, c); },
+      road = (x, r, c, v = false) => { if (!texShape(x, 'road', q => q.fillRect(...r), undefined, v ? 0 : Math.PI / 2)) return asph(x, r, c); if (c === '#3f3f45') paintRect(x, r, 'rgba(0,0,0,.08)'); }, // the same road as the middle's (one ground per floor, shared), quiet streets a shade darker
+      apron = (x, r) => paintRect(x, r, texShape(x, 'walk', q => q.fillRect(...r)) ? 'rgba(255,250,240,.24)' : '#d2cbbd'), grass = (x, r) => { if (texShape(x, 'lawn', q => q.fillRect(...r))) return; paintRect(x, r, '#93bf55'); const g = seeded(r[0] + r[1]); for (let n = 0; n < r[2] * r[3] / 60; n++) { x.fillStyle = g() < .5 ? '#86b24b' : '#a2cb62'; x.fillRect(r[0] + g() * r[2], r[1] + g() * r[3], 2, 2); } };
     const full = k.rect(0, 0, w, H);
     e.floor.push(x => { slabs(x, full); grass(x, k.rect(0, 16, w, 46)); }); // pavement everywhere, the town's grass verge along the top
     // Main and Hill run on (road rects are extended in extendBuild); paint them here with curbs and Main's centre line
-    e.cover.push(x => { for (const [y, h, c] of [[288, 64, '#45454c'], [62, 44, '#3f3f45']]) { asph(x, k.rect(0, y, w, h), c); x.strokeStyle = '#8e887c'; x.lineWidth = 2; x.beginPath(); x.moveTo(k.X(0), y + 1); x.lineTo(k.X(w), y + 1); x.moveTo(k.X(0), y + h - 1); x.lineTo(k.X(w), y + h - 1); x.stroke(); }
+    e.cover.push(x => { for (const [y, h, c] of [[288, 64, '#45454c'], [62, 44, '#3f3f45']]) { road(x, k.rect(0, y, w + 3, h), c); /* (3 past the old edge, over the middle's curb end, so no curb crosses the street) */ x.strokeStyle = '#8e887c'; x.lineWidth = 2; x.beginPath(); x.moveTo(k.X(0), y + 1); x.lineTo(k.X(w), y + 1); x.moveTo(k.X(0), y + h - 1); x.lineTo(k.X(w), y + h - 1); x.stroke(); }
       clipStrip(x, st, () => { x.fillStyle = '#e8d06a'; for (let i = (XO + 20) % 40 - 40; i < W; i += 40) if (!(L && w >= 112 && i + 22 > B - 4 && i < B + 48)) x.fillRect(i, 318.5, 22, 3); }); }); // Main's centre line, phase-matched
     if (w < 112) return;
     if (L) { // West Ave: a quiet street along the edge of town, so the new blocks are wrapped in streets like every other block
       const AVE = 44, SW = 16;
       e.roads.push(k.rect(0, 16, AVE, H - 32));
-      e.cover.push(x => { asph(x, k.rect(0, 16, AVE, H - 32), '#3f3f45'); x.strokeStyle = '#8e887c'; x.lineWidth = 2; for (const [y0, y1] of [[106, 288], [352, 624]]) { x.beginPath(); x.moveTo(k.X(AVE) + (L ? -1 : 1), y0); x.lineTo(k.X(AVE) + (L ? -1 : 1), y1); x.stroke(); }
+      e.cover.push(x => { road(x, k.rect(0, 16, AVE, H - 32), '#3f3f45', true); x.strokeStyle = '#8e887c'; x.lineWidth = 2; for (const [y0, y1] of [[106, 288], [352, 624]]) { x.beginPath(); x.moveTo(k.X(AVE) + (L ? -1 : 1), y0); x.lineTo(k.X(AVE) + (L ? -1 : 1), y1); x.stroke(); }
         x.fillStyle = '#e6e6e6'; for (let j = 292; j < 348; j += 9) x.fillRect(k.X(AVE, SW) + 2, j, SW - 4, 5); }); // zebra across Main where West Ave's sidewalk meets it
       e.crossings.push(k.rect(AVE, 288, SW, 64));
       e.paths.push([[k.X(AVE + 8), 122], [k.X(AVE + 8), 612]]); // West Ave's sidewalk
       const blockU = AVE + SW, room = w - blockU;
       // north block: the service yard runs on behind a corner shop that closes the shop row
-      e.floor.push(x => { asph(x, k.rect(blockU, 122, room, room - 104 >= 100 ? 98 : 150), '#48484f'); paintRect(x, k.rect(AVE, 150, SW, 44), '#d2cbbd'); });
+      e.floor.push(x => { lot(x, k.rect(blockU, 122, room, room - 104 >= 100 ? 98 : 150), '#48484f'); apron(x, k.rect(AVE, 150, SW, 44)); });
       const shopW = Math.min(room, 104); e.obs.push(k.R(w - shopW, 220, shopW, 52, '#7d8a6a', 'building', { roof: 'flat', shop: '#2e7a5a' }));
       if (room - shopW >= 100) e.obs.push(k.R(blockU, 228, room - shopW - 40, 44, '#9a8a6a', 'building', { roof: 'gable' })); // only with a real gap to the shop
       if (room >= 100) e.obs.push(k.R(w - 88, 206, 28, 14, '#4f6b3a', 'crate', { dumpster: true }));
       // south block: the market lot carries on with one more parking row, entered from West Ave; a garden centre beside the market
-      e.floor.push(x => { asph(x, k.rect(blockU, 368, room, 152)); paintRect(x, k.rect(AVE, 470, SW, 40), '#d2cbbd');
+      e.floor.push(x => { lot(x, k.rect(blockU, 368, room, 152)); apron(x, k.rect(AVE, 470, SW, 40));
         x.strokeStyle = '#e6e6e6'; x.lineWidth = 2; const n = Math.floor((room - 30) / 26); for (let i = 0; i <= n; i++) { const xx = k.X(w - 4 - i * 26); x.beginPath(); x.moveTo(xx, 416); x.lineTo(xx, 460); x.stroke(); }
         const isl = k.rect(w - 4 - n * 26 - 20, 416, 20, 44); paintRect(x, isl, '#8e887c'); if (!texShape(x, 'lawn', q => q.fillRect(isl[0] + 2, 418, 16, 40))) paintRect(x, [isl[0] + 2, 418, 16, 40], '#93bf55'); });
       const n = Math.floor((room - 30) / 26);
@@ -285,7 +287,7 @@ function extendBuild(m, idx) {
   if (XO >= 112) b.obs = b.obs.filter(o => !(o.dumpster && (o.x < XO + B + 40 || o.x + o.w > W - XO - B - 40))); // a row's end bin goes with the row's new end (the strip places its own)
   const walls = carryWalls(b.obs, null, gateU); walls.forEach(o => { o.ext = true; });
   const floor0 = b.floor, decor0 = b.decor, trails = paths.filter((p, i) => edgeTrails.length && (b.paths || []).length > i && edgeTrails.includes(b.paths[i]));
-  const local = (x, fn) => { const WF2 = W; W = MW; x.save(); x.beginPath(); x.rect(XO, 0, MW, H); x.clip(); x.translate(XO, 0); try { fn(); } finally { x.restore(); W = WF2; } };
+  const local = (x, fn) => { const WF2 = W, ox = GTEX.ox; W = MW; GTEX.ox = XO; x.save(); x.beginPath(); x.rect(XO, 0, MW, H); x.clip(); x.translate(XO, 0); try { fn(); } finally { x.restore(); W = WF2; GTEX.ox = ox; } };
   const shapes = (b.shapes || []).map(s => ({ ...s, x: s.x != null ? s.x + XO : s.x, nodes: s.nodes && s.nodes.map(n => [n[0] + XO, ...n.slice(1)]) })); // the map's own drawn shapes move with it
   return { ...b, obs: [...b.obs, ...walls, ...extObs], lights, paths, roads, crossings, shapes,
     start: b.start && { ...b.start, x: b.start.x + XO },

@@ -694,6 +694,8 @@ body.theme-gold .play,body.theme-toxic .play{color:#1b1406}
 #resume{left:50%;top:50%;bottom:auto;translate:-50% -50%}
 #resume .rp{padding:11px 18px;font-size:14px}
 #resume.gone .rp{animation:resumeOut .3s ease-in forwards}
+#resume{transition:opacity .25s ease}
+#resume.hov{opacity:.5} /* hovered: half see-through (32-ui-customize), back to full off it */
 @keyframes resumeOut{to{opacity:0;scale:.92;filter:blur(2px)}}
 
 /* time of day picker in the menu */
@@ -2698,7 +2700,7 @@ i.tok{display:inline-block;width:.86em;height:.96em;vertical-align:-.1em;backgro
 /* a soft round fade at the edge of every skill icon: game-icons art often runs right to the edge of its square (Vortex is a whole square), so it would end in a hard cut-off */
 .skico svg,.sk-ic svg{-webkit-mask-image:radial-gradient(circle,#000 58%,rgba(0,0,0,.6) 66%,transparent 76%);mask-image:radial-gradient(circle,#000 58%,rgba(0,0,0,.6) 66%,transparent 76%)}
 .skl{display:flex;flex-direction:column;align-items:center;gap:2px;margin-top:1px;line-height:1.1;text-align:center;pointer-events:none}
-.skl{--lk:clamp(1,calc(.8 / var(--z,1)),1.3)} /* zoomed right out, the names stay readable */
+.skl{--lk:clamp(1,calc(.8 / var(--z,1)),1.12)} /* zoomed right out, the names stay readable (only a little bigger, so neighbours never run into each other) */
 .skl b{white-space:nowrap;font:700 calc(15.5px * var(--lk))/1.05 var(--f-head);letter-spacing:.04em;text-transform:uppercase;color:var(--dim);transition:color .3s}
 .skl b,.skl em{background:rgba(11,9,10,.86);padding:0 5px;border-radius:3px} /* a matte plate: links pass behind the names */
 .skworld.far .skl em{display:none}
@@ -3116,3 +3118,421 @@ body.phone .sk-ic svg.gi{width:38px;height:38px}
 .slot .st i{font-style:normal;height:1.15em;line-height:1.15em;text-align:center}
 .slot.win{animation:slotWin .9s ease-out}
 @keyframes slotWin{0%,30%{color:#ffd23f;text-shadow:0 0 8px rgba(255,210,63,.75)}}
+/* the board's path headings and each branch's root knot (38f skHubHtml) */
+.skpath{position:absolute;transform:translate(-50%,-50%);pointer-events:none;white-space:nowrap;--lk:clamp(1,calc(.8 / var(--z,1)),1.3);font:700 calc(13px * var(--lk)) var(--f-head);letter-spacing:.22em;text-transform:uppercase;color:color-mix(in srgb,var(--bc) 70%,transparent);padding-bottom:6px;border-bottom:1px solid color-mix(in srgb,var(--bc) 35%,transparent)}
+.skhub .knot{box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--bc) 70%,#3d3437)!important}
+/* =====================================================================
+   HAND-MADE LAYER: the menus and HUD as if printed, cut out and stamped by hand (grindhouse poster meets case file),
+   not a template dashboard. Signage-style headlines, typewriter labels and numbers, a marker for the odd scrawl;
+   hard printed shadows instead of soft glows; buttons with cut edges; tags as rubber stamps; tape on the sheets;
+   wobbly hand-drawn boxes; a marker swipe and a squiggle where something is picked. Every color still comes from the
+   UI theme's variables. Last in the file on purpose: it wins over the layers above.
+   ===================================================================== */
+:root{--f-head:"Big Shoulders Display","Barlow Condensed",Impact,sans-serif;--f-body:"Archivo","Barlow","Segoe UI",system-ui,sans-serif;--f-num:"Courier Prime","Courier New",ui-monospace,monospace;--f-hand:"Permanent Marker","Segoe Print","Comic Sans MS",cursive;
+  --hm-shadow:#040203;--hm-tape:rgba(232,218,184,.26);--hm-box:3px 9px 4px 8px / 8px 3px 9px 4px;--hm-box2:7px 3px 8px 2px / 3px 8px 2px 7px;
+  --hm-rag:polygon(0 6%,2% 0,23% 3%,49% 0,76% 2%,98% 0,100% 9%,99% 52%,100% 94%,97% 100%,71% 97%,44% 100%,18% 98%,1% 100%,0 88%,1% 45%);
+  --hm-squig:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 10' preserveAspectRatio='none'%3E%3Cpath d='M2 6C14 2 24 8 37 5S61 2 74 6s27 2 44-3' fill='none' stroke='%23000' stroke-width='3.2' stroke-linecap='round'/%3E%3C/svg%3E");
+  --hm-swipe:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 40' preserveAspectRatio='none'%3E%3Cpath d='M6 9 Q60 3 120 6 T196 5 L193 33 Q150 38 98 34 T3 36 Q7 22 6 9Z' fill='%23000'/%3E%3C/svg%3E");
+    --hm-ink:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.55' numOctaves='3' seed='4'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 12 0 0 0 -3.3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+/* ---- the logo: "Snake" scrawled in marker over a screen-printed CARNAGE ---- */
+.mm-logo .l1{font:400 40px/1 var(--f-hand)!important;letter-spacing:0!important;text-transform:none!important;color:var(--ink)!important;rotate:-7deg;margin:0 0 -16px 10px!important;position:relative;z-index:2;text-shadow:3px 3px 0 var(--hm-shadow)}
+.mm-logo .l2 b{font:900 122px/.8 var(--f-head)!important;letter-spacing:-.01em!important;text-shadow:5px 5px 0 var(--hm-shadow),-1px 0 0 color-mix(in srgb,var(--acc) 40%,#fff)!important}
+body.compact .mm-logo .l2 b{font-size:92px!important}
+body.phone .mm-logo .l1{font-size:26px!important;margin-bottom:-8px!important}
+body.phone .mm-logo .l2 b{font-size:64px!important}
+
+/* ---- main actions: a cut-out slab of the accent with a hard printed shadow, pressed down when clicked ---- */
+.mm-cta,.rs-start,#overlay .btn:not(.alt):not(#backBtn):not(#pMenuBtn),#overlay .play,#overlay #againBtn,#overlay #resBtn{position:relative!important;isolation:isolate;background:none!important;box-shadow:none!important;border:0!important;
+  font-family:var(--f-head)!important;font-weight:900!important;letter-spacing:.03em!important;transition:translate .08s ease!important}
+.mm-cta::before,.rs-start::before,#overlay .btn:not(.alt):not(#backBtn):not(#pMenuBtn)::before,#overlay .play::before,#overlay #againBtn::before,#overlay #resBtn::before{content:''!important;display:block!important;position:absolute;inset:0;z-index:-1;background:var(--acc)!important;clip-path:var(--hm-rag);transition:background .12s ease;animation:none!important;opacity:1!important}
+.mm-cta::after,.rs-start::after,#overlay .btn:not(.alt):not(#backBtn):not(#pMenuBtn)::after,#overlay .play::after,#overlay #againBtn::after,#overlay #resBtn::after{content:''!important;display:block!important;position:absolute;inset:0;z-index:-2;background:var(--hm-shadow)!important;clip-path:var(--hm-rag);translate:5px 5px;transition:translate .08s ease;animation:none!important;opacity:1!important}
+.mm-cta:hover::before,.rs-start:hover::before,#overlay .btn:not(.alt):not(#backBtn):not(#pMenuBtn):hover::before,#overlay .play:hover::before,#overlay #againBtn:hover::before,#overlay #resBtn:hover::before{background:color-mix(in srgb,var(--acc) 86%,#fff)!important}
+.mm-cta:active,.rs-start:active,#overlay .btn:not(.alt):not(#backBtn):not(#pMenuBtn):active,#overlay .play:active,#overlay #againBtn:active,#overlay #resBtn:active{translate:3px 3px}
+.mm-cta:active::after,.rs-start:active::after,#overlay .btn:not(.alt):not(#backBtn):not(#pMenuBtn):active::after,#overlay .play:active::after,#overlay #againBtn:active::after,#overlay #resBtn:active::after{translate:2px 2px}
+.rs-start:disabled::before{background:#2a2426!important}
+.mm-cta.mpwait::before,.rs-start.mpwait::before{background:#2a2426!important}
+.mm-cta{rotate:-.6deg;font-size:30px!important}
+.rs-start{font-size:30px!important}
+/* the key hint on them: a little stamped label */
+.mm kbd,.rs kbd,.mm-cta kbd,.rs-start kbd{font:700 12px/1 var(--f-num)!important;letter-spacing:.04em!important;text-transform:uppercase;background:none!important;border:2px solid currentColor!important;border-radius:2px!important;padding:3px 6px!important;rotate:-3deg;opacity:.8!important}
+
+/* ---- quiet buttons (Done, Back, Shuffle, Quit): a box drawn by hand ---- */
+#overlay .btn.alt,#overlay .panel .ghost,#overlay .panel #backBtn,#overlay .panel #pMenuBtn,.mm-back,.mm-x,.mm-tog{border:2px solid var(--hair2)!important;border-radius:var(--hm-box)!important;background:none!important;font-family:var(--f-head)!important;font-weight:800!important;letter-spacing:.04em!important;box-shadow:3px 3px 0 var(--hm-shadow)!important;transition:translate .08s ease,border-color .15s ease!important}
+#overlay .btn.alt:hover,#overlay .panel .ghost:hover,#overlay .panel #backBtn:hover,#overlay .panel #pMenuBtn:hover,.mm-back:hover,.mm-x:hover,.mm-tog:hover{border-color:var(--ink)!important}
+#overlay .btn.alt:active,#overlay .panel #backBtn:active,#overlay .panel #pMenuBtn:active,.mm-back:active{translate:2px 2px;box-shadow:1px 1px 0 var(--hm-shadow)!important}
+.mm-back{font:700 15px var(--f-body)!important}
+
+/* ---- the main menu's list: a marker swipe behind the one you're on ---- */
+.mm-it{font:700 25px/1.1 var(--f-head)!important;letter-spacing:.02em!important;text-transform:uppercase}
+.mm-it:hover,.mm-it:focus-visible{background:none!important}
+.mm-it::before{content:'';position:absolute;left:4px;right:28%;top:7px;bottom:6px;z-index:-1;background:color-mix(in srgb,var(--acc) 55%,transparent);-webkit-mask:var(--hm-swipe) 0 0/100% 100% no-repeat;mask:var(--hm-swipe) 0 0/100% 100% no-repeat;scale:0 1;transform-origin:left;transition:scale .18s cubic-bezier(.3,.8,.3,1)}
+.mm-it:hover::before,.mm-it:focus-visible::before{scale:1 1}
+.mm-it{isolation:isolate}
+.mm-it:hover .mm-l,.mm-it:focus-visible .mm-l{background-size:0 2px!important}
+.mm-note{font:400 15px/1 var(--f-hand)!important;font-style:normal!important;letter-spacing:0!important;text-transform:none!important;rotate:-3deg}
+.mm-note.hot{color:var(--acc-hi)!important}
+.mm-note.hot::before{display:none!important}
+/* the profile card: a tag pinned on with tape */
+.mm-prof{rotate:1.2deg;background:#17120f!important;border:2px solid var(--hair2)!important;border-radius:var(--hm-box2)!important;box-shadow:6px 6px 0 var(--hm-shadow)!important;position:relative}
+.mm-prof::before{content:'';position:absolute;left:50%;top:-12px;width:78px;height:22px;translate:-50% 0;rotate:-4deg;background:var(--hm-tape);clip-path:polygon(3% 0,97% 6%,100% 30%,96% 52%,100% 74%,97% 100%,2% 94%,0 70%,4% 48%,0 24%);pointer-events:none}
+.pf-lv{font:700 13px var(--f-num)!important;letter-spacing:.06em!important}
+.pf-lv b{font:900 30px/1 var(--f-head)!important}
+.mm-mapcap small{font:700 12px var(--f-num)!important;letter-spacing:.06em!important;text-transform:lowercase}
+.mm-mapcap b{font:900 30px/1 var(--f-head)!important;letter-spacing:.01em}
+.mm-ver{font:700 12px var(--f-num)!important}
+
+/* ---- sheets: tape at the top instead of an accent bar, a hard printed shadow instead of a soft glow ---- */
+#overlay .panel{box-shadow:10px 10px 0 rgba(4,2,3,.72)!important;border:2px solid var(--hair)!important;border-radius:var(--hm-box2)!important;background:var(--grain),#120e0f!important}
+#overlay .panel::before{content:''!important;display:block!important;position:absolute;left:64px;top:-13px;width:116px;height:26px;rotate:-3deg;background:var(--hm-tape)!important;clip-path:polygon(2% 4%,98% 0,96% 26%,100% 50%,97% 76%,99% 100%,1% 96%,4% 72%,0 47%,3% 22%);pointer-events:none;z-index:3}
+#overlay .panel h1,#overlay .snav h1,#overlay .chhead h1{font:900 42px/.95 var(--f-head)!important;letter-spacing:0!important;text-shadow:3px 3px 0 var(--hm-shadow)}
+#overlay .panel h2{font-family:var(--f-head)!important;font-weight:800!important}
+/* section labels: typed, not tracked out */
+#overlay .panel h3,#overlay .panel .sgrp,#overlay .mg,.rs-sec h4,.mlob-sec h4,.rs-head h2{font:700 13px var(--f-num)!important;letter-spacing:.05em!important;text-transform:uppercase;color:var(--dim)!important;border-bottom:1px dashed var(--hair2)!important}
+.rs-head h2{border:0!important;font-size:14px!important}
+.rs-sec h4 span,.mlob-sec h4 span{font:400 13px var(--f-num)!important;letter-spacing:0!important}
+#overlay .panel .lead,#overlay .panel p.lead{font:400 14.5px/1.5 var(--f-body)!important}
+
+/* ---- picking things: a marker swipe for the side tabs, a plain line under the picked choice ---- */
+#overlay .tab{font:600 15px/1.2 var(--f-body)!important;position:relative;isolation:isolate}
+#overlay .tab.on{box-shadow:none!important;background:none!important;color:var(--ink)!important}
+#overlay .tab.on::after{content:'';position:absolute;inset:5px 6px 4px 2px;z-index:-1;background:color-mix(in srgb,var(--acc) 42%,transparent);-webkit-mask:var(--hm-swipe) 0 0/100% 100% no-repeat;mask:var(--hm-swipe) 0 0/100% 100% no-repeat}
+#overlay .tab:not(.on):hover{background:none!important;color:var(--ink)!important}
+.rs-seg .sthumb,#overlay .sseg .sthumb{height:3px!important;bottom:-2px!important;background:var(--acc)!important;border-radius:0!important}
+#overlay .ctabs button.on{box-shadow:none!important;position:relative}
+#overlay .ctabs button.on::after{content:'';position:absolute;left:6px;right:6px;bottom:-2px;height:3px;background:var(--acc)}
+.rs-seg button,#overlay .sseg button,#overlay .ctabs button{font-family:var(--f-body)!important}
+.rs-seg,#overlay .sseg,#overlay .ctabs{border-bottom:1px dashed var(--hair2)!important}
+
+/* ---- cards: each its own little hand-cut card, a hard shadow under it ---- */
+#overlay .ach,#overlay .upc,#overlay .pmc,#overlay .sc,#overlay .m2c,.rs-ch{border:2px solid var(--hair)!important;border-radius:var(--hm-box)!important;box-shadow:3px 3px 0 rgba(4,2,3,.7)!important;background:rgba(255,248,235,.03)!important}
+#overlay .ach:nth-child(3n+1),#overlay .m2c:nth-child(3n+1),#overlay .sc:nth-child(4n+2),.rs-ch:nth-child(odd){border-radius:var(--hm-box2)!important}
+#overlay .sc:hover,#overlay .upc:hover,#overlay .m2c:hover,.rs-ch:hover{border-color:var(--hair2)!important;translate:-1px -1px!important;box-shadow:4px 4px 0 rgba(4,2,3,.75)!important}
+#overlay .sc.on,#overlay .m2c.on{border-color:var(--acc)!important;box-shadow:3px 3px 0 color-mix(in srgb,var(--acc) 45%,#000)!important}
+#overlay .ach.secret,#overlay .sc.locked{border-style:dashed!important;box-shadow:none!important}
+#overlay .ach b,#overlay .upc b,#overlay .pmc b,#overlay .m2c b,#overlay .mtile b{font-family:var(--f-head)!important;font-weight:800!important}
+
+/* ---- tags and rewards: rubber stamps, a little crooked, the ink not quite even ---- */
+#overlay .tier,.tier,#overlay .mptag,.stamp,.rs-ch .rs-t,.m2c .pct,.m2c em,#overlay .ach .tg{font:700 11px/1 var(--f-num)!important;letter-spacing:.06em!important;text-transform:uppercase;border:2px solid currentColor!important;border-radius:2px!important;background:none!important;padding:2px 5px!important;rotate:-2.5deg;-webkit-mask:var(--hm-ink);mask:var(--hm-ink)}
+#overlay .ach:nth-child(even) .tier,#overlay .m2c:nth-child(even) .pct{rotate:2deg}
+#overlay .coinpill{font:700 14px var(--f-num)!important;border:2px solid var(--hair2)!important;border-radius:var(--hm-box)!important}
+
+/* ---- numbers: typed ---- */
+.v,.mpct,.xpt,.price,.cnum,.stat b,.pstats b,.sbig,#overlay .srow b{font-family:var(--f-num)!important;font-weight:700!important}
+
+/* ---- in a run: the stat strip and prompts in the same hand ---- */
+#hudbar,#hudbar *{font-family:var(--f-num)!important}
+#hudbar b,#hudbar .v{font-weight:700!important}
+#resume .rp{border-radius:var(--hm-box)!important;border:2px solid rgba(255,255,255,.18);box-shadow:5px 5px 0 rgba(4,2,3,.75)!important;backdrop-filter:none!important;background:rgba(18,14,15,.92)!important;animation:noteIn .4s var(--spring) backwards!important;font-family:var(--f-body)!important}
+#resume .rp b{font:400 17px/1 var(--f-hand)!important;letter-spacing:0;rotate:-2deg}
+#resume kbd{border-radius:3px 5px 3px 4px!important;box-shadow:0 2px 0 #6d665e,2px 3px 0 rgba(0,0,0,.45)!important;font-family:var(--f-num)!important}
+.note b,#notes b{font-family:var(--f-head)!important;font-weight:800!important}
+#tip{border-radius:var(--hm-box)!important;box-shadow:4px 4px 0 rgba(4,2,3,.75)!important}
+#tip .thead{font-family:var(--f-head)!important;font-weight:800!important}
+
+/* the overlay's catch-all font rule (#overlay *:not(...)) out-weighs a plain class: these carry an extra id test (:not(#_)) so the hand-made type wins */
+#overlay:not(#_) :is(.panel h1,.snav h1,.chhead h1,.panel h2,.m2info h4,.ach b,.upc b,.pmc b,.m2c b,.mtile b,.sbig,.pstats b,.btn,.play,.note b,.thead){font-family:var(--f-head)!important}
+#overlay:not(#_) :is(.panel h1,.snav h1,.chhead h1){font-weight:900!important;font-size:46px!important;letter-spacing:0!important}
+#overlay:not(#_) :is(.ach b,.upc b,.pmc b,.m2c b,.mtile b,.m2info h4){font-weight:800!important;letter-spacing:.02em!important}
+#overlay:not(#_) :is(.ach b){font-size:20px!important}
+#overlay:not(#_) :is(.m2c b){font-size:19px!important}
+#overlay:not(#_) :is(.panel h3,.panel .sgrp,.mg,.tier,.stamp,.mptag,.coinpill,.v,.mpct,.xpt,.price,.cnum,.stat b,.srow b,.m2c .pct,.ctabs button em,#rewards .rw,.rw){font-family:var(--f-num)!important}
+#overlay:not(#_) :is(.panel h3,.panel .sgrp,.mg){font-weight:700!important;font-size:13px!important;letter-spacing:.05em!important}
+#hudbar:not(#_),#hudbar:not(#_) *{font-family:var(--f-num)!important}
+#resume:not(#_) .rp b{font-family:var(--f-hand)!important}
+/* focus on a cut-out button: its printed shadow turns bone white instead of a rectangle round a ragged shape */
+.mm-cta:focus-visible,.rs-start:focus-visible,#overlay .btn:not(.alt):focus-visible,#overlay .play:focus-visible,#overlay #againBtn:focus-visible,#overlay #resBtn:focus-visible{outline:0!important}
+.mm-cta:focus-visible::after,.rs-start:focus-visible::after,#overlay .btn:not(.alt):not(#backBtn):not(#pMenuBtn):focus-visible::after,#overlay .play:focus-visible::after,#overlay #againBtn:focus-visible::after,#overlay #resBtn:focus-visible::after{background:var(--ink)!important}
+
+/* (the old buttons clip their own overflow for a shine that's gone: the printed shadow has to show past the edge) */
+#overlay .play,#overlay .btn:not(.alt),#overlay #againBtn,#overlay #resBtn{overflow:visible!important}
+/* the pause screen's tabs: typed, a squiggle under the open one */
+.panel.pause .ptabs button{font:700 13px var(--f-num)!important;letter-spacing:.04em!important;border-bottom-color:transparent!important;position:relative}
+.panel.pause .ptabs button.on::after{content:'';position:absolute;left:6px;right:6px;bottom:-2px;height:3px;background:var(--acc)}
+/* the map browser: a sheet of photos, each pinned a little crooked, the picked one circled in marker */
+.mbr-in{border:2px solid var(--hair2)!important;border-radius:var(--hm-box2)!important;box-shadow:10px 10px 0 rgba(4,2,3,.72)!important;position:relative}
+.mbr-in::before{content:'';position:absolute;left:72px;top:-13px;width:116px;height:26px;rotate:-3deg;background:var(--hm-tape);clip-path:polygon(2% 4%,98% 0,96% 26%,100% 50%,97% 76%,99% 100%,1% 96%,4% 72%,0 47%,3% 22%);pointer-events:none;z-index:3}
+.mbr-head h3{font:900 34px/1 var(--f-head)!important;letter-spacing:0!important}
+.mbr-img{border:3px solid #e9e1d3!important;border-radius:1px!important;box-shadow:4px 4px 0 rgba(4,2,3,.75);transition:rotate .15s ease,translate .15s ease}
+.mbr-t:nth-child(4n+1) .mbr-img{rotate:-.7deg}.mbr-t:nth-child(4n+2) .mbr-img{rotate:.5deg}.mbr-t:nth-child(4n+3) .mbr-img{rotate:-.3deg}.mbr-t:nth-child(4n) .mbr-img{rotate:.8deg}
+.mbr-t:hover .mbr-img{rotate:0deg;translate:-1px -2px;border-color:#fff!important}
+.mbr-t.on .mbr-img{border-color:var(--acc)!important}
+.mbr-n{font:800 18px/1.15 var(--f-head)!important;letter-spacing:.01em}
+.mbr-t.on .mbr-n::after{font:400 14px var(--f-hand)!important;letter-spacing:0!important;text-transform:lowercase!important;display:inline-block;rotate:-4deg;color:var(--acc-hi)}
+.mbr-m,.mbr-by{font-family:var(--f-num)!important;font-size:12px!important}
+/* (older layers grow .btn::before past the button for a glow: the cut-out backing sits exactly on the button) */
+.mm-cta::before,.rs-start::before,#overlay .btn:not(.alt):not(#backBtn):not(#pMenuBtn)::before,#overlay .play::before,#overlay #againBtn::before,#overlay #resBtn::before,
+.mm-cta::after,.rs-start::after,#overlay .btn:not(.alt):not(#backBtn):not(#pMenuBtn)::after,#overlay .play::after,#overlay #againBtn::after,#overlay #resBtn::after{inset:0!important;width:auto!important;height:auto!important;margin:0!important;transform:none!important;filter:none!important;border-radius:0!important}
+/* ---- the Skill Tree is a computer: a black monitor, a slim bezel round a slightly curved screen, the board and details panel
+   on the glass, the maker's name and a small power light on the chin. (No tape on this one: it's a machine, not a sheet.) ---- */
+#overlay.menuMode .panel.sktree{padding:10px 16px 30px!important;border:0!important;border-radius:14px!important;
+  background:linear-gradient(180deg,#26272a 0,#1a1b1d 55%,#141516 100%)!important;color:#d9d6d0;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.12),inset 0 -2px 0 rgba(0,0,0,.6),inset 1px 0 0 rgba(255,255,255,.05),inset -1px 0 0 rgba(255,255,255,.05),12px 12px 0 rgba(4,2,3,.75)!important}
+#overlay .panel.sktree::before{content:''!important;display:block!important;position:absolute!important;left:auto!important;right:22px!important;top:auto!important;bottom:12px!important;width:6px!important;height:6px!important;rotate:0deg!important;clip-path:none!important;border-radius:50%!important;
+  background:#3fd2ff!important;box-shadow:0 0 6px 1px rgba(63,210,255,.65)!important;z-index:2!important;animation:skLed 4s ease-in-out infinite}
+@keyframes skLed{0%,100%{opacity:1}50%{opacity:.7}}
+#overlay .panel.sktree::after{content:'CARNAGE';position:absolute;left:50%;bottom:8px;translate:-50% 0;pointer-events:none;
+  font:700 10px/14px "Archivo",var(--f-body);font-stretch:125%;font-variation-settings:"wdth" 125;letter-spacing:.42em;color:rgba(255,255,255,.34)}
+/* the header sits on the top of the frame */
+#overlay .panel.sktree .skh{border:0!important;background:none!important;padding:2px 4px 10px!important}
+#overlay:not(#_) .panel.sktree .skh h1{color:#ece8e1!important;text-shadow:none!important;font-size:34px!important}
+#overlay .panel.sktree .skh .coinpill,#overlay .panel.sktree .skh .sktok{background:#0c0c0d!important;border:1px solid #3a3b3f!important;border-radius:6px!important;box-shadow:inset 0 1px 3px rgba(0,0,0,.8)!important}
+/* the screen: a thin black bezel, gently rounded, a faint sheen on the glass */
+#overlay .panel.sktree .skbody{position:relative;border-radius:12px;overflow:hidden;border:3px solid #050506;
+  box-shadow:0 0 0 1px rgba(255,255,255,.07),inset 0 0 28px rgba(0,0,0,.7);background:#0b090a}
+#overlay .panel.sktree .skbody::after{content:'';position:absolute;inset:0;pointer-events:none;z-index:40;border-radius:inherit;
+  background:linear-gradient(155deg,rgba(255,255,255,.045) 0,transparent 32%),radial-gradient(ellipse 130% 120% at 50% 50%,transparent 70%,rgba(0,0,0,.35) 100%)}
+#overlay .panel.sktree .skinfo{border-left:1px solid rgba(255,255,255,.06)!important}
+body.phone #overlay.menuMode .panel.sktree{padding:5px 8px 18px!important;border-radius:10px!important}
+body.phone #overlay .panel.sktree::after{bottom:3px;font-size:8px}
+body.phone #overlay .panel.sktree::before{bottom:7px!important;right:12px!important;width:5px!important;height:5px!important}
+body.phone #overlay .panel.sktree .skbody{border-width:2px;border-radius:8px}
+
+/* the main menu's own type: a wide, heavy cut of Archivo (its width axis) for the list, the main button and the corner labels; the logo keeps its poster face */
+.mm-it,.mm-cta,.rs-start,.mm-mapcap b,.pf-lv b{font-family:"Archivo",var(--f-body)!important;font-stretch:118%;font-variation-settings:"wdth" 118}
+.mm-it{font-weight:800!important;font-size:19px!important;letter-spacing:.01em!important;min-height:46px}
+.mm-cta,.rs-start{font-weight:900!important;font-size:22px!important;letter-spacing:.01em!important}
+.mm-mapcap b{font-weight:800!important;font-size:24px!important;letter-spacing:0!important}
+.pf-lv b{font-weight:900!important;font-size:24px!important}
+body.phone .mm-it{font-size:17px!important}
+body.phone .mm-cta{font-size:19px!important}
+/* =====================================================================
+   MAIN MENU, FORMAL: the menu (home, run setup, the map browser) drops the grindhouse props (marker scrawl, torn
+   edges, tape, tilt, stamps, the highlighter swipe) for something more composed: the wide Archivo throughout, clean
+   rectangles with a crisp printed shadow, straight photos, quiet labels. Still no soft glows, glass or gradients.
+   ===================================================================== */
+.mm{--fw:"Archivo",var(--f-body)}
+.mm .mm-logo .l1{font:800 22px/1 var(--fw)!important;font-stretch:118%;font-variation-settings:"wdth" 118;letter-spacing:.01em!important;text-transform:none!important;rotate:0deg;margin:0 0 6px 2px!important;text-shadow:none!important;color:var(--dim)!important}
+.mm .mm-logo .l2 b{font:900 82px/.9 var(--fw)!important;font-stretch:118%;font-variation-settings:"wdth" 118;letter-spacing:-.015em!important;text-shadow:4px 4px 0 var(--hm-shadow)!important}
+body.compact .mm .mm-logo .l2 b{font-size:66px!important}
+body.phone .mm .mm-logo .l1{font-size:15px!important;margin-bottom:2px!important}
+body.phone .mm .mm-logo .l2 b{font-size:44px!important}
+/* the main buttons: a clean slab with a crisp shadow, pressed when clicked */
+.mm .mm-cta,.mm .rs-start{rotate:0deg!important}
+.mm .mm-cta::before,.mm .rs-start::before,.mm .mm-cta::after,.mm .rs-start::after{clip-path:none!important;border-radius:3px!important}
+.mm .mm-cta::after,.mm .rs-start::after{translate:4px 4px}
+.mm kbd,.mm .mm-cta kbd,.mm .rs-start kbd{font:700 11px/1 var(--fw)!important;letter-spacing:.04em!important;border:1px solid currentColor!important;border-radius:3px!important;rotate:0deg!important;padding:4px 6px!important;opacity:.75!important}
+/* the list: a plain accent bar beside the one you're on, no swipe */
+.mm .mm-it::before{scale:1 0!important;left:0!important;right:auto!important;width:3px;top:12px!important;bottom:12px!important;background:var(--acc)!important;-webkit-mask:none!important;mask:none!important;transform-origin:center!important}
+.mm .mm-it:hover::before,.mm .mm-it:focus-visible::before{scale:1 1!important}
+.mm .mm-it:hover .mm-l,.mm .mm-it:focus-visible .mm-l{translate:6px 0}
+.mm .mm-note{font:600 12px/1 var(--fw)!important;rotate:0deg!important;letter-spacing:.01em!important;text-transform:none!important}
+.mm .mm-note.hot{color:var(--acc-hi)!important}
+/* the profile card: square on, no tape */
+.mm .mm-prof{rotate:0deg!important;border:1px solid var(--hair2)!important;border-radius:3px!important;box-shadow:5px 5px 0 var(--hm-shadow)!important;background:rgba(14,11,12,.92)!important}
+.mm .mm-prof::before{display:none!important}
+.mm .pf-lv,.mm .mm-mapcap small,.mm .mm-ver{font:600 11px var(--fw)!important;letter-spacing:.08em!important;text-transform:uppercase}
+.mm .pf-lv b{font-size:24px!important;letter-spacing:0!important}
+/* run setup: quiet labels in the menu's own type, solid hairlines, plain boxes */
+.mm .rs-sec h4,.mm .rs-head h2{font:700 12px var(--fw)!important;letter-spacing:.08em!important;border-bottom:1px solid var(--hair)!important}
+.mm .rs-head h2{border:0!important}
+.mm .rs-sec h4 span{font:500 12px var(--fw)!important;letter-spacing:0!important}
+.mm .rs-seg{border-bottom:1px solid var(--hair)!important}
+.mm .rs-ch{border:1px solid var(--hair)!important;border-radius:3px!important;box-shadow:none!important}
+.mm .rs-ch:hover{translate:none!important;box-shadow:none!important;border-color:var(--hair2)!important}
+.mm .rs-ch .rs-t{font:700 11px var(--fw)!important;letter-spacing:.06em!important;border:0!important;padding:0!important;rotate:0deg!important;-webkit-mask:none!important;mask:none!important}
+.mm .mm-back{border:1px solid var(--hair2)!important;border-radius:3px!important;box-shadow:none!important;font:600 14px var(--fw)!important}
+/* the map browser: straight pictures in a thin frame, the picked one outlined in the accent */
+.mm .mbr-in{border:1px solid var(--hair2)!important;border-radius:3px!important;box-shadow:8px 8px 0 rgba(4,2,3,.7)!important}
+.mm .mbr-in::before{display:none!important}
+.mm .mbr-head h3{font:900 26px/1 var(--fw)!important;font-stretch:118%;font-variation-settings:"wdth" 118}
+.mm .mbr-img{rotate:0deg!important;border:2px solid var(--hair2)!important;box-shadow:3px 3px 0 rgba(4,2,3,.7)}
+.mm .mbr-t:hover .mbr-img{translate:0 -2px;border-color:var(--ink)!important}
+.mm .mbr-t.on .mbr-img{border-color:var(--acc)!important}
+.mm .mbr-n{font:700 15px/1.2 var(--fw)!important}
+.mm .mbr-t.on .mbr-n::after{font:700 11px var(--fw)!important;letter-spacing:.08em!important;text-transform:uppercase!important;rotate:0deg}
+.mm .mbr-m,.mm .mbr-by{font:500 12px var(--fw)!important}
+.mm .rs-title h3{font:900 34px/1 var(--fw)!important;font-stretch:118%;font-variation-settings:"wdth" 118;letter-spacing:-.01em}
+body.compact .mm .rs-title h3{font-size:28px!important}
+.mm .rs-facts dt,.mm .rs-facts small,.mm .rs-info small{font-family:var(--fw)!important}
+/* "N tokens to spend" on the main menu: pulses up to near white with a glow in the accent, so it catches the eye */
+.mm .mm-note.hot{animation:mmHot 1.6s ease-in-out infinite;font-weight:700!important}
+@keyframes mmHot{0%,100%{filter:brightness(1);text-shadow:0 0 0 transparent}50%{filter:brightness(1.75);text-shadow:0 0 6px var(--acc-hi),0 0 16px color-mix(in srgb,var(--acc-hi) 65%,transparent)}} /* (its color is pinned with !important above, which an animation can't move: it brightens instead) */
+@media (prefers-reduced-motion:reduce){.mm .mm-note.hot{animation:none}}
+.mm .mm-note.hot{display:inline-flex!important;align-items:center;gap:7px}
+.mm .mm-note.hot::before{content:''!important;display:inline-block!important;flex:none;width:7px;height:7px;border-radius:50%;background:var(--acc-hi)} /* the dot in front of "N tokens to spend" (it pulses with the text) */
+/* what got you, exactly: under "You died" on the multiplayer banner, typed like a report */
+#mpDown .mpwhy{display:block;margin:0 0 6px;font:700 16px var(--f-num);font-style:normal;color:#ffc9bd}
+.mpmine .mpwhy{color:#ff8f7a}
+/* the "WASD to begin / to continue" prompt: in the main menu's wide Archivo, level, no scrawl; and it fades out when you go
+   (the hand-made layer's !important entrance animation used to win over the fade, so it vanished at once) */
+#resume:not(#_) .rp{font-family:"Archivo",var(--f-body)!important;font-stretch:118%;font-variation-settings:"wdth" 118}
+#resume:not(#_) .rp b{font:800 15px/1 "Archivo",var(--f-body)!important;font-stretch:118%;font-variation-settings:"wdth" 118;letter-spacing:.01em;text-transform:uppercase;rotate:0deg}
+#resume:not(#_) .or{font:600 13px/1 "Archivo",var(--f-body)!important;font-stretch:118%;font-variation-settings:"wdth" 118}
+#resume:not(#_) kbd{font:700 11px/1 "Archivo",var(--f-body)!important;font-stretch:118%;font-variation-settings:"wdth" 118}
+#resume.gone:not(#_) .rp{animation:resumeOut .35s ease-in forwards!important}
+/* the prompt's keys sit dead centre with its words: no stray margin from the help screen's .keys rule, no floating or tilt */
+#resume:not(#_) .keys{margin:0!important;align-items:center}
+#resume:not(#_) kbd{margin:0!important;animation:none!important;rotate:0deg!important;translate:none!important;line-height:1}
+/* a picked modifier this map can't use (Shell Shock indoors): crossed out, "off here", and left out of the rewards */
+.mchip.off{opacity:.6;display:inline-flex;align-items:center;gap:6px}
+.mchip.off s{text-decoration-thickness:2px}
+.mchip.off em{font-style:normal;font-size:.82em;opacity:.85;text-transform:none}
+/* the in-run stats (top left and right): the main menu's wide Archivo, figures that don't jiggle as they count; and out of the
+   way while the loading card (or multiplayer's shutters) is up, fading in as it lifts */
+#hudbar:not(#_):not(#__),#hudbar:not(#_):not(#__) *{font-family:"Archivo",var(--f-body)!important;font-stretch:118%;font-variation-settings:"wdth" 118;font-variant-numeric:tabular-nums}
+#hudbar:not(#_):not(#__) b,#hudbar:not(#_):not(#__) .v{font-weight:800!important}
+#hudbar{transition:opacity .45s ease}
+#hudbar.ld{opacity:0;pointer-events:none;transition:none}
+/* the picked tab: no painted swipe behind it any more, just its name in the accent and a plain accent bar down its left edge */
+#overlay:not(#_) .tab.on::after{display:none!important}
+#overlay:not(#_) .panel:not(.shop2) .tab.on{background:none!important;color:var(--acc-hi,var(--acc))!important;box-shadow:inset 3px 0 0 var(--acc)!important}
+/* ---- PRESSING: a button sinks into its printed shadow while held (30b-feel's .prs, held at least a moment so a quick tap shows),
+   springs back with a small overshoot, and a burst of halftone ink spreads from the finger inside the button's own shape only ---- */
+#overlay:not(#_) :is(button,.card,.sc,.mtile),#hudbar:not(#_) button{transition:background-color .18s ease,border-color .18s ease,color .18s ease,filter .18s ease,opacity .18s ease,
+  box-shadow .36s cubic-bezier(.25,1.8,.45,1),translate .36s cubic-bezier(.25,1.8,.45,1),scale .36s cubic-bezier(.25,1.8,.45,1),rotate .25s ease,transform .32s cubic-bezier(.2,.9,.25,1)!important}
+#overlay:not(#_) .prs,#hudbar:not(#_) .prs{scale:.955!important;filter:brightness(.86);transition-duration:.06s!important}
+/* the main slabs: the face goes down onto its shadow (which stays printed where it was) and darkens a touch */
+:is(.mm-cta,.rs-start,#overlay .btn:not(.alt):not(#backBtn):not(#pMenuBtn),#overlay .play,#overlay #againBtn,#overlay #resBtn):not(#_):not(#__)::after{transition:translate .36s cubic-bezier(.25,1.8,.45,1)!important}
+:is(.mm-cta,.rs-start,#overlay .btn:not(.alt):not(#backBtn):not(#pMenuBtn),#overlay .play,#overlay #againBtn,#overlay #resBtn).prs:not(#_):not(#__){scale:1!important;filter:none;translate:4px 4px!important}
+:is(.mm-cta,.rs-start,#overlay .btn:not(.alt):not(#backBtn):not(#pMenuBtn),#overlay .play,#overlay #againBtn,#overlay #resBtn).prs:not(#_):not(#__)::after{translate:1px 1px!important;transition-duration:.06s!important}
+:is(.mm-cta,.rs-start,#overlay .btn:not(.alt):not(#backBtn):not(#pMenuBtn),#overlay .play,#overlay #againBtn,#overlay #resBtn).prs:not(#_):not(#__)::before{background:color-mix(in srgb,var(--acc) 80%,#000)!important}
+.mm :is(.mm-cta,.rs-start).prs:not(#_):not(#__){translate:3px 3px!important}
+/* the quiet boxes: down onto their shadow, which disappears under them */
+:is(#overlay .btn.alt,#overlay .panel .ghost,#overlay .panel #backBtn,#overlay .panel #pMenuBtn,.mm-back,.mm-x,.mm-tog).prs:not(#_):not(#__){scale:1!important;filter:none;translate:3px 3px!important;box-shadow:0 0 0 var(--hm-shadow)!important;border-color:var(--ink)!important}
+.mm .mm-back.prs:not(#_):not(#__){translate:1px 1px!important}
+/* the ink: halftone dots in the button's own text color, a burst that spreads and fades, clipped to the button (a slab: its torn edge) */
+#overlay .rip:not(#_):not(#__),#hudbar .rip:not(#_):not(#__){position:absolute!important;inset:0!important;overflow:hidden!important;border-radius:inherit;pointer-events:none;z-index:0;rotate:0deg;translate:none}
+#overlay .rip.slab:not(#_):not(#__){z-index:-1;clip-path:var(--hm-rag);border-radius:0}
+.mm .rip.slab:not(#_):not(#__){clip-path:none;border-radius:3px}
+@property --rr{syntax:'<percentage>';inherits:false;initial-value:0%}
+/* the dots stay their size and put; a ring-shaped window onto them grows from the click out past the far corner (--rr: its outer edge,
+   as a share of the circle's radius): a crisp leading edge, a softer trailing one, nothing inside it */
+.ripple:not(#_){position:absolute!important;border-radius:50%;pointer-events:none;opacity:.62;transform:none;--rr:0%;
+  background:radial-gradient(circle,currentColor 0 1.25px,transparent 1.7px) 0 0/6px 6px;
+  -webkit-mask:radial-gradient(circle closest-side,transparent calc(var(--rr) - 17px),rgba(0,0,0,.45) calc(var(--rr) - 11px),#000 calc(var(--rr) - 5px),#000 calc(var(--rr) - 2px),transparent var(--rr));
+  mask:radial-gradient(circle closest-side,transparent calc(var(--rr) - 17px),rgba(0,0,0,.45) calc(var(--rr) - 11px),#000 calc(var(--rr) - 5px),#000 calc(var(--rr) - 2px),transparent var(--rr));
+  animation:inkRing .72s cubic-bezier(.3,.55,.45,1) forwards!important}
+.rip.slab .ripple:not(#_){opacity:.48}
+@keyframes inkRing{0%{--rr:0%}55%{opacity:.55}to{--rr:100%;opacity:0}}
+/* the version (and the build's date) sits level with the Map editor link beside it: the same height, centred the same way */
+.mm-foot .mm-ver:not(#_){display:inline-flex;align-items:center;gap:7px;min-height:36px;padding-bottom:0}
+.mm-ver i{font-style:normal;opacity:.6}
+.mm-ver em{font-style:normal;text-transform:none;letter-spacing:.02em}
+/* the main menu's buttons (Start game, Start run, Host a lobby...) are clean rectangles wherever they appear, multiplayer screens included */
+.mm-cta:not(#_),.rs-start:not(#_){rotate:0deg!important}
+:is(.mm-cta,.rs-start):not(#_)::before,:is(.mm-cta,.rs-start):not(#_)::after{clip-path:none!important;border-radius:3px!important}
+:is(.mm-cta,.rs-start):not(#_)::after{translate:4px 4px}
+:is(.mm-cta,.rs-start).prs:not(#_):not(#__){translate:3px 3px!important}
+#overlay :is(.mm-cta,.rs-start) .rip.slab:not(#_):not(#__){clip-path:none;border-radius:3px}
+/* keyboard focus on a slab: its face lights up (as on hover) and the printed shadow stays dark, never a white outline */
+:is(.mm-cta,.rs-start,#overlay .btn:not(.alt):not(#backBtn):not(#pMenuBtn),#overlay .play,#overlay #againBtn,#overlay #resBtn):focus-visible:not(#_):not(#__)::after{background:var(--hm-shadow)!important}
+:is(.mm-cta,.rs-start,#overlay .btn:not(.alt):not(#backBtn):not(#pMenuBtn),#overlay .play,#overlay #againBtn,#overlay #resBtn):focus-visible:not(#_):not(#__)::before{background:color-mix(in srgb,var(--acc) 84%,#fff)!important}
+/* the death screen's crawling grain: a faint film texture, not a static storm over the summary */
+#dFx .dGrain:not(#_){opacity:.16}
+/* menu effects, soft: snow and embers are blurred discs (a radial falloff, no per-frame filter), and embers fade in, drift up and
+   fade out on the way instead of vanishing at the end of their loop */
+.mfx.snow i:not(#_){width:calc(11px * var(--z));height:calc(11px * var(--z));background:radial-gradient(circle,rgba(244,248,255,.85) 0,rgba(244,248,255,.55) 22%,rgba(244,248,255,.2) 46%,rgba(244,248,255,0) 70%)}
+.mfx.blizzard i.l0:not(#_){background:radial-gradient(circle,rgba(238,244,255,.85) 0,rgba(238,244,255,.5) 24%,rgba(238,244,255,.15) 48%,rgba(238,244,255,0) 70%)}
+.mfx.blizzard i.l1:not(#_){background:radial-gradient(circle,rgba(244,248,255,.9) 0,rgba(244,248,255,.6) 26%,rgba(244,248,255,.2) 50%,rgba(244,248,255,0) 70%)}
+.mfx.embers i:not(#_){width:calc(10px * var(--z));height:calc(10px * var(--z));box-shadow:none;opacity:0;
+  background:radial-gradient(circle,#ffd2a0 0 10%,rgba(255,138,61,.85) 26%,rgba(255,90,31,.3) 48%,rgba(255,90,31,0) 72%);animation:ember var(--s) ease-out infinite;animation-delay:var(--d)}
+@keyframes ember{0%{transform:translate(0,2vh) scale(1);opacity:0}10%{opacity:.85}35%{transform:translate(-14px,-24vh) scale(.92)}55%{opacity:.6}
+  70%{transform:translate(10px,-50vh) scale(.75)}100%{transform:translate(-22px,-72vh) scale(.5);opacity:0}}
+/* Blizzard's gusts of whiteout: one screen-wide tile repeated three times across a layer three screens wide, slid exactly one tile a loop,
+   so the end of a loop is the same picture as its start (no snap back); the slant is a fixed skew, the slide a compositor translate,
+   and it takes the menu's elapsed time (the container's animation-delay, menuFx) so a rebuilt menu carries on mid-gust */
+.mfx.blizzard:not(#_)::before{inset:-20% auto -20% -50%;width:300%;transform:skewX(-10deg);
+  background:linear-gradient(90deg,transparent 0 30%,rgba(230,238,255,.07) 42%,transparent 54%,transparent 64%,rgba(230,238,255,.05) 74%,transparent 86%) 0 0/33.3333% 100% repeat-x;
+  animation:blizGust2 9s linear infinite!important;animation-delay:inherit!important}
+@keyframes blizGust2{from{translate:0 0}to{translate:-33.3333% 0}}
+/* arriving on the shop's Custom color tab (customIn in 37-shop): the heading, the two buy tiers and the picker come in one after another;
+   the color square and the hue strip wipe in from the left, then their knobs pop on and the big swatch flips in */
+.sgrid.cfx>h2,.sgrid.cfx>.lead,.sgrid.cfx .tier1,.sgrid.cfx .picker{animation:cfxIn .42s cubic-bezier(.2,.8,.25,1) backwards}
+.sgrid.cfx>.lead{animation-delay:.05s}.sgrid.cfx .tier1:nth-child(1){animation-delay:.1s}.sgrid.cfx .tier1:nth-child(2){animation-delay:.16s}.sgrid.cfx .picker{animation-delay:.22s}
+.sgrid.cfx .picker .sv,.sgrid.cfx .picker .hue{animation:cfxWipe .5s cubic-bezier(.3,.7,.2,1) .34s backwards}.sgrid.cfx .picker .hue{animation-delay:.42s}
+.sgrid.cfx .picker .knob{animation:cfxPop .32s cubic-bezier(.3,1.7,.5,1) .72s backwards}
+.sgrid.cfx .picker .swb.big{animation:cfxFlip .4s cubic-bezier(.3,1.5,.5,1) .6s backwards}
+@keyframes cfxIn{from{opacity:0;transform:translateY(12px)}}
+@keyframes cfxWipe{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+@keyframes cfxPop{from{scale:0}}
+@keyframes cfxFlip{from{opacity:0;transform:rotateY(90deg) scale(.7)}}
+/* the skin list's "Real snakes" section (realCard in 37-shop): a label across the grid, then the cards in their real colors */
+.cards2 .realhd{grid-column:1/-1;display:flex;align-items:baseline;gap:10px;margin:10px 0 2px;padding-bottom:5px;border-bottom:1px dashed var(--hair2);font:700 13px var(--f-num);letter-spacing:.05em;text-transform:uppercase;color:var(--dim)}
+.cards2 .realhd small{font:400 12.5px var(--f-body);letter-spacing:0;text-transform:none;color:var(--mute)}
+/* =====================================================================
+   LANDSCAPE PHONES (body.short, set by fit() in 32-ui-customize: a phone on its side, under 500 px tall). The menus run at the phone's
+   own pixels there (the zoom undo above), so desktop-sized pieces overflowed: a 58 px Start, a 64 px logo and a run setup that was all
+   map picture and Start button. Here they lay out in two columns that fit the screen, at touch-sized but compact sizes.
+   ===================================================================== */
+/* home: logo, Start and the list down the left, the profile, party and footer down the right */
+body.phone.short .mm-home:not(#_){display:grid;grid-template-columns:minmax(0,1fr) minmax(0,min(320px,44%));grid-template-rows:auto minmax(0,1fr) auto;gap:8px 18px;overflow:hidden;
+  padding:10px max(14px,env(safe-area-inset-right)) 8px max(14px,env(safe-area-inset-left))}
+body.phone.short .mm-col:not(#_){grid-column:1;grid-row:1/4;align-self:stretch;justify-content:center;gap:8px;max-width:400px;width:100%;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none}
+body.phone.short .mm-prof:not(#_){grid-column:2;grid-row:1;max-width:none;width:100%;justify-self:stretch;padding:8px 11px}
+body.phone.short .mm-party:not(#_){grid-column:2;grid-row:2;max-width:none;width:100%;min-height:0;max-height:100%;overflow-y:auto}
+body.phone.short .mm-foot:not(#_){grid-column:2;grid-row:3;flex-wrap:nowrap;align-items:flex-end;gap:8px;min-height:0}
+body.phone.short .mm .mm-logo .l1:not(#_){font-size:12px!important;margin:0 0 2px 1px!important}
+body.phone.short .mm .mm-logo .l2 b:not(#_){font-size:34px!important;text-shadow:3px 3px 0 var(--hm-shadow)!important}
+body.phone.short .mm-nav:not(#_){width:100%}
+body.phone.short .mm-cta:not(#_){min-height:40px;margin-bottom:4px;padding:0 12px 0 14px;font-size:17px!important}
+body.phone.short .mm-it:not(#_){min-height:31px;font-size:15px!important;padding:0 6px 0 12px}
+body.phone.short .mm-it .mm-ic{width:15px;height:15px}
+body.phone.short .mm-note{font-size:11px}
+body.phone.short .mm-cta kbd,body.phone.short .rs-start kbd{display:none} /* no keyboard to press it on */
+body.phone.short .mm-mapcap:not(#_){padding:2px 0 0}
+body.phone.short .mm-mapcap b{font-size:18px!important}
+body.phone.short .mm-foot .mm-ver:not(#_){min-height:24px}
+/* run setup (and the lobby, built the same way): the map and its details on the left, the options and Start on the right */
+body.phone.short .rs:not(#_){display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);grid-template-rows:auto minmax(0,1fr) auto;gap:6px 14px;overflow:hidden;
+  padding:6px max(14px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left))}
+body.phone.short .rs-head:not(#_){min-height:32px;gap:10px;flex-wrap:nowrap;overflow:hidden}
+body.phone.short .rs-head .mm-back:not(#_){min-height:30px;padding:0 9px}
+body.phone.short .rs-head .mm-q:not(#_){min-height:30px;white-space:nowrap}
+body.phone.short .rs-grid:not(#_){display:contents}
+body.phone.short .rs-main:not(#_){grid-column:1;grid-row:2/4;min-height:0;display:flex;flex-direction:column;gap:6px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none}
+body.phone.short .rs-main>*:not(#_){flex:none}
+body.phone.short .rs-prev:not(#_){flex:1 1 0;height:auto;min-height:84px}
+body.phone.short .rs-info:not(#_){gap:3px}
+body.phone.short .rs-title:not(#_){gap:10px}
+body.phone.short .rs-title h3:not(#_){font-size:22px}
+body.phone.short .rs-title .mm-q:not(#_){min-height:26px;font-size:13px}
+body.phone.short .rs-desc:not(#_){font-size:12px;line-height:1.35;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden}
+body.phone.short .rs-facts:not(#_){gap:2px 14px;margin:0}
+body.phone.short .rs-facts dt:not(#_){font-size:9.5px}
+body.phone.short .rs-facts dd:not(#_){font-size:12.5px;margin-top:1px}
+body.phone.short .rs-side:not(#_){grid-column:2;grid-row:2;min-height:0;display:flex;flex-direction:column;border-bottom:0;border-radius:2px 2px 0 0}
+body.phone.short .rs-scroll:not(#_){flex:1;min-height:0;overflow-y:auto;padding:8px 11px;gap:10px}
+body.phone.short .rs-sec h4:not(#_),body.phone.short .mlob-sec h4:not(#_){font-size:10.5px;margin-bottom:3px}
+body.phone.short .rs-seg button:not(#_){min-height:32px;font-size:13px}
+body.phone.short .rs-hint:not(#_){font-size:11.5px;min-height:0;margin-top:4px}
+body.phone.short .rs-sh:not(#_){margin:-4px 0 2px}
+body.phone.short .rs .mchip:not(#_){font-size:12px!important;padding:5px 7px!important}
+body.phone.short .rs-picks:not(#_){grid-template-columns:repeat(auto-fit,minmax(124px,1fr));gap:8px}
+body.phone.short .rs-pick select,body.phone.short .rs-pick .dd{min-height:32px;font-size:12.5px}
+body.phone.short .rs-chk:not(#_){min-height:30px;font-size:13px}
+body.phone.short .rs-foot:not(#_){grid-column:2;grid-row:3;margin:0;padding:6px 8px;gap:8px;border-width:1px;border-top-width:0;border-radius:0 0 2px 2px;background:var(--sheet)}
+body.phone.short .rs-start:not(#_),body.phone.short .rs-foot .mm-tog:not(#_){min-height:40px;font-size:17px!important;padding:0 14px}
+/* the lobby's players and map down the left */
+body.phone.short .mlob .rs-head h2:not(#_){font-size:19px!important;white-space:nowrap}
+body.phone.short .mlob-prev:not(#_){min-height:84px;flex:1 1 0}
+body.phone.short .mlob-rule:not(#_){font-size:11.5px}
+@media (max-width:700px){ /* the smallest phones: a little more room for the options, so the time and season names never touch */
+  body.phone.short .rs:not(#_){grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);column-gap:12px}
+  body.phone.short .rs-seg button:not(#_){font-size:12px;letter-spacing:-.01em}
+}
+/* Play with friends: the host and join boxes side by side again, the name beside its label */
+body.phone.short .mmp:not(#_){width:calc(100% - 16px);max-height:calc(100% - 12px);padding:8px max(14px,env(safe-area-inset-right)) 8px max(14px,env(safe-area-inset-left))}
+body.phone.short .mmp-head:not(#_){margin-bottom:6px;gap:10px}
+body.phone.short .mmp-head .mm-back:not(#_){min-height:30px;padding:0 9px}
+body.phone.short #overlay .mmp .mmp-head h2:not(#_){font-size:21px!important}
+body.phone.short .mmp-lead:not(#_){font-size:12px;line-height:1.4;margin:0 0 8px}
+body.phone.short .mmp-field:not(#_){flex-direction:row;align-items:center;gap:10px;max-width:none;margin-bottom:8px}
+body.phone.short .mmp-field input:not(#_){flex:0 1 220px;min-width:0}
+body.phone.short .mmp input:not(#_){min-height:34px;font-size:14px}
+body.phone.short .mmp-cols:not(#_){grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+body.phone.short .mmp-cols section:not(#_){padding:8px 10px;gap:4px}
+body.phone.short .mmp-cols p:not(#_){font-size:11.5px;line-height:1.35;margin:0 0 4px}
+body.phone.short .mmp .rs-start:not(#_),body.phone.short .mmp-btn:not(#_),body.phone.short .mmp-join input:not(#_){min-height:38px;font-size:16px!important;white-space:nowrap}
+body.phone.short .mmp-btn:not(#_){padding:0 14px}
+body.phone.short .mmp-fr:not(#_){margin-top:8px}
+body.phone.short .mmp-friend:not(#_){min-height:32px;font-size:13px}
+body.phone.short .mmp .mperr:not(#_){margin-top:4px;font-size:12.5px}
+/* the map browser: smaller pictures, more to a row */
+body.phone.short .mbr:not(#_){padding:6px max(10px,env(safe-area-inset-right)) 6px max(10px,env(safe-area-inset-left))}
+body.phone.short .mbr-head:not(#_){padding:5px 6px 5px 12px}
+body.phone.short .mm .mbr-head h3:not(#_),body.phone.short .mbr-head h3:not(#_){font-size:18px!important}
+body.phone.short .mbr-head .mm-q:not(#_),body.phone.short .mbr-rand:not(#_){min-height:30px}
+body.phone.short .mbr-grid:not(#_){grid-template-columns:repeat(auto-fill,minmax(128px,1fr));padding:10px 12px;gap:12px 10px}
+body.phone.short .mbr-n:not(#_){font-size:14px!important}
+body.phone.short .mbr-m:not(#_){font-size:11px}

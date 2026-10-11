@@ -75,7 +75,7 @@ function netPackMe(seq) { // my snake, 20 bytes
   return buf;
 }
 const C_STATE = ['wander', 'idle', 'panic', 'flee', 'uneasy'];
-const cFlags = c => (Math.max(0, C_STATE.indexOf(c.state)) & 7) | (c.golden ? 8 : 0) | ((c.hz || 0) > 2 ? 16 : 0) | (c.fl && c.fl.on ? 32 : 0) | (c.dance ? 64 : 0);
+const cFlags = c => (Math.max(0, C_STATE.indexOf(c.state)) & 7) | (c.golden ? 8 : 0) | ((c.hz || 0) > 2 ? 16 : 0) | (c.fl && c.fl.on ? 32 : 0) | (c.dance ? 64 : 0) | (c.stunT > T ? 128 : 0);
 function netPackSnap(L) { // one snapshot for one guest: what changed for them, plus a slice of the rest
   const ps = []; // players: the host's own snake and every guest's latest sample
   if (snake) ps.push({ slot: (netPlayer(NETM.me) || {}).slot || 0, x: snake.x, y: snake.y, a: snake.angle, len: snake.len, sc: snake.scale || 1, fl: (snake.alive ? 1 : 0) | (snake.started ? 2 : 0) | (snake.camoT > 0 ? 4 : 0) | (snake.dashT > 0 ? 8 : 0) | (snake.hissT > 0 ? 16 : 0) | (snake.netHidden ? 32 : 0) | (snake.burnT > 0 ? 64 : 0), still: snake.still || 0 });
@@ -145,7 +145,7 @@ function netHostEvents(p, list) { // what a guest asks for or reports
   for (const e of list.slice(0, 200)) {
     try {
       if (e.t === 'bite') netHostBite(p, e);
-      else if (e.t === 'crash') netPlayerDown(p.id, e.x, e.y);
+      else if (e.t === 'crash') netPlayerDown(p.id, e.x, e.y, e.by);
       else if (e.t === 'brk') { const o = NS.obsById.get(e.o); if (o && obstacles.includes(o)) { netBreak(o, e.w, e.a, false); netEmit({ t: 'brk', o: e.o, w: e.w, a: e.a, by: p.id }); } }
       else if (e.t === 'abil') netHostAbility(p, e);
       else if (e.t === 'tcut') { tcutApply(e); netEmit({ ...e, by: p.id }); }
@@ -196,14 +196,15 @@ function netSyncPlayerGone(p, why) { if (!NETM.run) return; if (why === 'left' |
 /* deaths: a pool of lives (the whole team's in co-op, each team's in Teams, your own in free for all). A death costs one
    and you're back after the lobby's respawn time (5 s unless the host changed it); with none left you watch the others. The run ends when everyone is down at once with nothing
    left to bring them back, or when the round's time runs out. */
-function netPlayerDown(pid, x, y) {
+function netPlayerDown(pid, x, y, by) { // (by: what got them, deathCause)
   if (!NETM.run || !NETM.host || NS.down.get(pid)) return;
   chainDown(pid); // Enchained: the host's own snake goes with them (each guest does the same on its own screen)
   const p = netPlayer(pid); if (p) p.deaths = (p.deaths || 0) + 1;
   const k = netPool(pid), back = !MOD.oneLife && (NS.pools[k] || 0) > 0; if (back && NS.pools[k] < 999) NS.pools[k]--; /* 999: unlimited */ // One life: nobody comes back
   const sp = back ? netSpawnPoint() : null; // where they'll come back: picked now, so they can see it while they wait
   NS.down.set(pid, { at: performance.now() + (back ? (NS.cfg && NS.cfg.respawn) || 5 : 0) * 1000, out: !back, sp }); // real time, like the round clock
-  const ev = [{ t: 'down', pid, x, y, out: !back, ...(sp ? { sx: sp.x, sy: sp.y, sa: sp.a } : {}) }, { t: 'lives', k, n: NS.pools[k] || 0 }];
+  if (by && typeof by === 'object') { const q = v => typeof v === 'string' ? v.slice(0, 40) : undefined; by = { by: q(by.by), o: q(by.o), kd: q(by.kd), from: q(by.from) }; } else by = null; // (only what a death record holds, short)
+  const ev = [{ t: 'down', pid, x, y, out: !back, ...(by ? { by } : {}), ...(sp ? { sx: sp.x, sy: sp.y, sa: sp.a } : {}) }, { t: 'lives', k, n: NS.pools[k] || 0 }];
   for (const e of ev) netEmit(e); netClientEvent({ k: 'ev', e: ev }, true);
 }
 function netLivesTick(dt) {
@@ -350,7 +351,8 @@ function netApply(e, local) {
     case 'beat': if (e.by !== NETM.me) tailBitGone(e.id); break; // someone ate one of the pieces
     case 'hissN': crHiss(e.n || 0); break;
     case 'scr': crScream(e.n || 0); break;
-    case 'air': airStrike(e.x, e.y, Math.max(.15, e.w - netLag(e.h)), e.r, e.j, e.f, e.tk, e.kd, e.sd, e.ew, e.ep); break; // (kd, sd: a cluster bomb or an incendiary, and the seed its bomblets or fires are built from, the same on every screen)
+    case 'air': airStrike(e.x, e.y, Math.max(.15, e.w - netLag(e.h)), e.r, e.j, e.f, e.tk, e.kd, e.sd, e.ew, e.ep, e.pk); break; // (kd, sd: a cluster bomb or an incendiary, and the seed its bomblets or fires are built from, the same on every screen)
+    case 'artf': artyReport(e.x, e.a); break; // the guns, far off: a moment before their shell is marked
     case 'airb': if (e.pid === NETM.me) barrageWarn(); break; // a barrage on its way to you
     case 'brn': if (e.by !== NETM.me) brnApply(e); break; // a piece of someone's tail burned off // the host called in a bomb: same spot, and it lands when it does on the host's screen
     case 'airw': airWarn(); break;
@@ -413,7 +415,7 @@ function netClientCreatures(dt) { // the guest's copy of the crowd: placed from 
     if (f !== null) {
       const st = C_STATE[f & 7] || 'wander';
       if (st !== c.state) { if (st === 'panic' && !c.def.human) Sfx.animal(c.x, c.type); c.state = st; }
-      c.dance = !!(f & 64); if (c.fl) c.fl.netOn = !!(f & 32); c.hz = f & 16 ? 4 : c.def.fly ? c.hz : 0;
+      c.dance = !!(f & 64); c.stunT = f & 128 ? T + .3 : 0; if (c.fl) c.fl.netOn = !!(f & 32); c.hz = f & 16 ? 4 : c.def.fly ? c.hz : 0;
     }
     netCreatureCosmetics(c, dt, moved);
   }
@@ -434,8 +436,9 @@ function netCreatureCosmetics(c, dt, moved) { // the parts of updateCreature tha
 function netLocalDown() {
   const s = snake; if (!s.alive) return;
   s.alive = false; shake = Math.max(shake, 20); Sfx.crash(s.x); NS.myDeaths = (NS.myDeaths || 0) + 1; endCombo(true); // a hard jolt as you go down
+  NS.myCause = deathCause(); run.deathBy = run.deathKd = run.deathFrom = undefined; // what got you, exactly: on your banner, the round's results, and everyone else's notice (the next death starts from nothing)
   NS.deadAt = performance.now(); NS.respawnIn = (NS.cfg && NS.cfg.respawn) || 5; netDeathCam(true); snake.netHidden = true; NS.burst = true; snakeBurst(s, (SETTINGS.snake || {}).color, SETTINGS.snake); // you burst, right away // the tint and the zoom-out start now, not a round trip later
-  if (NETM.host) netPlayerDown(NETM.me, s.x, s.y); else netSend({ t: 'crash', x: Math.round(s.x), y: Math.round(s.y) });
+  if (NETM.host) netPlayerDown(NETM.me, s.x, s.y, NS.myCause); else netSend({ t: 'crash', x: Math.round(s.x), y: Math.round(s.y), by: NS.myCause });
   checkChallenges(); updateHud();
 }
 function netDeathCam(down) { // dying: the camera eases out to the whole map; back in, your own zoom returns
@@ -446,7 +449,7 @@ function netDeathCam(down) { // dying: the camera eases out to the whole map; ba
 const netChained = pid => MOD.enchained && NETM.run && pid !== NETM.me && NS.cfg && NS.cfg.mode !== 'ffa' && (NS.cfg.mode !== 'teams' || netTeamOf(pid) === netTeamOf(NETM.me));
 function chainDown(pid) { // a teammate went down: so do you, a beat later
   if (!netChained(pid)) return;
-  setTimeout(() => { const s = snake; if (!NETM.run || !s || !s.alive || s.netHidden) return; run.deathBy = 'chain'; airHurt && airHurt(.6); die(); }, 220);
+  setTimeout(() => { const s = snake; if (!NETM.run || !s || !s.alive || s.netHidden) return; const p = netPlayer(pid); run.deathBy = 'chain'; run.deathFrom = p && p.name; airHurt && airHurt(.6); die(); }, 220);
 }
 function chainLenTick() { // every frame: any change in your length (a meal, a tail blown or burned off) goes to your chained teammates
   const s = snake; if (!MOD.enchained || !NETM.run || !s) return;
@@ -467,7 +470,7 @@ function netDownApply(e) {
   if (e.pid === NETM.me) NS.spawnAt = e.sx !== undefined ? { x: e.sx, y: e.sy, a: e.sa, segs: null } : null; // where you'll come back (drawSpawnGhost)
   const p = netPlayer(e.pid);
   if (e.pid === NETM.me) { if (snake) { if (!NS.burst && snake.segs) snakeBurst(snake, (SETTINGS.snake || {}).color, SETTINGS.snake); NS.burst = true; snake.alive = false; snake.netHidden = true; } if (!NS.deadAt) NS.deadAt = performance.now(); NS.respawnIn = e.out ? 0 : (NS.cfg && NS.cfg.respawn) || 5; netDeathCam(true); netDownBanner && netDownBanner(e.out); }
-  else { const rs = NS.rs.get(e.pid); if (rs && rs.segs && rs.segs.length) snakeBurst(rs, (rs.cos && rs.cos.color) || (p && p.color), rs.cos); else if (e.x !== undefined) snakeBurst({ segs: [{ x: e.x, y: e.y, a: 0 }] }, p && p.color); if (p && typeof netNotify === 'function') netNotify(`${p.name} died${e.out ? ' (out of lives)' : ''}`, p.color); }
+  else { const rs = NS.rs.get(e.pid); if (rs && rs.segs && rs.segs.length) snakeBurst(rs, (rs.cos && rs.cos.color) || (p && p.color), rs.cos); else if (e.x !== undefined) snakeBurst({ segs: [{ x: e.x, y: e.y, a: 0 }] }, p && p.color); if (p && typeof netNotify === 'function') netNotify(esc(`${e.by ? deathText(e.by, p.name) : p.name + ' died'}${e.out ? ' (out of lives)' : ''}`), p.color); }
   netHud && netHud();
 }
 function netUpApply(e) {
@@ -506,7 +509,7 @@ function netSyncReset(wasRun, keepSession) {
   const pt = NS.prevTime; if (!keepSession && pt !== undefined) SETTINGS.timeMode = pt; // the host's clock settings were for the session only
   if (NS.zoomBack !== undefined) { UCAM.tz = NS.zoomBack; UCAM.rate = 0; } // died at the very end: your own zoom back
   if (typeof netUiCleanup === 'function') netUiCleanup(); // the score panel, the death tint and banner go with the run
-  Object.assign(NS, { nid: 1, byId: new Map(), obsById: new Map(), evQ: [], out: [], snapT: 0, seq: 0, upT: 0, upSeq: 0, statT: 0, todT: 0, rs: new Map(), pools: {}, clock: 0, clkT: 0, clkAt: 0, down: new Map(), fxDone: new Set(), paid: new Set(), pend: new Map(), bubs: [], loaded: false, early: [], lastSnap: 0, myDeaths: 0, deadAt: 0, zoomBack: undefined, burst: false, prevTime: keepSession ? pt : undefined });
+  Object.assign(NS, { nid: 1, byId: new Map(), obsById: new Map(), evQ: [], out: [], snapT: 0, seq: 0, upT: 0, upSeq: 0, statT: 0, todT: 0, rs: new Map(), pools: {}, clock: 0, clkT: 0, clkAt: 0, down: new Map(), fxDone: new Set(), paid: new Set(), pend: new Map(), bubs: [], loaded: false, early: [], lastSnap: 0, myDeaths: 0, myCause: null, deadAt: 0, zoomBack: undefined, burst: false, prevTime: keepSession ? pt : undefined });
   if (!keepSession) { NETM.run = false; if (wasRun && state !== 'menu') { state = 'menu'; showMenu(); } }
 }
 function netSyncHostGone(old) { // the host vanished mid-run: this run can't go on (its world lived there); back to the lobby

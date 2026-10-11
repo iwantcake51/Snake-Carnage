@@ -51,7 +51,7 @@ function clusterSplit(s) { // every screen: the bomb goes off like any other (de
   let settle = 0; const list = [];
   for (let k = 0; k < n; k++) {
     const a = base + k / n * TAU + (r() - .5) * .8, sp = 95 + r() * 115, vz = 120 + r() * 90, b = simBomblet(s.x, s.y, a, sp, vz);
-    list.push({ ...b, k, t: 0, hop: 0, r: Math.round(CLUSTER_R * (.9 + r() * .2)), blink: r() * TAU });
+    list.push({ ...b, k, t: 0, hop: 0, r: Math.round(CLUSTER_R * (.9 + r() * .2)), blink: r() * TAU, sid: s.sd | 0 }); // (sid: which bomb it came from: one bomb, one piece of you)
     settle = Math.max(settle, b.rest);
   }
   let last = -1; list.slice().sort((p, q) => p.rest - q.rest).forEach(b => { b.fuse = +Math.max(b.rest + .12, last + .14).toFixed(3); last = b.fuse; }); // each goes off the moment it stops bouncing and rolling (never two at once)
@@ -63,7 +63,7 @@ function bombletPos(b) { const i = Math.min(b.path.length / 3 - 1, Math.floor(b.
 function bombletTick(dt) {
   for (let i = bomblets.length - 1; i >= 0; i--) { const b = bomblets[i]; b.t += dt;
     while (b.hop < b.hops.length && b.hops[b.hop] <= b.t) { const [px, py] = bombletPos(b); b.hop++; Sfx.clink(px); for (let q = 0; q < 2; q++) smoke.push({ x: px, y: py, vx: rand(-25, 25), vy: rand(-25, 25), r: rand(3, 5), g: rand(6, 12), rot: rand(0, TAU), vr: 0, t: 0, life: rand(.5, .9), v: q, a: .45, rgb: [170, 150, 120] }); } // a clink and a puff of dust each bounce
-    if (b.t >= b.fuse) { bomblets.splice(i, 1); detonate({ x: b.x, y: b.y, r: b.r, mini: true, by: 'cluster' }); }
+    if (b.t >= b.fuse) { bomblets.splice(i, 1); detonate({ x: b.x, y: b.y, r: b.r, mini: true, by: 'cluster', sid: b.sid }); }
   }
 }
 function drawBomblets(x) { // where each one will stop (marked from the moment it splits), and the bomblet itself: bouncing, then lying there blinking faster and faster
@@ -317,7 +317,7 @@ function gasPop(s) { // every screen: the canister blows with a dull bang, a bub
 }
 const gasMove = (p, dt) => { p.x += Math.cos(p.ph + T * .15) * 3 * dt; p.y += Math.sin(p.ph * 1.7 + T * .12) * 3 * dt; }; // it drifts a little (the same way everywhere: it only depends on the clock)
 function inGas(x, y) { let k = 0; for (const p of gasPuffs) { if (p.t < 0) continue; const [px, py, pr] = gasAt(p), d2 = dist2(x, y, px, py), R = pr * .9; if (d2 < R * R) k = Math.max(k, gasK(p) * (1 - Math.sqrt(d2) / R * .4)); } return k; }
-const gasSlow = s => s && s.gasK > 0 ? .45 * s.gasK : 0;
+const gasSlow = s => s && s.gasK > 0 ? .45 * s.gasK * (s === snake && typeof sk === 'function' && sk('mask') ? .5 : 1) : 0; // (the Gas Mask: half as slow)
 let GAS_SEE = 1; // how much of the outlines and the bomb markers you can make out: gone while you're in gas, back slowly once you're clear (the Gas Mask keeps your eyes clear)
 const gasScreen = () => snake && snake.alive && snake.gasK > 0 && !sk('mask') ? snake.gasK : 0; // the Gas Mask: none of it reaches your eyes
 function gasTick(dt) {

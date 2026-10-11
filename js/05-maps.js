@@ -238,7 +238,7 @@ const MAPS = [
     }
   },
   {
-    name: 'Town', icon: '🏘️', border: '#55555c', start: { x: 110, y: 320, a: 0 }, times: { sunset: 1.5, evening: 2.5, night: 2.5 },
+    name: 'Town', icon: '🏘️', border: '#55555c', start: { x: 110, y: 320, a: 0 }, times: { sunset: 1.5, evening: 2.5, night: 2.5 }, ground: x => mapGround(x, 'walk'),
     pop: [['human', 18], ['cat', 1], ['rat', 2]], walkers: 8,
     build: () => {
       /* A slice of a small town. Main St runs across the middle and Elm St crosses it at the one real crossroads.
@@ -317,24 +317,30 @@ const MAPS = [
         decor(x) {
         },
         floor(x) {
-          const paveA = '#b9b3a7', paveB = '#c6c0b3';
-          x.fillStyle = paveA; x.fillRect(0, 0, W, H); x.fillStyle = paveB; for (let i = 0; i < W; i += 24) for (let j = 0; j < H; j += 24) if ((i / 24 + j / 24) % 2) x.fillRect(i, j, 24, 24); // sidewalk slabs
+          const paveA = '#b9b3a7', paveB = '#c6c0b3', real = mapGround(x, 'walk'); // plain concrete sidewalks (the two-tone slab checker is the stand-in)
+          if (!real) { x.fillStyle = paveA; x.fillRect(0, 0, W, H); x.fillStyle = paveB; for (let i = 0; i < W; i += 24) for (let j = 0; j < H; j += 24) if ((i / 24 + j / 24) % 2) x.fillRect(i, j, 24, 24); }
           const grass = (r, seed, edge = true) => { if (!texShape(x, 'lawn', q => q.fillRect(...r))) { x.fillStyle = '#93bf55'; x.fillRect(...r); const g = seeded(seed); for (let k = 0; k < r[2] * r[3] / 60; k++) { x.fillStyle = g() < .5 ? '#86b24b' : '#a2cb62'; x.fillRect(r[0] + g() * r[2], r[1] + g() * r[3], 2, 2); } } /* real lawn grass (the flat green and its flecks are the stand-in) */ if (edge) { x.strokeStyle = 'rgba(70,90,40,.35)'; x.lineWidth = 1.5; x.strokeRect(r[0] + .75, r[1] + .75, r[2] - 1.5, r[3] - 1.5); } };
           const asph = (r, c = '#4b4b52') => { x.fillStyle = c; x.fillRect(...r); };
+          const lots = (rs, c) => { if (!real || !texShape(x, 'lot', q => rs.forEach(r => q.fillRect(...r)))) rs.forEach(r => asph(r, c)); }; // cracked asphalt
+          const roads = list => { // [rect, along y?, quiet?]: worn road, its tyre streaks running along the street; quiet streets a shade darker
+            for (const v of [false, true]) { const part = list.filter(l => l[1] === v); if (part.length && !(real && texShape(x, 'road', q => part.forEach(([r]) => q.fillRect(...r)), undefined, v ? 0 : Math.PI / 2))) part.forEach(([r, , qt]) => asph(r, qt ? '#3f3f45' : '#45454c')); }
+            if (real && GTEX.ok) { x.fillStyle = 'rgba(0,0,0,.08)'; list.forEach(([r, , qt]) => qt && x.fillRect(...r)); } };
           grass([16, 16, 928, 46], 31, false); grass([904, 16, 40, 608], 32, false); // the verges at the edge of town
           grass(SQ, 33); grass([678, 122, 166, 150], 34); grass([678, 560, 166, 64], 35); // the square, the churchyard, the front lawns
-          asph([16, 122, 198, 98], '#48484f'); asph([16, 368, 388, 152]); asph([266, 520, 138, 104], '#48484f'); asph([484, 368, 110, 180]); // service yard, market lot, loading side, diner lot
-          x.fillStyle = '#8f8c86'; x.fillRect(678, 368, 166, 116); x.fillStyle = '#9a978f'; for (let i = 678; i < 844; i += 28) x.fillRect(i, 368, 1, 116); // forecourt concrete
+          lots([[16, 122, 198, 98], [16, 368, 388, 152], [266, 520, 138, 104], [484, 368, 110, 180]], '#4a4a51'); // service yard, market lot, loading side, diner lot
+          lots([[678, 368, 166, 116]], '#4d4d54'); // the gas station's forecourt: asphalt
           x.fillStyle = '#cfc6b4'; x.fillRect(SQ[0], SQC[1] - 8, SQ[2], 16); x.fillRect(SQC[0] - 8, SQ[1], 16, SQ[3]); circ(x, SQC[0], SQC[1], 48); // the square's paths and plaza
           x.strokeStyle = '#bfb5a1'; x.lineWidth = 1; x.beginPath(); x.arc(SQC[0], SQC[1], 48, 0, TAU); x.stroke();
           x.fillStyle = '#cfc6b4'; x.fillRect(728, 256, 16, 16); x.fillRect(712, 560, 12, 12); x.fillRect(808, 560, 12, 8); x.fillRect(758, 560, 26, 10); // church path, garden paths, the driveway
-          for (const r of ROADS) asph(r, QUIET.includes(r) ? '#3f3f45' : '#45454c');
-          speckle(x, 1300, ['#3e3e44', '#53535a', '#4a4a50'], 7, 1.2);
+          const along = r => r[3] > r[2];
+          roads(ROADS.map(r => [r, along(r), QUIET.includes(r)]));
+          if (!real) speckle(x, 1300, ['#3e3e44', '#53535a', '#4a4a50'], 7, 1.2); // (the stand-in's grit; the real road has its own)
           // curbs: along every road edge, then opened up wherever two roads meet
           x.strokeStyle = '#8e887c'; x.lineWidth = 2; for (const [rx, ry, rw, rh] of ROADS) x.strokeRect(rx + 1, ry + 1, rw - 2, rh - 2);
           const isect = (a, b) => { const x0 = Math.max(a[0], b[0]), y0 = Math.max(a[1], b[1]), x1 = Math.min(a[0] + a[2], b[0] + b[2]), y1 = Math.min(a[1] + a[3], b[1] + b[3]); return x1 > x0 && y1 > y0 ? [x0, y0, x1 - x0, y1 - y0] : null; };
           const grow = (r, k) => [r[0] - k, r[1] - k, r[2] + 2 * k, r[3] + 2 * k];
-          for (const a of ROADS) for (const b of ROADS) if (a !== b) { const m = isect(a, grow(b, 3)); if (m) asph(m, QUIET.includes(a) && QUIET.includes(b) ? '#3f3f45' : '#45454c'); }
+          const joins = []; for (const a of ROADS) for (const b of ROADS) if (a !== b) { const m = isect(a, grow(b, 3)); if (m) joins.push([m, along(a), QUIET.includes(a) && QUIET.includes(b)]); }
+          roads(joins); // the same road over each junction, so no curb runs across it
           // parking: one bay size everywhere, lines evenly spaced, curbed planting islands at the ends of the market row
           x.strokeStyle = '#e6e6e6'; x.lineWidth = 2;
           for (let k = 0; k <= MKT_ROW.n; k++) { const lx = MKT_ROW.x + k * MKT_ROW.w; x.beginPath(); x.moveTo(lx, MKT_ROW.y); x.lineTo(lx, MKT_ROW.y + MKT_ROW.d); x.stroke(); }
@@ -343,7 +349,9 @@ const MAPS = [
           x.fillStyle = '#e8b326'; for (let k = 0; k < 6; k++) x.fillRect(268, 572 + k * 8, 20, 3); // loading bay hatching
           x.fillStyle = 'rgba(230,230,230,.5)'; x.fillRect(200, 476, 40, 2); x.beginPath(); x.moveTo(190, 477); x.lineTo(200, 472); x.lineTo(200, 482); x.fill(); // faded arrow in the lot aisle
           // driveway aprons across the sidewalk into each lot: lighter concrete, the curb dropped
-          x.fillStyle = '#d2cbbd'; for (const r of [[34, 106, 44, 16], [150, 106, 44, 16], [214, 150, 16, 44], [40, 352, 44, 16], [330, 352, 44, 16], [404, 470, 16, 40], [520, 352, 44, 16], [594, 470, 16, 40], [700, 352, 44, 16], [792, 352, 40, 16], [662, 400, 16, 40], [700, 484, 44, 16], [758, 544, 26, 16]]) x.fillRect(...r);
+          const APRONS = [[34, 106, 44, 16], [150, 106, 44, 16], [214, 150, 16, 44], [40, 352, 44, 16], [330, 352, 44, 16], [404, 470, 16, 40], [520, 352, 44, 16], [594, 470, 16, 40], [700, 352, 44, 16], [792, 352, 40, 16], [662, 400, 16, 40], [700, 484, 44, 16], [758, 544, 26, 16]];
+          const realApron = real && texShape(x, 'walk', q => APRONS.forEach(r => q.fillRect(...r)));
+          x.fillStyle = realApron ? 'rgba(255,250,240,.24)' : '#d2cbbd'; for (const r of APRONS) x.fillRect(...r);
           // markings
           x.fillStyle = '#e8d06a'; for (let i = 20; i < W - 20; i += 40) if (![[214, 294], [404, 484], [594, 678], [844, 920]].some(([a, b]) => i + 22 > a && i < b)) x.fillRect(i, 318.5, 22, 3); // Main's centre line
           for (let j = 20; j < H - 20; j += 40) if (![[46, 122], [272, 368], [484, 560]].some(([a, b]) => j + 22 > a && j < b)) x.fillRect(634.5, j, 3, 22); // Elm's
