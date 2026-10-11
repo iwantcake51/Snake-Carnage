@@ -56,7 +56,7 @@ const SKILL_TREE = [
   { id: 'rattle', br: 'pred', name: 'Rattle', icon: 'rattle', cost: [1, 2, 3], req: [['hiss', 1]], x: 2060, y: 720,
     desc: 'A bigger hiss that slows and deafens people.', fx: [['Radius', g => SKV.hissR(g), px], ['Slowed for', g => SKV.hissSlow(g), secs], ['Half-deaf for', g => SKV.hissDeaf(g), secs]] },
   { id: 'shock', br: 'pred', major: 1, name: 'Shockwave', icon: 'shock', cost: [4], lvl: 18, inv: 10, req: [['rattle', 2]], x: 2060, y: 560,
-    desc: 'Your hiss knocks people down and blows groups apart.', fx: [['Radius', g => SKV.hissR(g), px], ['Cooldown', g => SKV.hissCd(g), secs]] },
+    desc: 'Your hiss stuns everyone it reaches: they freeze where they stand, then run. Longest up close.', fx: [['Radius', g => SKV.hissR(g), px], ['Stunned for', g => SKV.stunDur(g), n => n ? `${n} s close up, ${+(n / 2).toFixed(2)} s at the edge` : 'None'], ['Cooldown', g => SKV.hissCd(g), secs]] },
   // ---- Survival, awareness: the 3rd Eye ----
   { id: 'scent', br: 'surv', major: 1, abil: 1, name: '3rd Eye', icon: 'scent', cost: [2], req: [], x: 130, y: 880,
     desc: 'Shows paths to safety and food. Focus slows time for a moment (in multiplayer, it reveals people).', fx: [['Focus', g => SKV.focusDur(g), secs], ['Focus cooldown', g => SKV.focusCd(g), secs]] },
@@ -220,6 +220,7 @@ const SKV = {
   warn: (g = sk) => rk([0, .75, 1.25], g('jam')), // Early Warning: seconds more warning on every strike aimed at you
   combo: (g = sk) => 1 + rk([0, .1, .2, .3], g('gut')),
   hissR: (g = sk) => 190 + 17 * g('rattle') + 30 * g('shock'),
+  stunDur: (g = sk) => g('shock') ? 2.5 : 0, // Shockwave: how long the hiss freezes people (at the middle; half that at the edge)
   hissSlow: (g = sk) => 1.33 * g('rattle'),
   hissDeaf: (g = sk) => 3.33 * g('rattle'),
   hissCd: (g = sk) => 15 - 2 * g('shock'),
@@ -358,9 +359,16 @@ function hissNpc(s, lv) { // what a hiss does to the crowd (the deciding browser
       const at = MOD.blind && c.def.human ? guessAt(c, s.x, s.y, R * 1.4) : s; // the blind only know it came from over there, somewhere
       panic(c, at.x, at.y, rand(3, 5) * (slow ? 1 + slow / 8 : 1), 'hissed'); c.alert = 1;
       if (slow) { c.slowT = T + slow; c.deafT = T + deaf; c.adren = 0; if (c.def.human && !c.def.alien) c.reply = { t: rand(.8, 1.6), ctx: 'deaf' }; } // Rattle: slowed, half-deaf and slurring
-      if (shock) { const d = Math.hypot(c.x - s.x, c.y - s.y) || 1, f = (1 - d / R) * 260 + 60; c.kb = { vx: (c.x - s.x) / d * f, vy: (c.y - s.y) / d * f, t: .35 }; c.slowT = Math.max(c.slowT || 0, T + 5); if (typeof leaveGroup === 'function') leaveGroup(c); } // knocked flat, the group blown apart
+      if (shock) { const d = Math.hypot(c.x - s.x, c.y - s.y); c.stunT = T + SKV.stunDur() * (1 - .5 * Math.min(1, d / R)); c.adren = 0; c.kb = null; } // Shockwave: stunned stiff where they stand (longest up close), then they run: a group held together for you to eat, not blown out of reach
     }
     return hn;
+}
+function drawStunStars(x) { // anyone a Shockwave has stunned: a faint orbit and three little stars circling their head (guests see it too: cFlags)
+  for (const c of creatures) { if (!c.alive || !(c.stunT > T)) continue; const r = Math.max(7, c.def.r || 7), k = Math.min(1, (c.stunT - T) * 3), cy = c.y - r * .55, rx = r * 1.15, ry = r * .45;
+    x.globalAlpha = k * .35; x.strokeStyle = '#ffe27a'; x.lineWidth = 1; x.beginPath(); x.ellipse(c.x, cy, rx, ry, 0, 0, TAU); x.stroke();
+    for (let q = 0; q < 3; q++) { const a = T * 5 + q * TAU / 3, sx = c.x + Math.cos(a) * rx, sy = cy + Math.sin(a) * ry, sz = 11 + 3 * Math.sin(a); x.globalAlpha = k * (.7 + .3 * (Math.sin(a) * .5 + .5)); // (the near side of the orbit bigger and brighter)
+      if (!kDraw(x, 'star_06', '#ffe27a', sx, sy, sz, sz, a, 24)) { x.fillStyle = '#ffe27a'; circ(x, sx, sy, sz * .18); } } }
+  x.globalAlpha = 1;
 }
 const abilCD = {};
 const abilCd = id => ABIL[id].cd * (MOD.slowRecharge ? 2 : MOD.quickRecharge ? .5 : 1); // Slow recharge / Quick recharge

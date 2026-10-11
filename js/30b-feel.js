@@ -1,5 +1,5 @@
 /* =========================================================
-   MENU FEEL: smooth wheel scrolling and a soft ripple where you click
+   MENU FEEL: smooth wheel scrolling, and buttons you can feel pressing
    ========================================================= */
 (() => {
   const scroller = el => { for (let n = el; n && n !== document.body; n = n.parentElement) { const st = getComputedStyle(n); if (/(auto|scroll)/.test(st.overflowY) && n.scrollHeight > n.clientHeight + 1) return n; } return null; };
@@ -22,15 +22,24 @@
     const t = Math.max(0, Math.min(max, base + px)); if (t === base) return; // at the end: let it be
     e.preventDefault(); const was = anim.size; anim.set(el, t); if (!was) requestAnimationFrame(step);
   }, { passive: false });
+  // pressing a button: it sinks into its printed shadow for at least a moment (a quick tap still shows), springs back with a small
+  // overshoot when let go (style.css, PRESSING), and a burst of halftone ink spreads from the finger, clipped to the button's own shape, never past it
+  const PRESS = '#overlay button, #overlay .card, #overlay .sc, #overlay .mtile, #hudbar button';
+  const SLAB = '.mm-cta, .rs-start, #overlay .btn:not(.alt):not(#backBtn):not(#pMenuBtn), #overlay .play, #overlay #againBtn, #overlay #resBtn';
+  let held = null;
+  const release = () => { const h = held; if (!h) return; held = null; setTimeout(() => h.b.classList.remove('prs'), Math.max(0, 110 - (performance.now() - h.t))); }; // (the spring back is a CSS transition)
   addEventListener('pointerdown', e => {
-    if (SETTINGS.reduceMotion || e.button) return;
-    const b = e.target.closest('#overlay button, #overlay .card, #overlay .sc, #overlay .mtile, #hudbar button'); if (!b || b.classList.contains('skn')) return; // (skill nodes pop instead: a square ripple over a hexagon looks wrong)
-    const r = b.getBoundingClientRect(), s = Math.max(r.width, r.height) * 2.2, rp = document.createElement('span');
+    if (e.button) return;
+    const b = e.target.closest(PRESS); if (!b || b.disabled || b.classList.contains('skn')) return; // (skill nodes pop instead: a square burst over a hexagon looks wrong)
+    release(); b.classList.add('prs'); held = { b, t: performance.now() };
+    if (SETTINGS.reduceMotion) return;
+    const r = b.getBoundingClientRect(), s = Math.hypot(r.width, r.height) * 1.1, rp = document.createElement('span');
     rp.className = 'ripple'; rp.style.cssText = `width:${s}px;height:${s}px;left:${e.clientX - r.left - s / 2}px;top:${e.clientY - r.top - s / 2}px`;
     if (getComputedStyle(b).position === 'static') b.style.position = 'relative';
-    const clip = document.createElement('span'); clip.className = 'rip'; clip.appendChild(rp); // the ripple is clipped by its own box, so the button itself never gets overflow:hidden (that would also clip its enlarged hit area)
-    b.appendChild(clip); setTimeout(() => clip.remove(), 600);
+    const clip = document.createElement('span'); clip.className = 'rip' + (b.matches(SLAB) ? ' slab' : ''); clip.appendChild(rp); // clipped by its own box (or the slab's torn outline), so the button itself never gets overflow:hidden (that would also clip its enlarged hit area)
+    b.appendChild(clip); setTimeout(() => clip.remove(), 560);
   });
+  addEventListener('pointerup', release); addEventListener('pointercancel', release); addEventListener('blur', release);
 })();
 /* the grain texture used on panels: baked once into a small PNG (an SVG noise filter gets re-rendered on every repaint, which made scrolling heavy) */
 (() => {

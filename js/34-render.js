@@ -42,6 +42,7 @@ function render() {
     x.fill(); }
   drawAO(x); drawLeashes(x);
   for (const c of creatures) if (c.alive) drawCreature(x, c);
+  drawStunStars(x);
   drawFlashBodies(x); drawHitGhosts(x);
   drawGiblets(x); // chunks on the ground sit under the snake
   drawTrail(x); drawGround(x); drawHoovFx(x); if (NETM.run) netDrawSnakes(x); if (!(snake && snake.netHidden)) drawSnake(x); drawCorpses(x); drawHats(x); drawClods(x, false); drawRamCharge(x); drawStreaks(x); drawSnowFx(x);

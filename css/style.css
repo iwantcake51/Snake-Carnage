@@ -3374,3 +3374,30 @@ body.compact .mm .rs-title h3{font-size:28px!important}
 #hudbar:not(#_):not(#__) b,#hudbar:not(#_):not(#__) .v{font-weight:800!important}
 #hudbar{transition:opacity .45s ease}
 #hudbar.ld{opacity:0;pointer-events:none;transition:none}
+/* the picked tab: no painted swipe behind it any more, just its name in the accent and a plain accent bar down its left edge */
+#overlay:not(#_) .tab.on::after{display:none!important}
+#overlay:not(#_) .panel:not(.shop2) .tab.on{background:none!important;color:var(--acc-hi,var(--acc))!important;box-shadow:inset 3px 0 0 var(--acc)!important}
+/* ---- PRESSING: a button sinks into its printed shadow while held (30b-feel's .prs, held at least a moment so a quick tap shows),
+   springs back with a small overshoot, and a burst of halftone ink spreads from the finger inside the button's own shape only ---- */
+#overlay:not(#_) :is(button,.card,.sc,.mtile),#hudbar:not(#_) button{transition:background-color .18s ease,border-color .18s ease,color .18s ease,filter .18s ease,opacity .18s ease,
+  box-shadow .36s cubic-bezier(.25,1.8,.45,1),translate .36s cubic-bezier(.25,1.8,.45,1),scale .36s cubic-bezier(.25,1.8,.45,1),rotate .25s ease,transform .32s cubic-bezier(.2,.9,.25,1)!important}
+#overlay:not(#_) .prs,#hudbar:not(#_) .prs{scale:.955!important;filter:brightness(.86);transition-duration:.06s!important}
+/* the main slabs: the face goes down onto its shadow (which stays printed where it was) and darkens a touch */
+:is(.mm-cta,.rs-start,#overlay .btn:not(.alt):not(#backBtn):not(#pMenuBtn),#overlay .play,#overlay #againBtn,#overlay #resBtn):not(#_):not(#__)::after{transition:translate .36s cubic-bezier(.25,1.8,.45,1)!important}
+:is(.mm-cta,.rs-start,#overlay .btn:not(.alt):not(#backBtn):not(#pMenuBtn),#overlay .play,#overlay #againBtn,#overlay #resBtn).prs:not(#_):not(#__){scale:1!important;filter:none;translate:4px 4px!important}
+:is(.mm-cta,.rs-start,#overlay .btn:not(.alt):not(#backBtn):not(#pMenuBtn),#overlay .play,#overlay #againBtn,#overlay #resBtn).prs:not(#_):not(#__)::after{translate:1px 1px!important;transition-duration:.06s!important}
+:is(.mm-cta,.rs-start,#overlay .btn:not(.alt):not(#backBtn):not(#pMenuBtn),#overlay .play,#overlay #againBtn,#overlay #resBtn).prs:not(#_):not(#__)::before{background:color-mix(in srgb,var(--acc) 80%,#000)!important}
+.mm :is(.mm-cta,.rs-start).prs:not(#_):not(#__){translate:3px 3px!important}
+/* the quiet boxes: down onto their shadow, which disappears under them */
+:is(#overlay .btn.alt,#overlay .panel .ghost,#overlay .panel #backBtn,#overlay .panel #pMenuBtn,.mm-back,.mm-x,.mm-tog).prs:not(#_):not(#__){scale:1!important;filter:none;translate:3px 3px!important;box-shadow:0 0 0 var(--hm-shadow)!important;border-color:var(--ink)!important}
+.mm .mm-back.prs:not(#_):not(#__){translate:1px 1px!important}
+/* the ink: halftone dots in the button's own text color, a burst that spreads and fades, clipped to the button (a slab: its torn edge) */
+#overlay .rip:not(#_):not(#__),#hudbar .rip:not(#_):not(#__){position:absolute!important;inset:0!important;overflow:hidden!important;border-radius:inherit;pointer-events:none;z-index:0;rotate:0deg;translate:none}
+#overlay .rip.slab:not(#_):not(#__){z-index:-1;clip-path:var(--hm-rag);border-radius:0}
+.mm .rip.slab:not(#_):not(#__){clip-path:none;border-radius:3px}
+.ripple:not(#_){position:absolute!important;border-radius:50%;pointer-events:none;opacity:.42;transform:scale(.12);
+  background:radial-gradient(circle,currentColor 0 1.25px,transparent 1.7px) 0 0/6px 6px;
+  -webkit-mask:radial-gradient(circle closest-side,#000 0 45%,rgba(0,0,0,.55) 75%,transparent 100%);mask:radial-gradient(circle closest-side,#000 0 45%,rgba(0,0,0,.55) 75%,transparent 100%);
+  animation:inkBurst .5s cubic-bezier(.2,.75,.3,1) forwards!important}
+.rip.slab .ripple:not(#_){opacity:.3}
+@keyframes inkBurst{55%{opacity:.32}to{transform:scale(1);opacity:0}}

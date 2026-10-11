@@ -75,7 +75,7 @@ function netPackMe(seq) { // my snake, 20 bytes
   return buf;
 }
 const C_STATE = ['wander', 'idle', 'panic', 'flee', 'uneasy'];
-const cFlags = c => (Math.max(0, C_STATE.indexOf(c.state)) & 7) | (c.golden ? 8 : 0) | ((c.hz || 0) > 2 ? 16 : 0) | (c.fl && c.fl.on ? 32 : 0) | (c.dance ? 64 : 0);
+const cFlags = c => (Math.max(0, C_STATE.indexOf(c.state)) & 7) | (c.golden ? 8 : 0) | ((c.hz || 0) > 2 ? 16 : 0) | (c.fl && c.fl.on ? 32 : 0) | (c.dance ? 64 : 0) | (c.stunT > T ? 128 : 0);
 function netPackSnap(L) { // one snapshot for one guest: what changed for them, plus a slice of the rest
   const ps = []; // players: the host's own snake and every guest's latest sample
   if (snake) ps.push({ slot: (netPlayer(NETM.me) || {}).slot || 0, x: snake.x, y: snake.y, a: snake.angle, len: snake.len, sc: snake.scale || 1, fl: (snake.alive ? 1 : 0) | (snake.started ? 2 : 0) | (snake.camoT > 0 ? 4 : 0) | (snake.dashT > 0 ? 8 : 0) | (snake.hissT > 0 ? 16 : 0) | (snake.netHidden ? 32 : 0) | (snake.burnT > 0 ? 64 : 0), still: snake.still || 0 });
@@ -415,7 +415,7 @@ function netClientCreatures(dt) { // the guest's copy of the crowd: placed from 
     if (f !== null) {
       const st = C_STATE[f & 7] || 'wander';
       if (st !== c.state) { if (st === 'panic' && !c.def.human) Sfx.animal(c.x, c.type); c.state = st; }
-      c.dance = !!(f & 64); if (c.fl) c.fl.netOn = !!(f & 32); c.hz = f & 16 ? 4 : c.def.fly ? c.hz : 0;
+      c.dance = !!(f & 64); c.stunT = f & 128 ? T + .3 : 0; if (c.fl) c.fl.netOn = !!(f & 32); c.hz = f & 16 ? 4 : c.def.fly ? c.hz : 0;
     }
     netCreatureCosmetics(c, dt, moved);
   }
