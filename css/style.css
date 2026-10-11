@@ -3456,3 +3456,6 @@ body.compact .mm .rs-title h3{font-size:28px!important}
 .realb em{font:700 11.5px var(--f-num);font-style:normal;color:var(--acc-hi,var(--acc));display:inline-flex;align-items:center;gap:3px}
 .realb.on{border-color:var(--acc)}
 .realb.on::after{content:'';position:absolute;left:10px;right:10px;bottom:-4px;height:2px;background:var(--acc)}
+/* the skin list's "Real snakes" section (realCard in 37-shop): a label across the grid, then the cards in their real colors */
+.cards2 .realhd{grid-column:1/-1;display:flex;align-items:baseline;gap:10px;margin:10px 0 2px;padding-bottom:5px;border-bottom:1px dashed var(--hair2);font:700 13px var(--f-num);letter-spacing:.05em;text-transform:uppercase;color:var(--dim)}
+.cards2 .realhd small{font:400 12.5px var(--f-body);letter-spacing:0;text-transform:none;color:var(--mute)}

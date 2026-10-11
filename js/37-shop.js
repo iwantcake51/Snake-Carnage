@@ -32,7 +32,7 @@ function itemPreview(cat, v) { // what the item actually looks like, not an emoj
   return '';
 }
 const shopIcon = itemPreview; // older callers
-function drawPreviews(root) { root.querySelectorAll('canvas.pv').forEach(c => drawItemPreview(c, c.dataset.cat, c.dataset.v)); }
+function drawPreviews(root) { root.querySelectorAll('canvas.pv').forEach(c => drawItemPreview(c, c.dataset.cat, c.dataset.v, c.dataset.c1 && { color: c.dataset.c1, color2: c.dataset.c2 })); }
 function previewSnake(n, x0, y0, sp, wave) { // a short body heading right, head at x0
   const segs = [];
   for (let i = 0; i < n; i++) segs.push({ x: x0 - i * sp, y: y0 + Math.sin(i * .7 + 1) * wave, a: 0 });
@@ -40,8 +40,8 @@ function previewSnake(n, x0, y0, sp, wave) { // a short body heading right, head
   segs[0].a = 0;
   return { x: segs[0].x, y: segs[0].y, angle: 0, segs, stains: segs.map(() => []) };
 }
-function drawItemPreview(cv2, cat, v) {
-  const x = cv2.getContext('2d'), w = cv2.width, h = cv2.height, base = { ...SETTINGS.snake, hat: 'None', trail: 'None' };
+function drawItemPreview(cv2, cat, v, cols) {
+  const x = cv2.getContext('2d'), w = cv2.width, h = cv2.height, base = { ...SETTINGS.snake, hat: 'None', trail: 'None', ...(cols || {}) };
   x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, w, h);
   const keepT = T; T = 1.3; // a fixed moment, so animated cosmetics still read clearly
   if (cat === 'pattern') { x.scale(1.55, 1.55); drawSnake(x, previewSnake(14, 101, 27, 6.6, 6), { ...base, pattern: v }); } // long enough to show a few repeats of the pattern
@@ -103,7 +103,7 @@ function setShopTab(t) { // swap only the item grid; the nav, preview and chip c
 function refreshShop(msg) { // after buying or equipping: update the cards, chips and message in place (previews are kept, nothing flickers)
   overlay.querySelectorAll('.sgrid .sc').forEach((b, i) => {
     const cat = b.dataset.cat, v = b.dataset.v, it = findItem(cat, v); if (!it) return;
-    const t = document.createElement('div'); t.innerHTML = shopCard(cat, it, i); const nb = t.firstElementChild, keep = b.querySelector('.pvw'), slot = nb.querySelector('.pvw');
+    const t = document.createElement('div'); t.innerHTML = b.dataset.real ? realCard(REAL_SNAKES[+b.dataset.real], +b.dataset.real, i) : shopCard(cat, it, i); const nb = t.firstElementChild, keep = b.querySelector('.pvw'), slot = nb.querySelector('.pvw');
     if (keep && slot) slot.replaceWith(keep);
     nb.style.animation = 'none'; b.replaceWith(nb);
   });
@@ -115,7 +115,11 @@ function refreshShop(msg) { // after buying or equipping: update the cards, chip
 function shopBody(tab) {
   if (tab === 'custom') return customBody();
   const cat = tab, list = itemsOf(cat);
-  return `<h2>${CAT_LABEL[cat]}</h2>${cat === 'pattern' ? realRow() : ''}<div class="cards2">${list.map((it, i) => shopCard(cat, it, i)).join('')}</div>`;
+  if (cat === 'pattern') { // the skins you can buy, then the real snakes as cards of their own, then the skins earned from challenges
+    const buy = list.filter(it => !it[2]), earned = list.filter(it => it[2]), n = buy.length;
+    return `<h2>${CAT_LABEL[cat]}</h2>${realRow()}<div class="cards2">${buy.map((it, i) => shopCard(cat, it, i)).join('')}<div class="realhd">Real snakes<small>a skin and two colors from the list: the real animal</small></div>${REAL_SNAKES.map((r, i) => realCard(r, i, n + i)).join('')}${earned.map((it, i) => shopCard(cat, it, n + REAL_SNAKES.length + i)).join('')}</div>`;
+  }
+  return `<h2>${CAT_LABEL[cat]}</h2><div class="cards2">${list.map((it, i) => shopCard(cat, it, i)).join('')}</div>`;
 }
 /* ---- real snakes: a real-pattern skin in the two colors that make the real animal (REAL_SNAKES in 36-cosmetics). Hover to try it on;
    click to wear it, buying whatever of the three you don't own yet when you can afford it all ---- */
@@ -125,6 +129,13 @@ const realLabel = ([c, v]) => c === 'pattern' ? `${v} skin` : `${colorName(v)} $
 function realRow() {
   return `<div class="realrow"><span class="rlab">Real snakes</span>${REAL_SNAKES.map((r, i) => { const n = realNeed(r).length, on = ['pattern', 'color', 'color2'].every(k => SETTINGS.snake[k] === r[k]);
     return `<button class="realb ${on ? 'on' : ''} ${n ? '' : 'own'}" data-real="${i}"><i class="rsw" style="background:linear-gradient(90deg,${r.color} 0 50%,${r.color2} 50% 100%)"></i>${r.name}${n ? `<em><i class="pc"></i>${realCost(r)}</em>` : ''}</button>`; }).join('')}</div>`;
+}
+function realCard(r, i, k) { // a real snake in the skin list, shown in its real colors: clicking it buys what you're missing and wears it
+  const cfg = SETTINGS.snake, on = ['pattern', 'color', 'color2'].every(q => cfg[q] === r[q]), cost = realCost(r), own = !realNeed(r).length;
+  const status = on ? '<span class="st eq">Equipped</span>' : own ? '<span class="st own">Owned · click to wear</span>' : `<span class="st buy"><i class="pc"></i> ${cost} · click to buy what's missing</span>`;
+  return `<button class="sc c-pattern real ${on ? 'on' : ''} ${own ? 'own' : ''} ${!own && PROG.coins < cost ? 'poor' : ''}" data-cat="pattern" data-v="${attr(r.pattern)}" data-real="${i}" style="--i:${k}">
+    <span class="pvw"><canvas class="pv" data-cat="pattern" data-v="${attr(r.pattern)}" data-c1="${r.color}" data-c2="${r.color2}" width="176" height="84"></canvas></span><b>${r.name}</b>
+    <span class="price">${own ? (on ? kiSvg('checkmark') : '') : `<i class="pc"></i>${cost}`}</span><span class="hov">${status}</span></button>`;
 }
 function realMsg(r) { const need = realNeed(r);
   return need.length ? `${r.name}: ${r.pattern} skin, ${colorName(r.color)} body, ${colorName(r.color2)} markings. You still need the ${need.map(realLabel).join(', ')}: ${realCost(r)} chips.` : `${r.name}: you have everything. Click to wear it.`; }
@@ -141,7 +152,7 @@ function wireShop() {
     b.onclick = () => chooseReal(r);
     b.onmouseenter = () => { shopPrev = { set: { pattern: r.pattern, color: r.color, color2: r.color2 } }; const e = m(); if (e && !(performance.now() - (chooseReal.at || -1e9) < 2500)) { e.dataset.was = e.dataset.was ?? e.textContent; e.textContent = realMsg(r); } };
     b.onmouseleave = () => { shopPrev = null; const e = m(); if (e && e.dataset.was !== undefined) { e.textContent = e.dataset.was; delete e.dataset.was; } }; });
-  overlay.querySelectorAll('.sc').forEach(b => {
+  overlay.querySelectorAll('.sc').forEach(b => { if (b.dataset.real) return; // (a real snake: wired above)
     b.onclick = () => chooseItem(b.dataset.cat, b.dataset.v);
     b.onmouseenter = () => { shopPrev = b.dataset.hid ? null : { cat: b.dataset.cat, v: b.dataset.v, locked: b.classList.contains('locked') }; }; // live preview on hover, even before buying (not a secret one: that stays hidden until it's earned)
     b.onmouseleave = () => { shopPrev = null; };
