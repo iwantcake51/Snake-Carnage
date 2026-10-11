@@ -43,11 +43,11 @@ function checkPermChallenges() {
     const v = c.stat(run); best[c.id] = Math.max(best[c.id] || 0, Math.min(v, c.n));
     if (done[c.id] || v < c.n) continue;
     done[c.id] = Date.now();
-    const rw = TIERS[c.tier], xp = Math.round(rw.xp * 1.5), chips = Math.round(rw.chips * 1.5);
+    const rw = TIERS[c.tier], xp = Math.round(rw.xp * 1.5), chips = chipShow(rw.chips * 1.5); // (shown as it pays: CHIP_GAIN already in)
     (run.unlocks = run.unlocks || []).push({ kind: 'perm', name: c.name, map, xp, chips });
     (run.chList = run.chList || []).push({ name: c.name, tier: c.tier, perm: true, t: c.t, got: `${v}${c.unit || ''} of ${c.n}${c.unit || ''}`, at: run.time, xp, chips, map });
     notify({ kind: 'unlock', icon: giSvg('medal'), title: `Permanent: ${c.name}`, sub: `${c.t} · +${xp} XP, +${chips} <i class="pc"></i>`, dur: 5 });
-    gainXP(Math.round(xp * SKV.taskK()), Math.round(chips * SKV.taskK())); studyHit('challenge'); saveProg(); // Taskmaster, Quick Study
+    gainXP(Math.round(xp * SKV.taskK()), Math.round(chips * SKV.taskK()), { net: true }); studyHit('challenge'); saveProg(); // Taskmaster, Quick Study
   }
 }
 

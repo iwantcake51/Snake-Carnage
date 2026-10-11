@@ -106,7 +106,7 @@ const ACH = [
   ['thrill', 'Thrill Seeker', 'Play {n} runs with modifiers on', () => PROG.modRuns, 30, 'medium'],
   ['masochist', 'Masochist', 'Score 50+ in a run with {n} or more modifiers', () => PROG.maxModsRun, 5, 'rare'],
   ['veteran', 'Veteran', 'Reach level {n}', () => PROG.level, 25, 'hard'],
-  ['highRoller', 'High Roller', 'Earn {n} chips in total', () => PROG.earned, 10000, 'medium'],
+  ['highRoller', 'High Roller', 'Earn {n} chips in total', () => PROG.earned, 6000, 'medium'], // (6,000 since chips pay 60%, CHIP_GAIN: the same effort as 10,000 was)
   ['tourist', 'Tourist', 'Play {n} different maps', () => PROG.mapsPlayed.length, 8, 'easy'],
   ['worldEater', 'World Eater', 'Complete a challenge on {n} different maps', () => PROG.chMaps.length, 10, 'rare'],
   ['lunar', 'Lunar Lunch', 'Eat {n} astronauts', () => PROG.kT.astronaut || 0, 100, 'medium'],
@@ -136,7 +136,7 @@ const ACH = [
   ['lastCall', 'Last Call', 'Eat {n} people in one run at the club', () => PROG.clubMax || 0, 25, 'rare', { secret: 1, clue: 'Empty the dance floor.' }],
 ].map(([id, name, what, stat, n, tier, ex = {}]) => { const goal = typeof n === 'function' ? n : () => n; return { id, name, get n() { return goal(); }, get what() { return what.replace('{n}', goal()); }, stat, tier, ...ex }; });
 const ACH_XP = { easy: 300, medium: 700, hard: 1500, rare: 3000 }, ACH_CHIPS = { easy: 150, medium: 350, hard: 800, rare: 1800 }; // every achievement pays XP and chips on the side; the cosmetics are the real prize
-const achXP = a => a.xp || ACH_XP[a.tier] || 0, achChips = a => a.chips || ACH_CHIPS[a.tier] || 0, achXPPaid = a => Math.round(achXP(a) * XP_GAIN); // (Paid: what it really adds)
+const achXP = a => a.xp || ACH_XP[a.tier] || 0, achChips = a => Math.round((a.chips || ACH_CHIPS[a.tier] || 0) * CHIP_GAIN), achXPPaid = a => Math.round(achXP(a) * XP_GAIN); // (Paid: what it really adds)
 const achRewards = id => [['color', COLOR_ITEMS], ['color2', COLOR_ITEMS], ...Object.entries(SHOP)].flatMap(([cat, l]) => l.filter(i => i[2] === id).map(i => [cat, i[0]]));
 if (PROG.ach && PROG.ach.allHard && !PROG.gluttonPaid) { // earned under the old rule (every harder modifier at the start of a run) when it paid almost nothing: the new reward, once
   PROG.gluttonPaid = 1; PROG.glutton = 1; PROG.coins += 4500; PROG.earned = (PROG.earned || 0) + 4500; PROG.tokBonus = (PROG.tokBonus | 0) + 5;

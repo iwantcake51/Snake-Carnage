@@ -270,7 +270,7 @@ const chTeam = ch => NETM.on && CH_TEAM.has(ch.k), teamTag = ch => !chTeam(ch) ?
 const chUnit = ch => ({ survive: 's', comboTime: 's', dist: ' m', goreDist: ' m', gore: '%' })[ch.k] || '';
 const chReward = ch => ch.xp ? ch : TIERS[ch.tier]; // the reward rolled with the challenge (see chRewardFor), stored on it
 const rewardText = (ch, short) => { const r = chReward(ch);
-  return short ? `+${r.chips} ${'<i class="pc"></i>'}` : `+${r.xp} XP, +${r.chips} ${'<i class="pc"></i>'}${r.bonus ? `, +${Math.round(r.bonus * 100)}% score this run` : ''}`; };
+  return short ? `+${chipShow(r.chips)} ${'<i class="pc"></i>'}` : `+${r.xp} XP, +${chipShow(r.chips)} ${'<i class="pc"></i>'}${r.bonus ? `, +${Math.round(r.bonus * 100)}% score this run` : ''}`; };
 function checkRotation() { // reroll every 15 minutes (never mid-run: a run keeps the set it started with)
   const r = chRot();
   if (PROG.chRot === r) { if (!PROG.chAbil) { PROG.chAbil = ownedAbilIds(); for (const k in chCache) delete chCache[k]; saveProg(); } return; }
@@ -294,7 +294,7 @@ function checkChallenges() {
     const r = chReward(ch);
     if (r.bonus) run.bonus = (run.bonus || 0) + r.bonus;
     PROG.chTotal = (PROG.chTotal || 0) + 1; PROG.chMaps = [...new Set([...(PROG.chMaps || []), m])]; // lifetime, for achievements
-    (run.chList = run.chList || []).push({ name: ch.name, tier: ch.tier, t: ch.t, got: `${Math.min(v, ch.n * 9)}${chUnit(ch)} of ${ch.n}${chUnit(ch)}`, at: run.time, xp: Math.round(r.xp * rewardMult), chips: Math.round(r.chips * rewardMult), bonus: r.bonus || 0 });
+    (run.chList = run.chList || []).push({ name: ch.name, tier: ch.tier, t: ch.t, got: `${Math.min(v, ch.n * 9)}${chUnit(ch)} of ${ch.n}${chUnit(ch)}`, at: run.time, xp: Math.round(r.xp * rewardMult), chips: chipShow(r.chips * rewardMult), bonus: r.bonus || 0 });
     challengePopup(ch, r); gainXP(Math.round(r.xp * rewardMult * SKV.taskK()), Math.round(r.chips * rewardMult * SKV.taskK())); studyHit('challenge'); // Taskmaster, Quick Study
   }
   checkPermChallenges();

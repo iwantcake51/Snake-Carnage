@@ -241,15 +241,16 @@ const SKV = {
   windK: (g = skMe) => g('windfall') ? 2 : 1,
   interest: (g = skMe) => g('interest') && typeof run === 'object' && (run.aliveT || 0) >= 180 ? Math.min(150, Math.round(((run.coinsGained || 0) - (run.bd ? run.bd.uc : 0)) * .1)) : 0, // only from what this run earned, and only a run you lived 3 minutes in (no farming quick restarts)
 };
-const shopPrice = p => p > 0 ? Math.max(1, Math.round(p * SKV.shopK())) : 0; // Haggler (free things stay free)
+const PRICE_K = 2.5; // the shop's prices: every listed price (catalog and custom colors) times this, to the nearest 5 (v1.84: everything was too cheap)
+const shopPrice = p => p > 0 ? Math.max(5, Math.round(p * PRICE_K * SKV.shopK() / 5) * 5) : 0; // Haggler (free things stay free)
 function payInterest() { // Compound Interest: once per run, on the run summary
   if (run.interestPaid) return; run.interestPaid = true; const n = SKV.interest(); if (!n) return;
-  gainXP(0, n); notify({ kind: 'info', icon: '◆', title: 'Compound Interest', right: `+${n} chips`, sub: '10% of what this run earned', dur: 2.4, key: 'interest' });
+  gainXP(0, n, { net: true }); notify({ kind: 'info', icon: '◆', title: 'Compound Interest', right: `+${n} chips`, sub: '10% of what this run earned', dur: 2.4, key: 'interest' });
 }
 const STUDY_KINDS = { person: 'Ate a person', animal: 'Ate an animal', golden: 'Ate a golden target', near: 'Survived a near miss', smash: 'Smashed something', challenge: 'Finished a challenge', combo: 'Reached a 10 combo', alive: 'Lived 5 minutes' };
 function studyHit(kind) { // Quick Study: the first time in a run you do each different thing, a few chips (yours only)
   if (typeof run !== 'object' || !STUDY_KINDS[kind] || state === 'menu') return; const got = run.study || (run.study = {}); if (got[kind]) return;
-  const n = SKV.studyChips(); if (!n) return; got[kind] = 1; gainXP(0, n);
+  const n = SKV.studyChips(); if (!n) return; got[kind] = 1; gainXP(0, n, { net: true });
   notify({ kind: 'info', icon: giSvg('study'), title: 'Quick Study', sub: STUDY_KINDS[kind], right: `+${n} chips`, dur: 2, key: 'study' });
 }
 /* cooldown refunds (Bloodlust, Second Wind): only ever off a cooldown that's running right now, worked out on the cooldown after
@@ -296,9 +297,9 @@ function bdMeal(bx, bc, paid) {
   if (typeof run !== 'object') return; const b = bdRun(); b.ex += paid.xp; b.ec += paid.coins;
   if (!(b.left > 0)) return;
   b.left--;
-  const wx = Math.round(bx * XP_GAIN), wc = bc, gx = Math.min(wx, Math.max(0, Math.floor(b.ex * BD.cap - b.ux))), gc = Math.min(wc, Math.max(0, Math.floor(b.ec * BD.cap - b.uc)));
+  const wx = Math.round(bx * XP_GAIN), wc = chipShow(bc), gx = Math.min(wx, Math.max(0, Math.floor(b.ex * BD.cap - b.ux))), gc = Math.min(wc, Math.max(0, Math.floor(b.ec * BD.cap - b.uc)));
   b.ux += gx; b.uc += gc;
-  if (gx || gc) gainXP(gx, gc, { raw: true, quiet: true });
+  if (gx || gc) gainXP(gx, gc, { raw: true, net: true, quiet: true });
   bdPopup(gx, gc, gx < wx || gc < wc); bdHud();
 }
 function bdTick() { // dying wipes whatever is still owed (never the activations used)

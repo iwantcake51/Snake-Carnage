@@ -76,11 +76,16 @@ function showCustomize() {
     <div class="sright"><div class="shophead"><canvas id="prev"></canvas><div class="shinfo"><span class="coinpill"><i class="pc"></i> ${PROG.coins}</span><p class="shopmsg">${shopMsg || 'Hover an item to see its price. Locked items come from Challenges.'}</p></div></div>
     <div class="sgrid tabIn">${shopBody(shopTab)}</div></div></div>`;
   shopMsg = '';
+  if (!again) customIn(overlay.querySelector('.sgrid'));
   wireShop();
   const nav = overlay.querySelector('.snav'), bar = document.createElement('i'); bar.className = 'tabbar'; nav.prepend(bar); placeTabBar(true);
   overlay.querySelectorAll('.tab').forEach(b => b.onclick = () => setShopTab(b.dataset.tab));
   document.getElementById('backBtn').onclick = () => transitionTo(() => { applyCosmetics(); showMenu(); }); // the heavy restyle happens after the close animation, not before it
   startPreview();
+}
+function customIn(grid) { // arriving on Custom color (not every redraw of the picker): its parts come in one after another, the color square and hue strip wipe in, the knobs pop on (style.css, .sgrid.cfx)
+  if (!grid || shopTab !== 'custom' || SETTINGS.reduceMotion) return;
+  grid.classList.remove('cfx'); void grid.offsetWidth; grid.classList.add('cfx'); clearTimeout(customIn.t); customIn.t = setTimeout(() => grid.classList.remove('cfx'), 1300);
 }
 function placeTabBar(instant) { // the highlight behind the selected tab slides to the new one instead of the whole shop redrawing
   const bar = overlay.querySelector('.snav .tabbar'), on = overlay.querySelector(`.snav .tab[data-tab="${shopTab}"]`); if (!bar || !on) return;
@@ -93,7 +98,7 @@ function setShopTab(t) { // swap only the item grid; the nav, preview and chip c
   overlay.querySelectorAll('.snav .tab').forEach(b => b.classList.toggle('on', b.dataset.tab === t)); placeTabBar();
   const grid = overlay.querySelector('.sgrid'); if (!grid) return showCustomize();
   grid.innerHTML = shopBody(t); grid.scrollTop = 0; grid.classList.remove('tabIn'); void grid.offsetWidth; grid.classList.add('tabIn');
-  wireShop();
+  customIn(grid); wireShop();
 }
 function refreshShop(msg) { // after buying or equipping: update the cards, chips and message in place (previews are kept, nothing flickers)
   overlay.querySelectorAll('.sgrid .sc').forEach((b, i) => {

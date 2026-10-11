@@ -403,7 +403,7 @@ function mapPermChallenges() {
   return `<div class="pmwrap"><div class="pmmaps">${MAPS.map(m => `<button class="${m.name === chMap ? 'on' : ''}" data-cm="${attr(m.name)}" data-sfx="tab"><span>${m.name}</span><em>${pmDoneCount(m.name)}/${permChallenges(m.name).length}</em></button>`).join('')}</div>
     <div class="pmlist">${list.map((c, i) => { const when = (PROG.pmc[chMap] || {})[c.id], v = when ? c.n : Math.min(best[c.id] || 0, c.n), rw = TIERS[c.tier];
       return `<div class="pmc ${when ? 'done' : ''}" style="--i:${i}" ${when ? `data-tip="Completed ${fmtDate(when)}"` : ''}><em class="tier ${c.tier}">${rw.label}</em><b>${when ? `<i class="ck">${kiSvg('checkmark')}</i>` : ''}${c.name}</b><small>${c.t}</small>
-        <span class="axp">+${Math.round(rw.xp * 1.5)} XP · +${Math.round(rw.chips * 1.5)} chips</span><span class="pbar"><span style="width:${(v / c.n * 100).toFixed(0)}%"></span><i>${v}${c.unit || ''} / ${c.n}${c.unit || ''}${when ? '' : ' best'}</i></span></div>`; }).join('')}</div></div>`;
+        <span class="axp">+${Math.round(rw.xp * 1.5)} XP · +${chipShow(rw.chips * 1.5)} chips</span><span class="pbar"><span style="width:${(v / c.n * 100).toFixed(0)}%"></span><i>${v}${c.unit || ''} / ${c.n}${c.unit || ''}${when ? '' : ' best'}</i></span></div>`; }).join('')}</div></div>`;
 }
 function achPreview(cat, v, clear) { // rewards show as a real preview; early on (and rare ones) stay silhouetted
   return `<div class="prv ${clear ? '' : 'sil'}">${itemPreview(cat, v)}</div>`;
