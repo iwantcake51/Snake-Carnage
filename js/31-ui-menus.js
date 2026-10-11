@@ -271,8 +271,9 @@ function wireModLine(root) { // the run setup's chips: click one to take that mo
 function modLine(list, readOnly) { // active modifiers, visible before the run starts
   const ids = list || SETTINGS.mods || [];
   if (!ids.length) return '<span class="mchip dim">No modifiers</span>';
-  const mm = modMult(ids);
-  return ids.map(id => { const m = MODS.find(q => q.id === id) || {}; return `<span class="mchip" data-mod="${id}" data-tip="${attr(m.desc)}${readOnly || list ? '' : ' (click to remove)'}">${m.name}</span>`; }).join('') +
+  const set = new Set(ids), off = id => modBlockReason(id, set), mm = modMult(ids.filter(id => !off(id))); // one this map (or setup) can't use, e.g. Shell Shock indoors, stays picked for next time but is off here: crossed out, and it doesn't count toward the rewards
+  return ids.map(id => { const m = MODS.find(q => q.id === id) || {}, why = off(id); return why ? `<span class="mchip off" data-mod="${id}" data-tip="${attr(why)}${readOnly || list ? '' : ' (click to remove)'}"><s>${m.name}</s><em>off here</em></span>`
+    : `<span class="mchip" data-mod="${id}" data-tip="${attr(m.desc)}${readOnly || list ? '' : ' (click to remove)'}">${m.name}</span>`; }).join('') +
     (Math.abs(mm - 1) > .005 ? `<span class="mchip mult ${mm < 1 ? 'down' : ''}">Rewards x${mm.toFixed(2)}</span>` : ''); // no meaningless x1.00 chip
 }
 const SEASON_PICK = ['Random', 'Spring', 'Summer', 'Autumn', 'Winter'];
@@ -433,6 +434,7 @@ function selectMap(i) { // in place: the browser's frame, the name, the line abo
   const p = document.getElementById('rsArt'); if (p) p.src = artCache.get(thumbKey(m)) || thumbs[i];
   const info = overlay.querySelector('.rs-info'); if (info && !SETTINGS.reduceMotion) { info.classList.remove('swap'); void info.offsetWidth; info.classList.add('swap'); }
   seasonState();
+  const ml = document.getElementById('modline'); if (ml) { ml.innerHTML = modLine(); wireModLine(overlay); } // a modifier this map can't use (Shell Shock indoors) shows as off here
   const mc = document.getElementById('mapch'); if (mc) { mc.innerHTML = mapChallengesHtml(); mc.classList.remove('swap'); void mc.offsetWidth; mc.classList.add('swap'); }
   menuBackdrop(i);
 }

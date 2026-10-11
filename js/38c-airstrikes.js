@@ -975,7 +975,9 @@ function drawStrikeMark(x, s) { // a bomb, an incendiary and a cluster bomb each
   const el = s.dur - s.t, ew = s.ew || 0, mine = !NETM.run || s.ep === NETM.me; let fa = 1; // Early Warning: the early stretch is the teal radar marker (yours only), crossfading into this one
   if (ew) { if (!mine && el < ew) return; if (mine && el < ew + .3) { drawEarlyMark(x, s, clamp((ew + .3 - el) / .6, 0, 1) * gasMarkA()); if (el < ew - .3) return; } fa = clamp((el - (mine ? ew - .3 : ew)) / (mine ? .6 : .15), 0, 1); }
   const p = clamp((el - ew) / Math.max(.05, s.dur - ew), 0, 1), on = Math.sin(s.ph) > 0, R = s.r, rot = s.rot + T * .7, ma = gasMarkA() * fa; // ma: in gas the marker can't be made out (the bomb itself still can)
-  x.save(); x.translate(s.x, s.y); x.globalAlpha = ma;
+  x.save(); x.translate(s.x, s.y);
+  if (s.t < s.f) drawBombShadow(x, s, 1 - s.t / s.f); // the shadow of what's falling, on the ground under the marker
+  x.globalAlpha = ma;
   const zone = (r, g, b) => { const glow = x.createRadialGradient(0, 0, R * .2, 0, 0, R * 1.5); glow.addColorStop(0, `rgba(${r},${g},${b},${(on ? .26 : .12) + .14 * p})`); glow.addColorStop(.7, `rgba(${r},${g},${b},${(on ? .16 : .07) + .08 * p})`); glow.addColorStop(1, `rgba(${r},${g},${b},0)`); x.fillStyle = glow; circ(x, 0, 0, R * 1.5); };
   const sweep = () => { x.strokeStyle = 'rgba(255,255,255,.9)'; x.lineWidth = 3; x.beginPath(); x.arc(0, 0, R - 6, -Math.PI / 2, -Math.PI / 2 + TAU * (1 - p)); x.stroke(); }; // time left
   if (s.kd === 'a') { // ARTILLERY: nothing like a bomb's red crosshair: a range ring with a mil scale round it, a ring closing in on it as the shell comes down, a map grid square at its heart with what the shell carries drawn in it, and chevrons on the side the shells come in from. The whole of it in the payload's colour (violet high explosive, green gas, orange fire, yellow cluster), and the ring itself takes the payload's look: bubbles drifting round it, a flickering edge of flame, hazard stripes. Every line has a dark edge under it, so it reads on any ground, day or night
@@ -1057,9 +1059,14 @@ function drawStrikeMark(x, s) { // a bomb, an incendiary and a cluster bomb each
   x.restore();
 }
 const K_HEAT = [[255, 244, 200], [255, 214, 120], [255, 170, 75], [245, 128, 45], [205, 86, 28], [150, 54, 18]]; // a fireball cooling, white-yellow to deep red
+const SHADOW_SPR = (() => { let c = null; return () => { if (c) return c; c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(.35, 'rgba(0,0,0,.8)'); gr.addColorStop(.7, 'rgba(0,0,0,.28)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return c; }; })(); // one soft round shadow, drawn once and stamped (never a blur filter per frame)
+function drawBombShadow(x, s, u) { // (in the marker's frame, under the marker) a falling bomb's or shell's shadow: wide and faint while it's high, gathering in and darkening as it comes down; soft-edged all the way
+  const shell = s.kd === 'a', a = s.ja ?? s.rot, H = shell ? 560 : 340, h = H * (1 - (shell ? .35 * u + .65 * u * u : .45 * u + .55 * u * u)), back = h * (shell ? .3 : .42), k = shell ? .1 : .15;
+  const cx = -Math.cos(a) * back * k, cy = -Math.sin(a) * back * k * .66, core = shell ? 5 + 12 * u : 3.5 + 8.5 * u, blur = 1 + 2.4 * (1 - u); // the higher it is, the softer and wider the shadow
+  const w = core * 2 * blur * 1.25, hh = w * .62; x.globalAlpha = Math.min(1, (shell ? .24 + .66 * u : .3 + .62 * u) * Math.min(1, 1.6 / blur)); // (dark enough to read through the marker's glow on top of it) x.drawImage(SHADOW_SPR(), cx - w / 2, cy - hh / 2, w, hh); x.globalAlpha = 1;
+}
 function drawFallingShell(x, s, u) { // (in the marker's frame) an artillery shell dropping in steeply from the side the battery is on, spinning, no fins, slow enough to watch the whole way down
   const a = s.ja ?? s.rot, h = 560 * (1 - (.35 * u + .65 * u * u)), back = h * .3, ca = Math.cos(a), sa = Math.sin(a), bx = -ca * back, by = -sa * back * .55 - h;
-  const sh = .12 + .5 * u, sr = 4 + 12 * u; x.fillStyle = `rgba(0,0,0,${sh.toFixed(3)})`; ell(x, -ca * back * .1, -sa * back * .07, sr, sr * .62); // its shadow, sharpening under it
   const nose = Math.atan2(sa * .3 * .55 + 1, ca * .3) - Math.PI / 2, k = .9 + .7 * u, spin = T * 9 + s.rot;
   x.save(); x.translate(bx, by); x.rotate(nose); x.scale(k, k);
   if (!SETTINGS.reduceMotion) { const L = 30 + 30 * u, g = x.createLinearGradient(0, 0, 0, -L); g.addColorStop(0, 'rgba(255,255,255,.22)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.beginPath(); x.moveTo(-4, -4); x.lineTo(4, -4); x.lineTo(1, -L); x.lineTo(-1, -L); x.closePath(); x.fill(); } // the air it tears through
@@ -1075,7 +1082,6 @@ function drawFallingBomb(x, s, u) {
   const a = s.ja ?? s.rot, h = 340 * (1 - (.45 * u + .55 * u * u)), back = h * .42, ca = Math.cos(a), sa = Math.sin(a); // up in the air it's still behind the target, back the way the jet came
   const bx = -ca * back, by = -sa * back * .55 - h, vx = ca * .42, vy = sa * .42 * .55 + 1; // where it is, and which way it's moving on screen
   const k = .85 + .6 * u, nose = Math.atan2(vy, vx) - Math.PI / 2, wob = Math.sin(T * 34 + s.rot * 9) * .07 * (1 - u * .5);
-  const sh = .18 + .45 * u, sr = 2.5 + 8 * u; x.fillStyle = `rgba(0,0,0,${sh.toFixed(3)})`; ell(x, -ca * back * .15, -sa * back * .1, sr, sr * .62); // the shadow
   const body = s.kd === 'c' ? ['#4f4620', '#7a6c2c', '#d9b23a'] : s.kd === 'i' ? ['#5a2216', '#8a3a24', '#ff7a2a'] : s.kd === 'g' ? ['#34421c', '#5c7330', '#b8e04c'] : ['#2f3527', '#4b5540', '#e0352b']; // the band in each kind's own colour, the same as its marker: red a plain bomb, green gas, orange fire, yellow cluster
   const blur = SETTINGS.reduceMotion ? 0 : 4; // the motion blur: fading copies trailing back up its path, and a soft streak
   x.save(); x.translate(bx, by); x.rotate(nose + wob); x.scale(k, k);

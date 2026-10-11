@@ -3364,3 +3364,7 @@ body.compact .mm .rs-title h3{font-size:28px!important}
 /* the prompt's keys sit dead centre with its words: no stray margin from the help screen's .keys rule, no floating or tilt */
 #resume:not(#_) .keys{margin:0!important;align-items:center}
 #resume:not(#_) kbd{margin:0!important;animation:none!important;rotate:0deg!important;translate:none!important;line-height:1}
+/* a picked modifier this map can't use (Shell Shock indoors): crossed out, "off here", and left out of the rewards */
+.mchip.off{opacity:.6;display:inline-flex;align-items:center;gap:6px}
+.mchip.off s{text-decoration-thickness:2px}
+.mchip.off em{font-style:normal;font-size:.82em;opacity:.85;text-transform:none}
