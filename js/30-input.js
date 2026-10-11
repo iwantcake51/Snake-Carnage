@@ -209,7 +209,7 @@ function pinchMove() {
 const touchEl = document.getElementById('touch');
 function buildTouch() {
   touchEl.innerHTML = `<div class="stick"><i class="knob"></i></div>
-    <button class="tb tb-nv" data-sfx="none" aria-label="Night vision"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="7" cy="13" r="4"/><circle cx="17" cy="13" r="4"/><path d="M11 13h2M3 9l2-3h14l2 3"/></svg></button>
+    <button class="tb ab tb-nv" data-sfx="none" aria-label="Night vision">${giSvg('nvg', 'upi')}</button>
     <div class="tabil"></div>`;
   tapNow(touchEl.querySelector('.tb-nv'), toggleNV);
   refreshTouchAbilities();

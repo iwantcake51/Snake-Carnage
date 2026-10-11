@@ -780,7 +780,7 @@ body.touch #touch{pointer-events:auto}
 #touch .tb:active{background:color-mix(in srgb,var(--acc) 60%,transparent)}
 #touch .tb-pause{right:12px;top:12px}
 #touch .tb-nv{right:12px;bottom:12px}
-#touch .tb-nv.on{background:rgba(60,170,90,.6)}
+#touch .tb-nv.on{border-color:rgba(120,220,150,.85);color:#a6f5bd;background:rgba(20,48,30,.72)} /* round like the skills beside it (it wears their .ab look); on: a green ring and goggles */
 #touch .tabil{position:absolute;right:74px;bottom:12px;display:flex;gap:8px}
 #touch .tabil .tb{position:relative;width:52px;height:52px}
 body.touch #abil{display:none}
