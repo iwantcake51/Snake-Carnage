@@ -82,7 +82,7 @@ const SKILL_TREE = [
   { id: 'gut', br: 'surv', name: 'Iron Stomach', icon: 'gut', cost: [1, 2, 3], req: [['skull', 1]], x: 545, y: 720,
     desc: 'Your combo lasts longer.', fx: [['Combo time', g => SKV.combo(g) * 100 - 100, pct]] },
   { id: 'mask', br: 'surv', major: 1, name: 'Gas Mask', icon: 'mask', cost: [2], req: [['skull', 1]], x: 855, y: 720,
-    desc: 'Gas stops messing with your screen, and bomb markers stay half visible in it. It still slows you.', fx: [['Gas on your screen', g => g('mask') ? 0 : 100, n => n ? 'Full' : 'None']] },
+    desc: 'Gas stops messing with your screen, slows you half as much, and bomb markers stay half visible in it.', fx: [['Gas on your screen', g => g('mask') ? 0 : 100, n => n ? 'Full' : 'None'], ['Slowed in gas', g => g('mask') ? 22 : 45, n => n + '%']] },
   { id: 'jam', br: 'surv', major: 1, name: 'Early Warning', icon: 'jam', cost: [3, 4], req: [['mask', 1]], x: 855, y: 560,
     ranks: ['Strikes aimed at you show up 0.75 s sooner', '1.25 s sooner'],
     desc: 'Air strikes aimed at you show up early, as a teal radar marker that turns into the real one.', fx: [['Extra warning', g => SKV.warn(g), secs]] },

@@ -25,7 +25,7 @@
    Bombs vary: some are bigger or smaller, some fall faster (less warning) or slower, and they scatter around your
    path rather than all landing on it. Later in a run they come much faster.
    Bombs in a salvo never land together: each one comes down a moment after the last.
-   The Air raid modifier starts all of this from the first seconds of the run.
+   The Shell Shock modifier (MOD.airRaid) starts all of this from the first seconds of the run, the guns from 15 s in.
    Heavy fog and tunnel vision hide the markers like anything else, but a blast lights the fog up from inside.
    How hard a blast hits you depends on how close it was: the slowdown, the colour draining out of the picture, the
    muffled hearing and the disorientation (the picture swaying and wobbling like after a wall, but less) all scale with it.
@@ -33,7 +33,7 @@
    itself and checks only its own snake. Only the host kills the crowd.
    ========================================================= */
 const AIR = { queue: [], warned: false, nextT: 0, flash: 0, sky: 0, rumble: 0, d0: 0, muf: 0, mufH: 0 }; // flash: the white-out on screen; sky: how much a blast is lighting up the night
-const AIR_START = 60, AIR_R = 44, AIR_RAID_START = 6; // seconds into the run before the first strike (Air raid: almost straight away); blast radius
+const AIR_START = 60, AIR_R = 44, AIR_RAID_START = 2; // seconds into the run before the siren (Shell Shock: almost straight away, the first bomb marked about 6 s in); blast radius
 const STRAFE_V = 560, STRAFE_HW = 13, STRAFE_LEN = 820; // how fast the rounds walk down the lane, its half width and length
 let scorched = []; // craters burnt into the ground this run: [x, y, r]. Nothing grows or settles in them again
 let strikes = [], booms = [], boomBits = [], corpses = [], fallenHats = [], jets = [], shocks = [], fires = [], soots = [], hazes = [], later = [], clods = [], strafes = [], tracers = [];
@@ -45,7 +45,7 @@ const LOCK = () => !!MOD.lockOn, jetV = () => LOCK() ? 2200 : 1150, strafeV = ()
 const snakeOfPid = id => !NETM.run || !id || id === NETM.me ? snake : (NS.rs && NS.rs.get(id)) || null; // the snake a tracking marker follows, on any screen
 const airEW = s => s ? SKV.warn(id => skOf(s, id)) : 0; // Early Warning: seconds more warning on every strike aimed at this snake
 function skOf(s, id) { if (s === snake) return sk(id); const o = UPG_OVR; UPG_OVR = s.upgLv || {}; try { return sk(id); } finally { UPG_OVR = o; } } // another player's rank (the host deciding for them) // outdoors on Earth, always (the Clear skies modifier is the way to switch them off)
-function airReset() { fireReset(); AIR.barT = undefined; AIR.artyT = undefined; scorched = []; tailBits = []; strikes = []; booms = []; boomBits = []; corpses = []; fallenHats = []; jets = []; shocks = []; fires = []; soots = []; hazes = []; later = []; clods = []; strafes = []; tracers = []; AIR.crowdTalk = null; AIR.queue = []; AIR.storms = []; NM.list = []; NM.n = 0; AIR.warned = false; AIR.nextT = 0; AIR.flash = 0; AIR.sky = 0; AIR.rumble = 0; AIR.d0 = 0; AIR.muf = 0; AIR.mufH = 0; if (Sfx.lp) Sfx.daze(0); }
+function airReset() { fireReset(); AIR.barT = AIR.artyT = AIR.artyT0 = AIR.artyBarT = undefined; scorched = []; tailBits = []; strikes = []; booms = []; boomBits = []; corpses = []; fallenHats = []; jets = []; shocks = []; fires = []; soots = []; hazes = []; later = []; clods = []; strafes = []; tracers = []; AIR.crowdTalk = null; AIR.queue = []; AIR.storms = []; NM.list = []; NM.n = 0; AIR.warned = false; AIR.nextT = 0; AIR.flash = 0; AIR.sky = 0; AIR.rumble = 0; AIR.d0 = 0; AIR.muf = 0; AIR.mufH = 0; if (Sfx.lp) Sfx.daze(0); }
 /* reeling from a blast: full strength for the first second, then it fades over the next 1.2 */
 const boomSlow = s => s && s.boomT > 0 ? (s.boomK || 0) * clamp(s.boomT / 1.2, 0, 1) : 0;
 const boomDaze = () => snake && snake.alive ? boomSlow(snake) : 0;
@@ -111,7 +111,10 @@ function airJetReact(j, dt) {
 function airSchedule(dt) {
   if (!airOn() || state !== 'play') return;
   const t0 = MOD.airRaid ? AIR_RAID_START : AIR_START, t = run.time || 0; if (t < t0) return;
-  if (!AIR.warned) { AIR.warned = true; AIR.d0 = cr.dist; airWarn(); netEmit({ t: 'airw' }); AIR.nextT = 3.5; return; }
+  if (!AIR.warned) { AIR.warned = true; AIR.d0 = cr.dist; airWarn(); netEmit({ t: 'airw' }); AIR.nextT = MOD.airRaid ? .6 : 3.5; return; }
+  if (AIR.artyT === undefined && (MOD.airRaid ? t >= ARTY.raid : t - t0 >= ARTY.after) && !(AIR.storms && AIR.storms.length)) { // the guns open up: the first salvo comes right on time (2.5 minutes into the bombing; Shell Shock: 15 s into the run)
+    const ts = netSnakes().filter(s => s.alive && s.started && !s.hidden && !s.netHidden && !(s.graceT > 0) && s.segs && s.segs.length); if (ts.length) { AIR.artyT = AIR.artyT0 = t; for (const s of ts) artySalvo(s, .3); }
+  }
   if ((AIR.nextT -= dt) > 0) return;
   const raid = !!MOD.airRaid, gt = Math.max((t - t0) / 180, (cr.dist - AIR.d0) / 2500); // how far you've come since they started: it never stops climbing
   const targets = netSnakes().filter(s => s.alive && s.started && !s.hidden && !s.netHidden && !(s.graceT > 0) && s.segs && s.segs.length);
@@ -125,8 +128,9 @@ function airSchedule(dt) {
     for (const s of targets) { barrage(s, raid ? ramp : Math.min(1, Math.max(gt, heatOf(s)))); }
     return;
   }
-  if (t - t0 > (raid ? ARTY.raid : ARTY.after) && t - (AIR.artyT ?? -1e9) > ARTY.gap && Math.random() < ARTY.p + .08 * k) { // later on, now and then the cannons instead: no jet, a salvo of big, slow shells
-    AIR.artyT = t; for (const s of targets) artySalvo(s, raid ? ramp : Math.min(1, Math.max(gt, heatOf(s)))); return;
+  if (AIR.artyT !== undefined && t - AIR.artyT > ARTY.gap && Math.random() < ARTY.p + .08 * k) { // after the first, now and then the cannons instead of a jet
+    const bar = t - AIR.artyT0 > ARTY.barAfter && t - (AIR.artyBarT ?? -1e9) > ARTY.barGap && Math.random() < ARTY.bar; // now and then, the whole battery at once
+    AIR.artyT = t; if (bar) AIR.artyBarT = t; for (const s of targets) (bar ? artyBarrage : artySalvo)(s, raid ? ramp : Math.min(1, Math.max(gt, heatOf(s)))); return;
   }
   const kind = t - t0 > (raid ? 30 : 20) && Math.random() < .13 + .07 * k ? (Math.random() < .14 ? 'bombs' : 'guns') : 'salvo'; // strafing runs (and bombing runs) stay the rare ones
   for (const s of targets) { // multiplayer: every player gets their own run at the same moment, and every screen sees all of them (the host sends each one out)
@@ -216,35 +220,58 @@ function airSalvo(s, g, a) { // a salvo of bombs walked along this snake's path 
     netEmit({ t: 'air', x: rx, y: ry, w, r: rr, j: ja, f, tk, kd, sd, ew, ep, h: Math.round(netNow()) }); // (h: the host's clock, so guests can take off the time it spent in transit)
   }
 }
-const BOMB_KINDS = [[undefined, 45], ['g', 30], ['i', 17], ['c', 8]]; // what a bomb is: plain bombs most of all, gas a little less often, incendiaries less again, cluster bombs the rarest
-function bombKd(tt, sp = 1) { // the deciding browser: one bomb's kind (nothing special in the first half minute of a raid; sp scales the special ones down)
+const BOMB_KINDS = [[undefined, 75], ['i', 17], ['c', 8]]; // what a jet's bomb is: plain bombs three times in four (the main way you die), incendiaries (napalm ahead of you, to steer round), cluster bombs the rarest. No gas from the jets: gas comes only in artillery shells, behind you
+function bombKd(tt, sp = 1) { // the deciding browser: one bomb's kind (nothing special in the first half minute of a raid, no cluster bombs before a minute and a half; sp scales the special ones down)
   if (tt < 30) return undefined; let r = Math.random() * 100;
-  for (const [k, w] of BOMB_KINDS) if ((r -= k ? w * sp : w) < 0) return k;
+  for (const [k, w] of BOMB_KINDS) if ((r -= k ? w * sp : w) < 0) return k === 'c' && tt < 90 ? undefined : k;
   return undefined;
 }
 /* ---- artillery: later in a run, now and then a battery of cannons miles off the map lobs a few shells at you instead of a jet coming over.
    Each lands with a far bigger blast than a bomb, but you get a long time to get clear: the cannon's report, the marker, then the shell
    whistling all the way down, slowly ---- */
-const ARTY = { after: 210, raid: 120, gap: 70, p: .12, r: [1.3, 1.65], fall: 3.6, warn: [6.2, 7.4] };
+const ARTY = { after: 150, raid: 15, gap: 70, p: .12, r: [1.3, 1.65], warn: [3, 4], bar: .22, barGap: 150, barAfter: 60 }; // bar: how often a later salvo is a barrage instead (never the first, never within 150 s of the last one, nor sooner than a minute after the guns open) // the first salvo comes 2.5 minutes into the bombing (Shell Shock: 15 s into the run), then now and then, never within 70 s of the last; each shell 3-4 s from the gun to the ground
+const ARTY_KINDS = [[undefined, 45], ['g', 35], ['c', 20]]; // what a shell carries: high explosive mostly, gas shells (the only gas there is: it lands on ground you've just left, so it's a trap you can see, never a blindfold on your way in), cluster shells that chew up a coiled tail
+function artyKd() { let r = Math.random() * 100; for (const [k, w] of ARTY_KINDS) if ((r -= w) < 0) return k; }
 function artyTailSpot(s, D) { // a point D up the body from the end of this snake's tail (past the head on its heading if the body is shorter than that)
   const g = s.segs; let left = D;
   for (let i = g.length - 1; i > 0; i--) { const a = g[i], b = g[i - 1], L = Math.hypot(b.x - a.x, b.y - a.y); if (L >= left) { const u = left / (L || 1); return [a.x + (b.x - a.x) * u, a.y + (b.y - a.y) * u, Math.atan2(b.y - a.y, b.x - a.x)]; } left -= L; }
   return [s.x + Math.cos(s.angle) * left, s.y + Math.sin(s.angle) * left, s.angle];
 }
-function artySalvo(s, k) { // the deciding browser: a salvo of shells on the end of this snake's tail as it is when they're fired (k: how far into the raid). Unlike the bombs, which lead your head, the guns are laid on your tail: keep moving and they shell the ground you've just crossed (no doubling back), stall or coil up and they take the end of you
+function artySalvo(s, k) { // the deciding browser: a creeping barrage on the end of this snake's tail (k: how far into the raid). Unlike the bombs, which lead your head, the guns are laid on your tail, one shell after another a second or so apart, each on the tail as it is when it's fired: keep moving and they walk along the ground you've just crossed (no doubling back), stall or coil up and they take the end of you
   const n = 1 + (Math.random() < .35 + .4 * k ? 1 : 0) + (k > .6 && Math.random() < .35 ? 1 : 0), ca = +rand(0, TAU).toFixed(3); // (ca: the way the shells come in, from the battery off the map)
-  const body = s.segs.reduce((d, g, i) => i ? d + Math.hypot(g.x - s.segs[i - 1].x, g.y - s.segs[i - 1].y) : 0, 0); let up = body * rand(0, .12), pr = 0; // (up: how far up the body from the tail's end the next shell goes)
-  for (let j = 0; j < n; j++) {
-    const r = Math.round(AIR_R * rand(...ARTY.r)); // each shell its own size: always bigger than a bomb, never huge
-    if (j) { up += (pr + r) * rand(1.05, 1.2); if (up > body * .6) break; } pr = r; // each one after the first walked further up the body, its edge clear of the last one's (never past the back 60% of it: a short snake just gets fewer)
-    let w = rand(...ARTY.warn) + j * rand(.9, 1.5) + airEW(s);
-    for (let q = 0; q < 6; q++) { const o = strikes.find(o => Math.abs(o.t - w) < .11); if (!o) break; w = o.t + .11 + rand(0, .05); }
-    w = +w.toFixed(2);
-    const [tx, ty, ta] = artyTailSpot(s, up), side = gauss() * 14; // right on the end of the tail
-    const [x, y] = airInside(tx - Math.sin(ta) * side, ty + Math.cos(ta) * side, s.x, s.y);
-    const rx = Math.round(x), ry = Math.round(y), f = +(ARTY.fall * rand(.92, 1.1)).toFixed(2), ew = airEW(s) || undefined, ep = ew ? airPid(s) : undefined;
-    airStrike(rx, ry, w, r, ca, f, undefined, 'a', undefined, ew, ep); netEmit({ t: 'air', x: rx, y: ry, w, r, j: ca, f, kd: 'a', ew, ep, h: Math.round(netNow()) });
+  for (let j = 0, at = 0; j < n; j++) {
+    const fire = () => { if (!s.alive || s.netHidden || s.hidden || state !== 'play' || !s.segs || !s.segs.length) return; artyShell(s, ca); };
+    if (j) AIR.queue.push({ t: at += rand(.9, 1.3), f: fire }); else fire();
   }
+}
+/* ---- an artillery barrage: rarely, the whole battery fires for effect. A ripple of cannon reports, then 4-7 high-explosive shells
+   that all come down within a second and a half of each other, blanketing the ground round the end of your tail and behind it.
+   Fair: every shell is marked for its whole 3-4 s flight, none lands near your head or on the way ahead of it, so the way out is
+   always forward. Intense: stall, coil or turn back into it and there's nowhere to stand ---- */
+function artyBarrage(s, k) { // the deciding browser
+  const n = 4 + Math.round(k * 2 + Math.random()), ca = +rand(0, TAU).toFixed(3), body = snakeLen(s), ha = s.angle, spots = [];
+  for (let q = 0; q < n; q++) for (let p = 0; p < 40; p++) {
+    const r = Math.round(AIR_R * rand(1.25, 1.55)), D = rand(-360, body * .55), [tx, ty, ta] = D < 0 ? (() => { const [x0, y0, a0] = artyTailSpot(s, 0); return [x0 + Math.cos(a0) * D, y0 + Math.sin(a0) * D, a0]; })() : artyTailSpot(s, D), side = gauss() * 80; // round the end of the tail: up the back half of the body, and along the trail behind it
+    const [x, y] = airInside(tx - Math.sin(ta) * side, ty + Math.cos(ta) * side, s.x, s.y), hx = x - s.x, hy = y - s.y, hd = Math.hypot(hx, hy);
+    if (hd < r + 95) continue; // never near your head
+    if ((hx * Math.cos(ha) + hy * Math.sin(ha)) / (hd || 1) > .5 && hd < 520) continue; // nor on the way ahead of it: forward is always the way out
+    if (spots.some(o => Math.hypot(o.x - x, o.y - y) < (o.r + r) * .42)) continue; // overlapping, not stacked
+    spots.push({ x, y, r }); break;
+  }
+  const land = rand(3.2, 3.7); // when the first one lands
+  spots.forEach((o, q) => { const d = q ? rand(.05, .2) * q : 0, w = land + q * rand(.15, .28) - d; // fired in a ripple, a fraction of a second apart; all down within about a second and a half
+    const fire = () => { if (!s.alive || s.netHidden || s.hidden || state !== 'play' || !s.segs || !s.segs.length) return; artyShell(s, ca, [o.x, o.y], w, 0, o.r); };
+    if (d) AIR.queue.push({ t: d, f: fire }); else fire(); });
+}
+const snakeLen = s => s.segs.reduce((d, g, i) => i ? d + Math.hypot(g.x - s.segs[i - 1].x, g.y - s.segs[i - 1].y) : 0, 0);
+function artyShell(s, ca, aim, w0, pk0, r0) { // the deciding browser: one shell fired at the end of this snake's tail (aim, w0, pk0, r0: a barrage's own spot, flight time, payload and size)
+  const body = snakeLen(s), r = r0 || Math.round(AIR_R * rand(...ARTY.r)), ew = airEW(s) || undefined, ep = ew ? airPid(s) : undefined; // each shell its own size: always bigger than a bomb, never huge
+  let w = (w0 || rand(...ARTY.warn)) + (ew || 0);
+  for (let q = 0; q < 6; q++) { const o = strikes.find(o => Math.abs(o.t - w) < .11); if (!o) break; w = o.t + .11 + rand(0, .05); } // never two at once
+  w = +w.toFixed(2);
+  const [tx, ty, ta] = artyTailSpot(s, body * rand(0, .12)), side = gauss() * 14, [x, y] = aim || airInside(tx - Math.sin(ta) * side, ty + Math.cos(ta) * side, s.x, s.y); // right on the end of the tail
+  const rx = Math.round(x), ry = Math.round(y), f = +((w - (ew || 0)) * rand(.75, .85)).toFixed(2), pk = pk0 === undefined ? artyKd() : pk0 || undefined, sd = pk ? randi(1, 2 ** 30) : undefined; // most of its flight you can watch it come down
+  airStrike(rx, ry, w, r, ca, f, undefined, 'a', sd, ew, ep, pk); netEmit({ t: 'air', x: rx, y: ry, w, r, j: ca, f, kd: 'a', sd, ew, ep, pk, h: Math.round(netNow()) });
 }
 function bombKind() { // a size and a falling speed: mostly ordinary, some big ones, some small, some that come down fast or slow
   const q = Math.random(), r = q < .2 ? rand(1.15, 1.35) : q < .42 ? rand(.72, .88) : rand(.92, 1.08), v = Math.random();
@@ -279,12 +306,12 @@ function bombRun(s, k, a0) { // a jet flying a line across your path, letting a 
   }
 }
 function airWarn() {
-  notify({ kind: 'bad', icon: giSvg('jet'), title: MOD.airRaid ? 'AIR RAID' : 'AIR STRIKE INBOUND', sub: 'The military is bombing and strafing your path. Stay out of the red rings and lanes.', dur: 4.2, key: 'air' });
+  notify({ kind: 'bad', icon: giSvg('jet'), title: MOD.airRaid ? 'SHELL SHOCK' : 'AIR STRIKE INBOUND', sub: 'The military is bombing and strafing your path. Stay out of the red rings and lanes.', dur: 4.2, key: 'air' });
   Sfx.siren();
 }
-function airStrike(x, y, w, r = AIR_R, jetA, f = .5, tk, kd, sd, ew, ep) { // (ew, ep: Early Warning's extra seconds at the start of w, and whose perk it is: only they see it that early, as the teal radar marker) // (kd: 'c' a cluster bomb, 'i' an incendiary; sd: the seed every screen builds its bomblets or fire patches from) // every screen: mark the spot and start its clock (f: how long the bomb takes to fall into view and land; shorter is faster; tk: Locked on, the player it slides after)
+function airStrike(x, y, w, r = AIR_R, jetA, f = .5, tk, kd, sd, ew, ep, pk) { // (pk: what an artillery shell carries: 'g' gas, 'c' cluster, none high explosive) // (ew, ep: Early Warning's extra seconds at the start of w, and whose perk it is: only they see it that early, as the teal radar marker) // (kd: 'c' a cluster bomb, 'i' an incendiary; sd: the seed every screen builds its bomblets or fire patches from) // every screen: mark the spot and start its clock (f: how long the bomb takes to fall into view and land; shorter is faster; tk: Locked on, the player it slides after)
   const arty = kd === 'a'; // artillery: no jet; the shell's long fall, and the cannon heard firing it
-  strikes.push({ x, y, t: w, dur: w, r, f: clamp(f || .5, .12, arty ? 5 : 1.2), tk, kd, sd, ew: ew > 0 ? Math.min(ew, w - .2) : 0, ep, ja: jetA ?? (strikes.length ? strikes[strikes.length - 1].ja : undefined), rot: ((x * 131 + y * 71) % 628) / 100, ph: 0, whistled: false }); // (the marker's turn comes from where it is, so it looks the same on every screen)
+  strikes.push({ x, y, t: w, dur: w, r, f: clamp(f || .5, .12, arty ? 5 : 1.2), tk, kd, sd, pk, ew: ew > 0 ? Math.min(ew, w - .2) : 0, ep, ja: jetA ?? (strikes.length ? strikes[strikes.length - 1].ja : undefined), rot: ((x * 131 + y * 71) % 628) / 100, ph: 0, whistled: false }); // (the marker's turn comes from where it is, so it looks the same on every screen)
   if (arty) Sfx.cannon && Sfx.cannon(x, jetA);
   else if (jetA !== undefined) { const j = { x, y, a: jetA, u: 0, over: Math.max(.2, w - (LOCK() ? .35 : .65)), dropped: false, v: jetV() }; jets.push(j); Sfx.flyby(j); }
   Sfx.lockOn(x);
@@ -344,7 +371,8 @@ function blastBreak(x, y, R, heavy) { // every screen runs the same blast, so ev
   }
 }
 function detonate(s) {
-  if (s.kd === 'c') clusterSplit(s); // a cluster bomb goes off like a bomb and throws out bomblets that go off at random afterwards (38g-cluster-fire)
+  if (s.kd === 'a' && s.pk === 'g') return gasPop({ x: s.x, y: s.y, r: Math.round(s.r * .75), sd: s.sd }); // a gas shell: no blast, the cloud (a little tighter than the shell's ring: it lands on your trail, not on top of you)
+  if (s.kd === 'c' || s.pk === 'c') clusterSplit(s); // a cluster bomb goes off like a bomb and throws out bomblets that go off at random afterwards (38g-cluster-fire)
   if (s.kd === 'g') return gasPop(s); // a gas bomb doesn't blow up: it lets out a cloud (38g)
   const mini = !!s.mini, cm = mini ? .3 : 1; // a bomblet: the same blast, much smaller, felt much less far off
   AIR.recent = (AIR.recent || []).filter(t => T - t < 1.5); AIR.recent.push(T); const bm = 1 / AIR.recent.length; // several blasts at once: each throws a share (six together throw about what two and a half do, not six: the same patch of screen can't show more, and drawing it all was what dropped the frame rate)
@@ -390,7 +418,7 @@ function detonate(s) {
   const me = snake;
   if (!s.safe && me && me.alive && !me.netHidden && !(me.graceT > 0) && (state === 'play' || NETM.run) && me.segs) {
     const R = r + snakeRadius() * .6, i = me.segs.findIndex(g => dist2(g.x, g.y, x, y) < R * R);
-    if (i >= 0) airHitSnake(i, s.by || (s.kd === 'a' ? 'artillery' : 'bomb'), s.kd);
+    if (i >= 0) airHitSnake(i, s.by || (s.kd === 'a' ? 'artillery' : 'bomb'), s.kd, s.sid);
     else if (s.by !== 'fuse') { let dm = Infinity; let ng = null; for (const g of me.segs) { const d = dist2(g.x, g.y, x, y); if (d < dm) { dm = d; ng = g; } } if (ng && Math.sqrt(dm) < R + (mini ? 24 : 46)) nearMiss('bomb', ng.x + (x - ng.x) * .3, ng.y + (y - ng.y) * .3); } // it landed right next to you
   }
   if (!AUTH()) return;
@@ -441,11 +469,12 @@ function pumpBlast(x, y) { // a gas pump goes up: a full blast, with the ringing
 }
 /* ---- getting hit: the head and neck (the front 30% of the body) and you're dead; further back, the tail is shot off ---- */
 const AIR_FRONT = .3;
-function airHitSnake(i, by, kd) {
+function airHitSnake(i, by, kd, sid) { // (sid: the cluster bomb a bomblet came from: one cluster bomb takes one piece of you, however many of its bomblets catch you)
   const me = snake, n = me.segs.length, front = Math.max(3, Math.ceil(n * AIR_FRONT));
   if (by === 'cluster') { // a bomblet never kills: on the head end it takes half of you and leaves nothing to eat back; anywhere else the last quarter of you comes off and drops where you can eat it back
     if (me.cutT > 0) return; const head = i < front, keep = Math.max(BURN.min, Math.round(n * (head ? .5 : .75)));
     if (keep >= n) { airHurt(.6); return; } // already as short as it gets: a jolt, nothing more
+    if (sid !== undefined) { const got = me.clusterCut || (me.clusterCut = new Set()); if (got.has(sid)) { airHurt(.5); return; } got.add(sid); } // this bomb has had its piece of you already: a jolt
     airHurt(head ? 1 : .8); return tailCut(me, keep, head);
   }
   if (i < front) { airHurt(1); me.burstAt = i; return bombDeath(by, kd); } // it goes up from where it was hit
@@ -871,7 +900,7 @@ function drawAirstrikes(x) { // drawn under the fog (so markers in it stay hidde
   drawClods(x, true); // chunks of ground flying up through it all
 }
 function drawStrafe(x, s) { // the lane: a red strip with chevrons flowing the way the jet is coming, flashing faster as it gets close; the rounds eat it up as they land
-  const pre = s.t < 0, p = pre ? clamp(1 + s.t / s.warn, 0, 1) : 1, w = .5 + .5 * Math.sin(s.ph), fade = (pre ? clamp((s.warn + s.t) * 4, 0, 1) : clamp(1 - s.done / .8, 0, 1)) * GAS_SEE, hw = s.hw, L = s.len, from = pre ? 0 : s.front; // (in gas you can't see the lane: GAS_SEE)
+  const pre = s.t < 0, p = pre ? clamp(1 + s.t / s.warn, 0, 1) : 1, w = .5 + .5 * Math.sin(s.ph), fade = (pre ? clamp((s.warn + s.t) * 4, 0, 1) : clamp(1 - s.done / .8, 0, 1)) * gasMarkA(), hw = s.hw, L = s.len, from = pre ? 0 : s.front; // (in gas you can't see the lane: GAS_SEE)
   x.save(); x.translate(s.x0, s.y0); x.rotate(s.a);
   if (from < L) {
     x.globalAlpha = fade * (.16 + .12 * w + .1 * p); x.fillStyle = '#ff2a20'; x.fillRect(from, -hw, L - from, hw * 2);
@@ -931,7 +960,7 @@ function drawEarlyMark(x, s, a) { // Early Warning: a teal radar contact where a
   x.globalAlpha = a; x.fillStyle = 'rgba(170,255,248,.95)'; x.font = '700 9px system-ui, sans-serif'; x.textAlign = 'center'; x.fillText('EARLY WARNING', 0, -R - 7);
   x.restore();
 }
-const gasMarkA = () => typeof sk === 'function' && sk('mask') ? 1 - .5 * clamp(((snake && snake.gasK) || 0) * 4, 0, 1) : GAS_SEE; // how much of the markers you can make out: gone in gas, half with the Gas Mask
+const gasMarkA = () => typeof sk === 'function' && sk('mask') ? 1 - .5 * clamp(((snake && snake.gasK) || 0) * 4, 0, 1) : .25 + .75 * GAS_SEE; // how much of the markers you can make out: a quarter in gas (never nothing: whatever kills you, you could have seen), half with the Gas Mask
 function drawStrikeMark(x, s) { // a bomb, an incendiary and a cluster bomb each have their own marker, different enough to tell apart at a glance
   const el = s.dur - s.t, ew = s.ew || 0, mine = !NETM.run || s.ep === NETM.me; let fa = 1; // Early Warning: the early stretch is the teal radar marker (yours only), crossfading into this one
   if (ew) { if (!mine && el < ew) return; if (mine && el < ew + .3) { drawEarlyMark(x, s, clamp((ew + .3 - el) / .6, 0, 1) * gasMarkA()); if (el < ew - .3) return; } fa = clamp((el - (mine ? ew - .3 : ew)) / (mine ? .6 : .15), 0, 1); }
@@ -947,9 +976,11 @@ function drawStrikeMark(x, s) { // a bomb, an incendiary and a cluster bomb each
     x.save(); x.rotate(rot * .25); x.lineWidth = 1.6; x.strokeStyle = 'rgba(214,194,255,.85)'; x.beginPath(); // the mil scale: a tick every 7.5 degrees, a long one every 30
     for (let q = 0; q < 48; q++) { const a = q / 48 * TAU, L = q % 4 ? 5 : 11; x.moveTo(Math.cos(a) * (R + 2), Math.sin(a) * (R + 2)); x.lineTo(Math.cos(a) * (R + 2 + L), Math.sin(a) * (R + 2 + L)); } x.stroke(); x.restore();
     x.setLineDash([4, 5]); x.lineWidth = 1.2; x.strokeStyle = 'rgba(200,175,255,.6)'; x.beginPath(); x.arc(0, 0, R * .62, 0, TAU); x.stroke(); x.setLineDash([]); // a range ring inside
-    const g = R * .3; x.lineWidth = 1.8; x.strokeStyle = C; x.strokeRect(-g, -g, g * 2, g * 2); // the grid square it's laid on
+    if (s.pk === 'c') { x.save(); x.globalAlpha = ma * (.55 + .3 * p); x.setLineDash([3, 7]); x.lineWidth = 1.6; x.strokeStyle = '#ffd23f'; x.beginPath(); x.arc(0, 0, R * 2.5, 0, TAU); x.stroke(); x.restore(); x.globalAlpha = ma; } // a cluster shell: as far as its bomblets scatter
+    const PK = s.pk === 'g' ? '#b8e04c' : s.pk === 'c' ? '#ffd23f' : C; // what it carries, in that kind's own colour
+    const g = R * .3; x.lineWidth = 1.8; x.strokeStyle = PK; x.strokeRect(-g, -g, g * 2, g * 2); // the grid square it's laid on
     x.beginPath(); x.moveTo(-g, 0); x.lineTo(-g * .35, 0); x.moveTo(g * .35, 0); x.lineTo(g, 0); x.moveTo(0, -g); x.lineTo(0, -g * .35); x.moveTo(0, g * .35); x.lineTo(0, g); x.stroke();
-    x.fillStyle = on ? '#fff' : C; x.beginPath(); x.moveTo(0, -4.5); x.lineTo(4.5, 0); x.lineTo(0, 4.5); x.lineTo(-4.5, 0); x.closePath(); x.fill(); // a diamond at the point of aim
+    x.fillStyle = on ? '#fff' : PK; x.beginPath(); x.moveTo(0, -4.5); x.lineTo(4.5, 0); x.lineTo(0, 4.5); x.lineTo(-4.5, 0); x.closePath(); x.fill(); // a diamond at the point of aim
     if (s.ja !== undefined) { x.save(); x.rotate(s.ja); x.strokeStyle = C; x.lineWidth = 2.4; x.lineCap = 'round'; x.lineJoin = 'round'; // >>> from the side the shells come in from
       for (let q = 0; q < 3; q++) { const d = R + 46 - ((T * 22 + q * 13) % 39); x.globalAlpha = ma * clamp((R + 46 - d) / 14, 0, 1) * clamp((d - R - 12) / 10, 0, 1); x.beginPath(); x.moveTo(-d - 6, -8); x.lineTo(-d + 2, 0); x.lineTo(-d - 6, 8); x.stroke(); }
       x.restore(); x.globalAlpha = ma; }
@@ -993,7 +1024,7 @@ function drawStrikeMark(x, s) { // a bomb, an incendiary and a cluster bomb each
     x.fillStyle = on ? '#fff' : '#ff4a3a'; circ(x, 0, 0, 2.6); x.strokeStyle = '#ff3b30'; x.lineWidth = 1.5; x.beginPath(); x.arc(0, 0, 6, 0, TAU); x.stroke();
   }
   if (s.t < s.f) { x.globalAlpha = 1; drawFallingBomb(x, s, 1 - s.t / s.f); x.globalAlpha = ma; } // the bomb coming down
-  if (s.kd) { const c = s.kd === 'c' ? '#ffd23f' : s.kd === 'g' ? '#b8e04c' : s.kd === 'a' ? '#d4c2ff' : '#ff7a1a', L = s.kd === 'c' ? 'CLUSTER' : s.kd === 'g' ? 'GAS' : s.kd === 'a' ? 'ARTILLERY' : 'FIRE', ly = s.kd === 'c' ? R * 2.5 + 11 : R + 28; // what it is, underneath
+  if (s.kd) { const c = s.kd === 'c' ? '#ffd23f' : s.kd === 'g' ? '#b8e04c' : s.kd === 'a' ? (s.pk === 'g' ? '#b8e04c' : s.pk === 'c' ? '#ffd23f' : '#d4c2ff') : '#ff7a1a', L = s.kd === 'c' ? 'CLUSTER' : s.kd === 'g' ? 'GAS' : s.kd === 'a' ? (s.pk === 'g' ? 'GAS SHELL' : s.pk === 'c' ? 'CLUSTER SHELL' : 'ARTILLERY') : 'FIRE', ly = s.kd === 'c' || s.pk === 'c' ? R * 2.5 + 11 : R + 28; // what it is, underneath
     x.font = '900 10px system-ui, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.lineWidth = 3.5; x.strokeStyle = 'rgba(0,0,0,.8)'; x.strokeText(L, 0, ly); x.fillStyle = c; x.fillText(L, 0, ly); }
   x.restore();
 }
@@ -1008,7 +1039,7 @@ function drawFallingShell(x, s, u) { // (in the marker's frame) an artillery she
   x.fillStyle = gb; x.beginPath(); x.moveTo(-4.6, -10); x.lineTo(4.6, -10); x.lineTo(4.6, 3); x.quadraticCurveTo(4.4, 9, 0, 14); x.quadraticCurveTo(-4.4, 9, -4.6, 3); x.closePath(); x.fill(); // flat base, pointed nose
   x.fillStyle = '#b8743a'; x.fillRect(-4.8, -8.5, 9.6, 2.2); // the copper driving band
   x.fillStyle = '#c9a227'; x.beginPath(); x.moveTo(-2.6, 10); x.quadraticCurveTo(0, 15.5, 2.6, 10); x.closePath(); x.fill(); // the fuse
-  x.fillStyle = 'rgba(214,194,255,.9)'; x.fillRect(-4.6, 1, 9.2, 1.4); // a violet stripe: it's the one on the marker
+  x.fillStyle = s.pk === 'g' ? '#b8e04c' : s.pk === 'c' ? '#ffd23f' : 'rgba(214,194,255,.9)'; x.fillRect(-4.6, 1, 9.2, 1.6); // a stripe in what it carries: violet high explosive, green gas, yellow cluster
   x.restore();
 }
 function drawFallingBomb(x, s, u) {
