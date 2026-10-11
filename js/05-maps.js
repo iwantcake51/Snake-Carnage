@@ -187,9 +187,7 @@ function bunkerLights() { // built once per run (loadMap clears the cache), so e
     : P.map(([x, y, r, f]) => ({ x, y, r: r * 1.05, kind: 'fluor', fix: 'cage', flick: !!f })); // normal shift: cold white work lamps, a couple on their way out
   return bunkerCache;
 }
-const fieldGround = x => mapGround(x, 'meadow', x => { // Open Field's real grass, plus what makes it a mown hayfield
-  x.fillStyle = 'rgba(255,255,230,.05)'; for (let j = 120; j < H; j += 40) x.fillRect(16, j, W - 32, 20); // mowing stripes: the mower's passes catch the light one way, then the other
-  x.fillStyle = 'rgba(40,60,10,.05)'; for (let j = 140; j < H; j += 40) x.fillRect(16, j, W - 32, 20);
+const fieldGround = x => mapGround(x, 'meadow', x => { // Open Field's real grass, and the uncut verge beyond its fence (no mowing stripes: they read as scanlines)
   const v = x.createLinearGradient(0, 16, 0, 104); v.addColorStop(0, 'rgba(150,140,40,.22)'); v.addColorStop(.85, 'rgba(150,140,40,.16)'); v.addColorStop(1, 'rgba(150,140,40,0)'); x.fillStyle = v; x.fillRect(16, 16, W - 32, 88); // the uncut verge beyond the fence, gone to seed
 });
 const MAPS = [
@@ -205,7 +203,6 @@ const MAPS = [
         floor(x) {
           if (fieldGround(x)) {} else {
             checker(x, ...GRASS, 32);
-            x.fillStyle = 'rgba(70,110,30,.12)'; for (let j = 120; j < H; j += 40) x.fillRect(16, j, W - 32, 18); // mowing stripes
             x.fillStyle = '#9cc148'; x.fillRect(16, 16, W - 32, 80); // the uncut verge beyond the fence
           }
           dirtTrails(x, [[track, 20, 4], [spur, 16, 9]]);
