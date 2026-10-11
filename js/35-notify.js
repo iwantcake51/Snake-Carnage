@@ -29,7 +29,8 @@ function notify(o) {
   notes.push(n);
   if (o.bar) { const b = el.querySelector('.nbar span'); b.style.transition = `width ${dur}s linear`; requestAnimationFrame(() => requestAnimationFrame(() => { b.style.width = '0%'; })); }
   n.timer = setTimeout(() => dropNote(n), dur * 1000);
-  while (notes.length > 4) dropNote(notes[0], true); // never a wall of notes
+  const bc = document.body.classList, cap = bc.contains('touch') && bc.contains('phone') ? (innerHeight < 340 ? 2 : 3) : 4; // a phone's top-centre lane (style.css, TOUCH LANES) has room for three, the smallest for two, clear of the snake in the middle
+  while (notes.length > cap) dropNote(notes[0], true); // never a wall of notes
   return n;
 }
 function restartLife(el, dur) { const l = el.querySelector('.nlife'); if (!l) return; l.style.setProperty('--life', dur + 's'); const f = l.cloneNode(); l.replaceWith(f); }
@@ -41,6 +42,8 @@ function dropNote(n, fast) {
   setTimeout(() => n.el.remove(), fast ? 160 : 380);
 }
 function clearNotes() { while (notes.length) dropNote(notes[0], true); }
+{ const _layoutHud = layoutHud; // touch screens drop the notes from the top centre (style.css, TOUCH LANES): before the run they wait under the modifier strip, wherever layoutHud found its bottom
+  layoutHud = function () { _layoutHud.apply(this, arguments); const nt = document.getElementById('notes'); if (nt && nt.style.top !== nt.style.getPropertyValue('--nt-mb')) nt.style.setProperty('--nt-mb', nt.style.top); }; }
 /* TOOLTIPS: one floating card on <body>, so hover text is never clipped by the game window or a scrolling panel.
    data-tip = plain text; data-tiph = trusted HTML built by the game itself. */
 const tipEl = (() => { const t = document.createElement('div'); t.id = 'tip'; document.body.appendChild(t); return t; })();

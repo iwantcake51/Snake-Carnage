@@ -3547,3 +3547,47 @@ body.phone.short .mbr-head .mm-q:not(#_),body.phone.short .mbr-rand:not(#_){min-
 body.phone.short .mbr-grid:not(#_){grid-template-columns:repeat(auto-fill,minmax(128px,1fr));padding:10px 12px;gap:12px 10px}
 body.phone.short .mbr-n:not(#_){font-size:14px!important}
 body.phone.short .mbr-m:not(#_){font-size:11px}
+/* =====================================================================
+   TOUCH LANES (body.touch: the touch buttons are up, phone or tablet). The buttons own the bottom-right corner (#touch, at the
+   page's own pixels: night vision in the corner, the skills in a row to its left, all inside --tbz of the bottom edge), so nothing
+   sits over them and they hide nothing. The notifications drop down the top-centre lane, between the clock and rewards (top-left)
+   and the stats, combo and co-op scores (top-right), newest on top, at most three on a phone and two on the smallest (notify,
+   35-notify), never taking a tap; the Blood Debt pill heads that lane and pushes it down while it's up; the level-up badge and the
+   live modifier chips sit just above the buttons; the challenge list keeps the bottom-left, and on the narrowest phones the
+   buttons are a little smaller so a full row of skills stays clear of it. A mouse and keyboard keep the desktop corners.
+   ===================================================================== */
+body.touch{--tbz:72px} /* the buttons' zone: a 12 px margin, a 52 px button and 8 px clear above it */
+@media (max-width:680px){
+  body.touch{--tbz:64px}
+  body.touch #touch .tb{width:46px;height:46px;border-radius:14px}
+  body.touch #touch .tb-nv{right:10px;bottom:10px}
+  body.touch #touch .tabil{right:62px;bottom:10px;gap:6px}
+  body.touch #touch .tabil .tb{width:46px;height:46px}
+}
+/* notifications: the top-centre lane (the stat plates sit at the two ends of the top edge, so its middle is free) */
+body.touch #notes{left:50%!important;right:auto!important;top:8px!important;bottom:auto!important;translate:-50% 0!important;flex-direction:column!important;align-items:center!important;width:clamp(210px,calc(100% - 600px),360px)!important;transition:opacity .35s ease,top .25s ease}
+body.touch #stage:not(.started) #notes{top:var(--nt-mb,8px)!important} /* before the run: under the modifier strip (layoutHud) */
+body.touch #stage.started:has(#bdebt.on) #notes{top:42px!important} /* under the Blood Debt pill */
+body.touch #notes .note{max-width:100%}
+body.touch #notes .note:not(.bump){animation:noteIn .36s var(--spring) backwards!important}
+body.touch #notes .note.out{animation:noteOut .32s ease-in forwards!important}
+body.touch #notes .note.gone{animation:noteOut .16s ease-in forwards!important}
+body.touch #notes .note:nth-child(n+3):not(.out):not(.gone){transform-origin:center top}
+/* the Blood Debt pill heads the lane; it only tells, so a tap on it goes through to the stick */
+body.touch #bdebt{top:8px;bottom:auto;pointer-events:none}
+/* just above the buttons: the level-up badge in the middle, the live modifier chips on the right */
+body.touch #lvlup{top:auto;bottom:calc(var(--tbz) / var(--ui))}
+body.touch #modhud{bottom:calc(var(--tbz) / var(--ui))}
+body.touch #modintro{bottom:max(18%,calc(var(--tbz) / var(--ui) + 10px))}
+body.touch #stage:has(#resume.show) #lvlup{visibility:hidden} /* "drag to continue" after a pause has the middle to itself */
+/* the modifier strip (before the run) and the rewards keep clear of the stat plates and the lane */
+body.touch #modbar{max-width:min(56%,calc(100% - 480px))}
+body.touch #hudLo #rewards{max-width:calc(50% - clamp(105px,50% - 300px,180px) - 26px)}
+/* co-op on a phone: "You died" comes down below the lane and it and the lives-back card are drawn at the HUD's own size; while one
+   is up the lane keeps just its newest note and the level-up badge steps aside. The score panel shrinks to end above the buttons
+   (netHudPlace, 40e-net-ui) */
+body.touch.phone #mpDown{top:56%;scale:var(--ui)}
+body.touch.phone #mpLivesBack{scale:var(--ui)}
+body.touch #stage:has(#mpDown:not(.fade)) #notes .note:nth-child(n+2),body.touch #stage:has(#mpLivesBack:not(.fade)) #notes .note:nth-child(n+2){display:none}
+body.touch #stage:has(#mpDown:not(.fade)) #lvlup{visibility:hidden}
+body.touch #mpHud{transform-origin:top right;transition:top .2s ease,opacity .25s ease,scale .2s ease}

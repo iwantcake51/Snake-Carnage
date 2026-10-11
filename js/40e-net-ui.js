@@ -413,6 +413,12 @@ function netHudPlace() { // the score panel sits under the top-right stats (scor
   for (const id of ['combo']) { const cb = document.getElementById(id); if (cb && (cb.classList.contains('show') || cb.classList.contains('out'))) { const r = cb.getBoundingClientRect(); if (r.height && r.right > pr.left + pr.width * .5) y = Math.max(y, r.bottom); } }
   const hb = document.querySelector('#hudbar .hb-r'); if (hb && !document.getElementById('hudbar').hidden) { const r = hb.getBoundingClientRect(); if (r.height) y = Math.max(y, r.bottom); }
   const top = y ? Math.round(y - pr.top + 8) + 'px' : ''; if (el.style.top !== top) el.style.top = top;
+  if (document.body.classList.contains('touch')) { // touch: the panel shrinks to end above the touch buttons' zone (--tbz, style.css TOUCH LANES), never over them
+    const u = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ui')) || 1, zone = parseFloat(getComputedStyle(document.body).getPropertyValue('--tbz')) || 72;
+    const badge = pr.width / 2 + 225 * u > pr.width - el.offsetWidth - 6 ? 54 * u : 0; // a narrow phone: the level-up badge, centred just above the buttons, would reach under the panel, so its row stays free too
+    const room = pr.height - el.offsetTop - zone - badge, k = Math.max(.5, Math.min(1, room / (el.offsetHeight || 1)));
+    const sc = k < .995 ? k.toFixed(3) : ''; if (el.style.scale !== sc) el.style.scale = sc;
+  } else if (el.style.scale) el.style.scale = '';
 }
 /* ---- pause in co-op: the world can't stop for one player ---- */
 const _netPause = pauseGame;
