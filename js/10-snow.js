@@ -20,7 +20,7 @@ function buildSnow() {
   const blk = new Uint8Array(GW * GH), dist = new Float32Array(GW * GH).fill(99), q = [];
   const fill = (o, rr) => { if (o.t === 'r') { for (let j = Math.floor(o.y / SG); j < Math.ceil((o.y + o.h) / SG); j++) for (let i = Math.floor(o.x / SG); i < Math.ceil((o.x + o.w) / SG); i++) if (i >= 0 && j >= 0 && i < GW && j < GH) blk[j * GW + i] = 1; }
     else for (let j = Math.floor((o.y - rr) / SG); j <= (o.y + rr) / SG; j++) for (let i = Math.floor((o.x - rr) / SG); i <= (o.x + rr) / SG; i++) if (i >= 0 && j >= 0 && i < GW && j < GH && dist2(i * SG + 2, j * SG + 2, o.x, o.y) <= rr * rr) blk[j * GW + i] = 1; };
-  for (const o of obstacles) { if (o.kind === 'detail') continue; if (o.kind === 'lamp') { fill(o, 3); continue; } fill(o, o.kind === 'tree' ? o.r * .2 : o.kind === 'bush' ? 0 : o.r); }
+  for (const o of obstacles) { if (o.kind === 'detail' || frozenOver(o)) continue; /* (a frozen pond is open ground: snow lies on it and its bank) */ if (o.kind === 'lamp') { fill(o, 3); continue; } fill(o, o.kind === 'tree' ? o.r * .2 : o.kind === 'bush' ? 0 : o.r); }
   const src = new Int32Array(GW * GH).fill(-1); // each cell remembers its nearest solid cell, so distance is a true circle (a 4-way spread made diamonds round lamp posts)
   for (let k = 0; k < GW * GH; k++) if (blk[k]) { dist[k] = 0; src[k] = k; q.push(k); }
   for (let h = 0; h < q.length; h++) { const k = q[h], i = k % GW, j = k / GW | 0, sk = src[k], si = sk % GW, sj = sk / GW | 0; if (dist[k] > 40) continue;
@@ -33,7 +33,13 @@ function buildSnow() {
   // fades in when it's ready (well inside the map card); until then there is simply none, so nothing waits on it.
   let green = greenField; if (!green) { green = new Float32Array((W >> 1) * (H >> 1)); for (let j = 0; j < H >> 1; j++) for (let i = 0; i < W >> 1; i++) green[j * (W >> 1) + i] = grassAt(i * 2, j * 2) ? 1 : 0; }
   const pin = new Float32Array(pines.length * 3); pines.forEach((t, i) => { pin[i * 3] = t.x; pin[i * 3 + 1] = t.y; pin[i * 3 + 2] = t.r; });
-  const gen = ++snowGen, base = { SNW, SN, SG, GW, GH, dist, NZ, LZ, nw, NC, green, gw: W >> 1, late, pines: pin };
+  let ice = null; const fz = obstacles.filter(frozenOver); // where it's ice: a signed distance (px) to its real shore, + out on the ice, so snow drifts against the bank and the wind sweeps the middle clear, along the true curve
+  if (fz.length) { ice = new Float32Array(GW * GH).fill(-40);
+    for (const o of fz) { const P = iceOutline(o), xs = P.map(p => p[0]), ys = P.map(p => p[1]);
+      for (let j = Math.max(0, Math.floor((Math.min(...ys) - 40) / SG)); j < Math.min(GH, Math.ceil((Math.max(...ys) + 40) / SG)); j++) for (let i = Math.max(0, Math.floor((Math.min(...xs) - 40) / SG)); i < Math.min(GW, Math.ceil((Math.max(...xs) + 40) / SG)); i++) {
+        const x = i * SG + SG / 2, y = j * SG + SG / 2; let m = 1e9; for (let q = 0, r = P.length - 1; q < P.length; r = q++) { const [ax, ay] = P[r], [bx, by] = P[q], dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy || 1, t = clamp(((x - ax) * dx + (y - ay) * dy) / L, 0, 1); m = Math.min(m, (x - ax - dx * t) ** 2 + (y - ay - dy * t) ** 2); }
+        const sd = clamp((pointInPoly(P, x, y) ? 1 : -1) * Math.sqrt(m), -40, 40), k = j * GW + i; if (sd > ice[k]) ice[k] = sd; } } }
+  const gen = ++snowGen, base = { SNW, SN, SG, GW, GH, dist, NZ, LZ, nw, NC, green, gw: W >> 1, late, pines: pin, ice };
   snowImg = snowX.createImageData(SNW, SNH); snowX.clearRect(0, 0, SNW, SNH);
   const nb = Math.max(1, PX.size), rows = Math.ceil(SNH / nb), D0 = snowD, A0 = snowAO;
   Promise.all(Array.from({ length: nb }, (_, b) => PX.run('snowField', { ...base, j0: b * rows, j1: Math.min(SNH, (b + 1) * rows) })))

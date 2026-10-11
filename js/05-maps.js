@@ -45,16 +45,19 @@ function trailPoints(pts) { // the same smooth curve the walkers follow, sampled
   const L = pts[pts.length - 1]; seg(px, py, (px + L[0]) / 2, (py + L[1]) / 2, L[0], L[1]);
   return out;
 }
+const TRAIL_SEED = new Map();
+function trailDirtSeed(x) { let s = TRAIL_SEED.get(x); if (!s) { s = 1 + Math.random() * 1e6 | 0; TRAIL_SEED.set(x, s); queueMicrotask(() => TRAIL_SEED.delete(x)); } return s; } // (the floor being built right now: its trails share one roll)
 function dirtTrails(x, list) { // worn dirt paths: uneven width and edges, packed middle, blotches, stones, grass poking through. Merged, so crossings blend
   const mk = () => { const c = document.createElement('canvas'); c.width = W * DPR; c.height = H * DPR; const g = c.getContext('2d'); g.scale(DPR, DPR); return [c, g]; };
-  const [hc, hx] = mk(), [dc, dx] = mk(), lines = [];
+  const [hc, hx] = mk(), [dc, dx] = mk(), [mc, mx] = mk(), lines = []; // the worn grass round it, the dirt (a little wider than the path, so its texture reaches into the fade), the path's own outline
   for (const [pts, w, seed] of list) {
     const P = trailPoints(pts), r = seeded(seed); lines.push({ P, w, r });
     for (let k = 0; k < P.length; k++) { const [px, py] = P[k], v = .82 + .32 * (perlin(px * .03 + seed, py * .03) * .5 + .5), e = perlin(px * .12, py * .12 + seed) * 2.4; // width wanders, edges are ragged
-      hx.fillStyle = '#000'; circ(hx, px, py, w / 2 * v + 6 + e); dx.fillStyle = '#b79a68'; circ(dx, px + e * .3, py - e * .3, w / 2 * v + e * .5); }
+      hx.fillStyle = '#000'; circ(hx, px, py, w / 2 * v + 9 + e); dx.fillStyle = '#b79a68'; circ(dx, px + e * .3, py - e * .3, w / 2 * v + e * .5 + 7); mx.fillStyle = '#000'; circ(mx, px + e * .3, py - e * .3, w / 2 * v + e * .5); }
   }
   dx.save(); dx.globalCompositeOperation = 'source-atop'; // everything below only lands on the dirt
-  const real = groundTex(dx, 'dirt', 1 + Math.random() * 1e6 | 0); // real dirt, blended at random (the flat tan is the stand-in until it's in)
+  const ox = GTEX.ox || 0, w0 = W; let real; // real dirt, blended at random (the flat tan is the stand-in until it's in): one dirt for every trail on this floor, laid from the world's own origin, so a wide map's strips carry the same ground on with no seam
+  W = w0 + 2 * ox; dx.save(); dx.translate(-ox, 0); try { real = groundTex(dx, 'dirt', trailDirtSeed(x)); } finally { W = w0; dx.restore(); }
   if (!real) for (let k = 0; k < 90; k++) { const r = seeded(500 + k)(), px = (k * 97.3 % W), py = (k * 61.7 % H); dx.fillStyle = r < .5 ? 'rgba(120,92,54,.18)' : 'rgba(214,190,140,.2)'; ell(dx, px, py, 20 + r * 40, 10 + r * 24); } // darker and lighter ground
   for (const { P, w, r } of lines) {
     dx.strokeStyle = real ? 'rgba(226,206,160,.2)' : 'rgba(206,186,140,.55)'; dx.lineWidth = w * .35; dx.lineCap = 'round'; dx.beginPath(); P.forEach(([px, py], k) => k ? dx.lineTo(px, py) : dx.moveTo(px, py)); dx.stroke(); // packed, lighter middle
@@ -66,8 +69,9 @@ function dirtTrails(x, list) { // worn dirt paths: uneven width and edges, packe
     }
   }
   dx.restore();
-  hx.globalCompositeOperation = 'source-in'; hx.fillStyle = 'rgba(118,96,50,1)'; hx.fillRect(0, 0, W, H); // worn, thinning grass along the edges
-  x.save(); x.globalAlpha = .28; x.drawImage(hc, 0, 0, W, H); x.globalAlpha = 1; x.drawImage(dc, 0, 0, W, H); x.restore(); freeCanvas(hc, dc);
+  { const ms = shrink(mc, 8); dx.save(); dx.setTransform(1, 0, 0, 1, 0, 0); dx.globalCompositeOperation = 'destination-in'; dx.imageSmoothingQuality = 'high'; dx.drawImage(ms, 0, 0, dc.width, dc.height); dx.restore(); freeCanvas(ms, mc); } // the path's outline, blurred, is the dirt's alpha: it wears off into the grass over a few pixels instead of stopping at a hard edge
+  hx.globalCompositeOperation = 'source-in'; hx.fillStyle = 'rgba(118,96,50,1)'; hx.fillRect(0, 0, W, H); // worn, thinning grass along the edges, fading out the further it gets from the path
+  const hs = shrink(hc, 16); x.save(); x.imageSmoothingQuality = 'high'; x.globalAlpha = .3; x.drawImage(hs, 0, 0, W, H); x.globalAlpha = 1; x.drawImage(dc, 0, 0, W, H); x.restore(); freeCanvas(hc, hs, dc);
 }
 const dirtTrail = (x, pts, w, seed) => dirtTrails(x, [[pts, w, seed]]);
 function flowers(x, n, cols, seed, clusters = 9) { // wildflowers grow in patches, not evenly
@@ -124,10 +128,13 @@ const MAST = (x, y) => C(x, y, 6, '#5a6068', 'lamp', { mast: true, lr: 175 }); /
 const TREE = (x, y, r, col = '#3d7a2a') => C(x, y, r, col);
 const ROCK = (x, y, r, col = '#6e7178') => C(x, y, r, col, 'rock');
 const FIRE = (x, y) => ({ x, y, r: 150, c: '255,150,60', flick: true, kind: 'fire', fix: 'none' });
-function firePit(x, px, py) {
-  x.fillStyle = '#6d6a63'; for (let k = 0; k < 9; k++) { const a = k * TAU / 9; circ(x, px + Math.cos(a) * 13, py + Math.sin(a) * 13, 4); }
-  x.fillStyle = '#2b1d14'; circ(x, px, py, 10);
-  x.fillStyle = '#e8641c'; circ(x, px, py, 6); x.fillStyle = '#ffc23d'; circ(x, px + 1, py - 1, 3);
+function firePit(x, px, py) { // a ring of fieldstones round the ash, two logs burned through in the middle, the embers glowing
+  const K = propKit(x), R = seeded(97);
+  K.hole(px, py, 11.5, '#2b1d14'); x.fillStyle = 'rgba(150,140,128,.28)'; for (let k = 0; k < 14; k++) { const a = R() * TAU, d = R() * 9; K.round(px + Math.cos(a) * d, py + Math.sin(a) * d, .8 + R() * 1.4); x.fill(); }
+  for (let k = 0; k < 9; k++) { const a = k * TAU / 9 + (R() - .5) * .25, s = 3.4 + R() * 1.4; K.disc(px + Math.cos(a) * 13, py + Math.sin(a) * 13, s, shade('#7d7a72', (R() - .5) * .22), { hi: .3, lo: -.35, ec: '#34322d', ew: .5 }); }
+  for (const a of [.5, 2.1]) inFrame(x, px, py, a, K2 => { K2.plank(-9.5, -2, 19, 4, '#5e3d24', true, 31, { r: 2 }); const g = K2.x.createRadialGradient(0, 0, 0, 0, 0, 6); g.addColorStop(0, 'rgba(10,6,4,.85)'); g.addColorStop(1, 'rgba(10,6,4,0)'); K2.x.fillStyle = g; K2.x.fillRect(-6, -2, 12, 4); });
+  const g = x.createRadialGradient(px, py, 0, px, py, 7); g.addColorStop(0, '#ffd45a'); g.addColorStop(.4, '#f07a22'); g.addColorStop(1, 'rgba(200,60,20,0)'); x.fillStyle = g; K.round(px, py, 7); x.fill();
+  x.fillStyle = '#ffe9a0'; for (let k = 0; k < 6; k++) { K.round(px + (R() - .5) * 6, py + (R() - .5) * 6, .5 + R() * .6); x.fill(); }
 }
 
 function buildMaze() {
@@ -165,7 +172,7 @@ function buildMaze() {
     if ((v[r - 1][c] || v[r][c] || h[r][c - 1] || h[r][c]) && Math.random() < .3 && posts.length < Math.round(cols * .9)) posts.push(LAMP(x0, y0, { lantern: true }));
   }
   obs.push(...posts, Object.assign(C(W / 2, H / 2, 34, '#4aa3df', 'water'), { fountain: true }), LAMP(W / 2 - 70, H / 2 - 60), LAMP(W / 2 + 70, H / 2 - 60), LAMP(W / 2 - 70, H / 2 + 60), LAMP(W / 2 + 70, H / 2 + 60));
-  return { obs, floor(x) { if (!mapGround(x, 'lawn')) checker(x, ...GRASS, 32); if (!texShape(x, 'dirt', g => { g.beginPath(); g.arc(W / 2, H / 2, 105, 0, TAU); g.fill(); })) { x.fillStyle = '#d6c9a8'; x.beginPath(); x.arc(W / 2, H / 2, 105, 0, TAU); x.fill(); } /* the garden's lawn and its gravel plaza */ x.strokeStyle = '#bfb08c'; x.lineWidth = 2; for (let k = 1; k < 4; k++) { x.beginPath(); x.arc(W / 2, H / 2, 46 + k * 18, 0, TAU); x.stroke(); } },
+  return { obs, floor(x) { if (!mapGround(x, 'lawn')) checker(x, ...GRASS, 32); if (!texShape(x, 'dirt', g => { g.beginPath(); g.arc(W / 2, H / 2, 105, 0, TAU); g.fill(); }, undefined, undefined, 8)) { x.fillStyle = '#d6c9a8'; x.beginPath(); x.arc(W / 2, H / 2, 105, 0, TAU); x.fill(); } /* the garden's lawn and its gravel plaza */ x.strokeStyle = '#bfb08c'; x.lineWidth = 2; for (let k = 1; k < 4; k++) { x.beginPath(); x.arc(W / 2, H / 2, 46 + k * 18, 0, TAU); x.stroke(); } },
            start: { x: B + cw / 2, y: B + ch / 2, a: v[0][1] ? Math.PI / 2 : 0 } };
 }
 
@@ -180,9 +187,7 @@ function bunkerLights() { // built once per run (loadMap clears the cache), so e
     : P.map(([x, y, r, f]) => ({ x, y, r: r * 1.05, kind: 'fluor', fix: 'cage', flick: !!f })); // normal shift: cold white work lamps, a couple on their way out
   return bunkerCache;
 }
-const fieldGround = x => mapGround(x, 'meadow', x => { // Open Field's real grass, plus what makes it a mown hayfield
-  x.fillStyle = 'rgba(255,255,230,.05)'; for (let j = 120; j < H; j += 40) x.fillRect(16, j, W - 32, 20); // mowing stripes: the mower's passes catch the light one way, then the other
-  x.fillStyle = 'rgba(40,60,10,.05)'; for (let j = 140; j < H; j += 40) x.fillRect(16, j, W - 32, 20);
+const fieldGround = x => mapGround(x, 'meadow', x => { // Open Field's real grass, and the uncut verge beyond its fence (no mowing stripes: they read as scanlines)
   const v = x.createLinearGradient(0, 16, 0, 104); v.addColorStop(0, 'rgba(150,140,40,.22)'); v.addColorStop(.85, 'rgba(150,140,40,.16)'); v.addColorStop(1, 'rgba(150,140,40,0)'); x.fillStyle = v; x.fillRect(16, 16, W - 32, 88); // the uncut verge beyond the fence, gone to seed
 });
 const MAPS = [
@@ -198,7 +203,6 @@ const MAPS = [
         floor(x) {
           if (fieldGround(x)) {} else {
             checker(x, ...GRASS, 32);
-            x.fillStyle = 'rgba(70,110,30,.12)'; for (let j = 120; j < H; j += 40) x.fillRect(16, j, W - 32, 18); // mowing stripes
             x.fillStyle = '#9cc148'; x.fillRect(16, 16, W - 32, 80); // the uncut verge beyond the fence
           }
           dirtTrails(x, [[track, 20, 4], [spur, 16, 9]]);
@@ -227,12 +231,11 @@ const MAPS = [
           if (!mapGround(x, 'wild')) checker(x, ...GRASS, 32);
           { const g = x.createRadialGradient(690, 230, 60, 690, 230, 150); g.addColorStop(0, 'rgba(60,100,35,.2)'); g.addColorStop(.6, 'rgba(60,100,35,.1)'); g.addColorStop(1, 'rgba(60,100,35,0)'); x.fillStyle = g; x.fillRect(530, 70, 320, 320); } // the lake sits in a dip, fading out into the grass
           dirtTrails(x, [[main, 18, 12], [south, 16, 13], [camp, 14, 14]]);
-          if (!texShape(x, 'dirt', g => { g.beginPath(); g.ellipse(510, 212, 56, 46, 0, 0, TAU); g.fill(); })) { x.fillStyle = '#c8b27a'; x.beginPath(); x.ellipse(510, 212, 56, 46, 0, 0, TAU); x.fill(); } // trampled campsite ground on the lake shore
+          if (!texShape(x, 'dirt', g => { g.beginPath(); g.ellipse(510, 212, 56, 46, 0, 0, TAU); g.fill(); }, undefined, undefined, 8)) { x.fillStyle = '#c8b27a'; x.beginPath(); x.ellipse(510, 212, 56, 46, 0, 0, TAU); x.fill(); } // trampled campsite ground on the lake shore
           flowers(x, 140, ['#ffffff', '#ffe066', '#ff9ecb', '#c9b6ff'], 5, 9);
           x.fillStyle = '#8b6a44'; x.save(); x.translate(500, 248); x.rotate(.5); x.fillRect(-13, -4, 26, 8); x.restore(); x.save(); x.translate(552, 250); x.rotate(-.4); x.fillRect(-13, -4, 26, 8); x.restore(); // log seats
         },
-        decor(x) { x.strokeStyle = '#4c7a2a'; x.lineWidth = 1.4; const r = seeded(3); for (let k = 0; k < 34; k++) { const a = r() * TAU, d = 78 + r() * 6, px = 690 + Math.cos(a) * d, py = 230 + Math.sin(a) * d; x.beginPath(); x.moveTo(px, py); x.lineTo(px + (r() - .5) * 3, py - 6 - r() * 4); x.stroke(); if (r() < .4) { x.fillStyle = '#6b4a2b'; ell(x, px, py - 8, 1.2, 2.4); } } // reeds
-          x.fillStyle = '#5c9e3c'; for (const [px, py] of [[650, 200], [720, 260], [700, 190]]) { circ(x, px, py, 6); x.fillStyle = '#f0a6c8'; circ(x, px + 1, py - 1, 1.6); x.fillStyle = '#5c9e3c'; } // lily pads
+        decor(x) { // (the pond's reeds, stones and lily pads come with the pond itself: pondBanks and lilyPads in 08-water)
           x.fillStyle = '#7a5a38'; x.fillRect(612, 270, 34, 8); x.fillStyle = '#5a3f26'; for (let i = 614; i < 646; i += 6) x.fillRect(i, 270, 2, 8); } // a little jetty
       };
     }
@@ -392,9 +395,9 @@ const MAPS = [
           [[[750, 136], [755, 190], [747, 252], [753, 300], [749, 336]], 32, 32], // and down to the paddock gate
           [[[96, 158], [180, 164], [262, 158], [330, 162]], 22, 33], [[[118, 138], [126, 160]], 30, 34], // the barn's apron and its lane to the road
           [[[318, 152], [322, 192], [316, 238]], 22, 35], [[[458, 72], [454, 122], [461, 172], [456, 236]], 22, 36]]); // the lane down from the barn, the shed's track
-        if (!tex || !texShape(x, 'soil', g => g.fillRect(40, 320, 440, 290))) { x.fillStyle = '#8b5e34'; x.fillRect(40, 320, 440, 290); } // the crop field
+        if (!tex || !texShape(x, 'soil', g => g.fillRect(40, 320, 440, 290), undefined, undefined, 4)) { x.fillStyle = '#8b5e34'; x.fillRect(40, 320, 440, 290); } // the crop field
         x.fillStyle = '#6f9a35'; for (let y = 332; y < 600; y += 18) { x.fillRect(48, y, 424, 6); for (let i = 52; i < 470; i += 9) circ(x, i, y + 3, 2.6); }
-        if (!tex || !texShape(x, 'mud', g => g.fillRect(22, 186, 272, 98))) { x.fillStyle = '#9b7a52'; x.fillRect(22, 186, 272, 98); } x.fillStyle = 'rgba(90,60,30,.45)'; for (let k = 0; k < 9; k++) { ell(x, 70 + k * 26, 200 + (k % 3) * 28, 14, 7); } // pig pen mud
+        if (!tex || !texShape(x, 'mud', g => g.fillRect(22, 186, 272, 98), undefined, undefined, 4)) { x.fillStyle = '#9b7a52'; x.fillRect(22, 186, 272, 98); } x.fillStyle = 'rgba(90,60,30,.45)'; for (let k = 0; k < 9; k++) { ell(x, 70 + k * 26, 200 + (k % 3) * 28, 14, 7); } // pig pen mud
       }
     })
   },
@@ -422,10 +425,7 @@ const MAPS = [
         paths: [loop, west, south, east, band, play],
         floor(x) {
           const tex = mapGround(x, 'lawn'); if (!tex) checker(x, ...GRASS, 32);
-          const poly = (g, pts) => { g.beginPath(); pts.forEach((p, i) => i ? g.lineTo(...p) : g.moveTo(...p)); g.stroke(); }, all = [loop, west, south, east, band, play]; // one network: every path joins another or leaves the park
-          if (tex && texShape(x, 'dirt', g => { g.lineCap = 'round'; g.lineJoin = 'round'; g.lineWidth = 30; all.forEach(p => poly(g, p)); })) { // packed earth paths, raked lighter down the middle
-            x.lineCap = 'round'; x.lineJoin = 'round'; x.strokeStyle = 'rgba(80,60,30,.22)'; x.lineWidth = 30; all.forEach(p => poly(x, p)); x.strokeStyle = 'rgba(250,236,196,.22)'; x.lineWidth = 22; all.forEach(p => poly(x, p));
-          } else { x.lineCap = 'round'; x.lineJoin = 'round'; x.strokeStyle = '#c9ad78'; x.lineWidth = 30; all.forEach(p => poly(x, p)); x.strokeStyle = '#dcc493'; x.lineWidth = 24; all.forEach(p => poly(x, p)); }
+          dirtTrails(x, [loop, west, south, east, band, play].map((p, i) => [p, 26, 61 + i])); // one network of worn earth paths, like the farm's tracks: every path joins another or leaves the park
           x.fillStyle = '#e8d49a'; x.beginPath(); x.ellipse(170, 470, 72, 52, 0, 0, TAU); x.fill(); x.strokeStyle = '#c9a85e'; x.lineWidth = 3; x.beginPath(); x.ellipse(170, 470, 72, 52, 0, 0, TAU); x.stroke(); // playground sand
           flowers(x, 70, ['#ff9ecb', '#ffffff', '#ffd23f'], 8, 5);
         },

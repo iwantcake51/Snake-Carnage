@@ -38,7 +38,7 @@ const segR = (i, n) => { // the tail tapers over its last 6 segments; while the 
 };
 
 function hitObstacle(x, y, r) { // precise shape test, so thin things like lamp posts hit exactly where they're drawn
-  for (const o of obstacles) {
+  for (const o of obstacles) { if (frozenOver(o)) continue; // (ice you can cross)
     if (o.t === 'r') { const nx = clamp(x, o.x, o.x + o.w), ny = clamp(y, o.y, o.y + o.h); if (dist2(x, y, nx, ny) < r * r) return true; }
     else if (dist2(x, y, o.x, o.y) < (r + o.r) ** 2) return true;
   }
@@ -254,7 +254,7 @@ function smearBlood(s, dt) {
 
 function bleedIntoWater(x, y, amount, col = BLOOD) {
   for (const o of obstacles) {
-    if (o.kind !== 'water') continue;
+    if (o.kind !== 'water' || frozenOver(o)) continue; // (frozen: it lands on the ice like on the ground)
     const S = wShape(o); let ex, ey, d;
     if (S.round) { const dx = x - S.cx, dy = y - S.cy, dd = Math.hypot(dx, dy) || 1; d = dd - S.hw; ex = S.cx + dx / dd * (S.hw - 4); ey = S.cy + dy / dd * (S.hw - 4); }
     else { ex = clamp(x, S.cx - S.hw + 4, S.cx + S.hw - 4); ey = clamp(y, S.cy - S.hh + 4, S.cy + S.hh - 4); d = Math.hypot(x - ex, y - ey) - 4; }

@@ -71,7 +71,7 @@ function updateGiblets(dt) {
       if (g.z <= 0) {
         g.z = 0;
         const o = obstacleAt(g.x, g.y);
-        if (o && o.kind === 'water' && inWater(o, g.x, g.y)) { // splash, then float
+        if (o && o.kind === 'water' && !frozenOver(o) && inWater(o, g.x, g.y)) { // splash, then float (on ice it lands like on the ground)
           g.fl = o; g.z = 0; g.vz = 0; g.vx *= .25; g.vy *= .25; waterBlood(o, g.x, g.y, .05, 0, 0, (g.bl || CONFIG.bloodColors)[0]);
           const b = o.wb; if (b.rings.length < 12) b.rings.push({ x: g.x, y: g.y, t: 0 });
           for (let k = 0; k < 6; k++) { const a = rand(0, TAU), sp = rand(20, 60); splashes.push({ x: g.x, y: g.y, z: 1, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(40, 90) }); }

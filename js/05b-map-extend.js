@@ -295,10 +295,7 @@ function extendBuild(m, idx) {
       if (m.tileFloor) { floor0.call(b, x); for (const { e } of strips) e.cover.forEach(f => f(x)); } // a ground drawn for any width (it reads W)
       else { if (m.ground) m.ground(x); for (const { e } of strips) e.floor.forEach(f => f(x)); local(x, () => floor0.call(b, x)); for (const { e } of strips) e.cover.forEach(f => f(x)); } // (m.ground: the map's real ground first, across the whole width)
       for (const { st, e } of strips) if (trails.length) clipStrip(x, st, () => { // the carried-on trails, in the map's own trail style
-        if (e.trailStyle === 'park') { const ln = (g, w) => { g.lineCap = 'round'; g.lineJoin = 'round'; g.lineWidth = w; for (const p of trails) { g.beginPath(); p.forEach(([a, bb], i) => i ? g.lineTo(a, bb) : g.moveTo(a, bb)); g.stroke(); } };
-          if (GTEX.drawn.has(x) && texShape(x, 'dirt', g => ln(g, 30))) { x.strokeStyle = 'rgba(80,60,30,.22)'; ln(x, 30); x.strokeStyle = 'rgba(250,236,196,.22)'; ln(x, 22); } // the same packed earth as the park's own paths
-          else for (const [c, lw] of [['#c9ad78', 30], ['#dcc493', 24]]) { x.strokeStyle = c; ln(x, lw); } }
-        else { trailExt = true; try { dirtTrails(x, trails.map((p, i) => [p, 18, 90 + i])); } finally { trailExt = false; } }
+        trailExt = true; try { dirtTrails(x, trails.map((p, i) => [p, e.trailStyle === 'park' ? 26 : 18, 90 + i])); } finally { trailExt = false; } // (the park's paths are a little wider than a farm track)
       });
     },
     decor: decor0 && (x => local(x, () => decor0.call(b, x))),

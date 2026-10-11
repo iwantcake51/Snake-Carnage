@@ -1257,6 +1257,12 @@ input[type=range]{accent-color:var(--acc)}
 #intro .tbadge,#intro .imod,.tbadge{border-radius:2px!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)!important}
 #intro .iname2{font-family:var(--f-head)!important;font-weight:800;text-transform:uppercase;letter-spacing:.01em}
 #intro .iflav{font-style:normal!important;color:var(--dim)!important}
+/* the loading card's tip (pickTip in 32-ui-customize): a stamped TIP and one line in the body face; the hairline above it fills while the card holds */
+#intro .itip{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;align-items:start;margin-top:18px;max-width:470px;padding-top:14px;position:relative;box-shadow:inset 0 1px rgba(255,255,255,.14)}
+#intro .itip b{font:700 11px/1 var(--f-num);letter-spacing:.06em;text-transform:uppercase;color:var(--acc-hi);border:2px solid currentColor;border-radius:2px;padding:3px 6px 2px;rotate:-3deg;-webkit-mask:var(--hm-ink);mask:var(--hm-ink);margin-top:2px}
+#intro .itip span{font:500 16px/1.4 var(--f-body);color:#efe7e0;text-wrap:pretty}
+#intro .itip i{position:absolute;left:0;top:0;height:1px;width:100%;background:var(--acc);transform-origin:left;scale:0 1;animation:itipBar var(--hold,4s) linear .35s forwards}
+@keyframes itipBar{to{scale:1 1}}
 .upc .ukey,.ukey,kbd{border-radius:2px!important;font-family:var(--f-num)!important}
 .panel.shop2 .tab{overflow:hidden;text-overflow:ellipsis}
 /* dark gradients: depth on the big surfaces, kept subtle so the grain and borders still read */

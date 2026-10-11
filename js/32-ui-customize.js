@@ -124,8 +124,56 @@ function finishStart(opts, sz) {
   if (fl) fl.textContent = night ? 'Stay out of the light.' : MAPS[mapIdx].indoor ? 'Indoors. The lights are whatever the building gives you.' : light.day > .5 ? 'Broad daylight. Everyone can see you coming.' : 'The light is going. Use it.';
   const tb = intro.querySelector('.ichips .tslot'); if (tb) tb.outerHTML = timeBadge();
   if (shot) { introShot(shot); shot.classList.add('in'); }
+  const tip = pickTip(), wrap = intro.querySelector('.iwrap'), hold = (opts.net ? 3200 : Math.min(6500, 4200 + Math.max(0, tip ? tip.length - 70 : 0) * 25)); // long enough to read the tip (co-op: a little shorter, the others are waiting)
+  if (tip && wrap) { const el = document.createElement('div'); el.className = 'itip'; el.style.cssText = `--d:.35s;--hold:${hold}ms`; el.innerHTML = `<b>Tip</b><span>${tip}</span><i></i>`; wrap.appendChild(el); }
   const wait = Math.max(0, 1250 - (performance.now() - t0)); // the card always gets its moment, however fast the load was
-  introTimers = [setTimeout(endIntro, SETTINGS.reduceMotion ? 500 : 1000 + wait)];
+  introTimers = [setTimeout(endIntro, hold + wait)];
+}
+/* the loading card's tip: one simple thing about the game you might not know, picked for this run when one fits
+   (ice you can cross on a frozen map, a modifier you've switched on), otherwise one you haven't seen lately */
+const TIPS = [
+  { id: 'ice', t: 'Ponds and the pool freeze over in winter. You can slide straight across the ice.', ok: () => !!obstacles && obstacles.some(frozenOver), first: 3 },
+  { id: 'dark', t: 'In the dark, people only see you up close or when you\'re under a light.', ok: () => light.dark > .45, first: 1 },
+  { id: 'water', t: 'On fire? Water puts you out at once. Head for a pond.', air: 1, ok: () => !!obstacles && obstacles.some(o => o.kind === 'water' && !frozenOver(o)) },
+  { id: 'front', air: 1, t: 'A bomb on the front of your body kills you. Further back it only blows off the tail.' },
+  { id: 'arty', air: 1, t: 'Artillery is aimed at the end of your tail, not your head. Keep moving forward and it lands behind you.' },
+  { id: 'barrage', air: 1, t: 'In a barrage the bombs fall on your path and one side of it. The other side is your way out.' },
+  { id: 'near', air: 1, t: 'Living through a near miss pays XP and chips, and more for a chain of them.' },
+  { id: 'killair', air: 1, t: 'Every kill brings the next air strike a little closer.' },
+  { id: 'gas', air: 1, t: 'Gas only comes in artillery shells, on ground you\'ve just left. Don\'t double back into it.' },
+  { id: 'strafe', air: 1, t: 'A strafing run marks its lane on the ground first. Get off the line before the guns arrive.' },
+  { id: 'napalm', air: 1, t: 'Incendiaries leave fire ahead of you. Steer round it: burning eats your tail a piece at a time.' },
+  { id: 'chunks', air: 1, t: 'When a cluster bomb drops the end of your tail, eat the glinting chunks to win most of it back.' },
+  { id: 'combo', t: 'A bigger combo pays a little more XP and chips for every kill, up to +30%.' },
+  { id: 'age', t: 'The longer your body has lived, the more XP each kill pays: up to +60% at ten minutes.' },
+  { id: 'surv', t: 'Every full minute alive adds to your survival bonus, and later minutes pay more.' },
+  { id: 'turn', t: 'The longer you grow, the wider you turn. Plan your turns early.' },
+  { id: 'bite', t: 'Your bite reaches a little past a body. You don\'t need to hit them dead on.' },
+  { id: 'lead', t: 'A dog on a lead stays at its owner\'s side. Catch one and the other is right there.', ok: () => !!creatures && creatures.some(c => c.alive && c.type === 'dog') },
+  { id: 'look', t: () => IS_TOUCH ? 'Before you move, pinch to zoom and drag to look round the whole map.' : 'Before you move, scroll to zoom and look round the whole map.' },
+  { id: 'nv', t: () => `Too dark to see? Night vision is on ${IS_TOUCH ? 'the goggles button' : keyName(bindOf('nv'))}.`, ok: () => light.dark > .45 && !MOD.noNVG },
+  { id: 'mouse', t: 'Rather steer with the mouse? Turn on Mouse steering in Settings, Controls.', ok: () => !IS_TOUCH && !SETTINGS.mouseSteer },
+  { id: 'undo', t: 'Skill ranks bought since your last run can be taken back free in the skill tree.' },
+  { id: 'reset', t: 'Your first skill tree reset is free: every token comes back.', ok: () => !(PROG.respecs > 0) },
+  { id: 'chal', t: 'Map challenges change every 15 minutes, but a run keeps the set it started with.' },
+  { id: 'who', t: 'Leaving kinds of creature out of a run (Modifiers, Who spawns) costs 8% of the rewards each.' },
+  { id: 'real', t: 'The Shop\'s Real snakes cards dress you as a real species in one click.' },
+  { id: 'ach', t: 'Lifetime achievements each unlock cosmetics you can\'t buy.' },
+  { id: 'mask', air: 1, t: 'In gas you can\'t make out outlines or bomb markers. The Gas Mask skill keeps them readable.' },
+  { id: 'm-airRaid', t: 'Shell Shock: the siren starts at once and the guns join in 15 seconds. Keep moving.', mod: 'airRaid', first: 2 },
+  { id: 'm-lockOn', t: 'Locked on: every bomb marker slides after you for a moment. Turn hard once it\'s set.', mod: 'lockOn', first: 2 },
+  { id: 'm-fuse', t: 'Dead man\'s switch: the bomb ticks down with your combo. Keep eating or it goes off.', mod: 'fuse', first: 2 },
+  { id: 'm-enchained', t: 'Enchained: when one of you goes down, the whole chain goes with them.', mod: 'enchained', first: 2 },
+];
+function pickTip() {
+  let seen = {}; try { seen = JSON.parse(localStorage.getItem('snakeTips') || '{}') || {}; } catch (e) { }
+  const txt = q => typeof q.t === 'function' ? q.t() : q.t, fits = q => { try { return (!q.mod || MOD[q.mod]) && (!q.air || (airMap() && !MOD.noAir)) && (!q.ok || q.ok()); } catch (e) { return false; } }; // (air strike tips only where there are air strikes)
+  const ok = TIPS.filter(fits); if (!ok.length) return '';
+  const now = Date.now(), fresh = ok.filter(q => q.first && (seen[q.id + 'n'] | 0) < q.first); // made for this run and not shown a few times yet: that one
+  const pool = fresh.length ? fresh : ok.filter(q => !q.mod).map(q => [q, (seen[q.id] || 0) + Math.random()]).sort((a, b) => a[1] - b[1]).slice(0, 6).map(e => e[0]); // otherwise one of those you've gone longest without (never seen: any of them)
+  const q = (pool.length ? pool : ok)[Math.random() * (pool.length || ok.length) | 0];
+  seen[q.id] = now; seen[q.id + 'n'] = (seen[q.id + 'n'] | 0) + 1; try { localStorage.setItem('snakeTips', JSON.stringify(seen)); } catch (e) { }
+  return txt(q);
 }
 function seasonBadge() { return season ? `<span class="tbadge szn ${season.id}"><i class="sic">${giSvg(season.icon)}</i><b>${season.name}</b></span>` : ''; }
 function introHtml(sz) { // the loading card: map name, when, what season, which modifiers
@@ -142,7 +190,7 @@ function introHtml(sz) { // the loading card: map name, when, what season, which
 }
 function introShot(c) { // the real map, this season, as the backdrop
   const x = c.getContext('2d'); x.clearRect(0, 0, W, H);
-  x.drawImage(baseC, 0, 0, W, H); drawSnow(x); x.drawImage(obsC, 0, 0, W, H); drawTrees(x);
+  x.drawImage(baseC, 0, 0, W, H); drawIceFloor(x); drawSnow(x); x.drawImage(obsC, 0, 0, W, H); drawTrees(x);
 }
 function modIntro(ids) { // random run: show what was rolled at the bottom for a moment, then send each one up and away
   const el = document.getElementById('modintro'); clearTimeout(el._t);
@@ -159,7 +207,7 @@ function endIntro(abort) { // fade the intro out, pull the bars away and start t
   introTimers = [setTimeout(() => { intro.className = ''; intro.innerHTML = ''; }, 700)];
 }
 intro.onclick = () => endIntro();
-document.getElementById('menuBtn').onclick = () => { if (['play', 'ready', 'intro', 'held'].includes(state)) pauseGame(); document.activeElement.blur(); };
+tapNow(document.getElementById('menuBtn'), () => { if (['play', 'ready', 'intro', 'held'].includes(state)) pauseGame(); document.activeElement.blur(); }); // (pause answers a tap even while the other thumb steers)
 let boardScale = 1;
 function fit() {
   const small = innerHeight < 560 || innerWidth < 760; document.body.classList.toggle('phone', small); // phones: thin bar, no margins
