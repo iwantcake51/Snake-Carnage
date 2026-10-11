@@ -23,7 +23,7 @@
     e.preventDefault(); const was = anim.size; anim.set(el, t); if (!was) requestAnimationFrame(step);
   }, { passive: false });
   // pressing a button: it sinks into its printed shadow for at least a moment (a quick tap still shows), springs back with a small
-  // overshoot when let go (style.css, PRESSING), and a burst of halftone ink spreads from the finger, clipped to the button's own shape, never past it
+  // overshoot when let go (style.css, PRESSING), and a ring of halftone ink grows out from the finger, clipped to the button's own shape, never past it
   const PRESS = '#overlay button, #overlay .card, #overlay .sc, #overlay .mtile, #hudbar button';
   const SLAB = '.mm-cta, .rs-start, #overlay .btn:not(.alt):not(#backBtn):not(#pMenuBtn), #overlay .play, #overlay #againBtn, #overlay #resBtn';
   let held = null;
@@ -33,11 +33,11 @@
     const b = e.target.closest(PRESS); if (!b || b.disabled || b.classList.contains('skn')) return; // (skill nodes pop instead: a square burst over a hexagon looks wrong)
     release(); b.classList.add('prs'); held = { b, t: performance.now() };
     if (SETTINGS.reduceMotion) return;
-    const r = b.getBoundingClientRect(), s = Math.hypot(r.width, r.height) * 1.1, rp = document.createElement('span');
+    const r = b.getBoundingClientRect(), s = Math.hypot(Math.max(e.clientX - r.left, r.right - e.clientX), Math.max(e.clientY - r.top, r.bottom - e.clientY)) * 2 + 8, rp = document.createElement('span');
     rp.className = 'ripple'; rp.style.cssText = `width:${s}px;height:${s}px;left:${e.clientX - r.left - s / 2}px;top:${e.clientY - r.top - s / 2}px`;
     if (getComputedStyle(b).position === 'static') b.style.position = 'relative';
     const clip = document.createElement('span'); clip.className = 'rip' + (b.matches(SLAB) ? ' slab' : ''); clip.appendChild(rp); // clipped by its own box (or the slab's torn outline), so the button itself never gets overflow:hidden (that would also clip its enlarged hit area)
-    b.appendChild(clip); setTimeout(() => clip.remove(), 560);
+    b.appendChild(clip); setTimeout(() => clip.remove(), 780);
   });
   addEventListener('pointerup', release); addEventListener('pointercancel', release); addEventListener('blur', release);
 })();

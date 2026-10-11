@@ -3395,9 +3395,13 @@ body.compact .mm .rs-title h3{font-size:28px!important}
 #overlay .rip:not(#_):not(#__),#hudbar .rip:not(#_):not(#__){position:absolute!important;inset:0!important;overflow:hidden!important;border-radius:inherit;pointer-events:none;z-index:0;rotate:0deg;translate:none}
 #overlay .rip.slab:not(#_):not(#__){z-index:-1;clip-path:var(--hm-rag);border-radius:0}
 .mm .rip.slab:not(#_):not(#__){clip-path:none;border-radius:3px}
-.ripple:not(#_){position:absolute!important;border-radius:50%;pointer-events:none;opacity:.42;transform:scale(.12);
+@property --rr{syntax:'<percentage>';inherits:false;initial-value:0%}
+/* the dots stay their size and put; a ring-shaped window onto them grows from the click out past the far corner (--rr: its outer edge,
+   as a share of the circle's radius): a crisp leading edge, a softer trailing one, nothing inside it */
+.ripple:not(#_){position:absolute!important;border-radius:50%;pointer-events:none;opacity:.62;transform:none;--rr:0%;
   background:radial-gradient(circle,currentColor 0 1.25px,transparent 1.7px) 0 0/6px 6px;
-  -webkit-mask:radial-gradient(circle closest-side,#000 0 45%,rgba(0,0,0,.55) 75%,transparent 100%);mask:radial-gradient(circle closest-side,#000 0 45%,rgba(0,0,0,.55) 75%,transparent 100%);
-  animation:inkBurst .5s cubic-bezier(.2,.75,.3,1) forwards!important}
-.rip.slab .ripple:not(#_){opacity:.3}
-@keyframes inkBurst{55%{opacity:.32}to{transform:scale(1);opacity:0}}
+  -webkit-mask:radial-gradient(circle closest-side,transparent calc(var(--rr) - 17px),rgba(0,0,0,.45) calc(var(--rr) - 11px),#000 calc(var(--rr) - 5px),#000 calc(var(--rr) - 2px),transparent var(--rr));
+  mask:radial-gradient(circle closest-side,transparent calc(var(--rr) - 17px),rgba(0,0,0,.45) calc(var(--rr) - 11px),#000 calc(var(--rr) - 5px),#000 calc(var(--rr) - 2px),transparent var(--rr));
+  animation:inkRing .72s cubic-bezier(.3,.55,.45,1) forwards!important}
+.rip.slab .ripple:not(#_){opacity:.48}
+@keyframes inkRing{0%{--rr:0%}55%{opacity:.55}to{--rr:100%;opacity:0}}
