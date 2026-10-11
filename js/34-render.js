@@ -28,7 +28,7 @@ function render() {
   x.setTransform(DPR, 0, 0, DPR, 0, 0);
   x.fillStyle = MAPS[mapIdx].border; x.fillRect(0, 0, W, H);
   applyView(x);
-  x.drawImage(baseC, 0, 0, W, H);
+  x.drawImage(baseC, 0, 0, W, H); drawIceFloor(x); // (frozen ponds you can cross: on the ground, under the blood and everyone)
   x.drawImage(groundC, 0, 0, W, H);
   if (MAPS[mapIdx].club) drawDanceFloor(x);
   drawCustomFx(x, 'floor'); // moving materials on the ground (custom maps and edited shapes only; empty otherwise)

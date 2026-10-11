@@ -21,7 +21,7 @@ let bomblets = [], firePatches = [];
 const inAnyWater = (x, y) => !!obstacles && obstacles.some(o => o.kind === 'water' && inWater(o, x, y));
 function nearWater(x, y, pad) { // inside a pond, a pool or a fountain, or within pad of its edge
   if (!obstacles) return false;
-  for (const o of obstacles) { if (o.kind !== 'water') continue;
+  for (const o of obstacles) { if (o.kind !== 'water' || frozenOver(o)) continue; // (ice doesn't put you out)
     if (o.poly) { if (pointInPoly(polyShape(o), x, y) || (x > o.x - pad && y > o.y - pad && x < o.x + o.w + pad && y < o.y + o.h + pad && inWater(o, clamp(x, o.x, o.x + o.w), clamp(y, o.y, o.y + o.h)))) return true; continue; }
     const S = wShape(o);
     if (S.round ? Math.hypot(x - S.cx, y - S.cy) < S.hw + pad : Math.abs(x - S.cx) < S.hw + pad && Math.abs(y - S.cy) < S.hh + pad) return true; }

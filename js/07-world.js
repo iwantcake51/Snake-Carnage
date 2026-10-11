@@ -3,7 +3,7 @@
    ========================================================= */
 const SG = 4, GW = W / SG, GH = H / SG;   // solid grid
 const WS = 16, WW = W / WS, WH = H / WS;  // wetness (blood on floor) grid
-let solidGrid, wet, fresh, obstacles, creatures = [], parts = [], pools = [], respawnQ = [];
+let solidGrid, iceGrid = null, wet, fresh, obstacles, creatures = [], parts = [], pools = [], respawnQ = [];
 let snake, mapIdx = 0, selSpeed = 'Normal', state = 'menu', score = 0, kills = { h: 0, a: 0 };
 let shake = 0, T = 0, deadT = 0, deadAt = 0; // deadAt: wall-clock time of the crash, so the summary shows on time even if frames are slow
 
@@ -38,29 +38,30 @@ function wetAt(x, y) {
 }
 
 function buildSolid() {
-  solidGrid = new Uint8Array(GW * GH);
+  solidGrid = new Uint8Array(GW * GH); iceGrid = new Uint8Array(GW * GH);
   for (const o of obstacles) {
-    if (obsFlag(o, 'noCollide')) continue; // walk-through props
+    const fz = frozenOver(o); if (!fz && obsFlag(o, 'noCollide')) continue; // walk-through props
     const hp = typeof propHitPoly === 'function' && propHitPoly(o); // a prop with its own collision shape (separate from its drawing)
     if (hp === 'none') continue;
+    const G = fz ? iceGrid : solidGrid; // a frozen pond is ground you can cross: its shape goes in iceGrid instead
     if (hp) { const xs = hp.map(p => p[0]), ys = hp.map(p => p[1]);
       for (let j = Math.max(0, Math.floor(Math.min(...ys) / SG)); j < Math.min(GH, Math.ceil(Math.max(...ys) / SG)); j++) for (let i = Math.max(0, Math.floor(Math.min(...xs) / SG)); i < Math.min(GW, Math.ceil(Math.max(...xs) / SG)); i++)
-        if (pointInPoly(hp, i * SG + 2, j * SG + 2)) solidGrid[j * GW + i] = 1;
+        if (pointInPoly(hp, i * SG + 2, j * SG + 2)) G[j * GW + i] = 1;
       continue; }
     if (isRot(o)) { const P = obsCorners(o), xs = P.map(p => p[0]), ys = P.map(p => p[1]);
       for (let j = Math.floor(Math.min(...ys) / SG); j < Math.ceil(Math.max(...ys) / SG); j++) for (let i = Math.floor(Math.min(...xs) / SG); i < Math.ceil(Math.max(...xs) / SG); i++)
-        if (i >= 0 && j >= 0 && i < GW && j < GH && pointInPoly(P, i * SG + 2, j * SG + 2)) solidGrid[j * GW + i] = 1;
+        if (i >= 0 && j >= 0 && i < GW && j < GH && pointInPoly(P, i * SG + 2, j * SG + 2)) G[j * GW + i] = 1;
     } else if (o.poly) { const P = polyShape(o); // custom water: the real shape
       for (let j = Math.floor(o.y / SG); j < Math.ceil((o.y + o.h) / SG); j++) for (let i = Math.floor(o.x / SG); i < Math.ceil((o.x + o.w) / SG); i++)
-        if (i >= 0 && j >= 0 && i < GW && j < GH && pointInPoly(P, i * SG + 2, j * SG + 2)) solidGrid[j * GW + i] = 1;
+        if (i >= 0 && j >= 0 && i < GW && j < GH && pointInPoly(P, i * SG + 2, j * SG + 2)) G[j * GW + i] = 1;
     } else if (o.t === 'r') {
       for (let j = Math.floor(o.y / SG); j < Math.ceil((o.y + o.h) / SG); j++)
         for (let i = Math.floor(o.x / SG); i < Math.ceil((o.x + o.w) / SG); i++)
-          if (i >= 0 && j >= 0 && i < GW && j < GH) solidGrid[j * GW + i] = 1;
+          if (i >= 0 && j >= 0 && i < GW && j < GH) G[j * GW + i] = 1;
     } else {
       for (let j = Math.floor((o.y - o.r) / SG); j <= (o.y + o.r) / SG; j++)
         for (let i = Math.floor((o.x - o.r) / SG); i <= (o.x + o.r) / SG; i++)
-          if (i >= 0 && j >= 0 && i < GW && j < GH && dist2(i * SG + 2, j * SG + 2, o.x, o.y) <= o.r * o.r) solidGrid[j * GW + i] = 1;
+          if (i >= 0 && j >= 0 && i < GW && j < GH && dist2(i * SG + 2, j * SG + 2, o.x, o.y) <= o.r * o.r) G[j * GW + i] = 1;
     }
   }
   buildNav(); // the low-res openness / dead-end cache follows the solid grid (see 27-crowds)
@@ -83,7 +84,7 @@ const opaque = (x, y) => x < 0 || y < 0 || x >= W || y >= H || (opaqueGrid ? opa
 
 function bakeOutline() {
   mkx.clearRect(0, 0, W, H); mkx.fillStyle = '#000';
-  for (const o of obstacles) { if (obsFlag(o, 'noOutline')) continue; fillObs(mkx, o); }
+  for (const o of obstacles) { if (obsFlag(o, 'noOutline') || frozenOver(o)) continue; fillObs(mkx, o); }
   olx.clearRect(0, 0, W, H);
   const mo = SETTINGS.mapOutlines; if (mo === 'Off') { olx.clearRect(0, 0, W, H); nvx.clearRect(0, 0, W, H); return; }
   const strong = mo === 'Strong', ow = strong ? 2.7 : 1.6;
@@ -106,7 +107,7 @@ function drawFixtures(x) { // ceiling lights hang above everything: one the snak
 }
 const [plainC, plainX] = makeLayer();
 function drawObstacleLayer(x = octx, b = curBuild, list = obstacles, ls = (b && b.lights) || MAPS[mapIdx].lights || []) { // walls and objects, then the details on top of them
-  x.clearRect(0, 0, W, H); list.forEach(o => { if (o.kind !== 'detail') drawObstacle(x, o); }); // street details are painted into the ground (see loadMap)
+  x.clearRect(0, 0, W, H); list.forEach(o => { if (o.kind !== 'detail' && !frozenOver(o)) drawObstacle(x, o); }); // street details are painted into the ground (see loadMap); a frozen pond on the ground under everyone (drawIceFloor)
   if (b && b.decor) b.decor(x);
   if (x === octx) snowCaps(x, list);
   if (x === octx) fixList = ls; else for (const l of ls) fixture(x, l); // the run's own fixtures are drawn every frame (drawFixtures), so they can fade over the snake
@@ -217,7 +218,7 @@ function loadMap(idx, sz) {
   obstacles = splitBreakables(addBreakWalls(pre, m.name));
   buildSolid();
   b.obs = b.obs.filter(o => !o.dropped); bctx.clearRect(0, 0, W, H); if (ov) { trailMute = !!ov.trails; try { if (ov.base) paintBase(bctx, ov.base); else b.floor(bctx); } finally { trailMute = false; } if (ov.areas) paintAreas(bctx, ov.areas); if (ov.trails) paintTrails(bctx, ov.trails); } else b.floor(bctx); for (const o of b.obs) if (o.kind === 'detail' && !o.dropped && FLAT_DETAILS.has(o.d)) drawObstacle(bctx, o); if (ovShapes) paintVecFloor(bctx, ovShapes.floor); /* edited paths replace the map's painted trails */ for (const o of b.obs) if (o.kind === 'detail' && !o.dropped && !FLAT_DETAILS.has(o.d)) drawObstacle(bctx, o); bakeContactShadows(bctx, b.obs); resetBuckets(); gctx.clearRect(0, 0, W, H); groundParts = []; trail = []; floaters = [];
-  buildGrassMask(); gradeGround(); seasonDetails(bctx);
+  pondBanks(bctx, obstacles); buildGrassMask(); gradeGround(); seasonDetails(bctx); // (a pond's wet bank first, so no grass grows on it)
   curBuild = b; drawObstacleLayer(); buildTrees();
   bakeOutline();
   buildSnow();

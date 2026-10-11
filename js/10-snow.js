@@ -93,7 +93,7 @@ const STL = 32, STW = Math.ceil(SNW / STL), STH = Math.ceil(SNH / STL); // chang
 const markSnow = (i, j) => { if (!snowDirty) snowDirty = new Set(); snowDirty.add((j / STL | 0) * STW + (i / STL | 0)); };
 function addSnow(i, j, v, si, sr, sg, sb) { // deposit snow (and whatever blood it carries) into a cell
   if (i < 0 || j < 0 || i >= SNW || j >= SNH || v <= 0) return;
-  const k = j * SNW + i; if (solidGrid[((j * SN) / SG | 0) * GW + ((i * SN) / SG | 0)]) return;
+  const k = j * SNW + i, g = ((j * SN) / SG | 0) * GW + ((i * SN) / SG | 0); if (solidGrid[g] || (iceGrid && iceGrid[g])) return; // (none on a frozen pond: it stays clear ice)
   const d0 = snowD[k]; snowD[k] = Math.min(1.6, d0 + v);
   if (si > 0) { const w = si / (snowS[k] + si); snowC3[k * 3] += (sr - snowC3[k * 3]) * w; snowC3[k * 3 + 1] += (sg - snowC3[k * 3 + 1]) * w; snowC3[k * 3 + 2] += (sb - snowC3[k * 3 + 2]) * w; snowS[k] += si; }
   markSnow(i, j);

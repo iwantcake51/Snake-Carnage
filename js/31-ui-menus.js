@@ -24,7 +24,7 @@ function makeThumbs() { // a small picture of every map (the map browser, the ro
 function mapStill(m, k) { // the map's ground and everything standing on it at k pixels per world unit: no people, no lighting
   const mk = () => { const c = document.createElement('canvas'); c.width = Math.ceil(W * k); c.height = Math.ceil(H * k); const x = c.getContext('2d'); x.setTransform(k, 0, 0, k, 0, 0); return [c, x]; };
   const [c, x] = mk(), b = m.build();
-  b.floor(x); const [oc, ox] = mk(); drawObstacleLayer(ox, b, [...borderWalls(m.border), ...b.obs], b.lights || m.lights || []); x.drawImage(oc, 0, 0, W, H); freeCanvas(oc);
+  b.floor(x); pondBanks(x, b.obs); const [oc, ox] = mk(); drawObstacleLayer(ox, b, [...borderWalls(m.border), ...b.obs], b.lights || m.lights || []); x.drawImage(oc, 0, 0, W, H); freeCanvas(oc);
   if (b.decor) try { b.decor(x); } catch (e) {} // a custom map's top-layer shapes (roofs, signs, overlays) belong in its picture too
   return c;
 }

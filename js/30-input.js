@@ -211,8 +211,12 @@ function buildTouch() {
   touchEl.innerHTML = `<div class="stick"><i class="knob"></i></div>
     <button class="tb tb-nv" data-sfx="none" aria-label="Night vision"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="7" cy="13" r="4"/><circle cx="17" cy="13" r="4"/><path d="M11 13h2M3 9l2-3h14l2 3"/></svg></button>
     <div class="tabil"></div>`;
-  touchEl.querySelector('.tb-nv').onclick = toggleNV;
+  tapNow(touchEl.querySelector('.tb-nv'), toggleNV);
   refreshTouchAbilities();
+}
+function tapNow(el, f) { // a touch button that answers the moment a finger lands, even while another finger steers (a phone sends no click for a tap made while another finger is down); a mouse or the keyboard still clicks it
+  el.addEventListener('pointerdown', e => { if (e.pointerType !== 'touch') return; e.preventDefault(); el._tapT = performance.now(); f(e); });
+  el.addEventListener('click', e => { if (performance.now() - (el._tapT || -1e9) < 900) { e.preventDefault(); return; } f(e); }); // (the click a lone tap still makes: already handled)
 }
 const stick = { id: null, x: 0, y: 0 };
 function stickMove(cx, cy) {

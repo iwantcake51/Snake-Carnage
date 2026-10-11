@@ -235,8 +235,7 @@ const MAPS = [
           flowers(x, 140, ['#ffffff', '#ffe066', '#ff9ecb', '#c9b6ff'], 5, 9);
           x.fillStyle = '#8b6a44'; x.save(); x.translate(500, 248); x.rotate(.5); x.fillRect(-13, -4, 26, 8); x.restore(); x.save(); x.translate(552, 250); x.rotate(-.4); x.fillRect(-13, -4, 26, 8); x.restore(); // log seats
         },
-        decor(x) { x.strokeStyle = '#4c7a2a'; x.lineWidth = 1.4; const r = seeded(3); for (let k = 0; k < 34; k++) { const a = r() * TAU, d = 78 + r() * 6, px = 690 + Math.cos(a) * d, py = 230 + Math.sin(a) * d; x.beginPath(); x.moveTo(px, py); x.lineTo(px + (r() - .5) * 3, py - 6 - r() * 4); x.stroke(); if (r() < .4) { x.fillStyle = '#6b4a2b'; ell(x, px, py - 8, 1.2, 2.4); } } // reeds
-          x.fillStyle = '#5c9e3c'; for (const [px, py] of [[650, 200], [720, 260], [700, 190]]) { circ(x, px, py, 6); x.fillStyle = '#f0a6c8'; circ(x, px + 1, py - 1, 1.6); x.fillStyle = '#5c9e3c'; } // lily pads
+        decor(x) { // (the pond's reeds, stones and lily pads come with the pond itself: pondBanks and lilyPads in 08-water)
           x.fillStyle = '#7a5a38'; x.fillRect(612, 270, 34, 8); x.fillStyle = '#5a3f26'; for (let i = 614; i < 646; i += 6) x.fillRect(i, 270, 2, 8); } // a little jetty
       };
     }
