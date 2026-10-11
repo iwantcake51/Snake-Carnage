@@ -163,6 +163,7 @@ document.getElementById('menuBtn').onclick = () => { if (['play', 'ready', 'intr
 let boardScale = 1;
 function fit() {
   const small = innerHeight < 560 || innerWidth < 760; document.body.classList.toggle('phone', small); // phones: thin bar, no margins
+  document.body.classList.toggle('short', small && innerHeight < 500 && innerWidth > innerHeight); // a phone on its side: the menus lay out in two columns, compact (style.css, LANDSCAPE PHONES)
   const barH = small ? 0 : 24, pad = small ? 4 : 24; // no bar above the board any more (the stats sit on it), just a margin
   const vh = (window.visualViewport && visualViewport.height) || innerHeight, top = small ? Math.max(0, cv.getBoundingClientRect().top) : 0; // a phone: measure where the board really starts (the bar is scaled), so it runs exactly to the bottom
   const s = boardScale = Math.min((innerWidth - pad) / W, small ? (vh - top) / H : (innerHeight - barH) / H, 2.2); // render the game larger when there's room

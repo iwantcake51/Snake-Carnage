@@ -3459,3 +3459,89 @@ body.compact .mm .rs-title h3{font-size:28px!important}
 /* the skin list's "Real snakes" section (realCard in 37-shop): a label across the grid, then the cards in their real colors */
 .cards2 .realhd{grid-column:1/-1;display:flex;align-items:baseline;gap:10px;margin:10px 0 2px;padding-bottom:5px;border-bottom:1px dashed var(--hair2);font:700 13px var(--f-num);letter-spacing:.05em;text-transform:uppercase;color:var(--dim)}
 .cards2 .realhd small{font:400 12.5px var(--f-body);letter-spacing:0;text-transform:none;color:var(--mute)}
+/* =====================================================================
+   LANDSCAPE PHONES (body.short, set by fit() in 32-ui-customize: a phone on its side, under 500 px tall). The menus run at the phone's
+   own pixels there (the zoom undo above), so desktop-sized pieces overflowed: a 58 px Start, a 64 px logo and a run setup that was all
+   map picture and Start button. Here they lay out in two columns that fit the screen, at touch-sized but compact sizes.
+   ===================================================================== */
+/* home: logo, Start and the list down the left, the profile, party and footer down the right */
+body.phone.short .mm-home:not(#_){display:grid;grid-template-columns:minmax(0,1fr) minmax(0,min(320px,44%));grid-template-rows:auto minmax(0,1fr) auto;gap:8px 18px;overflow:hidden;
+  padding:10px max(14px,env(safe-area-inset-right)) 8px max(14px,env(safe-area-inset-left))}
+body.phone.short .mm-col:not(#_){grid-column:1;grid-row:1/4;align-self:stretch;justify-content:center;gap:8px;max-width:400px;width:100%;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none}
+body.phone.short .mm-prof:not(#_){grid-column:2;grid-row:1;max-width:none;width:100%;justify-self:stretch;padding:8px 11px}
+body.phone.short .mm-party:not(#_){grid-column:2;grid-row:2;max-width:none;width:100%;min-height:0;max-height:100%;overflow-y:auto}
+body.phone.short .mm-foot:not(#_){grid-column:2;grid-row:3;flex-wrap:nowrap;align-items:flex-end;gap:8px;min-height:0}
+body.phone.short .mm .mm-logo .l1:not(#_){font-size:12px!important;margin:0 0 2px 1px!important}
+body.phone.short .mm .mm-logo .l2 b:not(#_){font-size:34px!important;text-shadow:3px 3px 0 var(--hm-shadow)!important}
+body.phone.short .mm-nav:not(#_){width:100%}
+body.phone.short .mm-cta:not(#_){min-height:40px;margin-bottom:4px;padding:0 12px 0 14px;font-size:17px!important}
+body.phone.short .mm-it:not(#_){min-height:31px;font-size:15px!important;padding:0 6px 0 12px}
+body.phone.short .mm-it .mm-ic{width:15px;height:15px}
+body.phone.short .mm-note{font-size:11px}
+body.phone.short .mm-cta kbd,body.phone.short .rs-start kbd{display:none} /* no keyboard to press it on */
+body.phone.short .mm-mapcap:not(#_){padding:2px 0 0}
+body.phone.short .mm-mapcap b{font-size:18px!important}
+body.phone.short .mm-foot .mm-ver:not(#_){min-height:24px}
+/* run setup (and the lobby, built the same way): the map and its details on the left, the options and Start on the right */
+body.phone.short .rs:not(#_){display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);grid-template-rows:auto minmax(0,1fr) auto;gap:6px 14px;overflow:hidden;
+  padding:6px max(14px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left))}
+body.phone.short .rs-head:not(#_){min-height:32px;gap:10px;flex-wrap:nowrap;overflow:hidden}
+body.phone.short .rs-head .mm-back:not(#_){min-height:30px;padding:0 9px}
+body.phone.short .rs-head .mm-q:not(#_){min-height:30px;white-space:nowrap}
+body.phone.short .rs-grid:not(#_){display:contents}
+body.phone.short .rs-main:not(#_){grid-column:1;grid-row:2/4;min-height:0;display:flex;flex-direction:column;gap:6px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none}
+body.phone.short .rs-main>*:not(#_){flex:none}
+body.phone.short .rs-prev:not(#_){flex:1 1 0;height:auto;min-height:84px}
+body.phone.short .rs-info:not(#_){gap:3px}
+body.phone.short .rs-title:not(#_){gap:10px}
+body.phone.short .rs-title h3:not(#_){font-size:22px}
+body.phone.short .rs-title .mm-q:not(#_){min-height:26px;font-size:13px}
+body.phone.short .rs-desc:not(#_){font-size:12px;line-height:1.35;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden}
+body.phone.short .rs-facts:not(#_){gap:2px 14px;margin:0}
+body.phone.short .rs-facts dt:not(#_){font-size:9.5px}
+body.phone.short .rs-facts dd:not(#_){font-size:12.5px;margin-top:1px}
+body.phone.short .rs-side:not(#_){grid-column:2;grid-row:2;min-height:0;display:flex;flex-direction:column;border-bottom:0;border-radius:2px 2px 0 0}
+body.phone.short .rs-scroll:not(#_){flex:1;min-height:0;overflow-y:auto;padding:8px 11px;gap:10px}
+body.phone.short .rs-sec h4:not(#_),body.phone.short .mlob-sec h4:not(#_){font-size:10.5px;margin-bottom:3px}
+body.phone.short .rs-seg button:not(#_){min-height:32px;font-size:13px}
+body.phone.short .rs-hint:not(#_){font-size:11.5px;min-height:0;margin-top:4px}
+body.phone.short .rs-sh:not(#_){margin:-4px 0 2px}
+body.phone.short .rs .mchip:not(#_){font-size:12px!important;padding:5px 7px!important}
+body.phone.short .rs-picks:not(#_){grid-template-columns:repeat(auto-fit,minmax(124px,1fr));gap:8px}
+body.phone.short .rs-pick select,body.phone.short .rs-pick .dd{min-height:32px;font-size:12.5px}
+body.phone.short .rs-chk:not(#_){min-height:30px;font-size:13px}
+body.phone.short .rs-foot:not(#_){grid-column:2;grid-row:3;margin:0;padding:6px 8px;gap:8px;border-width:1px;border-top-width:0;border-radius:0 0 2px 2px;background:var(--sheet)}
+body.phone.short .rs-start:not(#_),body.phone.short .rs-foot .mm-tog:not(#_){min-height:40px;font-size:17px!important;padding:0 14px}
+/* the lobby's players and map down the left */
+body.phone.short .mlob .rs-head h2:not(#_){font-size:19px!important;white-space:nowrap}
+body.phone.short .mlob-prev:not(#_){min-height:84px;flex:1 1 0}
+body.phone.short .mlob-rule:not(#_){font-size:11.5px}
+@media (max-width:700px){ /* the smallest phones: a little more room for the options, so the time and season names never touch */
+  body.phone.short .rs:not(#_){grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);column-gap:12px}
+  body.phone.short .rs-seg button:not(#_){font-size:12px;letter-spacing:-.01em}
+}
+/* Play with friends: the host and join boxes side by side again, the name beside its label */
+body.phone.short .mmp:not(#_){width:calc(100% - 16px);max-height:calc(100% - 12px);padding:8px max(14px,env(safe-area-inset-right)) 8px max(14px,env(safe-area-inset-left))}
+body.phone.short .mmp-head:not(#_){margin-bottom:6px;gap:10px}
+body.phone.short .mmp-head .mm-back:not(#_){min-height:30px;padding:0 9px}
+body.phone.short #overlay .mmp .mmp-head h2:not(#_){font-size:21px!important}
+body.phone.short .mmp-lead:not(#_){font-size:12px;line-height:1.4;margin:0 0 8px}
+body.phone.short .mmp-field:not(#_){flex-direction:row;align-items:center;gap:10px;max-width:none;margin-bottom:8px}
+body.phone.short .mmp-field input:not(#_){flex:0 1 220px;min-width:0}
+body.phone.short .mmp input:not(#_){min-height:34px;font-size:14px}
+body.phone.short .mmp-cols:not(#_){grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+body.phone.short .mmp-cols section:not(#_){padding:8px 10px;gap:4px}
+body.phone.short .mmp-cols p:not(#_){font-size:11.5px;line-height:1.35;margin:0 0 4px}
+body.phone.short .mmp .rs-start:not(#_),body.phone.short .mmp-btn:not(#_),body.phone.short .mmp-join input:not(#_){min-height:38px;font-size:16px!important;white-space:nowrap}
+body.phone.short .mmp-btn:not(#_){padding:0 14px}
+body.phone.short .mmp-fr:not(#_){margin-top:8px}
+body.phone.short .mmp-friend:not(#_){min-height:32px;font-size:13px}
+body.phone.short .mmp .mperr:not(#_){margin-top:4px;font-size:12.5px}
+/* the map browser: smaller pictures, more to a row */
+body.phone.short .mbr:not(#_){padding:6px max(10px,env(safe-area-inset-right)) 6px max(10px,env(safe-area-inset-left))}
+body.phone.short .mbr-head:not(#_){padding:5px 6px 5px 12px}
+body.phone.short .mm .mbr-head h3:not(#_),body.phone.short .mbr-head h3:not(#_){font-size:18px!important}
+body.phone.short .mbr-head .mm-q:not(#_),body.phone.short .mbr-rand:not(#_){min-height:30px}
+body.phone.short .mbr-grid:not(#_){grid-template-columns:repeat(auto-fill,minmax(128px,1fr));padding:10px 12px;gap:12px 10px}
+body.phone.short .mbr-n:not(#_){font-size:14px!important}
+body.phone.short .mbr-m:not(#_){font-size:11px}
