@@ -79,8 +79,8 @@ const SKILL_TREE = [
     desc: 'Shake off dazes faster. A direct hit still kills.', fx: [['Stun recovery', g => (SKV.stunCut(g) - 1) * 100, pct]] },
   { id: 'heat', br: 'surv', name: 'Heat Resistant', icon: 'heat', cost: [1, 2, 3], req: [['skull', 1]], x: 700, y: 720,
     desc: 'While you burn, pieces burn off less often. It never stops the blast itself or the fire catching.', fx: [['Time between burns', g => BURN.tick / SKV.heatK(g), secs], ['Fewer burn ticks', g => (1 - SKV.heatK(g)) * 100, n => n ? '-' + Math.round(n) + '%' : '0%']] },
-  { id: 'firewalk', br: 'surv', name: 'Firewalker', icon: 'firewalk', cost: [1, 2], req: [['heat', 1]], x: 700, y: 560,
-    desc: 'You move faster while you burn, so you get out of the fire sooner. It never stops you catching fire or burning.', fx: [['Speed while burning', g => SKV.fireSpeed(g) * 100 - 100, pct]] },
+  { id: 'firewalk', br: 'surv', major: 1, name: 'Firewalker', icon: 'firewalk', cost: [2], req: [['heat', 1]], x: 700, y: 560,
+    desc: 'You move 50% faster while you burn, so you get out of the fire sooner. It never stops you catching fire or burning.', fx: [['Speed while burning', g => SKV.fireSpeed(g) * 100 - 100, pct]] },
   { id: 'gut', br: 'surv', name: 'Iron Stomach', icon: 'gut', cost: [1, 2, 3], req: [['skull', 1]], x: 545, y: 720,
     desc: 'Your combo lasts longer.', fx: [['Combo time', g => SKV.combo(g) * 100 - 100, pct]] },
   { id: 'mask', br: 'surv', major: 1, name: 'Gas Mask', icon: 'mask', cost: [2], req: [['skull', 1]], x: 855, y: 720,
@@ -174,6 +174,7 @@ function treeV5(v) { // v: the save's tree version before this
   if (v >= 1 && Object.keys(t).length) setTimeout(() => notify({ kind: 'info', icon: giSvg('study'), title: 'Skill tree rebalanced', sub: `Every skill now has a set price${back ? `: ${back} token${back === 1 ? '' : 's'} refunded` : ''}. Your skills are kept, and your first full reset is free.`, dur: 7, key: 'treev5' }), 2200);
 }
 if ((PROG.treeV | 0) < 5) treeV5(PROG.treeV | 0);
+if ((PROG.tree.firewalk | 0) > 1) { PROG.tree.firewalk = 1; saveProg(); } // Firewalker became one rank (2 tokens, the full 50%): a second rank bought before is handed back (spent is worked out from the tree)
 if (PROG.treeV < 6) { // tree v6: Whiplash folded into Sidewinder (it only repeated Sidewinder's turning, mid-lunge): its ranks are taken back and their tokens come back with them (spent is worked out from the tree); nothing stood on it
   const w = Math.min(3, PROG.tree.whip | 0), back = [1, 2, 2].slice(0, w).reduce((a, b) => a + b, 0);
   delete PROG.tree.whip; delete PROG.treeOff.whip; if (PROG.treeNew) delete PROG.treeNew.whip; PROG.treeV = 6; saveProg();
@@ -225,7 +226,7 @@ const SKV = {
   jaws: (g = sk) => 1 + rk([0, .07, .14, .22], g('jaws')), // bite reach (snakeEatRadius)
   lustBack: (g = sk) => g('lust') ? .5 : 0, // Bloodlust: seconds each kill takes off every recharging ability
   windBack: (g = sk) => rk([0, .1, .2, .3], g('wind')), // Second Wind: seconds each meal takes off every recharging ability
-  fireSpeed: (g = sk) => 1 + rk([0, .25, .5], g('firewalk')), // Firewalker: faster while burning (in the fire, or still alight after)
+  fireSpeed: (g = sk) => 1 + rk([0, .5], g('firewalk')), // Firewalker: faster while burning (in the fire, or still alight after)
   heatK: (g = sk) => 1 - rk([0, .15, .25, .35], g('heat')), // Heat Resistant: how often burn ticks come (0.65 = 35% fewer)
   // Fortune: rewards are yours alone, so these always read your own tree (never another player's in co-op)
   studyChips: (g = skMe) => rk([0, 3, 6, 9, 12, 16], g('study')), // Quick Study: chips for each different thing done in a run
