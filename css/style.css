@@ -3361,3 +3361,6 @@ body.compact .mm .rs-title h3{font-size:28px!important}
 #resume:not(#_) .or{font:600 13px/1 "Archivo",var(--f-body)!important;font-stretch:118%;font-variation-settings:"wdth" 118}
 #resume:not(#_) kbd{font:700 11px/1 "Archivo",var(--f-body)!important;font-stretch:118%;font-variation-settings:"wdth" 118}
 #resume.gone:not(#_) .rp{animation:resumeOut .35s ease-in forwards!important}
+/* the prompt's keys sit dead centre with its words: no stray margin from the help screen's .keys rule, no floating or tilt */
+#resume:not(#_) .keys{margin:0!important;align-items:center}
+#resume:not(#_) kbd{margin:0!important;animation:none!important;rotate:0deg!important;translate:none!important;line-height:1}
