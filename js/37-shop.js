@@ -116,7 +116,7 @@ function shopBody(tab) {
   const cat = tab, list = itemsOf(cat);
   if (cat === 'pattern') { // the skins you can buy, then the real snakes as cards of their own, then the skins earned from challenges
     const buy = list.filter(it => !it[2]), earned = list.filter(it => it[2]), n = buy.length;
-    return `<h2>${CAT_LABEL[cat]}</h2><div class="cards2">${buy.map((it, i) => shopCard(cat, it, i)).join('')}<div class="realhd">Real snakes<small>a skin and two colors from the list: the real animal</small></div>${REAL_SNAKES.map((r, i) => realCard(r, i, n + i)).join('')}${earned.map((it, i) => shopCard(cat, it, n + REAL_SNAKES.length + i)).join('')}</div>`;
+    return `<h2>Recolorable skins</h2><div class="cards2">${buy.map((it, i) => shopCard(cat, it, i)).join('')}<div class="realhd">Real snakes<small>a skin and two colors from the list: the real animal</small></div>${REAL_SNAKES.map((r, i) => realCard(r, i, n + i)).join('')}${earned.map((it, i) => shopCard(cat, it, n + REAL_SNAKES.length + i)).join('')}</div>`;
   }
   return `<h2>${CAT_LABEL[cat]}</h2><div class="cards2">${list.map((it, i) => shopCard(cat, it, i)).join('')}</div>`;
 }
