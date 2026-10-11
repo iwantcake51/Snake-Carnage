@@ -1,6 +1,6 @@
 # Snake: Carnage
 
-Browser game, plain HTML/CSS/JS, no build step to develop or test. Deployed with Netlify, which runs `tools/bundle.mjs` (see `netlify.toml`): it joins the `js/NN-*.js` scripts listed in `index.html`, in order, into one content-named `js/app.<hash>.js` (01-config's `'use strict'` dropped, the sound manifest inlined as `SOUND_MANIFEST`), names the stylesheet the same way and rewrites `index.html`, so a visit is a couple of requests; `_headers` lets browsers keep both for good. Never commit its output (`.gitignore`), and keep every game script a plain `<script src="js/...">` tag in `index.html` so the bundler finds it.
+Browser game, plain HTML/CSS/JS, no build step to develop or test. Deployed with Netlify, which runs `tools/bundle.mjs` (see `netlify.toml`): it joins the `js/NN-*.js` scripts listed in `index.html`, in order, into one content-named `js/app.<hash>.js` (01-config's `'use strict'` dropped, the sound manifest inlined as `SOUND_MANIFEST`, and the build's time as `BUILD_TIME`, which the main menu shows beside the version as "Oct 11th" with the full date and time on hover (`buildDate` in 31-ui-menus; an unbundled copy shows the version alone)), names the stylesheet the same way and rewrites `index.html`, so a visit is a couple of requests; `_headers` lets browsers keep both for good. Never commit its output (`.gitignore`), and keep every game script a plain `<script src="js/...">` tag in `index.html` so the bundler finds it.
 
 ## Rules for every change
 

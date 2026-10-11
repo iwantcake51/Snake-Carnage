@@ -3405,3 +3405,7 @@ body.compact .mm .rs-title h3{font-size:28px!important}
   animation:inkRing .72s cubic-bezier(.3,.55,.45,1) forwards!important}
 .rip.slab .ripple:not(#_){opacity:.48}
 @keyframes inkRing{0%{--rr:0%}55%{opacity:.55}to{--rr:100%;opacity:0}}
+/* the version (and the build's date) sits level with the Map editor link beside it: the same height, centred the same way */
+.mm-foot .mm-ver:not(#_){display:inline-flex;align-items:center;gap:7px;min-height:36px;padding-bottom:0}
+.mm-ver i{font-style:normal;opacity:.6}
+.mm-ver em{font-style:normal;text-transform:none;letter-spacing:.02em}

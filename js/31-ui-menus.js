@@ -133,9 +133,14 @@ function homeHtml() {
       </nav>
     </div>
     ${profileHtml()}
-    <footer class="mm-foot"><span class="mm-ver">v${GAME_VERSION}</span>${ed ? `<button class="mm-q" id="edBtn" data-sfx="open">${kiSvg('wrench', 'mm-qi')}Map editor</button>` : ''}<span class="sp"></span>
+    <footer class="mm-foot"><span class="mm-ver"${buildDate() ? ` title="Built ${buildDate(true)}"` : ''}>v${GAME_VERSION}${buildDate() ? `<i>·</i><em>${buildDate()}</em>` : ''}</span>${ed ? `<button class="mm-q" id="edBtn" data-sfx="open">${kiSvg('wrench', 'mm-qi')}Map editor</button>` : ''}<span class="sp"></span>
       <button class="mm-mapcap" id="mapCap" data-sfx="open" aria-label="Selected map: ${attr(MAPS[mapIdx].name)}. Open the run setup"><small>Map</small><b data-mapname>${attr(MAPS[mapIdx].name)}</b></button></footer>
   </section>`;
+}
+function buildDate(full) { // when the live build was made ("Oct 11th"; full: with the year and time), from BUILD_TIME, which tools/bundle.mjs writes in; '' when unbundled
+  if (typeof BUILD_TIME !== 'number') return ''; const d = new Date(BUILD_TIME), n = d.getDate(), th = n % 100 > 10 && n % 100 < 14 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th';
+  const day = d.toLocaleDateString('en-US', { month: 'short' }) + ' ' + n + th;
+  return full ? `${day} ${d.getFullYear()}, ${d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : day;
 }
 const segHtml = (id, label, keys, cur, names, key) => `<div class="rs-seg" id="${id}" role="radiogroup" aria-label="${label}"><i class="sthumb"></i>${keys.map(k => `<button role="radio" aria-checked="${k === cur}" class="${k === cur ? 'on' : ''}" data-${key}="${k}" data-sfx="tab">${names ? names[k] : k}</button>`).join('')}</div>`;
 function setupHtml() {
