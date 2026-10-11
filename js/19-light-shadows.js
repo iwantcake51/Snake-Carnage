@@ -85,7 +85,7 @@ function bakeLightMasks(near) { // static shadows per light, baked once; after a
   }
 }
 function shadowsChanged() { // the Shadows setting changed: redo whatever was baked with the old one
-  shadowKey = ''; if (light && obstacles) { bakeShadows(); bakeLightMasks(); statKey = veilKey = ''; }
+  if (light && obstacles) { shadowKey = sunKey(light); bakeShadows(); bakeLightMasks(); statKey = veilKey = ''; }
 } // (the soft contact shading at the foot of walls is painted into the ground, so it follows on the next map load)
 function tintFrom(tx, src, s, rgb) { const b = Math.ceil(s * LS); tx.globalCompositeOperation = 'source-over'; tx.clearRect(0, 0, s, s); tx.drawImage(src, 0, 0, b, b, 0, 0, s, s); tx.globalCompositeOperation = 'source-in'; tx.fillStyle = `rgb(${rgb})`; tx.fillRect(0, 0, s, s); tx.globalCompositeOperation = 'source-over'; }
 const dyn = [], NEAR = [];

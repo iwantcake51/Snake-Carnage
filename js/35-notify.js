@@ -20,7 +20,7 @@ function notify(o) {
   if (o.key) { const old = notes.find(n => n.key === o.key); if (old) dropNote(old, true); }
   else { const dup = notes.find(n => !n.key && n.title === o.title && n.sub === (o.sub || '') && n.kind === o.kind); // the same note again: count it up instead of stacking a copy
     if (dup) { dup.count++; let c = dup.el.querySelector('.ncount'); if (!c) { c = document.createElement('em'); c.className = 'ncount'; dup.el.appendChild(c); } c.textContent = '×' + dup.count;
-      dup.el.classList.remove('bump'); void dup.el.offsetWidth; dup.el.classList.add('bump'); restartLife(dup.el, dur); clearTimeout(dup.timer); dup.timer = setTimeout(() => dropNote(dup), dur * 1000); return dup; } }
+      replayAnim(dup.el, 'bump'); restartLife(dup.el, dur); clearTimeout(dup.timer); dup.timer = setTimeout(() => dropNote(dup), dur * 1000); return dup; } }
   const el = document.createElement('div');
   el.className = 'note ' + k.cls;
   el.innerHTML = `<i class="ni">${o.icon || k.icon}</i><div class="nt"><b>${o.title}</b>${o.sub ? `<small>${o.sub}</small>` : ''}</div>${o.right ? `<em class="nr">${o.right}</em>` : ''}${o.bar ? '<span class="nbar"><span></span></span>' : '<span class="nlife"></span>'}`;

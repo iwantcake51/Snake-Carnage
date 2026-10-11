@@ -14,6 +14,7 @@ const snowAt = (x, y) => { if (!snowOn) return 0; const i = x / SN | 0, j = y / 
 function buildSnow() {
   snowOn = snowy(); snowFx = []; soaks = []; snowDirty = null;
   if (!snowOn) return;
+  if (gradeWait && !greenField) { const g = gradeGen; snowOn = false; gradeWait.then(() => { if (g === gradeGen) buildSnow(); }); return; } // the season's grass field is still being worked out: lay the snow once it's in
   const N = SNW * SNH, late = season.id !== 'winter', sd = season.seed;
   snowD = new Float32Array(N); snowS = new Float32Array(N); snowC3 = new Float32Array(N * 3); snowAO = new Float32Array(N); snowW = new Float32Array(N);
   // distance to the nearest solid thing (px, capped). Trees and bushes don't count past their trunk: snow lies under bare branches

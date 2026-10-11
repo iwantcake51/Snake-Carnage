@@ -65,24 +65,23 @@ const SEASON_TINT = { // per season: [blend mode, color A, color B, strength on 
   autumn: [['hue', [215, 160, 50], [205, 110, 40], .9, 0], ['saturation', [140, 120, 100], [140, 110, 90], .25, .1], ['multiply', [235, 225, 210], [210, 195, 180], .9, .3]],
   winter: [['saturation', [128, 128, 128], [128, 128, 128], .8, .35], ['screen', [90, 95, 105], [60, 62, 66], .85, .25], ['multiply', [228, 234, 245], [228, 234, 245], 1, .6]],
 };
-function gradeGround() { // recolors the baked floor once per load: masks built from a half-size copy, the recolor itself runs on the GPU
-  greenField = null; if (!season) return;
-  const id = season.id, d = smallFloor(); if (!d) return;
-  const sw = W / 2, sh = H / 2, gf = greenField = new Float32Array(sw * sh), sd = season.seed;
-  for (let k = 0; k < sw * sh; k++) gf[k] = clamp((d[k * 4 + 1] - Math.max(d[k * 4], d[k * 4 + 2]) - 6) / 30, 0, 1);
-  for (let pass = 0; pass < 2; pass++) for (const [di, dj] of [[1, 0], [0, 1]]) { const src = gf.slice(); for (let j = 3; j < sh - 3; j++) for (let i = 3; i < sw - 3; i++) { let a = 0; for (let t = -3; t <= 3; t++) a += src[(j + dj * t) * sw + i + di * t]; gf[j * sw + i] = a / 7; } } // soft edges, no stair steps
-  const NG = 12, nw = Math.ceil(sw / NG) + 2, mix = new Float32Array(nw * (Math.ceil(sh / NG) + 2));
-  for (let j = 0; j < mix.length / nw; j++) for (let i = 0; i < nw; i++) mix[j * nw + i] = sstep(-.25, .3, fbm(i * NG * 2 / 170 + sd, j * NG * 2 / 170 + sd * .7, 3));
-  const img = tnx.createImageData(sw, sh), P = img.data, M = new Float32Array(sw * sh);
-  for (let j = 0; j < sh; j++) { const fy = j / NG, j0 = fy | 0, ty = fy - j0; for (let i = 0; i < sw; i++) { const fx = i / NG, i0 = fx | 0, tx = fx - i0, q = j0 * nw + i0; M[j * sw + i] = (mix[q] * (1 - tx) + mix[q + 1] * tx) * (1 - ty) + (mix[q + nw] * (1 - tx) + mix[q + nw + 1] * tx) * ty; } }
-  for (const [mode, A, B, kg, ko] of SEASON_TINT[id]) {
-    const dr = B[0] - A[0], dg = B[1] - A[1], db = B[2] - A[2];
-    for (let k = 0, o = 0; k < sw * sh; k++, o += 4) { const m = M[k]; P[o] = A[0] + dr * m; P[o + 1] = A[1] + dg * m; P[o + 2] = A[2] + db * m; P[o + 3] = 255 * (ko + (kg - ko) * gf[k]); }
-    tnx.putImageData(img, 0, 0);
-    bctx.save(); bctx.globalCompositeOperation = mode; bctx.imageSmoothingEnabled = true; bctx.drawImage(tintC, 0, 0, W, H); bctx.restore();
-  }
-  for (let k = 0; k < floorCol.length; k++) if (floorCol[k]) { const c = floorCol[k], o = gradePx(c[0], c[1], c[2], id, 0); floorCol[k] = o.map(v => v | 0); }
+let gradeGen = 0, gradeWait = null; // a floor being recolored on a worker (buildSnow waits for its grass field)
+function gradeGround(d, after) { // recolors the baked floor once per load: masks built from a half-size copy on a worker, the recolor itself runs on the GPU. d: that copy, if it's already been read; after: what's painted over the graded floor (it runs once the tint is down)
+  greenField = null; gradeWait = null; const done = () => { if (after) after(); };
+  if (!season) return done();
+  const id = season.id; d = d || smallFloor(); if (!d) return done();
+  for (let k = 0; k < floorCol.length; k++) if (floorCol[k]) { const c = floorCol[k], o = gradePx(c[0], c[1], c[2], id, 0); floorCol[k] = o.map(v => v | 0); } // (the colors the rest of the game reads follow at once)
   for (let k = 0; k < grassCol.length; k++) if (grassCol[k]) { const c = grassCol[k], o = gradePx(c[0], c[1], c[2], id, 0); grassCol[k] = o.map(v => v | 0); } // kicked-up grass matches
+  const sw = W / 2, sh = H / 2, sd = season.seed, NG = 12, nw = Math.ceil(sw / NG) + 2, mix = new Float32Array(nw * (Math.ceil(sh / NG) + 2)), gen = ++gradeGen;
+  for (let j = 0; j < mix.length / nw; j++) for (let i = 0; i < nw; i++) mix[j * nw + i] = sstep(-.25, .3, fbm(i * NG * 2 / 170 + sd, j * NG * 2 / 170 + sd * .7, 3));
+  const T = SEASON_TINT[id], buf = new Uint8ClampedArray(d);
+  gradeWait = PX.run('gradeMasks', { d: buf, sw, sh, mix, nw, NG, tints: T.map(([, A, B, kg, ko]) => [...A, ...B, kg, ko]) }, [buf.buffer]).then(r => {
+    if (gen !== gradeGen) return; // another map since
+    greenField = r.gf;
+    T.forEach(([mode], n) => { tnx.putImageData(new ImageData(r['t' + n], sw, sh), 0, 0); bctx.save(); bctx.globalCompositeOperation = mode; bctx.imageSmoothingEnabled = true; bctx.drawImage(tintC, 0, 0, W, H); bctx.restore(); });
+    done();
+    const shot = document.querySelector('#intro.run:not(.out) canvas.iimg'); if (shot) introShot(shot); // the loading card's picture of the map, in its season
+  }, e => { console.warn('[grade]', e); if (gen === gradeGen) done(); });
 }
 function seasonDetails(x) { // flowers, leaf litter, dead tufts: only on grass, never on paths
   plants = []; // (first: a map with no seasons, like the Club or the Checkerboard, must not keep the last map's clover and ferns)

@@ -64,12 +64,13 @@ const fsx = floorSmall.getContext('2d', { willReadFrequently: true });
 function smallFloor() { fsx.clearRect(0, 0, W / 2, H / 2); fsx.drawImage(baseC, 0, 0, W / 2, H / 2); try { return fsx.getImageData(0, 0, W / 2, H / 2).data; } catch (e) { return null; } }
 function buildGrassMask() {
   grassMask = new Uint8Array(GMW * GMH); grassCol = new Array(GMW * GMH); floorCol = new Array(GMW * GMH);
-  const data = smallFloor(); if (!data) return; // a half-size copy: reading back the full-res floor used to stall map loads
+  const data = smallFloor(); if (!data) return; // a half-size copy: reading back the full-res floor used to stall map loads (gradeGround gets the same copy, read once)
   for (let j = 0; j < GMH; j++) for (let i = 0; i < GMW; i++) {
     const o = ((j * GM + 4) / 2 * (W / 2) + (i * GM + 4) / 2) * 4, r = data[o], g = data[o + 1], b = data[o + 2];
     floorCol[j * GMW + i] = [r, g, b];
     if (g > r + 18 && g > b + 25) { grassMask[j * GMW + i] = 1; grassCol[j * GMW + i] = [r, g, b]; }
   }
+  return data;
 }
 const grassAt = (x, y) => { const i = x / GM | 0, j = y / GM | 0; return i >= 0 && j >= 0 && i < GMW && j < GMH ? grassMask[j * GMW + i] : 0; };
 const groundColAt = (x, y) => { // hex, so it mixes with body colors; snow counts as ground

@@ -686,6 +686,11 @@ body.theme-gold .play,body.theme-toxic .play{color:#1b1406}
 /* paused board: drained of color while you're paused or waiting to steer */
 #c{transition:filter .35s,translate .5s var(--ease),scale .8s var(--ease)} /* (one rule: a later bare `transition` used to wipe out the menu zoom's, so it snapped) */
 #stage.paused #c{filter:grayscale(.85) brightness(.62) contrast(1.05)!important}
+/* GPU effects (34b-post): #glc shows the frame, laid exactly over #c, which stays for layout and input but unseen */
+#glc{position:absolute;left:0;top:0;pointer-events:none;transition:filter .35s,translate .5s var(--ease),scale .8s var(--ease)}
+#stage.glpost #c{opacity:0}
+#stage.paused #glc{filter:grayscale(.85) brightness(.62) contrast(1.05)!important}
+#stage.menuBg #glc,#stage:not(.glpost) #glc{visibility:hidden}
 #stage::after{content:'';position:absolute;inset:0;z-index:11;pointer-events:none;border-radius:0 0 10px 10px;opacity:0;visibility:hidden;transition:opacity .35s ease,visibility 0s .35s;
   background:repeating-linear-gradient(0deg,rgba(0,0,0,.08) 0 2px,transparent 2px 4px),radial-gradient(ellipse at center,transparent 45%,rgba(0,0,0,.55))}
 #stage.paused::after{opacity:1;visibility:visible;transition:opacity .3s ease} /* fades back out on resume instead of vanishing */

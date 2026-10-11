@@ -99,9 +99,9 @@ function addCombo(c) {
   combo.n++; const name = typeLabel(c); combo.counts[name] = (combo.counts[name] || 0) + 1;
   combo.t = combo.n === 1 ? comboDur() : Math.min(comboDur() * COMBO_CAP, Math.max(0, combo.t) + comboGain(c));
   el.className = 'show'; el.style.setProperty('--heat', Math.min(1, (combo.n - 1) / 24).toFixed(2));
-  const nEl = document.getElementById('cbN'); nEl.textContent = combo.n; nEl.classList.remove('punch'); void nEl.offsetWidth; nEl.classList.add('punch');
+  const nEl = document.getElementById('cbN'); nEl.textContent = combo.n; replayAnim(nEl, 'punch');
   const list = document.getElementById('cbList'); let li = [...list.children].find(l => l.dataset.k === name);
-  if (li) { li.querySelector('b').textContent = combo.counts[name] + 'x'; li.classList.remove('bump'); void li.offsetWidth; li.classList.add('bump'); list.prepend(li); }
+  if (li) { li.querySelector('b').textContent = combo.counts[name] + 'x'; replayAnim(li, 'bump'); list.prepend(li); }
   else { li = document.createElement('li'); li.dataset.k = name; li.innerHTML = `${name}<b>1x</b>`; list.prepend(li); }
   while (list.children.length > 5) list.lastElementChild.remove(); // newest types on top, the list stays short
   run.maxCombo = Math.max(run.maxCombo, combo.n); cr.maxCombo = Math.max(cr.maxCombo, combo.n); if (!cr.usedNV) cr.maxNoNV = Math.max(cr.maxNoNV, combo.n);

@@ -3,7 +3,8 @@ function snakeShadowPath(x, ox, oy) { // round, soft-edged discs per segment, li
   for (let i = 0; i < n; i++) { const g = sg[i], r = segR(i, n) * .95, sx = g.x + ox, sy = g.y + oy; x.moveTo(sx + r, sy); x.arc(sx, sy, r, 0, TAU); }
 }
 function render() {
-  const bz = Math.max(boomDaze(), gasScreen() * .8), pxS = Math.max(1, SETTINGS.pixel | 0), wob = snake && ((snake.wallStun > 0 && !SETTINGS.simpleFx) || (snake.ramT > 0 && !SETTINGS.reduceFlash)); // (a blast's daze needs no copy of the frame: the camera sways the world itself, below, and its double vision reads the screen)
+  if (MAPDIRTY) flushMapDirty(); // things that broke this frame: their layers redone once, only round them
+  const bz = Math.max(boomDaze(), gasScreen() * .8), pxS = Math.max(1, SETTINGS.pixel | 0), wob = !POST.on && snake && ((snake.wallStun > 0 && !SETTINGS.simpleFx) || (snake.ramT > 0 && !SETTINGS.reduceFlash)); // (with GPU effects the shader does the wobble and the glow: no copy of the frame) // (a blast's daze needs no copy of the frame: the camera sways the world itself, below, and its double vision reads the screen)
   render.n = (render.n || 0) + 1; // a frame number, so the edge blur shrinks each frame once
   const eb = (EDGE_K.lb > .03 || EDGE_K.fk > .03) && !SETTINGS.simpleFx, direct = pxS <= 1 && !wob; render.src = direct ? cv : sceneC; // (a lunge's edge blur reads the screen itself: it needs no copy of the frame) // no post effect this frame: draw straight to the screen and skip a full-frame copy
   const x = direct ? ctx : sctx, L = light, sh = shake && SETTINGS.shake && state !== 'paused' ? shake * (SETTINGS.shakeK ?? 1) : 0; // paused: the picture holds still, even mid-blast
@@ -75,14 +76,14 @@ function render() {
   const ws = snake && snake.wallStun > 0 ? Math.min(1.5, Math.pow(snake.wallStun / (snake.wallMax || 3.4), .6) * (snake.stunFx || 1)) : 0;
   if (ws > .02 && px <= 1 && !SETTINGS.simpleFx) { // seeing stars after a wall: the picture wobbles in slow waves, fading with the daze
     const bh = Math.ceil(cv.height / 28), amp = 7 * ws * DPR; // (fewer, taller bands: each is a draw of the whole width)
-    for (let y = 0; y < cv.height; y += bh) { const o = Math.sin(y / cv.height * 9 + T * 3.1) * amp + Math.sin(T * 1.7 + y * .01) * amp * .4; ctx.drawImage(sceneC, 0, y, cv.width, bh, o, y, cv.width, bh); }
+    if (POST.on) PF.wob = amp; else for (let y = 0; y < cv.height; y += bh) { const o = Math.sin(y / cv.height * 9 + T * 3.1) * amp + Math.sin(T * 1.7 + y * .01) * amp * .4; ctx.drawImage(sceneC, 0, y, cv.width, bh, o, y, cv.width, bh); }
     if (!SETTINGS.reduceFlash && !SETTINGS.simpleFx) ca = Math.min(1, ws);
   } else if (bz > .2 && px <= 1 && !SETTINGS.simpleFx) { // close to a blast: double vision, by how close it was (the world reels through the camera, above: no copy of the frame needed)
     if (!SETTINGS.reduceFlash) ca = .5 * bz;
   }
   if (dfxSince && px <= 1 && !SETTINGS.reduceFlash && !SETTINGS.simpleFx) { const u = (performance.now() - dfxSince) / 700; if (u < 1) ca = Math.max(ca, .9 * (1 - u) ** 1.5); } // the moment you die: the picture shudders apart
-  if (ca > .01) chromaSplit(ca); // once a frame, however many things want it
-  if (snake && snake.ramT > 0 && px <= 1 && !SETTINGS.reduceFlash) { const bk = Math.pow(snake.ramT / (snake.ramMax || 1), .6) * (snake.stunFx || 1); concussBloom(bk * (snake.wallStun > 0 ? .26 : .1)); } // any daze blooms; walls much more
+  if (ca > .01) { if (POST.on) { PF.ca = ca; PF.cad = (3 + 9 * ca) * DPR * Math.sin(T * 5.5); } else chromaSplit(ca); } // once a frame, however many things want it
+  if (snake && snake.ramT > 0 && px <= 1 && !SETTINGS.reduceFlash) { const bk = Math.pow(snake.ramT / (snake.ramMax || 1), .6) * (snake.stunFx || 1); const cb = bk * (snake.wallStun > 0 ? .26 : .1); if (POST.on) PF.cb = Math.min(.85, cb); else concussBloom(cb); } // any daze blooms; walls much more
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   if (nightVision) { // green phosphor look done in-canvas, so the overlays after it keep their real colors
     ctx.globalCompositeOperation = 'saturation'; ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
@@ -115,7 +116,8 @@ function render() {
     ctx.fillStyle = '#eee'; ctx.textAlign = 'center'; ctx.fillText(toastMsg, W / 2, H - 41); ctx.globalAlpha = 1;
   }
   const base = SETTINGS.darkness * .2, kv = SETTINGS.vignette ? killV : 0;
-  if (base > 0 || kv > .01) {
+  if ((base > 0 || kv > .01) && POST.on) PF.vig = [70 * kv / 255, 0, 0, Math.min(.4, base + .15 * kv), H * (.56 - .05 * kv), H * .92];
+  else if (base > 0 || kv > .01) {
     const g = ctx.createRadialGradient(W / 2, H / 2, H * (.56 - .05 * kv), W / 2, H / 2, H * .92);
     g.addColorStop(0, 'rgba(0,0,0,0)');
     g.addColorStop(1, `rgba(${Math.round(70 * kv)},0,0,${Math.min(.4, base + .15 * kv)})`);
@@ -128,7 +130,8 @@ function render() {
   if (wantStart !== !!render.startShown) { render.startShown = wantStart; wantStart ? showResume('to begin') : hideResume(); }
   const sat = (SETTINGS.desaturate && !nightVision ? clamp(1 - killFlash * .5, .45, 1) : 1) * (1 - .93 * stun) * (1 - .92 * dfxK) * (1 - .78 * bz) * (1 - .85 * gasScreen()); // dying drains it to grey; so does a blast close by, and breathing gas
   const f = nightVision ? `contrast(1.15) brightness(${((.95 - SETTINGS.darkness * .2) * (1 - .2 * boomDaze())).toFixed(2)})${dfxK ? ` grayscale(${(.92 * dfxK).toFixed(2)})` : ''}` : `saturate(${sat.toFixed(2)}) brightness(${((1 - SETTINGS.darkness) * (1 - .36 * dfxK) * (1 - .2 * boomDaze())).toFixed(2)}) contrast(${(1.08 + .42 * dfxK).toFixed(2)})`; // dying: grey and hard, the blacks crushed under the red
-  if (f !== lastFilter) { cv.style.filter = f; lastFilter = f; }
+  if (POST.on) { PF.grade = nightVision ? [1, (.95 - SETTINGS.darkness * .2) * (1 - .2 * boomDaze()), 1.15, .92 * dfxK, 1] : [sat, (1 - SETTINGS.darkness) * (1 - .36 * dfxK) * (1 - .2 * boomDaze()), 1.08 + .42 * dfxK, 0, 0]; if (lastFilter !== 'none') { cv.style.filter = 'none'; lastFilter = 'none'; } } // the GPU does the grade: no CSS filter pass
+  else if (f !== lastFilter) { cv.style.filter = f; lastFilter = f; }
   const ic = MAPS[mapIdx].indoor ? 'tod_indoor' : light.day > .5 ? 'tod_day' : light.day > .05 ? 'tod_dusk' : 'tod_night', clock = String(Math.floor(tod)).padStart(2, '0') + ':' + String(Math.floor(tod % 1 * 60)).padStart(2, '0');
   if (clockEl.textContent !== clock) clockEl.textContent = clock;
   if (clockIc.dataset.k !== ic) { clockIc.dataset.k = ic; clockIc.className = 'bi ' + ic; clockIc.innerHTML = giSvg(ic); } // sun, sunset, moon (or a lamp indoors)
@@ -198,6 +201,7 @@ function frame(now) {
   if (lowFx === 1 && SETTINGS.autoQ !== false && state === 'play' && frameMs > 30) { if ((slowT += raw) > 4000) { lowFx = 2; slowT = 0; if (!lowFxSaid) { lowFxSaid = true; notify({ kind: 'info', title: 'Graphics simplified', sub: 'Lighting and snow, to keep this run smooth. Settings › Graphics.', dur: 3.5 }); } } } else slowT = 0; // still too slow: the expensive layers go, until the next run
   if (lowFx === 2 && (state === 'menu' || SETTINGS.autoQ === false)) lowFx = 0;
   const dt = Math.min(.033, raw / 1000); last = now;
+  if (!POST.verdict) postProbeTick(raw); // (once a session: are GPU effects really faster on this machine?)
   requestAnimationFrame(frame); // scheduled first: nothing below can ever stop the loop
   deathFxTick(dt);
   Sfx.hold(state === 'paused' || (state === 'dead' && !NETM.run && !(deadT > 0))); // paused, or the solo death screen up: the world's sound waits too (in the menu it's let go)
@@ -209,6 +213,7 @@ function frame(now) {
   if (menu) { UT += dt; if ((rotT -= dt) <= 0) { rotT = .5; checkRotation(); updateRotClocks(); } return; } // (in the menu a new set of challenges rolls in live)
   try { update(dt * timeScale()); } catch (e) { loopError(e, 'update'); } // (3rd Eye's Focus slows the world)
   try { render(); } catch (e) { loopError(e, 'render'); }
+  if (POST.on) try { postPresent(); } catch (e) { loopError(e, 'post'); postOff(); } // (a failing GPU pass turns itself off: the canvas path takes over)
   drawSpawnGhost(); // waiting to respawn in multiplayer: where you'll come back, on its own layer over the death effects
   perfRunTick(now); if (PERF.mode !== 'Off') perfFrame(now);
 }
@@ -297,6 +302,7 @@ function edgeShrink(div) { // the frame at 1/div size (div 2, 4 or 8), halved st
 }
 function softEdges(a, div, rx, ry, s0, s1, grey = 0) { // rx, ry: the ellipse's radii (board units); s0..s1: where the blur fades in along them; div: 4 or 8 (blurrier)
   if (a < .01) return;
+  if (POST.on) { PF.edges.push([Math.min(1, a), rx, ry, grey, s0, s1]); return; } // the shader blurs the edges
   const S = edgeShrink(div), w = S.width, h = S.height, [c, g] = edgeCanvas('m' + div, w, h);
   g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'copy'; g.drawImage(S, 0, 0);
   if (grey > .01) { g.globalCompositeOperation = 'saturation'; g.globalAlpha = Math.min(1, grey); g.fillStyle = '#000'; g.fillRect(0, 0, w, h); g.globalAlpha = 1; }

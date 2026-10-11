@@ -302,35 +302,22 @@ function iceField(o, S, ox, oy, w, h) { // how far into the ice each spot is fro
   for (let j = gh - 1; j >= 0; j--) for (let i = gw - 1; i >= 0; i--) { const k = j * gw + i; let v = D[k]; if (!v) continue; if (i < gw - 1) v = Math.min(v, D[k + 1] + cs); if (j < gh - 1) { v = Math.min(v, D[k + gw] + cs); if (i < gw - 1) v = Math.min(v, D[k + gw + 1] + s2); if (i) v = Math.min(v, D[k + gw - 1] + s2); } D[k] = v; }
   let mx = 1; for (const v of D) if (v > mx && v < 1e5) mx = v;
   const at = (x, y) => { const fx = (x - ox) / cs, fy = (y - oy) / cs, i = clamp(fx | 0, 0, gw - 2), j = clamp(fy | 0, 0, gh - 2), tx = clamp(fx - i, 0, 1), ty = clamp(fy - j, 0, 1), q = j * gw + i; return Math.max(0, (D[q] * (1 - tx) + D[q + 1] * tx) * (1 - ty) + (D[q + gw] * (1 - tx) + D[q + gw + 1] * tx) * ty - cs * .5); };
-  return { at, max: mx, inn, P };
+  return { at, max: mx, inn, P, D, gw, gh, cs };
 }
 const ICE_RAMP = { // [depth 0 (the shore) .. 1 (well out), r, g, b, a]: thick white ice at the edge, clearing to deep blue over the dark water
   hard: [[0, 228, 239, 246, .97], [.08, 208, 228, 240, .94], [.25, 164, 200, 220, .86], [.5, 114, 162, 190, .78], [.8, 80, 132, 166, .72], [1, 66, 116, 154, .7]],
   thin: [[0, 204, 222, 232, .82], [.15, 152, 184, 200, .62], [.5, 92, 128, 150, .48], [1, 62, 98, 122, .42]] };
-function drawIce(x, o) { // ice, baked once per season: the water under it, the sheet itself (thick and white at the shore, clear and deep blue out in the middle, clouds of frost, wind-polished streaks), the bank's shadow across it and its lit far edge, trapped bubbles, cracks with their branches and the odd impact star, skate scratches; a few glints twinkle on it every frame
-  const S = wShape(o), key = season.id + (season.late ? 'L' : '') + (o._pk || '');
-  if (!o._ice || o._ice.k !== key) {
-    const pad = 4, bw = o.t === 'c' ? o.r * 2 : o.w, bh = o.t === 'c' ? o.r * 2 : o.h, ox = (o.t === 'c' ? o.x - o.r : o.x) - pad, oy = (o.t === 'c' ? o.y - o.r : o.y) - pad, w = Math.ceil(bw + pad * 2), h = Math.ceil(bh + pad * 2);
+function iceBake(o, S, key) { // the sheet goes to a worker; when it's back the rest is drawn round it here
+  hide(o, '_ice', { k: key, c: null });
+  const pad = 4, bw = o.t === 'c' ? o.r * 2 : o.w, bh = o.t === 'c' ? o.r * 2 : o.h, ox = (o.t === 'c' ? o.x - o.r : o.x) - pad, oy = (o.t === 'c' ? o.y - o.r : o.y) - pad, w = Math.ceil(bw + pad * 2), h = Math.ceil(bh + pad * 2);
+  const thin = season.id !== 'winter', r = seeded(Math.abs(Math.round(o.x * 3 + o.y * 7)) + 5), F = iceField(o, S, ox, oy, w, h), P = F.P, size = Math.sqrt(bw * bh) / 2, sd = (o.x * .37 + o.y * .71) % 97;
+  const nat = natPond(o), ramp = thin ? ICE_RAMP.thin : ICE_RAMP.hard, span = Math.max(12, Math.min(F.max, 58)), wa = .55 + r() * .5, ca = Math.cos(wa), sa = Math.sin(wa);
+  const D = new Float32Array(F.D), flat = new Float32Array(ramp.flat());
+  PX.run('iceSheet', { D, gw: F.gw, gh: F.gh, cs: F.cs, ox, oy, w, h, span, ramp: flat, thin, sd, ca, sa }, [D.buffer]).then(res => {
+    if (!o._ice || o._ice.k !== key) return; // (the season changed meanwhile)
     const c = document.createElement('canvas'), k = Math.min(DPR, 2); c.width = w * k; c.height = h * k; const g = c.getContext('2d'); g.scale(k, k); g.translate(-ox, -oy);
     drawWater(g, o, 0, true); // (a pool's lanes and a pond's murk show faintly through the clear ice)
-    const thin = season.id !== 'winter', r = seeded(Math.abs(Math.round(o.x * 3 + o.y * 7)) + 5), F = iceField(o, S, ox, oy, w, h), P = F.P, size = Math.sqrt(bw * bh) / 2, sd = (o.x * .37 + o.y * .71) % 97;
-    const nat = natPond(o), ramp = thin ? ICE_RAMP.thin : ICE_RAMP.hard, span = Math.max(12, Math.min(F.max, 58)), wa = .55 + r() * .5, ca = Math.cos(wa), sa = Math.sin(wa);
-    // the sheet, a pixel at a time at world size, then laid in smoothly
-    const iw = w, ih = h, pc = document.createElement('canvas'); pc.width = iw; pc.height = ih; const pg = pc.getContext('2d'), im = pg.createImageData(iw, ih), A = im.data;
-    for (let py = 0; py < ih; py++) for (let px = 0; px < iw; px++) {
-      const wx = ox + px + .5, wy = oy + py + .5, dd = F.at(wx, wy); if (dd <= 0 && !F.inn(wx, wy)) continue;
-      const dn = clamp(dd / span, 0, 1); let q = 1; while (q < ramp.length - 1 && ramp[q][0] < dn) q++;
-      const a0 = ramp[q - 1], a1 = ramp[q], t = clamp((dn - a0[0]) / (a1[0] - a0[0]), 0, 1);
-      let R = a0[1] + (a1[1] - a0[1]) * t, G = a0[2] + (a1[2] - a0[2]) * t, B = a0[3] + (a1[3] - a0[3]) * t, al = a0[4] + (a1[4] - a0[4]) * t;
-      const frost = fbm(wx / 52 + sd, wy / 52 - sd, 3), clear = fbm(wx / 28 - sd, wy / 28 + sd, 2), streak = perlin((wx * ca + wy * sa) / 90 + sd, (-wx * sa + wy * ca) / 11) * clamp(.5 + fbm(wx / 70 - sd, wy / 70, 2) * 1.6, 0, 1);
-      const fr = clamp(.1 + frost * 1.25 + (1 - dn) * .3 - Math.max(0, clear) * .9, 0, 1) * (thin ? .4 : .8); // milky frost in clouds, thinning where the ice is clear
-      const win = Math.max(0, clear - .08) * (1 - fr) * dn * (thin ? .5 : .55); R *= 1 - win; G *= 1 - win * .85; B *= 1 - win * .6; // windows of clear black ice
-      R += (240 - R) * fr; G += (247 - G) * fr; B += (251 - B) * fr; al += (1 - al) * fr * .5;
-      const st = Math.max(0, streak - .18) * (thin ? .2 : .32); R += (250 - R) * st; G += (253 - G) * st; B += (255 - B) * st; // polished by the wind, all one way
-      const gn = (wHash(px * 7.13 + py * 91.7 + sd) - .5) * 7; // a fine grain, so it never reads as a flat fill
-      const n = (py * iw + px) * 4; A[n] = clamp(R + gn, 0, 255); A[n + 1] = clamp(G + gn, 0, 255); A[n + 2] = clamp(B + gn, 0, 255); A[n + 3] = al * 255;
-    }
-    pg.putImageData(im, 0, 0);
+    const iw = w, ih = h, pc = document.createElement('canvas'); pc.width = iw; pc.height = ih; const pg = pc.getContext('2d'); pg.putImageData(new ImageData(res.px, iw, ih), 0, 0);
     g.save(); g.clip(P, 'evenodd'); g.imageSmoothingQuality = 'high'; g.drawImage(pc, ox, oy, iw, ih); freeCanvas(pc);
     const sh = (dx, dy, col, blur) => { g.save(); g.shadowColor = col; g.shadowBlur = blur * k; g.shadowOffsetX = (1e4 + dx) * k; g.shadowOffsetY = dy * k; g.translate(-1e4, 0); const Q = new Path2D(); Q.rect(ox - 80, oy - 80, w + 160, h + 160); Q.addPath(P); g.fillStyle = '#000'; g.fill(Q, 'evenodd'); g.restore(); };
     sh(3, 3.5, thin ? 'rgba(10,30,45,.4)' : 'rgba(30,60,85,.42)', 5); // the bank's shadow falls across the ice on the side away from the light
@@ -367,7 +354,13 @@ function drawIce(x, o) { // ice, baked once per season: the water under it, the 
     g.restore();
     const spk = []; for (let q = 0; q < clamp(Math.round(size / 10), 3, 14); q++) { const p0 = spot(3); if (p0) spk.push({ x: p0[0], y: p0[1], ph: r() * TAU, sp: .8 + r() * 1.4, s: 1.6 + r() * 1.8 }); }
     hide(o, '_ice', { k: key, c, x: ox, y: oy, w, h, spk });
-  }
+    const shot = document.querySelector('#intro.run:not(.out) canvas.iimg'); if (shot) introShot(shot); // the loading card's picture of the map gets the real ice too
+  }).catch(e => console.warn('[ice]', e));
+}
+function drawIce(x, o) { // ice, baked once per season: the water under it, the sheet itself (thick and white at the shore, clear and deep blue out in the middle, clouds of frost, wind-polished streaks: worked out on a worker, iceSheet in 03b), the bank's shadow across it and its lit far edge, trapped bubbles, cracks with their branches and the odd impact star, skate scratches; a few glints twinkle on it every frame
+  const S = wShape(o), key = season.id + (season.late ? 'L' : '') + (o._pk || '');
+  if (!o._ice || o._ice.k !== key) iceBake(o, S, key);
+  if (!o._ice.c) { x.save(); x.fillStyle = season.id !== 'winter' ? 'rgba(120,150,170,.7)' : 'rgba(170,200,220,.92)'; x.fill(icePath(o, S), 'evenodd'); x.restore(); return; } // (the moment before the sheet is in: plain ice)
   const I = o._ice; x.drawImage(I.c, I.x, I.y, I.w, I.h);
   const t = performance.now() / 1000; x.save(); x.lineCap = 'round'; // glints: now and then one spot catches the sun
   for (const p of I.spk) { const a = Math.max(0, Math.sin(t * p.sp + p.ph)) ** 14; if (a < .04) continue; const L = p.s * (.5 + a);

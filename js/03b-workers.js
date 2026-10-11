@@ -7,6 +7,53 @@
    runs inside a worker or, if workers are unavailable, right here on the main thread.
    ========================================================= */
 const PX_KERNELS = {
+  // the season's recolor of the floor (09-seasons gradeGround): how grassy each half-size cell is (soft-edged), and for
+  // each tint pass the color and strength to lay over it. d: the half-size floor (RGBA); mix: a coarse noise grid (nw wide, NG px a cell)
+  gradeMasks(a) {
+    const { d, sw, sh, mix, nw, NG, tints } = a, clamp = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v, gf = new Float32Array(sw * sh);
+    for (let k = 0; k < sw * sh; k++) gf[k] = clamp((d[k * 4 + 1] - Math.max(d[k * 4], d[k * 4 + 2]) - 6) / 30, 0, 1);
+    for (let pass = 0; pass < 2; pass++) for (const [di, dj] of [[1, 0], [0, 1]]) { const src = gf.slice(); for (let j = 3; j < sh - 3; j++) for (let i = 3; i < sw - 3; i++) { let s = 0; for (let t = -3; t <= 3; t++) s += src[(j + dj * t) * sw + i + di * t]; gf[j * sw + i] = s / 7; } } // soft edges, no stair steps
+    const M = new Float32Array(sw * sh);
+    for (let j = 0; j < sh; j++) { const fy = j / NG, j0 = fy | 0, ty = fy - j0; for (let i = 0; i < sw; i++) { const fx = i / NG, i0 = fx | 0, tx = fx - i0, q = j0 * nw + i0; M[j * sw + i] = (mix[q] * (1 - tx) + mix[q + 1] * tx) * (1 - ty) + (mix[q + nw] * (1 - tx) + mix[q + nw + 1] * tx) * ty; } }
+    const out = { gf };
+    tints.forEach(([A0, A1, A2, B0, B1, B2, kg, ko], n) => { const P = new Uint8ClampedArray(sw * sh * 4), dr = B0 - A0, dg = B1 - A1, db = B2 - A2;
+      for (let k = 0, o = 0; k < sw * sh; k++, o += 4) { const m = M[k]; P[o] = A0 + dr * m; P[o + 1] = A1 + dg * m; P[o + 2] = A2 + db * m; P[o + 3] = 255 * (ko + (kg - ko) * gf[k]); }
+      out['t' + n] = P; });
+    return out;
+  },
+  // the sky's echo for the air strikes (38c airVerb): a long, dark, diffuse stereo tail of filtered noise
+  skyVerb(a) {
+    const { sr, len } = a, out = {};
+    for (const ch of ['L', 'R']) { const d = new Float32Array(len); let lp = 0; for (let i = 0; i < len; i++) { const t = i / sr; lp += (Math.random() * 2 - 1 - lp) * (.32 - .2 * Math.min(1, t / 3)); d[i] = lp * Math.exp(-t * 1.25) * (t < .08 ? t / .08 : 1); } out[ch] = d; } // darker as it fades, with a soft onset
+    return out;
+  },
+  // a frozen pond's ice sheet (08-water drawIce), a pixel at a time: thick and white at the shore, clearing to deep blue
+  // over the water, clouds of frost, windows of clear black ice, wind-polished streaks, a fine grain. D: distance from the
+  // shore on a cs-px grid (gw x gh) starting at (ox, oy); ramp: [depth, r, g, b, a, ...]
+  iceSheet(a) {
+    const { D, gw, gh, cs, ox, oy, w, h, span, ramp, thin, sd, ca, sa } = a, out = new Uint8ClampedArray(w * h * 4), nR = ramp.length / 5;
+    const clamp = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
+    const P = new Uint8Array(512); { let s = Math.floor(sd * 1000) | 0; const rnd = () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296; const p = Array.from({ length: 256 }, (_, i) => i); for (let i = 255; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [p[i], p[j]] = [p[j], p[i]]; } for (let i = 0; i < 512; i++) P[i] = p[i & 255]; }
+    const fade = t => t * t * t * (t * (t * 6 - 15) + 10), grad = (hh, x, y) => { const g = hh & 7, u = g < 4 ? x : y, v = g < 4 ? y : x; return ((g & 1) ? -u : u) + ((g & 2) ? -2 * v : 2 * v); };
+    const perlin = (x, y) => { const X = Math.floor(x) & 255, Y = Math.floor(y) & 255; x -= Math.floor(x); y -= Math.floor(y); const u = fade(x), v = fade(y), A = P[X] + Y, B = P[X + 1] + Y;
+      const l1 = grad(P[A], x, y) + u * (grad(P[B], x - 1, y) - grad(P[A], x, y)), l2 = grad(P[A + 1], x, y - 1) + u * (grad(P[B + 1], x - 1, y - 1) - grad(P[A + 1], x, y - 1)); return (l1 + v * (l2 - l1)) * .35; }; // about -1..1
+    const fbm = (x, y, o) => { let s = 0, am = .5, f = 1, n = 0; for (let k = 0; k < o; k++) { s += perlin(x * f, y * f) * am; n += am; am *= .5; f *= 2.03; } return s / n; };
+    const at = (x, y) => { const fx = (x - ox) / cs, fy = (y - oy) / cs, i = clamp(fx | 0, 0, gw - 2), j = clamp(fy | 0, 0, gh - 2), tx = clamp(fx - i, 0, 1), ty = clamp(fy - j, 0, 1), q = j * gw + i; return (D[q] * (1 - tx) + D[q + 1] * tx) * (1 - ty) + (D[q + gw] * (1 - tx) + D[q + gw + 1] * tx) * ty - cs * .5; };
+    const hash = n => { const v = Math.sin(n * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
+    for (let py = 0; py < h; py++) for (let px = 0; px < w; px++) {
+      const wx = ox + px + .5, wy = oy + py + .5, dd = at(wx, wy); if (dd < -.75) continue; // (the edge itself is cut cleanly by the shore's path when it's drawn)
+      const dn = clamp(dd / span, 0, 1); let q = 1; while (q < nR - 1 && ramp[q * 5] < dn) q++;
+      const a0 = (q - 1) * 5, a1 = q * 5, t = clamp((dn - ramp[a0]) / (ramp[a1] - ramp[a0]), 0, 1);
+      let R = ramp[a0 + 1] + (ramp[a1 + 1] - ramp[a0 + 1]) * t, G = ramp[a0 + 2] + (ramp[a1 + 2] - ramp[a0 + 2]) * t, B = ramp[a0 + 3] + (ramp[a1 + 3] - ramp[a0 + 3]) * t, al = ramp[a0 + 4] + (ramp[a1 + 4] - ramp[a0 + 4]) * t;
+      const frost = fbm(wx / 52 + sd, wy / 52 - sd, 3), clear = fbm(wx / 28 - sd, wy / 28 + sd, 2), streak = perlin((wx * ca + wy * sa) / 90 + sd, (-wx * sa + wy * ca) / 11) * clamp(.5 + fbm(wx / 70 - sd, wy / 70, 2) * 1.6, 0, 1);
+      const fr = clamp(.1 + frost * 1.25 + (1 - dn) * .3 - Math.max(0, clear) * .9, 0, 1) * (thin ? .4 : .8); // milky frost in clouds, thinning where the ice is clear
+      const win = Math.max(0, clear - .08) * (1 - fr) * dn * (thin ? .5 : .55); R *= 1 - win; G *= 1 - win * .85; B *= 1 - win * .6; // windows of clear black ice
+      R += (240 - R) * fr; G += (247 - G) * fr; B += (251 - B) * fr; al += (1 - al) * fr * .5;
+      const st = Math.max(0, streak - .18) * (thin ? .2 : .32); R += (250 - R) * st; G += (253 - G) * st; B += (255 - B) * st; // polished by the wind, all one way
+      const gn = (hash(px * 7.13 + py * 91.7 + sd) - .5) * 7, n = (py * w + px) * 4; out[n] = R + gn; out[n + 1] = G + gn; out[n + 2] = B + gn; out[n + 3] = al * 255;
+    }
+    return { px: out };
+  },
   // snow depth and ambient occlusion for rows [j0, j1): the expensive part of building the snow cover
   snowField(a) {
     const { SNW, SN, SG, GW, GH, dist, NZ, LZ, nw, NC, green, gw, late, pines, ice, j0, j1 } = a;

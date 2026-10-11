@@ -322,7 +322,7 @@ function challengeHud(rebuild, refreshed) { // live checklist in the bottom-left
     const row = el.querySelector(`[data-id="${ch.id}"]`); if (!row) continue;
     const v = done[ch.id] ? ch.n : Math.min(chValue(ch), ch.n), was = row.classList.contains('done'), vEl = row.querySelector('.v');
     row.classList.toggle('done', !!done[ch.id]);
-    if (done[ch.id] && !was && !rebuild) { row.classList.remove('flash'); void row.offsetWidth; row.classList.add('flash'); }
+    if (done[ch.id] && !was && !rebuild) replayAnim(row, 'flash');
     if (!!done[ch.id] !== was || rebuild) row.querySelector('.ck').innerHTML = done[ch.id] ? kiSvg('checkmark') : ''; // only when it changes (this runs every update)
     const txt = `${v}${chUnit(ch)}/${ch.n}${chUnit(ch)}`;
     if (vEl.textContent !== txt) { if (vEl.textContent && !rebuild && !['dist', 'survive', 'comboTime'].includes(ch.k)) { vEl.classList.remove('tick'); void vEl.offsetWidth; vEl.classList.add('tick'); } vEl.textContent = txt; }

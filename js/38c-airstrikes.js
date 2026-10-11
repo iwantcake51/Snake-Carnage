@@ -1145,7 +1145,12 @@ function drawShockwaves(x, src) { // src: the canvas being drawn (it already hol
   let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; const add = (ax, ay, bx, by) => { x0 = Math.min(x0, ax); y0 = Math.min(y0, ay); x1 = Math.max(x1, bx); y1 = Math.max(y1, by); };
   for (const h of hz) add(h.x - h.r, h.y - h.r * 1.4, h.x + h.r, h.y + h.r * .6);
   for (const g of geo) add(g.w.x - g.out - 4, g.w.y - g.out - 4, g.w.x + g.out + 4, g.w.y + g.out + 4);
-  const gr = x1 > x0 ? grabScene(m.transformPoint({ x: x0, y: y0 }), m.transformPoint({ x: x1, y: y1 }), src) : null;
+  if (POST.on) { // the shader bends the picture: just hand it the fronts and the heat, in screen pixels
+    const sc = Math.hypot(m.a, m.b);
+    for (const h of hz) { const C = m.transformPoint({ x: h.x, y: h.y - h.r * .4 }); PF.hz.push([C.x, C.y, h.r * sc, hA(h), h.x]); }
+    for (const g of geo) { const C = m.transformPoint({ x: g.w.x, y: g.w.y }); PF.sw.push([C.x, C.y, g.rr * sc, g.k, g.inn * sc, g.out * sc]); }
+  }
+  const gr = !POST.on && x1 > x0 ? grabScene(m.transformPoint({ x: x0, y: y0 }), m.transformPoint({ x: x1, y: y1 }), src) : null;
   if (gr) {
     for (const h of hz) { // heat over the crater: the picture wobbles in thin strips while it burns
       const a = hA(h), A = m.transformPoint({ x: h.x - h.r, y: h.y - h.r * 1.4 }), B = m.transformPoint({ x: h.x + h.r, y: h.y + h.r * .6 }), sw = B.x - A.x, n = 6, sh = (B.y - A.y) / n, lx = A.x - gr.sx, ly = A.y - gr.sy;
@@ -1212,9 +1217,8 @@ Object.assign(Sfx, {
   lockOn(x) { if (!this.ok() || !this.gate('lock', .12)) return; const t = this.ctx.currentTime, o = this.out(x, .35); const v = .05 * this.soft(.3); this.tone(o, t, 1500, 1500, .05, 'square', v); this.tone(o, t + .09, 1900, 1900, .06, 'square', v); },
   airVerb() { // one big outdoor echo for everything up in the sky: a long, dark, diffuse tail
     if (this.verb) return this.verb;
-    const c = this.ctx, len = Math.round(c.sampleRate * 4.2), b = c.createBuffer(2, len, c.sampleRate);
-    for (let ch = 0; ch < 2; ch++) { const d = b.getChannelData(ch); let lp = 0; for (let i = 0; i < len; i++) { const t = i / c.sampleRate; lp += (Math.random() * 2 - 1 - lp) * (.32 - .2 * Math.min(1, t / 3)); d[i] = lp * Math.exp(-t * 1.25) * (t < .08 ? t / .08 : 1); } } // darker as it fades, with a soft onset
-    const cv = c.createConvolver(), g = c.createGain(); cv.buffer = b; g.gain.value = .9; cv.connect(g); g.connect(this.bus || c.destination);
+    const c = this.ctx, len = Math.round(c.sampleRate * 4.2), cv = c.createConvolver(), g = c.createGain(); g.gain.value = .9; cv.connect(g); g.connect(this.bus || c.destination);
+    PX.run('skyVerb', { sr: c.sampleRate, len }).then(r => { const b = c.createBuffer(2, len, c.sampleRate); b.copyToChannel(r.L, 0); b.copyToChannel(r.R, 1); cv.buffer = b; }).catch(e => console.warn('[sky echo]', e)); // built on a worker (it's 400,000 samples): silent for the moment until it's in, which is long before the first bomb
     return this.verb = cv;
   },
   jetVoice(t, D, A, wk) { // one jet: the roar (noise, its whole spectrum moved by the Doppler), the turbine whine pitched by the same Doppler, the low rumble that carries furthest, panned, and the sky's echo. A: its curves over D seconds from t. The approach and the fly-by are one voice: the fly-by takes over these same nodes (jetTake), so there's never a seam

@@ -25,7 +25,7 @@ const PERF_SECTIONS = [ // [function, label, group] (several functions can share
   ['drawWaters', 'Water', 'r'], ['drawGloss', 'Blood drops', 'r'], ['drawDrops', 'Blood drops', 'r'], ['drawDebris', 'Debris', 'r'], ['drawMist', 'Mist and smoke', 'r'], ['drawSmoke', 'Mist and smoke', 'r'], ['drawVomit', 'Vomit', 'r'],
   ['drawLighting', 'Lighting', 'r'], ['drawPropGlow', 'Bloom', 'r'], ['drawLampBugs', 'Lamps', 'r'], ['drawFireflyGlow', 'Lamps', 'r'], ['drawSparks', 'Debris', 'r'], ['drawImpacts', 'Debris', 'r'], ['updateChunks', 'Debris', 'u'],
   ['drawVisionMask', 'Fog and vision', 'r'], ['drawGoldenFX', 'Outlines and golden', 'r'], ['drawTargetOutlines', 'Outlines and golden', 'r'], ['drawSnakeNightRim', 'Outlines and golden', 'r'],
-  ['drawNVHighlights', 'Night vision', 'r'], ['drawNightVision', 'Night vision', 'r'], ['drawBubbles', 'Speech bubbles', 'r'], ['chromaSplit', 'Daze effects', 'r'], ['concussBloom', 'Daze effects', 'r'],
+  ['postPresent', 'GPU effects', 'r'], ['drawNVHighlights', 'Night vision', 'r'], ['drawNightVision', 'Night vision', 'r'], ['drawBubbles', 'Speech bubbles', 'r'], ['chromaSplit', 'Daze effects', 'r'], ['concussBloom', 'Daze effects', 'r'],
   ['drawObstacleLayer', 'Rebuild: map objects', 'b'], ['bakeOutline', 'Rebuild: map objects', 'b'], ['bakeShadows', 'Rebuild: shadows', 'b'], ['bakeContactShadows', 'Rebuild: shadows', 'b'],
   ['bakeLightMasks', 'Rebuild: lighting', 'b'], ['bakePropGlow', 'Rebuild: bloom', 'b'], ['buildSnow', 'Rebuild: snow', 'b'], ['updateBuckets', 'Rebuild: blood layers', 'b'],
 ];

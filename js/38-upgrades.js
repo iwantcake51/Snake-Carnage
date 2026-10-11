@@ -491,8 +491,7 @@ function smashObstacle(o, ang, quiet) { // quiet: catching up on breakage that h
   // the rest of a long object (a split table, a glass wall's other panes) stands as it was: no crack lines on the neighbours
   if (!quiet && fx) bfxBurst(o, fx, ang);
   else if (!quiet) for (let k = 0; k < 18 + size / 3; k++) { const a = ang + rand(-1.2, 1.2), sp = rand(60, 230); debris.push({ x: cx + rand(-size / 3, size / 3), y: cy + rand(-size / 3, size / 3), z: rand(4, 16), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(60, 170), t: 0, s: rand(1.6, 3.6), c: pick([o.color, shade(o.color, -.2), shade(o.color, .15)]) }); }
-  drawObstacleLayer();
-  bakeOutline(); buildSolid(); shadowKey = ''; bakeShadows(); bakeLightMasks({ x: cx, y: cy, r: size });
+  mapDirtyObj(o); // the object layer, outlines, collision, shadows and nearby lamps: redone once this frame, only round it (flushMapDirty)
   const wall = o.kind === 'bwall', hard = wall || o.kind === 'rock'; // rocks knock you silly just like walls
   if (!quiet) { if (fx) Sfx.breakFx(fx.sound, cx, wall ? size * 2.5 : size, fx.vol); else Sfx.smash(cx, wall ? size * 2.5 : size); }
   if (mine && fx && fx.stun !== 'default') { shake = Math.max(shake, 8 * fx.shake); bfxStun(fx); }
