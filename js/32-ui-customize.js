@@ -256,8 +256,10 @@ function fit() {
   const vh = (window.visualViewport && visualViewport.height) || innerHeight, top = small ? Math.max(0, cv.getBoundingClientRect().top) : 0; // a phone: measure where the board really starts (the bar is scaled), so it runs exactly to the bottom
   const s = boardScale = Math.min((innerWidth - pad) / W, small ? (vh - top) / H : (innerHeight - barH) / H, 2.2); // render the game larger when there's room
   cv.style.width = W * s + 'px'; cv.style.height = H * s + 'px';
+  fitSeen.w = innerWidth; fitSeen.h = innerHeight; fitSeen.v = vh;
   applyUiScale();
 }
+const fitSeen = { w: 0, h: 0, v: 0 }; // the window's size when the board was last fitted
 const UI_SCALES = { Small: .85, Medium: 1, Large: 1.15, 'Extra Large': 1.3 };
 function applyUiScale() { // zoom every HUD/menu layer; overlay is shrunk by the same factor first so percentages still fit
   const phone = document.body.classList.contains('phone'), u = UI_SCALES[SETTINGS.uiScale] || clamp(boardScale * (phone ? .92 : .82), phone ? .62 : .8, 1.4); // desktop menus get a little more room to lay out in, so most fit without scrolling
@@ -272,4 +274,10 @@ function layoutHud() { // safe zones: notifications always sit below the modifie
   nt.style.top = ((mb.innerHTML ? mb.offsetHeight * u + 16 : 12) / u) + 'px';
   const b = mh && mh.innerHTML ? 14 + mh.offsetHeight + 8 : 14; if (nt.style.bottom !== b + 'px') nt.style.bottom = b + 'px'; // (both live in layers scaled the same way, so their own px line up)
 }
-addEventListener('resize', () => { fit(); overlay.querySelectorAll('.seg,.sseg').forEach(sg => placeThumb(sg, true)); });
+function refit() { fit(); overlay.querySelectorAll('.seg,.sseg').forEach(sg => placeThumb(sg, true)); }
+function fitIfMoved() { const v = (window.visualViewport && visualViewport.height) || innerHeight; if (innerWidth !== fitSeen.w || innerHeight !== fitSeen.h || Math.abs(v - fitSeen.v) > .5) refit(); }
+const refitSoon = () => { refit(); for (const ms of [120, 400, 900]) setTimeout(fitIfMoved, ms); }; // a phone tells the new size late after it turns or its toolbar slides away: look again until it settles
+addEventListener('resize', refitSoon); addEventListener('orientationchange', refitSoon); addEventListener('pageshow', refitSoon);
+if (window.visualViewport) visualViewport.addEventListener('resize', refitSoon);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) refitSoon(); }); // back from another app or tab
+setInterval(fitIfMoved, 500); // and a size change no event told us about is caught within half a second (the board never stays shrunk)
