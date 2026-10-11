@@ -45,7 +45,7 @@ const LOCK = () => !!MOD.lockOn, jetV = () => LOCK() ? 2200 : 1150, strafeV = ()
 const snakeOfPid = id => !NETM.run || !id || id === NETM.me ? snake : (NS.rs && NS.rs.get(id)) || null; // the snake a tracking marker follows, on any screen
 const airEW = s => s ? SKV.warn(id => skOf(s, id)) : 0; // Early Warning: seconds more warning on every strike aimed at this snake
 function skOf(s, id) { if (s === snake) return sk(id); const o = UPG_OVR; UPG_OVR = s.upgLv || {}; try { return sk(id); } finally { UPG_OVR = o; } } // another player's rank (the host deciding for them) // outdoors on Earth, always (the Clear skies modifier is the way to switch them off)
-function airReset() { fireReset(); AIR.barT = AIR.artyT = AIR.artyT0 = AIR.artyBarT = AIR.artyNext = undefined; scorched = []; tailBits = []; strikes = []; booms = []; boomBits = []; corpses = []; fallenHats = []; jets = []; shocks = []; fires = []; soots = []; hazes = []; later = []; clods = []; strafes = []; tracers = []; AIR.crowdTalk = null; AIR.queue = []; AIR.storms = []; NM.list = []; NM.n = 0; AIR.warned = false; AIR.nextT = 0; AIR.flash = 0; AIR.sky = 0; AIR.rumble = 0; AIR.d0 = 0; AIR.muf = 0; AIR.mufH = 0; if (Sfx.lp) Sfx.daze(0); }
+function airReset() { fireReset(); AIR.barT = AIR.artyT = AIR.artyT0 = AIR.artyBarT = AIR.artyNext = AIR.lastPid = undefined; scorched = []; tailBits = []; strikes = []; booms = []; boomBits = []; corpses = []; fallenHats = []; jets = []; shocks = []; fires = []; soots = []; hazes = []; later = []; clods = []; strafes = []; tracers = []; AIR.crowdTalk = null; AIR.queue = []; AIR.storms = []; NM.list = []; NM.n = 0; AIR.warned = false; AIR.nextT = 0; AIR.flash = 0; AIR.sky = 0; AIR.rumble = 0; AIR.d0 = 0; AIR.muf = 0; AIR.mufH = 0; if (Sfx.lp) Sfx.daze(0); }
 /* reeling from a blast: full strength for the first second, then it fades over the next 1.2 */
 const boomSlow = s => s && s.boomT > 0 ? (s.boomK || 0) * clamp(s.boomT / 1.2, 0, 1) : 0;
 const boomDaze = () => snake && snake.alive ? boomSlow(snake) : 0;
@@ -113,13 +113,13 @@ function airSchedule(dt) {
   const t0 = MOD.airRaid ? AIR_RAID_START : AIR_START, t = run.time || 0; if (t < t0) return;
   if (!AIR.warned) { AIR.warned = true; AIR.d0 = cr.dist; airWarn(); netEmit({ t: 'airw' }); AIR.nextT = MOD.airRaid ? .6 : 3.5; return; }
   if (AIR.artyT === undefined && (MOD.airRaid ? t >= ARTY.raid : t - t0 >= ARTY.after) && !(AIR.storms && AIR.storms.length)) { // the guns open up: the first salvo comes right on time (2.5 minutes into the bombing; Shell Shock: 15 s into the run)
-    const ts = netSnakes().filter(s => s.alive && s.started && !s.hidden && !s.netHidden && !(s.graceT > 0) && s.segs && s.segs.length); if (ts.length) { AIR.artyT = AIR.artyT0 = t; AIR.artyNext = t + rand(...(MOD.airRaid ? ARTY.everyRaid : ARTY.every)); for (const s of ts) artySalvo(s, .3); }
+    const ts = netSnakes().filter(s => s.alive && s.started && !s.hidden && !s.netHidden && !(s.graceT > 0) && s.segs && s.segs.length); if (ts.length) { AIR.artyT = AIR.artyT0 = t; AIR.artyNext = t + rand(...(MOD.airRaid ? ARTY.everyRaid : ARTY.every)); artySalvo(airPick(ts), .3); }
   } else if (AIR.artyNext !== undefined && t >= AIR.artyNext && !(AIR.storms && AIR.storms.length)) { // after the first, the guns keep on their own clock, apart from the jets (Shell Shock: every 9-14 s)
     const raid = !!MOD.airRaid, ts = netSnakes().filter(s => s.alive && s.started && !s.hidden && !s.netHidden && !(s.graceT > 0) && s.segs && s.segs.length);
     AIR.artyNext = t + rand(...(raid ? ARTY.everyRaid : ARTY.every));
     if (ts.length) { const bar = t - AIR.artyT0 > (raid ? ARTY.barAfterRaid : ARTY.barAfter) && t - (AIR.artyBarT ?? -1e9) > (raid ? ARTY.barGapRaid : ARTY.barGap) && Math.random() < ARTY.bar; // now and then, the whole battery at once
       AIR.artyT = t; if (bar) AIR.artyBarT = t; const k = Math.min(1, raid ? (t - t0) / 300 : (t - t0) / 180);
-      for (const s of ts) (bar ? artyBarrage : artySalvo)(s, k); }
+      (bar ? artyBarrage : artySalvo)(airPick(ts), k); }
   }
   if ((AIR.nextT -= dt) > 0) return;
   const raid = !!MOD.airRaid, gt = Math.max((t - t0) / 180, (cr.dist - AIR.d0) / 2500); // how far you've come since they started: it never stops climbing
@@ -131,11 +131,11 @@ function airSchedule(dt) {
     : 34 / (1 + .3 * Math.min(1, gt)) * rand(.8, 1.35) * (Math.random() < .25 ? 1.5 : 1); // a normal game: about every 36 s if nobody kills anything (still 28 s or so late on), never on a beat, now and then a longer lull; every kill brings the next one closer (airKillTick), never to under 10 s
   if (t - t0 > 150 && t - (AIR.barT ?? -1e9) > 240 && !strikes.length && !AIR.queue.length && Math.random() < (raid ? .05 : .07)) { // rarely, a barrage instead: never twice close together, never on top of another strike
     AIR.barT = t; AIR.nextT = BARRAGE.dur + BARRAGE.lead + Math.min(AIR.nextT, 8) * .5; // the usual strikes wait out the storm, then carry on, no long quiet
-    for (const s of targets) { barrage(s, raid ? ramp : Math.min(1, Math.max(gt, heatOf(s)))); }
+    { const s = airPick(targets); barrage(s, raid ? ramp : Math.min(1, Math.max(gt, heatOf(s)))); }
     return;
   }
   const kind = t - t0 > (raid ? 30 : 20) && Math.random() < .13 + .07 * k ? (Math.random() < .14 ? 'bombs' : 'guns') : 'salvo'; // strafing runs (and bombing runs) stay the rare ones
-  for (const s of targets) { // multiplayer: every player gets their own run at the same moment, and every screen sees all of them (the host sends each one out)
+  for (const s of [airPick(targets)]) { // multiplayer: one run at a time, at one player (never the same one twice running), so more players never means more bombs; every screen sees it (the host sends it out)
     const a = kind === 'guns' ? rand(0, TAU) : s.angle + (Math.random() < .5 ? 1 : -1) * (kind === 'bombs' ? rand(.35, 1.15) : rand(.9, 2.2)); // gun runs come in from anywhere; bombers cross your path
     const pre = LOCK() ? rand(1.3, 1.8) : rand(2.4, 3.6), sp = (s.speed || CONFIG.snakeSpeeds.Normal) * (s.dashV || 1), px = Math.round(s.x + Math.cos(s.angle) * sp * pre), py = Math.round(s.y + Math.sin(s.angle) * sp * pre);
     const ov = +airOver(kind, raid ? ramp : Math.min(1, Math.max(gt, heatOf(s)))).toFixed(2); // when it'll be overhead, so the approach is the same jet the fly-by takes over
@@ -181,11 +181,15 @@ function stormBomb(st, s, q) {
   const ew = airEW(s) || undefined, ep = ew ? airPid(s) : undefined; airStrike(rx, ry, w, rr, ja, f, undefined, kd, sd, ew, ep); netEmit({ t: 'air', x: rx, y: ry, w, r: rr, j: ja, f, kd, sd, ew, ep, h: Math.round(netNow()) });
 }
 function barrageWarn() { Sfx.barrage(); } // no notice on screen: the sound and the markers are the warning
+function airPick(ts) { // the deciding browser: who this strike is for: one player, never the same one twice running while there's anyone else
+  const c = ts.length > 1 ? ts.filter(s => airPid(s) !== AIR.lastPid) : ts, s = pick(c.length ? c : ts); AIR.lastPid = airPid(s); return s;
+}
 function airKillTick(s, c) { // the deciding browser: someone (any player) just ate somebody: the jets come sooner (a person a fair bit, an animal far less, a small one less still)
   if (!s || !airOn() || !AIR.warned || state !== 'play' || (AIR.storms && AIR.storms.length)) return; // (a storm is its own pace)
   const floor = MOD.airRaid ? 2.5 : 10; // never right on top of the last one (a normal game keeps its quiet spells)
   const per = MOD.airRaid ? .25 : .6, k = !c || c.def.human ? 1 : .4 * clamp((c.def.r || 8) / 14, .2, 1); // animals: under half a person's, scaled by size
-  if (AIR.nextT > floor) AIR.nextT = Math.max(floor, AIR.nextT - per * k);
+  const np = Math.max(1, netSnakes().filter(q => q && q.alive && !q.netHidden).length); // (multiplayer: shared out, so a crowd of players killing doesn't call in more bombs than one would)
+  if (AIR.nextT > floor) AIR.nextT = Math.max(floor, AIR.nextT - per * k / np);
 }
 function airKills(s) { // kills that count against this snake: in co-op everyone's, in Teams your team's, in free for all your own
   if (!NETM.run) return run.killed || 0;
