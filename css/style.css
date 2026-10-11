@@ -3447,15 +3447,6 @@ body.compact .mm .rs-title h3{font-size:28px!important}
 @keyframes cfxWipe{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
 @keyframes cfxPop{from{scale:0}}
 @keyframes cfxFlip{from{opacity:0;transform:rotateY(90deg) scale(.7)}}
-/* the Skins tab's "Real snakes" row (realRow in 37-shop): quiet hand-drawn chips, each with a split swatch of the two colors */
-.realrow{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin:2px 0 16px}
-.realrow .rlab{font:700 12px var(--f-num);letter-spacing:.05em;text-transform:uppercase;color:var(--dim);margin-right:4px}
-.realb{display:inline-flex;align-items:center;gap:7px;padding:6px 10px;border:2px solid var(--hair2);border-radius:var(--hm-box2);background:none;color:var(--ink);font:600 13px var(--f-body);cursor:pointer;box-shadow:2px 2px 0 var(--hm-shadow);position:relative}
-.realb:hover{border-color:var(--ink)}
-.realb .rsw{width:14px;height:14px;border-radius:50%;box-shadow:0 0 0 1.5px rgba(0,0,0,.6)}
-.realb em{font:700 11.5px var(--f-num);font-style:normal;color:var(--acc-hi,var(--acc));display:inline-flex;align-items:center;gap:3px}
-.realb.on{border-color:var(--acc)}
-.realb.on::after{content:'';position:absolute;left:10px;right:10px;bottom:-4px;height:2px;background:var(--acc)}
 /* the skin list's "Real snakes" section (realCard in 37-shop): a label across the grid, then the cards in their real colors */
 .cards2 .realhd{grid-column:1/-1;display:flex;align-items:baseline;gap:10px;margin:10px 0 2px;padding-bottom:5px;border-bottom:1px dashed var(--hair2);font:700 13px var(--f-num);letter-spacing:.05em;text-transform:uppercase;color:var(--dim)}
 .cards2 .realhd small{font:400 12.5px var(--f-body);letter-spacing:0;text-transform:none;color:var(--mute)}

@@ -107,7 +107,6 @@ function refreshShop(msg) { // after buying or equipping: update the cards, chip
     if (keep && slot) slot.replaceWith(keep);
     nb.style.animation = 'none'; b.replaceWith(nb);
   });
-  const rr = overlay.querySelector('.realrow'); if (rr) { const t = document.createElement('div'); t.innerHTML = realRow(); rr.replaceWith(t.firstElementChild); }
   wireShop.noDraw = true; wireShop(); wireShop.noDraw = false;
   const cp = overlay.querySelector('.shophead .coinpill'); if (cp) cp.innerHTML = `<i class="pc"></i> ${PROG.coins}`;
   const m = overlay.querySelector('.shopmsg'); if (m && msg) m.textContent = msg;
@@ -117,7 +116,7 @@ function shopBody(tab) {
   const cat = tab, list = itemsOf(cat);
   if (cat === 'pattern') { // the skins you can buy, then the real snakes as cards of their own, then the skins earned from challenges
     const buy = list.filter(it => !it[2]), earned = list.filter(it => it[2]), n = buy.length;
-    return `<h2>${CAT_LABEL[cat]}</h2>${realRow()}<div class="cards2">${buy.map((it, i) => shopCard(cat, it, i)).join('')}<div class="realhd">Real snakes<small>a skin and two colors from the list: the real animal</small></div>${REAL_SNAKES.map((r, i) => realCard(r, i, n + i)).join('')}${earned.map((it, i) => shopCard(cat, it, n + REAL_SNAKES.length + i)).join('')}</div>`;
+    return `<h2>${CAT_LABEL[cat]}</h2><div class="cards2">${buy.map((it, i) => shopCard(cat, it, i)).join('')}<div class="realhd">Real snakes<small>a skin and two colors from the list: the real animal</small></div>${REAL_SNAKES.map((r, i) => realCard(r, i, n + i)).join('')}${earned.map((it, i) => shopCard(cat, it, n + REAL_SNAKES.length + i)).join('')}</div>`;
   }
   return `<h2>${CAT_LABEL[cat]}</h2><div class="cards2">${list.map((it, i) => shopCard(cat, it, i)).join('')}</div>`;
 }
@@ -126,10 +125,6 @@ function shopBody(tab) {
 const realNeed = r => [['pattern', r.pattern], ['color', r.color], ['color2', r.color2]].filter(([c, v]) => !owns(c, v));
 const realCost = r => realNeed(r).reduce((a, [c, v]) => a + priceOf(c, v), 0);
 const realLabel = ([c, v]) => c === 'pattern' ? `${v} skin` : `${colorName(v)} ${c === 'color' ? 'primary' : 'secondary'}`;
-function realRow() {
-  return `<div class="realrow"><span class="rlab">Real snakes</span>${REAL_SNAKES.map((r, i) => { const n = realNeed(r).length, on = ['pattern', 'color', 'color2'].every(k => SETTINGS.snake[k] === r[k]);
-    return `<button class="realb ${on ? 'on' : ''} ${n ? '' : 'own'}" data-real="${i}"><i class="rsw" style="background:linear-gradient(90deg,${r.color} 0 50%,${r.color2} 50% 100%)"></i>${r.name}${n ? `<em><i class="pc"></i>${realCost(r)}</em>` : ''}</button>`; }).join('')}</div>`;
-}
 function realCard(r, i, k) { // a real snake in the skin list, shown in its real colors: clicking it buys what you're missing and wears it
   const cfg = SETTINGS.snake, on = ['pattern', 'color', 'color2'].every(q => cfg[q] === r[q]), cost = realCost(r), own = !realNeed(r).length;
   const status = on ? '<span class="st eq">Equipped</span>' : own ? '<span class="st own">Owned · click to wear</span>' : `<span class="st buy"><i class="pc"></i> ${cost} · click to buy what's missing</span>`;
@@ -140,7 +135,7 @@ function realCard(r, i, k) { // a real snake in the skin list, shown in its real
 function realMsg(r) { const need = realNeed(r);
   return need.length ? `${r.name}: ${r.pattern} skin, ${colorName(r.color)} body, ${colorName(r.color2)} markings. You still need the ${need.map(realLabel).join(', ')}: ${realCost(r)} chips.` : `${r.name}: you have everything. Click to wear it.`; }
 function chooseReal(r) {
-  chooseReal.at = performance.now(); // (what a click says stays up a moment: the row is rebuilt under the pointer, which counts as hovering it again)
+  chooseReal.at = performance.now(); // (what a click says stays up a moment: the card is rebuilt under the pointer, which counts as hovering it again)
   const need = realNeed(r), cost = realCost(r), cfg = SETTINGS.snake;
   if (cost > PROG.coins) { Sfx.deny(); return refreshShop(`${r.name}: you need ${cost - PROG.coins} more chips for the ${need.map(realLabel).join(', ')}.`); }
   if (need.length) { PROG.coins -= cost; need.forEach(([c, v]) => PROG.owned.push(ownKey(c, v))); saveProg(); updateHud(); Sfx.buy(); }
