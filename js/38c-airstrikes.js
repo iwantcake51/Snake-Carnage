@@ -230,7 +230,10 @@ function bombKd(tt, sp = 1) { // the deciding browser: one bomb's kind (nothing 
    Each lands with a far bigger blast than a bomb, but you get a long time to get clear: the cannon's report, the marker, then the shell
    whistling all the way down, slowly ---- */
 const ARTY = { after: 150, raid: 15, gap: 70, p: .12, r: [1.3, 1.65], warn: [3, 4], bar: .22, barGap: 150, barAfter: 60 }; // bar: how often a later salvo is a barrage instead (never the first, never within 150 s of the last one, nor sooner than a minute after the guns open) // the first salvo comes 2.5 minutes into the bombing (Shell Shock: 15 s into the run), then now and then, never within 70 s of the last; each shell 3-4 s from the gun to the ground
-const ARTY_KINDS = [[undefined, 45], ['g', 35], ['c', 20]]; // what a shell carries: high explosive mostly, gas shells (the only gas there is: it lands on ground you've just left, so it's a trap you can see, never a blindfold on your way in), cluster shells that chew up a coiled tail
+const ARTY_KINDS = [[undefined, 40], ['g', 30], ['i', 15], ['c', 15]]; // what a shell carries: high explosive mostly, gas shells (the only gas there is: it lands on ground you've just left, so it's a trap you can see, never a blindfold on your way in), cluster shells that chew up a coiled tail
+const ARTY_PAL = { // each payload's colours on the artillery marker (z: the glow under it; on/off: the flashing ring; soft: the ticks, inner rings and fills)
+  he: { z: [170, 125, 255], on: '#e6d9ff', off: '#b99cff', soft: '214,194,255', lab: '#d4c2ff' }, g: { z: [150, 200, 40], on: '#e4ff8a', off: '#9cc83a', soft: '205,240,120', lab: '#b8e04c' },
+  i: { z: [255, 110, 20], on: '#ffc06a', off: '#ff6a1a', soft: '255,175,95', lab: '#ff9a3c' }, c: { z: [255, 190, 40], on: '#ffe27a', off: '#e0a91f', soft: '255,218,115', lab: '#ffd23f' } };
 function artyKd() { let r = Math.random() * 100; for (const [k, w] of ARTY_KINDS) if ((r -= w) < 0) return k; }
 function artyTailSpot(s, D) { // a point D up the body from the end of this snake's tail (past the head on its heading if the body is shorter than that)
   const g = s.segs; let left = D;
@@ -265,12 +268,13 @@ function artyBarrage(s, k) { // the deciding browser
 }
 const snakeLen = s => s.segs.reduce((d, g, i) => i ? d + Math.hypot(g.x - s.segs[i - 1].x, g.y - s.segs[i - 1].y) : 0, 0);
 function artyShell(s, ca, aim, w0, pk0, r0) { // the deciding browser: one shell fired at the end of this snake's tail (aim, w0, pk0, r0: a barrage's own spot, flight time, payload and size)
-  const body = snakeLen(s), r = r0 || Math.round(AIR_R * rand(...ARTY.r)), ew = airEW(s) || undefined, ep = ew ? airPid(s) : undefined; // each shell its own size: always bigger than a bomb, never huge
+  const body = snakeLen(s); let r = r0 || Math.round(AIR_R * rand(...ARTY.r)), ew = airEW(s) || undefined, ep = ew ? airPid(s) : undefined; // each shell its own size: always bigger than a bomb, never huge
   let w = (w0 || rand(...ARTY.warn)) + (ew || 0);
   for (let q = 0; q < 6; q++) { const o = strikes.find(o => Math.abs(o.t - w) < .11); if (!o) break; w = o.t + .11 + rand(0, .05); } // never two at once
   w = +w.toFixed(2);
   const [tx, ty, ta] = artyTailSpot(s, body * rand(0, .12)), side = gauss() * 14, [x, y] = aim || airInside(tx - Math.sin(ta) * side, ty + Math.cos(ta) * side, s.x, s.y); // right on the end of the tail
   const rx = Math.round(x), ry = Math.round(y), f = +((w - (ew || 0)) * rand(.75, .85)).toFixed(2), pk = pk0 === undefined ? artyKd() : pk0 || undefined, sd = pk ? randi(1, 2 ** 30) : undefined; // most of its flight you can watch it come down
+  if (pk === 'i') r = Math.round(r * .85); // a fire shell's own blast is smaller: its fire does the rest
   airStrike(rx, ry, w, r, ca, f, undefined, 'a', sd, ew, ep, pk); netEmit({ t: 'air', x: rx, y: ry, w, r, j: ca, f, kd: 'a', sd, ew, ep, pk, h: Math.round(netNow()) });
 }
 function bombKind() { // a size and a falling speed: mostly ordinary, some big ones, some small, some that come down fast or slow
@@ -391,7 +395,7 @@ function detonate(s) {
   for (let k = 0; k < sec; k++) { const a = rand(0, TAU), d = r * rand(.5, 1.1), dl = rand(.2, .7), sx = x + Math.cos(a) * d, sy = y + Math.sin(a) * d; // things in the crater cooking off
     booms.push({ puff: true, sec: true, x: sx, y: sy, r: r * rand(.35, .55), t: -dl, dur: .55 });
     later.push({ t: dl, f: () => { Sfx.cookOff(sx); for (let q = 0; q < 10; q++) { const b = rand(0, TAU), v = rand(120, 380); boomBits.push({ spark: true, x: sx, y: sy, z: rand(4, 12), vx: Math.cos(b) * v, vy: Math.sin(b) * v, vz: rand(40, 200), t: 0, life: rand(.2, .5) }); } } }); }
-  if (s.kd === 'i') fireSpread(s); // an incendiary: small patches of burning ground (38g-cluster-fire)
+  if (s.kd === 'i' || s.pk === 'i') fireSpread(s); // an incendiary: small patches of burning ground (38g-cluster-fire)
   for (let k = 0; k < n(mini ? 1 : s.kd === 'i' ? 2 : 4); k++) { const a = rand(0, TAU), d = rand(0, .55) * r; fires.push({ x: x + Math.cos(a) * d, y: y + Math.sin(a) * d, r: rand(5, 10), t: 0, life: rand(2.5, 5), ph: rand(0, 99) }); } // the crater keeps burning
   const gpal = groundPalette(x, y, r); { const main = booms.find(q => !q.puff && q.x === x && q.y === y && q.t === 0); if (main) main.dust = shade(gpal[gpal.length - 1] || '#b49a78', .25); } // the dust ring is the ground's own color
   for (let k = 0; k < Math.round(56 * cm * bm); k++) { const a = rand(0, TAU), sp = rand(90, 420); boomBits.push({ x: x + rand(-6, 6), y: y + rand(-6, 6), z: rand(2, 10), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(120, 380), t: 0, life: rand(1.6, 3.2), s: rand(1.5, 4.2), tr: Math.random() < .35, c: pick(gpal) }); } // crumbs of whatever the ground was, thrown high
@@ -968,23 +972,41 @@ function drawStrikeMark(x, s) { // a bomb, an incendiary and a cluster bomb each
   x.save(); x.translate(s.x, s.y); x.globalAlpha = ma;
   const zone = (r, g, b) => { const glow = x.createRadialGradient(0, 0, R * .2, 0, 0, R * 1.5); glow.addColorStop(0, `rgba(${r},${g},${b},${(on ? .26 : .12) + .14 * p})`); glow.addColorStop(.7, `rgba(${r},${g},${b},${(on ? .16 : .07) + .08 * p})`); glow.addColorStop(1, `rgba(${r},${g},${b},0)`); x.fillStyle = glow; circ(x, 0, 0, R * 1.5); };
   const sweep = () => { x.strokeStyle = 'rgba(255,255,255,.9)'; x.lineWidth = 3; x.beginPath(); x.arc(0, 0, R - 6, -Math.PI / 2, -Math.PI / 2 + TAU * (1 - p)); x.stroke(); }; // time left
-  if (s.kd === 'a') { // ARTILLERY: nothing like a bomb's red crosshair: a pale violet range ring with a mil scale round it, a ring closing in on it as the shell comes down, a map grid square at its heart, and chevrons on the side the shells come in from
-    zone(170, 125, 255);
-    const C = on ? '#e6d9ff' : '#b99cff';
-    x.save(); x.globalAlpha = ma * (.35 + .5 * p); x.setLineDash([10, 8]); x.lineDashOffset = -T * 24; x.lineWidth = 2; x.strokeStyle = '#d4c2ff'; x.beginPath(); x.arc(0, 0, R * (1 + 1.3 * (1 - p) ** 1.5), 0, TAU); x.stroke(); x.restore(); // closing in as it comes down
-    x.lineWidth = 2.6; x.strokeStyle = C; x.beginPath(); x.arc(0, 0, R, 0, TAU); x.stroke(); // the edge of the blast
-    x.save(); x.rotate(rot * .25); x.lineWidth = 1.6; x.strokeStyle = 'rgba(214,194,255,.85)'; x.beginPath(); // the mil scale: a tick every 7.5 degrees, a long one every 30
-    for (let q = 0; q < 48; q++) { const a = q / 48 * TAU, L = q % 4 ? 5 : 11; x.moveTo(Math.cos(a) * (R + 2), Math.sin(a) * (R + 2)); x.lineTo(Math.cos(a) * (R + 2 + L), Math.sin(a) * (R + 2 + L)); } x.stroke(); x.restore();
-    x.setLineDash([4, 5]); x.lineWidth = 1.2; x.strokeStyle = 'rgba(200,175,255,.6)'; x.beginPath(); x.arc(0, 0, R * .62, 0, TAU); x.stroke(); x.setLineDash([]); // a range ring inside
-    if (s.pk === 'c') { x.save(); x.globalAlpha = ma * (.55 + .3 * p); x.setLineDash([3, 7]); x.lineWidth = 1.6; x.strokeStyle = '#ffd23f'; x.beginPath(); x.arc(0, 0, R * 2.5, 0, TAU); x.stroke(); x.restore(); x.globalAlpha = ma; } // a cluster shell: as far as its bomblets scatter
-    const PK = s.pk === 'g' ? '#b8e04c' : s.pk === 'c' ? '#ffd23f' : C; // what it carries, in that kind's own colour
-    const g = R * .3; x.lineWidth = 1.8; x.strokeStyle = PK; x.strokeRect(-g, -g, g * 2, g * 2); // the grid square it's laid on
-    x.beginPath(); x.moveTo(-g, 0); x.lineTo(-g * .35, 0); x.moveTo(g * .35, 0); x.lineTo(g, 0); x.moveTo(0, -g); x.lineTo(0, -g * .35); x.moveTo(0, g * .35); x.lineTo(0, g); x.stroke();
-    x.fillStyle = on ? '#fff' : PK; x.beginPath(); x.moveTo(0, -4.5); x.lineTo(4.5, 0); x.lineTo(0, 4.5); x.lineTo(-4.5, 0); x.closePath(); x.fill(); // a diamond at the point of aim
-    if (s.ja !== undefined) { x.save(); x.rotate(s.ja); x.strokeStyle = C; x.lineWidth = 2.4; x.lineCap = 'round'; x.lineJoin = 'round'; // >>> from the side the shells come in from
-      for (let q = 0; q < 3; q++) { const d = R + 46 - ((T * 22 + q * 13) % 39); x.globalAlpha = ma * clamp((R + 46 - d) / 14, 0, 1) * clamp((d - R - 12) / 10, 0, 1); x.beginPath(); x.moveTo(-d - 6, -8); x.lineTo(-d + 2, 0); x.lineTo(-d - 6, 8); x.stroke(); }
+  if (s.kd === 'a') { // ARTILLERY: nothing like a bomb's red crosshair: a range ring with a mil scale round it, a ring closing in on it as the shell comes down, a map grid square at its heart with what the shell carries drawn in it, and chevrons on the side the shells come in from. The whole of it in the payload's colour (violet high explosive, green gas, orange fire, yellow cluster), and the ring itself takes the payload's look: bubbles drifting round it, a flickering edge of flame, hazard stripes. Every line has a dark edge under it, so it reads on any ground, day or night
+    const P = ARTY_PAL[s.pk] || ARTY_PAL.he, C = on ? P.on : P.off, soft = a => `rgba(${P.soft},${a})`, DK = 'rgba(8,6,12,.62)';
+    const ink = (path, col, w, dash) => { x.lineWidth = w + 2.6; x.strokeStyle = DK; if (dash) x.setLineDash(dash); path(); x.stroke(); x.lineWidth = w; x.strokeStyle = col; path(); x.stroke(); if (dash) x.setLineDash([]); }; // a stroke on its own dark edge
+    zone(...P.z);
+    x.save(); x.globalAlpha = ma * (.45 + .5 * p); x.lineDashOffset = -T * 24; ink(() => { x.beginPath(); x.arc(0, 0, R * (1 + 1.3 * (1 - p) ** 1.5), 0, TAU); }, soft(1), 2.2, [12, 9]); x.restore(); // closing in as it comes down
+    if (s.pk === 'i') ink(() => { x.beginPath(); for (let k = 0; k <= 96; k++) { const a = k / 96 * TAU, r = R + 2.6 * Math.sin(a * 11 + T * 8) + 1.4 * Math.sin(a * 17 - T * 12); k ? x.lineTo(Math.cos(a) * r, Math.sin(a) * r) : x.moveTo(Math.cos(a) * r, Math.sin(a) * r); } x.closePath(); }, C, 3.2); // a flickering edge of flame
+    else if (s.pk === 'c') { x.lineWidth = 8; x.strokeStyle = DK; x.beginPath(); x.arc(0, 0, R, 0, TAU); x.stroke(); x.save(); x.rotate(rot * .3); x.lineWidth = 5; const N = 24; for (let q = 0; q < N; q++) { x.strokeStyle = q & 1 ? '#151208' : C; x.beginPath(); x.arc(0, 0, R, q / N * TAU, (q + 1) / N * TAU); x.stroke(); } x.restore(); } // hazard stripes
+    else ink(() => { x.beginPath(); x.arc(0, 0, R, 0, TAU); }, C, 3.2); // the edge of the blast
+    if (s.pk === 'g') { x.lineWidth = 1.6; for (let q = 0; q < 10; q++) { const a = q / 10 * TAU + T * .35 + Math.sin(T * 1.3 + q) * .08, d = R - 9 + Math.sin(T * 2.2 + q * 1.7) * 2.5, rr = 3.4 + (q % 3) * 1.4 + Math.sin(T * 3 + q) * .6; x.beginPath(); x.arc(Math.cos(a) * d, Math.sin(a) * d, rr, 0, TAU); x.fillStyle = soft(.5); x.fill(); x.strokeStyle = DK; x.lineWidth = 3.4; x.stroke(); x.strokeStyle = C; x.lineWidth = 1.6; x.stroke(); } } // bubbles of it drifting round inside the ring
+    x.save(); x.rotate(rot * .25); const r0 = R + (s.pk === 'c' ? 5 : 3); // the mil scale: a tick every 15 degrees, a long one every 45
+    ink(() => { x.beginPath(); for (let q = 0; q < 24; q++) if (q % 3) { const a = q / 24 * TAU; x.moveTo(Math.cos(a) * r0, Math.sin(a) * r0); x.lineTo(Math.cos(a) * (r0 + 6), Math.sin(a) * (r0 + 6)); } }, soft(.95), 1.8);
+    ink(() => { x.beginPath(); for (let q = 0; q < 8; q++) { const a = q / 8 * TAU; x.moveTo(Math.cos(a) * r0, Math.sin(a) * r0); x.lineTo(Math.cos(a) * (r0 + 13), Math.sin(a) * (r0 + 13)); } }, C, 2.6);
+    if (s.pk === 'i') for (let q = 0; q < 8; q++) { const a = (q + .5) / 8 * TAU, fl = 1 + .25 * Math.sin(T * 9 + q * 2); x.save(); x.translate(Math.cos(a) * (R + 14), Math.sin(a) * (R + 14)); x.rotate(a + Math.PI / 2); x.scale(fl * .85, fl * .85); x.beginPath(); x.moveTo(0, -6); x.quadraticCurveTo(3.6, -1, 0, 3.5); x.quadraticCurveTo(-3.6, -1, 0, -6); x.lineWidth = 2.4; x.strokeStyle = DK; x.stroke(); x.fillStyle = C; x.fill(); x.restore(); } // a tongue of flame between the long ticks: the fire spreads out there
+    x.restore();
+    if (s.pk === 'c') { x.save(); x.globalAlpha = ma * (.6 + .3 * p); ink(() => { x.beginPath(); x.arc(0, 0, R * 2.5, 0, TAU); }, C, 1.8, [4, 7]); x.restore(); x.globalAlpha = ma; } // a cluster shell: as far as its bomblets scatter
+    const g = R * (s.pk ? .36 : .3); x.fillStyle = soft(.18); x.fillRect(-g, -g, g * 2, g * 2); ink(() => { x.beginPath(); x.rect(-g, -g, g * 2, g * 2); }, C, 2.2); // the grid square it's laid on
+    ink(() => { x.beginPath(); for (const [ax, ay] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) { x.moveTo(ax * g, ay * g); x.lineTo(ax * g * 1.3, ay * g * 1.3); } }, C, 2); // its grid lines running on out of it
+    if (s.pk === 'g') { // gas: three bubbles rising
+      for (const [bx, by, br, ph] of [[-.38, .3, .3, 0], [.32, .14, .24, 1.7], [-.02, -.36, .19, 3.1]]) { const yy = (by - .06 * Math.sin(T * 2.4 + ph)) * g; x.beginPath(); x.arc(bx * g, yy, br * g, 0, TAU); x.fillStyle = soft(.5); x.fill(); x.lineWidth = 3.8; x.strokeStyle = DK; x.stroke(); x.lineWidth = 1.8; x.strokeStyle = C; x.stroke(); x.fillStyle = 'rgba(255,255,255,.8)'; x.beginPath(); x.arc((bx - br * .35) * g, yy - br * .35 * g, br * .22 * g, 0, TAU); x.fill(); }
+    } else if (s.pk === 'i') { // fire: a flame
+      const fh = g * .82 * (1 + .06 * Math.sin(T * 13)), gr = x.createLinearGradient(0, fh * .55, 0, -fh); gr.addColorStop(0, '#ff4a12'); gr.addColorStop(.6, '#ffa030'); gr.addColorStop(1, '#ffe08a');
+      x.beginPath(); x.moveTo(0, -fh); x.bezierCurveTo(fh * .55, -fh * .35, fh * .5, fh * .4, 0, fh * .55); x.bezierCurveTo(-fh * .5, fh * .4, -fh * .55, -fh * .35, 0, -fh); x.lineWidth = 2.6; x.strokeStyle = DK; x.stroke(); x.fillStyle = gr; x.fill();
+      x.fillStyle = 'rgba(255,240,200,.9)'; x.beginPath(); x.ellipse(0, fh * .16, fh * .15, fh * .26, 0, 0, TAU); x.fill();
+    } else if (s.pk === 'c') { // cluster: its bomblets, laid out round the point of aim
+      x.save(); x.rotate(-rot * .6);
+      for (let q = 0; q < 5; q++) { const a = q / 5 * TAU, px = Math.cos(a) * g * .58, py = Math.sin(a) * g * .58; x.beginPath(); x.arc(px, py, g * .17, 0, TAU); x.fillStyle = soft(.45); x.fill(); ink(() => { x.beginPath(); x.arc(px, py, g * .17, 0, TAU); x.moveTo(px - g * .27, py); x.lineTo(px + g * .27, py); x.moveTo(px, py - g * .27); x.lineTo(px, py + g * .27); }, C, 1.5); }
+      x.restore(); x.fillStyle = DK; circ(x, 0, 0, 4); x.fillStyle = on ? '#fff' : C; circ(x, 0, 0, 2.8);
+    } else { // high explosive: a cross and a diamond at the point of aim
+      ink(() => { x.beginPath(); x.moveTo(-g, 0); x.lineTo(-g * .35, 0); x.moveTo(g * .35, 0); x.lineTo(g, 0); x.moveTo(0, -g); x.lineTo(0, -g * .35); x.moveTo(0, g * .35); x.lineTo(0, g); }, C, 2.2);
+      x.beginPath(); x.moveTo(0, -5.5); x.lineTo(5.5, 0); x.lineTo(0, 5.5); x.lineTo(-5.5, 0); x.closePath(); x.lineWidth = 2.4; x.strokeStyle = DK; x.stroke(); x.fillStyle = on ? '#fff' : C; x.fill();
+    }
+    if (s.ja !== undefined) { x.save(); x.rotate(s.ja); x.lineCap = 'round'; x.lineJoin = 'round'; // >>> from the side the shells come in from
+      const o = s.pk === 'i' ? 10 : 0; for (let q = 0; q < 3; q++) { const d = R + 48 + o - ((T * 22 + q * 13) % 39); x.globalAlpha = ma * clamp((R + 48 + o - d) / 14, 0, 1) * clamp((d - R - 14 - o) / 10, 0, 1); ink(() => { x.beginPath(); x.moveTo(-d - 7, -9); x.lineTo(-d + 2, 0); x.lineTo(-d - 7, 9); }, C, 2.8); }
       x.restore(); x.globalAlpha = ma; }
-    sweep();
+    x.lineWidth = 5.6; x.strokeStyle = DK; x.beginPath(); x.arc(0, 0, R - 7, -Math.PI / 2, -Math.PI / 2 + TAU * (1 - p)); x.stroke(); x.lineWidth = 3; x.strokeStyle = 'rgba(255,255,255,.95)'; x.stroke(); // time left, on its own dark edge
   } else if (s.kd === 'i') { // INCENDIARY: orange, a ring of flickering flame, a flame in the middle, and flame ticks round where the fire can spread
     zone(255, 110, 20);
     x.beginPath(); for (let k = 0; k <= 72; k++) { const a = k / 72 * TAU, r = R + 3.2 * Math.sin(a * 9 + T * 7) + 1.8 * Math.sin(a * 14 - T * 11); k ? x.lineTo(Math.cos(a) * r, Math.sin(a) * r) : x.moveTo(Math.cos(a) * r, Math.sin(a) * r); } x.closePath();
@@ -1024,8 +1046,8 @@ function drawStrikeMark(x, s) { // a bomb, an incendiary and a cluster bomb each
     x.fillStyle = on ? '#fff' : '#ff4a3a'; circ(x, 0, 0, 2.6); x.strokeStyle = '#ff3b30'; x.lineWidth = 1.5; x.beginPath(); x.arc(0, 0, 6, 0, TAU); x.stroke();
   }
   if (s.t < s.f) { x.globalAlpha = 1; drawFallingBomb(x, s, 1 - s.t / s.f); x.globalAlpha = ma; } // the bomb coming down
-  if (s.kd) { const c = s.kd === 'c' ? '#ffd23f' : s.kd === 'g' ? '#b8e04c' : s.kd === 'a' ? (s.pk === 'g' ? '#b8e04c' : s.pk === 'c' ? '#ffd23f' : '#d4c2ff') : '#ff7a1a', L = s.kd === 'c' ? 'CLUSTER' : s.kd === 'g' ? 'GAS' : s.kd === 'a' ? (s.pk === 'g' ? 'GAS SHELL' : s.pk === 'c' ? 'CLUSTER SHELL' : 'ARTILLERY') : 'FIRE', ly = s.kd === 'c' || s.pk === 'c' ? R * 2.5 + 11 : R + 28; // what it is, underneath
-    x.font = '900 10px system-ui, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.lineWidth = 3.5; x.strokeStyle = 'rgba(0,0,0,.8)'; x.strokeText(L, 0, ly); x.fillStyle = c; x.fillText(L, 0, ly); }
+  if (s.kd) { const c = s.kd === 'c' ? '#ffd23f' : s.kd === 'g' ? '#b8e04c' : s.kd === 'a' ? (ARTY_PAL[s.pk] || ARTY_PAL.he).lab : '#ff7a1a', L = s.kd === 'c' ? 'CLUSTER' : s.kd === 'g' ? 'GAS' : s.kd === 'a' ? (s.pk === 'g' ? 'GAS SHELL' : s.pk === 'c' ? 'CLUSTER SHELL' : s.pk === 'i' ? 'FIRE SHELL' : 'ARTILLERY') : 'FIRE', ly = s.kd === 'c' || s.pk === 'c' ? R * 2.5 + 11 : R + (s.pk === 'i' ? 34 : 28); // what it is, underneath
+    x.font = `900 ${s.kd === 'a' ? 12 : 10}px system-ui, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.lineWidth = s.kd === 'a' ? 4.5 : 3.5; x.strokeStyle = 'rgba(0,0,0,.8)'; x.strokeText(L, 0, ly); x.fillStyle = c; x.fillText(L, 0, ly); }
   x.restore();
 }
 const K_HEAT = [[255, 244, 200], [255, 214, 120], [255, 170, 75], [245, 128, 45], [205, 86, 28], [150, 54, 18]]; // a fireball cooling, white-yellow to deep red
@@ -1039,7 +1061,7 @@ function drawFallingShell(x, s, u) { // (in the marker's frame) an artillery she
   x.fillStyle = gb; x.beginPath(); x.moveTo(-4.6, -10); x.lineTo(4.6, -10); x.lineTo(4.6, 3); x.quadraticCurveTo(4.4, 9, 0, 14); x.quadraticCurveTo(-4.4, 9, -4.6, 3); x.closePath(); x.fill(); // flat base, pointed nose
   x.fillStyle = '#b8743a'; x.fillRect(-4.8, -8.5, 9.6, 2.2); // the copper driving band
   x.fillStyle = '#c9a227'; x.beginPath(); x.moveTo(-2.6, 10); x.quadraticCurveTo(0, 15.5, 2.6, 10); x.closePath(); x.fill(); // the fuse
-  x.fillStyle = s.pk === 'g' ? '#b8e04c' : s.pk === 'c' ? '#ffd23f' : 'rgba(214,194,255,.9)'; x.fillRect(-4.6, 1, 9.2, 1.6); // a stripe in what it carries: violet high explosive, green gas, yellow cluster
+  x.fillStyle = (ARTY_PAL[s.pk] || ARTY_PAL.he).lab; x.fillRect(-4.6, 1, 9.2, 1.6); // a stripe in what it carries: violet high explosive, green gas, orange fire, yellow cluster
   x.restore();
 }
 function drawFallingBomb(x, s, u) {
