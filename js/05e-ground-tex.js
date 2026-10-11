@@ -75,10 +75,15 @@ function texSet(x, set, seed, ang) { // a set's whole ground for the floor being
     if (!groundTex(c.getContext('2d'), set, seed ?? (1 + Math.random() * 1e6 | 0), undefined, ang)) { freeCanvas(c); m.set(k, null); return null; }
     m.set(k, c); return c; } finally { W = w0; }
 }
-function texShape(x, set, mask, seed, ang) { // a set's ground only inside a shape: mask(ctx) fills the shape in any color; false until the textures are in (ang: see gtexPat)
+function shrink(c, k) { // a copy k times smaller, halved a step at a time (each step averages its pixels, so it's smooth in every browser): drawn back up at full size, it's the same picture softly blurred
+  let s = c; for (let f = 2; f <= k; f *= 2) { const t = document.createElement('canvas'); t.width = Math.max(1, Math.round(c.width / f)); t.height = Math.max(1, Math.round(c.height / f)); const g = t.getContext('2d'); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; g.drawImage(s, 0, 0, t.width, t.height); if (s !== c) freeCanvas(s); s = t; }
+  return s;
+}
+function texShape(x, set, mask, seed, ang, soft) { // a set's ground only inside a shape: mask(ctx) fills the shape in any color; false until the textures are in (ang: see gtexPat; soft: how far its edge fades into what's around it, for ground that wears into grass rather than stopping at a line)
   if (!GTEX.ok) return false; const src = texSet(x, set, seed, ang); if (!src) return false;
   const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d'); g.drawImage(src, -GTEX.ox, 0);
   const m = document.createElement('canvas'); m.width = W; m.height = H; const mg = m.getContext('2d'); mg.fillStyle = '#000'; mg.strokeStyle = '#000'; mask(mg); // the whole shape first (every stroke and fill of it), then one cut
+  if (soft) { const sm = shrink(m, soft); mg.clearRect(0, 0, W, H); mg.imageSmoothingQuality = 'high'; mg.drawImage(sm, 0, 0, W, H); freeCanvas(sm); }
   g.globalCompositeOperation = 'destination-in'; g.drawImage(m, 0, 0);
   x.drawImage(c, 0, 0, W, H); freeCanvas(c, m); return true;
 }
