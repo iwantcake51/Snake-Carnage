@@ -37,7 +37,7 @@ addEventListener('pointermove', e => { // hovering the prompt fades it to half, 
   const r = el.firstElementChild && el.firstElementChild.getBoundingClientRect(), over = !!r && e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
   if (over !== el.classList.contains('hov')) el.classList.toggle('hov', over);
 }, { passive: true });
-function hideResume() { const el = document.getElementById('resume'); if (el.classList.contains('show')) { el.className = 'gone'; setTimeout(() => { if (el.className === 'gone') { el.className = ''; el.innerHTML = ''; } }, 320); } }
+function hideResume() { const el = document.getElementById('resume'); if (el.classList.contains('show')) { el.className = 'gone'; setTimeout(() => { if (el.className === 'gone') { el.className = ''; el.innerHTML = ''; } }, 400); } }
 function resumeGame() {
   if (state !== 'paused') return;
   state = pausedFrom === 'play' || pausedFrom === 'held' ? 'held' : pausedFrom || 'play'; // the menu closes, but nothing moves until you steer

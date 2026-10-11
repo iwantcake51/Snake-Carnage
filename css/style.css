@@ -3354,3 +3354,10 @@ body.compact .mm .rs-title h3{font-size:28px!important}
 /* what got you, exactly: under "You died" on the multiplayer banner, typed like a report */
 #mpDown .mpwhy{display:block;margin:0 0 6px;font:700 16px var(--f-num);font-style:normal;color:#ffc9bd}
 .mpmine .mpwhy{color:#ff8f7a}
+/* the "WASD to begin / to continue" prompt: in the main menu's wide Archivo, level, no scrawl; and it fades out when you go
+   (the hand-made layer's !important entrance animation used to win over the fade, so it vanished at once) */
+#resume:not(#_) .rp{font-family:"Archivo",var(--f-body)!important;font-stretch:118%;font-variation-settings:"wdth" 118}
+#resume:not(#_) .rp b{font:800 15px/1 "Archivo",var(--f-body)!important;font-stretch:118%;font-variation-settings:"wdth" 118;letter-spacing:.01em;text-transform:uppercase;rotate:0deg}
+#resume:not(#_) .or{font:600 13px/1 "Archivo",var(--f-body)!important;font-stretch:118%;font-variation-settings:"wdth" 118}
+#resume:not(#_) kbd{font:700 11px/1 "Archivo",var(--f-body)!important;font-stretch:118%;font-variation-settings:"wdth" 118}
+#resume.gone:not(#_) .rp{animation:resumeOut .35s ease-in forwards!important}

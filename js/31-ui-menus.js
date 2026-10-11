@@ -501,9 +501,7 @@ const SETTING_TABS = {
   Gameplay: { icon: 'gameplay', lead: 'How the world plays.', rows: [
     ['head', 'World'],
     ['slider', 'creatureSpeed', 'Creature speed', 'How fast people and animals move.', .3, 1.2, .05],
-    ['toggle', 'mouseSteer', 'Mouse steering', 'The snake heads for your cursor, at any angle. Left click lunges; drag with the right or middle button to look around. Holding a movement key takes over until you move the mouse again.'],
-    ['head', 'Time'],
-    ['seg', 'timeMode', 'Time of day', 'Dynamic starts at a random hour and the day moves on. The rest stay fixed.', ['Cycle', 'Day', 'Dawn', 'Dusk', 'Night'], null, null, null, TIME_MODES]] },
+    ['toggle', 'mouseSteer', 'Mouse steering', 'The snake heads for your cursor, at any angle. Left click lunges; drag with the right or middle button to look around. Holding a movement key takes over until you move the mouse again.']] }, // (time of day is picked in the run setup, not here)
   Display: { icon: 'display', lead: 'Screen size, interface and stats.', rows: [
     ['head', 'Screen'],
     ['toggle', 'fullscreen', 'Fullscreen', 'Use the whole screen.'],
