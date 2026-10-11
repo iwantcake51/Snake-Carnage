@@ -63,7 +63,7 @@ function bloodTint(o, S) { // 0..1 strength and color, diluted by the size of th
   const red = [Math.round(232 - 92 * m), Math.round(118 - 110 * m), Math.round(140 - 120 * m)], mx = b.mix || [140, 10, 10], dev = Math.abs(mx[0] - 140) + Math.abs(mx[1] - 10) + Math.abs(mx[2] - 10);
   return { a: .88 * s, rgb: dev < 40 ? red : mx.map(v => Math.round(v + (255 - v) * .25 * (1 - m))), g: clamp((b.gold || 0) / (b.tint + .001), 0, 1) }; // gold or green blood tints the water its own colour; g: how much of it is gold
 }
-function drawWater(x, o, t) {
+function drawWater(x, o, t, still) { // still: no glints or drop rings (the water under ice)
   const S = wShape(o), { cx, cy, hw, hh, rim } = S, base = o.color, M = Math.max(hw, hh) * 1.25, tint = bloodTint(o, S);
   // basin / shore / pool coping
   if (o.fountain) {
@@ -147,14 +147,14 @@ function drawWater(x, o, t) {
   }
   const pt = (seed, spread) => S.round ? (() => { const a = wHash(seed) * TAU, d = Math.sqrt(wHash(seed + 1)) * hw * spread; return [cx + Math.cos(a) * d, cy + Math.sin(a) * d]; })()
                                        : [cx + (wHash(seed) * 2 - 1) * hw * spread, cy + (wHash(seed + 1) * 2 - 1) * hh * spread];
-  const nG = Math.round(Math.sqrt(hw * hh) / 7);
+  const nG = still ? 0 : Math.round(Math.sqrt(hw * hh) / 7);
   for (let i = 0; i < nG; i++) { // glints
     const al = Math.max(0, Math.sin(t * (1.3 + wHash(i * 7) * 1.5) + i * 2.3)) ** 3 * .55;
     if (al < .02) continue;
     const [gx, gy] = pt(i * 3.1 + o.x, .85);
     x.fillStyle = `rgba(255,255,255,${al.toFixed(3)})`; x.beginPath(); x.ellipse(gx, gy, 3.2, 1.1, 0, 0, TAU); x.fill();
   }
-  const nR = o.fountain ? 3 : Math.max(2, Math.round(Math.sqrt(hw * hh) / 30));
+  const nR = still ? 0 : o.fountain ? 3 : Math.max(2, Math.round(Math.sqrt(hw * hh) / 30));
   for (let i = 0; i < nR; i++) { // drop rings
     const tt = t * .32 + i / nR, cyc = Math.floor(tt), ph = tt - cyc;
     let [rx, ry] = pt(cyc * 13 + i * 71 + o.x, .75);
@@ -281,23 +281,97 @@ const iceOn = () => !!season && (season.id === 'winter' || season.late);
 const frozenOver = o => o.kind === 'water' && !o.fountain && !o.tank && iceOn(); // ice you can cross
 const onIce = (x, y) => !!iceGrid && x >= 0 && y >= 0 && x < W && y < H && !!iceGrid[(y / SG | 0) * GW + (x / SG | 0)];
 function drawIceFloor(x) { if (!obstacles || !iceOn()) return; for (const o of obstacles) if (frozenOver(o)) drawIce(x, o); } // frozen ponds lie on the ground: under the blood, the creatures and the snake
-function drawIce(x, o) {
-  const S = wShape(o), key = season.id + (season.late ? 'L' : '');
-  if (!o.iceC || o.iceK !== key) { // baked once per season: the water under it, then ice with cracks, frost and snow at the edges
-    const pad = 4, w = Math.ceil((o.t === 'c' ? o.r * 2 : o.w) + pad * 2), h = Math.ceil((o.t === 'c' ? o.r * 2 : o.h) + pad * 2), ox = (o.t === 'c' ? o.x - o.r : o.x) - pad, oy = (o.t === 'c' ? o.y - o.r : o.y) - pad;
+function icePath(o, S) { // the frozen surface's outline as a Path2D (a fountain's raised bowl is a hole in it)
+  const P = new Path2D();
+  if (o.poly) { polyShape(o).forEach(([a, b], k) => k ? P.lineTo(a, b) : P.moveTo(a, b)); P.closePath(); }
+  else if (S.shore) { const f = S.shore, n = f.length; for (let q = 0; q < n; q++) { const a = q / n * TAU, rr = S.hw * f[q]; q ? P.lineTo(S.cx + Math.cos(a) * rr, S.cy + Math.sin(a) * rr) : P.moveTo(S.cx + Math.cos(a) * rr, S.cy + Math.sin(a) * rr); } P.closePath(); }
+  else if (S.round) { P.arc(S.cx, S.cy, S.hw, 0, TAU); if (o.fountain) { P.moveTo(S.cx + S.hw * .48 + 1.5, S.cy); P.arc(S.cx, S.cy, S.hw * .48 + 1.5, 0, TAU); } }
+  else P.rect(S.cx - S.hw, S.cy - S.hh, S.hw * 2, S.hh * 2);
+  return P;
+}
+function iceOutline(o) { // frozen water's edge as a polygon [[x, y], ...]
+  if (o.poly) return polyShape(o);
+  const S = wShape(o); if (!S.round) return [[S.cx - S.hw, S.cy - S.hh], [S.cx + S.hw, S.cy - S.hh], [S.cx + S.hw, S.cy + S.hh], [S.cx - S.hw, S.cy + S.hh]];
+  const f = S.shore, n = f ? f.length : 48, p = []; for (let q = 0; q < n; q++) { const a = q / n * TAU, rr = S.hw * (f ? f[q] : 1); p.push([S.cx + Math.cos(a) * rr, S.cy + Math.sin(a) * rr]); } return p;
+}
+function iceField(o, S, ox, oy, w, h) { // how far into the ice each spot is from its shore (px), on a 2 px grid: a two-pass chamfer distance
+  const cs = 2, gw = Math.ceil(w / cs) + 2, gh = Math.ceil(h / cs) + 2, D = new Float32Array(gw * gh), s2 = cs * Math.SQRT2;
+  const tc = document.createElement('canvas').getContext('2d'), P = icePath(o, S), inn = (x, y) => tc.isPointInPath(P, x, y, 'evenodd');
+  for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) D[j * gw + i] = inn(ox + i * cs, oy + j * cs) ? 1e6 : 0;
+  for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) { const k = j * gw + i; let v = D[k]; if (!v) continue; if (i) v = Math.min(v, D[k - 1] + cs); if (j) { v = Math.min(v, D[k - gw] + cs); if (i) v = Math.min(v, D[k - gw - 1] + s2); if (i < gw - 1) v = Math.min(v, D[k - gw + 1] + s2); } D[k] = v; }
+  for (let j = gh - 1; j >= 0; j--) for (let i = gw - 1; i >= 0; i--) { const k = j * gw + i; let v = D[k]; if (!v) continue; if (i < gw - 1) v = Math.min(v, D[k + 1] + cs); if (j < gh - 1) { v = Math.min(v, D[k + gw] + cs); if (i < gw - 1) v = Math.min(v, D[k + gw + 1] + s2); if (i) v = Math.min(v, D[k + gw - 1] + s2); } D[k] = v; }
+  let mx = 1; for (const v of D) if (v > mx && v < 1e5) mx = v;
+  const at = (x, y) => { const fx = (x - ox) / cs, fy = (y - oy) / cs, i = clamp(fx | 0, 0, gw - 2), j = clamp(fy | 0, 0, gh - 2), tx = clamp(fx - i, 0, 1), ty = clamp(fy - j, 0, 1), q = j * gw + i; return Math.max(0, (D[q] * (1 - tx) + D[q + 1] * tx) * (1 - ty) + (D[q + gw] * (1 - tx) + D[q + gw + 1] * tx) * ty - cs * .5); };
+  return { at, max: mx, inn, P };
+}
+const ICE_RAMP = { // [depth 0 (the shore) .. 1 (well out), r, g, b, a]: thick white ice at the edge, clearing to deep blue over the dark water
+  hard: [[0, 228, 239, 246, .97], [.08, 208, 228, 240, .94], [.25, 164, 200, 220, .86], [.5, 114, 162, 190, .78], [.8, 80, 132, 166, .72], [1, 66, 116, 154, .7]],
+  thin: [[0, 204, 222, 232, .82], [.15, 152, 184, 200, .62], [.5, 92, 128, 150, .48], [1, 62, 98, 122, .42]] };
+function drawIce(x, o) { // ice, baked once per season: the water under it, the sheet itself (thick and white at the shore, clear and deep blue out in the middle, clouds of frost, wind-polished streaks), the bank's shadow across it and its lit far edge, trapped bubbles, cracks with their branches and the odd impact star, skate scratches; a few glints twinkle on it every frame
+  const S = wShape(o), key = season.id + (season.late ? 'L' : '') + (o._pk || '');
+  if (!o._ice || o._ice.k !== key) {
+    const pad = 4, bw = o.t === 'c' ? o.r * 2 : o.w, bh = o.t === 'c' ? o.r * 2 : o.h, ox = (o.t === 'c' ? o.x - o.r : o.x) - pad, oy = (o.t === 'c' ? o.y - o.r : o.y) - pad, w = Math.ceil(bw + pad * 2), h = Math.ceil(bh + pad * 2);
     const c = document.createElement('canvas'), k = Math.min(DPR, 2); c.width = w * k; c.height = h * k; const g = c.getContext('2d'); g.scale(k, k); g.translate(-ox, -oy);
-    drawWater(g, o, 0);
-    const thin = season.id !== 'winter', r = seeded(Math.round(o.x * 3 + o.y * 7));
-    g.save(); wPath(g, S); g.clip();
-    g.fillStyle = thin ? 'rgba(200,220,235,.55)' : 'rgba(214,230,242,.86)'; g.fillRect(ox, oy, w, h); // the ice sheet
-    for (let k2 = 0; k2 < 26; k2++) { const px = S.cx + (r() - .5) * S.hw * 2, py = S.cy + (r() - .5) * S.hh * 2; g.fillStyle = `rgba(255,255,255,${(.15 + r() * .25).toFixed(2)})`; ell(g, px, py, 4 + r() * 14, 2 + r() * 8); } // frosty patches
-    g.strokeStyle = 'rgba(120,150,175,.55)'; g.lineWidth = .8; // cracks branching out from a few points
-    for (let k2 = 0; k2 < 5; k2++) { let px = S.cx + (r() - .5) * S.hw, py = S.cy + (r() - .5) * S.hh, a = r() * TAU; g.beginPath(); g.moveTo(px, py);
-      for (let j = 0; j < 7; j++) { a += (r() - .5) * 1.1; px += Math.cos(a) * (6 + r() * 10); py += Math.sin(a) * (6 + r() * 10); g.lineTo(px, py); if (r() < .3) { g.moveTo(px, py); g.lineTo(px + Math.cos(a + 1.2) * 7, py + Math.sin(a + 1.2) * 7); g.moveTo(px, py); } } g.stroke(); }
-    g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = .6; g.beginPath(); for (let k2 = 0; k2 < 6; k2++) { const px = S.cx + (r() - .5) * S.hw * 1.6, py = S.cy + (r() - .5) * S.hh * 1.6; g.moveTo(px, py); g.lineTo(px + 10 + r() * 14, py - 3 - r() * 6); } g.stroke(); // glints
-    if (!thin) { g.strokeStyle = 'rgba(245,248,253,.9)'; g.lineWidth = 5; wPath(g, S, 1); g.stroke(); } // snow drifted against the edge
+    drawWater(g, o, 0, true); // (a pool's lanes and a pond's murk show faintly through the clear ice)
+    const thin = season.id !== 'winter', r = seeded(Math.abs(Math.round(o.x * 3 + o.y * 7)) + 5), F = iceField(o, S, ox, oy, w, h), P = F.P, size = Math.sqrt(bw * bh) / 2, sd = (o.x * .37 + o.y * .71) % 97;
+    const nat = natPond(o), ramp = thin ? ICE_RAMP.thin : ICE_RAMP.hard, span = Math.max(12, Math.min(F.max, 58)), wa = .55 + r() * .5, ca = Math.cos(wa), sa = Math.sin(wa);
+    // the sheet, a pixel at a time at world size, then laid in smoothly
+    const iw = w, ih = h, pc = document.createElement('canvas'); pc.width = iw; pc.height = ih; const pg = pc.getContext('2d'), im = pg.createImageData(iw, ih), A = im.data;
+    for (let py = 0; py < ih; py++) for (let px = 0; px < iw; px++) {
+      const wx = ox + px + .5, wy = oy + py + .5, dd = F.at(wx, wy); if (dd <= 0 && !F.inn(wx, wy)) continue;
+      const dn = clamp(dd / span, 0, 1); let q = 1; while (q < ramp.length - 1 && ramp[q][0] < dn) q++;
+      const a0 = ramp[q - 1], a1 = ramp[q], t = clamp((dn - a0[0]) / (a1[0] - a0[0]), 0, 1);
+      let R = a0[1] + (a1[1] - a0[1]) * t, G = a0[2] + (a1[2] - a0[2]) * t, B = a0[3] + (a1[3] - a0[3]) * t, al = a0[4] + (a1[4] - a0[4]) * t;
+      const frost = fbm(wx / 52 + sd, wy / 52 - sd, 3), clear = fbm(wx / 28 - sd, wy / 28 + sd, 2), streak = perlin((wx * ca + wy * sa) / 90 + sd, (-wx * sa + wy * ca) / 11) * clamp(.5 + fbm(wx / 70 - sd, wy / 70, 2) * 1.6, 0, 1);
+      const fr = clamp(.1 + frost * 1.25 + (1 - dn) * .3 - Math.max(0, clear) * .9, 0, 1) * (thin ? .4 : .8); // milky frost in clouds, thinning where the ice is clear
+      const win = Math.max(0, clear - .08) * (1 - fr) * dn * (thin ? .5 : .55); R *= 1 - win; G *= 1 - win * .85; B *= 1 - win * .6; // windows of clear black ice
+      R += (240 - R) * fr; G += (247 - G) * fr; B += (251 - B) * fr; al += (1 - al) * fr * .5;
+      const st = Math.max(0, streak - .18) * (thin ? .2 : .32); R += (250 - R) * st; G += (253 - G) * st; B += (255 - B) * st; // polished by the wind, all one way
+      const gn = (wHash(px * 7.13 + py * 91.7 + sd) - .5) * 7; // a fine grain, so it never reads as a flat fill
+      const n = (py * iw + px) * 4; A[n] = clamp(R + gn, 0, 255); A[n + 1] = clamp(G + gn, 0, 255); A[n + 2] = clamp(B + gn, 0, 255); A[n + 3] = al * 255;
+    }
+    pg.putImageData(im, 0, 0);
+    g.save(); g.clip(P, 'evenodd'); g.imageSmoothingQuality = 'high'; g.drawImage(pc, ox, oy, iw, ih); freeCanvas(pc);
+    const sh = (dx, dy, col, blur) => { g.save(); g.shadowColor = col; g.shadowBlur = blur * k; g.shadowOffsetX = (1e4 + dx) * k; g.shadowOffsetY = dy * k; g.translate(-1e4, 0); const Q = new Path2D(); Q.rect(ox - 80, oy - 80, w + 160, h + 160); Q.addPath(P); g.fillStyle = '#000'; g.fill(Q, 'evenodd'); g.restore(); };
+    sh(3, 3.5, thin ? 'rgba(10,30,45,.4)' : 'rgba(30,60,85,.42)', 5); // the bank's shadow falls across the ice on the side away from the light
+    sh(-1.6, -1.6, 'rgba(255,255,255,.55)', 2.5); // and the far edge catches it
+    const sk = g.createLinearGradient(ox, oy, ox + w, oy + h); sk.addColorStop(0, 'rgba(255,255,255,.16)'); sk.addColorStop(.32, 'rgba(255,255,255,.02)'); sk.addColorStop(.58, 'rgba(255,255,255,.1)'); sk.addColorStop(.7, 'rgba(255,255,255,0)'); g.fillStyle = sk; g.fillRect(ox, oy, w, h); // a sheen of sky from the top-left
+    const inside = (px, py, m = 0) => F.inn(px, py) && F.at(px, py) > m;
+    const spot = (m, tries = 40) => { for (let q = 0; q < tries; q++) { const px = ox + r() * w, py = oy + r() * h; if (inside(px, py, m)) return [px, py]; } return null; };
+    // trapped air: clusters and rising chains of little bubbles, frozen in the clear middle
+    g.lineWidth = .3;
+    for (let cl = 0; cl < clamp(Math.round(size / 18), 2, 12) * (thin ? .5 : 1); cl++) { const p0 = spot(span * .3); if (!p0) continue; const cr = 3 + r() * 9, chain = r() < .35, ang = r() * TAU;
+      for (let b = 0, nb = 8 + (r() * 18 | 0); b < nb; b++) { const t2 = b / nb, bx = chain ? p0[0] + Math.cos(ang) * t2 * cr * 2.4 + (r() - .5) * 1.2 : p0[0] + (r() + r() - 1) * cr, by = chain ? p0[1] + Math.sin(ang) * t2 * cr * 2.4 + (r() - .5) * 1.2 : p0[1] + (r() + r() - 1) * cr, br = (chain ? 1.6 * (1 - t2 * .7) : .35 + r() * r() * 1.6) * (.8 + r() * .4);
+        if (!inside(bx, by, 2)) continue; g.fillStyle = `rgba(232,244,250,${(.22 + r() * .3).toFixed(2)})`; g.beginPath(); g.ellipse(bx, by, br, br * (.75 + r() * .25), r() * TAU, 0, TAU); g.fill();
+        if (br > .9) { g.strokeStyle = 'rgba(40,80,110,.3)'; g.stroke(); g.fillStyle = 'rgba(255,255,255,.7)'; g.beginPath(); g.arc(bx - br * .35, by - br * .35, br * .28, 0, TAU); g.fill(); } } }
+    // cracks: long, nearly straight runs in from the shore that kink and branch, white where the ice has split, a dark hairline on the shaded side
+    const lines = [], crack = (x0, y0, a, len, lw, dep, al = .45 + r() * .5) => { const pts = [[x0, y0]]; let cx = x0, cy = y0, L = 0;
+      while (L < len) { const st = 7 + r() * 12; a += (r() - .5) * (r() < .15 ? 1 : .28); const nx = cx + Math.cos(a) * st, ny = cy + Math.sin(a) * st; if (!F.inn(nx, ny)) break; cx = nx; cy = ny; L += st; pts.push([cx, cy]); if (dep < 2 && r() < .13) crack(cx, cy, a + (r() < .5 ? -1 : 1) * (.45 + r() * .6), len * (.2 + r() * .3), lw * .7, dep + 1, al * .8); }
+      if (pts.length > 1) lines.push({ pts, lw, al }); };
+    const sl = nat ? shoreLine(o) : null;
+    for (let q = 0, nq = clamp(Math.round(size / 28), 2, 8), o0 = r(); q < nq; q++) { let x0, y0, a;
+      if (sl && sl.length && r() < .8) { const e = sl[Math.floor(((q + o0 + (r() - .5) * .5) / nq % 1 + 1) % 1 * sl.length)]; /* (spread round the shore) */ x0 = e.x - e.nx * 2; y0 = e.y - e.ny * 2; a = Math.atan2(-e.ny, -e.nx) + (r() - .5) * .9; } else { const p0 = spot(4); if (!p0) continue; [x0, y0] = p0; a = r() * TAU; }
+      crack(x0, y0, a, size * (.5 + r() * .9), .8, 0); }
+    if (!thin && size > 30 && r() < .7) { const p0 = spot(span * .35); if (p0) { const [sx, sy] = p0; for (let q = 0, nq = 5 + (r() * 4 | 0); q < nq; q++) crack(sx, sy, q / nq * TAU + r() * .5, 6 + r() * 14, .5, 2, .5 + r() * .3); // an impact star: a stone thrown on the ice
+      { const rr = 3 + r() * 3, a0 = r() * TAU, pts = []; for (let q = 0; q <= 9; q++) { const aa = a0 + q / 14 * TAU, jr = rr * (.85 + r() * .3); pts.push([sx + Math.cos(aa) * jr, sy + Math.sin(aa) * jr]); } lines.push({ pts, lw: .35, al: .5 }); } } } // (part of a ring round it)
+    const strokeAll = (lwK, col, aK, dx = 0, dy = 0) => { g.strokeStyle = col; g.lineJoin = g.lineCap = 'round'; for (const L of lines) { g.globalAlpha = Math.min(1, L.al * aK); g.lineWidth = L.lw * lwK; g.beginPath(); L.pts.forEach(([a, b], q) => q ? g.lineTo(a + dx, b + dy) : g.moveTo(a + dx, b + dy)); g.stroke(); } g.globalAlpha = 1; };
+    strokeAll(5, '#ffffff', .07); strokeAll(2.2, '#ffffff', .14); // the split plane catching the light
+    strokeAll(1.1, thin ? '#0f2837' : '#1e3e54', .38, .5, .55); // its shaded side
+    strokeAll(.9, '#f8fcff', 1); // the crack itself
+    if (!thin && size > 40) { g.lineWidth = .45; g.lineCap = 'round'; // skate scratches: long, gentle curves crossing each other
+      for (let q = 0, nq = 2 + (r() * 4 | 0); q < nq; q++) { const p0 = spot(6); if (!p0) continue; const a = r() * TAU, L = 40 + r() * 80, bend = (r() - .5) * L * .6, ex = p0[0] + Math.cos(a) * L, ey = p0[1] + Math.sin(a) * L, mx = (p0[0] + ex) / 2 - Math.sin(a) * bend, my = (p0[1] + ey) / 2 + Math.cos(a) * bend;
+        g.strokeStyle = `rgba(255,255,255,${(.14 + r() * .12).toFixed(2)})`; g.beginPath(); g.moveTo(p0[0], p0[1]); g.quadraticCurveTo(mx, my, ex, ey); g.stroke(); if (r() < .5) { g.beginPath(); g.moveTo(p0[0] + 1.3, p0[1] + 1.3); g.quadraticCurveTo(mx + 1.3, my + 1.3, ex + 1.3, ey + 1.3); g.stroke(); } } }
+    if (!thin) sh(0, 0, 'rgba(246,250,253,.95)', 7); // the thick white ice along the shore, fading out onto the clear
+    if (sl) { const off = r() * 99; g.lineWidth = .6; g.strokeStyle = `rgba(255,255,255,${thin ? .18 : .32})`; g.beginPath(); sl.forEach((e, q) => { const d = (thin ? 4 : 7) + 3 * perlin(e.s / 26 + off, sd); q ? g.lineTo(e.x - e.nx * d, e.y - e.ny * d) : g.moveTo(e.x - e.nx * d, e.y - e.ny * d); }); g.closePath(); g.stroke(); // where the shore's shelf ice meets the clear
+      if (!thin) for (const e of sl) if (r() < .35) { const d = .5 + r() * 3.5, cx2 = e.x - e.nx * d, cy2 = e.y - e.ny * d, rr = .7 + r() * 1.8, a0 = r() * TAU; g.fillStyle = `rgba(250,252,255,${(.3 + r() * .4).toFixed(2)})`; g.beginPath(); for (let v = 0; v < 4; v++) { const aa = a0 + v * TAU / 4 + (r() - .5) * .8, vr = rr * (.6 + r() * .6); v ? g.lineTo(cx2 + Math.cos(aa) * vr, cy2 + Math.sin(aa) * vr) : g.moveTo(cx2 + Math.cos(aa) * vr, cy2 + Math.sin(aa) * vr); } g.closePath(); g.fill(); } } // chips of ice pushed up against the bank
     g.restore();
-    o.iceC = c; o.iceK = key; o.iceX = ox; o.iceY = oy; o.iceW = w; o.iceH = h;
+    const spk = []; for (let q = 0; q < clamp(Math.round(size / 10), 3, 14); q++) { const p0 = spot(3); if (p0) spk.push({ x: p0[0], y: p0[1], ph: r() * TAU, sp: .8 + r() * 1.4, s: 1.6 + r() * 1.8 }); }
+    hide(o, '_ice', { k: key, c, x: ox, y: oy, w, h, spk });
   }
-  x.drawImage(o.iceC, o.iceX, o.iceY, o.iceW, o.iceH);
+  const I = o._ice; x.drawImage(I.c, I.x, I.y, I.w, I.h);
+  const t = performance.now() / 1000; x.save(); x.lineCap = 'round'; // glints: now and then one spot catches the sun
+  for (const p of I.spk) { const a = Math.max(0, Math.sin(t * p.sp + p.ph)) ** 14; if (a < .04) continue; const L = p.s * (.5 + a);
+    x.strokeStyle = `rgba(255,255,255,${(a * .9).toFixed(3)})`; x.lineWidth = .6; x.beginPath(); x.moveTo(p.x - L, p.y); x.lineTo(p.x + L, p.y); x.moveTo(p.x, p.y - L); x.lineTo(p.x, p.y + L); x.stroke();
+    x.fillStyle = `rgba(255,255,255,${a.toFixed(3)})`; x.beginPath(); x.arc(p.x, p.y, .7, 0, TAU); x.fill(); }
+  x.restore();
 }

@@ -25,7 +25,8 @@ const PX_KERNELS = {
       if (!late && dd < 40) d += .4 * Math.exp(-(dd - SG) / 10) * sstep(-.7, -.1, n);
       for (let p = 0; p < pines.length; p += 3) { const r = Math.hypot(x - pines[p], y - pines[p + 1]), pr = pines[p + 2] * 1.15; if (r < pr) d *= .3 + .7 * (r / pr) ** 2; }
       d *= sstep(SG * .5, SG * 2.2, dd);
-      if (ice && ice[gk]) d = Math.min(d, .55) * (.35 + .65 * sstep(.05, .5, up(LZ, i, j))); // frozen water: swept thin, in drifts
+      const e = ice ? (ice[g0] * (1 - tx) + ice[g0 + 1] * tx) * (1 - ty) + (ice[g0 + GW] * (1 - tx) + ice[g0 + GW + 1] * tx) * ty : -1; // (a signed distance, so it's smooth between the grid's cells)
+      if (e > 0) { d = Math.min(1, d * 2.2) * (.85 * sstep(9 + 5 * n, 1, e) + .45 * sstep(.68, .9, up(LZ, i, j))); d = Math.min(d, .8); } // frozen water: drifted up against the bank, a few wind-blown patches further out, the rest swept clear
       D[k] = late ? d * .75 : Math.min(1.25, d); AO[k] = 1 - .38 * Math.exp(-dd / 7);
     }
     return { D, AO, j0, j1 };

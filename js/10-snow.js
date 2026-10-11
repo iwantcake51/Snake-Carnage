@@ -33,7 +33,12 @@ function buildSnow() {
   // fades in when it's ready (well inside the map card); until then there is simply none, so nothing waits on it.
   let green = greenField; if (!green) { green = new Float32Array((W >> 1) * (H >> 1)); for (let j = 0; j < H >> 1; j++) for (let i = 0; i < W >> 1; i++) green[j * (W >> 1) + i] = grassAt(i * 2, j * 2) ? 1 : 0; }
   const pin = new Float32Array(pines.length * 3); pines.forEach((t, i) => { pin[i * 3] = t.x; pin[i * 3 + 1] = t.y; pin[i * 3 + 2] = t.r; });
-  const ice = iceGrid && iceGrid.some(v => v) ? iceGrid : null; // where it's ice the wind keeps it thin: a patchy dusting, the ice showing through
+  let ice = null; const fz = obstacles.filter(frozenOver); // where it's ice: a signed distance (px) to its real shore, + out on the ice, so snow drifts against the bank and the wind sweeps the middle clear, along the true curve
+  if (fz.length) { ice = new Float32Array(GW * GH).fill(-40);
+    for (const o of fz) { const P = iceOutline(o), xs = P.map(p => p[0]), ys = P.map(p => p[1]);
+      for (let j = Math.max(0, Math.floor((Math.min(...ys) - 40) / SG)); j < Math.min(GH, Math.ceil((Math.max(...ys) + 40) / SG)); j++) for (let i = Math.max(0, Math.floor((Math.min(...xs) - 40) / SG)); i < Math.min(GW, Math.ceil((Math.max(...xs) + 40) / SG)); i++) {
+        const x = i * SG + SG / 2, y = j * SG + SG / 2; let m = 1e9; for (let q = 0, r = P.length - 1; q < P.length; r = q++) { const [ax, ay] = P[r], [bx, by] = P[q], dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy || 1, t = clamp(((x - ax) * dx + (y - ay) * dy) / L, 0, 1); m = Math.min(m, (x - ax - dx * t) ** 2 + (y - ay - dy * t) ** 2); }
+        const sd = clamp((pointInPoly(P, x, y) ? 1 : -1) * Math.sqrt(m), -40, 40), k = j * GW + i; if (sd > ice[k]) ice[k] = sd; } } }
   const gen = ++snowGen, base = { SNW, SN, SG, GW, GH, dist, NZ, LZ, nw, NC, green, gw: W >> 1, late, pines: pin, ice };
   snowImg = snowX.createImageData(SNW, SNH); snowX.clearRect(0, 0, SNW, SNH);
   const nb = Math.max(1, PX.size), rows = Math.ceil(SNH / nb), D0 = snowD, A0 = snowAO;
