@@ -9,11 +9,24 @@ const COLOR_ITEMS = [ // presets: basics are cheap, rare ones moderate; Primary 
   ['#4e7cf6', 0], ['#3fa34d', 0], ['#d63c3c', 0], ['#f2f2f2', 0], ['#2b2b30', 0],
   ['#8e5bd6', 10], ['#f08a24', 10], ['#ef6fb0', 10], ['#d9b13b', 15], ['#21a5a5', 15],
   ['#39ff14', 50], ['#ff00a8', 50], ['#8be9fd', 50], ['#b6ff00', 55], ['#e8e0cc', 60], ['#7a0000', 70], ['#14143c', 70], ['#ff6b00', 75],
+  // real snakes' colors: with the matching skin they make the real animal (REAL_SNAKES, the Skins tab's "Real snakes" row)
+  ['#141313', 30], ['#c62a1f', 30], ['#efc42a', 30], ['#46472a', 25], ['#e3cf6e', 25], ['#11994c', 30], ['#c8a46b', 25], ['#5a3820', 25], ['#9b8466', 25],
   ['#7d7d86', 0, 'ratProblem'], ['#d4af37', 0, 'goldDigger'], ['#5a0606', 0, 'cleanup'], ['#c1440e', 0, 'martian'], ['#b9c0c8', 0, 'lunar']];
 const COLOR_NAMES = { '#4e7cf6': 'Cobalt', '#3fa34d': 'Moss', '#d63c3c': 'Brick', '#f2f2f2': 'Bone', '#2b2b30': 'Charcoal', '#8e5bd6': 'Violet', '#f08a24': 'Tangerine',
   '#ef6fb0': 'Bubblegum', '#d9b13b': 'Mustard', '#21a5a5': 'Teal', '#39ff14': 'Radioactive', '#ff00a8': 'Hot Pink', '#8be9fd': 'Ice', '#b6ff00': 'Acid',
   '#e8e0cc': 'Ivory', '#7a0000': 'Oxblood', '#14143c': 'Midnight', '#ff6b00': 'Hazard Orange', '#7d7d86': 'Sewer Grey', '#d4af37': 'Gold Leaf',
-  '#5a0606': 'Dried Blood', '#c1440e': 'Rust Dust', '#b9c0c8': 'Moondust' };
+  '#5a0606': 'Dried Blood', '#c1440e': 'Rust Dust', '#b9c0c8': 'Moondust',
+  '#141313': 'Jet', '#c62a1f': 'Coral Red', '#efc42a': 'Banded Yellow', '#46472a': 'Garter Olive', '#e3cf6e': 'Straw', '#11994c': 'Tree Boa Green', '#c8a46b': 'Python Tan', '#5a3820': 'Python Brown', '#9b8466': 'Desert Dust' };
+const REAL_SNAKES = [ // a real snake = one of the real-pattern skins in two colors from the list above (primary is the body, secondary the markings)
+  { name: 'Coral snake', pattern: 'Coral', color: '#c62a1f', color2: '#efc42a' },
+  { name: 'Milk snake', pattern: 'Kingsnake', color: '#c62a1f', color2: '#efc42a' },
+  { name: 'California kingsnake', pattern: 'Kingsnake', color: '#141313', color2: '#f2f2f2' },
+  { name: 'Garter snake', pattern: 'Garter', color: '#46472a', color2: '#e3cf6e' },
+  { name: 'Emerald tree boa', pattern: 'Emerald', color: '#11994c', color2: '#f2f2f2' },
+  { name: 'Burmese python', pattern: 'Python', color: '#c8a46b', color2: '#5a3820' },
+  { name: 'Ball python', pattern: 'Python', color: '#5a3820', color2: '#c8a46b' },
+  { name: 'Western diamondback', pattern: 'Diamondback', color: '#9b8466', color2: '#e8e0cc' },
+];
 const colorName = hex => COLOR_NAMES[hex.toLowerCase()] || hex.toUpperCase();
 const CUSTOM_PRICE = { primary: 2500, full: 6000 }; // the luxury tier: any color you want
 const SHOP = {
@@ -22,9 +35,14 @@ const SHOP = {
     ['Garter', 80], ['Diamond', 80], ['Kingsnake', 100], ['Coral', 110], ['Diamondback', 140], ['Python', 160], ['Emerald', 180],
     ['Neon', 300], ['Rainbow', 360], ['Lava', 600], ['Galaxy', 700], ['Obsidian', 760], ['Plasma', 800],
     ['Rat Fur', 0, 'ratProblem'], ['Gold Plated', 0, 'goldDigger'], ['Blood Soaked', 0, 'cleanup'], ['Hazard', 0, 'masochist'], ['Lunar', 0, 'lunar'], ['Martian', 0, 'martian'], ['Camo', 0, 'dangerClose'], ['Stained Glass', 0, 'demolition'], ['Bones', 0, 'boneyard']],
-  hat: [['None', 0], ['Party hat', 20], ['Flower', 20], ['Beanie', 25], ['Bow', 25], ['Top hat', 30], ['Cone', 30], ['Chef', 40], ['Antenna', 40], ['Cowboy', 50],
-    ['Headphones', 50], ['Graduation', 50], ['Santa', 60], ['Sombrero', 60], ['Mohawk', 60], ['Pirate', 70], ['Propeller', 70], ['Viking', 80], ['Horns', 90],
-    ['Wizard', 100], ['Halo', 120], ['Crown', 0, 'midas'], ['Cracked Halo', 0, 'karma']],
+  hat: [ // cheapest first, and the better a hat looks the more it's worth (28b-hats draws them all): simple ones, everyday hats, characterful ones, then the best few
+    ['None', 0], ['Party hat', 20], ['Flower', 20], ['Bow', 25], ['Beanie', 25], ['Cap', 25], ['Bandana', 30], ['Bucket hat', 30], ['Cone', 30],
+    ['Beret', 35], ['Sailor cap', 40], ['Chef', 40], ['Fez', 45], ['Hard hat', 45], ['Antenna', 45], ['Bowler', 50], ['Headphones', 50], ['Graduation', 50],
+    ['Top hat', 55], ['Cowboy', 55], ['Fedora', 60], ['Santa', 60], ['Sombrero', 60], ['Mohawk', 60],
+    ['Cat ears', 65], ['Mushroom', 65], ['Bunny ears', 70], ['Pirate', 75], ['Propeller', 75], ['Ushanka', 75], ['Deerstalker', 80], ['Flower crown', 80],
+    ['Viking', 90], ['Horns', 90], ['Witch hat', 100], ['Wizard', 100], ['Jester', 110],
+    ['Tiara', 130], ['Halo', 140], ['Knight', 160], ['Samurai', 180], ['Space helmet', 200],
+    ['Crown', 0, 'midas'], ['Cracked Halo', 0, 'karma']],
   eyes: [['Normal', 0], ['Angry', 10], ['Sleepy', 10], ['Googly', 30], ['Dead', 40], ['Shades', 50], ['Cyclops', 60], ['Hearts', 70], ['Stars', 70], ['Visor', 90], ['Laser', 0, 'starving']],
   trail: [['None', 0], ['Smoke', 60], ['Bubbles', 70], ['Sparkles', 80], ['Hearts', 90], ['Petals', 90], ['Confetti', 110], ['Embers', 120],
     ['Cheese Crumbs', 0, 'ratKing'], ['Gold Dust', 0, 'goldenOpp'], ['Blood Drip', 0, 'paintRed'], ['Alarm', 0, 'badHood'], ['Stardust', 0, 'worldEater'], ['Afterglow', 0, 'toolkit'], ['Nuggets', 0, 'goldRush'], ['Shrapnel', 0, 'smasher']],
