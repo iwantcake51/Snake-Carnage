@@ -53,6 +53,7 @@ function render() {
   x.globalAlpha = 1;
   drawDrops(x);
   drawDebris(x); drawMist(x); drawSmoke(x); drawVomit(x);
+  drawCloudShadows(x); // (daylight only: 18b)
   drawLighting(x); drawPropGlow(x);
   drawLampBugs(x); drawFireflyGlow(x);
   drawSparks(x); drawImpacts(x);

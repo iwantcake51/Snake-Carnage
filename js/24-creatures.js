@@ -101,31 +101,33 @@ function drawLeashes(x) {
    the whole field is still drawn in a handful of strokes ---- */
 let grass = [];
 const grassShade = (g, sz) => { // root and tip colors for a tuft at (x, y): its ground's color, nudged toward the season's blade color
-  const gc = grassColAt(g.x, g.y), sc = rgbOf2(sz), m = (a, b, k) => a + (b - a) * k, q = v => Math.round(Math.min(255, Math.max(0, v)) / 16) * 16;
-  const base = [0, 1, 2].map(i => m(gc[i], sc[i], .3)), hex = c => '#' + c.map(v => q(v).toString(16).padStart(2, '0')).join('');
-  g.cb = hex(base.map(v => v * .84)); g.ct = hex([base[0] * 1.2 + 10, base[1] * 1.2 + 12, base[2] * 1.05]); // root in the shade of the blades around it; tip catching the light
+  const gc = grassColAt(g.x, g.y), sc = rgbOf2(sz), m = (a, b, k) => a + (b - a) * k, q = v => Math.round(Math.min(255, Math.max(0, v)) / 12) * 12;
+  const base = [0, 1, 2].map(i => m(gc[i], sc[i], .22)), hex = c => '#' + c.map(v => q(v).toString(16).padStart(2, '0')).join('');
+  g.cb = hex(base.map(v => v * .88)); g.ct = hex([base[0] * 1.12 + 16, base[1] * 1.1 + 14, base[2] * .96 + 4]); // root in the shade of the blades around it; tip catching the light, a touch yellower
 };
 function makeGrass(n) {
   const r = seeded(41); grass = []; n = Math.round(n * .7); // (a little sparser than the map asks: it read as clutter)
-  for (let k = 0; k < n * 3 && grass.length < n; k++) { const x = 30 + r() * (W - 60), y = 30 + r() * (H - 60); if (!grassAt(x, y) || solid(x, y) || snowAt(x, y) > .15 || (seasonId() === 'winter' && r() < .7)) continue; grass.push({ x, y, h: (4 + r() * 4) * (seasonId() === 'winter' ? .7 : 1), ph: r() * TAU, c: season ? pick(SZN().blades) : r() < .5 ? '#6f9e33' : '#7fb03c' }); }
+  for (let k = 0; k < n * 3 && grass.length < n; k++) { const x = 30 + r() * (W - 60), y = 30 + r() * (H - 60); if (!floraAt(x, y) || solid(x, y) || snowAt(x, y) > .15 || (seasonId() === 'winter' && r() < .7)) continue;
+    const h = (6 + r() * 4.5) * (seasonId() === 'winter' ? .7 : 1), nb = 7 + (r() * 4 | 0), bl = []; // each blade: where it grows from, how tall, which way it leans (a fan, the outer ones splaying), how wide at the root
+    for (let b = 0; b < nb; b++) { const t = (b + .5) / nb - .5; bl.push([t * 2.6 + (r() - .5) * .9, h * (.55 + r() * .5) * (1 - Math.abs(t) * .55), t * 7 + (r() - .5) * 1.8, .32 + r() * .16]); }
+    grass.push({ x, y, h, bl, ph: r() * TAU, c: season ? pick(SZN().blades) : r() < .5 ? '#6a8f34' : '#7a9c3c' }); }
 }
 function drawGrass(x) {
   if (!grass.length) return;
-  x.lineCap = 'round'; const gt = animT('grass'), ga = AN.grass.amp;
-  if (!grass.byCol) { // one stroke per shade, not one per tuft: far fewer draw calls for the graphics chip
-    const group = (k, g) => { let b = grass.byCol.get(k); if (!b) grass.byCol.set(k, b = []); b.push(g); };
-    grass.byCol = new Map(); grass.byTip = new Map(); for (const g of grass) { if (!g.cb) grassShade(g, g.c); group(g.cb, g); let b = grass.byTip.get(g.ct); if (!b) grass.byTip.set(g.ct, b = []); b.push(g); }
+  const gt = animT('grass'), ga = AN.grass.amp;
+  if (!grass.byCol) { // one fill per shade, not one per tuft: far fewer draw calls for the graphics chip
+    const group = (m, k, g) => { let b = m.get(k); if (!b) m.set(k, b = []); b.push(g); };
+    grass.byCol = new Map(); grass.byTip = new Map(); for (const g of grass) { if (!g.cb) grassShade(g, g.c); group(grass.byCol, g.cb, g); group(grass.byTip, g.ct, g); }
   }
-  x.fillStyle = 'rgba(20,30,10,.13)'; x.beginPath(); for (const g of grass) { x.moveTo(g.x + 3.4, g.y + .6); x.ellipse(g.x + .4, g.y + .6, 3, 1.3, 0, 0, TAU); } x.fill(); // the soft shadow where it grows out of the ground
-  const blades = (list, half) => { // each blade a curve from the root to the tip, split in two: the lower half in the root's shade, the upper in the tip's
-    for (const g of list) {
-      const w = (Math.sin(gt * 1.7 + g.x * .018 + g.y * .01) * 1.6 + Math.sin(gt * 3.1 + g.ph) * .4) * ga; // a gust rolls across the field
-      for (let o = -1.6; o <= 1.7; o += 1.6) {
-        const x0 = g.x + o, y0 = g.y, cx = g.x + o + w * .4, cy = g.y - g.h * .6, x2 = g.x + o * 1.4 + w, y2 = g.y - g.h - (o ? -1 : 0), mx = (x0 + 2 * cx + x2) / 4, my = (y0 + 2 * cy + y2) / 4;
-        if (half) { x.moveTo(mx, my); x.quadraticCurveTo((cx + x2) / 2, (cy + y2) / 2, x2, y2); } else { x.moveTo(x0, y0); x.quadraticCurveTo((x0 + cx) / 2, (y0 + cy) / 2, mx, my); }
-      }
+  x.fillStyle = 'rgba(20,30,10,.12)'; x.beginPath(); for (const g of grass) { x.moveTo(g.x + 3.4, g.y + .5); x.ellipse(g.x + .4, g.y + .5, 3, 1.2, 0, 0, TAU); } x.fill(); // the soft shadow where it grows out of the ground
+  for (const g of grass) g.w = (Math.sin(gt * 1.7 + g.x * .018 + g.y * .01) * 1.6 + Math.sin(gt * 3.1 + g.ph) * .4) * ga; // a gust rolls across the field
+  const blades = (list, top) => { // each blade a tapered sliver curving from its root to a point: whole in the root's shade, then its upper part again in the tip's light
+    for (const g of list) for (const [ox, h, lean, bw] of g.bl) {
+      const x0 = g.x + ox, y0 = g.y, w = g.w * h / g.h, tx = x0 + lean + w, ty = y0 - h, cx = x0 + lean * .35 + w * .45, cy = y0 - h * .55;
+      if (top) { const mx = (x0 + 2 * cx + tx) / 4, my = (y0 + 2 * cy + ty) / 4, k = bw * .7; x.moveTo(mx - k, my); x.quadraticCurveTo((cx + tx) / 2 - k * .4, (cy + ty) / 2, tx, ty); x.quadraticCurveTo((cx + tx) / 2 + k * .4, (cy + ty) / 2, mx + k, my); x.closePath(); }
+      else { x.moveTo(x0 - bw, y0); x.quadraticCurveTo(cx - bw * .5, cy, tx, ty); x.quadraticCurveTo(cx + bw * .5, cy, x0 + bw, y0); x.closePath(); }
     }
   };
-  x.lineWidth = 1.3; for (const [col, list] of grass.byCol) { x.strokeStyle = col; x.beginPath(); blades(list, 0); x.stroke(); }
-  x.lineWidth = .95; for (const [col, list] of grass.byTip) { x.strokeStyle = col; x.beginPath(); blades(list, 1); x.stroke(); }
+  for (const [col, list] of grass.byCol) { x.fillStyle = col; x.beginPath(); blades(list, 0); x.fill(); }
+  for (const [col, list] of grass.byTip) { x.fillStyle = col; x.beginPath(); blades(list, 1); x.fill(); }
 }

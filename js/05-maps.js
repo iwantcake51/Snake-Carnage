@@ -74,14 +74,44 @@ function dirtTrails(x, list) { // worn dirt paths: uneven width and edges, packe
   const hs = shrink(hc, 16); x.save(); x.imageSmoothingQuality = 'high'; x.globalAlpha = .3; x.drawImage(hs, 0, 0, W, H); x.globalAlpha = 1; x.drawImage(dc, 0, 0, W, H); x.restore(); freeCanvas(hc, hs, dc);
 }
 const dirtTrail = (x, pts, w, seed) => dirtTrails(x, [[pts, w, seed]]);
-function flowers(x, n, cols, seed, clusters = 9) { // wildflowers grow in patches, not evenly
-  const r = seeded(seed);
+const FLOWER_SP = { // wild flowers seen from above, in the muted colors of a real lawn: petals, a center, the leaves under them
+  daisy: { p: ['#f3f0e4', '#ebe6d6'], c: '#d9a83a', n: 8, k: 1 }, butter: { p: ['#ecc63c', '#e2b830'], c: '#b98a22', n: 5, k: .9 }, clover: { head: ['#c48ab0', '#b47aa3', '#d6a2c4'], k: .85 },
+  blue: { p: ['#8ea2d8', '#7d93cc'], c: '#ece6d0', n: 4, k: .75 }, dandelion: { head: ['#e8b92e', '#f0c843', '#d9a426'], k: 1 }, poppy: { p: ['#c4442e', '#b23a28'], c: '#2a2220', n: 4, k: 1.15 },
+};
+const flowerSp = col => ({ '#ffffff': 'daisy', '#fff3b0': 'daisy', '#e8eef7': 'daisy', '#fff8f0': 'daisy', '#ffe066': 'butter', '#ffd23f': 'dandelion', '#f2c230': 'butter', '#ff9ecb': 'clover', '#f7a8c8': 'clover', '#ffd6e6': 'clover', '#c9b6ff': 'blue', '#c9a0ff': 'blue' })[col] || (FLOWER_SP[col] ? col : 'daisy');
+function drawFlower(x, px, py, sp, sz, r) { // one flower, about sz across: a shadow down-right, two leaves, petals lit from the top-left, the center
+  const f = FLOWER_SP[sp] || FLOWER_SP.daisy, s = sz * f.k, rot = r() * TAU;
+  x.fillStyle = 'rgba(52,78,30,.7)'; for (let l = 0; l < 2; l++) { const a = rot + l * 2.6 + r() * .6; x.save(); x.translate(px + Math.cos(a) * s * .7, py + Math.sin(a) * s * .7); x.rotate(a); ell(x, 0, 0, s * .75, s * .28); x.restore(); }
+  x.fillStyle = 'rgba(18,26,10,.3)'; circ(x, px + s * .28, py + s * .34, s * .62);
+  if (f.head) { for (let k = 0; k < 7; k++) { const a = k / 7 * TAU + rot, d = s * .32; x.fillStyle = f.head[k % f.head.length]; circ(x, px + Math.cos(a) * d, py + Math.sin(a) * d, s * .3); } x.fillStyle = f.head[1]; circ(x, px, py, s * .3); x.fillStyle = 'rgba(255,250,235,.35)'; circ(x, px - s * .18, py - s * .2, s * .18); return; } // a clover's or dandelion's tufted head
+  for (let k = 0; k < f.n; k++) { const a = k / f.n * TAU + rot, lit = Math.cos(a + 2.36) > 0; x.fillStyle = lit ? f.p[0] : f.p[1]; x.save(); x.translate(px + Math.cos(a) * s * .38, py + Math.sin(a) * s * .38); x.rotate(a); ell(x, 0, 0, s * .4, s * (f.n > 6 ? .15 : .24)); x.restore(); }
+  x.fillStyle = f.c; circ(x, px, py, s * (f.n > 6 ? .22 : .18));
+}
+function flowers(x, n, cols, seed, clusters = 9) { // wildflowers grow in patches, not evenly; never on a path painted on this floor before them (x._fl), none in winter and only a few late ones in autumn
+  const r = seeded(seed), sid = x === bctx && season ? season.id : 'summer'; if (sid === 'winter') return; if (sid === 'autumn') n *= .2;
+  const offPath = (px, py) => { if (!x._fl || !x._fl.length) return true; const m = x.getTransform(), dx = m.a * px + m.c * py + m.e, dy = m.b * px + m.d * py + m.f; for (const t of x._fl) { if (dx < t.b[0] || dy < t.b[1] || dx > t.b[2] || dy > t.b[3]) continue; for (let k = 0; k < t.P.length; k += 2) if (Math.hypot(t.P[k][0] - dx, t.P[k][1] - dy) < t.r) return false; } return true; };
   for (let c = 0; c < clusters; c++) {
-    const cx = 40 + r() * (W - 80), cy = 40 + r() * (H - 80), col = cols[c % cols.length];
-    for (let i = 0; i < n / clusters; i++) { const a = r() * TAU, d = Math.sqrt(r()) * 34; x.fillStyle = col; circ(x, cx + Math.cos(a) * d, cy + Math.sin(a) * d, 1.6 + r() * .8); x.fillStyle = '#f7e27a'; circ(x, cx + Math.cos(a) * d, cy + Math.sin(a) * d, .6); }
+    const cx = 40 + r() * (W - 80), cy = 40 + r() * (H - 80), sp = flowerSp(cols[c % cols.length]);
+    for (let i = 0; i < n / clusters; i++) { const a = r() * TAU, d = Math.sqrt(r()) * 34, px = cx + Math.cos(a) * d, py = cy + Math.sin(a) * d, sz = 2.6 + r() * 1.4; if (!offPath(px, py)) { r(); continue; } drawFlower(x, px, py, sp, sz, r); }
   }
 }
-function craters(x, n, base, seed) {
+function cropRows(x, rx, ry, rw, rh, seed, gap = 18, sp = 10, big = 1) { // a vegetable field: furrows between the rows, a leafy plant every few steps along each, lit from the top-left (the season's grade turns it with the grass)
+  const r = seeded(seed), G = ['#5b7d33', '#668a3a', '#4f722e', '#73954a'];
+  for (let y = ry + gap * .6; y < ry + rh - 4; y += gap) {
+    x.fillStyle = 'rgba(48,32,16,.3)'; x.fillRect(rx + 4, y + gap * .32, rw - 8, 3); x.fillStyle = 'rgba(210,180,130,.12)'; x.fillRect(rx + 4, y - gap * .4, rw - 8, 2); // the furrow's shade and the ridge's light
+    for (let px = rx + 8 + r() * 3; px < rx + rw - 6; px += sp * (.85 + r() * .3)) {
+      const py = y + (r() - .5) * 2, s = (3.6 + r() * 1.3) * big, n = 6 + (r() * 3 | 0), rot = r() * TAU, g = G[r() * G.length | 0];
+      x.fillStyle = 'rgba(30,22,10,.32)'; ell(x, px + s * .35, py + s * .4, s * 1.05, s * .9); // its shadow on the soil
+      for (let k = 0; k < n; k++) { const a = rot + k / n * TAU + (r() - .5) * .4, L = s * (.8 + r() * .35), lit = Math.cos(a + 2.36); x.fillStyle = shade(g, lit * .1 + (r() - .5) * .06); x.save(); x.translate(px + Math.cos(a) * L * .45, py + Math.sin(a) * L * .45); x.rotate(a); ell(x, 0, 0, L * .55, L * .3); x.restore(); }
+      x.fillStyle = shade(g, .2); circ(x, px - s * .08, py - s * .1, s * .32); // the young leaves at its heart
+    }
+  }
+}
+function wheatRows(x, rx, ry, rw, rh, seed) { // ripe wheat from above: a golden mat combed into rows, darker in the gaps, heads catching the light
+  const r = seeded(seed); x.fillStyle = '#b8954a'; x.fillRect(rx, ry, rw, rh);
+  for (let y = ry + 4; y < ry + rh - 3; y += 7) { x.fillStyle = 'rgba(90,64,26,.35)'; x.fillRect(rx + 2, y + 4.5, rw - 4, 1.6);
+    for (let k = 0; k < rw / 2.2; k++) { const px = rx + 3 + r() * (rw - 6), py = y + r() * 4; x.fillStyle = r() < .5 ? '#d8b860' : r() < .5 ? '#c9a24c' : '#e6c977'; ell(x, px, py, 1.5, .7); } }
+}function craters(x, n, base, seed) {
   const r = seeded(seed);
   for (let i = 0; i < n; i++) {
     const cx = 30 + r() * (W - 60), cy = 30 + r() * (H - 60), cr = 6 + r() * r() * 34;
@@ -160,7 +190,7 @@ function buildMaze() {
   }
   for (let r = 1; r <= 3; r++) v[r][mid] = false;            // open 2x3 garden in the center
   for (let c = mid - 1; c <= mid; c++) { h[2][c] = false; h[3][c] = false; }
-  const obs = [], col = '#3a6b28';
+  const obs = [], col = '#4a6c34';
   for (let r = 0; r < rows; r++) for (let c = 1; c < cols; c++)
     if (v[r][c]) obs.push(R(B + c * cw - t / 2, B + r * ch - t / 2, t, ch + t, col, 'hedge'));
   for (let r = 1; r < rows; r++) for (let c = 0; c < cols; c++)
@@ -396,7 +426,7 @@ const MAPS = [
           [[[96, 158], [180, 164], [262, 158], [330, 162]], 22, 33], [[[118, 138], [126, 160]], 30, 34], // the barn's apron and its lane to the road
           [[[318, 152], [322, 192], [316, 238]], 22, 35], [[[458, 72], [454, 122], [461, 172], [456, 236]], 22, 36]]); // the lane down from the barn, the shed's track
         if (!tex || !texShape(x, 'soil', g => g.fillRect(40, 320, 440, 290), undefined, undefined, 4)) { x.fillStyle = '#8b5e34'; x.fillRect(40, 320, 440, 290); } // the crop field
-        x.fillStyle = '#6f9a35'; for (let y = 332; y < 600; y += 18) { x.fillRect(48, y, 424, 6); for (let i = 52; i < 470; i += 9) circ(x, i, y + 3, 2.6); }
+        cropRows(x, 44, 322, 432, 286, 77); floraOff(x, 40, 320, 440, 290);
         if (!tex || !texShape(x, 'mud', g => g.fillRect(22, 186, 272, 98), undefined, undefined, 4)) { x.fillStyle = '#9b7a52'; x.fillRect(22, 186, 272, 98); } x.fillStyle = 'rgba(90,60,30,.45)'; for (let k = 0; k < 9; k++) { ell(x, 70 + k * 26, 200 + (k % 3) * 28, 14, 7); } // pig pen mud
       }
     })

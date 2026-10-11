@@ -250,7 +250,7 @@ function loadMap(idx, sz) {
   curPre = pre.filter(o => o.kind !== 'border'); curMapLights = b.lights || m.lights || []; // spacing works on whole objects, before long ones are split into breakable sections
   obstacles = splitBreakables(addBreakWalls(pre, m.name));
   buildSolid();
-  b.obs = b.obs.filter(o => !o.dropped); bctx.clearRect(0, 0, W, H); if (ov) { trailMute = !!ov.trails; try { if (ov.base) paintBase(bctx, ov.base); else b.floor(bctx); } finally { trailMute = false; } if (ov.areas) paintAreas(bctx, ov.areas); if (ov.trails) paintTrails(bctx, ov.trails); } else b.floor(bctx); for (const o of b.obs) if (o.kind === 'detail' && !o.dropped && FLAT_DETAILS.has(o.d)) drawObstacle(bctx, o); if (ovShapes) paintVecFloor(bctx, ovShapes.floor); /* edited paths replace the map's painted trails */ for (const o of b.obs) if (o.kind === 'detail' && !o.dropped && !FLAT_DETAILS.has(o.d)) drawObstacle(bctx, o); bakeContactShadows(bctx, b.obs); resetBuckets(); gctx.clearRect(0, 0, W, H); groundParts = []; trail = []; floaters = [];
+  b.obs = b.obs.filter(o => !o.dropped); bctx.clearRect(0, 0, W, H); floraRec = []; try { if (ov) { trailMute = !!ov.trails; try { if (ov.base) paintBase(bctx, ov.base); else b.floor(bctx); } finally { trailMute = false; } if (ov.areas) paintAreas(bctx, ov.areas); if (ov.trails) paintTrails(bctx, ov.trails); } else b.floor(bctx); } finally { floraLay = floraRec || []; floraRec = null; } for (const o of b.obs) if (o.kind === 'detail' && !o.dropped && FLAT_DETAILS.has(o.d)) drawObstacle(bctx, o); if (ovShapes) paintVecFloor(bctx, ovShapes.floor); /* edited paths replace the map's painted trails */ for (const o of b.obs) if (o.kind === 'detail' && !o.dropped && !FLAT_DETAILS.has(o.d)) drawObstacle(bctx, o); bakeContactShadows(bctx, b.obs); resetBuckets(); gctx.clearRect(0, 0, W, H); groundParts = []; trail = []; floaters = [];
   pondBanks(bctx, obstacles); const fl = buildGrassMask(); plants = []; gradeGround(fl, () => seasonDetails(bctx)); // (a pond's wet bank first, so no grass grows on it; the flowers and leaves go on once the season's tint is down)
   curBuild = b; drawObstacleLayer(); buildTrees();
   bakeOutline();
@@ -269,7 +269,7 @@ function loadMap(idx, sz) {
     for (let i = 0; i < Math.round(n * k); i++) spawn(type, zone);
   }
   makeFlies(m.fireflies || 0);
-  curPaths = b.paths || []; curRoads = b.roads || []; curCross = b.crossings || []; spawnWalkers(m.walkers || 0); if (state === 'menu') creatures = []; /* the map behind the menus is empty: nobody milling about */ netReseed(2); makeGrass(m.grass || 0); makeWeather();
+  curPaths = b.paths || []; curRoads = b.roads || []; curCross = b.crossings || []; spawnWalkers(m.walkers || 0); if (state === 'menu') creatures = []; /* the map behind the menus is empty: nobody milling about */ netReseed(2); makeGrass(m.grass || 0); makeWeather(); cloudsFor();
   deaths = []; if (typeof run === 'object') run.startPop = creatures.length;
   buildNeighbors(); // neighbour queries never see the previous map's crowd, even before the first tick
   updateHud();

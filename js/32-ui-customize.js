@@ -130,7 +130,9 @@ function finishStart(opts, sz) {
   introTimers = [setTimeout(endIntro, hold + wait)];
 }
 /* the loading card's tip: one simple thing about the game you might not know, picked for this run when one fits
-   (ice you can cross on a frozen map, a modifier you've switched on), otherwise one you haven't seen lately */
+   (ice you can cross on a frozen map, a modifier you've switched on), otherwise one you haven't seen lately.
+   A tip with a map is about that built-in map (its name, or a list of names) and only fits there: about half the time the card shows one of those */
+const tipHas = t => !!creatures && creatures.some(c => c.alive && c.type === t), tipRam = () => !MOD.tough && !MOD.demolition; // (that kind is out there this run; Battering Ram's ranks mean what they usually do)
 const TIPS = [
   { id: 'ice', t: 'Ponds and the pool freeze over in winter. You can slide straight across the ice.', ok: () => !!obstacles && obstacles.some(frozenOver), first: 3 },
   { id: 'dark', t: 'In the dark, people only see you up close or when you\'re under a light.', ok: () => light.dark > .45, first: 1 },
@@ -164,13 +166,51 @@ const TIPS = [
   { id: 'm-lockOn', t: 'Locked on: every bomb marker slides after you for a moment. Turn hard once it\'s set.', mod: 'lockOn', first: 2 },
   { id: 'm-fuse', t: 'Dead man\'s switch: the bomb ticks down with your combo. Keep eating or it goes off.', mod: 'fuse', first: 2 },
   { id: 'm-enchained', t: 'Enchained: when one of you goes down, the whole chain goes with them.', mod: 'enchained', first: 2 },
+  // about one map (or a few): only on that built-in map
+  { id: 'fd-lamp', map: 'Open Field', t: 'There isn\'t one lamp on the Open Field: after dark, only flashlights light it.' },
+  { id: 'deer', map: ['Open Field', 'Meadow'], t: 'Deer spot you from further off than anyone, and they\'re the fastest animal here.', ok: () => tipHas('deer') },
+  { id: 'rabbit', map: ['Open Field', 'Meadow', 'Park'], t: 'Rabbits bolt fast but in short hops, so a fleeing one can still be caught.', ok: () => tipHas('rabbit') },
+  { id: 'md-fire', map: 'Meadow', t: 'After dark the campfire by the lake is the Meadow\'s only light, bar the odd flashlight.' },
+  { id: 'md-frog', map: 'Meadow', t: 'Frogs keep to the lake shore, and they\'re the slowest thing on the Meadow.', ok: () => tipHas('frog') },
+  { id: 'tn-pump', map: 'Town', t: 'Hit a gas pump and it blows up, killing everyone near it. It never kills you.' },
+  { id: 'tn-fount', map: 'Town', air: 1, t: 'On fire? The fountain in the square puts you out, even in winter.' },
+  { id: 'tn-car', map: 'Town', t: 'Parked cars are solid until Battering Ram\'s third rank. Then you smash straight through.', ok: tipRam },
+  { id: 'lamps', map: ['Town', 'Park', 'Pool', 'Farm'], t: 'Lamp posts snap when you hit them and their light goes out, but anyone nearby turns to look.' },
+  { id: 'mz-new', map: 'Maze', t: 'The Maze\'s hedges are laid out afresh every run.' },
+  { id: 'mz-flash', map: 'Maze', t: 'About half the people in the Maze carry a flashlight.', ok: () => !MOD.noFlash },
+  { id: 'mz-hedge', map: 'Maze', t: 'Hedges block the view: nobody in the Maze can see you through one.' },
+  { id: 'mz-crack', map: 'Maze', t: 'Three hedges have a dark, cracked patch. Battering Ram\'s third rank breaks through it.', ok: tipRam },
+  { id: 'fm-pay', map: 'Farm', t: 'Pigs and sheep are worth twice the XP and score of a chicken.' },
+  { id: 'fm-pen', map: 'Farm', t: 'Calm animals keep to their own patch: pigs in the pen, sheep in the paddock, chickens round the yard.' },
+  { id: 'fm-fence', map: 'Farm', t: 'Fences and hay bales give way to Battering Ram\'s first rank.', ok: tipRam },
+  { id: 'pk-duck', map: 'Park', t: 'The ducks keep to the pond, and they\'re the slowest thing in the Park.', ok: () => tipHas('duck') },
+  { id: 'pl-lounge', map: 'Pool', t: 'The sun loungers lie flat on the deck: you slide right over them.' },
+  { id: 'pl-duck', map: 'Pool', t: 'The ducks keep round the fountain on the lawn.', ok: () => tipHas('duck') },
+  { id: 'pl-ice', map: 'Pool', air: 1, t: 'The pool is ice now, but the fountain never freezes: it still puts out a fire.', ok: () => iceOn() },
+  { id: 'of-glass', map: 'Office', t: 'The meeting room\'s glass walls shatter when you hit them. Without Battering Ram, you see stars for a moment.', ok: () => !MOD.tough },
+  { id: 'bwall', map: ['Office', 'Alien Facility', 'Space Station', 'Bunker'], t: 'Cracked, patched bits of wall break open with Battering Ram\'s third rank: a second way through.', ok: tipRam },
+  { id: 'noair', map: ['Office', 'Alien Facility', 'Space Station', 'Bunker', 'Club', 'Moon', 'Mars'], t: 'No air strikes here: the jets and guns only come for you outdoors, on Earth.' },
+  { id: 'af-lit', map: 'Alien Facility', t: 'The Alien Facility is lit end to end, day and night: the dark won\'t hide you here.' },
+  { id: 'af-ach', map: 'Alien Facility', t: 'Every alien you eat, run after run, counts toward Little Green Men: it unlocks the Martian skin.' },
+  { id: 'ss-grav', map: 'Space Station', t: 'The station makes its own gravity and air: blood falls and sound carries just as on Earth.' },
+  { id: 'bk-lock', map: 'Bunker', t: 'About one Bunker run in three is a lockdown: red lights only, and the alarm beacons pulse.' },
+  { id: 'cl-dance', map: 'Club', t: 'On the dance floor people barely move while they dance, until something spooks them.' },
+  { id: 'cl-spot', map: 'Club', t: 'Away from its lights the Club is dark, and the colored spots keep sweeping the dance floor.' },
+  { id: 'cl-spkr', map: 'Club', t: 'Battering Ram\'s second rank smashes the speakers. Break them all and the music stops.', ok: tipRam },
+  { id: 'cb-mast', map: 'Checkerboard', t: 'The floodlight masts snap if you hit them: at night, that corner of the board goes dark.' },
+  { id: 'cb-piece', map: 'Checkerboard', t: 'Nobody can see through the giant chess pieces: use them as cover.' },
+  { id: 'cb-mate', map: 'Checkerboard', t: () => `Checkmate, the Checkerboard's permanent challenge: a ${PM_SPECIAL.Checkerboard[3]}x combo without going near the edge.` },
+  { id: 'astro', map: ['Moon', 'Mars'], t: 'Astronauts are slower than people in their bulky suits, but after dark their helmet lamps light wherever they look.', ok: () => !MOD.noFlash },
+  { id: 'grav', map: ['Moon', 'Mars'], t: 'Gravity is low here: blood and debris fly further before they land.' },
+  { id: 'lunar', map: ['Moon', 'Mars'], t: 'Every astronaut you eat, run after run, counts toward Lunar Lunch: it unlocks the Lunar skin.' },
 ];
 function pickTip() {
   let seen = {}; try { seen = JSON.parse(localStorage.getItem('snakeTips') || '{}') || {}; } catch (e) { }
-  const txt = q => typeof q.t === 'function' ? q.t() : q.t, fits = q => { try { return (!q.mod || MOD[q.mod]) && (!q.air || (airMap() && !MOD.noAir)) && (!q.ok || q.ok()); } catch (e) { return false; } }; // (air strike tips only where there are air strikes)
+  const m = MAPS[mapIdx] || {}, txt = q => typeof q.t === 'function' ? q.t() : q.t, fits = q => { try { return (!q.map || (!m.custom && [].concat(q.map).includes(m.name))) && (!q.mod || MOD[q.mod]) && (!q.air || (airMap() && !MOD.noAir)) && (!q.ok || q.ok()); } catch (e) { return false; } }; // (map tips only on their own built-in map, air strike tips only where there are air strikes)
   const ok = TIPS.filter(fits); if (!ok.length) return '';
   const now = Date.now(), fresh = ok.filter(q => q.first && (seen[q.id + 'n'] | 0) < q.first); // made for this run and not shown a few times yet: that one
-  const pool = fresh.length ? fresh : ok.filter(q => !q.mod).map(q => [q, (seen[q.id] || 0) + Math.random()]).sort((a, b) => a[1] - b[1]).slice(0, 6).map(e => e[0]); // otherwise one of those you've gone longest without (never seen: any of them)
+  const here = ok.filter(q => q.map), gen = ok.filter(q => !q.map && !q.mod), mapT = here.length && (!gen.length || Math.random() < .5); // about half the time, one about this map
+  const pool = fresh.length ? fresh : (mapT ? here : gen).map(q => [q, (seen[q.id] || 0) + Math.random()]).sort((a, b) => a[1] - b[1]).slice(0, mapT ? 1 : 6).map(e => e[0]); // otherwise the map tip you've gone longest without, or one of the generic ones you have (never seen: any of them)
   const q = (pool.length ? pool : ok)[Math.random() * (pool.length || ok.length) | 0];
   seen[q.id] = now; seen[q.id + 'n'] = (seen[q.id + 'n'] | 0) + 1; try { localStorage.setItem('snakeTips', JSON.stringify(seen)); } catch (e) { }
   return txt(q);

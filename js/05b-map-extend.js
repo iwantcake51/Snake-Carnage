@@ -98,11 +98,11 @@ const MAP_EXT = {
     e.floor.push(x => clipStrip(x, st, () => { if (!GTEX.drawn.has(x)) checker(x, ...GRASS, 32); speckle(x, 120, ['#b18c58', '#d6b47e'], 60 + st.s); }));
     if (w < 112) return;
     if (st.s < 0) { // a wheat field beside the crop field, a lean-to on the barn, bales by the pen
-      e.floor.push(x => { const r = k.rect(20, 320, w - 44, 290); paintRect(x, r, '#9a7a40'); x.fillStyle = '#d6b45a'; for (let y = 330; y < 604; y += 14) x.fillRect(r[0] + 6, y, r[2] - 12, 6); });
+      e.floor.push(x => { const r = k.rect(20, 320, w - 44, 290); paintRect(x, r, '#9a7a40'); wheatRows(x, r[0] + 4, r[1] + 6, r[2] - 8, r[3] - 12, 31 + st.s); floraOff(x, ...r); });
       e.obs.push(k.R(w - 70, 16, 70, 80, '#7a5a3a', 'building', { roof: 'flat' }));
       e.obs.push(k.C(w * .35, 236, 14, '#e3c565', 'hay'), k.C(w * .35 + 26, 236, 14, '#e3c565', 'hay'));
     } else { // the paddock runs on (its fence is carried on with a gate); a kitchen garden beside the farmhouse
-      e.floor.push(x => { const r = k.rect(16, 170, Math.min(140, w - 70), 110); paintRect(x, r, '#7a5434'); x.fillStyle = '#5f8f34'; for (let y = r[1] + 10; y < r[1] + r[3] - 6; y += 16) for (let i = r[0] + 8; i < r[0] + r[2] - 6; i += 10) circ(x, i, y, 3); });
+      e.floor.push(x => { const r = k.rect(16, 170, Math.min(140, w - 70), 110); paintRect(x, r, '#7a5434'); cropRows(x, ...r, 41 + st.s, 16, 9, .85); floraOff(x, ...r); });
       e.obs.push(k.R(w * .45, 450, 40, 16, '#7d8a90', 'crate', { trough: true }), k.C(w * .3, 560, 20, '#e3c565', 'hay'));
     }
   },
@@ -292,6 +292,7 @@ function extendBuild(m, idx) {
   return { ...b, obs: [...b.obs, ...walls, ...extObs], lights, paths, roads, crossings, shapes,
     start: b.start && { ...b.start, x: b.start.x + XO },
     floor(x) {
+      for (const p of trails) floorPath(x, p, 26); // (the trails carried on are painted last: the strips' flowers keep off them already)
       if (m.tileFloor) { floor0.call(b, x); for (const { e } of strips) e.cover.forEach(f => f(x)); } // a ground drawn for any width (it reads W)
       else { if (m.ground) m.ground(x); for (const { e } of strips) e.floor.forEach(f => f(x)); local(x, () => floor0.call(b, x)); for (const { e } of strips) e.cover.forEach(f => f(x)); } // (m.ground: the map's real ground first, across the whole width)
       for (const { st, e } of strips) if (trails.length) clipStrip(x, st, () => { // the carried-on trails, in the map's own trail style

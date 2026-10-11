@@ -7,6 +7,25 @@
    runs inside a worker or, if workers are unavailable, right here on the main thread.
    ========================================================= */
 const PX_KERNELS = {
+  // the clouds over an outdoor map (18b-clouds): a seamless cloud cover as an alpha mask, n x n. Periodic gradient noise, a little
+  // domain warp so the edges go wispy, then a soft threshold: cov is how much of the sky is cloud
+  cloudTile(a) {
+    const { n, seed, cov } = a, px = new Uint8ClampedArray(n * n * 4); let s = (seed | 0) % 2147483646 + 1; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+    const G = new Float32Array(512), P = new Uint16Array(512); for (let i = 0; i < 256; i++) { const t = rnd() * Math.PI * 2; G[i * 2] = Math.cos(t); G[i * 2 + 1] = Math.sin(t); P[i] = i; }
+    for (let i = 255; i > 0; i--) { const j = rnd() * (i + 1) | 0, t = P[i]; P[i] = P[j]; P[j] = t; } for (let i = 0; i < 256; i++) P[i + 256] = P[i];
+    const fade = t => t * t * t * (t * (t * 6 - 15) + 10);
+    const noise = (x, y, per) => { x = ((x % per) + per) % per; y = ((y % per) + per) % per; const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy, u = fade(fx), v = fade(fy);
+      const d = (cx, cy, ox, oy) => { const h = P[P[cx % per] + cy % per] * 2; return G[h] * ox + G[h + 1] * oy; };
+      const a0 = d(ix, iy, fx, fy), a1 = d(ix + 1, iy, fx - 1, fy), b0 = d(ix, iy + 1, fx, fy - 1), b1 = d(ix + 1, iy + 1, fx - 1, fy - 1), top = a0 + (a1 - a0) * u; return top + (b0 + (b1 - b0) * u - top) * v; };
+    const fbm = (x, y, per, oct) => { let t = 0, amp = .5, f = 1; for (let o = 0; o < oct; o++) { t += noise(x * f, y * f, per * f) * amp; amp *= .5; f *= 2; } return t; };
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+      const u = i / n * 4, v = j / n * 4, wx = fbm(u + 3.1, v + 7.7, 4, 2), wy = fbm(u + 11.3, v + 1.9, 4, 2);
+      const grp = fbm(i / n * 2 + 5.3, j / n * 2 + 9.1, 2, 2), c = cov + grp * .95, lo = 1 - c - .08, hi = lo + .3; // a slow swell of cover: clouds bunch up into groups, clear sky between them
+      const t = fbm(u + wx * .45, v + wy * .45, 4, 4) * .95 + .5, e = Math.min(1, Math.max(0, (t - lo) / (hi - lo))), dd = e * e * (3 - 2 * e);
+      const o = (j * n + i) * 4; px[o] = 16; px[o + 1] = 24; px[o + 2] = 38; px[o + 3] = Math.round(Math.pow(dd, 1.15) * 255);
+    }
+    return { px };
+  },
   // the season's recolor of the floor (09-seasons gradeGround): how grassy each half-size cell is (soft-edged), and for
   // each tint pass the color and strength to lay over it. d: the half-size floor (RGBA); mix: a coarse noise grid (nw wide, NG px a cell)
   gradeMasks(a) {

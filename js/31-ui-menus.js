@@ -528,6 +528,7 @@ const SETTING_TABS = {
     ['seg', 'shadows', 'Shadows', 'Full: everything casts shadows. Static: only buildings and furniture. Off: none.', ['Off', 'Static', 'Full']],
     ['seg', 'postFx', 'GPU effects', 'Screen effects on the graphics chip: color, blur, warps and glow in one pass, smoother and cheaper. Off uses the older canvas versions.', ['Off', 'On']],
     ['toggle', 'bloom', 'Bloom', 'A soft glow around things that light up.'],
+    ['toggle', 'cloudShadows', 'Cloud shadows', 'Soft shadows of clouds drifting over outdoor maps by day.'],
     ['head', 'World detail'],
     ['seg', 'snowQ', 'Snow', 'Full: deep snow you plough through. Simple: flat snow. Off: no snow.', ['Off', 'Simple', 'Full']],
     ['seg', 'treeQ', 'Tree detail', 'How much trees sway in the wind. Low is fastest.', ['Low', 'Medium', 'High']],

@@ -4,11 +4,11 @@
    trees and bushes are rebuilt from leaf clusters, and winter / late autumn get snow (10-snow.js).
    ========================================================= */
 const SEASON_MAPS = new Set(['Open Field', 'Meadow', 'Town', 'Maze', 'Farm', 'Park', 'Pool']);
-const SEASONS = {
-  spring: { name: 'Spring', icon: 'szn_spring', leaves: ['#7cc443', '#8fd24f', '#69b236', '#a6df63'], full: .8, blossom: .35, bark: '#5d4532', blades: ['#86c840', '#97d64e'] },
-  summer: { name: 'Summer', icon: 'szn_summer', leaves: ['#3f8a2a', '#4c9a30', '#357a24', '#5aa838'], full: 1, blossom: 0, bark: '#56402d', blades: ['#5f9e2c', '#6fae34'] },
-  autumn: { name: 'Autumn', icon: 'szn_autumn', leaves: ['#d9822b', '#c4512a', '#e6b13a', '#9c5a2a', '#b8352a', '#d9a441'], full: .6, blossom: 0, bark: '#4f3a2a', blades: ['#b8953a', '#a8823a', '#c4a24c'] },
-  winter: { name: 'Winter', icon: 'szn_winter', leaves: ['#7a5a3a', '#8a6a44'], full: 0, blossom: 0, bark: '#4a3e36', blades: ['#cfc6ac', '#bdb59a'] },
+const SEASONS = { // leaf and blade colors, muted like the photo grounds: olive, sap and deep greens, never a cartoon green
+  spring: { name: 'Spring', icon: 'szn_spring', leaves: ['#6f9a3c', '#82ab47', '#5e8935', '#93b65a', '#76a043'], full: .8, blossom: .35, bark: '#5d4532', blades: ['#7fa844', '#8db450'] },
+  summer: { name: 'Summer', icon: 'szn_summer', leaves: ['#4a6d2e', '#58793a', '#3d5f2a', '#6a8a42', '#33522a', '#52763a'], full: 1, blossom: 0, bark: '#56402d', blades: ['#668c34', '#74983c'] },
+  autumn: { name: 'Autumn', icon: 'szn_autumn', leaves: ['#c27a2c', '#a84e26', '#cf9e3c', '#8f5a2a', '#a33c26', '#c49238'], full: .6, blossom: 0, bark: '#4f3a2a', blades: ['#a8924a', '#9a8040', '#b49c55'] },
+  winter: { name: 'Winter', icon: 'szn_winter', leaves: ['#6e5638', '#7d6444'], full: 0, blossom: 0, bark: '#4a3e36', blades: ['#c4bca0', '#b3ab90'] },
 };
 let season = null; // { id, late, name } for this run; null indoors / in space / in menus
 function pickSeason(m) {
@@ -86,7 +86,7 @@ function gradeGround(d, after) { // recolors the baked floor once per load: mask
 function seasonDetails(x) { // flowers, leaf litter, dead tufts: only on grass, never on paths
   plants = []; // (first: a map with no seasons, like the Club or the Checkerboard, must not keep the last map's clover and ferns)
   if (!season) return;
-  const r = seeded(Math.round(season.seed * 97) + mapIdx * 13), id = season.id, onGrass = (px, py) => grassAt(px, py) && !solid(px, py);
+  const r = seeded(Math.round(season.seed * 97) + mapIdx * 13), id = season.id, onGrass = (px, py) => floraAt(px, py) && !solid(px, py); // (never on a path, nor at the very edge of the grass)
   const trees = (obstacles || []).filter(o => o.kind === 'tree');
   if (id === 'spring' || id === 'summer') { // flower patches and new shoots
     const cols = id === 'spring' ? ['#ffffff', '#ffe066', '#f7a8c8', '#c9a0ff', '#fff3b0'] : ['#ffffff', '#ffd23f', '#e8eef7'];
@@ -94,13 +94,13 @@ function seasonDetails(x) { // flowers, leaf litter, dead tufts: only on grass, 
     for (let p = 0; p < patches; p++) {
       const cx = 30 + r() * (W - 60), cy = 30 + r() * (H - 60), col = cols[Math.floor(r() * cols.length)], n = 6 + Math.floor(r() * 14);
       for (let k = 0; k < n; k++) { const a = r() * TAU, d = Math.sqrt(r()) * 26, px = cx + Math.cos(a) * d, py = cy + Math.sin(a) * d; if (!onGrass(px, py)) continue;
-        x.fillStyle = 'rgba(40,90,30,.5)'; circ(x, px + .5, py + .8, 1.5); x.fillStyle = col; circ(x, px, py, 1.15 + r() * .5); if (r() < .5) { x.fillStyle = '#f2c230'; circ(x, px, py, .45); } }
+        drawFlower(x, px, py, flowerSp(col), 2.3 + r() * 1.2, r); }
     }
-    x.strokeStyle = id === 'spring' ? 'rgba(160,220,90,.7)' : 'rgba(40,90,25,.45)'; x.lineWidth = .8;
+    x.strokeStyle = id === 'spring' ? 'rgba(138,176,74,.6)' : 'rgba(46,72,26,.42)'; x.lineWidth = .8;
     for (let k = 0; k < (id === 'spring' ? 160 : 250); k++) { const px = r() * W, py = r() * H; if (!onGrass(px, py)) continue; x.beginPath(); x.moveTo(px - 1, py); x.lineTo(px - 1.6, py - 2.6); x.moveTo(px, py); x.lineTo(px + .2, py - 3.2); x.moveTo(px + 1, py); x.lineTo(px + 1.8, py - 2.4); x.stroke(); }
   }
   if (id === 'autumn') { // fallen leaves: heaped under trees, blown across the rest
-    const cols = SEASONS.autumn.leaves, litter = (px, py) => { if (!onGrass(px, py) && r() < .7) return; // a Kenney leaf shape once the sprites are in, an oval before
+    const cols = SEASONS.autumn.leaves, litter = (px, py) => { if (!onGrass(px, py) && r() < .85) return; // a Kenney leaf shape once the sprites are in, an oval before
       const rot = r() * TAU, col = cols[Math.floor(r() * cols.length)], al = .75 + r() * .25, w = 1.9 + r() * 1.2, h = 1 + r() * .5; x.globalAlpha = al;
       if (!kDraw(x, K_LEAF[Math.floor(r() * K_LEAF.length)], col, px, py, w * 2.7, w * 2.7, rot, 16)) { x.save(); x.translate(px, py); x.rotate(rot); x.fillStyle = col; ell(x, 0, 0, w, h); x.restore(); }
       x.globalAlpha = 1; };
@@ -141,15 +141,18 @@ function drawPlants(x) {
 
 /* ---- trees and bushes: trunk and branches are baked; leaves are cached sprites that sway ---- */
 const STAMPS = {}; // leaf clusters, built once per palette and brightness and reused everywhere
-function leafStamp(cols, lvl, v) {
-  const key = cols.join() + lvl + ':' + v; if (STAMPS[key]) return STAMPS[key];
+function leafStamp(cols, lvl, v) { // one cluster: a shaded heart, then its leaves from the outside in, each a two-tone blade lit on the side facing the top-left
+  lvl = Math.round(lvl * 25) / 25; const key = cols.join() + lvl + ':' + v; if (STAMPS[key]) return STAMPS[key]; // (brightness in steps: a few dozen clusters serve every tree, not one per call)
   const S = 26, c = document.createElement('canvas'); c.width = c.height = Math.ceil(S * SPR); const x = c.getContext('2d'); x.scale(SPR, SPR);
-  const r = seeded(500 + v * 7 + Math.round(lvl * 100));
-  for (let k = 0; k < 26; k++) {
-    const a = r() * TAU, d = Math.sqrt(r()) * 8.5, px = S / 2 + Math.cos(a) * d, py = S / 2 + Math.sin(a) * d, len = 2.6 + r() * 2, w = 1.1 + r() * .9;
-    const col = shade(cols[Math.floor(r() * cols.length)], lvl + (r() - .5) * .14 - d * .012);
-    x.save(); x.translate(px, py); x.rotate(r() * TAU); x.fillStyle = col;
-    x.beginPath(); x.moveTo(-len, 0); x.quadraticCurveTo(0, -w * 1.4, len, 0); x.quadraticCurveTo(0, w * 1.4, -len, 0); x.fill(); // a pointed leaf
+  const r = seeded(500 + v * 7 + Math.round(lvl * 100)), C = S / 2;
+  const g = x.createRadialGradient(C + 1, C + 1.2, 0, C + 1, C + 1.2, 10); g.addColorStop(0, 'rgba(14,22,8,.4)'); g.addColorStop(1, 'rgba(14,22,8,0)'); x.fillStyle = g; x.fillRect(0, 0, S, S); // the shade deep inside, so clusters read as clumps with gaps between them
+  const L = []; for (let k = 0; k < 28; k++) { const a = r() * TAU, d = Math.sqrt(r()) * 8.5; L.push({ px: C + Math.cos(a) * d, py: C + Math.sin(a) * d, d, len: 2.5 + r() * 2, w: 1.05 + r() * .85, rot: r() * TAU, col: cols[Math.floor(r() * cols.length)], j: (r() - .5) * .14 }); }
+  L.sort((p, q) => q.d - p.d); // outer leaves first: the middle of the cluster sits on top
+  for (const f of L) {
+    const col = shade(f.col, lvl + f.j - f.d * .016 + ((C - f.px) + (C - f.py)) * .006), up = Math.cos(f.rot + Math.PI / 2) * -.7 + Math.sin(f.rot + Math.PI / 2) * -.7 > 0; // lighter toward the top-left of the cluster
+    x.save(); x.translate(f.px, f.py); x.rotate(f.rot); x.fillStyle = col;
+    x.beginPath(); x.moveTo(-f.len, 0); x.quadraticCurveTo(0, -f.w * 1.4, f.len, 0); x.quadraticCurveTo(0, f.w * 1.4, -f.len, 0); x.fill(); // a pointed leaf
+    x.fillStyle = shade(col, .12); x.beginPath(); x.moveTo(-f.len, 0); x.quadraticCurveTo(0, (up ? 1 : -1) * f.w * 1.4, f.len, 0); x.closePath(); x.fill(); // its lit half, up to the midrib
     x.restore();
   }
   return STAMPS[key] = c;
@@ -180,8 +183,8 @@ function seasonFull(o, ti) {
   return clamp(f, 0, 1);
 }
 function buildLimbs(o, ti, full, r, sz, id) {
-  const R = o.r, S = R * 2 + 24, C0 = S / 2, cols = sz.leaves, n = ti.branches, limbs = [], spr = Math.min(DPR, 1.4);
-  const blossom = id === 'spring' && ti.blossom < sz.blossom, bc = ti.blossom < .15 ? ['#ffd6e6', '#ffffff'] : ['#ffffff', '#fff6d8'];
+  const R = o.r, S = R * 2 + 24, C0 = S / 2, cols = sz.leaves, n = ti.branches, limbs = [], spr = Math.min(DPR, 1.4), vol = (px, py) => ((C0 - px) + (C0 - py)) / R * .1; // (vol: the crown lit as one volume, brighter toward its top-left, falling into shade down-right)
+  const blossom = id === 'spring' && ti.blossom < sz.blossom, bc = ti.blossom < .15 ? ['#f3d2de', '#f6f2ea'] : ['#f6f2ea', '#f1ead2'];
   for (let b = 0; b < n; b++) {
     const c = document.createElement('canvas'); c.width = c.height = Math.ceil(S * spr); const x = c.getContext('2d'); x.scale(spr, spr);
     const a0 = b / n * TAU + ti.ph + (r() - .5) * .4, L = R * (.78 + r() * .2), sector = TAU / n * .62, bark = sz.bark, tips = [];
@@ -197,7 +200,7 @@ function buildLimbs(o, ti, full, r, sz, id) {
     };
     grow(C0, C0, a0, L * .42, R * .1, 0);
     if (full > .05) {
-      const stamp = (px, py, lvl, sc) => { const st = leafStamp(cols, lvl, Math.floor(r() * 5)), w = 26 * sc; x.save(); x.translate(px, py); x.rotate(r() * TAU); x.drawImage(st, -w / 2, -w / 2, w, w); x.restore(); };
+      const stamp = (px, py, lvl, sc) => { const st = leafStamp(cols, lvl + vol(px, py), Math.floor(r() * 5)), w = 26 * sc; x.save(); x.translate(px, py); x.rotate(r() * TAU); x.drawImage(st, -w / 2, -w / 2, w, w); x.restore(); };
       const N = Math.round(R * R / (19 * n) * 2.6);
       for (let k = 0; k < N; k++) { if (r() > full) continue; const aa = a0 + (r() - .5) * sector * 2, d = (.3 + Math.pow(r(), .7) * .68) * R; stamp(C0 + Math.cos(aa) * d, C0 + Math.sin(aa) * d, -.2 + (Math.cos(aa - 3.93) > 0 ? .1 : -.04), .62 + r() * .4); } // the mass of leaves this limb holds
       for (const [tx, ty] of tips) for (let k = 0; k < 2; k++) { if (r() > full) continue; stamp(tx + (r() - .5) * 5, ty + (r() - .5) * 5, .02 + r() * .14, .5 + r() * .35); } // clusters right on the twig ends
@@ -206,17 +209,19 @@ function buildLimbs(o, ti, full, r, sz, id) {
     limbs.push({ c, ph: r() * TAU, k: .7 + r() * .6 });
   }
   const [hi, hx] = makeSprite(S); // the crown over the trunk, so the middle never looks hollow
-  if (full > .05) { const st = (px, py, lvl, sc) => { const t = leafStamp(cols, lvl, Math.floor(r() * 5)), w = 26 * sc; hx.save(); hx.translate(px, py); hx.rotate(r() * TAU); hx.drawImage(t, -w / 2, -w / 2, w, w); hx.restore(); };
-    for (let k = 0; k < R * .9; k++) { if (r() > full) continue; const aa = r() * TAU, d = Math.sqrt(r()) * R * .42; st(C0 + Math.cos(aa) * d - R * .06, C0 + Math.sin(aa) * d - R * .06, .12 + r() * .1, .5 + r() * .35); } }
+  if (full > .05) { const st = (px, py, lvl, sc) => { const t = leafStamp(cols, lvl + vol(px, py), Math.floor(r() * 5)), w = 26 * sc; hx.save(); hx.translate(px, py); hx.rotate(r() * TAU); hx.drawImage(t, -w / 2, -w / 2, w, w); hx.restore(); };
+    for (let k = 0; k < R * .9; k++) { if (r() > full) continue; const aa = r() * TAU, d = Math.sqrt(r()) * R * .42; st(C0 + Math.cos(aa) * d - R * .06, C0 + Math.sin(aa) * d - R * .06, .12 + r() * .1, .5 + r() * .35); }
+  }
   return { limbs, hi, S, amp: 1 };
 }
 function buildCanopy(o) { // two sprite layers: an under layer and a lighter top layer that sways a little more
   const ti = treeInfo(o), R = o.r, S = R * 2 + 18, C0 = S / 2, r = seeded(ti.seed), id = seasonId(), sz = SZN();
   const [lo, lx] = makeSprite(S), [hi, hx] = makeSprite(S);
   const rad = a => R * (.86 + .14 * Math.cos(a * ti.lobes + ti.lobeA) + .05 * Math.sin(a * 3 + ti.ph));
+  const vol = (px, py) => ((C0 - px) + (C0 - py)) / R * .1; // the crown lit as one volume: brighter toward its top-left, into shade down-right
   if (ti.pine) { // a conifer from above: rings of needle sprays, darker underneath, lighter toward the top
-    const pc = id === 'spring' ? ['#3f7a3a', '#4c8a42', '#356a32'] : id === 'winter' ? ['#2c4f36', '#335a3c', '#28462f'] : ['#2f5f30', '#3a6e38', '#28522a'];
-    const spray = (xx, lvl, px, py, a, s) => { const st = needleStamp(pc, lvl, Math.floor(r() * 4)), w = 22 * s; xx.save(); xx.translate(px, py); xx.rotate(a); xx.drawImage(st, -w * .15, -w / 2, w, w); xx.restore(); };
+    const pc = id === 'spring' ? ['#3c6538', '#4a7444', '#325a31', '#56804c'] : id === 'winter' ? ['#2c4834', '#34523d', '#273f2e'] : ['#2e5032', '#3a5f3e', '#27452c', '#46684a']; // a conifer's deep blue-greens
+    const spray = (xx, lvl, px, py, a, s) => { const st = needleStamp(pc, Math.round((lvl + vol(px + Math.cos(a) * s * 11, py + Math.sin(a) * s * 11)) * 25) / 25, Math.floor(r() * 4)), w = 22 * s; xx.save(); xx.translate(px, py); xx.rotate(a); xx.drawImage(st, -w * .15, -w / 2, w, w); xx.restore(); };
     const tiers = [[1, -.24, lx], [.78, -.12, lx], [.55, 0, hx], [.32, .1, hx]];
     for (const [k, lvl, xx] of tiers) { const n = Math.round(10 + 14 * k), rr = R * k; for (let i = 0; i < n; i++) { const a = i / n * TAU + r() * .3 + ti.ph; spray(xx, lvl + (r() - .5) * .08, C0 + Math.cos(a) * rr * .25, C0 + Math.sin(a) * rr * .25, a, rr / 22 * 1.05); } }
     if (snowy()) for (const [k, , xx] of tiers) { const n = Math.round(6 + 8 * k), rr = R * k; xx.fillStyle = 'rgba(242,246,252,.9)'; for (let i = 0; i < n; i++) { const a = i / n * TAU + ti.ph + r(); if (Math.cos(a - 3.93) < 0 && r() < .7) continue; ell(xx, C0 + Math.cos(a) * rr * .7, C0 + Math.sin(a) * rr * .7, rr * .13, rr * .08); } }
@@ -237,14 +242,14 @@ function buildCanopy(o) { // two sprite layers: an under layer and a lighter top
         px = nx; py = ny; }
     }
   }
-  const cols = sz.leaves, stamp = (xx, lvl, px, py, s) => { const st = leafStamp(cols, lvl, Math.floor(r() * 5)), w = 26 * s * 1.15; xx.save(); xx.translate(px, py); xx.rotate(r() * TAU); xx.drawImage(st, -w / 2, -w / 2, w, w); xx.restore(); };
+  const cols = sz.leaves, stamp = (xx, lvl, px, py, s) => { const st = leafStamp(cols, lvl + vol(px, py), Math.floor(r() * 5)), w = 26 * s * 1.15; xx.save(); xx.translate(px, py); xx.rotate(r() * TAU); xx.drawImage(st, -w / 2, -w / 2, w, w); xx.restore(); };
   const N = Math.round(R * R / (o.kind === 'bush' ? 14 : 19));
   const spot = (inner, bias) => { const a = r() * TAU, d = Math.pow(r(), inner) * rad(a) * .93; return [C0 + Math.cos(a) * d - bias, C0 + Math.sin(a) * d - bias]; };
   for (let k = 0; k < N; k++) { if (r() > full) continue; const [px, py] = spot(.55, -R * .04); stamp(lx, -.2, px, py, .7 + r() * .45); } // shaded underside
   for (let k = 0; k < N * .8; k++) { if (r() > full) continue; const [px, py] = spot(.75, R * .05); stamp(lx, -.04, px, py, .6 + r() * .4); }
   for (let k = 0; k < N * .5; k++) { if (r() > full) continue; const [px, py] = spot(1.1, R * .14); stamp(hx, .1, px, py, .5 + r() * .4); } // sunlit top
   for (let k = 0; k < N * .18; k++) { if (r() > full) continue; const [px, py] = spot(1.6, R * .22); stamp(hx, .22, px, py, .4 + r() * .3); }
-  if (id === 'spring' && ti.blossom < sz.blossom) { const bc = ti.blossom < .15 ? ['#ffd6e6', '#ffffff'] : ['#ffffff', '#fff6d8']; for (let k = 0; k < N * 3; k++) { const [px, py] = spot(.8, R * .08); hx.fillStyle = bc[k & 1]; circ(hx, px, py, .9 + r() * .7); } }
+  if (id === 'spring' && ti.blossom < sz.blossom) { const bc = ti.blossom < .15 ? ['#f3d2de', '#f6f2ea'] : ['#f6f2ea', '#f1ead2']; for (let k = 0; k < N * 3; k++) { const [px, py] = spot(.8, R * .08); hx.fillStyle = bc[k & 1]; circ(hx, px, py, .9 + r() * .7); } }
   return { lo, hi, S, amp: o.kind === 'bush' ? .35 : 1 };
 }
 let treeSprites = []; const CANOPY = new Map(); // sprites per tree and season, kept so a retry or a map you've played loads instantly
