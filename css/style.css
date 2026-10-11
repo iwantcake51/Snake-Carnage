@@ -3368,3 +3368,9 @@ body.compact .mm .rs-title h3{font-size:28px!important}
 .mchip.off{opacity:.6;display:inline-flex;align-items:center;gap:6px}
 .mchip.off s{text-decoration-thickness:2px}
 .mchip.off em{font-style:normal;font-size:.82em;opacity:.85;text-transform:none}
+/* the in-run stats (top left and right): the main menu's wide Archivo, figures that don't jiggle as they count; and out of the
+   way while the loading card (or multiplayer's shutters) is up, fading in as it lifts */
+#hudbar:not(#_):not(#__),#hudbar:not(#_):not(#__) *{font-family:"Archivo",var(--f-body)!important;font-stretch:118%;font-variation-settings:"wdth" 118;font-variant-numeric:tabular-nums}
+#hudbar:not(#_):not(#__) b,#hudbar:not(#_):not(#__) .v{font-weight:800!important}
+#hudbar{transition:opacity .45s ease}
+#hudbar.ld{opacity:0;pointer-events:none;transition:none}

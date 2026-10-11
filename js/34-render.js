@@ -186,7 +186,8 @@ function bakeBlurBg() { // blur the frozen frame into its own pixels once, so th
     ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.filter = `blur(${Math.round(6 * DPR)}px) saturate(.35) brightness(.8)`; ctx.drawImage(blurTmp, 0, 0); ctx.restore(); ctx.filter = 'none'; } catch (e) {}
 }
 function frame(now) {
-  const hbOff = !['play', 'ready', 'intro', 'held'].includes(state); if (bar.hidden !== hbOff) bar.hidden = hbOff; // the in-run stats are for the run itself (they sit above the menus' layer, so they step aside for pause, the summary and every menu)
+  const hbOff = !['play', 'ready', 'intro', 'held'].includes(state); if (bar.hidden !== hbOff) bar.hidden = hbOff;
+  { const gf = document.getElementById('goFade'), ld = (intro.classList.contains('run') && !intro.classList.contains('out')) || (!!gf && !gf.classList.contains('out')); if (bar.classList.contains('ld') !== ld) bar.classList.toggle('ld', ld); } // the loading card (and multiplayer's shutters) have the screen to themselves: the stats fade in as they lift // the in-run stats are for the run itself (they sit above the menus' layer, so they step aside for pause, the summary and every menu)
   if (bdHud.on && hbOff !== !!bdHud.off) { bdHud.off = hbOff; const be = document.getElementById('bdebt'); if (be) be.hidden = hbOff; } // Blood Debt's pill goes with them
   const cap = +SETTINGS.fpsCap; // VSync -> NaN: draw every refresh
   if (cap && now - last < 1000 / cap - 2) { requestAnimationFrame(frame); return; }
