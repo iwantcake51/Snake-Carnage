@@ -9,7 +9,7 @@
 const PX_KERNELS = {
   // snow depth and ambient occlusion for rows [j0, j1): the expensive part of building the snow cover
   snowField(a) {
-    const { SNW, SN, SG, GW, GH, dist, NZ, LZ, nw, NC, green, gw, late, pines, j0, j1 } = a;
+    const { SNW, SN, SG, GW, GH, dist, NZ, LZ, nw, NC, green, gw, late, pines, ice, j0, j1 } = a;
     const sstep = (e0, e1, x) => { const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
     const clamp = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
     const up = (A, i, j) => { const fx = i / NC, fy = j / NC, i0 = fx | 0, jj = fy | 0, tx = fx - i0, ty = fy - jj, q = jj * nw + i0; return (A[q] * (1 - tx) + A[q + 1] * tx) * (1 - ty) + (A[q + nw] * (1 - tx) + A[q + nw + 1] * tx) * ty; };
@@ -25,6 +25,7 @@ const PX_KERNELS = {
       if (!late && dd < 40) d += .4 * Math.exp(-(dd - SG) / 10) * sstep(-.7, -.1, n);
       for (let p = 0; p < pines.length; p += 3) { const r = Math.hypot(x - pines[p], y - pines[p + 1]), pr = pines[p + 2] * 1.15; if (r < pr) d *= .3 + .7 * (r / pr) ** 2; }
       d *= sstep(SG * .5, SG * 2.2, dd);
+      if (ice && ice[gk]) d = Math.min(d, .55) * (.35 + .65 * sstep(.05, .5, up(LZ, i, j))); // frozen water: swept thin, in drifts
       D[k] = late ? d * .75 : Math.min(1.25, d); AO[k] = 1 - .38 * Math.exp(-dd / 7);
     }
     return { D, AO, j0, j1 };

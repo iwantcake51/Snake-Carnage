@@ -467,7 +467,7 @@ const ramClass = o => RAM_HEAVY.includes(o.kind) ? 3 : RAM_LARGE.includes(o.kind
 function obstacleHitBy(x, y, r) {
   for (const o of obstacles) {
     if (obsFlag(o, 'noCollide')) continue;
-    const sp = shapeOf(o); if (sp) { if (x > o.x - r - 40 && x < o.x + o.w + r + 40 && y > o.y - r - 40 && y < o.y + o.h + r + 40 && polyHit(sp, x, y, r)) return o; continue; }
+    const sp = shapeOf(o); if (sp) { const c = o.t === 'c', x0 = c ? o.x - o.r : o.x, y0 = c ? o.y - o.r : o.y, x1 = c ? o.x + o.r : o.x + o.w, y1 = c ? o.y + o.r : o.y + o.h; if (x > x0 - r - 40 && x < x1 + r + 40 && y > y0 - r - 40 && y < y1 + r + 40 && polyHit(sp, x, y, r)) return o; continue; } // (a pond is a circle with a shore of its own)
     if (o.t === 'r') { const nx = clamp(x, o.x, o.x + o.w), ny = clamp(y, o.y, o.y + o.h); if (dist2(x, y, nx, ny) < r * r) return o; }
     else if (dist2(x, y, o.x, o.y) < (r + o.r) ** 2) return o;
   }

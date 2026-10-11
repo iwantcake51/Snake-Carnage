@@ -54,6 +54,9 @@ function buildSolid() {
     } else if (o.poly) { const P = polyShape(o); // custom water: the real shape
       for (let j = Math.floor(o.y / SG); j < Math.ceil((o.y + o.h) / SG); j++) for (let i = Math.floor(o.x / SG); i < Math.ceil((o.x + o.w) / SG); i++)
         if (i >= 0 && j >= 0 && i < GW && j < GH && pointInPoly(P, i * SG + 2, j * SG + 2)) G[j * GW + i] = 1;
+    } else if (o.t === 'c' && natPond(o)) { const P = pondPoly(o); // a pond: solid only where the water is (the bank round it is ground)
+      for (let j = Math.floor((o.y - o.r) / SG); j <= (o.y + o.r) / SG; j++) for (let i = Math.floor((o.x - o.r) / SG); i <= (o.x + o.r) / SG; i++)
+        if (i >= 0 && j >= 0 && i < GW && j < GH && pointInPoly(P, i * SG + 2, j * SG + 2)) G[j * GW + i] = 1;
     } else if (o.t === 'r') {
       for (let j = Math.floor(o.y / SG); j < Math.ceil((o.y + o.h) / SG); j++)
         for (let i = Math.floor(o.x / SG); i < Math.ceil((o.x + o.w) / SG); i++)
@@ -84,7 +87,8 @@ const opaque = (x, y) => x < 0 || y < 0 || x >= W || y >= H || (opaqueGrid ? opa
 
 function bakeOutline() {
   mkx.clearRect(0, 0, W, H); mkx.fillStyle = '#000';
-  for (const o of obstacles) { if (obsFlag(o, 'noOutline') || frozenOver(o)) continue; fillObs(mkx, o); }
+  const ponds = obstacles.filter(o => natPond(o) && !frozenOver(o) && !obsFlag(o, 'noOutline')); // natural water gets no dark rim (it's plainly water, and the rim made it read as a pool); night vision still traces it
+  for (const o of obstacles) { if (obsFlag(o, 'noOutline') || frozenOver(o) || ponds.includes(o)) continue; fillObs(mkx, o); }
   olx.clearRect(0, 0, W, H);
   const mo = SETTINGS.mapOutlines; if (mo === 'Off') { olx.clearRect(0, 0, W, H); nvx.clearRect(0, 0, W, H); return; }
   const strong = mo === 'Strong', ow = strong ? 2.7 : 1.6;
@@ -95,6 +99,7 @@ function bakeOutline() {
   plainX.clearRect(0, 0, W, H); plainX.drawImage(obsC, 0, 0, W, H); // a copy without outlines, only used while they fade during a daze
   octx.drawImage(outlineC, 0, 0, W, H); // baked in: one less full-screen draw every frame
   nvx.clearRect(0, 0, W, H); nvx.drawImage(outlineC, 0, 0, W, H); // bright copy used by night vision
+  if (ponds.length) { mkx.clearRect(0, 0, W, H); for (const o of ponds) fillObs(mkx, o); nvx.save(); for (let k = 0; k < 8; k++) { const a = k * TAU / 8; nvx.drawImage(maskC, Math.cos(a) * ow, Math.sin(a) * ow, W, H); } nvx.globalCompositeOperation = 'destination-out'; nvx.drawImage(maskC, 0, 0, W, H); nvx.restore(); } // (the ponds' rims, for night vision only)
   nvx.globalCompositeOperation = 'source-in'; nvx.fillStyle = '#ffffff'; nvx.fillRect(0, 0, W, H); nvx.globalCompositeOperation = 'source-over';
 }
 let curBuild = null, curPre = [], curMapLights = [], fixList = [];

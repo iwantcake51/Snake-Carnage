@@ -75,18 +75,18 @@ function drawWater(x, o, t) {
   } else if (o.tank) { // specimen tank: steel ring, bolts
     x.fillStyle = '#5b6b72'; circ(x, cx, cy, o.r); x.strokeStyle = '#8fa1a8'; x.lineWidth = 1.5; x.beginPath(); x.arc(cx, cy, o.r - 1, 0, TAU); x.stroke();
     x.fillStyle = '#2c363a'; for (let k = 0; k < 8; k++) { const a = k * TAU / 8; circ(x, cx + Math.cos(a) * (o.r - rim * .5), cy + Math.sin(a) * (o.r - rim * .5), 1.2); }
-  } else if (S.poly) { x.lineJoin = 'round'; polyPath(x, o); x.lineWidth = 10; x.strokeStyle = 'rgba(62,50,34,.55)'; x.stroke(); x.lineWidth = 4; x.strokeStyle = '#3f3324'; x.stroke(); // wet mud all the way round
-  } else if (S.round) { const g = x.createRadialGradient(cx, cy, hw * .9, cx, cy, o.r); g.addColorStop(0, '#463a2a'); g.addColorStop(.5, 'rgba(78,66,46,.7)'); g.addColorStop(1, 'rgba(80,68,48,0)'); x.fillStyle = g; circ(x, cx, cy, o.r); } // the wet mud at the waterline, fading out into the bank painted on the ground
-  else {
+  } else if (S.nat) { // (a pond: nothing outside its shore here, the bank and its mud are painted into the ground, pondBanks)
+  } else {
     x.fillStyle = '#efeadf'; x.fillRect(o.x, o.y, o.w, o.h);
     x.strokeStyle = '#c9c1b0'; x.lineWidth = 1; x.strokeRect(o.x + .5, o.y + .5, o.w - 1, o.h - 1);
     x.strokeStyle = '#ddd5c5'; for (let p = o.x + 16; p < o.x + o.w; p += 16) { x.beginPath(); x.moveTo(p, o.y); x.lineTo(p, o.y + rim); x.moveTo(p, o.y + o.h - rim); x.lineTo(p, o.y + o.h); x.stroke(); }
   }
   x.save(); wPath(x, S); x.clip();
   if (S.nat) { // a pond: deep and dark in the middle, shallow and murky toward the edge where the bottom shows through, a sheen of sky on the far side
-    const g = x.createRadialGradient(cx, cy, Math.min(hw, hh) * .05, cx, cy, Math.max(hw, hh) * 1.02);
+    if (S.poly) x.drawImage(...polyDepth(o, base)); // any shape: deep in the middle by its distance from the shore, baked once
+    else { const g = x.createRadialGradient(cx, cy, Math.min(hw, hh) * .05, cx, cy, Math.max(hw, hh) * 1.02);
     g.addColorStop(0, mixColor(base, '#10262c', .62)); g.addColorStop(.55, mixColor(base, '#29514a', .6)); g.addColorStop(.85, mixColor(base, '#4d6a4a', .55)); g.addColorStop(1, mixColor(base, '#7a7550', .6));
-    x.fillStyle = g; x.fillRect(cx - hw - 4, cy - hh - 4, hw * 2 + 8, hh * 2 + 8);
+    x.fillStyle = g; x.fillRect(cx - hw - 4, cy - hh - 4, hw * 2 + 8, hh * 2 + 8); }
     const sk = x.createLinearGradient(cx - hw, cy - hh, cx + hw, cy + hh); sk.addColorStop(0, 'rgba(255,255,255,0)'); sk.addColorStop(.6, 'rgba(210,235,240,.05)'); sk.addColorStop(1, 'rgba(210,235,240,.16)'); x.fillStyle = sk; x.fillRect(cx - hw - 4, cy - hh - 4, hw * 2 + 8, hh * 2 + 8);
   } else {
   const g = x.createRadialGradient(cx, cy, Math.min(hw, hh) * .1, cx, cy, M);
@@ -166,7 +166,7 @@ function drawWater(x, o, t) {
   if (S.nat) { // a pond's edge: the shallows over a muddy bottom, a faint bright waterline that breathes with the surface, lily pads
     wPath(x, S); x.lineWidth = 7; x.strokeStyle = 'rgba(92,78,48,.3)'; x.stroke(); x.lineWidth = 2.6; x.strokeStyle = 'rgba(44,36,24,.4)'; x.stroke();
     x.lineWidth = 1; x.strokeStyle = `rgba(235,245,235,${(.16 + .06 * Math.sin(t * .9)).toFixed(3)})`; wPath(x, S, 1.6 + Math.sin(t * .7) * .4); x.stroke();
-    if (!o.poly && !iceOn()) lilyPads(x, o, S, t); // (none under the ice)
+    if (!iceOn()) lilyPads(x, o, S, t); // (none under the ice)
   } else {
   wPath(x, S); x.lineWidth = 3; x.strokeStyle = 'rgba(0,20,40,.22)'; x.stroke();
   x.lineWidth = 1.5; x.strokeStyle = tint ? `rgba(255,${235 - tint.a * 120 | 0},${235 - tint.a * 120 | 0},.35)` : 'rgba(255,255,255,.35)';
@@ -175,26 +175,73 @@ function drawWater(x, o, t) {
   if (o.fountain) drawFountainTier(x, o, S, t, tint);
   x.restore();
 }
+const hide = (o, k, v) => (Object.defineProperty(o, k, { value: v, enumerable: false, configurable: true, writable: true }), v); // a cache on the object that never travels with it
+function shoreLine(o) { // points round a pond's water edge, every few px, each with the way out (nx, ny) and the distance along the shore (s); cached
+  const S = wShape(o), key = o.x + ',' + o.y + ',' + (o.r || o.w) + ',' + (o.poly ? o.poly.length + ':' + o.poly[0] : '');
+  if (o._sl && o._sl.k === key) return o._sl.p;
+  const p = []; let s = 0;
+  if (o.poly) { const P = polyShape(o), n = P.length;
+    for (let i = 0; i < n; i++) { const [ax, ay] = P[i], [bx, by] = P[(i + 1) % n], L = Math.hypot(bx - ax, by - ay); if (L < .01) continue;
+      let nx = (by - ay) / L, ny = -(bx - ax) / L; const mx = (ax + bx) / 2, my = (ay + by) / 2; if (pointInPoly(P, mx + nx * 1.5, my + ny * 1.5)) { nx = -nx; ny = -ny; } // facing out of the water
+      for (let d = 0; d < L; d += 5) p.push({ x: ax + (bx - ax) * d / L, y: ay + (by - ay) * d / L, nx, ny, s: s + d }); s += L; } }
+  else { const f = S.shore || null, n = 160; for (let q = 0; q < n; q++) { const a = q / n * TAU, rr = S.hw * (f ? f[Math.round(q / n * f.length) % f.length] : 1), x = S.cx + Math.cos(a) * rr, y = S.cy + Math.sin(a) * rr; if (p.length) s += Math.hypot(x - p[p.length - 1].x, y - p[p.length - 1].y); p.push({ x, y, nx: Math.cos(a), ny: Math.sin(a), s }); } }
+  hide(o, '_sl', { k: key, p }); return p;
+}
+function pondPoly(o) { // where a pond is solid: its water's outline (round ponds: the shore, 2 px out for the mud at the waterline)
+  if (o.poly) return polyShape(o);
+  const S = wShape(o), key = o.x + ',' + o.y + ',' + o.r; if (o._pp && o._pp.k === key) return o._pp.p;
+  const f = S.shore, n = f.length, p = []; for (let q = 0; q < n; q++) { const a = q / n * TAU, rr = S.hw * f[q] + 2; p.push([S.cx + Math.cos(a) * rr, S.cy + Math.sin(a) * rr]); }
+  return hide(o, '_pp', { k: key, p }).p;
+}
+function polyDepth(o, base) { // custom-shaped water's depth, baked once: the deep colour, then shallower bands following the shore in toward the middle, softened together
+  polyShape(o); const k = Math.min(DPR, 2), key = base + k + o._pk;
+  if (!o._pd || o._pd.k !== key) { const pad = 2, w = Math.ceil(o.w + pad * 2), h = Math.ceil(o.h + pad * 2), c = document.createElement('canvas'); c.width = w * k; c.height = h * k; const g = c.getContext('2d'); g.scale(k, k); g.translate(pad - o.x, pad - o.y);
+    g.fillStyle = mixColor(base, '#10262c', .62); g.fillRect(o.x - pad, o.y - pad, w, h);
+    const P = polyShape(o); let D = 0; for (let y = o.y; y < o.y + o.h; y += 6) for (let x = o.x; x < o.x + o.w; x += 6) if (pointInPoly(P, x, y)) { let m = 1e9; for (let i = 0, j = P.length - 1; i < P.length; j = i++) { const [ax, ay] = P[j], [bx, by] = P[i], dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy || 1, t = clamp(((x - ax) * dx + (y - ay) * dy) / L, 0, 1); m = Math.min(m, Math.hypot(x - ax - dx * t, y - ay - dy * t)); } D = Math.max(D, m); } // how far the middle is from any shore
+    D = Math.max(8, D); g.lineJoin = 'round';
+    const band = [['#10262c', .62], ['#1c3c3c', .6], ['#29514a', .6], ['#3a5e4a', .58], ['#4d6a4a', .55], ['#64704c', .58], ['#7a7550', .6]], n = 14;
+    for (let q = 1; q <= n; q++) { const f = 1 - q / (n + 1), u = q / n * (band.length - 1), i0 = Math.floor(u), c0 = mixColor(base, band[i0][0], band[i0][1]), c1 = mixColor(base, band[Math.min(band.length - 1, i0 + 1)][0], band[Math.min(band.length - 1, i0 + 1)][1]); // ever shallower toward the shore
+      g.strokeStyle = mixColor(c0, c1, u - i0); g.lineWidth = Math.max(1, D * f * f * 2.2); polyPath(g, o); g.stroke(); }
+    g.fillStyle = mixColor(base, '#7a7550', .6); g.beginPath(); g.rect(o.x - pad, o.y - pad, w, h); polyShape(o).forEach(([a, b], k) => k ? g.lineTo(a, b) : g.moveTo(a, b)); g.closePath(); g.fill('evenodd'); // outside the water: the shallows' colour, so the blur keeps the edge shallow
+    const sm = shrink(c, 8); g.setTransform(1, 0, 0, 1, 0, 0); g.imageSmoothingQuality = 'high'; g.drawImage(sm, 0, 0, c.width, c.height); // the bands melt into one slope
+    hide(o, '_pd', { k: key, c, x: o.x - pad, y: o.y - pad, w, h }); }
+  const d = o._pd; return [d.c, d.x, d.y, d.w, d.h];
+}
+function padSpots(o, S) { // where a pond's lily pads float: in the shallows, a little way in from the shore; the same every time
+  if (o.poly) polyShape(o); const key = o.x + ',' + o.y + ',' + S.hw + (o._pk || ''); if (o._pads && o._pads.k === key) return o._pads.p;
+  const r = seeded(Math.abs(Math.round(o.x * 11 + o.y * 5)) + 7), sl = shoreLine(o), L = sl.length ? sl[sl.length - 1].s : 0, p = [];
+  const n = o.poly ? clamp(Math.round(L / 70), 2, 14) : Math.max(3, Math.round(S.hw / 16));
+  for (let k = 0, tries = 0; k < n && tries < n * 8; tries++) { const pr = 3.6 + r() * 3.2, nt = r() * TAU, fl = r() < .35, col = r() < .5 ? '#4f8a3a' : '#5d9a42';
+    let px, py; if (o.poly) { const e = sl[r() * sl.length | 0], d = pr + 4 + r() * 14; px = e.x - e.nx * d; py = e.y - e.ny * d; if (!pointInPoly(polyShape(o), px, py) || sl.some(q => (q.x - px) ** 2 + (q.y - py) ** 2 < (pr + 2) ** 2)) continue; }
+    else { const a = r() * TAU, d = S.hw * (.62 + r() * .26); px = S.cx + Math.cos(a) * d; py = S.cy + Math.sin(a) * d; }
+    if (p.some(q => (q.x - px) ** 2 + (q.y - py) ** 2 < (q.pr + pr + 1) ** 2)) continue;
+    p.push({ x: px, y: py, pr, nt, fl, col }); k++; }
+  hide(o, '_pads', { k: key, p }); return p;
+}
 function lilyPads(x, o, S, t) { // a few pads in the shallows, each a notched disc lit from the top-left with its veins, now and then a flower; they drift a hair
-  const r = seeded(Math.abs(Math.round(o.x * 11 + o.y * 5)) + 7), n = Math.max(3, Math.round(S.hw / 16)), K = propKit(x);
-  for (let k = 0; k < n; k++) { const a = r() * TAU, d = S.hw * (.62 + r() * .26), pr = 3.6 + r() * 3.2, nt = r() * TAU, fl = r() < .35, px = S.cx + Math.cos(a) * d + Math.sin(t * .3 + k) * .6, py = S.cy + Math.sin(a) * d + Math.cos(t * .27 + k) * .6, col = r() < .5 ? '#4f8a3a' : '#5d9a42';
+  const K = propKit(x);
+  padSpots(o, S).forEach((q, k) => { const { pr, nt, fl, col } = q, px = q.x + Math.sin(t * .3 + k) * .6, py = q.y + Math.cos(t * .27 + k) * .6;
     x.beginPath(); x.moveTo(px, py); x.arc(px, py, pr, nt + .35, nt + TAU - .35); x.closePath(); x.fillStyle = 'rgba(10,24,20,.3)'; x.save(); x.translate(.8, 1); x.fill(); x.restore(); // its shadow on the water
     x.fillStyle = K.rad(px, py, pr, col, .25, -.3); x.fill(); x.strokeStyle = shade(col, -.45); x.lineWidth = .4; x.stroke();
     x.strokeStyle = 'rgba(200,235,170,.35)'; x.lineWidth = .3; x.beginPath(); for (let v = 0; v < 5; v++) { const va = nt + .7 + v * (TAU - 1.4) / 4; x.moveTo(px, py); x.lineTo(px + Math.cos(va) * pr * .85, py + Math.sin(va) * pr * .85); } x.stroke();
-    if (fl) { for (let q = 0; q < 6; q++) { const qa = q * TAU / 6 + nt; x.fillStyle = q % 2 ? '#f6d2e2' : '#f0a6c8'; K.oval(px + Math.cos(qa) * 1.3, py + Math.sin(qa) * 1.3, 1.4, .7, qa); x.fill(); } x.fillStyle = '#ffd23f'; circ(x, px, py, .7); } }
+    if (fl) { for (let q2 = 0; q2 < 6; q2++) { const qa = q2 * TAU / 6 + nt; x.fillStyle = q2 % 2 ? '#f6d2e2' : '#f0a6c8'; K.oval(px + Math.cos(qa) * 1.3, py + Math.sin(qa) * 1.3, 1.4, .7, qa); x.fill(); } x.fillStyle = '#ffd23f'; circ(x, px, py, .7); } });
 }
-function pondBanks(x, list) { // the ground round a pond: wet, dark earth that fades out into the grass (no grass grows on it), the odd stone, clumps of reeds
+function pondBanks(x, list) { // the ground round a pond, painted in under everyone: a wide, faint darkening of the grass, the wet earth of the bank and the mud at the waterline, each grown out from the shore by a width that wanders round it and blurred, so it melts into whatever ground is there; then stones and clumps of reeds
   const sid = season && season.id, reed = sid === 'winter' || (season && season.late) ? '#a08a5c' : sid === 'autumn' ? '#8a8a3e' : '#4c7a2a'; // reeds go to straw in winter
-  const ponds = (list || []).filter(o => natPond(o) && !o.poly); if (!ponds.length) return;
+  const ponds = (list || []).filter(natPond); if (!ponds.length) return;
   const sc = Math.max(.5, Math.hypot(x.getTransform().a, x.getTransform().b)), mk = () => { const c = document.createElement('canvas'); c.width = Math.ceil(W * sc); c.height = Math.ceil(H * sc); const g = c.getContext('2d'); g.scale(sc, sc); return [c, g]; };
-  const ring = (g, o, k) => { const S = wShape(o), f = S.shore, n = f.length; g.beginPath(); for (let q = 0; q <= n; q++) { const a = q / n * TAU, rr = o.r * k * (.5 + .5 * f[q % n]); q ? g.lineTo(o.x + Math.cos(a) * rr, o.y + Math.sin(a) * rr) : g.moveTo(o.x + Math.cos(a) * rr, o.y + Math.sin(a) * rr); } g.closePath(); g.fill(); };
-  const [wc, wg] = mk(), [bc, bg] = mk(); wg.fillStyle = '#5c4f32'; bg.fillStyle = '#4b3f2b';
-  for (const o of ponds) { ring(wg, o, 1.26); ring(bg, o, 1.05); }
-  const ws = shrink(wc, 16), bs = shrink(bc, 8); x.save(); x.imageSmoothingQuality = 'high'; x.globalAlpha = .2; x.drawImage(ws, 0, 0, W, H); x.globalAlpha = .6; x.drawImage(bs, 0, 0, W, H); x.restore(); freeCanvas(wc, bc, ws, bs); // trampled, thinning grass further out; the wet bank close in
+  const size = o => o.poly ? clamp(Math.sqrt(o.w * o.h) / 2, 20, 140) : o.r, rim = () => 2; // (the bank starts right at the water: that's where you hit it)
+  const grow = (g, o, d, seed) => { // the water's shape grown by about d: the shape itself, then overlapping discs along the shore, their size wandering smoothly with the distance round it
+    const S = wShape(o); wPath(g, S); g.fill(); const r = seeded(Math.abs(Math.round(o.x * 13 + o.y * 7)) + seed), p0 = r() * TAU, p1 = r() * TAU, f0 = .03 + r() * .02, f1 = .08 + r() * .05;
+    g.beginPath(); for (const e of shoreLine(o)) { const w = d * (1 + .38 * Math.sin(e.s * f0 + p0) + .22 * Math.sin(e.s * f1 + p1)); if (w > .5) { g.moveTo(e.x + w, e.y); g.arc(e.x, e.y, w, 0, TAU); } } g.fill(); };
+  const layer = (col, dOf, blur, a, op) => { const [c, g] = mk(); g.fillStyle = col; for (const o of ponds) grow(g, o, dOf(o), Math.round(blur)); const sm = shrink(c, blur); x.save(); x.imageSmoothingQuality = 'high'; x.globalAlpha = a; if (op) x.globalCompositeOperation = op; x.drawImage(sm, 0, 0, W, H); x.restore(); freeCanvas(c, sm); };
+  layer('#8f8a6c', o => rim(o) + clamp(size(o) * .34, 14, 40), 16, .32, 'multiply'); // trampled, damp grass a way out
+  layer('#5c4d33', o => rim(o) + clamp(size(o) * .12, 6, 14), 8, .55); // the wet earth of the bank
+  layer('#3d3222', o => 3, 4, .6); // dark mud right at the waterline
   const K = propKit(x);
-  for (const o of ponds) { const r = seeded(Math.abs(Math.round(o.x * 3 + o.y * 17)) + 11);
-    for (let k = 0; k < Math.round(o.r / 9); k++) { const a = r() * TAU, d = o.r * (1 + r() * .1), sr = .9 + r() * 1.8; K.disc(o.x + Math.cos(a) * d, o.y + Math.sin(a) * d, sr, shade('#8a8578', (r() - .5) * .3), { hi: .35, lo: -.35, ec: 'rgba(30,26,20,.6)', ew: .4 }); } // stones on the bank
-    for (let c = 0; c < 2 + Math.round(o.r / 60); c++) { const a = r() * TAU, d = o.r * (.99 + r() * .06), bx = o.x + Math.cos(a) * d, by = o.y + Math.sin(a) * d; // a clump of reeds: blades leaning every way, a few cattail heads
+  for (const o of ponds) { const r = seeded(Math.abs(Math.round(o.x * 3 + o.y * 17)) + 11), sl = shoreLine(o), L = sl.length ? sl[sl.length - 1].s : 0, rm = rim(o); if (!sl.length) continue;
+    for (let k = 0; k < Math.round(L / 45); k++) { const e = sl[r() * sl.length | 0], d = rm + 2 + r() * 8, sr = .9 + r() * 1.8; K.disc(e.x + e.nx * d, e.y + e.ny * d, sr, shade('#8a8578', (r() - .5) * .3), { hi: .35, lo: -.35, ec: 'rgba(30,26,20,.6)', ew: .4 }); } // stones on the bank
+    for (let c = 0; c < 1 + Math.round(L / 180); c++) { const e = sl[r() * sl.length | 0], d = rm + 1 + r() * 4, bx = e.x + e.nx * d, by = e.y + e.ny * d; // a clump of reeds: blades leaning every way, a few cattail heads
       x.lineCap = 'round'; for (let q = 0; q < 14; q++) { const ba = r() * TAU, bl = 3 + r() * 5, sx = bx + (r() - .5) * 6, sy = by + (r() - .5) * 6; x.strokeStyle = shade(reed, (r() - .5) * .35); x.lineWidth = .7 + r() * .4; x.beginPath(); x.moveTo(sx, sy); x.quadraticCurveTo(sx + Math.cos(ba) * bl * .5 + .8, sy + Math.sin(ba) * bl * .5, sx + Math.cos(ba) * bl, sy + Math.sin(ba) * bl); x.stroke(); }
       for (let q = 0; q < 3; q++) { const hx = bx + (r() - .5) * 7, hy = by + (r() - .5) * 7, ha = r() * TAU; K.oval(hx, hy, 1.9, .85, ha); x.fillStyle = K.rad(hx, hy, 1.9, '#6b4524', .3, -.3); x.fill(); } }
   }

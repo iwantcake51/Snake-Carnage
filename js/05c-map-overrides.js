@@ -28,7 +28,7 @@ function fillObs(x, o, dx = 0, dy = 0, grow = 0) { // the footprint, for masks a
   else if (isRot(o)) { const P = obsCorners({ ...o, x: o.x - grow, y: o.y - grow, w: o.w + grow * 2, h: o.h + grow * 2 }); x.beginPath(); P.forEach(([a, b], k) => k ? x.lineTo(a + dx, b + dy) : x.moveTo(a + dx, b + dy)); x.closePath(); x.fill(); }
   else if (o.t === 'r' && o.whole) { const W0 = o.whole, x0 = Math.max(W0.x, o.x - .75), y0 = Math.max(W0.y, o.y - .75), x1 = Math.min(W0.x + W0.w, o.x + o.w + .75), y1 = Math.min(W0.y + W0.h, o.y + o.h + .75); x.fillRect(x0 - grow + dx, y0 - grow + dy, x1 - x0 + grow * 2, y1 - y0 + grow * 2); } // a section of a long object overlaps its neighbours a hair, so the footprint has no seams
   else if (o.t === 'r') x.fillRect(o.x - grow + dx, o.y - grow + dy, o.w + grow * 2, o.h + grow * 2);
-  else if (natPond(o)) { const S = wShape(o); x.save(); x.translate(dx, dy); wPath(x, S, -(S.rim + grow)); x.fill(); x.restore(); } // a pond: its own uneven shore, out at the bank's edge (08-water)
+  else if (natPond(o)) { const P = pondPoly(o); x.beginPath(); P.forEach(([a, b], k) => k ? x.lineTo(a + dx, b + dy) : x.moveTo(a + dx, b + dy)); x.closePath(); x.fill(); } // a pond: its own uneven shore (08-water)
   else circ(x, o.x + dx, o.y + dy, o.r + grow);
 }
 function propDefs() { let loc = {}; try { loc = JSON.parse(localStorage.getItem('snakeCarnagePropDefs')) || {}; } catch (e) {} return { ...PROP_OVERRIDES, ...(typeof mapPropDefs === 'object' ? mapPropDefs : {}), ...loc }; } // shipped, then a custom map's own props, then yours
@@ -37,5 +37,5 @@ function polyHit(P, x, y, r) { // a circle touching a polygon: inside it, or wit
   for (let i = 0, j = P.length - 1; i < P.length; j = i++) { const [ax, ay] = P[j], [bx, by] = P[i], dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / L)), qx = ax + t * dx - x, qy = ay + t * dy - y; if (qx * qx + qy * qy < r * r) return true; }
   return false;
 }
-const shapeOf = o => { const hp = typeof propHitPoly === 'function' && propHitPoly(o); if (hp && hp !== 'none') return hp; return o.poly ? polyShape(o) : isRot(o) ? obsCorners(o) : null; }; // the true outline of a non-box shape (a prop's own hit shape first)
+const shapeOf = o => { const hp = typeof propHitPoly === 'function' && propHitPoly(o); if (hp && hp !== 'none') return hp; return o.poly ? polyShape(o) : natPond(o) ? pondPoly(o) : isRot(o) ? obsCorners(o) : null; }; // the true outline of a non-box shape (a prop's own hit shape first)
 let edTestSkills = null, edTesting = null; // play tests from the editor can borrow any upgrade levels (see 40b)
