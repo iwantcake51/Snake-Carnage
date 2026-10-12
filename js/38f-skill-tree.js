@@ -10,7 +10,7 @@ const SK_W = 2800, SK_H = 1040, SK_HUB = { x: 1400, y: 1010 }; // (SK_HUB: only 
 /* the board reads in rows and columns: every branch grows up from its own root knot (SK_ROOT) in tiers (y 880, 720, 560, 400),
    each path in its own column under a small heading (SK_PATHS), the branch names over the top */
 const SK_ROOT = { surv: { x: 600, y: 990 }, pred: { x: 1700, y: 990 }, fort: { x: 2440, y: 990 } };
-const SK_PATHS = [['surv', 'Awareness', 130, 450], ['surv', 'Stealth', 390, 450], ['surv', 'Toughness', 800, 450], ['pred', 'Movement', 1410, 290], ['pred', 'Hunting', 1860, 290], ['fort', 'Chips', 2475, 290]]; // [branch, heading, x, y: just over the column's top skill]
+const SK_PATHS = [['surv', 'Awareness', 130, 450], ['surv', 'Stealth', 390, 450], ['surv', 'Toughness', 800, 450], ['pred', 'Movement', 1410, 290], ['pred', 'Hunting', 1860, 290], ['fort', 'Bounty', 2260, 450], ['fort', 'Feats', 2450, 450], ['fort', 'Savings', 2640, 290]]; // [branch, heading, x, y: just over the column's top skill]
 let skCam = null, skSel = 'speed'; // the camera and the selected node survive leaving and coming back (this session)
 const skCalm = () => SETTINGS.reduceMotion || document.body.classList.contains('calm') || (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);
 const skLv = () => PROG.level;
