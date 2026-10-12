@@ -7,6 +7,7 @@ function render() {
   const bz = Math.max(boomDaze(), gasScreen() * .8), pxS = Math.max(1, SETTINGS.pixel | 0), wob = !POST.on && snake && ((snake.wallStun > 0 && !SETTINGS.simpleFx) || (snake.ramT > 0 && !SETTINGS.reduceFlash)); // (with GPU effects the shader does the wobble and the glow: no copy of the frame) // (a blast's daze needs no copy of the frame: the camera sways the world itself, below, and its double vision reads the screen)
   render.n = (render.n || 0) + 1; // a frame number, so the edge blur shrinks each frame once
   const eb = (EDGE_K.lb > .03 || EDGE_K.fk > .03) && !SETTINGS.simpleFx, direct = pxS <= 1 && !wob; render.src = direct ? cv : sceneC; // (a lunge's edge blur reads the screen itself: it needs no copy of the frame) // no post effect this frame: draw straight to the screen and skip a full-frame copy
+  if (!direct && sceneC.width !== cv.width) { sceneC.width = cv.width; sceneC.height = cv.height; } // (made full size the first time it's needed)
   const x = direct ? ctx : sctx, L = light, sh = shake && SETTINGS.shake && state !== 'paused' ? shake * (SETTINGS.shakeK ?? 1) : 0; // paused: the picture holds still, even mid-blast
   V.sx = sh ? rand(-sh, sh) : 0; V.sy = sh ? rand(-sh, sh) : 0; V.z = 0;
   if (cam) { // spawn camera: starts tight on the snake, eases out to the full map

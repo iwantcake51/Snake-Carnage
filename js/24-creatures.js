@@ -110,7 +110,7 @@ function makeGrass(n) {
   for (let k = 0; k < n * 3 && grass.length < n; k++) { const x = 30 + r() * (W - 60), y = 30 + r() * (H - 60); if (!floraAt(x, y) || solid(x, y) || snowAt(x, y) > .15 || (seasonId() === 'winter' && r() < .7)) continue;
     const h = (6 + r() * 4.5) * (seasonId() === 'winter' ? .7 : 1), nb = 7 + (r() * 4 | 0), bl = []; // each blade: where it grows from, how tall, which way it leans (a fan, the outer ones splaying), how wide at the root
     for (let b = 0; b < nb; b++) { const t = (b + .5) / nb - .5; bl.push([t * 2.6 + (r() - .5) * .9, h * (.55 + r() * .5) * (1 - Math.abs(t) * .55), t * 7 + (r() - .5) * 1.8, .32 + r() * .16]); }
-    grass.push({ x, y, h, bl, ph: r() * TAU, c: season ? pick(SZN().blades) : r() < .5 ? '#6a8f34' : '#7a9c3c' }); }
+    grass.push({ x, y, h, bl: PHONE ? bl.filter((_, i) => i % 2).map(([a, b, c, w]) => [a, b, c, w * 1.5]) : bl, ph: r() * TAU, c: season ? pick(SZN().blades) : r() < .5 ? '#6a8f34' : '#7a9c3c' }); } // (a phone shows a tuft a few pixels tall: half the blades, a little wider, read the same)
 }
 function drawGrass(x) {
   if (!grass.length) return;
@@ -129,5 +129,5 @@ function drawGrass(x) {
     }
   };
   for (const [col, list] of grass.byCol) { x.fillStyle = col; x.beginPath(); blades(list, 0); x.fill(); }
-  for (const [col, list] of grass.byTip) { x.fillStyle = col; x.beginPath(); blades(list, 1); x.fill(); }
+  if (!PHONE) for (const [col, list] of grass.byTip) { x.fillStyle = col; x.beginPath(); blades(list, 1); x.fill(); } // (the lit tips: too small to see on a phone)
 }

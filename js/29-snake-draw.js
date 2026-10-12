@@ -97,11 +97,12 @@ function drawSnakeBody(x, s, cfg) {
   for (let i = n - 1; i >= 0; i--) {
     const j = 2 * i;
     if (pat) {
-      const tip = i === n - 1, ua = uc(i), ub = uc(i + 1), half = !tip && sa[i] > .999; x.globalAlpha = sa[i]; x.fillStyle = pat;
-      if (!texTri(pat, ua, -1, ub, tip ? 0 : -1, ua, 1, BL[j], BL[j + 1], BL[j + 2], BL[j + 3], BR[j], BR[j + 1])) texBand(pat, F, pts, TB, i, fo); // the whole band (its left half shows)
-      x.beginPath(); tubeRun(x, E0, i, i + 1, .4); x.fill();
-      if (half && texTri(pat, ua, 1, ub, 1, ub, -1, BR[j], BR[j + 1], BR[j + 2], BR[j + 3], BL[j + 2], BL[j + 3])) { // its right half, over it
-        x.beginPath(); x.moveTo(BR[j], BR[j + 1]); x.quadraticCurveTo(R[j], R[j + 1], BR[j + 2], BR[j + 3]); x.lineTo(BL[j + 2], BL[j + 3]); x.closePath(); x.fill(); }
+      const tip = i === n - 1, ua = uc(i), ub = uc(i + 1), half = !tip && sa[i] > .999; x.globalAlpha = sa[i];
+      let p = pat[pat.n++ & 1]; // placed first, then assigned (see skinPattern: Safari keeps a fill's placement from when it was assigned)
+      if (!texTri(p, ua, -1, ub, tip ? 0 : -1, ua, 1, BL[j], BL[j + 1], BL[j + 2], BL[j + 3], BR[j], BR[j + 1])) texBand(p, F, pts, TB, i, fo); // the whole band (its left half shows)
+      x.fillStyle = p; x.beginPath(); tubeRun(x, E0, i, i + 1, .4); x.fill();
+      if (half && texTri(p = pat[pat.n++ & 1], ua, 1, ub, 1, ub, -1, BR[j], BR[j + 1], BR[j + 2], BR[j + 3], BL[j + 2], BL[j + 3])) { // its right half, over it
+        x.fillStyle = p; x.beginPath(); x.moveTo(BR[j], BR[j + 1]); x.quadraticCurveTo(R[j], R[j + 1], BR[j + 2], BR[j + 3]); x.lineTo(BL[j + 2], BL[j + 3]); x.closePath(); x.fill(); }
     } else {
       const cF = cutC(i), aF = cutA(i), fx = (BL[j] + BR[j]) / 2, fy = (BL[j + 1] + BR[j + 1]) / 2, bx = (BL[j + 2] + BR[j + 2]) / 2, by = (BL[j + 3] + BR[j + 3]) / 2;
       if ((cF === cB && Math.abs(aF - aB) < .004) || Math.abs(fx - bx) + Math.abs(fy - by) < .05) x.fillStyle = paintOf(sc[i], sa[i]);

@@ -127,14 +127,18 @@ function skinTex(name, cfg) { // the texture canvas for this skin in these color
   if (TEX_CACHE.size >= 24) TEX_CACHE.delete(TEX_CACHE.keys().next().value);
   TEX_CACHE.set(key, c); return c;
 }
-function skinPattern(x, cfg) { // a pattern of the texture for this canvas (patterns are made per context)
+function skinPattern(x, cfg) { // two patterns of the texture for this canvas (patterns are made per context), used turn about: each piece of the body
+  // places one, then assigns it as the fill. Safari (its GPU canvas records state as it's set) keeps the placement a pattern had when it was
+  // assigned, so moving a pattern that's already the fill does nothing there and every band got the first one's: the skins came out broken
   const c = skinTex(cfg.pattern, cfg); let m = TEX_PAT.get(x); if (!m) TEX_PAT.set(x, m = new Map());
-  let p = m.get(c); if (!p) { if (m.size > 24) m.clear(); p = x.createPattern(c, 'repeat'); p.res = SNAKE_SKINS[cfg.pattern].tex.res || 1; m.set(c, p); }
+  let p = m.get(c); if (!p) { if (m.size > 24) m.clear(); const res = SNAKE_SKINS[cfg.pattern].tex.res || 1; p = [x.createPattern(c, 'repeat'), x.createPattern(c, 'repeat')]; p.forEach(q => q.res = res); p.n = 0; m.set(c, p); }
   return p;
 }
+const TEX_M = typeof DOMMatrix === 'function' ? new DOMMatrix() : null; // one matrix, refilled for every band: a real DOMMatrix works in every browser (and no new object a band, a frame)
+function texM(p, a, b, c, d, e, f) { if (!TEX_M) return p.setTransform({ a, b, c, d, e, f }); TEX_M.a = a; TEX_M.b = b; TEX_M.c = c; TEX_M.d = d; TEX_M.e = e; TEX_M.f = f; p.setTransform(TEX_M); }
 function texBand(p, F, pts, B, i, u0) { // fallback: lays the texture over band i in segment i's own frame (u0: the texture's offset down the body)
   const g = pts[i], ca = Math.cos(g.a), sn = Math.sin(g.a), rs = p.res || 1, k = F.R0 / (TEX.ppu * rs), r = B.rad[i], q = r * 2 * TEX.v0 / (TEX.h * rs), u = F.uSeg(i) - u0;
-  p.setTransform({ a: -ca * k, b: -sn * k, c: -sn * q, d: ca * q, e: g.x + ca * F.R0 * u + sn * r * TEX.v0, f: g.y + sn * F.R0 * u - ca * r * TEX.v0 });
+  texM(p, -ca * k, -sn * k, -sn * q, ca * q, g.x + ca * F.R0 * u + sn * r * TEX.v0, g.y + sn * F.R0 * u - ca * r * TEX.v0);
   return p;
 }
 function texTri(p, u0, v0, u1, v1, u2, v2, x0, y0, x1, y1, x2, y2) { // maps the texture's (u, v) at three corners exactly onto three points. Triangles that share two
@@ -142,7 +146,7 @@ function texTri(p, u0, v0, u1, v1, u2, v2, x0, y0, x1, y1, x2, y2) { // maps the
   const a = (u1 - u0) * ku, b = (v1 - v0) * kv, c = (u2 - u0) * ku, d = (v2 - v0) * kv, det = a * d - b * c;
   if (Math.abs(det) < 1e-6) return false;
   const e1x = x1 - x0, e1y = y1 - y0, e2x = x2 - x0, e2y = y2 - y0, A = (e1x * d - e2x * b) / det, C = (e2x * a - e1x * c) / det, Bm = (e1y * d - e2y * b) / det, D = (e2y * a - e1y * c) / det;
-  p.setTransform({ a: A, b: Bm, c: C, d: D, e: x0 - A * a0 - C * b0, f: y0 - Bm * a0 - D * b0 });
+  texM(p, A, Bm, C, D, x0 - A * a0 - C * b0, y0 - Bm * a0 - D * b0);
   return true;
 }
 const fillP = (x, col, draw) => { x.beginPath(); draw(); x.fillStyle = col; x.fill(); }; // one path, one fill: every marking of a color at once

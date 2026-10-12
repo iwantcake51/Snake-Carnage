@@ -257,7 +257,7 @@ function goldenBanner(animal, c) { // each golden target gets its own note; seve
   const who = c && c.def.alien ? 'ALIEN' : c && c.type === 'astronaut' ? 'ASTRONAUT' : 'HUMAN';
   notify({ kind: 'goldH', title: 'GOLDEN ' + who, sub: 'Find them before the gold wears off.', dur: 5.5, bar: true }); Sfx.golden();
 }
-const [rimC, rimX] = makeLayer(), OUTLINE_FULL = 60; // how many of the nearest get the full outline
+const [rimC, rimX] = makeLayer(), OUTLINE_FULL = PHONE ? 16 : 60; // how many of the nearest get the full outline (a phone draws them too small for the limbs to show further out)
 function drawTargetOutlines(x) { // clean silhouette rim around everything edible: black by day, white at night
   // every rim goes into one layer (stroke the outline, then cut the body out of it: only the outer rim stays, no lines
   // across heads or arms) and the layer is drawn once. A scratch canvas per creature meant a round trip to the graphics

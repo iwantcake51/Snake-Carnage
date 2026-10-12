@@ -512,7 +512,7 @@ const SETTING_TABS = {
   Display: { icon: 'display', lead: 'Screen size, interface and stats.', rows: [
     ['head', 'Screen'],
     ['toggle', 'fullscreen', 'Fullscreen', 'Use the whole screen.'],
-    ['seg', 'renderRes', 'Render resolution', 'Lower runs faster but looks softer. Reloads the game.', ['50%', '75%', '100%', '125%', 'Auto']],
+    ['seg', 'renderRes', 'Render resolution', 'Lower runs faster but looks softer. Auto steps down by itself after runs that lag. Reloads the game.', ['50%', '75%', '100%', '125%', 'Auto']],
     ['seg', 'fpsCap', 'Frame rate', 'VSync matches your screen. A cap saves battery.', ['30', '60', '120', 'VSync']],
     ['head', 'Interface'],
     ['seg', 'uiScale', 'UI scale', 'How big menus and the HUD are.', ['Small', 'Medium', 'Large', 'Extra Large', 'Auto']],
@@ -601,7 +601,7 @@ function applySetting(k) { // side effects of a setting change
   if (k === 'perfHud') perfApply();
   if (k === 'postFx') { if (SETTINGS.postFx === 'Off') postOff(); else postOn(); } // GPU effects on or off, live
   if (k === 'fullscreen') setFullscreen(SETTINGS.fullscreen);
-  if (k === 'renderRes') setTimeout(() => location.reload(), 150); // every layer is sized from it at startup
+  if (k === 'renderRes') { try { localStorage.removeItem('snakeResStep'); } catch (e) {} setTimeout(() => location.reload(), 150); } // every layer is sized from it at startup
   if (k === 'bloodQ' || k === 'bloodFade') bloodQualityChanged();
   if (k === 'minimalUi') document.body.classList.toggle('minimal', !!SETTINGS.minimalUi && state !== 'menu');
   if (k === 'timeMode') { const t = SETTING_TABS.Gameplay.rows; overlay.querySelectorAll('[data-row]').forEach(r => { const row = t.find(x => x[1] === r.dataset.row); if (row && row[7]) r.classList.toggle('dim', !row[7]()); }); }
