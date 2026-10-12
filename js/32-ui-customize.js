@@ -249,7 +249,12 @@ function endIntro(abort) { // fade the intro out, pull the bars away and start t
 intro.onclick = () => endIntro();
 tapNow(document.getElementById('menuBtn'), () => { if (['play', 'ready', 'intro', 'held'].includes(state)) pauseGame(); document.activeElement.blur(); }); // (pause answers a tap even while the other thumb steers)
 let boardScale = 1;
+const kbTyping = () => { // a phone's on-screen keyboard is up: typing into a text field (a lobby code, your name, a hex color)
+  const a = document.activeElement; if (!IS_TOUCH || !a) return false;
+  return a.isContentEditable || a.tagName === 'TEXTAREA' || (a.tagName === 'INPUT' && !/^(button|checkbox|radio|range|color|file|submit|reset|image|hidden)$/i.test(a.type));
+};
 function fit() {
+  if (kbTyping() && fitSeen.w === innerWidth && fitSeen.v) return; // the keyboard only takes height: everything keeps its size while you type (the browser scrolls the field into view), and a turn of the phone still refits
   const small = innerHeight < 560 || innerWidth < 760; document.body.classList.toggle('phone', small); // phones: thin bar, no margins
   document.body.classList.toggle('short', small && innerHeight < 500 && innerWidth > innerHeight); // a phone on its side: the menus lay out in two columns, compact (style.css, LANDSCAPE PHONES)
   const barH = small ? 0 : 24, pad = small ? 4 : 24; // no bar above the board any more (the stats sit on it), just a margin
@@ -275,9 +280,14 @@ function layoutHud() { // safe zones: notifications always sit below the modifie
   const b = mh && mh.innerHTML ? 14 + mh.offsetHeight + 8 : 14; if (nt.style.bottom !== b + 'px') nt.style.bottom = b + 'px'; // (both live in layers scaled the same way, so their own px line up)
 }
 function refit() { fit(); overlay.querySelectorAll('.seg,.sseg').forEach(sg => placeThumb(sg, true)); }
-function fitIfMoved() { const v = (window.visualViewport && visualViewport.height) || innerHeight; if (innerWidth !== fitSeen.w || innerHeight !== fitSeen.h || Math.abs(v - fitSeen.v) > .5) refit(); }
-const refitSoon = () => { refit(); for (const ms of [120, 400, 900]) setTimeout(fitIfMoved, ms); }; // a phone tells the new size late after it turns or its toolbar slides away: look again until it settles
+function fitIfMoved() { if (kbTyping()) return; const v = (window.visualViewport && visualViewport.height) || innerHeight; if (innerWidth !== fitSeen.w || innerHeight !== fitSeen.h || Math.abs(v - fitSeen.v) > .5) refit(); }
+function kbReveal() { // the keyboard came up over the field you're typing in: bring it into view (browsers mostly do this themselves; this catches the ones that don't)
+  const a = document.activeElement, v = window.visualViewport, top = v ? v.offsetTop : 0, h = v ? v.height : innerHeight; if (!a || !a.getBoundingClientRect) return;
+  const r = a.getBoundingClientRect(); if (r.top < top || r.bottom > top + h) a.scrollIntoView({ block: 'center', inline: 'nearest' });
+}
+const refitSoon = () => { if (kbTyping()) { setTimeout(kbReveal, 120); return; } refit(); for (const ms of [120, 400, 900]) setTimeout(fitIfMoved, ms); }; // a phone tells the new size late after it turns or its toolbar slides away: look again until it settles
 addEventListener('resize', refitSoon); addEventListener('orientationchange', refitSoon); addEventListener('pageshow', refitSoon);
 if (window.visualViewport) visualViewport.addEventListener('resize', refitSoon);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) refitSoon(); }); // back from another app or tab
+document.addEventListener('focusout', () => { if (!IS_TOUCH) return; setTimeout(() => { if (kbTyping()) return; if (scrollX || scrollY) scrollTo(0, 0); for (const el of [document.documentElement, document.body]) if (el.scrollTop || el.scrollLeft) el.scrollTop = el.scrollLeft = 0; refitSoon(); }, 60); }); // done typing: the browser may have scrolled the page to show the field (the game never scrolls it), and any size change held back while the keyboard was up is caught now
 setInterval(fitIfMoved, 500); // and a size change no event told us about is caught within half a second (the board never stays shrunk)
