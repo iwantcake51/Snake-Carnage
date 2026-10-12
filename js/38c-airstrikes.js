@@ -536,9 +536,11 @@ function stumpTick(dt) { // the stump keeps pumping blood for a while, leaving a
    The one it came off decides where they fly and sends that to everyone, so every screen has the same pieces in (nearly) the same places;
    whoever eats one tells the others, so it's gone everywhere ---- */
 let tailBits = [];
-function makeTailBits(piece, lost, P, Q) { // one chunk holding all of it (75% of what was lost), sized by how much: one bite gets it all back, not a scatter of crumbs
-  const g = piece[Math.floor(piece.length / 2)] || piece[0], a = rand(0, TAU), sp = rand(40, 110);
-  return [{ x: Math.round(g.x), y: Math.round(g.y), vx: Math.round(Math.cos(a) * sp), vy: Math.round(Math.sin(a) * sp), vz: Math.round(rand(100, 170)), r: +rand(0, TAU).toFixed(2), vr: +rand(-5, 5).toFixed(2), s: +clamp(5 + Math.sqrt(lost) * 1.6, 7, 16).toFixed(2), f: +(.75 * lost).toFixed(4) }];
+function makeTailBits(piece, lost, P, Q) { // a few big chunks sharing what was lost (75% of it), each sized by its share: a handful of bites gets it back, not a scatter of crumbs
+  const n = lost < 6 ? 2 : lost < 18 ? 3 : 4, share = lost / n, out = [];
+  for (let k = 0; k < n; k++) { const g = piece[Math.min(piece.length - 1, Math.floor((k + .5) / n * piece.length))] || piece[0], a = rand(0, TAU), sp = rand(50, 130);
+    out.push({ x: Math.round(g.x), y: Math.round(g.y), vx: Math.round(Math.cos(a) * sp), vy: Math.round(Math.sin(a) * sp), vz: Math.round(rand(100, 180)), r: +rand(0, TAU).toFixed(2), vr: +rand(-6, 6).toFixed(2), s: +clamp(5 + Math.sqrt(share) * 1.6, 6.5, 13).toFixed(2), f: +(.75 * share).toFixed(4) }); }
+  return out;
 }
 function spawnTailBits(id, bits, P, Q) { bits.forEach((b, k) => tailBits.push({ id: id + ':' + k, x: b.x, y: b.y, vx: b.vx, vy: b.vy, z: 6, vz: b.vz, rot: b.r, vr: b.vr, s: b.s, food: b.f, P, Q, t: 0, life: 32 })); }
 function tcutApply(e) { // someone else's tail was shot off: the same burst and the same pieces here
