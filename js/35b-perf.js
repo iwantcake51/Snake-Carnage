@@ -25,7 +25,7 @@ const PERF_SECTIONS = [ // [function, label, group] (several functions can share
   ['drawWaters', 'Water', 'r'], ['drawGloss', 'Blood drops', 'r'], ['drawDrops', 'Blood drops', 'r'], ['drawDebris', 'Debris', 'r'], ['drawMist', 'Mist and smoke', 'r'], ['drawSmoke', 'Mist and smoke', 'r'], ['drawVomit', 'Vomit', 'r'],
   ['drawLighting', 'Lighting', 'r'], ['drawPropGlow', 'Bloom', 'r'], ['drawLampBugs', 'Lamps', 'r'], ['drawFireflyGlow', 'Lamps', 'r'], ['drawSparks', 'Debris', 'r'], ['drawImpacts', 'Debris', 'r'], ['updateChunks', 'Debris', 'u'],
   ['drawVisionMask', 'Fog and vision', 'r'], ['drawGoldenFX', 'Outlines and golden', 'r'], ['drawTargetOutlines', 'Outlines and golden', 'r'], ['drawSnakeNightRim', 'Outlines and golden', 'r'],
-  ['drawNVHighlights', 'Night vision', 'r'], ['drawNightVision', 'Night vision', 'r'], ['drawBubbles', 'Speech bubbles', 'r'], ['chromaSplit', 'Daze effects', 'r'], ['concussBloom', 'Daze effects', 'r'],
+  ['postPresent', 'GPU effects', 'r'], ['drawCloudShadows', 'Cloud shadows', 'r'], ['drawNVHighlights', 'Night vision', 'r'], ['drawNightVision', 'Night vision', 'r'], ['drawBubbles', 'Speech bubbles', 'r'], ['chromaSplit', 'Daze effects', 'r'], ['concussBloom', 'Daze effects', 'r'],
   ['drawObstacleLayer', 'Rebuild: map objects', 'b'], ['bakeOutline', 'Rebuild: map objects', 'b'], ['bakeShadows', 'Rebuild: shadows', 'b'], ['bakeContactShadows', 'Rebuild: shadows', 'b'],
   ['bakeLightMasks', 'Rebuild: lighting', 'b'], ['bakePropGlow', 'Rebuild: bloom', 'b'], ['buildSnow', 'Rebuild: snow', 'b'], ['updateBuckets', 'Rebuild: blood layers', 'b'],
 ];
@@ -188,8 +188,15 @@ async function perfFindSlow() {
    stats panel off. Frame times while you play, every hitch with what was happening at that moment (kills, smashing,
    how much blood and debris was in the air), and, if Performance stats were on Full, which parts spiked. ---- */
 const PR = { run: null, n: 0, sum: 0, worst: 0, b: [0, 0, 0, 0, 0], slowT: 0, hitch: [], last: 0, skip: 0, kH: new Int32Array(40), sH: new Int32Array(40), ki: 0, avg: 16.7, lowFx: [], lastLow: 0 };
+function resLearn() { // a run just ended (or the page is going): did it mostly run under 40 fps at the automatic resolution? Two in a row and the next load draws a step lower (RES_LEARN, 04-canvas)
+  if (PR.done === PR.run || PR.n < 1200 || parseInt(SETTINGS.renderRes) || +SETTINGS.fpsCap < 50 || RES_LEARN.s !== RES_STEP0) return; PR.done = PR.run; // (at least 20 s or so of real play; already stepped down: that waits for the next load)
+  const slow = (PR.b[2] + PR.b[3] + PR.b[4]) / PR.n > .5, s0 = RES_LEARN.s, n0 = RES_LEARN.n;
+  if (!slow) RES_LEARN.n = 0; else if (++RES_LEARN.n >= 2 && RES_LEARN.s < RES_STEPS.length - 1 && DPR > 1.01) { RES_LEARN.s++; RES_LEARN.n = 0; }
+  if (RES_LEARN.s !== s0 || RES_LEARN.n !== n0) try { localStorage.setItem('snakeResStep', JSON.stringify(RES_LEARN)); } catch (e) {}
+}
+addEventListener('pagehide', () => resLearn());
 function perfRunTick(now) {
-  if (PR.run !== run) { Object.assign(PR, { run, n: 0, sum: 0, worst: 0, b: [0, 0, 0, 0, 0], slowT: 0, hitch: [], skip: 40, lowFx: [], lastLow: 0, avg: 16.7 }); PR.last = now; return; } // a new run: start over
+  if (PR.run !== run) { resLearn(); Object.assign(PR, { run, n: 0, sum: 0, worst: 0, b: [0, 0, 0, 0, 0], slowT: 0, hitch: [], skip: 40, lowFx: [], lastLow: 0, avg: 16.7 }); PR.last = now; return; } // a new run: start over
   const dt = now - PR.last; PR.last = now;
   const i = PR.ki = (PR.ki + 1) % 40; PR.kH[i] = run.killed || 0; PR.sH[i] = run.smashed || 0;
   if (state !== 'play' || dt > 1000) return; // only while you're actually playing (a paused or hidden tab doesn't count)

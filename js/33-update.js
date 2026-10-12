@@ -257,7 +257,7 @@ function goldenBanner(animal, c) { // each golden target gets its own note; seve
   const who = c && c.def.alien ? 'ALIEN' : c && c.type === 'astronaut' ? 'ASTRONAUT' : 'HUMAN';
   notify({ kind: 'goldH', title: 'GOLDEN ' + who, sub: 'Find them before the gold wears off.', dur: 5.5, bar: true }); Sfx.golden();
 }
-const [rimC, rimX] = makeLayer(), OUTLINE_FULL = 60; // how many of the nearest get the full outline
+const [rimC, rimX] = makeLayer(), OUTLINE_FULL = PHONE ? 16 : 60; // how many of the nearest get the full outline (a phone draws them too small for the limbs to show further out)
 function drawTargetOutlines(x) { // clean silhouette rim around everything edible: black by day, white at night
   // every rim goes into one layer (stroke the outline, then cut the body out of it: only the outer rim stays, no lines
   // across heads or arms) and the layer is drawn once. A scratch canvas per creature meant a round trip to the graphics
@@ -325,12 +325,12 @@ const NEAR_IDS = ['hudbar', 'chhud', 'modhud', 'combo', 'rewards', 'modbar', 'ab
 let nearRects = null, nearRectT = 0;
 function hudNear() { // corner UI turns half see-through while the snake is close to it
   if (!snake) return;
-  const cr = cv.getBoundingClientRect(); if (!cr.width) return;
-  if (!nearRects || UT - nearRectT > .25) { // measure the HUD boxes in board units (twice a second is plenty)
+  if (!nearRects || UT - nearRectT > .25) { // measure the HUD boxes in board units (twice a second is plenty; reading the layout every frame forced one)
+    const cr = cv.getBoundingClientRect(); if (!cr.width) return;
     nearRectT = UT; nearRects = NEAR_IDS.map(id => document.getElementById(id)).filter(Boolean).map(el => { const r = el.getBoundingClientRect();
       return { el, x0: (r.left - cr.left) / cr.width * W, y0: (r.top - cr.top) / cr.height * H, x1: (r.right - cr.left) / cr.width * W, y1: (r.bottom - cr.top) / cr.height * H, empty: !r.width }; });
   }
-  document.getElementById('chhud').classList.toggle('dim', state === 'play' && run.time > 4); // the checklist steps back once you're playing
+  const chd = state === 'play' && run.time > 4, ch = document.getElementById('chhud'); if (ch && ch.classList.contains('dim') !== chd) ch.classList.toggle('dim', chd); // the checklist steps back once you're playing
   const pts = snake.segs.filter((g, i) => i % 3 === 0), pad = 30, ah = Math.cos(snake.angle), av = Math.sin(snake.angle); // the whole body, not just the head
   pts.push({ x: snake.x + ah * 90, y: snake.y + av * 90 }); // where the head is about to be: fade before it gets there
   for (const b of nearRects) {

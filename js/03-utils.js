@@ -13,6 +13,7 @@ function shade(hex, p) {
   const n = parseInt(hex.slice(1), 16), f = v => clamp(Math.round(v * (1 + p)), 0, 255);
   return '#' + ((1 << 24) | (f(n >> 16) << 16) | (f(n >> 8 & 255) << 8) | f(n & 255)).toString(16).slice(1); // hex, so a shaded color can be mixed or shaded again
 }
+function replayAnim(el, cls) { el.classList.remove(cls); requestAnimationFrame(() => el.classList.add(cls)); } // restart a CSS animation a frame later, without the forced layout a read of offsetWidth costs (a few of those every kill added up)
 function circ(x, cx, cy, r) { x.beginPath(); x.arc(cx, cy, r, 0, TAU); x.fill(); }
 function ell(x, cx, cy, rx, ry) { x.beginPath(); x.ellipse(cx, cy, rx, ry, 0, 0, TAU); x.fill(); }
 let IS_TOUCH = (() => { try { return matchMedia('(pointer: coarse)').matches; } catch (e) { return false; } })(); // phones/tablets: touch steering + touch-sized UI

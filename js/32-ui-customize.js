@@ -130,7 +130,9 @@ function finishStart(opts, sz) {
   introTimers = [setTimeout(endIntro, hold + wait)];
 }
 /* the loading card's tip: one simple thing about the game you might not know, picked for this run when one fits
-   (ice you can cross on a frozen map, a modifier you've switched on), otherwise one you haven't seen lately */
+   (ice you can cross on a frozen map, a modifier you've switched on), otherwise one you haven't seen lately.
+   A tip with a map is about that built-in map (its name, or a list of names) and only fits there: about half the time the card shows one of those */
+const tipHas = t => !!creatures && creatures.some(c => c.alive && c.type === t), tipRam = () => !MOD.tough && !MOD.demolition; // (that kind is out there this run; Battering Ram's ranks mean what they usually do)
 const TIPS = [
   { id: 'ice', t: 'Ponds and the pool freeze over in winter. You can slide straight across the ice.', ok: () => !!obstacles && obstacles.some(frozenOver), first: 3 },
   { id: 'dark', t: 'In the dark, people only see you up close or when you\'re under a light.', ok: () => light.dark > .45, first: 1 },
@@ -164,13 +166,51 @@ const TIPS = [
   { id: 'm-lockOn', t: 'Locked on: every bomb marker slides after you for a moment. Turn hard once it\'s set.', mod: 'lockOn', first: 2 },
   { id: 'm-fuse', t: 'Dead man\'s switch: the bomb ticks down with your combo. Keep eating or it goes off.', mod: 'fuse', first: 2 },
   { id: 'm-enchained', t: 'Enchained: when one of you goes down, the whole chain goes with them.', mod: 'enchained', first: 2 },
+  // about one map (or a few): only on that built-in map
+  { id: 'fd-lamp', map: 'Open Field', t: 'There isn\'t one lamp on the Open Field: after dark, only flashlights light it.' },
+  { id: 'deer', map: ['Open Field', 'Meadow'], t: 'Deer spot you from further off than anyone, and they\'re the fastest animal here.', ok: () => tipHas('deer') },
+  { id: 'rabbit', map: ['Open Field', 'Meadow', 'Park'], t: 'Rabbits bolt fast but in short hops, so a fleeing one can still be caught.', ok: () => tipHas('rabbit') },
+  { id: 'md-fire', map: 'Meadow', t: 'After dark the campfire by the lake is the Meadow\'s only light, bar the odd flashlight.' },
+  { id: 'md-frog', map: 'Meadow', t: 'Frogs keep to the lake shore, and they\'re the slowest thing on the Meadow.', ok: () => tipHas('frog') },
+  { id: 'tn-pump', map: 'Town', t: 'Hit a gas pump and it blows up, killing everyone near it. It never kills you.' },
+  { id: 'tn-fount', map: 'Town', air: 1, t: 'On fire? The fountain in the square puts you out, even in winter.' },
+  { id: 'tn-car', map: 'Town', t: 'Parked cars are solid until Battering Ram\'s third rank. Then you smash straight through.', ok: tipRam },
+  { id: 'lamps', map: ['Town', 'Park', 'Pool', 'Farm'], t: 'Lamp posts snap when you hit them and their light goes out, but anyone nearby turns to look.' },
+  { id: 'mz-new', map: 'Maze', t: 'The Maze\'s hedges are laid out afresh every run.' },
+  { id: 'mz-flash', map: 'Maze', t: 'About half the people in the Maze carry a flashlight.', ok: () => !MOD.noFlash },
+  { id: 'mz-hedge', map: 'Maze', t: 'Hedges block the view: nobody in the Maze can see you through one.' },
+  { id: 'mz-crack', map: 'Maze', t: 'Three hedges have a dark, cracked patch. Battering Ram\'s third rank breaks through it.', ok: tipRam },
+  { id: 'fm-pay', map: 'Farm', t: 'Pigs and sheep are worth twice the XP and score of a chicken.' },
+  { id: 'fm-pen', map: 'Farm', t: 'Calm animals keep to their own patch: pigs in the pen, sheep in the paddock, chickens round the yard.' },
+  { id: 'fm-fence', map: 'Farm', t: 'Fences and hay bales give way to Battering Ram\'s first rank.', ok: tipRam },
+  { id: 'pk-duck', map: 'Park', t: 'The ducks keep to the pond, and they\'re the slowest thing in the Park.', ok: () => tipHas('duck') },
+  { id: 'pl-lounge', map: 'Pool', t: 'The sun loungers lie flat on the deck: you slide right over them.' },
+  { id: 'pl-duck', map: 'Pool', t: 'The ducks keep round the fountain on the lawn.', ok: () => tipHas('duck') },
+  { id: 'pl-ice', map: 'Pool', air: 1, t: 'The pool is ice now, but the fountain never freezes: it still puts out a fire.', ok: () => iceOn() },
+  { id: 'of-glass', map: 'Office', t: 'The meeting room\'s glass walls shatter when you hit them. Without Battering Ram, you see stars for a moment.', ok: () => !MOD.tough },
+  { id: 'bwall', map: ['Office', 'Alien Facility', 'Space Station', 'Bunker'], t: 'Cracked, patched bits of wall break open with Battering Ram\'s third rank: a second way through.', ok: tipRam },
+  { id: 'noair', map: ['Office', 'Alien Facility', 'Space Station', 'Bunker', 'Club', 'Moon', 'Mars'], t: 'No air strikes here: the jets and guns only come for you outdoors, on Earth.' },
+  { id: 'af-lit', map: 'Alien Facility', t: 'The Alien Facility is lit end to end, day and night: the dark won\'t hide you here.' },
+  { id: 'af-ach', map: 'Alien Facility', t: 'Every alien you eat, run after run, counts toward Little Green Men: it unlocks the Martian skin.' },
+  { id: 'ss-grav', map: 'Space Station', t: 'The station makes its own gravity and air: blood falls and sound carries just as on Earth.' },
+  { id: 'bk-lock', map: 'Bunker', t: 'About one Bunker run in three is a lockdown: red lights only, and the alarm beacons pulse.' },
+  { id: 'cl-dance', map: 'Club', t: 'On the dance floor people barely move while they dance, until something spooks them.' },
+  { id: 'cl-spot', map: 'Club', t: 'Away from its lights the Club is dark, and the colored spots keep sweeping the dance floor.' },
+  { id: 'cl-spkr', map: 'Club', t: 'Battering Ram\'s second rank smashes the speakers. Break them all and the music stops.', ok: tipRam },
+  { id: 'cb-mast', map: 'Checkerboard', t: 'The floodlight masts snap if you hit them: at night, that corner of the board goes dark.' },
+  { id: 'cb-piece', map: 'Checkerboard', t: 'Nobody can see through the giant chess pieces: use them as cover.' },
+  { id: 'cb-mate', map: 'Checkerboard', t: () => `Checkmate, the Checkerboard's permanent challenge: a ${PM_SPECIAL.Checkerboard[3]}x combo without going near the edge.` },
+  { id: 'astro', map: ['Moon', 'Mars'], t: 'Astronauts are slower than people in their bulky suits, but after dark their helmet lamps light wherever they look.', ok: () => !MOD.noFlash },
+  { id: 'grav', map: ['Moon', 'Mars'], t: 'Gravity is low here: blood and debris fly further before they land.' },
+  { id: 'lunar', map: ['Moon', 'Mars'], t: 'Every astronaut you eat, run after run, counts toward Lunar Lunch: it unlocks the Lunar skin.' },
 ];
 function pickTip() {
   let seen = {}; try { seen = JSON.parse(localStorage.getItem('snakeTips') || '{}') || {}; } catch (e) { }
-  const txt = q => typeof q.t === 'function' ? q.t() : q.t, fits = q => { try { return (!q.mod || MOD[q.mod]) && (!q.air || (airMap() && !MOD.noAir)) && (!q.ok || q.ok()); } catch (e) { return false; } }; // (air strike tips only where there are air strikes)
+  const m = MAPS[mapIdx] || {}, txt = q => typeof q.t === 'function' ? q.t() : q.t, fits = q => { try { return (!q.map || (!m.custom && [].concat(q.map).includes(m.name))) && (!q.mod || MOD[q.mod]) && (!q.air || (airMap() && !MOD.noAir)) && (!q.ok || q.ok()); } catch (e) { return false; } }; // (map tips only on their own built-in map, air strike tips only where there are air strikes)
   const ok = TIPS.filter(fits); if (!ok.length) return '';
   const now = Date.now(), fresh = ok.filter(q => q.first && (seen[q.id + 'n'] | 0) < q.first); // made for this run and not shown a few times yet: that one
-  const pool = fresh.length ? fresh : ok.filter(q => !q.mod).map(q => [q, (seen[q.id] || 0) + Math.random()]).sort((a, b) => a[1] - b[1]).slice(0, 6).map(e => e[0]); // otherwise one of those you've gone longest without (never seen: any of them)
+  const here = ok.filter(q => q.map), gen = ok.filter(q => !q.map && !q.mod), mapT = here.length && (!gen.length || Math.random() < .5); // about half the time, one about this map
+  const pool = fresh.length ? fresh : (mapT ? here : gen).map(q => [q, (seen[q.id] || 0) + Math.random()]).sort((a, b) => a[1] - b[1]).slice(0, mapT ? 1 : 6).map(e => e[0]); // otherwise the map tip you've gone longest without, or one of the generic ones you have (never seen: any of them)
   const q = (pool.length ? pool : ok)[Math.random() * (pool.length || ok.length) | 0];
   seen[q.id] = now; seen[q.id + 'n'] = (seen[q.id + 'n'] | 0) + 1; try { localStorage.setItem('snakeTips', JSON.stringify(seen)); } catch (e) { }
   return txt(q);
@@ -209,15 +249,22 @@ function endIntro(abort) { // fade the intro out, pull the bars away and start t
 intro.onclick = () => endIntro();
 tapNow(document.getElementById('menuBtn'), () => { if (['play', 'ready', 'intro', 'held'].includes(state)) pauseGame(); document.activeElement.blur(); }); // (pause answers a tap even while the other thumb steers)
 let boardScale = 1;
+const kbTyping = () => { // a phone's on-screen keyboard is up: typing into a text field (a lobby code, your name, a hex color)
+  const a = document.activeElement; if (!IS_TOUCH || !a) return false;
+  return a.isContentEditable || a.tagName === 'TEXTAREA' || (a.tagName === 'INPUT' && !/^(button|checkbox|radio|range|color|file|submit|reset|image|hidden)$/i.test(a.type));
+};
 function fit() {
+  if (kbTyping() && fitSeen.w === innerWidth && fitSeen.v) return; // the keyboard only takes height: everything keeps its size while you type (the browser scrolls the field into view), and a turn of the phone still refits
   const small = innerHeight < 560 || innerWidth < 760; document.body.classList.toggle('phone', small); // phones: thin bar, no margins
   document.body.classList.toggle('short', small && innerHeight < 500 && innerWidth > innerHeight); // a phone on its side: the menus lay out in two columns, compact (style.css, LANDSCAPE PHONES)
   const barH = small ? 0 : 24, pad = small ? 4 : 24; // no bar above the board any more (the stats sit on it), just a margin
   const vh = (window.visualViewport && visualViewport.height) || innerHeight, top = small ? Math.max(0, cv.getBoundingClientRect().top) : 0; // a phone: measure where the board really starts (the bar is scaled), so it runs exactly to the bottom
   const s = boardScale = Math.min((innerWidth - pad) / W, small ? (vh - top) / H : (innerHeight - barH) / H, 2.2); // render the game larger when there's room
   cv.style.width = W * s + 'px'; cv.style.height = H * s + 'px';
+  fitSeen.w = innerWidth; fitSeen.h = innerHeight; fitSeen.v = vh;
   applyUiScale();
 }
+const fitSeen = { w: 0, h: 0, v: 0 }; // the window's size when the board was last fitted
 const UI_SCALES = { Small: .85, Medium: 1, Large: 1.15, 'Extra Large': 1.3 };
 function applyUiScale() { // zoom every HUD/menu layer; overlay is shrunk by the same factor first so percentages still fit
   const phone = document.body.classList.contains('phone'), u = UI_SCALES[SETTINGS.uiScale] || clamp(boardScale * (phone ? .92 : .82), phone ? .62 : .8, 1.4); // desktop menus get a little more room to lay out in, so most fit without scrolling
@@ -232,4 +279,15 @@ function layoutHud() { // safe zones: notifications always sit below the modifie
   nt.style.top = ((mb.innerHTML ? mb.offsetHeight * u + 16 : 12) / u) + 'px';
   const b = mh && mh.innerHTML ? 14 + mh.offsetHeight + 8 : 14; if (nt.style.bottom !== b + 'px') nt.style.bottom = b + 'px'; // (both live in layers scaled the same way, so their own px line up)
 }
-addEventListener('resize', () => { fit(); overlay.querySelectorAll('.seg,.sseg').forEach(sg => placeThumb(sg, true)); });
+function refit() { fit(); overlay.querySelectorAll('.seg,.sseg').forEach(sg => placeThumb(sg, true)); }
+function fitIfMoved() { if (kbTyping()) return; const v = (window.visualViewport && visualViewport.height) || innerHeight; if (innerWidth !== fitSeen.w || innerHeight !== fitSeen.h || Math.abs(v - fitSeen.v) > .5) refit(); }
+function kbReveal() { // the keyboard came up over the field you're typing in: bring it into view (browsers mostly do this themselves; this catches the ones that don't)
+  const a = document.activeElement, v = window.visualViewport, top = v ? v.offsetTop : 0, h = v ? v.height : innerHeight; if (!a || !a.getBoundingClientRect) return;
+  const r = a.getBoundingClientRect(); if (r.top < top || r.bottom > top + h) a.scrollIntoView({ block: 'center', inline: 'nearest' });
+}
+const refitSoon = () => { if (kbTyping()) { setTimeout(kbReveal, 120); return; } refit(); for (const ms of [120, 400, 900]) setTimeout(fitIfMoved, ms); }; // a phone tells the new size late after it turns or its toolbar slides away: look again until it settles
+addEventListener('resize', refitSoon); addEventListener('orientationchange', refitSoon); addEventListener('pageshow', refitSoon);
+if (window.visualViewport) visualViewport.addEventListener('resize', refitSoon);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) refitSoon(); }); // back from another app or tab
+document.addEventListener('focusout', () => { if (!IS_TOUCH) return; setTimeout(() => { if (kbTyping()) return; if (scrollX || scrollY) scrollTo(0, 0); for (const el of [document.documentElement, document.body]) if (el.scrollTop || el.scrollLeft) el.scrollTop = el.scrollLeft = 0; refitSoon(); }, 60); }); // done typing: the browser may have scrolled the page to show the field (the game never scrolls it), and any size change held back while the keyboard was up is caught now
+setInterval(fitIfMoved, 500); // and a size change no event told us about is caught within half a second (the board never stays shrunk)

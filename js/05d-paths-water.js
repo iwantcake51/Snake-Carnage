@@ -10,11 +10,16 @@ const PATH_STYLES = { dirt: 'Dirt trail', park: 'Park path', gravel: 'Gravel', p
 const FLOOR_TEX = { grass: 'Grass', dirt: 'Dirt', sand: 'Sand', gravel: 'Gravel', paved: 'Paving slabs', concrete: 'Concrete', asphalt: 'Asphalt', tiles: 'Floor tiles', carpet: 'Carpet', wood: 'Wood boards', metal: 'Metal plates', snow: 'Snow', mud: 'Mud', red: 'Mars soil', moon: 'Moon dust' };
 /* ---- captured paths: maps paint their trails with dirtTrails; the editor picks them up as editable paths ---- */
 let trailCap = null, trailMute = false, trailExt = false;
+let floraRec = null; // while loadMap paints the map's own floor: every path painted on it and any patch a map keeps bare, in world coordinates, so no flowers, plants or tufts grow there (floraMask)
+function floraNote(x, pts, w) { if (!floraRec || !pts || pts.length < 2) return; const m = x.getTransform(), d = DPR || 1; floraRec.push({ P: trailPoints(pts).map(([a, b]) => [(m.a * a + m.c * b + m.e) / d, (m.b * a + m.d * b + m.f) / d]), w: w * Math.hypot(m.a, m.b) / d }); }
+function floorPath(x, pts, w) { if (!pts || pts.length < 2) return; const m = x.getTransform(), P = trailPoints(pts).map(([a, b]) => [m.a * a + m.c * b + m.e, m.b * a + m.d * b + m.f]), k = Math.hypot(m.a, m.b), rr = (w / 2 * 1.15 + 8) * k, b = [Infinity, Infinity, -Infinity, -Infinity]; for (const [a, c] of P) { b[0] = Math.min(b[0], a - rr); b[1] = Math.min(b[1], c - rr); b[2] = Math.max(b[2], a + rr); b[3] = Math.max(b[3], c + rr); } if (!x._fl) { x._fl = []; queueMicrotask(() => { x._fl = null; }); } x._fl.push({ P, r: rr, b }); } // the paths painted so far on this canvas, in its own pixels, while this floor is being painted (it's all one task): flowers() keeps off them
+function floraOff(x, rx, ry, rw, rh) { if (!floraRec) return; const m = x.getTransform(), d = DPR || 1, t = (a, b) => [(m.a * a + m.c * b + m.e) / d, (m.b * a + m.d * b + m.f) / d], [x0, y0] = t(rx, ry), [x1, y1] = t(rx + rw, ry + rh); floraRec.push({ R: [Math.min(x0, x1), Math.min(y0, y1), Math.max(x0, x1), Math.max(y0, y1)] }); } // a field, a yard: bare of wild flowers
 const _dirtTrails = dirtTrails;
 dirtTrails = function (x, list) {
   if (trailCap) { const m = x.getTransform(), d = DPR || 1;
     for (const [pts, w, seed] of list) trailCap.push({ pts: pts.map(([a, b]) => [Math.round((m.a * a + m.c * b + m.e) / d * 10) / 10, Math.round((m.b * a + m.d * b + m.f) / d * 10) / 10]), w, seed, style: 'dirt', ext: trailExt }); }
   if (trailMute) return;
+  for (const [pts, w] of list) { floraNote(x, pts, w); floorPath(x, pts, w); }
   return _dirtTrails(x, list);
 };
 function captureTrails(b) { // the map's own painted trails, in world coordinates; carried-on copies replace the pieces they contain
@@ -51,6 +56,7 @@ function styleTile(style) { // a small seamless tile per style, used as a world-
 }
 const EDGE_COL = { park: '#c9ad78', gravel: '#7f7a70', paved: '#9a9282', sand: '#cbb47c', asphalt: '#8e887c', road: '#8e887c' };
 function paintTrails(x, trails) { // every style merged into one shape, textured in world space
+  for (const t of trails) { floraNote(x, t.pts, t.w || 16); floorPath(x, t.pts, t.w || 16); }
   const dirt = trails.filter(t => (t.style || 'dirt') === 'dirt');
   if (dirt.length) _dirtTrails(x, dirt.map((t, i) => [t.pts, t.w, t.seed || 30 + i]));
   for (const style of Object.keys(PATH_STYLES)) {

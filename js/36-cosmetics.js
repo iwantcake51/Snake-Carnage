@@ -75,8 +75,11 @@ function owns(cat, v) {
 PROG.owned = PROG.owned.filter(k => !k.startsWith('outline:')); // outline colors became a visibility setting long ago
 { // one-time: colors used to be shared between Primary and Secondary, so keep whatever was already bought on both
   if (!PROG.colorSplit) { PROG.owned.filter(k => k.startsWith('color:')).forEach(k => PROG.owned.push('color2:' + k.slice(6))); PROG.colorSplit = 1; }
-  for (const cat of Object.keys(CAT_LABEL)) if (SETTINGS.snake[cat] !== undefined && !owns(cat, SETTINGS.snake[cat]) && !(cat.startsWith('color') && !findItem(cat, SETTINGS.snake[cat]))) PROG.owned.push(ownKey(cat, SETTINGS.snake[cat])); // keep what you already wear
-  for (const cat of ['color', 'color2']) if (!owns(cat, SETTINGS.snake[cat])) SETTINGS.snake[cat] = cat === 'color' ? '#4e7cf6' : '#f2f2f2';
+  const sn = SETTINGS.snake, rl = sn.real && REAL_SNAKES.find(r => r.name === sn.real); // a real snake bought on its own wears parts you don't own: leave them be
+  if (sn.real && !(rl && ['pattern', 'color', 'color2'].every(q => sn[q] === rl[q]) && (PROG.owned.includes('real:' + rl.name) || ['pattern', 'color', 'color2'].every(q => owns(q, rl[q]))))) { delete sn.real; delete sn.realPrev; }
+  const asReal = cat => sn.real && (cat === 'pattern' || cat === 'color' || cat === 'color2');
+  for (const cat of Object.keys(CAT_LABEL)) if (!asReal(cat) && SETTINGS.snake[cat] !== undefined && !owns(cat, SETTINGS.snake[cat]) && !(cat.startsWith('color') && !findItem(cat, SETTINGS.snake[cat]))) PROG.owned.push(ownKey(cat, SETTINGS.snake[cat])); // keep what you already wear
+  for (const cat of ['color', 'color2']) if (!asReal(cat) && !owns(cat, SETTINGS.snake[cat])) SETTINGS.snake[cat] = cat === 'color' ? '#4e7cf6' : '#f2f2f2';
   saveProg();
 }
 

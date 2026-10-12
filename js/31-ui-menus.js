@@ -512,7 +512,7 @@ const SETTING_TABS = {
   Display: { icon: 'display', lead: 'Screen size, interface and stats.', rows: [
     ['head', 'Screen'],
     ['toggle', 'fullscreen', 'Fullscreen', 'Use the whole screen.'],
-    ['seg', 'renderRes', 'Render resolution', 'Lower runs faster but looks softer. Reloads the game.', ['50%', '75%', '100%', '125%', 'Auto']],
+    ['seg', 'renderRes', 'Render resolution', 'Lower runs faster but looks softer. Auto steps down by itself after runs that lag. Reloads the game.', ['50%', '75%', '100%', '125%', 'Auto']],
     ['seg', 'fpsCap', 'Frame rate', 'VSync matches your screen. A cap saves battery.', ['30', '60', '120', 'VSync']],
     ['head', 'Interface'],
     ['seg', 'uiScale', 'UI scale', 'How big menus and the HUD are.', ['Small', 'Medium', 'Large', 'Extra Large', 'Auto']],
@@ -526,7 +526,9 @@ const SETTING_TABS = {
     ['toggle', 'autoQ', 'Automatic quality', 'Lowers quality by itself if the game starts to lag.'],
     ['seg', 'lightQ', 'Lighting', 'Light and darkness. The biggest cost: lower it first if the game lags.', ['Off', 'Low', 'Medium', 'High']],
     ['seg', 'shadows', 'Shadows', 'Full: everything casts shadows. Static: only buildings and furniture. Off: none.', ['Off', 'Static', 'Full']],
+    ['seg', 'postFx', 'GPU effects', 'Screen effects on the graphics chip: color, blur, warps and glow in one pass, smoother and cheaper. Off uses the older canvas versions.', ['Off', 'On']],
     ['toggle', 'bloom', 'Bloom', 'A soft glow around things that light up.'],
+    ['toggle', 'cloudShadows', 'Cloud shadows', 'Soft shadows of clouds drifting over outdoor maps by day.'],
     ['head', 'World detail'],
     ['seg', 'snowQ', 'Snow', 'Full: deep snow you plough through. Simple: flat snow. Off: no snow.', ['Off', 'Simple', 'Full']],
     ['seg', 'treeQ', 'Tree detail', 'How much trees sway in the wind. Low is fastest.', ['Low', 'Medium', 'High']],
@@ -597,8 +599,9 @@ function applySetting(k) { // side effects of a setting change
   if (k === 'shadows') shadowsChanged();
   if (k === 'snowQ' && state !== 'menu' && season) { const was = snowOn; buildSnow(); if (was !== snowOn) drawObstacleLayer(); } // snow on or off mid-run: rebuild the ground's snow
   if (k === 'perfHud') perfApply();
+  if (k === 'postFx') { if (SETTINGS.postFx === 'Off') postOff(); else postOn(); } // GPU effects on or off, live
   if (k === 'fullscreen') setFullscreen(SETTINGS.fullscreen);
-  if (k === 'renderRes') setTimeout(() => location.reload(), 150); // every layer is sized from it at startup
+  if (k === 'renderRes') { try { localStorage.removeItem('snakeResStep'); } catch (e) {} setTimeout(() => location.reload(), 150); } // every layer is sized from it at startup
   if (k === 'bloodQ' || k === 'bloodFade') bloodQualityChanged();
   if (k === 'minimalUi') document.body.classList.toggle('minimal', !!SETTINGS.minimalUi && state !== 'menu');
   if (k === 'timeMode') { const t = SETTING_TABS.Gameplay.rows; overlay.querySelectorAll('[data-row]').forEach(r => { const row = t.find(x => x[1] === r.dataset.row); if (row && row[7]) r.classList.toggle('dim', !row[7]()); }); }

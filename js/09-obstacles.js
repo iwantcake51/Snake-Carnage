@@ -411,11 +411,15 @@ function drawBox(x, o, c, k) { // the props in a box
       K.drop(() => K.rr(cx - s, cy - s, 2 * s, 2 * s), 3, .32); tri.forEach((t, q) => { K.poly(t); x.fillStyle = shade('#8c2f24', .2 * K.face(nrm[q])); x.fill(); }); K.rr(cx - s, cy - s, 2 * s, 2 * s); K.edge('#efeae0', 1.2); x.strokeStyle = 'rgba(0,0,0,.3)'; x.lineWidth = .6; x.beginPath(); x.moveTo(cx - s, cy - s); x.lineTo(cx + s, cy + s); x.moveTo(cx + s, cy - s); x.lineTo(cx - s, cy + s); x.stroke(); // the cupola
       x.strokeStyle = '#2b2b2e'; x.lineWidth = .8; x.beginPath(); x.moveTo(cx - 5, cy); x.lineTo(cx + 5, cy); x.moveTo(cx + 5, cy); x.lineTo(cx + 3, cy - 1.6); x.moveTo(cx + 5, cy); x.lineTo(cx + 3, cy + 1.6); x.stroke(); // its weathervane
       const dx = cx - 13, dy = hz ? Y + h - 5 : cy; if (hz) { K.box(dx, dy, 26, 7, '#7a2a20', { r: .6, sh: 1.8 }); x.strokeStyle = '#efeae0'; x.lineWidth = 1.2; x.strokeRect(dx + .6, dy + .6, 24.8, 5.8); x.beginPath(); x.moveTo(dx + 1, dy + 1); x.lineTo(dx + 25, dy + 6); x.moveTo(dx + 25, dy + 1); x.lineTo(dx + 1, dy + 6); x.stroke(); } return; } // the hay loft's door
-    case 'hedge': { // a clipped hedge: a dark, dense core, rounded clumps of leaves along it lit from the top-left, a few bright leaf tips
-      const hc = season && (x === octx || PK_FOR === octx) ? gradeHex(c, season.id === 'autumn' ? .3 : .8) : c, n = Math.ceil(L / 6.5), rad = D * .56;
-      K.rr(X - .5, Y - .5, w + 1, h + 1, D * .45); x.fillStyle = shade(hc, -.3); x.fill();
-      for (let q = 0; q < n; q++) { const t = (q + .5) / n, px = hz ? X + t * w : cx, py = hz ? cy : Y + t * h, j = (R() - .5) * 1.6, rr = rad * (.86 + R() * .2); x.fillStyle = K.rad(px + (hz ? 0 : j), py + (hz ? j : 0), rr, shade(hc, (R() - .5) * .12), .2, -.26); K.round(px + (hz ? 0 : j), py + (hz ? j : 0), rr); x.fill(); }
-      x.fillStyle = shade(hc, .28); for (let q = 0; q < n * 2; q++) { const t = R(), px = hz ? X + t * w : cx + (R() - .5) * D * .7, py = hz ? cy + (R() - .5) * D * .7 : Y + t * h; K.oval(px + K.lx * 1.5, py + K.ly * 1.5, 1.1, .6, R() * TAU); x.fill(); }
+    case 'hedge': { // a clipped hedge: a dark, dense core, uneven clumps along it lit from the top-left, and hundreds of small leaves over them, each lit on its light side
+      const hc = season && (x === octx || PK_FOR === octx) ? gradeHex(c, season.id === 'autumn' ? .3 : .8) : c, rad = D * .56, at = (t, j) => hz ? [X + t * w, cy + j] : [cx + j, Y + t * h];
+      K.rr(X - .5, Y - .5, w + 1, h + 1, D * .45); x.fillStyle = shade(hc, -.38); x.fill();
+      for (let t = 0; t < L; t += 3.5 + R() * 5) { const [px, py] = at(Math.min(1, (t + 2) / L), (R() - .5) * 1.8), rr = rad * (.72 + R() * .34); x.fillStyle = K.rad(px, py, rr, shade(hc, (R() - .5) * .1 - .06), .16, -.3); K.round(px, py, rr); x.fill(); } // the clumps the shears left, not evenly spaced
+      const n = Math.round(L * D / 4.2), lxn = K.lx / (Math.hypot(K.lx, K.ly) || 1), lyn = K.ly / (Math.hypot(K.lx, K.ly) || 1);
+      for (let q = 0; q < n; q++) { const j = (R() - .5) * D * .86, [px, py] = at(R(), j), a = R() * TAU, len = 1.2 + R() * .8, wd = .55 + R() * .3, edge = Math.abs(j) / D * 2, toL = ((hz ? 0 : j) * lxn + (hz ? j : 0) * lyn) / D * 2;
+        const col = shade(hc, (R() - .5) * .16 - edge * .16 + toL * .1), up = Math.cos(a + Math.PI / 2) * lxn + Math.sin(a + Math.PI / 2) * lyn > 0;
+        x.fillStyle = col; x.beginPath(); x.ellipse(px, py, len, wd, a, 0, TAU); x.fill(); x.fillStyle = shade(col, .14); x.beginPath(); x.ellipse(px, py, len, wd, a, up ? 0 : Math.PI, up ? Math.PI : TAU); x.fill(); } // (the half that faces the light, brighter)
+      x.fillStyle = shade(hc, .3); for (let q = 0; q < L / 6; q++) { const [px, py] = at(R(), (R() - .5) * D * .6); K.oval(px + K.lx * 1.2, py + K.ly * 1.2, .9, .5, R() * TAU); x.fill(); } // a few new leaves catching the sun
       return; }
     case 'glass': // a glass wall: pale panes in an aluminium frame, mullions every so often, reflections slanting across
       K.glass(X, Y, w, h, '#a9d4e6', { a: .62, ec: 0, r: 0 });

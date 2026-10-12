@@ -85,22 +85,27 @@ function buildOpaque() {
 }
 const opaque = (x, y) => x < 0 || y < 0 || x >= W || y >= H || (opaqueGrid ? opaqueGrid[(y / SG | 0) * GW + (x / SG | 0)] : 0);
 
-function bakeOutline() {
-  mkx.clearRect(0, 0, W, H); mkx.fillStyle = '#000';
+function bakeOutline(R) { // R: only this patch (something broke there); the rest of every layer stays as it was
+  const C = R || { x: 0, y: 0, w: W, h: H }, cl = [mkx, olx, nvx, plainX, octx];
+  for (const x of cl) { x.save(); if (R) { x.beginPath(); x.rect(R.x, R.y, R.w, R.h); x.clip(); } }
+  try { bakeOutlineIn(R, C); } finally { for (const x of cl) x.restore(); }
+}
+function bakeOutlineIn(R, C) {
+  mkx.clearRect(C.x, C.y, C.w, C.h); mkx.fillStyle = '#000';
   const ponds = obstacles.filter(o => natPond(o) && !frozenOver(o) && !obsFlag(o, 'noOutline')); // natural water gets no dark rim (it's plainly water, and the rim made it read as a pool); night vision still traces it
-  for (const o of obstacles) { if (obsFlag(o, 'noOutline') || frozenOver(o) || ponds.includes(o)) continue; fillObs(mkx, o); }
-  olx.clearRect(0, 0, W, H);
-  const mo = SETTINGS.mapOutlines; if (mo === 'Off') { olx.clearRect(0, 0, W, H); nvx.clearRect(0, 0, W, H); return; }
+  for (const o of obstacles) { if (obsFlag(o, 'noOutline') || frozenOver(o) || ponds.includes(o) || (R && !boxNear(o, R, 6))) continue; fillObs(mkx, o); }
+  olx.clearRect(C.x, C.y, C.w, C.h);
+  const mo = SETTINGS.mapOutlines; if (mo === 'Off') { nvx.clearRect(C.x, C.y, C.w, C.h); return; }
   const strong = mo === 'Strong', ow = strong ? 2.7 : 1.6;
   for (let k = 0; k < 8; k++) { const a = k * TAU / 8; olx.drawImage(maskC, Math.cos(a) * ow, Math.sin(a) * ow, W, H); } // dilate
   olx.globalCompositeOperation = 'destination-out'; olx.drawImage(maskC, 0, 0, W, H);           // keep only the rim
-  olx.globalCompositeOperation = 'source-in'; olx.fillStyle = strong ? 'rgba(5,3,3,.95)' : 'rgba(12,8,8,.75)'; olx.fillRect(0, 0, W, H);
+  olx.globalCompositeOperation = 'source-in'; olx.fillStyle = strong ? 'rgba(5,3,3,.95)' : 'rgba(12,8,8,.75)'; olx.fillRect(C.x, C.y, C.w, C.h);
   olx.globalCompositeOperation = 'source-over';
-  plainX.clearRect(0, 0, W, H); plainX.drawImage(obsC, 0, 0, W, H); // a copy without outlines, only used while they fade during a daze
+  plainX.clearRect(C.x, C.y, C.w, C.h); plainX.drawImage(obsC, 0, 0, W, H); // a copy without outlines, only used while they fade during a daze
   octx.drawImage(outlineC, 0, 0, W, H); // baked in: one less full-screen draw every frame
-  nvx.clearRect(0, 0, W, H); nvx.drawImage(outlineC, 0, 0, W, H); // bright copy used by night vision
-  if (ponds.length) { mkx.clearRect(0, 0, W, H); for (const o of ponds) fillObs(mkx, o); nvx.save(); for (let k = 0; k < 8; k++) { const a = k * TAU / 8; nvx.drawImage(maskC, Math.cos(a) * ow, Math.sin(a) * ow, W, H); } nvx.globalCompositeOperation = 'destination-out'; nvx.drawImage(maskC, 0, 0, W, H); nvx.restore(); } // (the ponds' rims, for night vision only)
-  nvx.globalCompositeOperation = 'source-in'; nvx.fillStyle = '#ffffff'; nvx.fillRect(0, 0, W, H); nvx.globalCompositeOperation = 'source-over';
+  nvx.clearRect(C.x, C.y, C.w, C.h); nvx.drawImage(outlineC, 0, 0, W, H); // bright copy used by night vision
+  if (ponds.length) { mkx.clearRect(C.x, C.y, C.w, C.h); for (const o of ponds) fillObs(mkx, o); nvx.save(); for (let k = 0; k < 8; k++) { const a = k * TAU / 8; nvx.drawImage(maskC, Math.cos(a) * ow, Math.sin(a) * ow, W, H); } nvx.globalCompositeOperation = 'destination-out'; nvx.drawImage(maskC, 0, 0, W, H); nvx.restore(); } // (the ponds' rims, for night vision only)
+  nvx.globalCompositeOperation = 'source-in'; nvx.fillStyle = '#ffffff'; nvx.fillRect(C.x, C.y, C.w, C.h); nvx.globalCompositeOperation = 'source-over';
 }
 let curBuild = null, curPre = [], curMapLights = [], fixList = [];
 function drawFixtures(x) { // ceiling lights hang above everything: one the snake is under fades out so it never hides you
@@ -111,12 +116,35 @@ function drawFixtures(x) { // ceiling lights hang above everything: one the snak
   x.restore();
 }
 const [plainC, plainX] = makeLayer();
-function drawObstacleLayer(x = octx, b = curBuild, list = obstacles, ls = (b && b.lights) || MAPS[mapIdx].lights || []) { // walls and objects, then the details on top of them
-  x.clearRect(0, 0, W, H); list.forEach(o => { if (o.kind !== 'detail' && !frozenOver(o)) drawObstacle(x, o); }); // street details are painted into the ground (see loadMap); a frozen pond on the ground under everyone (drawIceFloor)
+function drawObstacleLayer(x = octx, b = curBuild, list = obstacles, ls = (b && b.lights) || MAPS[mapIdx].lights || [], R = null) { // walls and objects, then the details on top of them. R: only redo this patch of it (something broke there)
+  if (R) { x.save(); x.beginPath(); x.rect(R.x, R.y, R.w, R.h); x.clip(); x.clearRect(R.x, R.y, R.w, R.h); } else x.clearRect(0, 0, W, H);
+  list.forEach(o => { if (o.kind !== 'detail' && !frozenOver(o) && (!R || boxNear(o, R, 24))) drawObstacle(x, o); }); // street details are painted into the ground (see loadMap); a frozen pond on the ground under everyone (drawIceFloor)
   if (b && b.decor) b.decor(x);
   if (x === octx) snowCaps(x, list);
   if (x === octx) fixList = ls; else for (const l of ls) fixture(x, l); // the run's own fixtures are drawn every frame (drawFixtures), so they can fade over the snake
   if (x === octx) { outlineBreakables(x); bakePropGlow(list); } // glowing buttons and screens follow whatever is standing
+  if (R) x.restore();
+}
+/* ---- something on the map broke (a lamp, a smashed prop, a blast through a fence line): whatever it was part of (the object
+   layer and its outlines, the collision grid, the sun's shadows, the lamps' shadows) is redone once a frame, however many
+   things broke, and the drawn layers only over the patch that changed (flushMapDirty, from render) ---- */
+let MAPDIRTY = null;
+function obsBox(o) { if (isRot(o)) { const P = obsCorners(o), xs = P.map(p => p[0]), ys = P.map(p => p[1]); return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]; } return o.t === 'r' ? [o.x, o.y, o.x + o.w, o.y + o.h] : [o.x - o.r, o.y - o.r, o.x + o.r, o.y + o.r]; }
+const boxNear = (o, R, m) => { const b = obsBox(o); return b[2] > R.x - m && b[0] < R.x + R.w + m && b[3] > R.y - m && b[1] < R.y + R.h + m; };
+function mapDirtyObj(o) {
+  const b = obsBox(o), h = HEIGHTS[o.kind] ?? 10, sx = light ? light.sdx * h : 0, sy = light ? light.sdy * h : 0, D = MAPDIRTY || (MAPDIRTY = { o: [1e9, 1e9, -1e9, -1e9], s: [1e9, 1e9, -1e9, -1e9] });
+  const add = (r, x0, y0, x1, y1) => { r[0] = Math.min(r[0], x0); r[1] = Math.min(r[1], y0); r[2] = Math.max(r[2], x1); r[3] = Math.max(r[3], y1); };
+  add(D.o, b[0] - 24, b[1] - 24, b[2] + 24, b[3] + 24); // (props reach a little past their box, and outlines past that)
+  add(D.s, Math.min(b[0], b[0] + sx) - 12, Math.min(b[1], b[1] + sy) - 12, Math.max(b[2], b[2] + sx) + 12, Math.max(b[3], b[3] + sy) + 12); // where its sun shadow fell, and the shadow's blur
+}
+function flushMapDirty() {
+  const D = MAPDIRTY; MAPDIRTY = null; if (!D || !obstacles) return;
+  const box = r => { const x0 = clamp(Math.floor(r[0]), 0, W), y0 = clamp(Math.floor(r[1]), 0, H), x1 = clamp(Math.ceil(r[2]), 0, W), y1 = clamp(Math.ceil(r[3]), 0, H); return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }; };
+  const R = box(D.o), S = box(D.s);
+  if (R.w > 0 && R.h > 0) { drawObstacleLayer(octx, curBuild, obstacles, undefined, R); bakeOutline(R); }
+  buildSolid();
+  if (light && S.w > 0 && S.h > 0) bakeShadows(S);
+  bakeLightMasks({ x: R.x + R.w / 2, y: R.y + R.h / 2, r: Math.hypot(R.w, R.h) / 2 });
 }
 /* ---- placement rules, applied to every map as it loads ----
    street furniture never stands in a road (it's pushed back to the curb), a lamp is only moved off a walkway when it is really in it
@@ -222,8 +250,8 @@ function loadMap(idx, sz) {
   curPre = pre.filter(o => o.kind !== 'border'); curMapLights = b.lights || m.lights || []; // spacing works on whole objects, before long ones are split into breakable sections
   obstacles = splitBreakables(addBreakWalls(pre, m.name));
   buildSolid();
-  b.obs = b.obs.filter(o => !o.dropped); bctx.clearRect(0, 0, W, H); if (ov) { trailMute = !!ov.trails; try { if (ov.base) paintBase(bctx, ov.base); else b.floor(bctx); } finally { trailMute = false; } if (ov.areas) paintAreas(bctx, ov.areas); if (ov.trails) paintTrails(bctx, ov.trails); } else b.floor(bctx); for (const o of b.obs) if (o.kind === 'detail' && !o.dropped && FLAT_DETAILS.has(o.d)) drawObstacle(bctx, o); if (ovShapes) paintVecFloor(bctx, ovShapes.floor); /* edited paths replace the map's painted trails */ for (const o of b.obs) if (o.kind === 'detail' && !o.dropped && !FLAT_DETAILS.has(o.d)) drawObstacle(bctx, o); bakeContactShadows(bctx, b.obs); resetBuckets(); gctx.clearRect(0, 0, W, H); groundParts = []; trail = []; floaters = [];
-  pondBanks(bctx, obstacles); buildGrassMask(); gradeGround(); seasonDetails(bctx); // (a pond's wet bank first, so no grass grows on it)
+  b.obs = b.obs.filter(o => !o.dropped); bctx.clearRect(0, 0, W, H); floraRec = []; try { if (ov) { trailMute = !!ov.trails; try { if (ov.base) paintBase(bctx, ov.base); else b.floor(bctx); } finally { trailMute = false; } if (ov.areas) paintAreas(bctx, ov.areas); if (ov.trails) paintTrails(bctx, ov.trails); } else b.floor(bctx); } finally { floraLay = floraRec || []; floraRec = null; } for (const o of b.obs) if (o.kind === 'detail' && !o.dropped && FLAT_DETAILS.has(o.d)) drawObstacle(bctx, o); if (ovShapes) paintVecFloor(bctx, ovShapes.floor); /* edited paths replace the map's painted trails */ for (const o of b.obs) if (o.kind === 'detail' && !o.dropped && !FLAT_DETAILS.has(o.d)) drawObstacle(bctx, o); bakeContactShadows(bctx, b.obs); resetBuckets(); gctx.clearRect(0, 0, W, H); groundParts = []; trail = []; floaters = [];
+  pondBanks(bctx, obstacles); const fl = buildGrassMask(); plants = []; gradeGround(fl, () => seasonDetails(bctx)); // (a pond's wet bank first, so no grass grows on it; the flowers and leaves go on once the season's tint is down)
   curBuild = b; drawObstacleLayer(); buildTrees();
   bakeOutline();
   buildSnow();
@@ -232,7 +260,7 @@ function loadMap(idx, sz) {
   creatures = []; parts = []; pools = []; respawnQ = []; gibs = []; splashes = []; groups = []; mist = []; smoke = []; wisps = []; scentTrails = []; navGrid = null; chunks = []; if (typeof kbits !== "undefined") kbits = []; impacts = []; leafFall = []; gloss = []; crashHit = null; ringPops = []; hitGhosts = []; hitStop = 0; puke = []; convos = []; lastDead = null; sounds = []; hoovFx = [];
   score = 0; kills = { h: 0, a: 0 }; shake = 0;
   killV = killFlash = desatHold = 0;
-  light = computeLight(); shadowKey = ''; bakeShadows();
+  light = computeLight(); shadowKey = sunKey(light); bakeShadows(); MAPDIRTY = null; // (keyed as it is now, so the next frame doesn't bake it all again)
   snake = newSnake(b.start || m.start);
   curRoads = b.roads || []; curCross = b.crossings || [];
   netReseed(1); // co-op: spawning happens on the host only, so it gets dice of its own (see 40d-net-sync)
@@ -241,7 +269,7 @@ function loadMap(idx, sz) {
     for (let i = 0; i < Math.round(n * k); i++) spawn(type, zone);
   }
   makeFlies(m.fireflies || 0);
-  curPaths = b.paths || []; curRoads = b.roads || []; curCross = b.crossings || []; spawnWalkers(m.walkers || 0); if (state === 'menu') creatures = []; /* the map behind the menus is empty: nobody milling about */ netReseed(2); makeGrass(m.grass || 0); makeWeather();
+  curPaths = b.paths || []; curRoads = b.roads || []; curCross = b.crossings || []; spawnWalkers(m.walkers || 0); if (state === 'menu') creatures = []; /* the map behind the menus is empty: nobody milling about */ netReseed(2); makeGrass(m.grass || 0); makeWeather(); cloudsFor();
   deaths = []; if (typeof run === 'object') run.startPop = creatures.length;
   buildNeighbors(); // neighbour queries never see the previous map's crowd, even before the first tick
   updateHud();

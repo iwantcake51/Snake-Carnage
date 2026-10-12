@@ -10,7 +10,7 @@ let shopTab = 'color', shopMsg = '', shopPrev = null;
 const TIERCOL = { easy: '#5fd07a', medium: '#ffcf33', hard: '#ff8a3d', rare: '#c77dff' };
 function shopCard(cat, [v, p, achId], i) {
   p = shopPrice(p); // Haggler
-  const cfg = SETTINGS.snake, own = owns(cat, v), on = cfg[cat] === v, ach = achId ? ACH.find(a => a.id === achId) : null, locked = ach && !own, hidden = locked && ach.secret; // secrets stay secret
+  const cfg = SETTINGS.snake, own = owns(cat, v), on = cfg[cat] === v && !(cfg.real && REAL_PART.includes(cat)), ach = achId ? ACH.find(a => a.id === achId) : null, locked = ach && !own, hidden = locked && ach.secret; // secrets stay secret
   const sw = `<span class="pvw">${itemPreview(cat, v)}</span>`;
   const tip = cat === 'title' && !hidden ? titleTip(v) : '';
   const status = on ? '<span class="st eq">Equipped</span>' : own ? '<span class="st own">Owned · click to equip</span>' : locked ? '' : `<span class="st buy"><i class="pc"></i> ${p} · click to buy</span>`;
@@ -41,7 +41,7 @@ function previewSnake(n, x0, y0, sp, wave) { // a short body heading right, head
   return { x: segs[0].x, y: segs[0].y, angle: 0, segs, stains: segs.map(() => []) };
 }
 function drawItemPreview(cv2, cat, v, cols) {
-  const x = cv2.getContext('2d'), w = cv2.width, h = cv2.height, base = { ...SETTINGS.snake, hat: 'None', trail: 'None', ...(cols || {}) };
+  const x = cv2.getContext('2d'), w = cv2.width, h = cv2.height, base = { ...lookAfter(cat), hat: 'None', trail: 'None', ...(cols || {}) };
   x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, w, h);
   const keepT = T; T = 1.3; // a fixed moment, so animated cosmetics still read clearly
   if (cat === 'pattern') { x.scale(1.55, 1.55); drawSnake(x, previewSnake(14, 101, 27, 6.6, 6), { ...base, pattern: v }); } // long enough to show a few repeats of the pattern
@@ -114,33 +114,50 @@ function refreshShop(msg) { // after buying or equipping: update the cards, chip
 function shopBody(tab) {
   if (tab === 'custom') return customBody();
   const cat = tab, list = itemsOf(cat);
-  if (cat === 'pattern') { // the skins you can buy, then the real snakes as cards of their own, then the skins earned from challenges
-    const buy = list.filter(it => !it[2]), earned = list.filter(it => it[2]), n = buy.length;
-    return `<h2>Recolorable skins</h2><div class="cards2">${buy.map((it, i) => shopCard(cat, it, i)).join('')}<div class="realhd">Real snakes<small>a skin and two colors from the list: the real animal</small></div>${REAL_SNAKES.map((r, i) => realCard(r, i, n + i)).join('')}${earned.map((it, i) => shopCard(cat, it, n + REAL_SNAKES.length + i)).join('')}</div>`;
+  if (cat === 'pattern') { // every recolorable skin (the ones you buy, then the ones earned from challenges: both take your two colors), then the real snakes, each its own item
+    const buy = list.filter(it => !it[2]), earned = list.filter(it => it[2]), n = buy.length, e = earned.length;
+    return `<h2>Recolorable skins</h2><div class="cards2">${buy.map((it, i) => shopCard(cat, it, i)).join('')}${earned.map((it, i) => shopCard(cat, it, n + i)).join('')}<div class="realhd">Real snakes<small>the real animal, its skin and colors in one: no need to own either</small></div>${REAL_SNAKES.map((r, i) => realCard(r, i, n + e + i)).join('')}</div>`;
   }
   return `<h2>${CAT_LABEL[cat]}</h2><div class="cards2">${list.map((it, i) => shopCard(cat, it, i)).join('')}</div>`;
 }
-/* ---- real snakes: a real-pattern skin in the two colors that make the real animal (REAL_SNAKES in 36-cosmetics). Hover to try it on;
-   click to wear it, buying whatever of the three you don't own yet when you can afford it all ---- */
-const realNeed = r => [['pattern', r.pattern], ['color', r.color], ['color2', r.color2]].filter(([c, v]) => !owns(c, v));
-const realCost = r => realNeed(r).reduce((a, [c, v]) => a + priceOf(c, v), 0);
+/* ---- real snakes: a real-pattern skin in the two colors that make the real animal (REAL_SNAKES in 36-cosmetics), each sold as one item of its own
+   ('real:'+name, the price of its skin) that wears only that look: you don't need the recolorable skin or either color. Owning all three parts
+   counts as owning it too, and when what you're missing of them costs less than the snake, a click buys those parts instead. While one is worn,
+   SETTINGS.snake.real names it; picking any skin or color afterwards puts back whatever of yours it had replaced (leaveReal) ---- */
+const REAL_PART = ['pattern', 'color', 'color2'];
+const realNeed = r => REAL_PART.map(c => [c, r[c]]).filter(([c, v]) => !owns(c, v));
+const realPartsCost = r => realNeed(r).reduce((a, [c, v]) => a + priceOf(c, v), 0);
+const realPrice = r => priceOf('pattern', r.pattern); // (Haggler included)
+const realOwned = r => PROG.owned.includes('real:' + r.name) || !realNeed(r).length;
+const realCost = r => realOwned(r) ? 0 : Math.min(realPrice(r), realPartsCost(r));
+const realByParts = r => !realOwned(r) && realPartsCost(r) < realPrice(r); // cheaper to finish the set than to buy the snake
 const realLabel = ([c, v]) => c === 'pattern' ? `${v} skin` : `${colorName(v)} ${c === 'color' ? 'primary' : 'secondary'}`;
-function realCard(r, i, k) { // a real snake in the skin list, shown in its real colors: clicking it buys what you're missing and wears it
-  const cfg = SETTINGS.snake, on = ['pattern', 'color', 'color2'].every(q => cfg[q] === r[q]), cost = realCost(r), own = !realNeed(r).length;
-  const status = on ? '<span class="st eq">Equipped</span>' : own ? '<span class="st own">Owned · click to wear</span>' : `<span class="st buy"><i class="pc"></i> ${cost} · click to buy what's missing</span>`;
+function realCard(r, i, k) { // a real snake in the skin list, shown in its real colors: clicking it buys it (or the parts it's missing, when that's cheaper) and wears it
+  const cfg = SETTINGS.snake, on = cfg.real === r.name && REAL_PART.every(q => cfg[q] === r[q]), cost = realCost(r), own = realOwned(r);
+  const status = on ? '<span class="st eq">Equipped</span>' : own ? '<span class="st own">Owned · click to wear</span>' : `<span class="st buy"><i class="pc"></i> ${cost} · click to buy</span>`;
   return `<button class="sc c-pattern real ${on ? 'on' : ''} ${own ? 'own' : ''} ${!own && PROG.coins < cost ? 'poor' : ''}" data-cat="pattern" data-v="${attr(r.pattern)}" data-real="${i}" style="--i:${k}">
     <span class="pvw"><canvas class="pv" data-cat="pattern" data-v="${attr(r.pattern)}" data-c1="${r.color}" data-c2="${r.color2}" width="176" height="84"></canvas></span><b>${r.name}</b>
     <span class="price">${own ? (on ? kiSvg('checkmark') : '') : `<i class="pc"></i>${cost}`}</span><span class="hov">${status}</span></button>`;
 }
-function realMsg(r) { const need = realNeed(r);
-  return need.length ? `${r.name}: ${r.pattern} skin, ${colorName(r.color)} body, ${colorName(r.color2)} markings. You still need the ${need.map(realLabel).join(', ')}: ${realCost(r)} chips.` : `${r.name}: you have everything. Click to wear it.`; }
+function realMsg(r) {
+  if (realOwned(r)) return `${r.name}: yours. Click to wear it.`;
+  const look = `${r.pattern} skin, ${colorName(r.color)} body, ${colorName(r.color2)} markings`;
+  return realByParts(r) ? `${r.name}: ${look}. You only need the ${realNeed(r).map(realLabel).join(', ')}: ${realCost(r)} chips.` : `${r.name}: ${look}, ${realCost(r)} chips. Just this look: the skin and colors stay in the shop.`;
+}
+function leaveReal(cfg, keep) { // taking off a real snake: any of its parts you don't own go back to what you wore before (keep: the slot being set now)
+  if (!cfg.real) return; const prev = cfg.realPrev || {}, dflt = { pattern: 'Solid', color: '#4e7cf6', color2: '#f2f2f2' };
+  for (const q of REAL_PART) if (q !== keep && !owns(q, cfg[q])) cfg[q] = prev[q] && owns(q, prev[q]) ? prev[q] : dflt[q];
+  delete cfg.real; delete cfg.realPrev;
+}
+function lookAfter(cat) { const c = { ...SETTINGS.snake }; if (REAL_PART.includes(cat)) leaveReal(c, cat); return c; } // what you'd look like picking an item of this kind: off a real snake, with your own colors back
 function chooseReal(r) {
   chooseReal.at = performance.now(); // (what a click says stays up a moment: the card is rebuilt under the pointer, which counts as hovering it again)
-  const need = realNeed(r), cost = realCost(r), cfg = SETTINGS.snake;
-  if (cost > PROG.coins) { Sfx.deny(); return refreshShop(`${r.name}: you need ${cost - PROG.coins} more chips for the ${need.map(realLabel).join(', ')}.`); }
-  if (need.length) { PROG.coins -= cost; need.forEach(([c, v]) => PROG.owned.push(ownKey(c, v))); saveProg(); updateHud(); Sfx.buy(); }
-  cfg.pattern = r.pattern; cfg.color = r.color; cfg.color2 = r.color2; saveSettings(); applyCosmetics();
-  refreshShop(need.length ? `Bought the ${need.map(realLabel).join(', ')} for ${cost} chips. Now wearing: ${r.name}.` : `Now wearing: ${r.name}.`);
+  const cfg = SETTINGS.snake, cost = realCost(r), parts = realByParts(r), need = realNeed(r);
+  if (cost > PROG.coins) { Sfx.deny(); return refreshShop(`${r.name}: you need ${cost - PROG.coins} more chips.`); }
+  if (cost) { PROG.coins -= cost; if (parts) need.forEach(([c, v]) => PROG.owned.push(ownKey(c, v))); else PROG.owned.push('real:' + r.name); saveProg(); updateHud(); Sfx.buy(); }
+  if (!cfg.real) cfg.realPrev = { pattern: cfg.pattern, color: cfg.color, color2: cfg.color2 }; // your own look, to go back to
+  cfg.pattern = r.pattern; cfg.color = r.color; cfg.color2 = r.color2; cfg.real = r.name; saveSettings(); applyCosmetics();
+  refreshShop(!cost ? `Now wearing: ${r.name}.` : parts ? `Bought the ${need.map(realLabel).join(', ')} for ${cost} chips. Now wearing: ${r.name}.` : `Bought the ${r.name} for ${cost} chips. Now wearing it.`);
 }
 function wireShop() {
   overlay.querySelectorAll('[data-real]').forEach(b => { const r = REAL_SNAKES[+b.dataset.real], m = () => overlay.querySelector('.shopmsg');
@@ -166,6 +183,7 @@ function chooseItem(cat, v) {
     PROG.coins -= p; PROG.owned.push(ownKey(cat, v)); saveProg(); updateHud(); Sfx.buy(); bought = true;
     shopMsg = `Bought for ${p} chips. Looking good.`;
   }
+  if (REAL_PART.includes(cat)) leaveReal(cfg, cat);
   cfg[cat] = v; saveSettings(); applyCosmetics();
   if (cat === 'custom' || !overlay.querySelector('.sgrid .sc')) return showCustomize();
   refreshShop(shopMsg || 'Equipped.'); shopMsg = '';
@@ -189,7 +207,7 @@ function startPreview() { // live wiggling preview: shows what you're hovering, 
     const segs = [];
     for (let i = 0; i < 15; i++) segs.push({ x: 122 - i * 8, y: 21 + Math.sin(i * .55 - UT * 3) * 7, a: 0 });
     for (let i = 0; i < segs.length; i++) { const p = segs[i - 1] || { x: segs[0].x + 8, y: segs[0].y }; segs[i].a = Math.atan2(p.y - segs[i].y, p.x - segs[i].x); }
-    const cfg = { ...SETTINGS.snake }; if (shopPrev && /^(color2?|pattern|hat|eyes)$/.test(shopPrev.cat)) cfg[shopPrev.cat] = shopPrev.v; if (shopPrev && shopPrev.set) Object.assign(cfg, shopPrev.set);
+    const cfg = lookAfter(shopPrev && shopPrev.cat); if (shopPrev && /^(color2?|pattern|hat|eyes)$/.test(shopPrev.cat)) cfg[shopPrev.cat] = shopPrev.v; if (shopPrev && shopPrev.set) Object.assign(cfg, shopPrev.set);
     if (shopTab === 'custom' && pickerState) cfg[pickerState.slot] = pickerState.hex;
     const keep = T; T = UT; // animate cosmetics even while the world is paused
     drawSnake(px, { x: segs[0].x, y: segs[0].y, angle: segs[0].a, segs, stains: segs.map(() => []) }, cfg);
@@ -243,5 +261,5 @@ function wirePicker() {
   });
   document.getElementById('pkCancel').onclick = () => { const p = overlay.querySelector('.picker'); p.classList.add('cancel'); setTimeout(() => { pickerState = null; showCustomize(); }, 180); };
   const ok = document.getElementById('pkOk');
-  ok.onclick = () => { if (ok.disabled) return; SETTINGS.snake[P.slot] = P.hex; saveSettings(); Sfx.ui('confirm'); overlay.querySelector('.picker').classList.add('applied'); shopMsg = 'Custom color applied.'; setTimeout(showCustomize, 260); };
+  ok.onclick = () => { if (ok.disabled) return; leaveReal(SETTINGS.snake, P.slot); SETTINGS.snake[P.slot] = P.hex; saveSettings(); Sfx.ui('confirm'); overlay.querySelector('.picker').classList.add('applied'); shopMsg = 'Custom color applied.'; setTimeout(showCustomize, 260); };
 }

@@ -642,7 +642,7 @@ const NM = { at: -9, n: 0, list: [] };
 function nearMiss(kind, x, y) { // (x, y): where it happened, right by your body
   if (!snake || !snake.alive || state !== 'play') return;
   const now = performance.now(), chain = now - NM.at < 4000 ? NM.n + 1 : 1; NM.at = now; NM.n = chain;
-  const ck = (1 + .25 * Math.min(4, chain - 1)) * rewardMult, xp = Math.round((kind === 'strafe' ? 14 : 18) * ck), chips = Math.max(1, Math.round((kind === 'strafe' ? 5 : 6) * ck * SKV.nearK() * CHIP_GAIN)); run.nearMiss = (run.nearMiss || 0) + 1; PROG.nearT = (PROG.nearT || 0) + 1; checkAch(); // chips too, climbing with the chain like the XP
+  const ck = (1 + .25 * Math.min(4, chain - 1)) * rewardMult, xp = Math.round((kind === 'strafe' ? 14 : 18) * ck), chips = Math.max(1, Math.round((kind === 'strafe' ? 5 : 6) * ck * SKV.nearChipK() * CHIP_GAIN)); run.nearMiss = (run.nearMiss || 0) + 1; PROG.nearT = (PROG.nearT || 0) + 1; checkAch(); // chips too, climbing with the chain like the XP
   NM.list.push({ x: x ?? snake.x, y: y ?? snake.y, t0: now, txt: chain > 1 ? `NEAR MISS x${chain}` : 'NEAR MISS', xp, chips }); if (NM.list.length > 4) NM.list.shift();
   gainXP(Math.round(xp * SKV.nearK()), chips, { net: true }); studyHit('near'); // Daredevil, Quick Study
   if (Sfx.ok() && Sfx.gate('nm', .3)) Sfx.tone(Sfx.out(x, .5), Sfx.ctx.currentTime, 660, 1320, .16, 'triangle', .07);
@@ -735,10 +735,10 @@ function scorchSprite(v) {
 const inCrater = (x, y) => { for (const c of scorched) if ((x - c[0]) ** 2 + (y - c[1]) ** 2 < c[2] * c[2]) return true; return false; };
 function burnGrass(x, y, r) { // the crater and the ground round it are burnt off: grass in the middle is gone, a ring of it is left as black stubble, and none of it comes back
   const R = r * 1.25; scorched.push([x, y, R]);
-  if (grass.length) { let hit = false; grass = grass.filter(g => { const d = Math.hypot(g.x - x, g.y - y); if (d > R) return true; hit = true; if (d < r * .8) return false; g.c = g.cb = Math.random() < .5 ? '#1d1916' : '#2a231d'; g.ct = '#3a322a'; g.h *= .45; return true; }); if (hit) grass.byCol = null; }
+  if (grass.length) { let hit = false; grass = grass.filter(g => { const d = Math.hypot(g.x - x, g.y - y); if (d > R) return true; hit = true; if (d < r * .8) return false; g.c = g.cb = Math.random() < .5 ? '#1d1916' : '#2a231d'; g.ct = '#3a322a'; g.h *= .45; if (g.bl) g.bl = g.bl.map(([ox, h, l, bw]) => [ox, h * .45, l * .45, bw]); return true; }); if (hit) grass.byCol = null; }
   if (plants.length) plants = plants.filter(p => Math.hypot(p.x - x, p.y - y) > R * .9); // the clover and ferns there are gone too
   for (let j = Math.max(0, (y - R) / GM | 0); j <= Math.min(GMH - 1, (y + R) / GM | 0); j++) for (let i = Math.max(0, (x - R) / GM | 0); i <= Math.min(GMW - 1, (x + R) / GM | 0); i++)
-    if (((i + .5) * GM - x) ** 2 + ((j + .5) * GM - y) ** 2 < R * R) grassMask[j * GMW + i] = 0; // not grass any more: no leaves settle, no plants, no green kicked up
+    if (((i + .5) * GM - x) ** 2 + ((j + .5) * GM - y) ** 2 < R * R) grassMask[j * GMW + i] = floraMask[j * GMW + i] = 0; // not grass any more: no leaves settle, no plants, no green kicked up
   const g = bctx.createRadialGradient(x, y, r * .3, x, y, R * 1.1); g.addColorStop(0, 'rgba(18,13,10,.8)'); g.addColorStop(.6, 'rgba(22,16,12,.55)'); g.addColorStop(1, 'rgba(22,16,12,0)'); // char: the flowers, plants and leaves baked into the ground go black
   bctx.fillStyle = g; bctx.beginPath(); bctx.arc(x, y, R * 1.1, 0, TAU); bctx.fill();
 }
@@ -1145,7 +1145,12 @@ function drawShockwaves(x, src) { // src: the canvas being drawn (it already hol
   let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; const add = (ax, ay, bx, by) => { x0 = Math.min(x0, ax); y0 = Math.min(y0, ay); x1 = Math.max(x1, bx); y1 = Math.max(y1, by); };
   for (const h of hz) add(h.x - h.r, h.y - h.r * 1.4, h.x + h.r, h.y + h.r * .6);
   for (const g of geo) add(g.w.x - g.out - 4, g.w.y - g.out - 4, g.w.x + g.out + 4, g.w.y + g.out + 4);
-  const gr = x1 > x0 ? grabScene(m.transformPoint({ x: x0, y: y0 }), m.transformPoint({ x: x1, y: y1 }), src) : null;
+  if (POST.on) { // the shader bends the picture: just hand it the fronts and the heat, in screen pixels
+    const sc = Math.hypot(m.a, m.b);
+    for (const h of hz) { const C = m.transformPoint({ x: h.x, y: h.y - h.r * .4 }); PF.hz.push([C.x, C.y, h.r * sc, hA(h), h.x]); }
+    for (const g of geo) { const C = m.transformPoint({ x: g.w.x, y: g.w.y }); PF.sw.push([C.x, C.y, g.rr * sc, g.k, g.inn * sc, g.out * sc]); }
+  }
+  const gr = !POST.on && x1 > x0 ? grabScene(m.transformPoint({ x: x0, y: y0 }), m.transformPoint({ x: x1, y: y1 }), src) : null;
   if (gr) {
     for (const h of hz) { // heat over the crater: the picture wobbles in thin strips while it burns
       const a = hA(h), A = m.transformPoint({ x: h.x - h.r, y: h.y - h.r * 1.4 }), B = m.transformPoint({ x: h.x + h.r, y: h.y + h.r * .6 }), sw = B.x - A.x, n = 6, sh = (B.y - A.y) / n, lx = A.x - gr.sx, ly = A.y - gr.sy;
@@ -1212,9 +1217,8 @@ Object.assign(Sfx, {
   lockOn(x) { if (!this.ok() || !this.gate('lock', .12)) return; const t = this.ctx.currentTime, o = this.out(x, .35); const v = .05 * this.soft(.3); this.tone(o, t, 1500, 1500, .05, 'square', v); this.tone(o, t + .09, 1900, 1900, .06, 'square', v); },
   airVerb() { // one big outdoor echo for everything up in the sky: a long, dark, diffuse tail
     if (this.verb) return this.verb;
-    const c = this.ctx, len = Math.round(c.sampleRate * 4.2), b = c.createBuffer(2, len, c.sampleRate);
-    for (let ch = 0; ch < 2; ch++) { const d = b.getChannelData(ch); let lp = 0; for (let i = 0; i < len; i++) { const t = i / c.sampleRate; lp += (Math.random() * 2 - 1 - lp) * (.32 - .2 * Math.min(1, t / 3)); d[i] = lp * Math.exp(-t * 1.25) * (t < .08 ? t / .08 : 1); } } // darker as it fades, with a soft onset
-    const cv = c.createConvolver(), g = c.createGain(); cv.buffer = b; g.gain.value = .9; cv.connect(g); g.connect(this.bus || c.destination);
+    const c = this.ctx, len = Math.round(c.sampleRate * 4.2), cv = c.createConvolver(), g = c.createGain(); g.gain.value = .9; cv.connect(g); g.connect(this.bus || c.destination);
+    PX.run('skyVerb', { sr: c.sampleRate, len }).then(r => { const b = c.createBuffer(2, len, c.sampleRate); b.copyToChannel(r.L, 0); b.copyToChannel(r.R, 1); cv.buffer = b; }).catch(e => console.warn('[sky echo]', e)); // built on a worker (it's 400,000 samples): silent for the moment until it's in, which is long before the first bomb
     return this.verb = cv;
   },
   jetVoice(t, D, A, wk) { // one jet: the roar (noise, its whole spectrum moved by the Doppler), the turbine whine pitched by the same Doppler, the low rumble that carries furthest, panned, and the sky's echo. A: its curves over D seconds from t. The approach and the fly-by are one voice: the fly-by takes over these same nodes (jetTake), so there's never a seam

@@ -15,8 +15,7 @@ function breakLamp(o, ang, quiet) { // co-op: replays of another player's break 
   let lit = 0; for (const l of lights) if (l.o === o) { lit = lightK(l); l.dead = true; l.cur = 0; l.fl = 0; }
   const fa = ang + rand(-.5, .5), fx = bfxFor(o);
   if (!fx || fx.wreck === 'default') drawBrokenLamp(bctx, o.x, o.y, fa); else bfxWreck(bctx, o, fx, fa); // the bent post stays on the ground
-  drawObstacleLayer();
-  bakeOutline(); buildSolid(); shadowKey = ''; bakeShadows(); bakeLightMasks({ x: o.x, y: o.y, r: 60 });
+  mapDirtyObj(o); // the object layer, outlines, collision, shadows and nearby lamps: redone once this frame, only round it (flushMapDirty)
   const hx = o.x + Math.cos(fa) * 32, hy = o.y + Math.sin(fa) * 32;
   if (!quiet) { impactFx(o.x, o.y, 22, fa, false); dustBillow(o.x, o.y, 14, '#9a9a9a', fa, .6); }
   if (!quiet && fx) bfxBurst({ ...o, x: o.x + Math.cos(fa) * 32, y: o.y + Math.sin(fa) * 32 }, fx, fa);

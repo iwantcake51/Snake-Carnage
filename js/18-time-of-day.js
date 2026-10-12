@@ -46,12 +46,19 @@ function computeLight() {
            tTop: tt.top, tBot: tt.bot, tA: tt.a };
 }
 const [tmpSC, tsx] = makeLayer();
-function bakeShadows() { // sun shadows: sharp at the base, softer the further they reach (drawn as two passes: crisp core, blurred tail)
-  const L = light; tsx.clearRect(0, 0, W, H); tsx.fillStyle = '#000'; shx.clearRect(0, 0, W, H);
+const sunKey = L => (Math.round(L.sdx * 25) / 25) + ',' + (Math.round(L.sdy * 25) / 25); // the sun's shadows are rebuilt as it moves, in steps of about a pixel on a tall building
+function bakeShadows(R) { // R: only this patch (something broke there)
+  if (!R) return bakeShadowsIn(null, { x: 0, y: 0, w: W, h: H });
+  for (const x of [tsx, shx]) { x.save(); x.beginPath(); x.rect(R.x, R.y, R.w, R.h); x.clip(); }
+  try { bakeShadowsIn(R, R); } finally { tsx.restore(); shx.restore(); }
+}
+function bakeShadowsIn(R, C) { // sun shadows: sharp at the base, softer the further they reach (drawn as two passes: crisp core, blurred tail)
+  const L = light; tsx.clearRect(C.x, C.y, C.w, C.h); tsx.fillStyle = '#000'; shx.clearRect(C.x, C.y, C.w, C.h);
   if (!shadowsOn()) return; // Off: no sun shadows at all (and the layer isn't drawn either)
   for (const o of obstacles) {
     const h = HEIGHTS[o.kind] ?? 10; if (!h) continue;
     const ox = L.sdx * h, oy = L.sdy * h, n = Math.max(1, Math.ceil(Math.hypot(ox, oy) / 2.5));
+    if (R) { const b = obsBox(o); if (Math.max(b[2], b[2] + ox) < R.x - 8 || Math.min(b[0], b[0] + ox) > R.x + R.w + 8 || Math.max(b[3], b[3] + oy) < R.y - 8 || Math.min(b[1], b[1] + oy) > R.y + R.h + 8) continue; } // its shadow doesn't reach the patch
     for (let k = 1; k <= n; k++) {
       const t = k / n;
       if (obsFlag(o, 'noShadow')) break;
@@ -128,7 +135,7 @@ function updateTime(dt) {
   else if (SETTINGS.timeMode === 'Cycle') { if (state === 'play' && snake && snake.started) tod = (tod + dt * 24 / (SETTINGS.dayMinutes * 60)) % 24; } // the clock waits until you actually move
   else tod = SETTINGS.timeMode === 'Custom' ? +SETTINGS.customHour : FIXED_TIMES[SETTINGS.timeMode] ?? 12;
   light = computeLight();
-  const key = light.sdx.toFixed(2) + ',' + light.sdy.toFixed(2);
+  const key = sunKey(light);
   if (key !== shadowKey) { shadowKey = key; bakeShadows(); }
   updateLights(dt); updateEnclosures(); updateWaters(dt); updateBeams(dt);
 }

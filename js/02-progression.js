@@ -52,7 +52,7 @@ function rewardPopup(xp, coins) { // stacks in the top-right corner; rapid kills
   const leave = r => { clearTimeout(r.timer); r.timer = setTimeout(() => { r.el.classList.add('out'); setTimeout(() => r.el.remove(), 400); }, 2100); };
   if (lastReward && lastReward.el.isConnected && !lastReward.el.classList.contains('out') && now - lastReward.t < 900) {
     lastReward.xp += xp; lastReward.coins += coins; lastReward.t = now; lastReward.el.innerHTML = text(lastReward);
-    lastReward.el.classList.remove('bump'); void lastReward.el.offsetWidth; lastReward.el.classList.add('bump'); leave(lastReward); return;
+    replayAnim(lastReward.el, 'bump'); leave(lastReward); return;
   }
   const el = document.createElement('div'); el.className = 'rw';
   lastReward = { el, xp, coins, t: now }; el.innerHTML = text(lastReward);

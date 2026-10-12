@@ -62,15 +62,26 @@ let grassMask = new Uint8Array(GMW * GMH), grassCol = [], floorCol = []; // floo
 const floorSmall = document.createElement('canvas'); floorSmall.width = W / 2; floorSmall.height = H / 2;
 const fsx = floorSmall.getContext('2d', { willReadFrequently: true });
 function smallFloor() { fsx.clearRect(0, 0, W / 2, H / 2); fsx.drawImage(baseC, 0, 0, W / 2, H / 2); try { return fsx.getImageData(0, 0, W / 2, H / 2).data; } catch (e) { return null; } }
+let floraMask = new Uint8Array(GMW * GMH), floraLay = []; // (floraLay: the paths loadMap saw painted, 05d floraNote)
 function buildGrassMask() {
-  grassMask = new Uint8Array(GMW * GMH); grassCol = new Array(GMW * GMH); floorCol = new Array(GMW * GMH);
-  const data = smallFloor(); if (!data) return; // a half-size copy: reading back the full-res floor used to stall map loads
+  grassMask = new Uint8Array(GMW * GMH); grassCol = new Array(GMW * GMH); floorCol = new Array(GMW * GMH); floraMask = new Uint8Array(GMW * GMH);
+  const data = smallFloor(); if (!data) return; // a half-size copy: reading back the full-res floor used to stall map loads (gradeGround gets the same copy, read once)
   for (let j = 0; j < GMH; j++) for (let i = 0; i < GMW; i++) {
     const o = ((j * GM + 4) / 2 * (W / 2) + (i * GM + 4) / 2) * 4, r = data[o], g = data[o + 1], b = data[o + 2];
     floorCol[j * GMW + i] = [r, g, b];
     if (g > r + 18 && g > b + 25) { grassMask[j * GMW + i] = 1; grassCol[j * GMW + i] = [r, g, b]; }
   }
+  // where wild things may grow: grass all round (a cell clear of the grass's edge on every side), and clear of every path
+  for (let j = 1; j < GMH - 1; j++) for (let i = 1; i < GMW - 1; i++) { let ok = 1; for (let b = -1; b <= 1 && ok; b++) for (let a = -1; a <= 1; a++) if (!grassMask[(j + b) * GMW + i + a]) { ok = 0; break; } floraMask[j * GMW + i] = ok; }
+  for (const t of floraLay) {
+    if (t.R) { const [x0, y0, x1, y1] = t.R; for (let j = Math.max(0, (y0 - 4) / GM | 0); j <= Math.min(GMH - 1, (y1 + 4) / GM | 0); j++) for (let i = Math.max(0, (x0 - 4) / GM | 0); i <= Math.min(GMW - 1, (x1 + 4) / GM | 0); i++) floraMask[j * GMW + i] = 0; continue; }
+    const rr = t.w / 2 * 1.15 + 10, rc = Math.ceil(rr / GM) + 1; // the path at its widest, and the worn grass beside it
+    for (let k = 0; k < t.P.length; k += 2) { const [px, py] = t.P[k], ci = px / GM | 0, cj = py / GM | 0;
+      for (let j = Math.max(0, cj - rc); j <= Math.min(GMH - 1, cj + rc); j++) for (let i = Math.max(0, ci - rc); i <= Math.min(GMW - 1, ci + rc); i++) if (Math.hypot((i + .5) * GM - px, (j + .5) * GM - py) < rr + GM * .5) floraMask[j * GMW + i] = 0; }
+  }
+  return data;
 }
+const floraAt = (x, y) => { const i = x / GM | 0, j = y / GM | 0; return i >= 0 && j >= 0 && i < GMW && j < GMH ? floraMask[j * GMW + i] : 0; }; // a flower, a plant or a tuft may grow here
 const grassAt = (x, y) => { const i = x / GM | 0, j = y / GM | 0; return i >= 0 && j >= 0 && i < GMW && j < GMH ? grassMask[j * GMW + i] : 0; };
 const groundColAt = (x, y) => { // hex, so it mixes with body colors; snow counts as ground
   if (snowAt(x, y) > .25) return '#e6ecf5';
