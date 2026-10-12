@@ -130,7 +130,7 @@ function fogLayer(col, day) {
   const fc = FOG.c || (FOG.c = { x: snake.x, y: snake.y, t: T }), dt = clamp(T - fc.t, 0, .1); fc.t = T; // the clearing lags a touch behind the snake
   if (Math.hypot(snake.x - fc.x, snake.y - fc.y) > 300) { fc.x = snake.x; fc.y = snake.y; } const k = 1 - Math.exp(-dt * 4); fc.x += (snake.x - fc.x) * k; fc.y += (snake.y - fc.y) * k;
   const cx = fc.x, cy = fc.y, R = 175, wind = [T * 9, T * 3.5], fq = SETTINGS.simpleFx ? 'Low' : SETTINGS.fogQ || 'High', hi = fq === 'High', mid = fq !== 'Low';
-  const layer = (g, img, scale, ox, oy, alpha, op) => { g.save(); g.globalCompositeOperation = op; g.globalAlpha = alpha; const pat = g.createPattern(img, 'repeat'); g.translate(-(ox % (256 * scale)), -(oy % (256 * scale))); g.scale(scale, scale); g.fillStyle = pat; g.fillRect(-256, -256, (W + 1024) / scale, (H + 1024) / scale); g.restore(); };
+  const layer = (g, img, scale, ox, oy, alpha, op) => { g.save(); g.globalCompositeOperation = op; g.globalAlpha = alpha; const pat = g.createPattern(img, 'repeat'); g.translate(-(ox % (256 * scale)), -(oy % (256 * scale))); g.scale(scale, scale); g.fillStyle = pat; g.fillRect(-320, -320, (W + 120) / scale + 640, (H + 120) / scale + 640); g.restore(); }; // the shift is up to a whole tile either way, so the fill reaches a tile past both sides: a fixed W + 1024 fell short of the right and bottom on the big tiles (scale 2.4, 3.2), and that edge drifted across with the wind as a line
   // 1. thick fog with uneven density: thin patches drift through it
   x.globalAlpha = 1; x.fillStyle = col; x.fillRect(-60, -60, W + 120, H + 120);
 

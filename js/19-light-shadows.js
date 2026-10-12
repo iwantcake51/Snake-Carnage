@@ -163,6 +163,13 @@ let statKey = '', veilKey = '', lightVer = 0;
 const isStaticTint = l => !l.enc && !(l.ign > 0) && !(l.fT > 0) && l.kind !== 'emerg' && l.kind !== 'disco'; // live shadows don't change a light's color veil, so it stays cached
 const isStaticLight = l => !l.enc && !l.dynNow && !(l.ign > 0) && !(l.fT > 0) && l.kind !== 'emerg' && l.kind !== 'disco';
 let lightSkip = 0, lightUsedAdd = false;
+const lightBulbs = []; let lightWins = 0; // lamp bulbs and lit windows: added straight onto the frame (a half-res layer cleared and spread over the whole screen each frame cost far more than a few small glows)
+function drawBulbs(x) {
+  if (!lightBulbs.length && !lightWins) return; x.globalCompositeOperation = 'lighter';
+  for (const [spr, bx, by, a] of lightBulbs) { x.globalAlpha = a; x.drawImage(spr, bx - 13, by - 13, 26, 26); }
+  if (lightWins) { x.globalAlpha = lightWins; x.fillStyle = `rgb(${LCOL.window})`; for (const w of windows) x.fillRect(w.x, w.y, w.w, w.h); }
+  x.globalAlpha = 1; x.globalCompositeOperation = 'source-over';
+}
 function drawLighting(x) {
   const L = light, nv = nightVision, Q = lq();
   if (SETTINGS.lightQ === 'Off' || lowFx > 1) { // no light layer: a flat tint for dusk and night, lamp bulbs still glow
@@ -170,13 +177,14 @@ function drawLighting(x) {
     if (!nv && L.tA > .005) { x.fillStyle = `rgba(${L.tBot},${(L.tA * .6).toFixed(3)})`; x.fillRect(-20, -20, W + 40, H + 40); }
     return;
   }
-  if (Q.skip && (lightSkip ^= 1) && L.dark >= .02 && !nv) { if (L.tA > .005) { const g = x.createLinearGradient(0, 0, W * .35, H); g.addColorStop(0, `rgba(${L.tTop},${L.tA.toFixed(3)})`); g.addColorStop(1, `rgba(${L.tBot},${L.tA.toFixed(3)})`); x.fillStyle = g; x.fillRect(-20, -20, W + 40, H + 40); } x.drawImage(lightC, 0, 0, W, H); fillOutside(x, `rgba(${L.dc},${L.dark})`); if (lightUsedAdd) { x.globalCompositeOperation = 'lighter'; x.drawImage(addC, 0, 0, W, H); x.globalCompositeOperation = 'source-over'; } return; } // Low: every other frame reuses the last light layer
+  if (Q.skip && (lightSkip ^= 1) && L.dark >= .02 && !nv) { if (L.tA > .005) { const g = x.createLinearGradient(0, 0, W * .35, H); g.addColorStop(0, `rgba(${L.tTop},${L.tA.toFixed(3)})`); g.addColorStop(1, `rgba(${L.tBot},${L.tA.toFixed(3)})`); x.fillStyle = g; x.fillRect(-20, -20, W + 40, H + 40); } x.drawImage(lightC, 0, 0, W, H); fillOutside(x, `rgba(${L.dc},${L.dark})`); if (lightUsedAdd) { x.globalCompositeOperation = 'lighter'; x.drawImage(addC, 0, 0, W, H); x.globalCompositeOperation = 'source-over'; } drawBulbs(x); return; } // Low: every other frame reuses the last light layer
   if (!nv && L.tA > .005) { // dawn / dusk grade: sky-side to horizon-side colors
     const g = x.createLinearGradient(0, 0, W * .35, H);
     g.addColorStop(0, `rgba(${L.tTop},${L.tA.toFixed(3)})`); g.addColorStop(1, `rgba(${L.tBot},${L.tA.toFixed(3)})`);
     x.fillStyle = g; x.fillRect(-20, -20, W + 40, H + 40);
   }
   const dark = L.dark * (nv ? .15 : 1);
+  lightBulbs.length = 0; lightWins = 0;
   let used = false; const useAdd = () => { if (!used) { used = true; adx.globalAlpha = 1; adx.globalCompositeOperation = 'source-over'; adx.clearRect(0, 0, W, H); adx.globalCompositeOperation = 'lighter'; } };
   if (dark >= .02) {
     if (movingShadows()) gatherDyn(); else dyn.length = 0; // only Full needs the moving casters at all
@@ -219,7 +227,7 @@ function drawLighting(x) {
     lgx.drawImage(statC, 0, 0, W, H);
     for (const l of lights) {
       const k = lightK(l); if (k < .01) continue;
-      if (l.kind === 'street' && !nv) { useAdd(); const spr = glowSprites[l.c] || (glowSprites[l.c] = lightSprite(l.c, .3)); adx.globalAlpha = k * .9; adx.drawImage(spr, l.x - 13, l.y - 13, 26, 26); } // the bulb
+      if (l.kind === 'street' && !nv) lightBulbs.push([glowSprites[l.c] || (glowSprites[l.c] = lightSprite(l.c, .3)), l.x, l.y, k * .9]); // the bulb (drawBulbs)
       if (isStaticLight(l)) continue;
       if (l.kind === 'window') { lgx.globalAlpha = k; lgx.drawImage(WIN_SPR, l.x - l.r, l.y - l.r, l.r * 2, l.r * 2); continue; }
       const s = l.size, bs = Math.ceil(s * LS); let src = l.mask;
@@ -252,9 +260,10 @@ function drawLighting(x) {
     x.drawImage(lightC, 0, 0, W, H);
     fillOutside(x, `rgba(${L.dc},${dark})`); // darkness past the map edge too
   } else for (const f of beams) { const s = composeBeam(f, false); tintFrom(s2, S1, s, f.c); useAdd(); beamAdd(f, s, .07, false); } // daylight: barely visible
-  if (L.lampsOn > .01 && !nv && windows.length) { useAdd(); adx.globalAlpha = .85 * L.lampsOn; adx.fillStyle = `rgb(${LCOL.window})`; for (const w of windows) adx.fillRect(w.x, w.y, w.w, w.h); }
+  if (L.lampsOn > .01 && !nv && windows.length) lightWins = .85 * L.lampsOn; // (drawBulbs)
   lightUsedAdd = used;
-  if (used) { adx.globalAlpha = 1; adx.globalCompositeOperation = 'source-over'; x.globalCompositeOperation = 'lighter'; x.drawImage(addC, 0, 0, W, H); x.globalCompositeOperation = 'source-over'; }
+  if (used) { adx.globalAlpha = 1; adx.globalCompositeOperation = 'source-over'; x.globalCompositeOperation = 'lighter'; x.drawImage(addC, 0, 0, W, H); x.globalCompositeOperation = 'source-over'; } // (only flashlight beams still need the layer)
+  drawBulbs(x);
 }
 
 /* ---- snake coiled all the way around a light: the light stays inside the coil ---- */

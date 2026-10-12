@@ -152,7 +152,7 @@ function perfReport() {
   const ft = [...PERF.ft].filter(v => v > 0), avg = ft.reduce((a, b) => a + b, 0) / Math.max(1, ft.length); L.push(`frame ${avg.toFixed(1)} ms (${Math.round(1000 / avg)} fps)`);
   L.push(`GPU effects ${SETTINGS.postFx}, ${POST.on ? 'in use' : 'not in use'} now${POST.verdict ? ` (${POST.verdict})` : ''}; cloud shadows ${SETTINGS.cloudShadows === false ? 'off' : 'on'}`);
   for (const s of [...PERF.stats.values()].sort((a, b) => b.avg - a.avg)) if (s.avg > .01) L.push(`${s.avg.toFixed(2).padStart(6)} ms  peak ${s.pk.toFixed(1).padStart(5)}  ${s.label}`);
-  if (PERF.abRes) for (const r of PERF.abRes) L.push(`switching off ${r.label}: -${r.ms.toFixed(1)} ms`);
+  if (PERF.abRes) for (const r of PERF.abRes) L.push(`switching off ${r.label}: -${r.ms.toFixed(1)} ms (±${(r.noise || 0).toFixed(1)}${r.ms < (r.noise || 0) * 1.5 ? ', unsure' : ''})`);
   for (const h of PERF.hitches) L.push(`hitch ${h.ms.toFixed(0)} ms: ${h.top.map(([l, v]) => `${l} ${v.toFixed(1)}`).join(', ')}`);
   return L.join('\n');
 }
@@ -173,25 +173,26 @@ async function perfFindSlow() {
   const el = PERF.el; if (PERF.ab || !el || !['play', 'ready', 'held'].includes(state)) { if (el && !PERF.ab) toast('Start a run first'); return; }
   PERF.ab = true; const box = el.querySelector('.pab'), btn = el.querySelector('.pfind'); btn.disabled = true;
   const meas = ms => new Promise(res => { const v = []; let t0 = 0, lt = 0; const f = t => { if (!t0) t0 = t; else v.push(t - lt); lt = t; if (t - t0 < ms) requestAnimationFrame(f); else { v.sort((a, b) => a - b); const k = v.slice(0, Math.max(1, Math.ceil(v.length * .95))); res(k.length ? k.reduce((a, b) => a + b, 0) / k.length : 0); } }; requestAnimationFrame(f); }); // the mean frame, the slowest 5% left out so one stray hitch doesn't count (a median hid it all at 60 Hz: a frame that misses the refresh by a hair counts as a whole one)
-  const out = [];
+  const out = [], mean = a => a.reduce((p, v) => p + v, 0) / a.length;
   try {
-    await meas(300); let base = await meas(1200);
+    await meas(300);
     for (let i = 0; i < PERF_AB.length; i++) {
       const [label, what, hint] = PERF_AB[i]; box.innerHTML = `<div class="phd">Testing ${i + 1} of ${PERF_AB.length}: ${label}</div>`;
-      const undo = [];
-      if (Array.isArray(what)) { for (const f of what) { const d = Object.getOwnPropertyDescriptor(globalThis, f); if (typeof globalThis[f] === 'function' && d && d.writable) { undo.push([f, globalThis[f]]); globalThis[f] = function () {}; } } }
-      else for (const [k, fn] of Object.entries(what)) { const v = fn(SETTINGS[k]); if (v !== null) { undo.push(['S:' + k, SETTINGS[k]]); SETTINGS[k] = v; } }
-      if (!undo.length) continue;
-      await meas(250); const off = await meas(1000);
-      for (const [f, v] of undo) if (f.startsWith('S:')) SETTINGS[f.slice(2)] = v; else globalThis[f] = v;
-      await meas(200); const again = await meas(600); base = (base * 2 + again) / 3; // the scene drifts as you play: keep the baseline fresh
-      out.push({ label, hint, ms: Math.max(0, base - off), base });
+      const undo = [], off = () => { undo.length = 0;
+        if (Array.isArray(what)) { for (const f of what) { const d = Object.getOwnPropertyDescriptor(globalThis, f); if (typeof globalThis[f] === 'function' && d && d.writable) { undo.push([f, globalThis[f]]); globalThis[f] = function () {}; } } }
+        else for (const [k, fn] of Object.entries(what)) { const v = fn(SETTINGS[k]); if (v !== null) { undo.push(['S:' + k, SETTINGS[k]]); SETTINGS[k] = v; } } };
+      const on = () => { for (const [f, v] of undo) if (f.startsWith('S:')) SETTINGS[f.slice(2)] = v; else globalThis[f] = v; };
+      const A = [], B = []; // off and on in turn, twice: the scene drifts as you play, so each off is weighed against the on beside it
+      for (let r = 0; r < 2; r++) { off(); if (!undo.length) break; await meas(150); B.push(await meas(420)); on(); await meas(150); A.push(await meas(420)); }
+      if (!B.length) continue;
+      const ms = mean(A) - mean(B), noise = (Math.max(...A) - Math.min(...A) + Math.max(...B) - Math.min(...B)) / 2; // how much the same thing measured twice moved
+      out.push({ label, hint, ms: Math.max(0, ms), base: mean(A), noise });
     }
   } finally { PERF.ab = false; btn.disabled = false; }
   out.sort((a, b) => b.ms - a.ms); PERF.abRes = out;
   const top = Math.max(1, out[0] ? out[0].ms : 1), base = out.length ? out.reduce((a, r) => a + r.base, 0) / out.length : 0;
   box.innerHTML = `<div class="prow phd"><span>What each part costs here</span><span>ms</span><span></span></div>` + out.filter(r => r.ms >= .3).slice(0, 8).map(r =>
-    `<div class="prow"><span class="pn" title="${r.hint ? 'Change it in Settings › ' + r.hint : ''}"><i class="o"></i>${r.label}${r.hint ? `<em>${r.hint}</em>` : ''}</span><span class="pv">${r.ms.toFixed(1)}</span><span class="pp">${Math.round(r.ms / Math.max(1, base) * 100)}%</span><b class="pb ab" style="width:${(r.ms / top * 100).toFixed(1)}%"></b></div>`).join('')
+    `<div class="prow"><span class="pn" title="${r.hint ? 'Change it in Settings › ' + r.hint : ''}"><i class="o"></i>${r.label}${r.hint ? `<em>${r.hint}</em>` : ''}</span><span class="pv"${r.ms < r.noise * 1.5 ? ' title="Unsure: measured twice, it moved about this much by itself"' : ''}>${r.ms.toFixed(1)}${r.ms < r.noise * 1.5 ? '?' : ''}</span><span class="pp">${Math.round(r.ms / Math.max(1, base) * 100)}%</span><b class="pb ab" style="width:${(r.ms / top * 100).toFixed(1)}%"></b></div>`).join('')
     + (out.some(r => r.ms >= .3) ? '' : `<div class="ph1"><span>${base < 18 ? 'Running at your screen\'s refresh rate: nothing here is holding it back.' : 'Nothing stood out: every part costs under 0.3 ms on this device.'}</span></div>`);
 }
 /* ---- THIS RUN: always recorded (a few comparisons a frame), so the pause screen can say what made it lag even with the
