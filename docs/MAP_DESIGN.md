@@ -44,13 +44,13 @@ This fixes every flat roof at once: the shops and supermarket in Town, both Pool
 
 ## Open Field (outdoor, open)
 
-**Identity:** nowhere to hide. Open grass, a couple of hay bales and trees.
+**Identity:** nowhere to hide. Open grass, one old oak, and a rest stop (a lamp, a bench and a bin) where the spur leaves the farm track.
 
-**Routes:** none are needed. All of it is open ground, a single connected area.
+**Routes:** none are needed, since all of it is open ground, a single connected area. The farm track crosses it west to east, the spur runs north through the fence's gate, and a verge path runs west from the spur's top, beyond the fence, and out at the west edge. On a wide map, each strip's fence has a wide gap against the field's own fence, and the west strip has a path from the track up through that gap to the verge path. The east strip has a small copse in its far corner.
 
-**Light:** none. The field is meant to go dark at night, which is the risk.
+**Light:** the rest stop's one lamp, nothing else. The rest of the field goes dark at night, which is the risk.
 
-**Verdict:** keep as is. The audit is clean.
+**Verdict:** the owner's layout (from the map editor, October 2026).
 
 ## Meadow (outdoor, open)
 
