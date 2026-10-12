@@ -83,8 +83,10 @@ function updateTrail(dt) {
   if (trail.length > 200) trail.splice(0, trail.length - 200);
 }
 function drawTrail(x) {
+  const ts = ART_FRAME.trail;
   for (const p of trail) {
     const k = 1 - p.t / p.life; x.globalAlpha = k;
+    const im = ARTO.map.size && artImg('trails/' + artName(p.type)); if (im) { x.save(); x.translate(p.x, p.y); x.rotate(p.rot || 0); x.drawImage(im, -ts / 2, -ts / 2, ts, ts); x.restore(); continue; } // your own particle (03h-art)
     switch (p.type) {
       case 'Sparkles': x.fillStyle = '#fff6c2'; star(x, p.x, p.y, 2.6 * k + 1, p.rot); break;
       case 'Hearts': x.fillStyle = '#ff4f8b'; heart(x, p.x, p.y, 3.2); break;

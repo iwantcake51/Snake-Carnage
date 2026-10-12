@@ -24,7 +24,8 @@ const GTEX = { img: {}, ok: false, drawn: new WeakSet(), sets: { // drawn: the f
   ox: 0 }; // while a wide map's middle is drawn in its own coordinates, how far it's shifted (so its textures line up with the strips')
 if (location.protocol !== 'file:') {
   const names = [...new Set(Object.values(GTEX.sets).flat())]; let left = names.length;
-  for (const n of names) { const im = new Image(); im.onload = () => { GTEX.img[n] = im; if (--left === 0) groundTexReady(); }; im.onerror = () => --left; im.src = `textures/ground/${n}.jpg?v=` + GAME_VERSION; }
+  ART_READY.then(() => { for (const n of names) { const a = artImg('textures/ground/' + n); if (a) GTEX.img[n] = a; } }); // your own photos (03h-art) over the game's
+  for (const n of names) { const im = new Image(); im.onload = () => { GTEX.img[n] = artImg('textures/ground/' + n) || im; if (--left === 0) groundTexReady(); }; im.onerror = () => --left; im.src = `textures/ground/${n}.jpg?v=` + GAME_VERSION; }
 }
 function groundTexReady() { // every image is in: menu pictures already drawn with the stand-in ground are drawn again
   GTEX.ok = true;

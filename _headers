@@ -9,3 +9,6 @@
 # The sprite atlas is requested with the game version (?v=), so it can be kept too
 /sprites/*
   Cache-Control: public, max-age=31536000, immutable
+# Your art (art/, 03h-art) is requested with the game version (?v=) too
+/art/*
+  Cache-Control: public, max-age=31536000, immutable

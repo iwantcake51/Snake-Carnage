@@ -216,6 +216,7 @@ function buildLimbs(o, ti, full, r, sz, id) {
   return { limbs, hi, S, amp: 1 };
 }
 function buildCanopy(o) { // two sprite layers: an under layer and a lighter top layer that sways a little more
+  { const im = artProp(o); if (im) { const S = o.r * 2 * (1 + 2 * ART_FRAME.treeMargin), [lo, lx] = makeSprite(S), [hi] = makeSprite(2); lx.drawImage(im, 0, 0, S, S); return { lo, hi, S, amp: o.kind === 'bush' ? .35 : 1 }; } } // your own picture of it (03h-art): the whole tree, swaying as one
   const ti = treeInfo(o), R = o.r, S = R * 2 + 18, C0 = S / 2, r = seeded(ti.seed), id = seasonId(), sz = SZN();
   const [lo, lx] = makeSprite(S), [hi, hx] = makeSprite(S);
   const rad = a => R * (.86 + .14 * Math.cos(a * ti.lobes + ti.lobeA) + .05 * Math.sin(a * 3 + ti.ph));
@@ -265,6 +266,7 @@ function buildTrees() { // called on map load; obstacles keep their collision ci
   for (const o of obstacles) if (o.kind === 'tree' || o.kind === 'bush') { treeInfo(o); const key = `${o.kind}${o.x},${o.y},${o.r}:${seasonId()}${season && season.late ? 'L' : ''}`; if (!CANOPY.has(key)) { if (CANOPY.size > 260) CANOPY.clear(); CANOPY.set(key, buildCanopy(o)); } treeSprites.push({ o, ...CANOPY.get(key) }); }
 }
 function drawTrunk(x, o) { // baked: trunk and the main limbs, which show through thin canopies and in winter
+  if (artProp(o)) return; // (your own picture of the tree has its trunk in it)
   const ti = treeInfo(o), r = seeded(ti.seed + 3), sz = SZN(), bark = sz.bark, R = o.r;
   if (ti.pine) { x.fillStyle = 'rgba(30,40,25,.25)'; circ(x, o.x, o.y, R * .9); return; }
   if (o.kind === 'bush') { x.fillStyle = 'rgba(30,40,25,.18)'; circ(x, o.x, o.y, R * .8); return; }

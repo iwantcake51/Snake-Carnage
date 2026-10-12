@@ -22,7 +22,8 @@ function kMask(name, size, dense) { // the sprite alone at this size (drawn `den
   const key = name + '|' + size + '|' + dense; let c = KSPR.masks.get(key); if (c) return c;
   const i = KSPR_IX[name]; if (i === undefined) return null;
   c = document.createElement('canvas'); c.width = c.height = size; const x = c.getContext('2d'), sx = i % KSPR_COLS * KSPR_CELL, sy = (i / KSPR_COLS | 0) * KSPR_CELL;
-  for (let k = 0; k < dense; k++) x.drawImage(KSPR.img, sx, sy, KSPR_CELL, KSPR_CELL, 0, 0, size, size);
+  const ov = ARTO.map.size && artImg('sprites/' + artName(name)); // your own sprite (03h-art)
+  for (let k = 0; k < dense; k++) ov ? x.drawImage(ov, 0, 0, size, size) : x.drawImage(KSPR.img, sx, sy, KSPR_CELL, KSPR_CELL, 0, 0, size, size);
   KSPR.masks.set(key, c); return c;
 }
 // one sprite in a color (its greys darken it, its alpha stays), as a cached canvas `size` px across; null until the atlas is in

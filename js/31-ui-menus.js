@@ -522,7 +522,7 @@ const SETTING_TABS = {
     ['seg', 'perfHud', 'Performance stats', 'Shows your frame rate and what is slowing the game. F3 during a run.', ['Off', 'FPS', 'Full']],
     ['action', 'animEd', 'Animation editor', 'How fast and how far everything moves: people, animals, plants, water, fire. Changes show live.', 'Open'],
     ['head', 'Art'],
-    ['action', 'artExport', 'Export art', 'Every skin, hat, prop, person and animal, texture, sprite and icon as image files in one .zip, to edit in GIMP, Photoshop or Pixlr.', 'Open']] },
+    ['action', 'artExport', 'Your art', 'Every skin, hat, prop, person and animal, texture and sprite as image files in one .zip, to edit in GIMP, Photoshop or Pixlr, and your edited pictures loaded back in.', 'Open']] },
   Graphics: { icon: 'graphics', lead: 'How good the game looks. Lower settings run faster.', rows: [
     ['head', 'Quality'],
     ['toggle', 'autoQ', 'Automatic quality', 'Lowers quality by itself if the game starts to lag.'],

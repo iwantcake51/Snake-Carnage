@@ -20,6 +20,7 @@ function tileNoise(n, cells, seed, oct = 3) { // periodic value noise, n x n, ab
 const BLOOD_TILE = new Map(), BLOOD_PAT = new WeakMap();
 function bloodTile(col) {
   let c = BLOOD_TILE.get(col); if (c) return c;
+  if ((c = artTile('blood', col, 128))) { BLOOD_TILE.set(col, c); return c; } // your own (03h-art)
   const N = 128, [r, g, b] = rgbOf2(col), thick = tileNoise(N, 4, 3), mid = tileNoise(N, 12, 7, 2), fine = tileNoise(N, 16, 5, 2), run = tileNoise(N, 3, 9, 2);
   c = document.createElement('canvas'); c.width = c.height = N; const x = c.getContext('2d'), im = x.createImageData(N, N), d = im.data;
   for (let i = 0; i < N * N; i++) {
