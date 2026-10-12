@@ -114,9 +114,9 @@ function refreshShop(msg) { // after buying or equipping: update the cards, chip
 function shopBody(tab) {
   if (tab === 'custom') return customBody();
   const cat = tab, list = itemsOf(cat);
-  if (cat === 'pattern') { // the skins you can buy, then the ones earned from challenges (both take your two colors), then the real snakes, each its own item
+  if (cat === 'pattern') { // every recolorable skin (the ones you buy, then the ones earned from challenges: both take your two colors), then the real snakes, each its own item
     const buy = list.filter(it => !it[2]), earned = list.filter(it => it[2]), n = buy.length, e = earned.length;
-    return `<h2>Recolorable skins</h2><div class="cards2">${buy.map((it, i) => shopCard(cat, it, i)).join('')}<div class="realhd">From challenges<small>earned, not bought: they take your two colors too</small></div>${earned.map((it, i) => shopCard(cat, it, n + i)).join('')}<div class="realhd">Real snakes<small>the real animal, its skin and colors in one: no need to own either</small></div>${REAL_SNAKES.map((r, i) => realCard(r, i, n + e + i)).join('')}</div>`;
+    return `<h2>Recolorable skins</h2><div class="cards2">${buy.map((it, i) => shopCard(cat, it, i)).join('')}${earned.map((it, i) => shopCard(cat, it, n + i)).join('')}<div class="realhd">Real snakes<small>the real animal, its skin and colors in one: no need to own either</small></div>${REAL_SNAKES.map((r, i) => realCard(r, i, n + e + i)).join('')}</div>`;
   }
   return `<h2>${CAT_LABEL[cat]}</h2><div class="cards2">${list.map((it, i) => shopCard(cat, it, i)).join('')}</div>`;
 }
