@@ -5,7 +5,8 @@ const MODS = [ // g = group shown in the panel; not = can't be combined with
   { g: 'Conditions', id: 'fow', name: 'Tunnel vision', desc: 'You only see a cone in front of you and a little around your head.', mult: .3, not: ['fog'] },
   { g: 'Conditions', id: 'airRaid', name: 'Shell Shock', desc: 'Bombs from 6 seconds in, not after a minute, and artillery from 15 seconds in. Outdoor maps only.', mult: .3 },
   { g: 'Conditions', id: 'lockOn', name: 'Locked on', desc: 'Air strikes stop guessing: every bomb is aimed right where you are heading and slides after you for a split second. Jets come over twice as fast and bombs fall far quicker. Outdoor maps only.', mult: .35, not: ['noAir'] },
-  { g: 'Conditions', id: 'noAir', name: 'Clear skies', desc: 'No air strikes at all this run: no bombs, no strafing runs, no jets. Pays a little less.', mult: -.1, not: ['airRaid', 'lockOn'] },
+  { g: 'Conditions', id: 'unmarked', name: 'Unmarked payloads', desc: 'Every bomb and shell is marked the same way: you can\'t tell fire, gas or cluster from a plain blast until it goes off. Outdoor maps only.', mult: .15, not: ['noAir'] },
+  { g: 'Conditions', id: 'noAir', name: 'Clear skies', desc: 'No air strikes at all this run: no bombs, no strafing runs, no jets. Pays a little less.', mult: -.1, not: ['airRaid', 'lockOn', 'unmarked'] },
   { g: 'Conditions', id: 'lightsOut', name: 'Lights out', desc: 'Every fixed light is off: streetlights, lamps, windows, ceiling lights. Flashlights still work.', mult: .1 },
   { g: 'Conditions', id: 'noFlash', name: 'No flashlights', desc: 'Nobody carries a flashlight.', mult: -.1 },
   { g: 'Conditions', id: 'tough', name: 'Tough structures', desc: 'Breakable objects need one Ram tier higher than usual (glass needs Ram I).', mult: .1, not: ['demolition'] },
@@ -66,7 +67,7 @@ function modBlockReason(id, ids) {
   if (NEEDS_ANIMALS[id]) { if (ids.has('noAnimals')) return `Off with No animals: ${ANIMAL_WHY[id]}`; if (!mapHasAnimals()) return `Off on ${MAPS[mapIdx].name}: ${ANIMAL_WHY[id]}`; } // the specific reason first
   if (id === 'oneLife' && !(typeof NETM !== 'undefined' && NETM.on)) return 'Multiplayer only: in single player you only get one life anyway';
   if (id === 'enchained' && !(typeof NETM !== 'undefined' && NETM.on)) return 'Multiplayer only: there is nobody to be chained to';
-  if ((id === 'airRaid' || id === 'lockOn') && MAPS[mapIdx] && (MAPS[mapIdx].indoor || MAPS[mapIdx].space)) return `Off on ${MAPS[mapIdx].name}: air strikes only happen outdoors`;
+  if ((id === 'airRaid' || id === 'lockOn' || id === 'unmarked') && MAPS[mapIdx] && (MAPS[mapIdx].indoor || MAPS[mapIdx].space)) return `Off on ${MAPS[mapIdx].name}: air strikes only happen outdoors`;
   const by = [...ids].find(o => o !== id && ((m.not || []).includes(o) || ((MODS.find(q => q.id === o) || {}).not || []).includes(id)));
   if (by) return `Can't use with ${MODS.find(q => q.id === by).name}`;
   if (ids.has('blind') && (id === 'skittish' || id === 'oblivious')) return id === 'skittish' ? "Off with Blind crowd: they can't spot you from any distance" : 'Off with Blind crowd: they already never see you';
@@ -111,14 +112,17 @@ function modHud() { // live state of the active scoring modifiers
   const html = chips.join('');
   if (el.innerHTML !== html) { el.innerHTML = html; layoutHud(); } // notifications move up out of its way
 }
-const GLUTTON_MODS = 20, GLUTTON_T = 100; // Glutton for Punishment: this many harder (+) modifiers on, nothing that makes it easier (or doesn't make it harder), and live this long
 const softModCount = ids => ids.filter(id => { const m = MODS.find(q => q.id === id); return m && !(m.mult > 0); }).length; // any modifier that isn't a harder one, Style ones included
-const hardModCount = ids => ids.filter(id => { const m = MODS.find(q => q.id === id); return m && m.mult > 0 && m.g !== 'Style' && m.g !== 'Controls'; }).length;
+const isHardMod = m => m && m.mult > 0 && m.g !== 'Style' && m.g !== 'Controls';
+const hardModCount = ids => ids.filter(id => isHardMod(MODS.find(q => q.id === id))).length;
+// Glutton for Punishment: live GLUTTON_T seconds with 80% of all the harder (+) modifiers on and no others (on an outdoor map in single
+// player that's every one that can be on at once; a team game can add One life and Enchained)
+const GLUTTON_K = .8, GLUTTON_T = 100, GLUTTON_MODS = Math.floor(MODS.filter(isHardMod).length * GLUTTON_K);
 function allHardMods(ids) { // every harder (+) modifier is on, unless another harder one that's on rules it out (or it can't work here: One life in single player, Air raid indoors)
   const on = new Set(ids), hard = id => ((MODS.find(q => q.id === id) || {}).mult || 0) > 0;
   return MODS.filter(m => m.mult > 0 && m.g !== 'Style' && m.g !== 'Controls').every(m => on.has(m.id)
     || (m.not || []).some(o => on.has(o) && hard(o)) || MODS.some(q => on.has(q.id) && hard(q.id) && (q.not || []).includes(m.id))
-    || ((m.id === 'oneLife' || m.id === 'enchained' || m.id === 'airRaid') && modBlockReason(m.id, on)));
+    || ((m.id === 'oneLife' || m.id === 'enchained' || m.id === 'airRaid' || m.id === 'lockOn' || m.id === 'unmarked') && modBlockReason(m.id, on)));
 }
 const modMult = ids => Math.max(.5, 1 + ids.reduce((a, id) => a + ((MODS.find(m => m.id === id) || {}).mult || 0), 0));
 function obstacleAt(px, py) {

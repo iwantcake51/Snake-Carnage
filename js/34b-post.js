@@ -152,7 +152,7 @@ function postPresent() { // the finished 2D frame, through the shader, onto the 
    but not everywhere. Once a session, a few seconds into a run whose frames aren't already fast, it times about a
    second with GPU effects on and a second with them off (the two look the same), and keeps the faster one. */
 function postProbeTick(ms) {
-  if (POST.verdict || state !== 'play' || SETTINGS.postFx === 'Off' || PERF.mode !== 'Off' || /[?&]glforce/.test(location.search)) return;
+  if (POST.verdict || state !== 'play' || SETTINGS.postFx === 'Off' || PERF.ab || /[?&]glforce/.test(location.search)) return;
   const P = POST.probe || (POST.probe = { t: 0, a: [], b: [] }); P.t += ms;
   if (P.t < 4000) return; // let the run settle first
   if (!P.b.length && P.a.length < 60) { if (POST.on) P.a.push(ms); else POST.verdict = 'no gl'; if (P.a.length === 60 && P.a.reduce((s, v) => s + v, 0) / 60 < 12.5) POST.verdict = 'fast'; if (P.a.length === 60 && !POST.verdict) postOff(); return; } // already over 80 fps: nothing to win either way

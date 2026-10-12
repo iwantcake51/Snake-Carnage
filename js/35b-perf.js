@@ -56,7 +56,14 @@ function perfCycle() { const o = ['Off', 'FPS', 'Full']; SETTINGS.perfHud = o[(o
 function perfShowIfPlaying() { // only during a run: never over the menus, the pause screen, the death screen or the editor
   const ov = overlay.style.display !== 'none' && !overlay.classList.contains('hide') && !!overlay.firstElementChild;
   const on = ['play', 'ready', 'held', 'intro'].includes(state) && !ov && !document.getElementById('mpPause');
-  if (PERF.el.hidden === on) PERF.el.hidden = !on;
+  if (PERF.el.hidden === on) { PERF.el.hidden = !on; if (on) perfFit(); }
+}
+const PF_M = 6; // the panel keeps this far inside the board
+function perfFit() { // the whole panel stays on the board: shrunk to fit a small screen (a phone on its side has about 320 px of height), and pulled back inside if the window got smaller since it was put somewhere. Reads sizes only when it's shown and at most twice a second
+  const el = PERF.el; if (!el || el.hidden) return; const W0 = stage.offsetWidth, H0 = stage.offsetHeight, w = el.offsetWidth, h = el.offsetHeight; if (!w || !h || !W0 || !H0) return;
+  const s = Math.max(.35, Math.min(document.body.classList.contains('phone') ? .8 : 1, (W0 - 2 * PF_M) / w, (H0 - 2 * PF_M) / h)), t = s < .999 ? `scale(${s.toFixed(3)})` : '';
+  const x = Math.round(clamp(el.offsetLeft, PF_M, Math.max(PF_M, W0 - w * s - PF_M))) + 'px', y = Math.round(clamp(el.offsetTop, PF_M, Math.max(PF_M, H0 - h * s - PF_M))) + 'px';
+  PERF.sc = s; if (el.style.transform !== t) el.style.transform = t; if (el.style.left !== x) el.style.left = x; if (el.style.top !== y) el.style.top = y;
 }
 function perfDrag(el, handle) { // grab the panel by its top bar (or anywhere on the small one) and put it where you like; it stays there
   try { const p = JSON.parse(localStorage.getItem('snakePerfPos') || 'null'); if (p) { el.style.left = p.x + 'px'; el.style.top = p.y + 'px'; } } catch (e) {}
@@ -65,7 +72,7 @@ function perfDrag(el, handle) { // grab the panel by its top bar (or anywhere on
     if (e.button !== 0 || e.target.closest('button')) return;
     const r = stage.getBoundingClientRect(), k = stage.offsetWidth / r.width, x0 = el.offsetLeft, y0 = el.offsetTop, mx = e.clientX, my = e.clientY;
     handle.setPointerCapture(e.pointerId); el.classList.add('moving'); e.preventDefault();
-    const move = ev => { const x = clamp(x0 + (ev.clientX - mx) * k, 0, stage.offsetWidth - el.offsetWidth), y = clamp(y0 + (ev.clientY - my) * k, 0, stage.offsetHeight - el.offsetHeight); el.style.left = Math.round(x) + 'px'; el.style.top = Math.round(y) + 'px'; };
+    const s = PERF.sc || 1, move = ev => { const x = clamp(x0 + (ev.clientX - mx) * k, PF_M, Math.max(PF_M, stage.offsetWidth - el.offsetWidth * s - PF_M)), y = clamp(y0 + (ev.clientY - my) * k, PF_M, Math.max(PF_M, stage.offsetHeight - el.offsetHeight * s - PF_M)); el.style.left = Math.round(x) + 'px'; el.style.top = Math.round(y) + 'px'; };
     const up = () => { handle.removeEventListener('pointermove', move); handle.removeEventListener('pointerup', up); handle.removeEventListener('pointercancel', up); el.classList.remove('moving');
       try { localStorage.setItem('snakePerfPos', JSON.stringify({ x: el.offsetLeft, y: el.offsetTop })); } catch (e) {} };
     handle.addEventListener('pointermove', move); handle.addEventListener('pointerup', up); handle.addEventListener('pointercancel', up);
@@ -103,7 +110,7 @@ function perfFrame(now) { // once per drawn frame, after update and render
   }
   PERF.frameJs = 0; PERF.winFrames = (PERF.winFrames || 0) + 1;
   if ((PERF.winT += dt) >= 500) perfShow();
-  if (PERF.nF % 3 === 0) perfGraph();
+  if (PERF.nF % 4 === 0 && !PERF.el?.hidden) perfGraph(); // (the little graph only while it's on screen)
 }
 function perfShow() {
   const frames = Math.max(1, PERF.winFrames || 1), el = PERF.el;
@@ -111,13 +118,13 @@ function perfShow() {
   const srt = ft.slice().sort((a, b) => b - a), low = srt[Math.floor(srt.length * .01)] || avg, worst = srt[0] || avg;
   if (PERF.mode === 'Full') for (const s of PERF.stats.values()) { s.avg = s.acc / frames; s.pk = s.winPeak; s.callsAvg = s.calls / frames; s.acc = 0; s.winPeak = 0; s.calls = 0; }
   PERF.winT = 0; PERF.winFrames = 0;
-  if (!el) return;
-  const q = c => el.querySelector(c), fps = Math.round(1000 / Math.max(1, avg));
+  if (!el || el.hidden) return; // (nothing on screen to update)
+  const q = c => el.querySelector(c), fps = Math.round(1000 / Math.max(1, avg)), phone = document.body.classList.contains('phone');
   q('.pfps').textContent = fps; q('.pfps').className = 'pfps ' + (fps >= 55 ? 'ok' : fps >= 30 ? 'meh' : 'bad'); q('.pa').textContent = avg.toFixed(1) + ' ms';
-  if (PERF.mode !== 'Full') return;
+  if (PERF.mode !== 'Full') return perfFit();
   q('.pl').textContent = `1% low ${Math.round(1000 / low)}`; q('.pw').textContent = `worst ${worst.toFixed(0)} ms`;
   const jsAvg = [...PERF.js].slice(-60).reduce((a, b) => a + b, 0) / 60, other = Math.max(0, avg - jsAvg);
-  const rows = [...PERF.stats.values()].filter(s => s.avg > .005 || s.pk > .4).sort((a, b) => b.avg - a.avg).slice(0, 12);
+  const rows = [...PERF.stats.values()].filter(s => s.avg > .005 || s.pk > .4).sort((a, b) => b.avg - a.avg).slice(0, phone ? 6 : 12); // (a phone has room for the top few)
   rows.push({ label: 'Browser and GPU', group: 'o', avg: other, pk: 0 });
   rows.sort((a, b) => b.avg - a.avg);
   const scale = Math.max(16.7, rows[0] ? rows[0].avg : 1);
@@ -125,7 +132,8 @@ function perfShow() {
     `<div class="prow"><span class="pn"><i class="${s.group}"></i>${s.label}${s.callsAvg > 1.5 ? `<em>×${Math.round(s.callsAvg)}</em>` : ''}</span><span class="pv">${s.avg.toFixed(2)}</span><span class="pp">${s.pk ? s.pk.toFixed(1) : ''}</span><b class="pb ${s.group}" style="width:${Math.min(100, s.avg / scale * 100).toFixed(1)}%"></b></div>`).join('');
   const nP = typeof parts !== 'undefined' ? parts.length : 0, nC = typeof creatures !== 'undefined' ? creatures.filter(c => c.alive).length : 0;
   q('.psc').innerHTML = `<span>${esc(MAPS[mapIdx].name)}</span><span>${nC} alive</span><span>${nP} drops</span><span>${typeof gibs !== 'undefined' ? gibs.length : 0} gibs</span><span>${typeof lights !== 'undefined' && lights ? lights.length : 0} lights</span><span>${cv.width}×${cv.height}</span><span>light ${SETTINGS.lightQ}${lowFx ? ' (auto-lowered)' : ''}</span>`;
-  q('.phx').innerHTML = PERF.hitches.length ? `<div class="phd">Hitches</div>` + PERF.hitches.map(h => `<div class="ph1"><b>${h.ms.toFixed(0)} ms</b><span>${h.top.length ? h.top.map(([l, v]) => `${l} ${v.toFixed(0)}`).join(' · ') : 'not in game code (browser, GPU or garbage collection)'}</span></div>`).join('') : '';
+  q('.phx').innerHTML = PERF.hitches.length ? `<div class="phd">Hitches</div>` + PERF.hitches.slice(0, phone ? 2 : 5).map(h => `<div class="ph1"><b>${h.ms.toFixed(0)} ms</b><span>${h.top.length ? h.top.map(([l, v]) => `${l} ${v.toFixed(0)}`).join(' · ') : 'not in game code (browser, GPU or garbage collection)'}</span></div>`).join('') : '';
+  perfFit();
 }
 function perfGraph() {
   const g = PERF.gfx; if (!g) return; const c = g.canvas, w = c.width, h = c.height, full = PERF.mode === 'Full', n = full ? 150 : 45, bw = w / n, top = 50;

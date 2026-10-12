@@ -152,7 +152,7 @@ const ACH = [
   ['midas', 'Midas Touch', 'Eat {n} golden targets in total', () => PROG.goldH + PROG.goldA, 180, 'rare'],
   ['boneyard', 'Boneyard', 'Eat {n} things in total', () => PROG.kH + PROG.kA, 13000, 'rare'],
   ['apex', 'Apex Predator', 'Reach level {n}', () => PROG.level, 40, 'rare'],
-  ['allHard', 'Glutton for Punishment', `Survive ${GLUTTON_T} seconds with at least ${GLUTTON_MODS} harder modifiers on, and not one modifier that doesn't make it harder`, () => PROG.glutton || 0, 1, 'rare', { chips: 8000, tokens: 5, xp: 12000 }], // the hardest thing in the game: it pays like it
+  ['allHard', 'Glutton for Punishment', `Survive ${GLUTTON_T} s with ${Math.round(GLUTTON_K * 100)}% of the harder modifiers on, and no others`, () => PROG.glutton ? GLUTTON_MODS : Math.min(GLUTTON_MODS - 1, PROG.gluttonBest | 0), GLUTTON_MODS, 'rare', { chips: 8000, tokens: 5, xp: 12000 }], // the hardest thing in the game: it pays like it
   // secret: the name and goal stay hidden until earned; the clue is all you get
   ['charmer', 'Snake Charmer', 'Coil all the way around a light', () => PROG.coiled || 0, 1, 'hard', { secret: 1, clue: 'Wrap yourself around something bright.' }],
   ['ouroboros', 'Ouroboros', 'Bite your own tail while 60+ segments long', () => PROG.ouro || 0, 1, 'hard', { secret: 1, clue: 'Get really long. Then get hungry for yourself.' }],

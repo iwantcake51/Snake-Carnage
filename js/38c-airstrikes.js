@@ -239,7 +239,13 @@ const ARTY = { after: 150, raid: 15, every: [70, 110], everyRaid: [9, 14], r: [1
 const ARTY_KINDS = [[undefined, 40], ['g', 30], ['i', 15], ['c', 15]]; // what a shell carries: high explosive mostly, gas shells (the only gas there is: it lands on ground you've just left, so it's a trap you can see, never a blindfold on your way in), cluster shells that chew up a coiled tail
 const ARTY_PAL = { // each payload's colours on the artillery marker (z: the glow under it; on/off: the flashing ring; soft: the ticks, inner rings and fills)
   he: { z: [170, 125, 255], on: '#e6d9ff', off: '#b99cff', soft: '214,194,255', lab: '#d4c2ff' }, g: { z: [150, 200, 40], on: '#e4ff8a', off: '#9cc83a', soft: '205,240,120', lab: '#b8e04c' },
-  i: { z: [255, 110, 20], on: '#ffc06a', off: '#ff6a1a', soft: '255,175,95', lab: '#ff9a3c' }, c: { z: [255, 190, 40], on: '#ffe27a', off: '#e0a91f', soft: '255,218,115', lab: '#ffd23f' } };
+  i: { z: [255, 110, 20], on: '#ffc06a', off: '#ff6a1a', soft: '255,175,95', lab: '#ff9a3c' }, c: { z: [255, 190, 40], on: '#ffe27a', off: '#e0a91f', soft: '255,218,115', lab: '#ffd23f' },
+  x: { z: [185, 195, 205], on: '#ffffff', off: '#aab3bd', soft: '222,228,234', lab: '#dfe5eb' } }; // x: Unmarked payloads, a shell you can't read, in plain steel with a question mark
+function unmarkedView(s) { // the Unmarked payloads modifier: what the marker and the falling bomb show, every bomb a plain bomb (an incendiary's ring as wide as one) and every shell the same unreadable steel. Only the drawing sees this: the blast is the real one
+  if (!MOD.unmarked || !s.kd || (s.kd === 'a' && s.pk === 'x')) return s;
+  if (!s._uv) Object.defineProperty(s, '_uv', { value: Object.assign(Object.create(s), s.kd === 'a' ? { pk: 'x' } : { kd: undefined, r: s.kd === 'i' ? Math.round(s.r / .8) : s.r }) }); // (a view on the strike, kept out of anything that copies it: everything else reads through to it, live)
+  return s._uv;
+}
 function artyKd() { let r = Math.random() * 100; for (const [k, w] of ARTY_KINDS) if ((r -= w) < 0) return k; }
 function artyTailSpot(s, D) { // a point D up the body from the end of this snake's tail (past the head on its heading if the body is shorter than that)
   const g = s.segs; let left = D;
@@ -976,6 +982,7 @@ function drawEarlyMark(x, s, a) { // Early Warning: a teal radar contact where a
 }
 const gasMarkA = () => typeof sk === 'function' && sk('mask') ? 1 - .5 * clamp(((snake && snake.gasK) || 0) * 4, 0, 1) : .25 + .75 * GAS_SEE; // how much of the markers you can make out: a quarter in gas (never nothing: whatever kills you, you could have seen), half with the Gas Mask
 function drawStrikeMark(x, s) { // a bomb, an incendiary and a cluster bomb each have their own marker, different enough to tell apart at a glance
+  s = unmarkedView(s); // (Unmarked payloads: all of them the same)
   const el = s.dur - s.t, ew = s.ew || 0, mine = !NETM.run || s.ep === NETM.me; let fa = 1; // Early Warning: the early stretch is the teal radar marker (yours only), crossfading into this one
   if (ew) { if (!mine && el < ew) return; if (mine && el < ew + .3) { drawEarlyMark(x, s, clamp((ew + .3 - el) / .6, 0, 1) * gasMarkA()); if (el < ew - .3) return; } fa = clamp((el - (mine ? ew - .3 : ew)) / (mine ? .6 : .15), 0, 1); }
   const p = clamp((el - ew) / Math.max(.05, s.dur - ew), 0, 1), on = Math.sin(s.ph) > 0, R = s.r, rot = s.rot + T * .7, ma = gasMarkA() * fa; // ma: in gas the marker can't be made out (the bomb itself still can)
@@ -1011,6 +1018,8 @@ function drawStrikeMark(x, s) { // a bomb, an incendiary and a cluster bomb each
       x.save(); x.rotate(-rot * .6);
       for (let q = 0; q < 5; q++) { const a = q / 5 * TAU, px = Math.cos(a) * g * .58, py = Math.sin(a) * g * .58; x.beginPath(); x.arc(px, py, g * .17, 0, TAU); x.fillStyle = soft(.45); x.fill(); ink(() => { x.beginPath(); x.arc(px, py, g * .17, 0, TAU); x.moveTo(px - g * .27, py); x.lineTo(px + g * .27, py); x.moveTo(px, py - g * .27); x.lineTo(px, py + g * .27); }, C, 1.5); }
       x.restore(); x.fillStyle = DK; circ(x, 0, 0, 4); x.fillStyle = on ? '#fff' : C; circ(x, 0, 0, 2.8);
+    } else if (s.pk === 'x') { // Unmarked payloads: a question mark where the payload would be drawn
+      x.font = `900 ${Math.round(g * 1.25)}px system-ui, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.lineWidth = 3.4; x.strokeStyle = DK; x.strokeText('?', 0, 1); x.fillStyle = on ? '#fff' : C; x.fillText('?', 0, 1);
     } else { // high explosive: a cross and a diamond at the point of aim
       ink(() => { x.beginPath(); x.moveTo(-g, 0); x.lineTo(-g * .35, 0); x.moveTo(g * .35, 0); x.lineTo(g, 0); x.moveTo(0, -g); x.lineTo(0, -g * .35); x.moveTo(0, g * .35); x.lineTo(0, g); }, C, 2.2);
       x.beginPath(); x.moveTo(0, -5.5); x.lineTo(5.5, 0); x.lineTo(0, 5.5); x.lineTo(-5.5, 0); x.closePath(); x.lineWidth = 2.4; x.strokeStyle = DK; x.stroke(); x.fillStyle = on ? '#fff' : C; x.fill();
