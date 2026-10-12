@@ -96,7 +96,7 @@ function propHitPoly(o, which = 'hit') {
 propApply();
 /* ---- play tests: Quit and Menu go back to the editor, Retry stays a play test ---- */
 const _edStart = startGame;
-startGame = function (opts = {}) { if (edTesting !== null && !opts.test && !opts.mystery) opts = { ...opts, test: true }; return _edStart.call(this, opts); };
+startGame = function (opts = {}) { if (edTesting !== null && !opts.test && !opts.mystery) opts = { ...opts, test: true }; if (edTesting !== null && !progHold) { saveProg(); progHold = JSON.stringify(PROG); } return _edStart.call(this, opts); }; // a play test: progress held aside, nothing it earns is kept (02-progression)
 const _edToMenu = returnToMenu;
 returnToMenu = function () { if (edTesting !== null) ED.leaving = true; return _edToMenu.apply(this, arguments); };
 for (const [fn, id, label] of [['showPause', 'pMenuBtn', 'Back to editor'], ['showDead', 'menuBtn2', 'Editor']]) {
@@ -125,7 +125,7 @@ function startEditor(i = mapIdx) {
 const _edShowMenu = showMenu;
 showMenu = function () {
   _edShowMenu.apply(this, arguments);
-  if (edTesting !== null && state === 'menu' && !ED.open && ED.leaving) { const i = edTesting; edTesting = null; ED.leaving = false; const was = edTestData; openEditor(i); if (was) { ED.dirtySave = ED.unshared = true; edStatus('Back from the play test: your unsaved changes are still here (Ctrl+S to save)'); } return; }
-  if (edTesting === null) edTestData = null; // (the menu's own footer holds the "Map editor" link, on desktops only)
+  if (edTesting !== null && state === 'menu' && !ED.open && ED.leaving) { const i = edTesting; edTesting = null; ED.leaving = false; progRelease(); const was = edTestData; openEditor(i); if (was) { ED.dirtySave = ED.unshared = true; edStatus('Back from the play test: your unsaved changes are still here (Ctrl+S to save)'); } return; }
+  if (edTesting === null) { edTestData = null; progRelease(); } // (the menu's own footer holds the "Map editor" link, on desktops only)
 };
 addEventListener('load', () => { if (/^#editor\b/.test(location.hash)) setTimeout(() => startEditor(mapIdx), 50); }); // editor.html sends desktops here

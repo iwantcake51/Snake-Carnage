@@ -536,11 +536,9 @@ function stumpTick(dt) { // the stump keeps pumping blood for a while, leaving a
    The one it came off decides where they fly and sends that to everyone, so every screen has the same pieces in (nearly) the same places;
    whoever eats one tells the others, so it's gone everywhere ---- */
 let tailBits = [];
-function makeTailBits(piece, lost, P, Q) {
-  const n = clamp(Math.round(lost * .9), 4, 26), food = +(.75 * lost / n).toFixed(4), out = [];
-  for (let k = 0; k < n; k++) { const g = piece[Math.min(piece.length - 1, Math.floor((k + .5) / n * piece.length))], a = rand(0, TAU), sp = rand(70, 210);
-    out.push({ x: Math.round(g.x), y: Math.round(g.y), vx: Math.round(Math.cos(a) * sp), vy: Math.round(Math.sin(a) * sp), vz: Math.round(rand(120, 230)), r: +rand(0, TAU).toFixed(2), vr: +rand(-9, 9).toFixed(2), s: +rand(5, 7).toFixed(2), f: food }); }
-  return out;
+function makeTailBits(piece, lost, P, Q) { // one chunk holding all of it (75% of what was lost), sized by how much: one bite gets it all back, not a scatter of crumbs
+  const g = piece[Math.floor(piece.length / 2)] || piece[0], a = rand(0, TAU), sp = rand(40, 110);
+  return [{ x: Math.round(g.x), y: Math.round(g.y), vx: Math.round(Math.cos(a) * sp), vy: Math.round(Math.sin(a) * sp), vz: Math.round(rand(100, 170)), r: +rand(0, TAU).toFixed(2), vr: +rand(-5, 5).toFixed(2), s: +clamp(5 + Math.sqrt(lost) * 1.6, 7, 16).toFixed(2), f: +(.75 * lost).toFixed(4) }];
 }
 function spawnTailBits(id, bits, P, Q) { bits.forEach((b, k) => tailBits.push({ id: id + ':' + k, x: b.x, y: b.y, vx: b.vx, vy: b.vy, z: 6, vz: b.vz, rot: b.r, vr: b.vr, s: b.s, food: b.f, P, Q, t: 0, life: 32 })); }
 function tcutApply(e) { // someone else's tail was shot off: the same burst and the same pieces here
@@ -584,7 +582,7 @@ function drawTailBits(x) { // fat chunks of snake body: its colors, a raw red en
   if (!tailBits.length) return;
   x.save();
   for (const b of tailBits) { const al = clamp((b.life - b.t) / 2, 0, 1), s = b.s * 1.15, bob = b.z > 0 ? 0 : (1.6 + 1.6 * Math.sin(T * 3.4 + b.rot * 5)) * AN.chunks.amp, y = b.y - b.z * .3 - bob, pu = .5 + .5 * Math.sin(T * 5 + b.rot * 3); // sitting on the ground they bob, so they read as something to grab
-    x.globalCompositeOperation = 'lighter'; x.globalAlpha = al * (.35 + .3 * pu); const g = x.createRadialGradient(b.x, b.y, 0, b.x, b.y, s * 4); g.addColorStop(0, 'rgba(255,215,150,.95)'); g.addColorStop(.35, 'rgba(255,120,90,.45)'); g.addColorStop(1, 'rgba(255,80,60,0)'); x.fillStyle = g; x.beginPath(); x.arc(b.x, b.y, s * 4, 0, TAU); x.fill(); // a warm glow you can see across the map
+    x.globalCompositeOperation = 'lighter'; x.globalAlpha = al * (.35 + .3 * pu); const gr = Math.min(s * 4, 30 + s * 1.5), g = x.createRadialGradient(b.x, b.y, 0, b.x, b.y, gr); g.addColorStop(0, 'rgba(255,215,150,.95)'); g.addColorStop(.35, 'rgba(255,120,90,.45)'); g.addColorStop(1, 'rgba(255,80,60,0)'); x.fillStyle = g; x.beginPath(); x.arc(b.x, b.y, gr, 0, TAU); x.fill(); // a warm glow you can see across the map
     const tw = Math.max(0, Math.sin(T * 2.3 + b.rot * 7)) ** 6; if (tw > .05) { const L = s * (1.6 + 1.4 * tw), cx = b.x + s * .5, cy = y - s * .6; x.globalAlpha = al * tw; x.strokeStyle = '#fff6dc'; x.lineWidth = 1.2; x.beginPath(); x.moveTo(cx - L, cy); x.lineTo(cx + L, cy); x.moveTo(cx, cy - L); x.lineTo(cx, cy + L); x.stroke(); } // and now and then a glint
     x.globalCompositeOperation = 'source-over';
     x.globalAlpha = .25 * al; x.fillStyle = '#000'; x.beginPath(); x.ellipse(b.x, b.y + 1.5, s * 1.3, s * .8, 0, 0, TAU); x.fill(); // its shadow
@@ -652,6 +650,12 @@ function nearMiss(kind, x, y) { // (x, y): where it happened, right by your body
   NM.list.push({ x: x ?? snake.x, y: y ?? snake.y, t0: now, txt: chain > 1 ? `NEAR MISS x${chain}` : 'NEAR MISS', xp, chips: Math.round(chips) }); if (NM.list.length > 4) NM.list.shift();
   gainXP(Math.round(xp * SKV.nearK()), chips, { net: true }); studyHit('near'); // Daredevil, Quick Study
   if (Sfx.ok() && Sfx.gate('nm', .3)) Sfx.tone(Sfx.out(x, .5), Sfx.ctx.currentTime, 660, 1320, .16, 'triangle', .07);
+}
+function worldWord(x, y, txt, sub, col, key) { // a skill's word in the world, where it happened (like TAIL BACK and the near misses) instead of a notification; the same word again within 0.7 s counts up (LUCKY BITE x2)
+  const now = performance.now(), m0 = key && NM.list.find(m => m.key === key && now - m.t0 < 700 && m.sub === sub);
+  if (m0) { m0.n = (m0.n || 1) + 1; m0.txt = `${txt} x${m0.n}`; m0.t0 = now; m0.x = x; return; }
+  const near = NM.list.filter(m => now - m.t0 < 600 && Math.abs(m.x - x) < 70 && Math.abs((m.by ?? m.y) - y) < 30).length; // stacked over whatever is still popping there
+  NM.list.push({ key, x, y: y - near * 21, by: y, t0: now, txt, sub, col }); if (NM.list.length > 8) NM.list.shift();
 }
 function drawNearMiss(x) { // in the world, small, right where it happened: a quick pop, a little drift up, gone in a second
   if (!NM.list.length) return; const now = performance.now();

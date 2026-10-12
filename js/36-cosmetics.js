@@ -172,6 +172,7 @@ if (PROG.ach && PROG.ach.allHard && !PROG.gluttonPaid) { // earned under the old
   saveProg();
 } else if (PROG.ach && !PROG.ach.allHard) PROG.gluttonPaid = 1;
 function checkAch() {
+  if (progHold) return; // (nothing is earned in an editor play test)
   for (const a of ACH) {
     if (PROG.ach[a.id] || a.stat() < a.n) continue;
     PROG.ach[a.id] = Date.now();

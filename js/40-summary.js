@@ -58,7 +58,7 @@ function showDead() {
       <div class="sst" style="--d:.5s"><b data-to="${gold}">0</b><span>golden</span></div>
     </div>
     <div class="sxp" style="--d:.65s"><span class="slv">Lv <b id="sLv">${run.startLevel}</b></span><span class="sbar"><span class="sfill" id="sFill" style="width:${(run.startXP / xpNeed(run.startLevel) * 100).toFixed(1)}%"></span><span class="stxt" id="sTxt"></span></span>
-      <span class="sgain"><b>+<span data-to="${run.xpGained || 0}">0</span> XP</b><b class="c">+<span data-to="${run.coinsGained || 0}">0</span> <i class="pc"></i></b></span></div>
+      <span class="sgain">${progHold ? '<b>Play test: nothing earned here is kept</b>' : `<b>+<span data-to="${run.xpGained || 0}">0</span> XP</b><b class="c">+<span data-to="${run.coinsGained || 0}">0</span> <i class="pc"></i></b>`}</span></div>
     <div class="scols">
       <div class="seat"><h3>Eaten</h3>${types.length ? `<div class="egrid">${types.map(([t, n], i) => `<div class="et" style="--d:${(1 + i * .09).toFixed(2)}s"><img src="${creatureIcon(t)}" alt=""><span><b>${typeName(t, n)}</b></span><em>×<span data-to="${n}" data-delay="${1000 + i * 90}">0</span></em></div>`).join('')}</div>` : '<p class="none">Nothing. Not a single bite.</p>'}</div>
       <div class="sside">

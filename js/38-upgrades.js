@@ -68,7 +68,7 @@ const SKILL_TREE = [
     desc: 'The 3rd Eye also leads you to big crowds.', fx: [['Focus cooldown', g => SKV.focusCd(g), secs]] },
   // ---- Survival, stealth: Camouflage ----
   { id: 'camo', br: 'surv', major: 1, abil: 1, name: 'Camouflage', icon: 'camo', cost: [2], req: [], x: 390, y: 880,
-    desc: 'Turn nearly invisible. Hidden kills are silent and keep you hidden longer.', fx: [['Hidden for', g => SKV.camoDur(g), secs], ['Cooldown', g => SKV.camoCd(g), secs]] },
+    desc: 'Turn nearly invisible. Hidden kills are silent and keep you hidden a little longer. It recharges once you\'re seen.', fx: [['Hidden for', g => SKV.camoDur(g), secs], ['Hidden kills add, at most', g => SKV.camoExt(g), secs], ['Cooldown, once seen', g => SKV.camoCd(g), secs]] },
   { id: 'cover', br: 'surv', name: 'Deep Cover', icon: 'cover', cost: [1, 2, 3], req: [['camo', 1]], x: 390, y: 720,
     ranks: ['Hidden 1.5 s longer', 'Recharges 3 s faster', '12% faster while hidden'],
     desc: 'A better Camouflage: longer, then quicker to recharge, then faster while hidden.', fx: [['Hidden for', g => SKV.camoDur(g), secs], ['Cooldown', g => SKV.camoCd(g), secs], ['Speed while hidden', g => SKV.camoSpeed(g) * 100 - 100, pct]] },
@@ -103,7 +103,7 @@ const SKILL_TREE = [
   { id: 'midas', br: 'fort', major: 1, name: 'Golden Touch', icon: 'midas', cost: [3], lvl: 12, inv: 5, req: [['streak', 1]], x: 2260, y: 560,
     desc: 'Golden targets pay 50% more XP and 30 extra chips.', fx: [['Golden targets: XP', g => (SKV.goldK(g) - 1) * 100, pct], ['Golden targets: extra chips', g => SKV.goldChips(g), n => '+' + n]] },
   { id: 'study', br: 'fort', name: 'Quick Study', icon: 'study', cost: [1, 1, 2, 2, 3], req: [], x: 2450, y: 880,
-    desc: 'Bonus chips the first time each run you do something new, like eating a golden target or surviving a near miss.', fx: [['Each new one pays', g => SKV.studyChips(g), n => Math.round(n) + (Math.round(n) === 1 ? ' chip' : ' chips')]] },
+    desc: 'Bonus chips the first time each run you do something new: each kind of person or animal eaten, a golden target, a near miss, a lunge kill.', fx: [['Each new one pays', g => SKV.studyChips(g), n => Math.round(n) + (Math.round(n) === 1 ? ' chip' : ' chips')]] },
   { id: 'taskmaster', br: 'fort', name: 'Taskmaster', icon: 'taskmaster', cost: [1, 2, 3], req: [['study', 1]], x: 2450, y: 720,
     desc: 'Challenges pay more XP and chips.', fx: [['Challenge XP', g => (SKV.taskK(g) - 1) * 100, pct], ['Challenge chips', g => (SKV.taskChipK(g) - 1) * 100, pct]] },
   { id: 'daredevil', br: 'fort', name: 'Daredevil', icon: 'daredevil', cost: [1, 2, 3], req: [['taskmaster', 1]], x: 2450, y: 560,
@@ -218,6 +218,7 @@ const SKV = {
   focusDur: (g = sk) => 1.2 + rk([0, .27, .54, .9], g('keen')),
   focusCd: (g = sk) => 16 - 3 * g('gold') - 3 * g('crowd'),
   camoDur: (g = sk) => 4 + (g('cover') >= 1 ? 1.5 : 0), // Deep Cover I
+  camoExt: () => 2, // the most hidden kills can add to one use (0.5 s each): eating can't keep you hidden for good
   camoCd: (g = sk) => 14 - (g('cover') >= 2 ? 3 : 0) - 2 * g('phantom'), // Deep Cover II, Phantom
   camoSpeed: (g = sk) => 1 + (g('cover') >= 3 ? .12 : 0), // Deep Cover III
   phantomDrain: (g = sk) => g('phantom') ? .4 : 1, // how fast the combo drains while you're hidden
@@ -265,11 +266,13 @@ function payInterest() { // Compound Interest: once per run, on the run summary
   if (run.interestPaid) return; run.interestPaid = true; const n = SKV.interest(); if (!n) return;
   gainXP(0, n, { net: true }); notify({ kind: 'info', icon: '◆', title: 'Compound Interest', right: `+${n} chips`, sub: `${Math.round(INTEREST_K * 100)}% of what this run earned`, dur: 2.4, key: 'interest' });
 }
-const STUDY_KINDS = { person: 'Ate a person', animal: 'Ate an animal', golden: 'Ate a golden target', near: 'Survived a near miss', smash: 'Smashed something', challenge: 'Finished a challenge', combo: 'Reached a 10 combo', alive: 'Lived 5 minutes' };
-function studyHit(kind) { // Quick Study: the first time in a run you do each different thing, a few chips (yours only)
-  if (typeof run !== 'object' || !STUDY_KINDS[kind] || state === 'menu') return; const got = run.study || (run.study = {}); if (got[kind]) return;
-  const n = SKV.studyChips(); if (!n) return; got[kind] = 1; gainXP(0, n, { net: true });
-  notify({ kind: 'info', icon: giSvg('study'), title: 'Quick Study', sub: STUDY_KINDS[kind], right: `+${n} chips`, dur: 2, key: 'study' });
+const STUDY_KINDS = { golden: 'first golden target', near: 'first near miss', smash: 'first smash', challenge: 'first challenge', combo: 'first 10 combo', alive: '5 minutes alive', lunge: 'first lunge kill', hidden: 'first hidden kill' }; // and 'eat:<type>': the first of each kind of person or animal eaten
+const studyName = kind => kind.startsWith('eat:') ? (TYPES[kind.slice(4)] ? 'first ' + typeName(kind.slice(4), 1) : '') : STUDY_KINDS[kind];
+function studyHit(kind) { // Quick Study: the first time in a run you do each different thing, a few chips (yours only); shown in the world over your head
+  if (typeof run !== 'object' || !studyName(kind) || state === 'menu') return; const got = run.study || (run.study = {}); if (got[kind]) return;
+  const n = SKV.studyChips(); if (!n) return; got[kind] = 1; gainXP(0, n, { net: true, quiet: state === 'play' });
+  if (state === 'play' && snake && snake.alive) worldWord(snake.x, snake.y, 'QUICK STUDY', `+${n} chip${n === 1 ? '' : 's'} · ${studyName(kind)}`, '#9fd8ff');
+  else notify({ kind: 'info', icon: giSvg('study'), title: 'Quick Study', sub: studyName(kind), right: `+${n} chips`, dur: 2, key: 'study' }); // (five minutes alive is paid on the summary)
 }
 /* cooldown refunds (Bloodlust, Second Wind): only ever off a cooldown that's running right now, worked out on the cooldown after
    its modifiers (abilCd), each perk capped per use (Bloodlust half the cooldown, Second Wind a quarter) with anything over thrown away,
@@ -334,7 +337,8 @@ function bdHud() { // the small "BLOOD DEBT: X meals" pill above the ability bar
   el.dataset.tip = `Your next ${n} meal${n === 1 ? '' : 's'} pay their eating XP and chips twice, as long as the extra stays under 20% of what eating has paid you this run (past that, a meal pays as usual). ${actLeft ? `${actLeft} more time${actLeft === 1 ? '' : 's'} this run.` : 'Used up for this run.'}`;
   el.classList.remove('tick'); void el.offsetWidth; el.classList.add('tick');
 }
-function bdPopup(xp, chips, capped) { // a small dark-red chip under the usual rewards
+function bdPopup(xp, chips, capped) { // in the world over your head, dark red; a small chip under the usual rewards when there's no snake to show it on
+  if (state === 'play' && snake && snake.alive) return worldWord(snake.x, snake.y, 'BLOOD DEBT', xp || chips ? `+${xp} XP  +${chips} chips${capped ? ' (capped)' : ''}` : 'run cap reached', '#ff6a6a');
   const box = document.getElementById('rewards'); if (!box) return;
   const el = document.createElement('div'); el.className = 'rw bd';
   el.innerHTML = xp || chips ? `<span class="t">Blood Debt</span><span>+${xp} XP</span><span class="c">+${chips} <i class="pc"></i></span>${capped ? '<span class="t">capped</span>' : ''}` : '<span class="t">Blood Debt</span><span>run cap reached</span>';
@@ -357,7 +361,7 @@ const ABIL = { // cd/dur read the tree each time
   dash: { get cd() { return SKV.lungeCd(); }, get dur() { return SKV.lungeDur(); }, go(s) { s.dashT = this.dur; s.dashK = SKV.lungeK(); s.lk = Math.max(s.lk || 0, .25); Sfx.dash(); const k = sk('pounce') ? 240 : 160; camF.kv.x += Math.cos(s.angle) * k; camF.kv.y += Math.sin(s.angle) * k; } }, // Pounce: much faster, much shorter cooldown
   scent: { get cd() { return SKV.focusCd(); }, get dur() { return SKV.focusDur(); }, go(s) { // Focus: the world slows down (solo), and everyone near you lights up
     const now = performance.now(); FOCUS.t0 = now; FOCUS.until = now + this.dur * 1000; s.pingT = this.dur + 1.5; updateScent.t = 0; Sfx.focus(this.dur); } },
-  camo: { get cd() { return SKV.camoCd(); }, get dur() { return SKV.camoDur(); }, go(s) { s.camoT = this.dur; s.camoMax = this.dur + 4; Sfx.camo();
+  camo: { get cd() { return SKV.camoCd(); }, get dur() { return SKV.camoDur(); }, go(s) { s.camoT = this.dur; s.camoExt = SKV.camoExt(); Sfx.camo(); // (its cooldown only starts once you're seen again: 22-snake)
     if (AUTH()) for (const c of nearbyCreatures(s.x, s.y, 420, [])) if (c.alive && c.def.human) c.alert = Math.min(c.alert || 0, .2); } }, // anyone onto you loses you
   hoover: { get cd() { return SKV.hoovCd(); }, get dur() { return SKV.hoovDur(); }, go(s) {
     const lv = SKV.hoovLv(); s.hoovT = this.dur; s.hoovLv = lv; Sfx.vacuum(this.dur, Math.round(lv));
@@ -414,7 +418,7 @@ function abilityHud(rebuild) {
     refreshTouchAbilities();
   }
   for (const n of list) {
-    const left = Math.max(0, (abilCD[n.id] || 0) - T), k = left / abilCd(n.id);
+    const left = Math.max(0, (abilCD[n.id] || 0) - T), k = Math.min(1, left / abilCd(n.id)); // (full while Camouflage is still on: its cooldown waits for you to be seen)
     for (const host of [el, document.querySelector('#touch .tabil')]) {
       const b = host && host.querySelector(`[data-a="${n.id}"]`); if (!b) continue;
       b.classList.toggle('ready', k <= 0); b.style.setProperty('--cd', (k * 360).toFixed(0) + 'deg');
@@ -424,7 +428,7 @@ function abilityHud(rebuild) {
 function abilityTick() { // every frame: just slide the cooldown rings, so they sweep smoothly instead of ticking ten times a second
   for (const host of [document.getElementById('abil'), document.querySelector('#touch .tabil')]) {
     if (!host) continue;
-    for (const b of host.children) { const id = b.dataset.a, A = ABIL[id]; if (!A) continue; const k = Math.max(0, (abilCD[id] || 0) - T) / abilCd(id); b.style.setProperty('--cd', (k * 360).toFixed(2) + 'deg'); }
+    for (const b of host.children) { const id = b.dataset.a, A = ABIL[id]; if (!A) continue; const k = Math.min(1, Math.max(0, (abilCD[id] || 0) - T) / abilCd(id)); b.style.setProperty('--cd', (k * 360).toFixed(2) + 'deg'); }
   }
 }
 function refreshTouchAbilities() {

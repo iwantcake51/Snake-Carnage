@@ -284,7 +284,7 @@ function checkRotation() { // reroll every 15 minutes (never mid-run: a run keep
   if (state === 'paused' && overlay.style.display !== 'none' && overlay.querySelector('.pause')) { const pc = overlay.querySelector('.pch'); if (pc) pc.innerHTML = challengeRows(); } // refresh in place, never open it
 }
 function checkChallenges() {
-  if (state !== 'play' && state !== 'dead') return;
+  if ((state !== 'play' && state !== 'dead') || progHold) return; // (nor in an editor play test)
   const m = MAPS[mapIdx].name, list = activeChallenges(m);
   const done = PROG.chDone[m] = PROG.chDone[m] || {}, best = PROG.chBest[m] = PROG.chBest[m] || {};
   for (const ch of list) {
