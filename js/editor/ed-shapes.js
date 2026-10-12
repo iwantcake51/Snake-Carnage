@@ -114,8 +114,8 @@ function edShapeXf(s, s0, tp, t) { // the transform gizmo on a shape: points mov
   if (s0.nodes) { const a = t.rot * Math.PI / 180, c = Math.cos(a), sn = Math.sin(a), H = (hx, hy) => { const u = hx * t.kx, v = hy * t.ky; return [u * c - v * sn, u * sn + v * c]; };
     s.nodes = s0.nodes.map(n => { const [px, py] = tp(n[0], n[1]), [ix, iy] = H(n[2], n[3]), [ox, oy] = H(n[4], n[5]); return [px, py, ix, iy, ox, oy].map(v => Math.round(v * 10) / 10); });
     if (vecOpen(s) && (t.kx !== 1 || t.ky !== 1)) s.w = Math.max(1, Math.round(s0.w * (t.kx + t.ky) / 2)); return; }
-  const [cx, cy] = tp(s0.x + s0.w / 2, s0.y + s0.h / 2), r0 = (s0.rot || 0) * Math.PI / 180, lc = Math.abs(Math.cos(r0)), ls = Math.abs(Math.sin(r0));
-  s.w = Math.max(2, Math.round(s0.w * (lc * t.kx + ls * t.ky))); s.h = Math.max(2, Math.round(s0.h * (ls * t.kx + lc * t.ky))); s.x = cx - s.w / 2; s.y = cy - s.h / 2; s.rot = (((s0.rot || 0) + t.rot) % 360 + 360) % 360; if (!s.rot) delete s.rot;
+  const [cx, cy] = tp(s0.x + s0.w / 2, s0.y + s0.h / 2), [sw, sh] = edSideScale(s0.rot, t);
+  if (sw !== 1 || sh !== 1) { s.w = Math.max(2, Math.round(s0.w * sw)); s.h = Math.max(2, Math.round(s0.h * sh)); } else { s.w = s0.w; s.h = s0.h; } s.x = cx - s.w / 2; s.y = cy - s.h / 2; s.rot = (((s0.rot || 0) + t.rot) % 360 + 360) % 360; if (!s.rot) delete s.rot;
 }
 /* ---- the properties panel for a shape ---- */
 function edShapePanel(p, s) {
