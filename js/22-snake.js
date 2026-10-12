@@ -326,8 +326,8 @@ function eatReward(c, amount, ang) {
   const kxp = Math.round((c.def.human ? 12 : c.def.score * 4) * gold * rewardMult * mb.m * ph * fk * lifeK * cbK);
   crEat(c, pts, kxp); statEat(c); progressEat(c);
   const bx = Math.round((c.def.human ? 12 : c.def.score * 4) * gold * rewardMult * mb.m * lifeK * cbK), bc = Math.max(1, Math.round(c.def.score * .6 * gold * rewardMult * mb.m * cbK)); // the meal's own reward, before any perk (Blood Debt doubles only this)
-  const fkC = (c.golden ? SKV.goldChipK() : 1) * SKV.streakChipK(undefined, s.chainN); // the same perks' cut of the chips (bigger than of the XP, which is levelling)
-  const paid = gainXP(kxp, Math.max(1, Math.round(c.def.score * .6 * gold * rewardMult * mb.m * fkC * cbK)) * (lucky ? 2 : 1));
+  const fkC = SKV.streakChipK(undefined, s.chainN), gc = c.golden ? SKV.goldChips() / CHIP_GAIN : 0; // Hot Streak's cut of the chips (bigger than of the XP, which is levelling); Golden Touch's set chips on top (gainXP takes CHIP_GAIN off again)
+  const paid = gainXP(kxp, Math.max(1, Math.round(c.def.score * .6 * gold * rewardMult * mb.m * cbK)) * fkC * (lucky ? 2 : 1) + gc); // the meal's chips rounded as always, the perks' share exact (gainXP carries the fraction), so a small bonus on a small kill isn't rounded away
   bdMeal(bx, bc, paid); // Blood Debt: after the ordinary pay, never before it (38-upgrades)
   if (lucky) notify({ kind: 'info', icon: '◆', title: 'Lucky bite', right: 'x2 chips', dur: 1.3, key: 'lucky' });
   lustRefund(); windRefund(); // Bloodlust, Second Wind: every target you eat takes a little off the abilities still recharging (cdRefund caps them)

@@ -40,7 +40,7 @@ function gainXP(xp, coins, o) { // o.raw: no XP_GAIN, no Deep Pockets (Blood Deb
   if (typeof run === 'object' && (state === 'play' || state === 'dead' || state === 'held')) { run.xpGained = (run.xpGained || 0) + xp; run.coinsGained = (run.coinsGained || 0) + coins; }
   const from = PROG.level;
   let bonus = 0;
-  while (PROG.xp >= xpNeed(PROG.level)) { PROG.xp -= xpNeed(PROG.level); PROG.level++; const b = Math.round((15 + PROG.level * 3) * CHIP_GAIN * (sv ? SKV.windK() : 1)); /* Windfall doubles it */ PROG.coins += b; bonus += b; }
+  while (PROG.xp >= xpNeed(PROG.level)) { PROG.xp -= xpNeed(PROG.level); PROG.level++; const b = Math.round((15 + PROG.level * 3) * CHIP_GAIN * (sv ? SKV.windK() : 1)); /* Windfall: +80% */ PROG.coins += b; bonus += b; }
   if (bonus) lastLevelBonus = bonus; // a later reward in the same moment must not wipe the banner's number
   saveProg();
   if (PROG.level > from) celebrateLevel(from, PROG.level); else updateHud();
