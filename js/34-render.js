@@ -78,14 +78,14 @@ function render() {
   const ws = snake && snake.wallStun > 0 ? Math.min(1.5, Math.pow(snake.wallStun / (snake.wallMax || 3.4), .6) * (snake.stunFx || 1)) : 0;
   if (ws > .02 && px <= 1 && !SETTINGS.simpleFx) { // seeing stars after a wall: the picture wobbles in slow waves, fading with the daze
     const bh = Math.ceil(cv.height / 28), amp = 7 * ws * DPR; // (fewer, taller bands: each is a draw of the whole width)
-    if (POST.on) PF.wob = amp; else for (let y = 0; y < cv.height; y += bh) { const o = Math.sin(y / cv.height * 9 + T * 3.1) * amp + Math.sin(T * 1.7 + y * .01) * amp * .4; ctx.drawImage(sceneC, 0, y, cv.width, bh, o, y, cv.width, bh); }
+    postNeed(); if (POST.on) PF.wob = amp; else for (let y = 0; y < cv.height; y += bh) { const o = Math.sin(y / cv.height * 9 + T * 3.1) * amp + Math.sin(T * 1.7 + y * .01) * amp * .4; ctx.drawImage(sceneC, 0, y, cv.width, bh, o, y, cv.width, bh); }
     if (!SETTINGS.reduceFlash && !SETTINGS.simpleFx) ca = Math.min(1, ws);
   } else if (bz > .2 && px <= 1 && !SETTINGS.simpleFx) { // close to a blast: double vision, by how close it was (the world reels through the camera, above: no copy of the frame needed)
     if (!SETTINGS.reduceFlash) ca = .5 * bz;
   }
   if (dfxSince && px <= 1 && !SETTINGS.reduceFlash && !SETTINGS.simpleFx) { const u = (performance.now() - dfxSince) / 700; if (u < 1) ca = Math.max(ca, .9 * (1 - u) ** 1.5); } // the moment you die: the picture shudders apart
-  if (ca > .01) { if (POST.on) { PF.ca = ca; PF.cad = (3 + 9 * ca) * DPR * Math.sin(T * 5.5); } else chromaSplit(ca); } // once a frame, however many things want it
-  if (snake && snake.ramT > 0 && px <= 1 && !SETTINGS.reduceFlash) { const bk = Math.pow(snake.ramT / (snake.ramMax || 1), .6) * (snake.stunFx || 1); const cb = bk * (snake.wallStun > 0 ? .26 : .1); if (POST.on) PF.cb = Math.min(.85, cb); else concussBloom(cb); } // any daze blooms; walls much more
+  if (ca > .01) { postNeed(); if (POST.on) { PF.ca = ca; PF.cad = (3 + 9 * ca) * DPR * Math.sin(T * 5.5); } else chromaSplit(ca); } // once a frame, however many things want it
+  if (snake && snake.ramT > 0 && px <= 1 && !SETTINGS.reduceFlash) { const bk = Math.pow(snake.ramT / (snake.ramMax || 1), .6) * (snake.stunFx || 1); const cb = bk * (snake.wallStun > 0 ? .26 : .1); postNeed(); if (POST.on) PF.cb = Math.min(.85, cb); else concussBloom(cb); } // any daze blooms; walls much more
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   if (nightVision) { // green phosphor look done in-canvas, so the overlays after it keep their real colors
     ctx.globalCompositeOperation = 'saturation'; ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
@@ -213,6 +213,7 @@ function frame(now) {
   const menu = state === 'menu'; // menus show a CSS backdrop instead of the map: the game costs nothing there
   if (menu !== !!frame.cov) { frame.cov = menu; stage.classList.toggle('menuBg', menu); }
   if (menu) { UT += dt; if ((rotT -= dt) <= 0) { rotT = .5; checkRotation(); updateRotClocks(); } return; } // (in the menu a new set of challenges rolls in live)
+  postAuto(); // GPU effects: on only while something needs them (34b-post)
   try { update(dt * timeScale()); } catch (e) { loopError(e, 'update'); } // (3rd Eye's Focus slows the world)
   try { render(); } catch (e) { loopError(e, 'render'); }
   if (POST.on) try { postPresent(); } catch (e) { loopError(e, 'post'); postOff(); } // (a failing GPU pass turns itself off: the canvas path takes over)
@@ -304,7 +305,7 @@ function edgeShrink(div) { // the frame at 1/div size (div 2, 4 or 8), halved st
 }
 function softEdges(a, div, rx, ry, s0, s1, grey = 0) { // rx, ry: the ellipse's radii (board units); s0..s1: where the blur fades in along them; div: 4 or 8 (blurrier)
   if (a < .01) return;
-  if (POST.on) { PF.edges.push([Math.min(1, a), rx, ry, grey, s0, s1]); return; } // the shader blurs the edges
+  postNeed(); if (POST.on) { PF.edges.push([Math.min(1, a), rx, ry, grey, s0, s1]); return; } // the shader blurs the edges
   const S = edgeShrink(div), w = S.width, h = S.height, [c, g] = edgeCanvas('m' + div, w, h);
   g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'copy'; g.drawImage(S, 0, 0);
   if (grey > .01) { g.globalCompositeOperation = 'saturation'; g.globalAlpha = Math.min(1, grey); g.fillStyle = '#000'; g.fillRect(0, 0, w, h); g.globalAlpha = 1; }

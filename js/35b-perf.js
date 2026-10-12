@@ -150,6 +150,7 @@ function perfGraph() {
 function perfReport() {
   const L = [`Snake: Carnage ${GAME_VERSION} performance, ${MAPS[mapIdx].name}, ${cv.width}x${cv.height}, lighting ${SETTINGS.lightQ}, shadows ${SETTINGS.shadows}, blood ${SETTINGS.bloodQ}, snow ${SETTINGS.snowQ}, trees ${SETTINGS.treeQ}`];
   const ft = [...PERF.ft].filter(v => v > 0), avg = ft.reduce((a, b) => a + b, 0) / Math.max(1, ft.length); L.push(`frame ${avg.toFixed(1)} ms (${Math.round(1000 / avg)} fps)`);
+  L.push(`GPU effects ${SETTINGS.postFx}, ${POST.on ? 'in use' : 'not in use'} now${POST.verdict ? ` (${POST.verdict})` : ''}; cloud shadows ${SETTINGS.cloudShadows === false ? 'off' : 'on'}`);
   for (const s of [...PERF.stats.values()].sort((a, b) => b.avg - a.avg)) if (s.avg > .01) L.push(`${s.avg.toFixed(2).padStart(6)} ms  peak ${s.pk.toFixed(1).padStart(5)}  ${s.label}`);
   if (PERF.abRes) for (const r of PERF.abRes) L.push(`switching off ${r.label}: -${r.ms.toFixed(1)} ms`);
   for (const h of PERF.hitches) L.push(`hitch ${h.ms.toFixed(0)} ms: ${h.top.map(([l, v]) => `${l} ${v.toFixed(1)}`).join(', ')}`);
@@ -166,11 +167,12 @@ const PERF_AB = [ // [label, functions to switch off | a setting change, where t
   ['Blood drops', ['drawDrops', 'drawGloss'], 'Effects › Blood quality'], ['Gibs and debris', ['drawGiblets', 'drawDebris', 'drawSparks'], 'Effects › Particles'],
   ['Mist and smoke', ['drawMist', 'drawSmoke'], 'Effects › Particles'], ['Water', ['drawWaters'], ''], ['Speech bubbles', ['drawBubbles'], 'Accessibility › Speech bubble size'],
   ['Fog and vision', ['drawVisionMask'], 'Graphics › Fog detail'], ['Lamps and fireflies', ['drawLampBugs', 'drawFireflyGlow'], ''],
+  ['GPU effects', { postFx: s => s !== 'Off' ? 'Off' : null }, 'Graphics › GPU effects'], ['Cloud shadows', ['drawCloudShadows'], 'Graphics › Cloud shadows'],
 ];
 async function perfFindSlow() {
   const el = PERF.el; if (PERF.ab || !el || !['play', 'ready', 'held'].includes(state)) { if (el && !PERF.ab) toast('Start a run first'); return; }
   PERF.ab = true; const box = el.querySelector('.pab'), btn = el.querySelector('.pfind'); btn.disabled = true;
-  const meas = ms => new Promise(res => { const v = []; let t0 = 0, lt = 0; const f = t => { if (!t0) t0 = t; else v.push(t - lt); lt = t; if (t - t0 < ms) requestAnimationFrame(f); else { v.sort((a, b) => a - b); res(v.length ? v[v.length >> 1] : 0); } }; requestAnimationFrame(f); }); // the median frame: one stray hitch doesn't skew it
+  const meas = ms => new Promise(res => { const v = []; let t0 = 0, lt = 0; const f = t => { if (!t0) t0 = t; else v.push(t - lt); lt = t; if (t - t0 < ms) requestAnimationFrame(f); else { v.sort((a, b) => a - b); const k = v.slice(0, Math.max(1, Math.ceil(v.length * .95))); res(k.length ? k.reduce((a, b) => a + b, 0) / k.length : 0); } }; requestAnimationFrame(f); }); // the mean frame, the slowest 5% left out so one stray hitch doesn't count (a median hid it all at 60 Hz: a frame that misses the refresh by a hair counts as a whole one)
   const out = [];
   try {
     await meas(300); let base = await meas(1200);

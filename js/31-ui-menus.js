@@ -528,7 +528,7 @@ const SETTING_TABS = {
     ['toggle', 'autoQ', 'Automatic quality', 'Lowers quality by itself if the game starts to lag.'],
     ['seg', 'lightQ', 'Lighting', 'Light and darkness. The biggest cost: lower it first if the game lags.', ['Off', 'Low', 'Medium', 'High']],
     ['seg', 'shadows', 'Shadows', 'Full: everything casts shadows. Static: only buildings and furniture. Off: none.', ['Off', 'Static', 'Full']],
-    ['seg', 'postFx', 'GPU effects', 'Screen effects on the graphics chip: color, blur, warps and glow in one pass, smoother and cheaper. Off uses the older canvas versions.', ['Off', 'On']],
+    ['seg', 'postFx', 'GPU effects', 'Screen effects on the graphics chip: blur, warps and glow in one pass. Auto uses it only while an effect needs it (blasts, gas, fire, a daze, the night\'s glow); On always; Off uses the canvas versions.', ['Off', 'Auto', 'On']],
     ['toggle', 'bloom', 'Bloom', 'A soft glow around things that light up.'],
     ['toggle', 'cloudShadows', 'Cloud shadows', 'Soft shadows of clouds drifting over outdoor maps by day.'],
     ['head', 'World detail'],
@@ -601,7 +601,7 @@ function applySetting(k) { // side effects of a setting change
   if (k === 'shadows') shadowsChanged();
   if (k === 'snowQ' && state !== 'menu' && season) { const was = snowOn; buildSnow(); if (was !== snowOn) drawObstacleLayer(); } // snow on or off mid-run: rebuild the ground's snow
   if (k === 'perfHud') perfApply();
-  if (k === 'postFx') { if (SETTINGS.postFx === 'Off') postOff(); else postOn(); } // GPU effects on or off, live
+  if (k === 'postFx') { if (SETTINGS.postFx === 'Off') postOff(); else if (SETTINGS.postFx === 'On') postOn(); } // GPU effects, live (Auto: postAuto decides each frame)
   if (k === 'fullscreen') setFullscreen(SETTINGS.fullscreen);
   if (k === 'renderRes') { try { localStorage.removeItem('snakeResStep'); } catch (e) {} setTimeout(() => location.reload(), 150); } // every layer is sized from it at startup
   if (k === 'bloodQ' || k === 'bloodFade') bloodQualityChanged();

@@ -214,7 +214,7 @@ function hazeBand(x, src, bx, by, bw, bh, side, A, T) { // one edge of the scree
 }
 function drawBurnHaze(x) { // screen space: while you burn, heat haze ripples in from every edge of the screen (four copied bands, nothing built per frame)
   const s = snake, k = s && s.alive && state !== 'menu' ? s.burnK || 0 : 0; if (k < .05 || SETTINGS.simpleFx || SETTINGS.reduceMotion || SETTINGS.fxLevel === 'Low') return;
-  if (POST.on) { PF.haze = 4.5 * DPR * k; return; } // the shader ripples the edges
+  postNeed(); if (POST.on) { PF.haze = 4.5 * DPR * k; return; } // the shader ripples the edges
   const src = x.canvas, w = src.width, h = src.height, A = 4.5 * DPR * k, T = UT, sb = Math.round(h * .24), st = Math.round(h * .12), sw = Math.round(w * .1);
   x.save(); x.setTransform(1, 0, 0, 1, 0, 0);
   hazeBand(x, src, 0, h - sb, w, sb, 'b', A, T); hazeBand(x, src, 0, 0, w, st, 't', A * .6, T);
@@ -378,7 +378,7 @@ function gasStatic() { // four frames of TV snow, made once
 function drawGasEdge(x) { // screen space: while you're breathing it, the edges go a sickly green and swim
   const k = gasScreen(); if (k < .02) return;
   const ax = W / H, wob = SETTINGS.reduceMotion ? 0 : Math.sin(UT * 2.3) * .04;
-  if (POST.on) { PF.gas = [k, wob, .3 * Math.pow(k, 1.6) * (SETTINGS.reduceFlash ? .5 : 1)]; return; } // the shader tints the edges and lays the static
+  postNeed(); if (POST.on) { PF.gas = [k, wob, .3 * Math.pow(k, 1.6) * (SETTINGS.reduceFlash ? .5 : 1)]; return; } // the shader tints the edges and lays the static
   x.save(); x.setTransform(DPR * ax, 0, 0, DPR, DPR * W / 2, DPR * H / 2);
   const g = x.createRadialGradient(0, 0, 0, 0, 0, H / 2 * Math.SQRT2 * (1 + wob)); g.addColorStop(.45, 'rgba(120,150,40,0)'); g.addColorStop(1, `rgba(95,120,25,${(.42 * k).toFixed(3)})`);
   x.fillStyle = g; x.fillRect(-H, -H, H * 2, H * 2); x.restore();

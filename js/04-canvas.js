@@ -8,7 +8,8 @@ const PHONE = (() => { try { return matchMedia('(pointer: coarse)').matches && M
    s: steps down, 0-2, n: slow runs in a row). Picking a Render resolution in Settings starts it over. */
 const RES_LEARN = (() => { try { const v = JSON.parse(localStorage.getItem('snakeResStep')); return v && v.s >= 0 ? { s: Math.min(2, v.s | 0), n: v.n | 0 } : { s: 0, n: 0 }; } catch (e) { return { s: 0, n: 0 }; } })(), RES_STEPS = [1, .84, .67], RES_STEP0 = RES_LEARN.s; // (RES_STEP0: the step this load draws at)
 const DPR = (() => { // render at the real on-screen size: device pixel ratio x how much the board is scaled to fit
-  const sw = Math.max(innerWidth, screen.width || 0), sh = Math.max(innerHeight, screen.height || 0), dpr = window.devicePixelRatio || 1;
+  const iw = innerWidth, ih = innerHeight, big = !PHONE && iw >= (screen.width || 0) * .6 && ih >= (screen.height || 0) * .6; // a window that fills most of the screen: drawn for the window itself (the screen's size drew a maximized window about a fifth more pixels than it shows, on every layer, every frame)
+  const sw = big ? iw : Math.max(iw, screen.width || 0), sh = big ? ih : Math.max(ih, screen.height || 0), dpr = window.devicePixelRatio || 1; // (a small window: the screen's size, so it's still sharp once it's made bigger)
   const shown = Math.min((sw - 24) / W, (sh - 70) / 640, 2.2); // CSS pixels per board unit as it's actually shown (under 1 on a phone)
   // A phone shows the board shrunk on a tiny, very dense screen: past ~1.5 the extra pixels can't be seen but every layer
   // still pays for them (and iOS Safari slows to a crawl when all the canvases together get too big)

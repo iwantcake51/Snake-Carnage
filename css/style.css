@@ -106,7 +106,12 @@ kbd{display:inline-block;min-width:22px;text-align:center;background:#231d20;bor
 
 /* ================= motion + polish layer ================= */
 :root{--ease:cubic-bezier(.2,.8,.2,1);--spring:cubic-bezier(.34,1.56,.64,1)}
-#stage{overflow:hidden;border-radius:10px}
+#stage{overflow:hidden;border-radius:0}
+/* the board's rounded corners: four small wedges of the page's color laid over its corners, not a rounded clip (clipping the
+   game's canvases, which the graphics chip composites, to a rounded shape had the browser draw the whole board again
+   offscreen every frame). The spread outside the rounded edge is cut to the board by its overflow, leaving just the wedges */
+#stage::before{content:'';position:absolute;inset:0;z-index:999;pointer-events:none;border-radius:10px;box-shadow:0 0 0 14px #080607}
+#stage>canvas{border-radius:0}
 #c{transition:translate .5s var(--ease),scale .8s var(--ease)}
 #overlay{backdrop-filter:blur(6px) saturate(.35);-webkit-backdrop-filter:blur(6px) saturate(.35);transition:opacity .38s var(--ease),backdrop-filter .45s var(--ease),-webkit-backdrop-filter .45s var(--ease),background-color .45s var(--ease);animation:fadeIn .3s ease} /* shows with a fade too, and a change of screen eases its blur */
 #overlay.menuMode{background:linear-gradient(160deg,rgba(16,11,13,.72),rgba(8,6,7,.9));backdrop-filter:blur(8px) saturate(.12) brightness(.85);-webkit-backdrop-filter:blur(8px) saturate(.12) brightness(.85)}
@@ -893,7 +898,7 @@ body.touch #abil{display:none}
 body.phone #wrap{justify-content:flex-start;padding-top:max(0px,env(safe-area-inset-top))}
 body.phone .xpt{font-size:9px}
 body.phone #mapName{display:none}
-body.phone #stage,body.phone canvas,body.phone #overlay{border-radius:0}
+body.phone #stage,body.phone canvas,body.phone #overlay{border-radius:0}body.phone #stage::before{display:none}
 body.touch .mtile:hover{translate:none}
 body.touch *{-webkit-tap-highlight-color:transparent}
 body.touch #stage{touch-action:none;user-select:none;-webkit-user-select:none}
@@ -1013,7 +1018,7 @@ body.compact .pmwrap{grid-template-columns:150px 1fr}
 /* XP bars: light from the filled part spills softly into the empty stripes */
 .xpfill,.sfill{position:absolute}
 .xp .xpfill::after,.sbar .sfill::after{content:'';display:block;position:absolute;top:0;bottom:0;right:-86px;width:90px;pointer-events:none;border-radius:0 999px 999px 0; /* a long glow running on ahead of the fill */
-  background:radial-gradient(ellipse 100% 70% at 0% 50%,color-mix(in srgb,var(--acc-hi) 55%,transparent) 0%,color-mix(in srgb,var(--acc-hi) 22%,transparent) 38%,transparent 72%);mix-blend-mode:screen}
+  background:radial-gradient(ellipse 100% 70% at 0% 50%,color-mix(in srgb,var(--acc-hi) 45%,transparent) 0%,color-mix(in srgb,var(--acc-hi) 16%,transparent) 38%,transparent 72%);filter:none;will-change:opacity} /* (no blend mode: a 'screen' glow in the HUD had the whole HUD drawn offscreen and blended over the board every frame, its pulse included) */
 .xp,.sbar{overflow:hidden!important}
 /* before the round: just the map, the people and the start prompt. The HUD comes in once you move */
 #stage.pregame #abil,#stage.pregame #chhud,#stage.pregame #modhud{opacity:0!important;pointer-events:none}
@@ -3109,7 +3114,7 @@ body.calm #overlay .sbar .sfill{animation:none}
 @media (prefers-reduced-motion:reduce){#overlay .sbar .sfill{animation:none}}
 /* cinematic danger layers (38h-cinematic): fixed gradients, only their opacity ever changes, so they're composited, never repainted */
 #cinefx{position:absolute;inset:0;z-index:11;pointer-events:none;overflow:hidden}
-#cinefx .cv{position:absolute;inset:0;opacity:0;will-change:opacity}
+#cinefx .cv{position:absolute;inset:0;opacity:0;will-change:opacity;visibility:hidden}
 #cinefx .dark{background:radial-gradient(ellipse 72% 68% at 50% 50%,transparent 38%,rgba(12,4,6,.55) 70%,rgba(4,0,2,.92) 100%)}
 #cinefx .blast{background:radial-gradient(ellipse 70% 66% at 50% 50%,transparent 30%,rgba(120,10,6,.45) 66%,rgba(40,0,0,.9) 100%);mix-blend-mode:normal}
 #cinefx .gas{background:radial-gradient(ellipse 74% 70% at 50% 50%,transparent 34%,rgba(96,130,20,.35) 68%,rgba(40,60,8,.75) 100%)}

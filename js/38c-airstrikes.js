@@ -1158,6 +1158,7 @@ function drawShockwaves(x, src) { // src: the canvas being drawn (it already hol
   let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; const add = (ax, ay, bx, by) => { x0 = Math.min(x0, ax); y0 = Math.min(y0, ay); x1 = Math.max(x1, bx); y1 = Math.max(y1, by); };
   for (const h of hz) add(h.x - h.r, h.y - h.r * 1.4, h.x + h.r, h.y + h.r * .6);
   for (const g of geo) add(g.w.x - g.out - 4, g.w.y - g.out - 4, g.w.x + g.out + 4, g.w.y + g.out + 4);
+  if (hz.length || geo.length) postNeed();
   if (POST.on) { // the shader bends the picture: just hand it the fronts and the heat, in screen pixels
     const sc = Math.hypot(m.a, m.b);
     for (const h of hz) { const C = m.transformPoint({ x: h.x, y: h.y - h.r * .4 }); PF.hz.push([C.x, C.y, h.r * sc, hA(h), h.x]); }
