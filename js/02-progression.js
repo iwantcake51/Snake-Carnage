@@ -17,7 +17,9 @@ const PROG = Object.assign({ xp: 0, level: 1, coins: 0, owned: [], best: {}, bes
   })());
 for (const k of ['best', 'bestCombo', 'chDone', 'chBest']) PROG[k] = PROG[k] || {};
 if (PROG.chRot !== Math.floor(Date.now() / (15 * 60 * 1000))) { PROG.chRot = Math.floor(Date.now() / (15 * 60 * 1000)); PROG.chDone = {}; PROG.chBest = {}; } // stale challenge progress
-function saveProg() { try { localStorage.setItem(PROG_KEY, JSON.stringify(PROG)); } catch (e) {} }
+let progHold = null; // a play test from the map editor: PROG as it was before it (40b). Nothing a play test does pays, unlocks or is saved, and PROG is put back when it ends
+function saveProg() { if (progHold) return; try { localStorage.setItem(PROG_KEY, JSON.stringify(PROG)); } catch (e) {} }
+function progRelease() { if (!progHold) return; const s = JSON.parse(progHold); for (const k of Object.keys(PROG)) delete PROG[k]; Object.assign(PROG, s); progHold = null; }
 const xpNeed = l => Math.round(1100 + 480 * Math.pow(l - 1, 1.2)); // slow from the start (a first game gets you to about level 5, not 11), and it keeps climbing without a wall: about 4-6x the old curve early on, 3x by level 20
 let MOD = {}, rewardMult = 1;
 let floaters = [];
@@ -34,13 +36,14 @@ function paySurvival() { // once, as the run ends: a bonus for every full minute
   return run.surv = { m, xp: (run.xpGained || 0) - x0, chips: (run.coinsGained || 0) - c0 };
 }
 function gainXP(xp, coins, o) { // o.raw: no XP_GAIN, no Deep Pockets (Blood Debt's extra); o.net: chips already in final units, no CHIP_GAIN (perks that list exact chips); o.quiet: no reward chip. Returns what was really paid
+  if (progHold) return { xp: 0, coins: 0 }; // (an editor play test pays nothing)
   const sv = typeof SKV === 'object', raw = o && o.raw; // (the skill tree loads later; rewards only start once everything has)
   xp = Math.round(xp * (raw ? 1 : XP_GAIN)); { const c = coins * (sv && !raw ? SKV.chipK() : 1) * (o && o.net ? 1 : CHIP_GAIN) + (+PROG.cf || 0); coins = Math.max(0, Math.floor(c)); PROG.cf = Math.max(0, c - coins); } // Deep Pockets, then the economy's cut
   PROG.xp += xp; PROG.coins += coins; PROG.earned = (PROG.earned || 0) + coins; if (!(o && o.quiet)) rewardPopup(xp, coins);
   if (typeof run === 'object' && (state === 'play' || state === 'dead' || state === 'held')) { run.xpGained = (run.xpGained || 0) + xp; run.coinsGained = (run.coinsGained || 0) + coins; }
   const from = PROG.level;
   let bonus = 0;
-  while (PROG.xp >= xpNeed(PROG.level)) { PROG.xp -= xpNeed(PROG.level); PROG.level++; const b = Math.round((15 + PROG.level * 3) * CHIP_GAIN * (sv ? SKV.windK() : 1)); /* Windfall doubles it */ PROG.coins += b; bonus += b; }
+  while (PROG.xp >= xpNeed(PROG.level)) { PROG.xp -= xpNeed(PROG.level); PROG.level++; const b = Math.round((15 + PROG.level * 3) * CHIP_GAIN * (sv ? SKV.windK() : 1)); /* Windfall: +80% */ PROG.coins += b; bonus += b; }
   if (bonus) lastLevelBonus = bonus; // a later reward in the same moment must not wipe the banner's number
   saveProg();
   if (PROG.level > from) celebrateLevel(from, PROG.level); else updateHud();

@@ -112,22 +112,32 @@ function makeGrass(n) {
     for (let b = 0; b < nb; b++) { const t = (b + .5) / nb - .5; bl.push([t * 2.6 + (r() - .5) * .9, h * (.55 + r() * .5) * (1 - Math.abs(t) * .55), t * 7 + (r() - .5) * 1.8, .32 + r() * .16]); }
     grass.push({ x, y, h, bl: PHONE ? bl.filter((_, i) => i % 2).map(([a, b, c, w]) => [a, b, c, w * 1.5]) : bl, ph: r() * TAU, c: season ? pick(SZN().blades) : r() < .5 ? '#6a8f34' : '#7a9c3c' }); } // (a phone shows a tuft a few pixels tall: half the blades, a little wider, read the same)
 }
+const GRASS_SPR = 2; // the tufts' sheet is drawn at this many times the board's own pixels, so they stay sharp zoomed in
+function grassTuft(x, g) { // one tuft at the origin, still: its soft contact shadow, every blade in the root's shade, then the upper part again in the tip's light
+  x.fillStyle = 'rgba(20,30,10,.12)'; x.beginPath(); x.ellipse(.4, .5, 3, 1.2, 0, 0, TAU); x.fill();
+  const blades = top => { x.beginPath(); for (const [ox, h, lean, bw] of g.bl) { // each blade a tapered sliver curving from its root to a point
+    const tx = ox + lean, ty = -h, cx = ox + lean * .35, cy = -h * .55;
+    if (top) { const mx = (ox + 2 * cx + tx) / 4, my = (2 * cy + ty) / 4, k = bw * .7; x.moveTo(mx - k, my); x.quadraticCurveTo((cx + tx) / 2 - k * .4, (cy + ty) / 2, tx, ty); x.quadraticCurveTo((cx + tx) / 2 + k * .4, (cy + ty) / 2, mx + k, my); x.closePath(); }
+    else { x.moveTo(ox - bw, 0); x.quadraticCurveTo(cx - bw * .5, cy, tx, ty); x.quadraticCurveTo(cx + bw * .5, cy, ox + bw, 0); x.closePath(); } } x.fill(); };
+  x.fillStyle = g.cb; blades(0); if (!PHONE) { x.fillStyle = g.ct; blades(1); } // (the lit tips: too small to see on a phone)
+}
+function grassSheet() { // every tuft drawn once, standing still, into one sheet; drawGrass stamps them slanted with the wind. Hundreds of curved blades
+  // filled every frame were the GPU's heaviest job on a grass map (about ten times what drawing them cost the code): a stamp from one sheet is cheap
+  const k = DPR * GRASS_SPR, cells = [], maxW = 2048; let cx = 0, cy = 0, rowH = 0;
+  for (const g of grass) { if (!g.cb) grassShade(g, g.c); let x0 = -2.6, x1 = 3.4, y0 = -.7;
+    for (const [ox, h, lean, bw] of g.bl) { x0 = Math.min(x0, ox - bw, ox + lean); x1 = Math.max(x1, ox + bw, ox + lean); y0 = Math.min(y0, -h); }
+    const c = { g, x0: x0 - 1.5, y0: y0 - 1.5, pw: Math.ceil((x1 - x0 + 3) * k), ph: Math.ceil((1.7 - y0 + 3) * k) };
+    if (cx + c.pw > maxW) { cx = 0; cy += rowH + 2; rowH = 0; } c.sx = cx; c.sy = cy; cx += c.pw + 2; rowH = Math.max(rowH, c.ph); cells.push(c); }
+  const S = document.createElement('canvas'); S.width = maxW; S.height = Math.max(1, cy + rowH); S.k = k; const x = S.getContext('2d');
+  for (const c of cells) { x.setTransform(k, 0, 0, k, c.sx - c.x0 * k, c.sy - c.y0 * k); grassTuft(x, c.g); c.g.spr = c; }
+  return S;
+}
 function drawGrass(x) {
   if (!grass.length) return;
-  const gt = animT('grass'), ga = AN.grass.amp;
-  if (!grass.byCol) { // one fill per shade, not one per tuft: far fewer draw calls for the graphics chip
-    const group = (m, k, g) => { let b = m.get(k); if (!b) m.set(k, b = []); b.push(g); };
-    grass.byCol = new Map(); grass.byTip = new Map(); for (const g of grass) { if (!g.cb) grassShade(g, g.c); group(grass.byCol, g.cb, g); group(grass.byTip, g.ct, g); }
-  }
-  x.fillStyle = 'rgba(20,30,10,.12)'; x.beginPath(); for (const g of grass) { x.moveTo(g.x + 3.4, g.y + .5); x.ellipse(g.x + .4, g.y + .5, 3, 1.2, 0, 0, TAU); } x.fill(); // the soft shadow where it grows out of the ground
-  for (const g of grass) g.w = (Math.sin(gt * 1.7 + g.x * .018 + g.y * .01) * 1.6 + Math.sin(gt * 3.1 + g.ph) * .4) * ga; // a gust rolls across the field
-  const blades = (list, top) => { // each blade a tapered sliver curving from its root to a point: whole in the root's shade, then its upper part again in the tip's light
-    for (const g of list) for (const [ox, h, lean, bw] of g.bl) {
-      const x0 = g.x + ox, y0 = g.y, w = g.w * h / g.h, tx = x0 + lean + w, ty = y0 - h, cx = x0 + lean * .35 + w * .45, cy = y0 - h * .55;
-      if (top) { const mx = (x0 + 2 * cx + tx) / 4, my = (y0 + 2 * cy + ty) / 4, k = bw * .7; x.moveTo(mx - k, my); x.quadraticCurveTo((cx + tx) / 2 - k * .4, (cy + ty) / 2, tx, ty); x.quadraticCurveTo((cx + tx) / 2 + k * .4, (cy + ty) / 2, mx + k, my); x.closePath(); }
-      else { x.moveTo(x0 - bw, y0); x.quadraticCurveTo(cx - bw * .5, cy, tx, ty); x.quadraticCurveTo(cx + bw * .5, cy, x0 + bw, y0); x.closePath(); }
-    }
-  };
-  for (const [col, list] of grass.byCol) { x.fillStyle = col; x.beginPath(); blades(list, 0); x.fill(); }
-  if (!PHONE) for (const [col, list] of grass.byTip) { x.fillStyle = col; x.beginPath(); blades(list, 1); x.fill(); } // (the lit tips: too small to see on a phone)
+  const k = DPR * GRASS_SPR, S = grass.sheet && grass.sheet.k === k ? grass.sheet : (grass.sheet = grassSheet()), gt = animT('grass'), ga = AN.grass.amp, M = x.getTransform(); // (a new tuft list, a burnt one included, gets a new sheet; so does a new pixel density)
+  for (const g of grass) { const c = g.spr; if (!c) continue;
+    const w = (Math.sin(gt * 1.7 + g.x * .018 + g.y * .01) * 1.6 + Math.sin(gt * 3.1 + g.ph) * .4) * ga, sh = -w / g.h; // a gust rolls across the field: each blade's tip moves by its height's share of it, as a slant does
+    x.setTransform(M.a, M.b, M.a * sh + M.c, M.b * sh + M.d, M.a * g.x + M.c * g.y + M.e, M.b * g.x + M.d * g.y + M.f);
+    x.drawImage(S, c.sx, c.sy, c.pw, c.ph, c.x0, c.y0, c.pw / k, c.ph / k); }
+  x.setTransform(M);
 }

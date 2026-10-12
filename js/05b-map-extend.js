@@ -33,9 +33,13 @@ const lampAt = (k, u, y) => LAMP(k.X(u), y);
 const MAP_EXT = {
   'Open Field': (st, k, e) => { // keep it open: the field's identity is that there's nowhere to hide
     e.floor.push(x => { clipStrip(x, st, () => { if (!GTEX.drawn.has(x)) { checker(x, ...GRASS, 32); x.fillStyle = 'rgba(70,110,30,.12)'; for (let j = 120; j < H; j += 40) x.fillRect(0, j, W, 18); x.fillStyle = '#9cc148'; x.fillRect(0, 16, W, 80); } flowers(x, 60, ['#ffffff', '#ffe066', '#c9b6ff'], 40 + st.s, 4); }); });
+    e.gateU = [Math.max(0, st.w - 100), st.w]; // the fence's gate is a wide gap against the field's own fence, a stub of fence left at the border
+    if (st.s < 0) { // a path from the track up through the gate to the verge path (points by their distance from the old edge, so it always goes through the gap)
+      const P = [[13, 393], [63, 291.5], [40, 179], [61.5, 42.5]].map(([d, y]) => [k.X(Math.max(12, st.w - d)), y]);
+      e.paths.push(P); e.trails = [[P, 16, 9]];
+    }
     if (st.w < 112) return;
-    if (st.s < 0) e.obs.push(k.C(st.w * .42, 168, 13, '#e3c565', 'hay'), k.C(st.w * .42 + 22, 182, 12, '#e3c565', 'hay')); // bales stacked by the fence, waiting to be collected
-    else e.obs.push(k.T(26, 596, 34, '#3f7a2c'), k.T(82, 606, 22)); // a small copse in the far corner
+    if (st.s > 0) e.obs.push(k.T(26, 596, 34, '#3f7a2c'), k.T(80.5, 613.5, 22)); // a small copse in the far corner
   },
   Meadow: (st, k, e) => {
     e.floor.push(x => clipStrip(x, st, () => { if (!GTEX.drawn.has(x)) checker(x, ...GRASS, 32); flowers(x, 120, ['#ffffff', '#ffe066', '#ff9ecb', '#c9b6ff'], 50 + st.s, 6); }));
@@ -240,9 +244,9 @@ function carryWalls(obs, sideOf, gateU) { // walls and fences that met the old e
   const out = [];
   for (const o of obs) if (o.t === 'r' && EXT_WALLS.has(o.kind) && o.w > o.h) for (const st of stripsOf()) {
     const meets = st.s < 0 ? o.x <= XO + B + 2 : o.x + o.w >= W - XO - B - 2; if (!meets) continue;
-    const k = stripKit(st), gu = gateU[st.s], door = o.kind === 'fence' ? 72 : 88;
-    if (st.w < 112 || gu == null) { out.push(k.R(0, o.y, st.w, o.h, o.color, o.kind)); continue; }
-    const a = Math.max(0, gu - door / 2), b = Math.min(st.w, gu + door / 2);
+    const k = stripKit(st), gu = gateU[st.s], door = o.kind === 'fence' ? 72 : 88, own = Array.isArray(gu); // (a strip can name its own gap, [from, to] in strip coordinates)
+    if (!own && (st.w < 112 || gu == null)) { out.push(k.R(0, o.y, st.w, o.h, o.color, o.kind)); continue; }
+    const a = own ? clamp(gu[0], 0, st.w) : Math.max(0, gu - door / 2), b = own ? clamp(gu[1], 0, st.w) : Math.min(st.w, gu + door / 2);
     if (a > 4) out.push(k.R(0, o.y, a, o.h, o.color, o.kind)); if (st.w - b > 4) out.push(k.R(b, o.y, st.w - b, o.h, o.color, o.kind));
   }
   return out;
@@ -295,8 +299,8 @@ function extendBuild(m, idx) {
       for (const p of trails) floorPath(x, p, 26); // (the trails carried on are painted last: the strips' flowers keep off them already)
       if (m.tileFloor) { floor0.call(b, x); for (const { e } of strips) e.cover.forEach(f => f(x)); } // a ground drawn for any width (it reads W)
       else { if (m.ground) m.ground(x); for (const { e } of strips) e.floor.forEach(f => f(x)); local(x, () => floor0.call(b, x)); for (const { e } of strips) e.cover.forEach(f => f(x)); } // (m.ground: the map's real ground first, across the whole width)
-      for (const { st, e } of strips) if (trails.length) clipStrip(x, st, () => { // the carried-on trails, in the map's own trail style
-        trailExt = true; try { dirtTrails(x, trails.map((p, i) => [p, e.trailStyle === 'park' ? 26 : 18, 90 + i])); } finally { trailExt = false; } // (the park's paths are a little wider than a farm track)
+      for (const { st, e } of strips) if (trails.length || e.trails) clipStrip(x, st, () => { // the carried-on trails, in the map's own trail style, and the strip's own (e.trails: [pts, width, seed]), painted together so they merge where they meet
+        trailExt = true; try { dirtTrails(x, [...trails.map((p, i) => [p, e.trailStyle === 'park' ? 26 : 18, 90 + i]), ...(e.trails || [])]); } finally { trailExt = false; } // (the park's paths are a little wider than a farm track)
       });
     },
     decor: decor0 && (x => local(x, () => decor0.call(b, x))),

@@ -14,7 +14,7 @@
    these effects in 2D asks POST.on first and leaves its numbers in PF instead; POST.present() spends them and clears them.
    ========================================================= */
 const PF = { grade: null, vig: null, wob: 0, ca: 0, cad: 0, cb: 0, edges: [], sw: [], hz: [], haze: 0, gas: null };
-const POST = { on: false, gl: null, el: null, P: {}, T: {}, F: {}, w: 0, h: 0, lost: false, probe: null, verdict: '' };
+const POST = { on: false, gl: null, el: null, P: {}, T: {}, F: {}, w: 0, h: 0, lost: false, probe: null, verdict: '', want: -9 };
 function postClear() { PF.grade = PF.vig = PF.gas = null; PF.wob = PF.ca = PF.cad = PF.cb = PF.haze = 0; PF.edges.length = PF.sw.length = PF.hz.length = 0; }
 const POST_HEAD = '#ifdef GL_FRAGMENT_PRECISION_HIGH\nprecision highp float;\n#else\nprecision mediump float;\n#endif\n';
 const POST_VS = 'attribute vec2 p; void main() { gl_Position = vec4(p, 0., 1.); }';
@@ -93,7 +93,7 @@ function postInit() {
   try {
     const el = POST.el || document.createElement('canvas'); el.id = 'glc';
     const opt = { alpha: false, antialias: false, depth: false, stencil: false, premultipliedAlpha: false, preserveDrawingBuffer: false, powerPreference: 'high-performance', failIfMajorPerformanceCaveat: !/[?&]glforce/.test(location.search) }; // (no software WebGL: there the canvas path is far faster; ?glforce allows it, for testing)
-    const gl = el.getContext('webgl2', opt) || el.getContext('webgl', opt); if (!gl) return false;
+    const gl = el.getContext('webgl2', opt) || el.getContext('webgl', opt); if (!gl) { POST.lost = true; POST.verdict = 'no gl'; return false; } // (not asked again: Auto would try every frame)
     const dri = gl.getExtension('WEBGL_debug_renderer_info'), who = String(dri ? gl.getParameter(dri.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER));
     if (/swiftshader|llvmpipe|softpipe|software|basic render/i.test(who) && opt.failIfMajorPerformanceCaveat) { POST.verdict = 'software gl'; POST.lost = true; return false; } // a software renderer: the canvas path is faster
     POST.el = el; POST.gl = gl;
@@ -104,7 +104,7 @@ function postInit() {
     gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.NONE); gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
     POST.w = 0; postSize(); postMirror();
     return true;
-  } catch (e) { console.warn(e); POST.gl = null; return false; }
+  } catch (e) { console.warn(e); POST.gl = null; POST.lost = true; return false; }
 }
 function postMirror() { // the GL canvas sits exactly over #c, sized and moved with it (the menus slide and zoom #c)
   const el = POST.el; if (!el) return;
@@ -131,7 +131,7 @@ function postPresent() { // the finished 2D frame, through the shader, onto the 
     pass(P.blur, a, b.t, u => { gl.uniform2f(u.dir, 0, spread / a.h); gl.uniform2f(u.res, a.w, a.h); });
   };
   if (needB) chain(F.a, F.b, -1, 1);
-  const dark = light ? light.dark || 0 : 0, bk = needG ? .42 * (.3 + .7 * dark) * (nightVision ? .4 : 1) : 0;
+  const dark = light ? light.dark || 0 : 0, bk = needG && dark > .2 ? .42 * (.3 + .7 * dark) * (nightVision ? .4 : 1) : 0; // (no glow by day: three passes for a glow you can't see)
   if (bk > .01) chain(F.g, F.g2, .8, 1.3);
   gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, w, h); const U = P.fin.u; gl.useProgram(P.fin.p);
   gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, Tx.scene); gl.uniform1i(U.uS, 0);
@@ -148,16 +148,31 @@ function postPresent() { // the finished 2D frame, through the shader, onto the 
   gl.drawArrays(gl.TRIANGLES, 0, 3);
   postClear();
 }
-/* Is it really faster here? Uploading the canvas each frame is nearly free where the canvas lives on the graphics chip,
-   but not everywhere. Once a session, a few seconds into a run whose frames aren't already fast, it times about a
-   second with GPU effects on and a second with them off (the two look the same), and keeps the faster one. */
-function postProbeTick(ms) {
-  if (POST.verdict || state !== 'play' || SETTINGS.postFx === 'Off' || PERF.mode !== 'Off' || /[?&]glforce/.test(location.search)) return;
-  const P = POST.probe || (POST.probe = { t: 0, a: [], b: [] }); P.t += ms;
-  if (P.t < 4000) return; // let the run settle first
-  if (!P.b.length && P.a.length < 60) { if (POST.on) P.a.push(ms); else POST.verdict = 'no gl'; if (P.a.length === 60 && P.a.reduce((s, v) => s + v, 0) / 60 < 12.5) POST.verdict = 'fast'; if (P.a.length === 60 && !POST.verdict) postOff(); return; } // already over 80 fps: nothing to win either way
-  if (P.b.length < 60) { P.b.push(ms); if (P.b.length < 60) return;
-    const med = a => a.slice().sort((x, y) => x - y)[30], A = med(P.a), B = med(P.b);
-    if (A > B * 1.12 && A - B > 1.5) POST.verdict = `canvas faster (${A.toFixed(1)} vs ${B.toFixed(1)} ms)`; else { POST.verdict = `gpu ok (${A.toFixed(1)} vs ${B.toFixed(1)} ms)`; postOn(); } }
+/* Auto (the default): the layer costs a copy of the whole frame and passes of its own every frame, so it's only used while
+   something needs it: an effect that would otherwise copy the screen in 2D (a wall's wobble, double vision, a daze's or a
+   lunge's soft edges, a blast's warp, burning's haze, gas) asks for it with postNeed() in either mode, and it stays on a
+   moment after the last one; or the night's glow (Bloom). The rest of the time the canvas goes straight to the screen. */
+const postNeed = () => { POST.want = UT; };
+function postAuto() { // once a frame, before anything is drawn (the drawing asks POST.on which way to go)
+  const m = SETTINGS.postFx, P = POST.probe;
+  if (m === 'Off' || POST.lost || (P && P.hold) || POST.verdict.startsWith('canvas')) { if (POST.on) postOff(); return; }
+  const glow = SETTINGS.bloom && !SETTINGS.simpleFx && SETTINGS.fxLevel !== 'Low' && light && (light.dark || 0) > .45;
+  const want = m === 'On' || UT - (POST.want ?? -9) < 1.5 || glow;
+  if (want && !POST.on) postOn(); else if (!want && POST.on) postOff();
 }
-if (SETTINGS.postFx !== 'Off') postOn(); // (default on: falls back by itself where WebGL isn't there, or isn't faster: postProbeTick)
+/* Is it really faster here? Uploading the canvas each frame is nearly free where the canvas lives on the graphics chip,
+   but not everywhere. Once a session, the first time the layer has been on for a few seconds of a run whose frames aren't
+   already fast, it times a second of frames with it and a second without (the two look the same) and keeps the faster
+   one. By the mean: at 60 Hz the median of both is one refresh, which hid the frames the layer was making miss it. */
+function postProbeTick(ms) {
+  if (POST.verdict || state !== 'play' || SETTINGS.postFx === 'Off' || PERF.ab || /[?&]glforce/.test(location.search)) return;
+  const P = POST.probe || (POST.probe = { on: 0, a: [], b: [], hold: false }), mean = a => a.reduce((s, v) => s + v, 0) / a.length;
+  if (!P.hold) { if (!POST.on) { P.on = 0; P.a.length = 0; return; } if ((P.on += ms) < 3000) return; // only once it's been on a while (a run settled, or the night)
+    P.a.push(ms); if (P.a.length < 60) return;
+    if (mean(P.a) < 12.5) { POST.verdict = 'fast'; return; } // already over 80 fps: nothing to win either way
+    P.hold = true; postOff(); return; }
+  P.b.push(ms); if (P.b.length < 60) return;
+  const A = mean(P.a), B = mean(P.b); P.hold = false;
+  POST.verdict = A > B * 1.05 && A - B > .8 ? `canvas faster (${A.toFixed(1)} vs ${B.toFixed(1)} ms)` : `gpu ok (${A.toFixed(1)} vs ${B.toFixed(1)} ms)`;
+}
+if (SETTINGS.postFx === 'On') postOn(); // (On: always, falling back by itself where WebGL isn't there, or isn't faster: postProbeTick; Auto: postAuto)

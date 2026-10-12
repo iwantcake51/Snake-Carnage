@@ -239,7 +239,13 @@ const ARTY = { after: 150, raid: 15, every: [70, 110], everyRaid: [9, 14], r: [1
 const ARTY_KINDS = [[undefined, 40], ['g', 30], ['i', 15], ['c', 15]]; // what a shell carries: high explosive mostly, gas shells (the only gas there is: it lands on ground you've just left, so it's a trap you can see, never a blindfold on your way in), cluster shells that chew up a coiled tail
 const ARTY_PAL = { // each payload's colours on the artillery marker (z: the glow under it; on/off: the flashing ring; soft: the ticks, inner rings and fills)
   he: { z: [170, 125, 255], on: '#e6d9ff', off: '#b99cff', soft: '214,194,255', lab: '#d4c2ff' }, g: { z: [150, 200, 40], on: '#e4ff8a', off: '#9cc83a', soft: '205,240,120', lab: '#b8e04c' },
-  i: { z: [255, 110, 20], on: '#ffc06a', off: '#ff6a1a', soft: '255,175,95', lab: '#ff9a3c' }, c: { z: [255, 190, 40], on: '#ffe27a', off: '#e0a91f', soft: '255,218,115', lab: '#ffd23f' } };
+  i: { z: [255, 110, 20], on: '#ffc06a', off: '#ff6a1a', soft: '255,175,95', lab: '#ff9a3c' }, c: { z: [255, 190, 40], on: '#ffe27a', off: '#e0a91f', soft: '255,218,115', lab: '#ffd23f' },
+  x: { z: [185, 195, 205], on: '#ffffff', off: '#aab3bd', soft: '222,228,234', lab: '#dfe5eb' } }; // x: Unmarked payloads, a shell you can't read, in plain steel with a question mark
+function unmarkedView(s) { // the Unmarked payloads modifier: what the marker and the falling bomb show, every bomb a plain bomb (an incendiary's ring as wide as one) and every shell the same unreadable steel. Only the drawing sees this: the blast is the real one
+  if (!MOD.unmarked || !s.kd || (s.kd === 'a' && s.pk === 'x')) return s;
+  if (!s._uv) Object.defineProperty(s, '_uv', { value: Object.assign(Object.create(s), s.kd === 'a' ? { pk: 'x' } : { kd: undefined, r: s.kd === 'i' ? Math.round(s.r / .8) : s.r }) }); // (a view on the strike, kept out of anything that copies it: everything else reads through to it, live)
+  return s._uv;
+}
 function artyKd() { let r = Math.random() * 100; for (const [k, w] of ARTY_KINDS) if ((r -= w) < 0) return k; }
 function artyTailSpot(s, D) { // a point D up the body from the end of this snake's tail (past the head on its heading if the body is shorter than that)
   const g = s.segs; let left = D;
@@ -530,10 +536,10 @@ function stumpTick(dt) { // the stump keeps pumping blood for a while, leaving a
    The one it came off decides where they fly and sends that to everyone, so every screen has the same pieces in (nearly) the same places;
    whoever eats one tells the others, so it's gone everywhere ---- */
 let tailBits = [];
-function makeTailBits(piece, lost, P, Q) {
-  const n = clamp(Math.round(lost * .9), 4, 26), food = +(.75 * lost / n).toFixed(4), out = [];
-  for (let k = 0; k < n; k++) { const g = piece[Math.min(piece.length - 1, Math.floor((k + .5) / n * piece.length))], a = rand(0, TAU), sp = rand(70, 210);
-    out.push({ x: Math.round(g.x), y: Math.round(g.y), vx: Math.round(Math.cos(a) * sp), vy: Math.round(Math.sin(a) * sp), vz: Math.round(rand(120, 230)), r: +rand(0, TAU).toFixed(2), vr: +rand(-9, 9).toFixed(2), s: +rand(5, 7).toFixed(2), f: food }); }
+function makeTailBits(piece, lost, P, Q) { // a few big chunks sharing what was lost (75% of it), each sized by its share: a handful of bites gets it back, not a scatter of crumbs
+  const n = lost < 6 ? 2 : lost < 18 ? 3 : 4, share = lost / n, out = [];
+  for (let k = 0; k < n; k++) { const g = piece[Math.min(piece.length - 1, Math.floor((k + .5) / n * piece.length))] || piece[0], a = rand(0, TAU), sp = rand(50, 130);
+    out.push({ x: Math.round(g.x), y: Math.round(g.y), vx: Math.round(Math.cos(a) * sp), vy: Math.round(Math.sin(a) * sp), vz: Math.round(rand(100, 180)), r: +rand(0, TAU).toFixed(2), vr: +rand(-6, 6).toFixed(2), s: +clamp(5 + Math.sqrt(share) * 1.6, 6.5, 13).toFixed(2), f: +(.75 * share).toFixed(4) }); }
   return out;
 }
 function spawnTailBits(id, bits, P, Q) { bits.forEach((b, k) => tailBits.push({ id: id + ':' + k, x: b.x, y: b.y, vx: b.vx, vy: b.vy, z: 6, vz: b.vz, rot: b.r, vr: b.vr, s: b.s, food: b.f, P, Q, t: 0, life: 32 })); }
@@ -578,7 +584,7 @@ function drawTailBits(x) { // fat chunks of snake body: its colors, a raw red en
   if (!tailBits.length) return;
   x.save();
   for (const b of tailBits) { const al = clamp((b.life - b.t) / 2, 0, 1), s = b.s * 1.15, bob = b.z > 0 ? 0 : (1.6 + 1.6 * Math.sin(T * 3.4 + b.rot * 5)) * AN.chunks.amp, y = b.y - b.z * .3 - bob, pu = .5 + .5 * Math.sin(T * 5 + b.rot * 3); // sitting on the ground they bob, so they read as something to grab
-    x.globalCompositeOperation = 'lighter'; x.globalAlpha = al * (.35 + .3 * pu); const g = x.createRadialGradient(b.x, b.y, 0, b.x, b.y, s * 4); g.addColorStop(0, 'rgba(255,215,150,.95)'); g.addColorStop(.35, 'rgba(255,120,90,.45)'); g.addColorStop(1, 'rgba(255,80,60,0)'); x.fillStyle = g; x.beginPath(); x.arc(b.x, b.y, s * 4, 0, TAU); x.fill(); // a warm glow you can see across the map
+    x.globalCompositeOperation = 'lighter'; x.globalAlpha = al * (.35 + .3 * pu); const gr = Math.min(s * 4, 30 + s * 1.5), g = x.createRadialGradient(b.x, b.y, 0, b.x, b.y, gr); g.addColorStop(0, 'rgba(255,215,150,.95)'); g.addColorStop(.35, 'rgba(255,120,90,.45)'); g.addColorStop(1, 'rgba(255,80,60,0)'); x.fillStyle = g; x.beginPath(); x.arc(b.x, b.y, gr, 0, TAU); x.fill(); // a warm glow you can see across the map
     const tw = Math.max(0, Math.sin(T * 2.3 + b.rot * 7)) ** 6; if (tw > .05) { const L = s * (1.6 + 1.4 * tw), cx = b.x + s * .5, cy = y - s * .6; x.globalAlpha = al * tw; x.strokeStyle = '#fff6dc'; x.lineWidth = 1.2; x.beginPath(); x.moveTo(cx - L, cy); x.lineTo(cx + L, cy); x.moveTo(cx, cy - L); x.lineTo(cx, cy + L); x.stroke(); } // and now and then a glint
     x.globalCompositeOperation = 'source-over';
     x.globalAlpha = .25 * al; x.fillStyle = '#000'; x.beginPath(); x.ellipse(b.x, b.y + 1.5, s * 1.3, s * .8, 0, 0, TAU); x.fill(); // its shadow
@@ -642,10 +648,16 @@ const NM = { at: -9, n: 0, list: [] };
 function nearMiss(kind, x, y) { // (x, y): where it happened, right by your body
   if (!snake || !snake.alive || state !== 'play') return;
   const now = performance.now(), chain = now - NM.at < 4000 ? NM.n + 1 : 1; NM.at = now; NM.n = chain;
-  const ck = (1 + .25 * Math.min(4, chain - 1)) * rewardMult, xp = Math.round((kind === 'strafe' ? 14 : 18) * ck), chips = Math.max(1, Math.round((kind === 'strafe' ? 5 : 6) * ck * SKV.nearChipK() * CHIP_GAIN)); run.nearMiss = (run.nearMiss || 0) + 1; PROG.nearT = (PROG.nearT || 0) + 1; checkAch(); // chips too, climbing with the chain like the XP
-  NM.list.push({ x: x ?? snake.x, y: y ?? snake.y, t0: now, txt: chain > 1 ? `NEAR MISS x${chain}` : 'NEAR MISS', xp, chips }); if (NM.list.length > 4) NM.list.shift();
+  const ck = (1 + .25 * Math.min(4, chain - 1)) * rewardMult, xp = Math.round((kind === 'strafe' ? 14 : 18) * ck), chips = Math.max(1, Math.round((kind === 'strafe' ? 5 : 6) * ck * CHIP_GAIN)) * SKV.nearChipK(); // (Daredevil's share exact: gainXP carries the fraction) run.nearMiss = (run.nearMiss || 0) + 1; PROG.nearT = (PROG.nearT || 0) + 1; checkAch(); // chips too, climbing with the chain like the XP
+  NM.list.push({ x: x ?? snake.x, y: y ?? snake.y, t0: now, txt: chain > 1 ? `NEAR MISS x${chain}` : 'NEAR MISS', xp, chips: Math.round(chips) }); if (NM.list.length > 4) NM.list.shift();
   gainXP(Math.round(xp * SKV.nearK()), chips, { net: true }); studyHit('near'); // Daredevil, Quick Study
   if (Sfx.ok() && Sfx.gate('nm', .3)) Sfx.tone(Sfx.out(x, .5), Sfx.ctx.currentTime, 660, 1320, .16, 'triangle', .07);
+}
+function worldWord(x, y, txt, sub, col, key) { // a skill's word in the world, where it happened (like TAIL BACK and the near misses) instead of a notification; the same word again within 0.7 s counts up (LUCKY BITE x2)
+  const now = performance.now(), m0 = key && NM.list.find(m => m.key === key && now - m.t0 < 700 && m.sub === sub);
+  if (m0) { m0.n = (m0.n || 1) + 1; m0.txt = `${txt} x${m0.n}`; m0.t0 = now; m0.x = x; return; }
+  const near = NM.list.filter(m => now - m.t0 < 600 && Math.abs(m.x - x) < 70 && Math.abs((m.by ?? m.y) - y) < 30).length; // stacked over whatever is still popping there
+  NM.list.push({ key, x, y: y - near * 21, by: y, t0: now, txt, sub, col }); if (NM.list.length > 8) NM.list.shift();
 }
 function drawNearMiss(x) { // in the world, small, right where it happened: a quick pop, a little drift up, gone in a second
   if (!NM.list.length) return; const now = performance.now();
@@ -735,7 +747,7 @@ function scorchSprite(v) {
 const inCrater = (x, y) => { for (const c of scorched) if ((x - c[0]) ** 2 + (y - c[1]) ** 2 < c[2] * c[2]) return true; return false; };
 function burnGrass(x, y, r) { // the crater and the ground round it are burnt off: grass in the middle is gone, a ring of it is left as black stubble, and none of it comes back
   const R = r * 1.25; scorched.push([x, y, R]);
-  if (grass.length) { let hit = false; grass = grass.filter(g => { const d = Math.hypot(g.x - x, g.y - y); if (d > R) return true; hit = true; if (d < r * .8) return false; g.c = g.cb = Math.random() < .5 ? '#1d1916' : '#2a231d'; g.ct = '#3a322a'; g.h *= .45; if (g.bl) g.bl = g.bl.map(([ox, h, l, bw]) => [ox, h * .45, l * .45, bw]); return true; }); if (hit) grass.byCol = null; }
+  if (grass.length) { let hit = false; const kept = grass.filter(g => { const d = Math.hypot(g.x - x, g.y - y); if (d > R) return true; hit = true; if (d < r * .8) return false; g.c = g.cb = Math.random() < .5 ? '#1d1916' : '#2a231d'; g.ct = '#3a322a'; g.h *= .45; if (g.bl) g.bl = g.bl.map(([ox, h, l, bw]) => [ox, h * .45, l * .45, bw]); return true; }); if (hit) grass = kept; } // (only when it burnt some: the new list gets a new sheet with the burnt tufts in it, drawGrass)
   if (plants.length) plants = plants.filter(p => Math.hypot(p.x - x, p.y - y) > R * .9); // the clover and ferns there are gone too
   for (let j = Math.max(0, (y - R) / GM | 0); j <= Math.min(GMH - 1, (y + R) / GM | 0); j++) for (let i = Math.max(0, (x - R) / GM | 0); i <= Math.min(GMW - 1, (x + R) / GM | 0); i++)
     if (((i + .5) * GM - x) ** 2 + ((j + .5) * GM - y) ** 2 < R * R) grassMask[j * GMW + i] = floraMask[j * GMW + i] = 0; // not grass any more: no leaves settle, no plants, no green kicked up
@@ -976,6 +988,7 @@ function drawEarlyMark(x, s, a) { // Early Warning: a teal radar contact where a
 }
 const gasMarkA = () => typeof sk === 'function' && sk('mask') ? 1 - .5 * clamp(((snake && snake.gasK) || 0) * 4, 0, 1) : .25 + .75 * GAS_SEE; // how much of the markers you can make out: a quarter in gas (never nothing: whatever kills you, you could have seen), half with the Gas Mask
 function drawStrikeMark(x, s) { // a bomb, an incendiary and a cluster bomb each have their own marker, different enough to tell apart at a glance
+  s = unmarkedView(s); // (Unmarked payloads: all of them the same)
   const el = s.dur - s.t, ew = s.ew || 0, mine = !NETM.run || s.ep === NETM.me; let fa = 1; // Early Warning: the early stretch is the teal radar marker (yours only), crossfading into this one
   if (ew) { if (!mine && el < ew) return; if (mine && el < ew + .3) { drawEarlyMark(x, s, clamp((ew + .3 - el) / .6, 0, 1) * gasMarkA()); if (el < ew - .3) return; } fa = clamp((el - (mine ? ew - .3 : ew)) / (mine ? .6 : .15), 0, 1); }
   const p = clamp((el - ew) / Math.max(.05, s.dur - ew), 0, 1), on = Math.sin(s.ph) > 0, R = s.r, rot = s.rot + T * .7, ma = gasMarkA() * fa; // ma: in gas the marker can't be made out (the bomb itself still can)
@@ -1011,6 +1024,8 @@ function drawStrikeMark(x, s) { // a bomb, an incendiary and a cluster bomb each
       x.save(); x.rotate(-rot * .6);
       for (let q = 0; q < 5; q++) { const a = q / 5 * TAU, px = Math.cos(a) * g * .58, py = Math.sin(a) * g * .58; x.beginPath(); x.arc(px, py, g * .17, 0, TAU); x.fillStyle = soft(.45); x.fill(); ink(() => { x.beginPath(); x.arc(px, py, g * .17, 0, TAU); x.moveTo(px - g * .27, py); x.lineTo(px + g * .27, py); x.moveTo(px, py - g * .27); x.lineTo(px, py + g * .27); }, C, 1.5); }
       x.restore(); x.fillStyle = DK; circ(x, 0, 0, 4); x.fillStyle = on ? '#fff' : C; circ(x, 0, 0, 2.8);
+    } else if (s.pk === 'x') { // Unmarked payloads: a question mark where the payload would be drawn
+      x.font = `900 ${Math.round(g * 1.25)}px system-ui, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.lineWidth = 3.4; x.strokeStyle = DK; x.strokeText('?', 0, 1); x.fillStyle = on ? '#fff' : C; x.fillText('?', 0, 1);
     } else { // high explosive: a cross and a diamond at the point of aim
       ink(() => { x.beginPath(); x.moveTo(-g, 0); x.lineTo(-g * .35, 0); x.moveTo(g * .35, 0); x.lineTo(g, 0); x.moveTo(0, -g); x.lineTo(0, -g * .35); x.moveTo(0, g * .35); x.lineTo(0, g); }, C, 2.2);
       x.beginPath(); x.moveTo(0, -5.5); x.lineTo(5.5, 0); x.lineTo(0, 5.5); x.lineTo(-5.5, 0); x.closePath(); x.lineWidth = 2.4; x.strokeStyle = DK; x.stroke(); x.fillStyle = on ? '#fff' : C; x.fill();
@@ -1145,6 +1160,7 @@ function drawShockwaves(x, src) { // src: the canvas being drawn (it already hol
   let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; const add = (ax, ay, bx, by) => { x0 = Math.min(x0, ax); y0 = Math.min(y0, ay); x1 = Math.max(x1, bx); y1 = Math.max(y1, by); };
   for (const h of hz) add(h.x - h.r, h.y - h.r * 1.4, h.x + h.r, h.y + h.r * .6);
   for (const g of geo) add(g.w.x - g.out - 4, g.w.y - g.out - 4, g.w.x + g.out + 4, g.w.y + g.out + 4);
+  if (hz.length || geo.length) postNeed();
   if (POST.on) { // the shader bends the picture: just hand it the fronts and the heat, in screen pixels
     const sc = Math.hypot(m.a, m.b);
     for (const h of hz) { const C = m.transformPoint({ x: h.x, y: h.y - h.r * .4 }); PF.hz.push([C.x, C.y, h.r * sc, hA(h), h.x]); }

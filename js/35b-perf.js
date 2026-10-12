@@ -56,7 +56,14 @@ function perfCycle() { const o = ['Off', 'FPS', 'Full']; SETTINGS.perfHud = o[(o
 function perfShowIfPlaying() { // only during a run: never over the menus, the pause screen, the death screen or the editor
   const ov = overlay.style.display !== 'none' && !overlay.classList.contains('hide') && !!overlay.firstElementChild;
   const on = ['play', 'ready', 'held', 'intro'].includes(state) && !ov && !document.getElementById('mpPause');
-  if (PERF.el.hidden === on) PERF.el.hidden = !on;
+  if (PERF.el.hidden === on) { PERF.el.hidden = !on; if (on) perfFit(); }
+}
+const PF_M = 6; // the panel keeps this far inside the board
+function perfFit() { // the whole panel stays on the board: shrunk to fit a small screen (a phone on its side has about 320 px of height), and pulled back inside if the window got smaller since it was put somewhere. Reads sizes only when it's shown and at most twice a second
+  const el = PERF.el; if (!el || el.hidden) return; const W0 = stage.offsetWidth, H0 = stage.offsetHeight, w = el.offsetWidth, h = el.offsetHeight; if (!w || !h || !W0 || !H0) return;
+  const s = Math.max(.35, Math.min(document.body.classList.contains('phone') ? .8 : 1, (W0 - 2 * PF_M) / w, (H0 - 2 * PF_M) / h)), t = s < .999 ? `scale(${s.toFixed(3)})` : '';
+  const x = Math.round(clamp(el.offsetLeft, PF_M, Math.max(PF_M, W0 - w * s - PF_M))) + 'px', y = Math.round(clamp(el.offsetTop, PF_M, Math.max(PF_M, H0 - h * s - PF_M))) + 'px';
+  PERF.sc = s; if (el.style.transform !== t) el.style.transform = t; if (el.style.left !== x) el.style.left = x; if (el.style.top !== y) el.style.top = y;
 }
 function perfDrag(el, handle) { // grab the panel by its top bar (or anywhere on the small one) and put it where you like; it stays there
   try { const p = JSON.parse(localStorage.getItem('snakePerfPos') || 'null'); if (p) { el.style.left = p.x + 'px'; el.style.top = p.y + 'px'; } } catch (e) {}
@@ -65,7 +72,7 @@ function perfDrag(el, handle) { // grab the panel by its top bar (or anywhere on
     if (e.button !== 0 || e.target.closest('button')) return;
     const r = stage.getBoundingClientRect(), k = stage.offsetWidth / r.width, x0 = el.offsetLeft, y0 = el.offsetTop, mx = e.clientX, my = e.clientY;
     handle.setPointerCapture(e.pointerId); el.classList.add('moving'); e.preventDefault();
-    const move = ev => { const x = clamp(x0 + (ev.clientX - mx) * k, 0, stage.offsetWidth - el.offsetWidth), y = clamp(y0 + (ev.clientY - my) * k, 0, stage.offsetHeight - el.offsetHeight); el.style.left = Math.round(x) + 'px'; el.style.top = Math.round(y) + 'px'; };
+    const s = PERF.sc || 1, move = ev => { const x = clamp(x0 + (ev.clientX - mx) * k, PF_M, Math.max(PF_M, stage.offsetWidth - el.offsetWidth * s - PF_M)), y = clamp(y0 + (ev.clientY - my) * k, PF_M, Math.max(PF_M, stage.offsetHeight - el.offsetHeight * s - PF_M)); el.style.left = Math.round(x) + 'px'; el.style.top = Math.round(y) + 'px'; };
     const up = () => { handle.removeEventListener('pointermove', move); handle.removeEventListener('pointerup', up); handle.removeEventListener('pointercancel', up); el.classList.remove('moving');
       try { localStorage.setItem('snakePerfPos', JSON.stringify({ x: el.offsetLeft, y: el.offsetTop })); } catch (e) {} };
     handle.addEventListener('pointermove', move); handle.addEventListener('pointerup', up); handle.addEventListener('pointercancel', up);
@@ -103,7 +110,7 @@ function perfFrame(now) { // once per drawn frame, after update and render
   }
   PERF.frameJs = 0; PERF.winFrames = (PERF.winFrames || 0) + 1;
   if ((PERF.winT += dt) >= 500) perfShow();
-  if (PERF.nF % 3 === 0) perfGraph();
+  if (PERF.nF % 4 === 0 && !PERF.el?.hidden) perfGraph(); // (the little graph only while it's on screen)
 }
 function perfShow() {
   const frames = Math.max(1, PERF.winFrames || 1), el = PERF.el;
@@ -111,13 +118,13 @@ function perfShow() {
   const srt = ft.slice().sort((a, b) => b - a), low = srt[Math.floor(srt.length * .01)] || avg, worst = srt[0] || avg;
   if (PERF.mode === 'Full') for (const s of PERF.stats.values()) { s.avg = s.acc / frames; s.pk = s.winPeak; s.callsAvg = s.calls / frames; s.acc = 0; s.winPeak = 0; s.calls = 0; }
   PERF.winT = 0; PERF.winFrames = 0;
-  if (!el) return;
-  const q = c => el.querySelector(c), fps = Math.round(1000 / Math.max(1, avg));
+  if (!el || el.hidden) return; // (nothing on screen to update)
+  const q = c => el.querySelector(c), fps = Math.round(1000 / Math.max(1, avg)), phone = document.body.classList.contains('phone');
   q('.pfps').textContent = fps; q('.pfps').className = 'pfps ' + (fps >= 55 ? 'ok' : fps >= 30 ? 'meh' : 'bad'); q('.pa').textContent = avg.toFixed(1) + ' ms';
-  if (PERF.mode !== 'Full') return;
+  if (PERF.mode !== 'Full') return perfFit();
   q('.pl').textContent = `1% low ${Math.round(1000 / low)}`; q('.pw').textContent = `worst ${worst.toFixed(0)} ms`;
   const jsAvg = [...PERF.js].slice(-60).reduce((a, b) => a + b, 0) / 60, other = Math.max(0, avg - jsAvg);
-  const rows = [...PERF.stats.values()].filter(s => s.avg > .005 || s.pk > .4).sort((a, b) => b.avg - a.avg).slice(0, 12);
+  const rows = [...PERF.stats.values()].filter(s => s.avg > .005 || s.pk > .4).sort((a, b) => b.avg - a.avg).slice(0, phone ? 6 : 12); // (a phone has room for the top few)
   rows.push({ label: 'Browser and GPU', group: 'o', avg: other, pk: 0 });
   rows.sort((a, b) => b.avg - a.avg);
   const scale = Math.max(16.7, rows[0] ? rows[0].avg : 1);
@@ -125,7 +132,8 @@ function perfShow() {
     `<div class="prow"><span class="pn"><i class="${s.group}"></i>${s.label}${s.callsAvg > 1.5 ? `<em>×${Math.round(s.callsAvg)}</em>` : ''}</span><span class="pv">${s.avg.toFixed(2)}</span><span class="pp">${s.pk ? s.pk.toFixed(1) : ''}</span><b class="pb ${s.group}" style="width:${Math.min(100, s.avg / scale * 100).toFixed(1)}%"></b></div>`).join('');
   const nP = typeof parts !== 'undefined' ? parts.length : 0, nC = typeof creatures !== 'undefined' ? creatures.filter(c => c.alive).length : 0;
   q('.psc').innerHTML = `<span>${esc(MAPS[mapIdx].name)}</span><span>${nC} alive</span><span>${nP} drops</span><span>${typeof gibs !== 'undefined' ? gibs.length : 0} gibs</span><span>${typeof lights !== 'undefined' && lights ? lights.length : 0} lights</span><span>${cv.width}×${cv.height}</span><span>light ${SETTINGS.lightQ}${lowFx ? ' (auto-lowered)' : ''}</span>`;
-  q('.phx').innerHTML = PERF.hitches.length ? `<div class="phd">Hitches</div>` + PERF.hitches.map(h => `<div class="ph1"><b>${h.ms.toFixed(0)} ms</b><span>${h.top.length ? h.top.map(([l, v]) => `${l} ${v.toFixed(0)}`).join(' · ') : 'not in game code (browser, GPU or garbage collection)'}</span></div>`).join('') : '';
+  q('.phx').innerHTML = PERF.hitches.length ? `<div class="phd">Hitches</div>` + PERF.hitches.slice(0, phone ? 2 : 5).map(h => `<div class="ph1"><b>${h.ms.toFixed(0)} ms</b><span>${h.top.length ? h.top.map(([l, v]) => `${l} ${v.toFixed(0)}`).join(' · ') : 'not in game code (browser, GPU or garbage collection)'}</span></div>`).join('') : '';
+  perfFit();
 }
 function perfGraph() {
   const g = PERF.gfx; if (!g) return; const c = g.canvas, w = c.width, h = c.height, full = PERF.mode === 'Full', n = full ? 150 : 45, bw = w / n, top = 50;
@@ -142,8 +150,9 @@ function perfGraph() {
 function perfReport() {
   const L = [`Snake: Carnage ${GAME_VERSION} performance, ${MAPS[mapIdx].name}, ${cv.width}x${cv.height}, lighting ${SETTINGS.lightQ}, shadows ${SETTINGS.shadows}, blood ${SETTINGS.bloodQ}, snow ${SETTINGS.snowQ}, trees ${SETTINGS.treeQ}`];
   const ft = [...PERF.ft].filter(v => v > 0), avg = ft.reduce((a, b) => a + b, 0) / Math.max(1, ft.length); L.push(`frame ${avg.toFixed(1)} ms (${Math.round(1000 / avg)} fps)`);
+  L.push(`GPU effects ${SETTINGS.postFx}, ${POST.on ? 'in use' : 'not in use'} now${POST.verdict ? ` (${POST.verdict})` : ''}; cloud shadows ${SETTINGS.cloudShadows === false ? 'off' : 'on'}`);
   for (const s of [...PERF.stats.values()].sort((a, b) => b.avg - a.avg)) if (s.avg > .01) L.push(`${s.avg.toFixed(2).padStart(6)} ms  peak ${s.pk.toFixed(1).padStart(5)}  ${s.label}`);
-  if (PERF.abRes) for (const r of PERF.abRes) L.push(`switching off ${r.label}: -${r.ms.toFixed(1)} ms`);
+  if (PERF.abRes) for (const r of PERF.abRes) L.push(`switching off ${r.label}: -${r.ms.toFixed(1)} ms (±${(r.noise || 0).toFixed(1)}${r.ms < (r.noise || 0) * 1.5 ? ', unsure' : ''})`);
   for (const h of PERF.hitches) L.push(`hitch ${h.ms.toFixed(0)} ms: ${h.top.map(([l, v]) => `${l} ${v.toFixed(1)}`).join(', ')}`);
   return L.join('\n');
 }
@@ -158,30 +167,32 @@ const PERF_AB = [ // [label, functions to switch off | a setting change, where t
   ['Blood drops', ['drawDrops', 'drawGloss'], 'Effects › Blood quality'], ['Gibs and debris', ['drawGiblets', 'drawDebris', 'drawSparks'], 'Effects › Particles'],
   ['Mist and smoke', ['drawMist', 'drawSmoke'], 'Effects › Particles'], ['Water', ['drawWaters'], ''], ['Speech bubbles', ['drawBubbles'], 'Accessibility › Speech bubble size'],
   ['Fog and vision', ['drawVisionMask'], 'Graphics › Fog detail'], ['Lamps and fireflies', ['drawLampBugs', 'drawFireflyGlow'], ''],
+  ['GPU effects', { postFx: s => s !== 'Off' ? 'Off' : null }, 'Graphics › GPU effects'], ['Cloud shadows', ['drawCloudShadows'], 'Graphics › Cloud shadows'],
 ];
 async function perfFindSlow() {
   const el = PERF.el; if (PERF.ab || !el || !['play', 'ready', 'held'].includes(state)) { if (el && !PERF.ab) toast('Start a run first'); return; }
   PERF.ab = true; const box = el.querySelector('.pab'), btn = el.querySelector('.pfind'); btn.disabled = true;
-  const meas = ms => new Promise(res => { const v = []; let t0 = 0, lt = 0; const f = t => { if (!t0) t0 = t; else v.push(t - lt); lt = t; if (t - t0 < ms) requestAnimationFrame(f); else { v.sort((a, b) => a - b); res(v.length ? v[v.length >> 1] : 0); } }; requestAnimationFrame(f); }); // the median frame: one stray hitch doesn't skew it
-  const out = [];
+  const meas = ms => new Promise(res => { const v = []; let t0 = 0, lt = 0; const f = t => { if (!t0) t0 = t; else v.push(t - lt); lt = t; if (t - t0 < ms) requestAnimationFrame(f); else { v.sort((a, b) => a - b); const k = v.slice(0, Math.max(1, Math.ceil(v.length * .95))); res(k.length ? k.reduce((a, b) => a + b, 0) / k.length : 0); } }; requestAnimationFrame(f); }); // the mean frame, the slowest 5% left out so one stray hitch doesn't count (a median hid it all at 60 Hz: a frame that misses the refresh by a hair counts as a whole one)
+  const out = [], mean = a => a.reduce((p, v) => p + v, 0) / a.length;
   try {
-    await meas(300); let base = await meas(1200);
+    await meas(300);
     for (let i = 0; i < PERF_AB.length; i++) {
       const [label, what, hint] = PERF_AB[i]; box.innerHTML = `<div class="phd">Testing ${i + 1} of ${PERF_AB.length}: ${label}</div>`;
-      const undo = [];
-      if (Array.isArray(what)) { for (const f of what) { const d = Object.getOwnPropertyDescriptor(globalThis, f); if (typeof globalThis[f] === 'function' && d && d.writable) { undo.push([f, globalThis[f]]); globalThis[f] = function () {}; } } }
-      else for (const [k, fn] of Object.entries(what)) { const v = fn(SETTINGS[k]); if (v !== null) { undo.push(['S:' + k, SETTINGS[k]]); SETTINGS[k] = v; } }
-      if (!undo.length) continue;
-      await meas(250); const off = await meas(1000);
-      for (const [f, v] of undo) if (f.startsWith('S:')) SETTINGS[f.slice(2)] = v; else globalThis[f] = v;
-      await meas(200); const again = await meas(600); base = (base * 2 + again) / 3; // the scene drifts as you play: keep the baseline fresh
-      out.push({ label, hint, ms: Math.max(0, base - off), base });
+      const undo = [], off = () => { undo.length = 0;
+        if (Array.isArray(what)) { for (const f of what) { const d = Object.getOwnPropertyDescriptor(globalThis, f); if (typeof globalThis[f] === 'function' && d && d.writable) { undo.push([f, globalThis[f]]); globalThis[f] = function () {}; } } }
+        else for (const [k, fn] of Object.entries(what)) { const v = fn(SETTINGS[k]); if (v !== null) { undo.push(['S:' + k, SETTINGS[k]]); SETTINGS[k] = v; } } };
+      const on = () => { for (const [f, v] of undo) if (f.startsWith('S:')) SETTINGS[f.slice(2)] = v; else globalThis[f] = v; };
+      const A = [], B = []; // off and on in turn, twice: the scene drifts as you play, so each off is weighed against the on beside it
+      for (let r = 0; r < 2; r++) { off(); if (!undo.length) break; await meas(150); B.push(await meas(420)); on(); await meas(150); A.push(await meas(420)); }
+      if (!B.length) continue;
+      const ms = mean(A) - mean(B), noise = (Math.max(...A) - Math.min(...A) + Math.max(...B) - Math.min(...B)) / 2; // how much the same thing measured twice moved
+      out.push({ label, hint, ms: Math.max(0, ms), base: mean(A), noise });
     }
   } finally { PERF.ab = false; btn.disabled = false; }
   out.sort((a, b) => b.ms - a.ms); PERF.abRes = out;
   const top = Math.max(1, out[0] ? out[0].ms : 1), base = out.length ? out.reduce((a, r) => a + r.base, 0) / out.length : 0;
   box.innerHTML = `<div class="prow phd"><span>What each part costs here</span><span>ms</span><span></span></div>` + out.filter(r => r.ms >= .3).slice(0, 8).map(r =>
-    `<div class="prow"><span class="pn" title="${r.hint ? 'Change it in Settings › ' + r.hint : ''}"><i class="o"></i>${r.label}${r.hint ? `<em>${r.hint}</em>` : ''}</span><span class="pv">${r.ms.toFixed(1)}</span><span class="pp">${Math.round(r.ms / Math.max(1, base) * 100)}%</span><b class="pb ab" style="width:${(r.ms / top * 100).toFixed(1)}%"></b></div>`).join('')
+    `<div class="prow"><span class="pn" title="${r.hint ? 'Change it in Settings › ' + r.hint : ''}"><i class="o"></i>${r.label}${r.hint ? `<em>${r.hint}</em>` : ''}</span><span class="pv"${r.ms < r.noise * 1.5 ? ' title="Unsure: measured twice, it moved about this much by itself"' : ''}>${r.ms.toFixed(1)}${r.ms < r.noise * 1.5 ? '?' : ''}</span><span class="pp">${Math.round(r.ms / Math.max(1, base) * 100)}%</span><b class="pb ab" style="width:${(r.ms / top * 100).toFixed(1)}%"></b></div>`).join('')
     + (out.some(r => r.ms >= .3) ? '' : `<div class="ph1"><span>${base < 18 ? 'Running at your screen\'s refresh rate: nothing here is holding it back.' : 'Nothing stood out: every part costs under 0.3 ms on this device.'}</span></div>`);
 }
 /* ---- THIS RUN: always recorded (a few comparisons a frame), so the pause screen can say what made it lag even with the

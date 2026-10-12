@@ -87,6 +87,7 @@ function updateSnake(dt) {
   const stunK = MOD.quickRecovery ? 2 : MOD.heavyImpact ? .5 : 1; // Quick recovery / Heavy impact: dazes wear off twice as fast, or half as fast (Battle Hardened makes them shorter to begin with: smashObstacle, detonate)
   if (s.wallStun > 0) { const k = s.wallStun / (s.wallMax || 3.4); s.wallStun -= dt * stunK; s.angle += (Math.sin(T * 4.7) * 1.5 + Math.sin(T * 2.3 + 1.3)) * k * dt; } // seeing stars: it can't hold a line
   for (const k of ['dashT', 'camoT', 'hissT', 'ramT', 'boomT']) if (s[k] > 0) s[k] -= dt * (k === 'ramT' || k === 'boomT' ? stunK : 1);
+  if (s === snake && s.camoT > 0) abilCD.camo = Math.max(abilCD.camo || 0, T + s.camoT + abilCd('camo')); // Camouflage recharges from when you're seen again, not from when it went on
   if (s.camoT > 0) { const turning = Math.abs(angDiff(s.angle, s.dir)) > .05 || s.dashT > 0; s.still = clamp((s.still || 0) + (turning ? -dt * (sk('phantom') ? 1.2 : 4) : dt * 1.1), 0, 1); } else s.still = 0; // camouflage settles in on a straight line
   const dk = s.dashT > 0 ? s.dashK || 1.8 : 1; s.dashV = dk >= (s.dashV || 1) ? dk : 1 + ((s.dashV || 1) - 1) * Math.exp(-dt * 3.2); // lunge hits at once, then the speed bleeds off over about a second
   if (s.dashT > 0 && (s.wallStun > 0 || s.boomT > 0)) s.dashT = 0; // concussed: no lunging
@@ -302,7 +303,7 @@ function eatWorld(c, ang, amount, s) {
 }
 function eatReward(c, amount, ang) {
   const s = snake, sx = Math.cos(ang), sy = Math.sin(ang);
-  if (s.camoT > 0) s.camoT = Math.min(s.camoMax || 8, s.camoT + 1); // every kill while hidden keeps you hidden a second longer
+  if (s.camoT > 0 && s.camoExt > 0) { const a = Math.min(.5, s.camoExt); s.camoT += a; s.camoExt -= a; } // a kill while hidden keeps you hidden half a second longer, up to SKV.camoExt a use
   if (s.dashT > 0 && sk('pounce')) { abilCD.dash = Math.min(abilCD.dash || 0, T + 1.2); s.dashT = Math.max(s.dashT, .3); } // pounce: straight into the next one
   for (let k = 0; k < 14 * amount; k++) {
     const i = randi(0, Math.min(3, s.segs.length - 1)), g = s.segs[i], R = snakeRadius();
@@ -326,12 +327,12 @@ function eatReward(c, amount, ang) {
   const kxp = Math.round((c.def.human ? 12 : c.def.score * 4) * gold * rewardMult * mb.m * ph * fk * lifeK * cbK);
   crEat(c, pts, kxp); statEat(c); progressEat(c);
   const bx = Math.round((c.def.human ? 12 : c.def.score * 4) * gold * rewardMult * mb.m * lifeK * cbK), bc = Math.max(1, Math.round(c.def.score * .6 * gold * rewardMult * mb.m * cbK)); // the meal's own reward, before any perk (Blood Debt doubles only this)
-  const fkC = (c.golden ? SKV.goldChipK() : 1) * SKV.streakChipK(undefined, s.chainN); // the same perks' cut of the chips (bigger than of the XP, which is levelling)
-  const paid = gainXP(kxp, Math.max(1, Math.round(c.def.score * .6 * gold * rewardMult * mb.m * fkC * cbK)) * (lucky ? 2 : 1));
+  const fkC = SKV.streakChipK(undefined, s.chainN), gc = c.golden ? SKV.goldChips() / CHIP_GAIN : 0; // Hot Streak's cut of the chips (bigger than of the XP, which is levelling); Golden Touch's set chips on top (gainXP takes CHIP_GAIN off again)
+  const paid = gainXP(kxp, Math.max(1, Math.round(c.def.score * .6 * gold * rewardMult * mb.m * cbK)) * fkC * (lucky ? 2 : 1) + gc); // the meal's chips rounded as always, the perks' share exact (gainXP carries the fraction), so a small bonus on a small kill isn't rounded away
   bdMeal(bx, bc, paid); // Blood Debt: after the ordinary pay, never before it (38-upgrades)
-  if (lucky) notify({ kind: 'info', icon: '◆', title: 'Lucky bite', right: 'x2 chips', dur: 1.3, key: 'lucky' });
+  if (lucky) worldWord(s.x, s.y, 'LUCKY BITE', 'x2 chips', '#ffd86a', 'lucky'); // (in the world, where it happened)
   lustRefund(); windRefund(); // Bloodlust, Second Wind: every target you eat takes a little off the abilities still recharging (cdRefund caps them)
-  studyHit(c.golden ? 'golden' : c.def.human ? 'person' : 'animal'); if (combo.n >= 10) studyHit('combo'); // Quick Study
+  studyHit('eat:' + c.type); if (c.golden) studyHit('golden'); if (combo.n >= 10) studyHit('combo'); if (s.dashT > 0) studyHit('lunge'); if (s.camoT > 0) studyHit('hidden'); // Quick Study: each kind of thing eaten is its own first
   modHud();
   killFx(c.x, c.y, amount);
   shake = Math.min(CONFIG.shakeMax * .4, shake + .5 + 2.5 * amount); // just a nudge: the hit is felt on the target, not the camera

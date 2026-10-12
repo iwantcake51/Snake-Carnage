@@ -27,6 +27,7 @@ function spawnGiblets(c, dirA) {
 const FLESH_TILE = new Map(), FLESH_PAT = new WeakMap();
 function fleshTile(col) {
   let c = FLESH_TILE.get(col); if (c) return c;
+  if ((c = artTile('meat', col, 32))) { FLESH_TILE.set(col, c); return c; } // your own (03h-art)
   const N = 32, [r, g, b] = rgbOf2(col), fat = tileNoise(N, 4, 21), grain = tileNoise(N, 8, 23, 2), fleck = tileNoise(N, 16, 27, 1);
   c = document.createElement('canvas'); c.width = c.height = N; const x = c.getContext('2d'), im = x.createImageData(N, N), d = im.data;
   for (let i = 0; i < N * N; i++) {

@@ -28,6 +28,6 @@ function cineTick(dt) {
   V.dark = ease(V.dark, want.dark, 9, 3); V.blast = ease(V.blast, want.blast, 30, 2.2); V.gas = ease(V.gas, want.gas, 2.5, 1.5); V.fire = ease(V.fire, want.fire, 6, 2.5);
   const t = performance.now() / 1000;
   const op = { dark: Math.min(.85, V.dark * .8 + V.blast * .25) * soft, blast: Math.min(.9, V.blast * .95) * soft, gas: V.gas * (calm ? .5 : .42 + .12 * Math.sin(t * 1.7)), fire: V.fire * (calm ? .5 : .45 + .1 * Math.sin(t * 13) * Math.sin(t * 7.3)) * soft };
-  for (const k in op) { const v = Math.round(clamp(op[k], 0, 1) * 100) / 100; if (C.set[k] !== v) { C.set[k] = v; C.L[k].style.opacity = v; } }
+  for (const k in op) { const v = Math.round(clamp(op[k], 0, 1) * 100) / 100; if (C.set[k] !== v) { C.set[k] = v; C.L[k].style.opacity = v; C.L[k].style.visibility = v ? 'visible' : 'hidden'; } } // (a layer at nothing isn't there at all: four stage-size layers otherwise still cost the compositor)
 }
 (function cineLoop() { let last = performance.now(); const f = now => { const dt = Math.min(.1, (now - last) / 1000); last = now; try { cineTick(dt); } catch (e) {} requestAnimationFrame(f); }; requestAnimationFrame(f); })();

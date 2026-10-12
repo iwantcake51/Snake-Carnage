@@ -284,7 +284,7 @@ function checkRotation() { // reroll every 15 minutes (never mid-run: a run keep
   if (state === 'paused' && overlay.style.display !== 'none' && overlay.querySelector('.pause')) { const pc = overlay.querySelector('.pch'); if (pc) pc.innerHTML = challengeRows(); } // refresh in place, never open it
 }
 function checkChallenges() {
-  if (state !== 'play' && state !== 'dead') return;
+  if ((state !== 'play' && state !== 'dead') || progHold) return; // (nor in an editor play test)
   const m = MAPS[mapIdx].name, list = activeChallenges(m);
   const done = PROG.chDone[m] = PROG.chDone[m] || {}, best = PROG.chBest[m] = PROG.chBest[m] || {};
   for (const ch of list) {
@@ -296,7 +296,7 @@ function checkChallenges() {
     PROG.chTotal = (PROG.chTotal || 0) + 1; PROG.chMaps = [...new Set([...(PROG.chMaps || []), m])]; // lifetime, for achievements
     if (ch.tier === 'rare' && !MAPS[mapIdx].custom) PROG.chXMaps = [...new Set([...(PROG.chXMaps || []), m])]; // World Eater: an Extreme one, on a built-in map
     (run.chList = run.chList || []).push({ name: ch.name, tier: ch.tier, t: ch.t, got: `${Math.min(v, ch.n * 9)}${chUnit(ch)} of ${ch.n}${chUnit(ch)}`, at: run.time, xp: Math.round(r.xp * rewardMult), chips: chipShow(r.chips * rewardMult), bonus: r.bonus || 0 });
-    challengePopup(ch, r); gainXP(Math.round(r.xp * rewardMult * SKV.taskK()), Math.round(r.chips * rewardMult * SKV.taskChipK())); studyHit('challenge'); // Taskmaster, Quick Study
+    challengePopup(ch, r); gainXP(Math.round(r.xp * rewardMult * SKV.taskK()), Math.round(r.chips * rewardMult) * SKV.taskChipK()); studyHit('challenge'); // Taskmaster, Quick Study
   }
   checkPermChallenges();
   saveProg();

@@ -281,6 +281,10 @@ function propCached(x, o, draw) {
   PK_CACHE.set(key, e); // (the most recently used last)
   x.drawImage(e.c, e.bx, e.by, e.w, e.h);
 }
+function artPropDraw(x, o, im) { // a prop's own picture over its box: the box is the picture's middle 60%, the rest room for anything that reaches past it
+  const [bx, by, bw, bh] = o.t === 'r' ? [o.x, o.y, o.w, o.h] : [o.x - o.r, o.y - o.r, o.r * 2, o.r * 2], m = ART_FRAME.propMargin;
+  x.drawImage(im, bx - bw * m, by - bh * m, bw * (1 + 2 * m), bh * (1 + 2 * m));
+}
 function drawObstacle(x, o) {
   drawObstacleBase(x, o);
   if (o.cracked) { const r = seeded(Math.round(o.x * 5 + o.y * 3)), cx = o.t === 'r' ? o.x + o.w / 2 : o.x, cy = o.t === 'r' ? o.y + o.h / 2 : o.y, R = o.t === 'r' ? Math.min(o.w, o.h) * .5 + 6 : o.r; // cracks from a neighbour's hit
@@ -288,6 +292,7 @@ function drawObstacle(x, o) {
 }
 function drawObstacleBase(x, o) {
   const c = o.color, k = o.kind;
+  if (k !== 'tree' && k !== 'bush' && k !== 'water') { const im = artProp(o); if (im) return artPropDraw(x, o, im); } // your own picture of this kind (03h-art); trees are their canopy's (buildCanopy)
   if (k === 'water') return drawWater(x, o, 0); // static version (thumbnails); the animated copy is drawn every frame
   if (o.t === 'c') {
     if (k === 'chess') return propCached(x, o, g => drawChess(g, o, c));
@@ -500,10 +505,10 @@ function drawBox(x, o, c, k) { // the props in a box
       K.box(bx - 3, y0 + 1.2, 4, D - 2.4, shade(col, .25), { r: 1.4, sh: 1.2 }); bf(); K.edge(shade(col, -.45), .6); }); return; // the turned-back edge
     case 'console': // a console: a steel desk of screens (each its own color) and rows of little lit buttons
       K.metal(X, Y, w, h, c, true, { r: 1.6 });
-      for (let p = X + 6; p < X + w - 14; p += 22) { const col = CONSOLE_LIGHTS[Math.floor(p / 22) % 4];
+      for (let p = X + 6; p < X + w - 14; p += 22) { const col = CONSOLE_LIGHTS[(Math.floor(p / 22) % 4 + 4) % 4];
         K.box(p, Y + 4, 18, h - 8, '#0f1a1e', { r: 1.2, bev: .7 }); K.box(p + 2, Y + 6, 14, h - 14, col, { r: .5, bev: 0, ec: 0, fill: K.lin(0, Y + 6, 0, Y + h - 8, [[0, shade(col, .25)], [1, shade(col, -.35)]]) });
         x.fillStyle = 'rgba(0,0,0,.28)'; for (let q = Y + 8; q < Y + h - 9; q += 2.2) x.fillRect(p + 3, q, 6 + R() * 6, .6);
-        for (let q = 0; q < 3; q++) K.disc(p + 4 + q * 5, Y + h - 6.2 + (h > 22 ? 0 : 1), .9, CONSOLE_LIGHTS[(q + Math.floor(p / 22)) % 4], { ec: 'rgba(0,0,0,.5)', ew: .3 }); }
+        for (let q = 0; q < 3; q++) K.disc(p + 4 + q * 5, Y + h - 6.2 + (h > 22 ? 0 : 1), .9, CONSOLE_LIGHTS[((q + Math.floor(p / 22)) % 4 + 4) % 4], { ec: 'rgba(0,0,0,.5)', ew: .3 }); }
       return;
     case 'cryo': // a cryo tube: a steel frame round a frosted glass capsule, a shape asleep inside, pipes in at the top
       K.metal(X, Y, w, h, '#5b6b72', false, { r: 3 });

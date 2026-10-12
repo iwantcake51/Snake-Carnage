@@ -164,6 +164,7 @@ const TIPS = [
   { id: 'mask', air: 1, t: 'In gas you can\'t make out outlines or bomb markers. The Gas Mask skill keeps them readable.' },
   { id: 'm-airRaid', t: 'Shell Shock: the siren starts at once and the guns join in 15 seconds. Keep moving.', mod: 'airRaid', first: 2 },
   { id: 'm-lockOn', t: 'Locked on: every bomb marker slides after you for a moment. Turn hard once it\'s set.', mod: 'lockOn', first: 2 },
+  { id: 'm-unmarked', t: 'Unmarked payloads: every bomb looks plain. Steer clear as if each one were fire, gas or a cluster.', mod: 'unmarked', first: 2 },
   { id: 'm-fuse', t: 'Dead man\'s switch: the bomb ticks down with your combo. Keep eating or it goes off.', mod: 'fuse', first: 2 },
   { id: 'm-enchained', t: 'Enchained: when one of you goes down, the whole chain goes with them.', mod: 'enchained', first: 2 },
   // about one map (or a few): only on that built-in map

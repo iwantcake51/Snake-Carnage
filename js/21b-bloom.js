@@ -13,7 +13,7 @@ function glowEmitters(o) { // [cx, cy, w, h, color, strength] for each glowing p
   if (o.whole) { const q = { ...o, ...o.whole, whole: null }; return glowEmitters(q).filter(([cx, cy]) => cx >= o.x && cx < o.x + o.w && cy >= o.y && cy < o.y + o.h); } // a section of a long console: the lights on its own slice
   const out = [], { x: X, y: Y, w, h } = o;
   switch (o.kind) {
-    case 'console': for (let q = X + 6; q < X + w - 14; q += 22) out.push([q + 9, Y + h / 2 - 1, 14, h - 14, CONSOLE_LIGHTS[Math.floor(q / 22) % 4], .9]); break; // the same panels 09-obstacles draws
+    case 'console': for (let q = X + 6; q < X + w - 14; q += 22) out.push([q + 9, Y + h / 2 - 1, 14, h - 14, CONSOLE_LIGHTS[(Math.floor(q / 22) % 4 + 4) % 4], .9]); break; // the same panels 09-obstacles draws
     case 'desk': if (!o.reception) { const my = o.flip ? Y + 6 : Y + h - 12; for (const f of [.27, .73]) out.push([X + w * f, my + 2.5, 16, 3, '#5a8ad0', .75]); } break; // monitors
     case 'generator': out.push([X + w - 10, Y + 8, 8, 8, '#e8b326', .8]); break;
     case 'reactor': out.push([o.x, o.y, o.r * .9, o.r * .9, '#9dffd8', 1]); break;

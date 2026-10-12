@@ -68,7 +68,7 @@ const SKILL_TREE = [
     desc: 'The 3rd Eye also leads you to big crowds.', fx: [['Focus cooldown', g => SKV.focusCd(g), secs]] },
   // ---- Survival, stealth: Camouflage ----
   { id: 'camo', br: 'surv', major: 1, abil: 1, name: 'Camouflage', icon: 'camo', cost: [2], req: [], x: 390, y: 880,
-    desc: 'Turn nearly invisible. Hidden kills are silent and keep you hidden longer.', fx: [['Hidden for', g => SKV.camoDur(g), secs], ['Cooldown', g => SKV.camoCd(g), secs]] },
+    desc: 'Turn nearly invisible. Hidden kills are silent and keep you hidden a little longer. It recharges once you\'re seen.', fx: [['Hidden for', g => SKV.camoDur(g), secs], ['Hidden kills add, at most', g => SKV.camoExt(g), secs], ['Cooldown, once seen', g => SKV.camoCd(g), secs]] },
   { id: 'cover', br: 'surv', name: 'Deep Cover', icon: 'cover', cost: [1, 2, 3], req: [['camo', 1]], x: 390, y: 720,
     ranks: ['Hidden 1.5 s longer', 'Recharges 3 s faster', '12% faster while hidden'],
     desc: 'A better Camouflage: longer, then quicker to recharge, then faster while hidden.', fx: [['Hidden for', g => SKV.camoDur(g), secs], ['Cooldown', g => SKV.camoCd(g), secs], ['Speed while hidden', g => SKV.camoSpeed(g) * 100 - 100, pct]] },
@@ -99,11 +99,11 @@ const SKILL_TREE = [
   { id: 'lucky', br: 'fort', name: 'Lucky Bite', icon: 'lucky', cost: [1, 2, 3], req: [], x: 2260, y: 880,
     desc: 'Kills can pay double chips.', fx: [['Chance of double chips', g => SKV.luckyP(g) * 100, n => Math.round(n) + '%']] },
   { id: 'streak', br: 'fort', name: 'Hot Streak', icon: 'streak', cost: [1, 2, 3], req: [['lucky', 1]], x: 2260, y: 720,
-    desc: 'Quick chains of kills pay more XP and chips.', fx: [['5 kills in a row: XP', g => (SKV.streakK(g, 5) - 1) * 100, pct], ['5 kills in a row: chips', g => (SKV.streakChipK(g, 5) - 1) * 100, pct]] },
+    desc: 'Quick chains of kills pay more XP and chips.', fx: [['Chips, each kill in a chain', g => (SKV.streakChipK(g, 1) - 1) * 100, pct], ['5 kills in a row: chips', g => (SKV.streakChipK(g, 5) - 1) * 100, pct], ['5 kills in a row: XP', g => (SKV.streakK(g, 5) - 1) * 100, pct]] },
   { id: 'midas', br: 'fort', major: 1, name: 'Golden Touch', icon: 'midas', cost: [3], lvl: 12, inv: 5, req: [['streak', 1]], x: 2260, y: 560,
-    desc: 'Golden targets pay 50% more XP and three times the chips.', fx: [['Golden targets: XP', g => (SKV.goldK(g) - 1) * 100, pct], ['Golden targets: chips', g => SKV.goldChipK(g), n => 'x' + n]] },
+    desc: 'Golden targets pay 50% more XP and 30 extra chips.', fx: [['Golden targets: XP', g => (SKV.goldK(g) - 1) * 100, pct], ['Golden targets: extra chips', g => SKV.goldChips(g), n => '+' + n]] },
   { id: 'study', br: 'fort', name: 'Quick Study', icon: 'study', cost: [1, 1, 2, 2, 3], req: [], x: 2450, y: 880,
-    desc: 'Bonus chips the first time each run you do something new, like eating a golden target or surviving a near miss.', fx: [['Each new one pays', g => SKV.studyChips(g), n => Math.round(n) + ' chips']] },
+    desc: 'Bonus chips the first time each run you do something new: each kind of person or animal eaten, a golden target, a near miss, a lunge kill.', fx: [['Each new one pays', g => SKV.studyChips(g), n => Math.round(n) + (Math.round(n) === 1 ? ' chip' : ' chips')]] },
   { id: 'taskmaster', br: 'fort', name: 'Taskmaster', icon: 'taskmaster', cost: [1, 2, 3], req: [['study', 1]], x: 2450, y: 720,
     desc: 'Challenges pay more XP and chips.', fx: [['Challenge XP', g => (SKV.taskK(g) - 1) * 100, pct], ['Challenge chips', g => (SKV.taskChipK(g) - 1) * 100, pct]] },
   { id: 'daredevil', br: 'fort', name: 'Daredevil', icon: 'daredevil', cost: [1, 2, 3], req: [['taskmaster', 1]], x: 2450, y: 560,
@@ -113,9 +113,9 @@ const SKILL_TREE = [
   { id: 'haggler', br: 'fort', name: 'Haggler', icon: 'haggler', cost: [1, 2, 3], req: [['pockets', 2]], x: 2640, y: 720,
     desc: 'Lower shop prices.', fx: [['Shop prices', g => (SKV.shopK(g) - 1) * 100, pct]] },
   { id: 'windfall', br: 'fort', major: 1, name: 'Windfall', icon: 'windfall', cost: [3], lvl: 14, inv: 6, req: [['haggler', 1]], x: 2640, y: 560,
-    desc: 'Double chips from leveling up.', fx: [['Next level-up bonus', g => (15 + (PROG.level + 1) * 3) * SKV.windK(g), n => Math.round(n) + ' chips']] },
+    desc: 'Level-ups pay 80% more chips.', fx: [['Next level-up bonus', g => Math.round((15 + (PROG.level + 1) * 3) * CHIP_GAIN * SKV.windK(g)), n => n + ' chips']] },
   { id: 'interest', br: 'fort', major: 1, name: 'Compound Interest', icon: 'interest', cost: [4], lvl: 22, inv: 12, req: [['windfall', 1]], x: 2640, y: 400,
-    desc: 'After a run of 3+ minutes, get 15% of the chips it earned again (max 200).', fx: [['Paid after a run', g => g('interest') ? 15 : 0, n => n ? n + '% of its chips' : 'Nothing']] },
+    desc: 'After a run of 3+ minutes, get 18% of the chips it earned again (max 200).', fx: [['Paid after a run', g => g('interest') ? Math.round(INTEREST_K * 100) : 0, n => n ? n + '% of its chips' : 'Nothing']] },
 ];
 for (const n of SKILL_TREE) n.max = n.cost.length;
 const SKN = Object.fromEntries(SKILL_TREE.map(n => [n.id, n]));
@@ -185,6 +185,11 @@ if (PROG.treeV < 7) { // tree v7: the perks balanced on what they pay for a toke
   if (qs) PROG.respecs = 0; PROG.treeV = 7; saveProg();
   if (qs || back) setTimeout(() => notify({ kind: 'info', icon: giSvg('study'), title: 'Perks rebalanced', sub: [qs ? 'Quick Study pays less now, so your next tree reset is free' : '', back ? `Second Wind is cheaper: ${back} token${back === 1 ? '' : 's'} back` : ''].filter(Boolean).join('. ') + '.', dur: 8, key: 'treev7' }), 3200);
 }
+if (PROG.treeV < 8) { // tree v8: every Fortune perk rebalanced to pay about the same for its tokens at a player's pace (no prices changed, so nothing to hand back); some ranks pay less than they did, so anyone with Fortune ranks gets their next tree reset free to spend them again
+  const had = SKILL_TREE.some(n => n.br === 'fort' && (PROG.tree[n.id] | 0) > 0);
+  if (had) PROG.respecs = 0; PROG.treeV = 8; saveProg();
+  if (had) setTimeout(() => notify({ kind: 'info', icon: giSvg('pockets'), title: 'Fortune rebalanced', sub: 'Every Fortune perk now pays about the same for its tokens, so your next tree reset is free.', dur: 8, key: 'treev8' }), 3400);
+}
 /* LEVEL_V: bump it by one whenever the levelling changes (the XP curve, what pays XP, tokens per level). Every save then starts
    over at level 1 with no XP and an empty skill tree (its tokens came from those levels), so old and new progress never mix.
    Chips, cosmetics, achievements and records are kept. */
@@ -201,6 +206,7 @@ const sk = id => { const n = SKN[id]; if (!n || MOD.noUpgrades || (MOD.noAbiliti
 /* Every number the tree changes. g(id) is a rank: sk in play, a "what if" rank in the details panel. Each table lists every rank's
    value in full ([rank 0, rank 1, ...]), the last one included: what the panel shows is exactly what you get, nothing on top. */
 const rk = (a, r) => a[Math.max(0, Math.min(a.length - 1, r | 0))];
+const INTEREST_K = .18; // Compound Interest: this share of what a run earned, paid again after it
 const SKV = {
   speed: (g = sk) => 1 + rk([0, .05, .1, .15, .2, .25], g('speed')),
   turn: (g = sk) => 1 + rk([0, .15, .3, .45], g('sidewind')), // capped at +45%
@@ -212,6 +218,7 @@ const SKV = {
   focusDur: (g = sk) => 1.2 + rk([0, .27, .54, .9], g('keen')),
   focusCd: (g = sk) => 16 - 3 * g('gold') - 3 * g('crowd'),
   camoDur: (g = sk) => 4 + (g('cover') >= 1 ? 1.5 : 0), // Deep Cover I
+  camoExt: () => 2, // the most hidden kills can add to one use (0.5 s each): eating can't keep you hidden for good
   camoCd: (g = sk) => 14 - (g('cover') >= 2 ? 3 : 0) - 2 * g('phantom'), // Deep Cover II, Phantom
   camoSpeed: (g = sk) => 1 + (g('cover') >= 3 ? .12 : 0), // Deep Cover III
   phantomDrain: (g = sk) => g('phantom') ? .4 : 1, // how fast the combo drains while you're hidden
@@ -235,32 +242,37 @@ const SKV = {
   fireSpeed: (g = sk) => 1 + rk([0, .5], g('firewalk')), // Firewalker: faster while burning (in the fire, or still alight after)
   heatK: (g = sk) => 1 - rk([0, .15, .25, .35], g('heat')), // Heat Resistant: how often burn ticks come (0.65 = 35% fewer)
   // Fortune: rewards are yours alone, so these always read your own tree (never another player's in co-op)
-  studyChips: (g = skMe) => rk([0, 2, 4, 6, 8, 10], g('study')), // Quick Study: chips for each different thing done in a run (about five a run: it outpaid the whole branch at 16)
-  chipK: (g = skMe) => 1 + rk([0, .05, .1, .15, .2, .25], g('pockets')),
+  // Every Fortune rank pays about 6 chips a typical run for each token it costs, the three gated at the top about 8 (tree v8): a bot held to a
+  // player's pace (12 kills a minute, 7-minute runs) earns about 75 chips from kills, 60 from map challenges, 20 from near misses, 25 for
+  // surviving and 30 from level-ups, and does about 6.5 different things for Quick Study; each rank's effect grows with its price
+  studyChips: (g = skMe) => rk([0, 1, 2, 4, 6, 9], g('study')), // Quick Study: chips for each different thing done in a run
+  chipK: (g = skMe) => 1 + rk([0, .03, .07, .13, .2, .3], g('pockets')), // Deep Pockets
   streakK: (g = skMe, n = 0) => 1 + .02 * g('streak') * Math.min(5, n), // n: how many kills in a row, each within 3 s of the last (Hot Streak): the XP
-  streakChipK: (g = skMe, n = 0) => 1 + .035 * g('streak') * Math.min(5, n), // ...and the chips, a bigger cut (Fortune's perks are balanced on chips; their XP is levelling and stays put)
-  luckyP: (g = skMe) => .1 * g('lucky'), // Lucky Bite: 10/20/30% of kills pay double chips
+  streakChipK: (g = skMe, n = 0) => 1 + rk([0, .1, .25, .5], g('streak')) * Math.min(5, n), // ...and the chips, each kill in the chain (Fortune's perks are balanced on chips; their XP is levelling and stays put)
+  luckyP: (g = skMe) => rk([0, .08, .25, .5], g('lucky')), // Lucky Bite: the chance a kill pays double chips
   goldK: (g = skMe) => g('midas') ? 1.5 : 1, // Golden Touch: golden targets' XP...
-  goldChipK: (g = skMe) => g('midas') ? 3 : 1, // ...and chips, three times over (there are only a couple a run)
-  shopK: (g = skMe) => 1 - .05 * g('haggler'),
+  goldChips: (g = skMe) => g('midas') ? 30 : 0, // ...and a set number of chips on top (about one a run, and its own chips are only a few)
+  shopK: (g = skMe) => 1 - rk([0, .03, .08, .15], g('haggler')), // Haggler (worth what you'd have to earn to make up the difference)
   taskK: (g = skMe) => 1 + .1 * g('taskmaster'), // Taskmaster: challenges' XP...
-  taskChipK: (g = skMe) => 1 + .2 * g('taskmaster'), // ...and chips
+  taskChipK: (g = skMe) => 1 + rk([0, .1, .3, .6], g('taskmaster')), // ...and chips
   nearK: (g = skMe) => 1 + .25 * g('daredevil'), // Daredevil: near misses' XP...
-  nearChipK: (g = skMe) => 1 + .7 * g('daredevil'), // ...and chips (a few a run, so a big share of each)
-  windK: (g = skMe) => g('windfall') ? 2 : 1,
-  interest: (g = skMe) => g('interest') && typeof run === 'object' && (run.aliveT || 0) >= 180 ? Math.min(200, Math.round(((run.coinsGained || 0) - (run.bd ? run.bd.uc : 0)) * .15)) : 0, // only from what this run earned, and only a run you lived 3 minutes in (no farming quick restarts)
+  nearChipK: (g = skMe) => 1 + rk([0, .3, .9, 1.8], g('daredevil')), // ...and chips (a few a run, so a big share of each; outdoors only, where the bombs are)
+  windK: (g = skMe) => g('windfall') ? 1.8 : 1, // Windfall: level-ups' chips
+  interest: (g = skMe) => g('interest') && typeof run === 'object' && (run.aliveT || 0) >= 180 ? Math.min(200, Math.round(((run.coinsGained || 0) - (run.bd ? run.bd.uc : 0)) * INTEREST_K)) : 0, // only from what this run earned, and only a run you lived 3 minutes in (no farming quick restarts)
 };
 const PRICE_K = 2.5; // the shop's prices: every listed price (catalog and custom colors) times this, to the nearest 5 (v1.84: everything was too cheap)
 const shopPrice = p => p > 0 ? Math.max(5, Math.round(p * PRICE_K * SKV.shopK() / 5) * 5) : 0; // Haggler (free things stay free)
 function payInterest() { // Compound Interest: once per run, on the run summary
   if (run.interestPaid) return; run.interestPaid = true; const n = SKV.interest(); if (!n) return;
-  gainXP(0, n, { net: true }); notify({ kind: 'info', icon: '◆', title: 'Compound Interest', right: `+${n} chips`, sub: '10% of what this run earned', dur: 2.4, key: 'interest' });
+  gainXP(0, n, { net: true }); notify({ kind: 'info', icon: '◆', title: 'Compound Interest', right: `+${n} chips`, sub: `${Math.round(INTEREST_K * 100)}% of what this run earned`, dur: 2.4, key: 'interest' });
 }
-const STUDY_KINDS = { person: 'Ate a person', animal: 'Ate an animal', golden: 'Ate a golden target', near: 'Survived a near miss', smash: 'Smashed something', challenge: 'Finished a challenge', combo: 'Reached a 10 combo', alive: 'Lived 5 minutes' };
-function studyHit(kind) { // Quick Study: the first time in a run you do each different thing, a few chips (yours only)
-  if (typeof run !== 'object' || !STUDY_KINDS[kind] || state === 'menu') return; const got = run.study || (run.study = {}); if (got[kind]) return;
-  const n = SKV.studyChips(); if (!n) return; got[kind] = 1; gainXP(0, n, { net: true });
-  notify({ kind: 'info', icon: giSvg('study'), title: 'Quick Study', sub: STUDY_KINDS[kind], right: `+${n} chips`, dur: 2, key: 'study' });
+const STUDY_KINDS = { golden: 'first golden target', near: 'first near miss', smash: 'first smash', challenge: 'first challenge', combo: 'first 10 combo', alive: '5 minutes alive', lunge: 'first lunge kill', hidden: 'first hidden kill' }; // and 'eat:<type>': the first of each kind of person or animal eaten
+const studyName = kind => kind.startsWith('eat:') ? (TYPES[kind.slice(4)] ? 'first ' + typeName(kind.slice(4), 1) : '') : STUDY_KINDS[kind];
+function studyHit(kind) { // Quick Study: the first time in a run you do each different thing, a few chips (yours only); shown in the world over your head
+  if (typeof run !== 'object' || !studyName(kind) || state === 'menu') return; const got = run.study || (run.study = {}); if (got[kind]) return;
+  const n = SKV.studyChips(); if (!n) return; got[kind] = 1; gainXP(0, n, { net: true, quiet: state === 'play' });
+  if (state === 'play' && snake && snake.alive) worldWord(snake.x, snake.y, 'QUICK STUDY', `+${n} chip${n === 1 ? '' : 's'} · ${studyName(kind)}`, '#9fd8ff');
+  else notify({ kind: 'info', icon: giSvg('study'), title: 'Quick Study', sub: studyName(kind), right: `+${n} chips`, dur: 2, key: 'study' }); // (five minutes alive is paid on the summary)
 }
 /* cooldown refunds (Bloodlust, Second Wind): only ever off a cooldown that's running right now, worked out on the cooldown after
    its modifiers (abilCd), each perk capped per use (Bloodlust half the cooldown, Second Wind a quarter) with anything over thrown away,
@@ -325,7 +337,8 @@ function bdHud() { // the small "BLOOD DEBT: X meals" pill above the ability bar
   el.dataset.tip = `Your next ${n} meal${n === 1 ? '' : 's'} pay their eating XP and chips twice, as long as the extra stays under 20% of what eating has paid you this run (past that, a meal pays as usual). ${actLeft ? `${actLeft} more time${actLeft === 1 ? '' : 's'} this run.` : 'Used up for this run.'}`;
   el.classList.remove('tick'); void el.offsetWidth; el.classList.add('tick');
 }
-function bdPopup(xp, chips, capped) { // a small dark-red chip under the usual rewards
+function bdPopup(xp, chips, capped) { // in the world over your head, dark red; a small chip under the usual rewards when there's no snake to show it on
+  if (state === 'play' && snake && snake.alive) return worldWord(snake.x, snake.y, 'BLOOD DEBT', xp || chips ? `+${xp} XP  +${chips} chips${capped ? ' (capped)' : ''}` : 'run cap reached', '#ff6a6a');
   const box = document.getElementById('rewards'); if (!box) return;
   const el = document.createElement('div'); el.className = 'rw bd';
   el.innerHTML = xp || chips ? `<span class="t">Blood Debt</span><span>+${xp} XP</span><span class="c">+${chips} <i class="pc"></i></span>${capped ? '<span class="t">capped</span>' : ''}` : '<span class="t">Blood Debt</span><span>run cap reached</span>';
@@ -348,7 +361,7 @@ const ABIL = { // cd/dur read the tree each time
   dash: { get cd() { return SKV.lungeCd(); }, get dur() { return SKV.lungeDur(); }, go(s) { s.dashT = this.dur; s.dashK = SKV.lungeK(); s.lk = Math.max(s.lk || 0, .25); Sfx.dash(); const k = sk('pounce') ? 240 : 160; camF.kv.x += Math.cos(s.angle) * k; camF.kv.y += Math.sin(s.angle) * k; } }, // Pounce: much faster, much shorter cooldown
   scent: { get cd() { return SKV.focusCd(); }, get dur() { return SKV.focusDur(); }, go(s) { // Focus: the world slows down (solo), and everyone near you lights up
     const now = performance.now(); FOCUS.t0 = now; FOCUS.until = now + this.dur * 1000; s.pingT = this.dur + 1.5; updateScent.t = 0; Sfx.focus(this.dur); } },
-  camo: { get cd() { return SKV.camoCd(); }, get dur() { return SKV.camoDur(); }, go(s) { s.camoT = this.dur; s.camoMax = this.dur + 4; Sfx.camo();
+  camo: { get cd() { return SKV.camoCd(); }, get dur() { return SKV.camoDur(); }, go(s) { s.camoT = this.dur; s.camoExt = SKV.camoExt(); Sfx.camo(); // (its cooldown only starts once you're seen again: 22-snake)
     if (AUTH()) for (const c of nearbyCreatures(s.x, s.y, 420, [])) if (c.alive && c.def.human) c.alert = Math.min(c.alert || 0, .2); } }, // anyone onto you loses you
   hoover: { get cd() { return SKV.hoovCd(); }, get dur() { return SKV.hoovDur(); }, go(s) {
     const lv = SKV.hoovLv(); s.hoovT = this.dur; s.hoovLv = lv; Sfx.vacuum(this.dur, Math.round(lv));
@@ -405,7 +418,7 @@ function abilityHud(rebuild) {
     refreshTouchAbilities();
   }
   for (const n of list) {
-    const left = Math.max(0, (abilCD[n.id] || 0) - T), k = left / abilCd(n.id);
+    const left = Math.max(0, (abilCD[n.id] || 0) - T), k = Math.min(1, left / abilCd(n.id)); // (full while Camouflage is still on: its cooldown waits for you to be seen)
     for (const host of [el, document.querySelector('#touch .tabil')]) {
       const b = host && host.querySelector(`[data-a="${n.id}"]`); if (!b) continue;
       b.classList.toggle('ready', k <= 0); b.style.setProperty('--cd', (k * 360).toFixed(0) + 'deg');
@@ -415,7 +428,7 @@ function abilityHud(rebuild) {
 function abilityTick() { // every frame: just slide the cooldown rings, so they sweep smoothly instead of ticking ten times a second
   for (const host of [document.getElementById('abil'), document.querySelector('#touch .tabil')]) {
     if (!host) continue;
-    for (const b of host.children) { const id = b.dataset.a, A = ABIL[id]; if (!A) continue; const k = Math.max(0, (abilCD[id] || 0) - T) / abilCd(id); b.style.setProperty('--cd', (k * 360).toFixed(2) + 'deg'); }
+    for (const b of host.children) { const id = b.dataset.a, A = ABIL[id]; if (!A) continue; const k = Math.min(1, Math.max(0, (abilCD[id] || 0) - T) / abilCd(id)); b.style.setProperty('--cd', (k * 360).toFixed(2) + 'deg'); }
   }
 }
 function refreshTouchAbilities() {

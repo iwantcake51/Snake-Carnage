@@ -135,19 +135,37 @@ function drawHumanBody(x, c) { // top-down person, +x = facing direction
   const run = c.state === 'panic' || c.state === 'flee', stride = (run ? 7.8 : 5.2) * (c.strideK || 1) * AN.walk.amp;
   const cp = Math.cos(c.phase) * c.moveAmt, l1 = Math.max(0, cp), l2 = Math.max(0, -cp); // the foot swinging forward lifts a little (bigger from above), the planted one stays flat
   const f1 = s * stride, f2 = -s * stride, y1 = -fy - l1 * .5, y2 = fy + l2 * .5;
-  drawLegs(x, L, -fy * .8, f1 * .5, -fy - l1 * .4, f1, y1, fy * .8, f2 * .5, fy + l2 * .4, f2, y2);
-  x.fillStyle = L.shoes; ell(x, f1 + 1.1, y1, 2.5 * (1 + l1 * .14), 1.7 * (1 + l1 * .1)); ell(x, f2 + 1.1, y2, 2.5 * (1 + l2 * .14), 1.7 * (1 + l2 * .1));
+  const A = artCreature(c); // your own pictures of this kind of person, part by part (03h-art): each moves exactly as the drawn one does
+  if (A && A.leg) { artLimb(x, A.leg, -.6, -fy * .8, f1, y1, 1); artLimb(x, A.leg, -.6, fy * .8, f2, y2, -1); }
+  else drawLegs(x, L, -fy * .8, f1 * .5, -fy - l1 * .4, f1, y1, fy * .8, f2 * .5, fy + l2 * .4, f2, y2);
+  if (A && A.foot) { artPart(x, A.foot, f1 + 1.1, y1, ART_FRAME.foot * (1 + l1 * .14), 1); artPart(x, A.foot, f2 + 1.1, y2, ART_FRAME.foot * (1 + l2 * .14), -1); }
+  else { x.fillStyle = L.shoes; ell(x, f1 + 1.1, y1, 2.5 * (1 + l1 * .14), 1.7 * (1 + l1 * .1)); ell(x, f2 + 1.1, y2, 2.5 * (1 + l2 * .14), 1.7 * (1 + l2 * .1)); }
   x.rotate(-s * .07); // shoulders twist against the hips
   if (run) x.translate(1.3 * c.moveAmt, 0); // leaning into the run: everything above the legs pitches forward
-  if (L.acc === 'backpack') { x.fillStyle = L.top2; rrect(x, -L.d - 3.4, -L.w * .55, 4.6, L.w * 1.1, 1.8); x.fill(); x.fillStyle = O; x.fillRect(-L.d - 2.4, -L.w * .45, 1, L.w * .9); }
-  // arms: sleeve at the shoulder, hand at the end
-  const sleeve = L.outfit === 'jacket' || L.outfit === 'blazer' ? L.top2 : L.outfit === 'vest' ? L.top : L.top;
-  for (const [ax, ay] of [[a1, b1], [a2, b2]]) {
-    x.fillStyle = sleeve;
-    if (L.sleeves === 'long') { x.strokeStyle = sleeve; x.lineWidth = 4.4; x.beginPath(); x.moveTo(0, ay * .86); x.lineTo(ax, ay); x.stroke(); }
-    else ell(x, ax * .35, ay * .9, 2.7, 2.5);
-    x.fillStyle = L.skin; circ(x, ax + (L.sleeves === 'long' ? .9 : 0), ay, 2);
+  // arms: sleeve at the shoulder, hand at the end (the left arm is the picture, the right one it mirrored)
+  for (const [ax, ay, sd] of [[a1, b1, 1], [a2, b2, -1]]) A && A.arm ? artPart(x, A.arm, ax, ay, ART_FRAME.arm, sd) : humanArm(x, L, ax, ay);
+  if (A && A.body) { // the torso and head, yours: over the arms, under the snow and the blood
+    const S = ART_FRAME.body(c.def.r); x.drawImage(A.body, -S / 2, -S / 2, S, S);
+    if (c.mouthBlood) { x.fillStyle = c.mouthCol || BLOOD; ell(x, 4.6, 0, 1.1, 1.8); }
+    return;
   }
+  humanTorso(x, c, a1, b1);
+}
+const humanSleeve = L => L.outfit === 'jacket' || L.outfit === 'blazer' ? L.top2 : L.top;
+function humanArm(x, L, ax, ay) { // one arm from above: the sleeve near the shoulder (or all the way down), the hand at (ax, ay)
+  const sleeve = humanSleeve(L); x.fillStyle = sleeve;
+  if (L.sleeves === 'long') { x.strokeStyle = sleeve; x.lineWidth = 4.4; x.lineCap = 'round'; x.beginPath(); x.moveTo(0, ay * .86); x.lineTo(ax, ay); x.stroke(); }
+  else ell(x, ax * .35, ay * .9, 2.7, 2.5);
+  x.fillStyle = L.skin; circ(x, ax + (L.sleeves === 'long' ? .9 : 0), ay, 2);
+}
+function artPart(x, im, px, py, size, side) { x.save(); x.translate(px, py); if (side < 0) x.scale(1, -1); x.drawImage(im, -size / 2, -size / 2, size, size); x.restore(); } // a picture centered on a point (side -1: mirrored, the other hand or foot)
+function artLimb(x, im, hx, hy, fx, fy, side) { // a picture laid from the hip to the foot, stretched to fit: its left edge is the hip
+  const [w, h] = ART_FRAME.leg, L = Math.hypot(fx - hx, fy - hy) + 2;
+  x.save(); x.translate(hx, hy); x.rotate(Math.atan2(fy - hy, fx - hx)); if (side < 0) x.scale(1, -1); x.drawImage(im, -1, -h / 2, L, h); x.restore();
+}
+function humanTorso(x, c, a1, b1) { // the body above the legs and arms: backpack, torso and clothes, bag, head, hair and hat
+  const L = c.look, O = 'rgba(0,0,0,.3)';
+  if (L.acc === 'backpack') { x.fillStyle = L.top2; rrect(x, -L.d - 3.4, -L.w * .55, 4.6, L.w * 1.1, 1.8); x.fill(); x.fillStyle = O; x.fillRect(-L.d - 2.4, -L.w * .45, 1, L.w * .9); }
   // torso + outfit
   const torso = L.outfit === 'jacket' || L.outfit === 'blazer' ? L.top2 : L.outfit === 'vest' ? '#f4d03f' : L.top;
   x.fillStyle = torso; ell(x, 0, 0, L.d, L.w);
@@ -361,9 +379,19 @@ const ANIMALS = {
   },
 };
 function drawAnimal(x, c) {
+  const A = artCreature(c); if (A && A.body) return artAnimal(x, c, A); // your own picture of it (03h-art)
   if (c.def.fly) return drawFirefly(x, c, c.def);
   const f = ANIMALS[c.type]; if (f) return f(x, c, c.def);
   body(x, c.def.bl || 6, c.def.bw || 4, c.def.col || '#888');
+}
+function artAnimal(x, c, A) { // an animal from your pictures: feet that step and a tail that wags if you've painted them (then leave them off the body), the body over them; the whole of it sways with each step as the drawn ones do (creaturePose)
+  const d = c.def, S = ANIMAL_SHAPE[c.type] || [d.bl || 6, d.bw || 4, 0, (d.bl || 6) * .85, d.hr || 3];
+  if (A.foot) { // in a trot, like feet(): diagonal pairs together, a swinging foot lifts
+    const m = c.moveAmt, st = 2.4 * m * AN.gait.amp, sw = Math.sin(c.phase), lift = Math.cos(c.phase), fx = S[2] + S[0] * .55, bx = S[2] - S[0] * .55, wy = S[1] * .8;
+    for (const [px, y, dir] of [[fx, -wy, 1], [bx, wy, 1], [fx, wy, -1], [bx, -wy, -1]]) artPart(x, A.foot, px + sw * st * dir, y, ART_FRAME.foot * (1 + Math.max(0, lift * dir) * m * .22), y > 0 ? -1 : 1);
+  }
+  if (A.tail) { const [tw, th] = ART_FRAME.tail, w = Math.sin(animT('dogTail') * (c.state === 'wander' || c.state === 'idle' ? 6 : 16) + (c.seed ?? .5) * 30) * .35 * AN.dogTail.amp; x.save(); x.translate(S[2] - S[0] + 1, 0); x.rotate(w); x.drawImage(A.tail, -tw, -th / 2, tw, th); x.restore(); } // its root at the picture's right edge, the tail running back from it
+  const B = ART_FRAME.body(d.r); x.drawImage(A.body, -B / 2, -B / 2, B, B);
 }
 /* High lighting: fake ambient occlusion under everyone, and a volume pass so bodies read as round, lit from the top left */
 const hiFx = () => SETTINGS.lightQ === 'High' && !lowFx;
@@ -421,6 +449,7 @@ function hsl2hex(h, s, l) {
   return '#' + [f(0), f(8), f(4)].map(v => v.toString(16).padStart(2, '0')).join('');
 }
 function drawEyes(x, cfg, base) {
+  const im = ARTO.map.size && artImg('eyes/' + artName(cfg.eyes || 'Normal')), es = ART_FRAME.eyes; if (im) return x.drawImage(im, -es / 2, -es / 2, es, es); // your own picture of them (03h-art)
   const eyes = [[4.4, -3.3], [4.4, 3.3]], e = cfg.eyes;
   if (e === 'Shades') {
     x.fillStyle = '#111';

@@ -127,11 +127,21 @@ function skinTex(name, cfg) { // the texture canvas for this skin in these color
   if (TEX_CACHE.size >= 24) TEX_CACHE.delete(TEX_CACHE.keys().next().value);
   TEX_CACHE.set(key, c); return c;
 }
+function skinStrip(name, cfg) { // the skin unrolled flat, as its texture would be: left to right down the body from the nose (TEX.L body widths, then it repeats), top to bottom across it, the spine in the middle. A living skin's is its own texture; the others are painted onto a straight tube of even width and read off flat (Export art's template for painting a skin)
+  const sk = SNAKE_SKINS[name]; if (!sk) return null; if (sk.tex) return skinTex(name, cfg);
+  const n = 260, R = segR(2, n), sp = R * .5, pts = [], N = new Float64Array(n * 2), rad = new Float64Array(n);
+  for (let i = 0; i < n; i++) { pts.push({ x: i * sp, y: 0, a: Math.PI }); N[2 * i + 1] = 1; rad[i] = R; }
+  const F = skinFrame(pts, n, { N, rad, tr: R }), c = document.createElement('canvas'); c.width = TEX.w; c.height = TEX.h; const x = c.getContext('2d');
+  x.setTransform(TEX.ppu / R, 0, 0, TEX.h / (2 * TEX.v0) / R, 0, TEX.h / 2); // u body widths along, v across: the texture's own layout
+  for (let u = 0; u < TEX.L + 1; u += .25) { x.fillStyle = sk.base(u, cfg, TEX.L); x.fillRect(u * R, -2 * R, .25 * R + .05, 4 * R); }
+  if (sk.paint) try { sk.paint(x, F, -Infinity, Infinity, cfg); } catch (e) { console.warn('skin strip', name, e); }
+  return c;
+}
 function skinPattern(x, cfg) { // two patterns of the texture for this canvas (patterns are made per context), used turn about: each piece of the body
   // places one, then assigns it as the fill. Safari (its GPU canvas records state as it's set) keeps the placement a pattern had when it was
   // assigned, so moving a pattern that's already the fill does nothing there and every band got the first one's: the skins came out broken
-  const c = skinTex(cfg.pattern, cfg); let m = TEX_PAT.get(x); if (!m) TEX_PAT.set(x, m = new Map());
-  let p = m.get(c); if (!p) { if (m.size > 24) m.clear(); const res = SNAKE_SKINS[cfg.pattern].tex.res || 1; p = [x.createPattern(c, 'repeat'), x.createPattern(c, 'repeat')]; p.forEach(q => q.res = res); p.n = 0; m.set(c, p); }
+  const c = (ARTO.map.size && artSkin(cfg.pattern)) || skinTex(cfg.pattern, cfg); let m = TEX_PAT.get(x); if (!m) TEX_PAT.set(x, m = new Map());
+  let p = m.get(c); if (!p) { if (m.size > 24) m.clear(); const res = c.res || SNAKE_SKINS[cfg.pattern].tex.res || 1; p = [x.createPattern(c, 'repeat'), x.createPattern(c, 'repeat')]; p.forEach(q => q.res = res); p.n = 0; m.set(c, p); }
   return p;
 }
 const TEX_M = typeof DOMMatrix === 'function' ? new DOMMatrix() : null; // one matrix, refilled for every band: a real DOMMatrix works in every browser (and no new object a band, a frame)
@@ -470,7 +480,11 @@ function glassField(seed) { // Voronoi panes in body space, seamless down the bo
     o[5] = Math.pow(Math.max(0, 1 - sd / .2), 2) * (.25 + .75 * SKIN_H(k, seed + 7)); o[6] = lit;
   };
 }
-const skinOf = cfg => SNAKE_SKINS[cfg.pattern] || SNAKE_SKINS.Solid;
+const ART_SKIN = new Map();
+const skinOf = cfg => { // the skin, or, if you've painted its strip (03h-art), the same skin wearing your texture instead of its own markings
+  const s = SNAKE_SKINS[cfg.pattern] || SNAKE_SKINS.Solid, c = ARTO.map.size && artSkin(cfg.pattern); if (!c) return s;
+  let d = ART_SKIN.get(cfg.pattern); if (!d) ART_SKIN.set(cfg.pattern, d = { ...s, tex: { ...(s.tex || {}), res: c.res }, paint: null }); return d;
+};
 function segColor(i, n, cfg) { return skinOf(cfg).base(i * .9, cfg, n * .9); } // the skin's ground color at segment i, for code that wants one color (eyes, after-images)
 setTimeout(() => { // after loading, work the noise out in idle moments, one skin at a time, so the shop never stalls showing them
   const idle = f => window.requestIdleCallback ? requestIdleCallback(f, { timeout: 5000 }) : setTimeout(f, 300);

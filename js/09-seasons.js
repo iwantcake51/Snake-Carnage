@@ -142,8 +142,8 @@ function drawPlants(x) {
 /* ---- trees and bushes: trunk and branches are baked; leaves are cached sprites that sway ---- */
 const STAMPS = {}; // leaf clusters, built once per palette and brightness and reused everywhere
 function leafStamp(cols, lvl, v) { // one cluster: a shaded heart, then its leaves from the outside in, each a two-tone blade lit on the side facing the top-left
-  lvl = Math.round(lvl * 25) / 25; const key = cols.join() + lvl + ':' + v; if (STAMPS[key]) return STAMPS[key]; // (brightness in steps: a few dozen clusters serve every tree, not one per call)
-  const S = 26, c = document.createElement('canvas'); c.width = c.height = Math.ceil(S * SPR); const x = c.getContext('2d'); x.scale(SPR, SPR);
+  lvl = Math.round(lvl * 25) / 25; const key = cols.join() + lvl + ':' + v + (SPR_X ? '@' + SPR_X : ''); if (STAMPS[key]) return STAMPS[key]; // (brightness in steps: a few dozen clusters serve every tree, not one per call)
+  const S = 26, k = sprRes(), c = document.createElement('canvas'); c.width = c.height = Math.ceil(S * k); const x = c.getContext('2d'); x.scale(k, k);
   const r = seeded(500 + v * 7 + Math.round(lvl * 100)), C = S / 2;
   const g = x.createRadialGradient(C + 1, C + 1.2, 0, C + 1, C + 1.2, 10); g.addColorStop(0, 'rgba(14,22,8,.4)'); g.addColorStop(1, 'rgba(14,22,8,0)'); x.fillStyle = g; x.fillRect(0, 0, S, S); // the shade deep inside, so clusters read as clumps with gaps between them
   const L = []; for (let k = 0; k < 28; k++) { const a = r() * TAU, d = Math.sqrt(r()) * 8.5; L.push({ px: C + Math.cos(a) * d, py: C + Math.sin(a) * d, d, len: 2.5 + r() * 2, w: 1.05 + r() * .85, rot: r() * TAU, col: cols[Math.floor(r() * cols.length)], j: (r() - .5) * .14 }); }
@@ -158,8 +158,8 @@ function leafStamp(cols, lvl, v) { // one cluster: a shaded heart, then its leav
   return STAMPS[key] = c;
 }
 function needleStamp(cols, lvl, v) { // one pine branch tip seen from above: a fan of needles pointing outward
-  const key = 'pine' + cols.join() + lvl + ':' + v; if (STAMPS[key]) return STAMPS[key];
-  const S = 22, c = document.createElement('canvas'); c.width = c.height = Math.ceil(S * SPR); const x = c.getContext('2d'); x.scale(SPR, SPR);
+  const key = 'pine' + cols.join() + lvl + ':' + v + (SPR_X ? '@' + SPR_X : ''); if (STAMPS[key]) return STAMPS[key];
+  const S = 22, k = sprRes(), c = document.createElement('canvas'); c.width = c.height = Math.ceil(S * k); const x = c.getContext('2d'); x.scale(k, k);
   const r = seeded(500 + v * 13 + Math.round(lvl * 100)); x.lineCap = 'round';
   x.strokeStyle = shade(cols[0], lvl - .15); x.lineWidth = 1.4; x.beginPath(); x.moveTo(1, S / 2); x.lineTo(S * .9, S / 2); x.stroke(); // the twig
   for (let k = 0; k < 34; k++) { const t = .1 + r() * .85, px = S * t, py = S / 2, a = (r() < .5 ? -1 : 1) * (.5 + r() * .7), L = 3 + r() * 3.5 * (1 - t * .4);
@@ -167,7 +167,8 @@ function needleStamp(cols, lvl, v) { // one pine branch tip seen from above: a f
   return STAMPS[key] = c;
 }
 const SPR = Math.min(DPR, 1.6); // leaf textures are soft: they don't need the full screen resolution
-function makeSprite(S) { const c = document.createElement('canvas'); c.width = c.height = Math.ceil(S * SPR); const x = c.getContext('2d'); x.scale(SPR, SPR); return [c, x]; }
+let SPR_X = 0; const sprRes = () => SPR_X || SPR; // (the art export draws trees at its own size for a moment: 40h-asset-export)
+function makeSprite(S) { const k = sprRes(), c = document.createElement('canvas'); c.width = c.height = Math.ceil(S * k); const x = c.getContext('2d'); x.scale(k, k); return [c, x]; }
 function treeInfo(o) { // shape decided by position, so the same tree looks the same every run (only its season changes)
   if (o.tinfo) return o.tinfo;
   const r = seeded(Math.round(o.x * 31 + o.y * 17) + 5);
@@ -215,6 +216,7 @@ function buildLimbs(o, ti, full, r, sz, id) {
   return { limbs, hi, S, amp: 1 };
 }
 function buildCanopy(o) { // two sprite layers: an under layer and a lighter top layer that sways a little more
+  { const im = artProp(o); if (im) { const S = o.r * 2 * (1 + 2 * ART_FRAME.treeMargin), [lo, lx] = makeSprite(S), [hi] = makeSprite(2); lx.drawImage(im, 0, 0, S, S); return { lo, hi, S, amp: o.kind === 'bush' ? .35 : 1 }; } } // your own picture of it (03h-art): the whole tree, swaying as one
   const ti = treeInfo(o), R = o.r, S = R * 2 + 18, C0 = S / 2, r = seeded(ti.seed), id = seasonId(), sz = SZN();
   const [lo, lx] = makeSprite(S), [hi, hx] = makeSprite(S);
   const rad = a => R * (.86 + .14 * Math.cos(a * ti.lobes + ti.lobeA) + .05 * Math.sin(a * 3 + ti.ph));
@@ -264,6 +266,7 @@ function buildTrees() { // called on map load; obstacles keep their collision ci
   for (const o of obstacles) if (o.kind === 'tree' || o.kind === 'bush') { treeInfo(o); const key = `${o.kind}${o.x},${o.y},${o.r}:${seasonId()}${season && season.late ? 'L' : ''}`; if (!CANOPY.has(key)) { if (CANOPY.size > 260) CANOPY.clear(); CANOPY.set(key, buildCanopy(o)); } treeSprites.push({ o, ...CANOPY.get(key) }); }
 }
 function drawTrunk(x, o) { // baked: trunk and the main limbs, which show through thin canopies and in winter
+  if (artProp(o)) return; // (your own picture of the tree has its trunk in it)
   const ti = treeInfo(o), r = seeded(ti.seed + 3), sz = SZN(), bark = sz.bark, R = o.r;
   if (ti.pine) { x.fillStyle = 'rgba(30,40,25,.25)'; circ(x, o.x, o.y, R * .9); return; }
   if (o.kind === 'bush') { x.fillStyle = 'rgba(30,40,25,.18)'; circ(x, o.x, o.y, R * .8); return; }

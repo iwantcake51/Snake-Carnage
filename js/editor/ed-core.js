@@ -880,6 +880,10 @@ function edGizmoMove(d, sx, sy, wx, wy, e) {
     const k = edSnapScale(Math.max(.05, f)); if (d.part !== 'scly') kx = k; if (d.part !== 'sclx') ky = k; d.scale = k; }
   edApplyXf(d.start, { cx: g.cx, cy: g.cy, dx, dy, rot, kx, ky });
 }
+function edSideScale(rot, t) { // how much a turned object's width and height stretch under the gizmo's scale: each side's direction, scaled, and how long it comes out. A plain move or turn is exactly 1 (summing |cos| and |sin| here grew anything turned off the square, 41% at 45 degrees, on every drag)
+  if (t.kx === 1 && t.ky === 1) return [1, 1];
+  const r = (rot || 0) * Math.PI / 180, c = Math.cos(r), s = Math.sin(r); return [Math.hypot(c * t.kx, s * t.ky), Math.hypot(s * t.kx, c * t.ky)];
+}
 function edApplyXf(starts, t) { // move / rotate / scale every selected thing about the selection's centre, from their state at drag start
   const a = t.rot * Math.PI / 180, c = Math.cos(a), sn = Math.sin(a);
   const tp = (x, y) => { const u = (x - t.cx) * t.kx, v = (y - t.cy) * t.ky; return [t.cx + u * c - v * sn + t.dx, t.cy + u * sn + v * c + t.dy]; };
@@ -889,9 +893,8 @@ function edApplyXf(starts, t) { // move / rotate / scale every selected thing ab
     if (o0.poly) { o.poly = o0.poly.map(([x, y]) => tp(x, y).map(v => Math.round(v * 10) / 10)); polyBounds(o); if (o.tex) ED.floorDirty = true; return; }
     if (s.t === 'l') { [o.x, o.y] = tp(o0.x, o0.y); o.r = Math.max(10, Math.round(o0.r * (t.kx + t.ky) / 2)); return; }
     if (o0.t === 'c') { [o.x, o.y] = tp(o0.x, o0.y); o.r = Math.max(2, Math.round(o0.r * (t.kx + t.ky) / 2 * 2) / 2); if (t.rot) o.rot = (((o0.rot || 0) + t.rot) % 360 + 360) % 360; return; }
-    const [cx, cy] = tp(o0.x + o0.w / 2, o0.y + o0.h / 2), r0 = (o0.rot || 0) * Math.PI / 180, lc = Math.abs(Math.cos(r0)), ls = Math.abs(Math.sin(r0)); // scale along the object's own sides
-    const sw = lc * t.kx + ls * t.ky, sh = ls * t.kx + lc * t.ky;
-    o.w = Math.max(2, Math.round(o0.w * sw)); o.h = Math.max(2, Math.round(o0.h * sh)); o.x = cx - o.w / 2; o.y = cy - o.h / 2;
+    const [cx, cy] = tp(o0.x + o0.w / 2, o0.y + o0.h / 2), [sw, sh] = edSideScale(o0.rot, t); // scale along the object's own sides
+    if (sw !== 1 || sh !== 1) { o.w = Math.max(2, Math.round(o0.w * sw)); o.h = Math.max(2, Math.round(o0.h * sh)); } else { o.w = o0.w; o.h = o0.h; } o.x = cx - o.w / 2; o.y = cy - o.h / 2;
     o.rot = (((o0.rot || 0) + t.rot) % 360 + 360) % 360; if (!o.rot) delete o.rot; });
   edPanelVals();
 }

@@ -224,20 +224,22 @@ const MAPS = [
   {
     name: 'Open Field', icon: '🟩', border: '#5a8a36', start: { x: 300, y: 330, a: 0 }, times: { sunset: 2, evening: 2, night: 2.5 }, open: true,
     pop: [['human', 6], ['rabbit', 6], ['deer', 5], ['frog', 3]], fireflies: 22, walkers: 4, grass: 160, ground: fieldGround,
-    build: () => { // a mown hayfield: one farm track crossing it, a fence and gate along the top, a single old oak. Nowhere to hide.
-      const track = [[-10, 400], [160, 380], [330, 330], [500, 330], [660, 330], [800, 290], [970, 250]], spur = [[500, 330], [500, 220], [520, 120], [540, 16]];
+    build: () => { // a mown hayfield: one farm track crossing it, a fence and gate along the top, a single old oak, and one lamp by a bench where the spur leaves the track. Nowhere to hide.
+      const track = [[-10, 400], [160, 380], [338.5, 346], [498, 326], [660, 330], [834.5, 290.5], [970, 250]], spur = [[500, 330], [500, 220], [520, 120], [531, 62.5], [556, 17.5]];
+      const verge = [[531, 64.5], [345.5, 50], [99.5, 64.5], [-10, 54]]; // a path along the uncut verge beyond the fence, off the spur's top and out at the west edge (on a wide map it carries on to the strip's gate, 05b)
       return {
         obs: [R(16, 96, 470, 8, '#8b6b45', 'fence'), R(570, 96, 374, 8, '#8b6b45', 'fence'), // the field fence, with the gate the track runs through
-              TREE(760, 500, 34, '#3f7a2c'), C(200, 190, 13, '#e3c565', 'hay'), C(226, 206, 12, '#e3c565', 'hay')],
-        paths: [track, spur],
+              TREE(804, 444, 34, '#3f7a2c'),
+              LAMP(523, 313), R(445.75, 313.75, 40, 8, '#7a5a38', 'bench', { rot: 356.6 }), C(437.6, 319.4, 5, '#3a3a40', 'bin')], // a rest stop where the spur leaves the track
+        paths: [track, spur, verge],
         floor(x) {
           if (fieldGround(x)) {} else {
             checker(x, ...GRASS, 32);
             x.fillStyle = '#9cc148'; x.fillRect(16, 16, W - 32, 80); // the uncut verge beyond the fence
           }
-          dirtTrails(x, [[track, 20, 4], [spur, 16, 9]]);
+          dirtTrails(x, [[track, 20, 4], [spur, 16, 9], [verge, 16, 41]]);
           flowers(x, 120, ['#ffffff', '#ffe066', '#c9b6ff'], 21, 6);
-          { const g = x.createRadialGradient(760, 500, 20, 760, 500, 64); g.addColorStop(0, 'rgba(40,60,20,.26)'); g.addColorStop(1, 'rgba(40,60,20,0)'); x.fillStyle = g; x.fillRect(690, 430, 140, 140); } // the oak's dry patch, fading into the grass
+          { const g = x.createRadialGradient(804, 444, 20, 804, 444, 64); g.addColorStop(0, 'rgba(40,60,20,.26)'); g.addColorStop(1, 'rgba(40,60,20,0)'); x.fillStyle = g; x.fillRect(734, 374, 140, 140); } // the oak's dry patch, fading into the grass
         }
       };
     }

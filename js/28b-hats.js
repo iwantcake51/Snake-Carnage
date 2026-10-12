@@ -283,4 +283,4 @@ const HATS = {
     x.strokeStyle = 'rgba(70,55,30,.9)'; x.lineWidth = .7; x.beginPath(); x.moveTo(C0 + 5.3, -3.7); x.lineTo(C0 + 6.7, -2.5); x.lineTo(C0 + 5.7, -1.3); x.stroke(); // the crack
     x.save(); x.translate(C0 + 8, 3.6); x.rotate(.9 + Math.sin(T * 1.5) * .2); x.fillStyle = '#c8b06a'; x.fillRect(-1.2, -.5, 2.4, 1); x.restore(); }, // the bit that broke off, drifting
 };
-function drawHat(x, hat) { const f = HATS[hat]; if (!f) return; x.save(); f(hatKit(x)); x.restore(); }
+function drawHat(x, hat) { const f = HATS[hat]; if (!f) return; const im = ARTO.map.size && artImg('hats/' + artName(hat)), s = ART_FRAME.hat; if (im) return x.drawImage(im, -s / 2, -s / 2, s, s); x.save(); f(hatKit(x)); x.restore(); } // (your own picture of it, if you've painted one: 03h-art)
